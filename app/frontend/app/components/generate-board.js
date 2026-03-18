@@ -139,6 +139,12 @@ export default Component.extend({
     setForUserId(userId) {
       this.set('for_user_id', userId);
     },
+    setLocale(value) {
+      this.set('locale', value);
+    },
+    setLabelsOrder(value) {
+      this.set('labels_order', value);
+    },
     grid_event(action, row, col) {
       this.send(action, row, col);
     },

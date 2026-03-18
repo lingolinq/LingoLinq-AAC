@@ -17,6 +17,8 @@ export default Component.extend({
   persistence: service('persistence'),
   tagName: '',
   compactInline: false,
+  /** When true, hide "Make me a Supervisor" / supervisee CTA (e.g. dashboard supervisors modal). */
+  hideMakeSupervisorButton: false,
 
   init() {
     this._super(...arguments);

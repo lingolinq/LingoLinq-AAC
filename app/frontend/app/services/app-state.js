@@ -779,7 +779,12 @@ export default Service.extend({
   return_to_index: function() {
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      router.transitionTo('index');
+      var cu = this.get('currentUser');
+      if (cu && cu.get('user_name')) {
+        router.transitionTo('user.home', cu.get('user_name'));
+      } else {
+        router.transitionTo('index');
+      }
     } else {
       console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
@@ -2121,8 +2126,7 @@ export default Service.extend({
   }),
   index_or_landing_view: computed('index_view', 'current_route', function() {
     var route = this.get('current_route');
-    var isModernDashboard = route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
-    return this.get('index_view') || route === 'landing' || route === 'landing-alt' || route === 'bento' || isModernDashboard;
+    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing' || route === 'landing-alt' || route === 'bento';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));

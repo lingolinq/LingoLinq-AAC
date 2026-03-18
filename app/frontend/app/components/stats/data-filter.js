@@ -7,8 +7,9 @@ import { computed } from '@ember/object';
 export default Component.extend({
   customFilterPendingApply: false,
   elem_class: computed('side_by_side', function() {
+    /* Compare row uses flex (left | art | right); col-xs-6 is 50% of full row and misaligns Period 1 */
     if(this.get('side_by_side')) {
-      return htmlSafe('col-xs-6');
+      return htmlSafe('');
     } else {
       return htmlSafe('col-xs-12');
     }

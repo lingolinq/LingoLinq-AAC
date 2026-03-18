@@ -64,6 +64,8 @@
     {{switch-communicators}}
   {{else if (is-equal this.currentTemplate "record-note")}}
     {{record-note}}
+  {{else if (is-equal this.currentTemplate "dashboard-supervisors-modal")}}
+    {{dashboard-supervisors-modal}}
   {{else if (is-equal this.currentTemplate "sync-details")}}
     {{sync-details}}
   {{else if (is-equal this.currentTemplate "confirm-notify-user")}}

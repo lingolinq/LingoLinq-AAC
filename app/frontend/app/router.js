@@ -47,13 +47,6 @@ Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
   this.route('bento', { path: '/bento' });
-  this.route('modern-dashboard', { path: '/modern-dashboard' }, function() {
-    this.route('index', { path: '/' });
-    this.route('boards', { path: '/boards' });
-    this.route('boards-new', { path: '/boards/new' });
-    this.route('extras', { path: '/extras' });
-    this.route('supervisors', { path: '/supervisors' });
-  });
   this.route('create-board', { path: '/create-board' });
   this.route('about', { path: '/about' });
   this.route('landing', { path: '/landing' });
@@ -111,6 +104,8 @@ Router.map(function() {
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
+    this.route('home', { path: '/home' });
+    this.route('extras', { path: '/extras' });
     this.route('boards', { path: '/boards' });
     this.route('edit');
     this.route('preferences');

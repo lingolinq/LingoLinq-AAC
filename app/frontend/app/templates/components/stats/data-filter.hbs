@@ -1,25 +1,40 @@
 <div class="md-stats-filter {{this.elem_class}}" style={{this.elem_style}}>
   {{#if this.usage_stats}}
     <form class="md-stats-filter__form form-inline" style={{this.inner_elem_style}}>
-      <div class="md-stats-filter__row md-stats-filter__row--period-actions">
-        <div class="form-group md-stats-filter__period-wrap">
-          {{#unless this.side_by_side}}
-            <label class="md-stats-filter__label" for="report-period-filter">{{t "Report period" key="report_period"}}</label>
-          {{/unless}}
-          {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side}}
+      {{#unless this.side_by_side}}
+        <div class="md-stats-filter__period-bar">
+          <div class="md-stats-filter__row md-stats-filter__row--period-actions md-stats-filter__row--stacked">
+            <div class="md-stats-filter__period-stack">
+              <div class="md-stats-filter__period-head">
+                <label class="md-stats-filter__period-title" for="report-period-filter">{{t "Report period" key="report_period"}}</label>
+                <div class="form-group md-stats-filter__period-wrap">
+                  {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side}}
+                </div>
+              </div>
+              {{#if this.usage_stats.custom_filter}}
+                {{#unless this.customFilterPendingApply}}
+                  <hr class="md-stats-filter__period-divider" aria-hidden="true">
+                  <div class="md-stats-filter__period-below">
+                    <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+                  </div>
+                {{/unless}}
+              {{else}}
+                <hr class="md-stats-filter__period-divider" aria-hidden="true">
+                <div class="md-stats-filter__period-below">
+                  <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
+                </div>
+              {{/if}}
+            </div>
+          </div>
         </div>
-        {{#unless this.side_by_side}}
-          {{#if this.usage_stats.custom_filter}}
-            {{#unless this.customFilterPendingApply}}
-              <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-            {{/unless}}
-          {{else}}
-            <button type="button" {{action "compare_to"}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-          {{/if}}
-        {{else}}
+      {{else}}
+        <div class="md-stats-filter__row md-stats-filter__row--period-actions">
           <button type="button" {{action "clear_side"}} class="md-btn md-btn--ghost md-stats-filter__clear" aria-label={{t "Remove this period" key="hide_this_side"}}><span class="md-stats-filter__clear-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="md-stats-filter__clear-svg"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span><span class="md-stats-filter__clear-label">{{if this.right_side (t "Period 2" key="period_2") (t "Period 1" key="period_1")}}</span></button>
-        {{/unless}}
-      </div>
+          <div class="form-group md-stats-filter__period-wrap">
+            {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side}}
+          </div>
+        </div>
+      {{/unless}}
       {{#if this.usage_stats.custom_filter}}
         {{#if this.usage_stats.device_id}}
           <div class="form-group">

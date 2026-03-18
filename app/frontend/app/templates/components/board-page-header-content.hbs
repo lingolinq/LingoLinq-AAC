@@ -7,10 +7,6 @@
               {{! Hide Help when on a board in normal mode so Done with Boards is flush left }}
               {{#if @controller.app_state.currentBoardState.id}}
                 {{! On board, not edit: no Help (normal mode bar) }}
-              {{else}}
-                <span style='float: right;' class='not_pretty_skinny'>
-                  <a href="#" {{action "support" target=@controller}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
-                </span>
               {{/if}}
             {{/unless}}
           {{/unless}}
@@ -544,9 +540,11 @@
     <span id="identity" class="{{if @controller.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if @controller.showBentoStyleHeader "identity-with-dark-toggle"}}">
       {{#if @controller.showBentoStyleHeader}}
         {{#unless @controller.app_state.eval_mode}}
-            <LinkTo @route="modern-dashboard" class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
+            {{#if @controller.app_state.currentUser.user_name}}
+            <LinkTo @route="user.home" @model={{@controller.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
               <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
             </LinkTo>
+            {{/if}}
             <button class="md-iconbtn md-iconbtn--identity" type="button" aria-label={{t "Help" key="help"}} title={{t "Help" key="help"}} {{action "support" target=@controller}}>
               ?
               <span class="md-iconbtn__label">{{t "Help" key="help"}}</span>

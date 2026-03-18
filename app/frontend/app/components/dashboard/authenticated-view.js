@@ -26,6 +26,8 @@ export default Component.extend({
   app_state: alias('appState'),
 
   activeTab: 'home',
+  /** When set (e.g. on user.extras), open this tab on load */
+  initialActiveTab: null,
   isSearchOpen: false,
   showNewBoardForm: false,
   pillnavDropdownOpen: false,
@@ -34,6 +36,10 @@ export default Component.extend({
     this._super(...arguments);
     // Initialize supervisees_with_badges to empty array
     this.set('supervisees_with_badges', []);
+    var initial = this.get('initialActiveTab');
+    if (initial) {
+      this.set('activeTab', initial);
+    }
   },
   didInsertElement() {
     this._super(...arguments);
@@ -513,6 +519,7 @@ export default Component.extend({
     if(this.appState.get('requestedSupervisorsView')) {
       this.appState.set('requestedSupervisorsView', false);
       this.send('set_index_nav', 'supervisors');
+      this.set('activeTab', 'supervisors');
     }
   }),
   rating_allowed: computed('appState.sessionUser', function() {
@@ -539,6 +546,10 @@ export default Component.extend({
     var tab = this.get('activeTab');
     var labels = { home: i18n.t('home', 'Home'), boards: i18n.t('boards', 'Boards'), reports: i18n.t('reports', 'Reports'), extras: i18n.t('extras', 'Extras'), supervisors: i18n.t('supervisors', 'Supervisors') };
     return labels[tab] || labels.home;
+  }),
+  /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
+  boardsEmbedUser: computed('model', 'appState.currentUser', function() {
+    return this.get('model') || this.get('appState.currentUser');
   }),
   showGettingStarted: computed('appState.currentUser.preferences.progress', function() {
     var progress = this.appState.get('currentUser.preferences.progress');
@@ -588,6 +599,7 @@ export default Component.extend({
       { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
       { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly },
       { title_key: 'my_account', title_default: 'My Account', subtitle_key: 'profile_and_settings', subtitle_default: 'Profile and settings', image: 'images/pastel-extras.png', action: 'account', btn_key: 'open', btn_default: 'Open', show: !!perms },
+      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Add or manage who can support you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
       { title_key: 'trainings', title_default: 'Trainings', subtitle_key: 'trainings_subtitle', subtitle_default: 'Continuing education', image: 'images/pastel-modeling.png', action: 'lessons', btn_key: 'start', btn_default: 'Start', show: !!lessons },
       { title_key: 'critical_access', title_default: 'Basic Access', subtitle_key: 'offline_boards_subtitle', subtitle_default: 'Offline boards', image: 'images/pastel-house.png', action: 'offline_boards', btn_key: 'access', btn_default: 'Access', show: !!emergencyBoards }
     ];
@@ -630,8 +642,28 @@ export default Component.extend({
         if (u) { this.get('router').transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
         return;
       }
+      if (tab === 'boards') {
+        var ub = this.appState.get('currentUser.user_name');
+        if (ub) {
+          this.get('router').transitionTo('user.boards', ub);
+        }
+        return;
+      }
+      if (tab === 'extras') {
+        var ux = this.appState.get('currentUser.user_name');
+        if (ux) {
+          this.get('router').transitionTo('user.extras', ux);
+        }
+        return;
+      }
       if (tab === 'home') {
-        this.set('activeTab', 'home');
+        var uh = this.appState.get('currentUser.user_name');
+        var homeFrom = this.get('router.currentRouteName');
+        if (uh && homeFrom !== 'user.home') {
+          this.get('router').transitionTo('user.home', uh);
+        } else {
+          this.set('activeTab', 'home');
+        }
         this.set('showNewBoardForm', false);
         return;
       }
@@ -654,8 +686,14 @@ export default Component.extend({
         if (u) { this.get('router').transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
         return;
       }
-      if (dest === 'boards' || dest === 'extras' || dest === 'supervisors') {
-        this.set('activeTab', dest);
+      if (dest === 'boards') {
+        var un = this.appState.get('currentUser.user_name');
+        if (un) { this.get('router').transitionTo('user.boards', un); }
+        return;
+      }
+      if (dest === 'extras' || dest === 'supervisors') {
+        var ux2 = this.appState.get('currentUser.user_name');
+        if (ux2) { this.get('router').transitionTo('user.extras', ux2); }
       }
     },
     goAndCloseSearch: function(dest) {
@@ -664,11 +702,18 @@ export default Component.extend({
     },
     openExtrasTab: function() {
       this.set('isSearchOpen', false);
-      this.set('activeTab', 'extras');
+      var ue = this.appState.get('currentUser.user_name');
+      if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
-      this.set('activeTab', 'boards');
-      this.set('showNewBoardForm', true);
+      var uo = this.appState.get('currentUser.user_name');
+      if (uo) {
+        this.get('router').transitionTo('user.boards', uo);
+      }
+      this.set('showNewBoardForm', false);
+    },
+    openSupervisorsModal: function() {
+      modal.open('dashboard-supervisors-modal');
     },
     closeNewBoardForm: function() {
       this.set('showNewBoardForm', false);
@@ -881,6 +926,7 @@ export default Component.extend({
     },
     manage_supervisors: function() {
       this.send('set_index_nav', 'supervisors');
+      this.set('activeTab', 'supervisors');
     },
     session_select: function() {
       if(!this.appState.get('currentUser.preferences.logging')) {

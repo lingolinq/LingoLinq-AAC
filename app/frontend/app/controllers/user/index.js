@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater, schedule } from '@ember/runloop';
+import { later as runLater, schedule, debounce } from '@ember/runloop';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -83,26 +83,90 @@ export default Controller.extend({
         (this.get('shared_boards_shortened') || []).length === 0;
     }
   ),
-  filter_board_list: observer(
-    'board_list.filtered_results',
-    'filtered_results',
-    'filterString',
-    'show_all_boards',
+  filterStringDebounced: '',
+  _scheduleFilterDebounce: observer('filterString', function() {
+    var _this = this;
+    debounce(this, function() {
+      if (_this.get('filterString') !== _this.get('filterStringDebounced')) {
+        var val = _this.get('filterString');
+        runLater(function() {
+          _this.set('filterStringDebounced', val);
+        }, 0);
+      }
+    }, 300);
+  }),
+  boards_page_raw_list: computed(
+    'selected',
+    'parent_object',
+    'model.my_boards',
+    'model.my_boards.length',
+    'model.public_boards',
+    'model.public_boards.length',
+    'model.private_boards',
+    'model.private_boards.length',
+    'model.root_boards',
+    'model.root_boards.length',
+    'model.starred_boards',
+    'model.starred_boards.length',
+    'model.shared_boards',
+    'model.shared_boards.length',
+    'model.tagged_boards',
+    'model.prior_home_boards',
     function() {
-      if(this.get('filterString')) {
-        if(!this.get('show_all_boards')) {
-          this.set_show_all_boards();
-        } else {
-          var re = new RegExp(this.get('filterString'), 'i');
-          (this.get('filtered_results') || this.get('board_list.filtered_results') || []).forEach(function(i) {
-            var matches = i.board.get('search_string').match(re) || i.children.find(function(c)  { return c.board.get('search_string').match(re); }); 
-            emberSet(i, 'hidden', !matches);
-          });  
+      if (this.get('parent_object')) { return null; }
+      var list = [];
+      var sel = this.get('selected');
+      if (sel === 'mine' || !sel) { list = this.get('model.my_boards'); }
+      else if (sel === 'public') { list = this.get('model.public_boards'); }
+      else if (sel === 'private') { list = this.get('model.private_boards'); }
+      else if (sel === 'root') { list = this.get('model.root_boards'); }
+      else if (sel === 'starred') { list = this.get('model.starred_boards'); }
+      else if (sel === 'shared') { list = this.get('model.shared_boards'); }
+      else if (sel === 'tagged') { list = this.get('model.tagged_boards'); }
+      else if (sel === 'prior_home') { list = this.get('model.prior_home_boards'); }
+      list = list || [];
+      if (list.loading || list.error) { return []; }
+      return list;
+    }
+  ),
+  boards_page_visible_results: computed(
+    'filtered_results',
+    'filterStringDebounced',
+    'boards_page_raw_list',
+    'parent_object',
+    function() {
+      var filter = (this.get('filterStringDebounced') || '').trim();
+      if (!filter) {
+        return this.get('filtered_results') || [];
+      }
+      var rawList = this.get('boards_page_raw_list');
+      if (rawList && rawList.length > 0) {
+        try {
+          var re = new RegExp(filter, 'i');
+          return rawList.filter(function(b) {
+            return (b && b.get && b.get('search_string') || '').match(re);
+          }).map(function(b) {
+            return { board: b, children: [] };
+          });
+        } catch (e) {
+          return this.get('filtered_results') || [];
         }
-      } else {
-        (this.get('filtered_results') || this.get('board_list.filtered_results') || []).forEach(function(i) {
-          emberSet(i, 'hidden', false);
+      }
+      var list = this.get('filtered_results') || [];
+      try {
+        var re = new RegExp(filter, 'i');
+        return list.filter(function(i) {
+          var search = (i.board && i.board.get('search_string')) || '';
+          if (search.match(re)) { return true; }
+          if (i.children && i.children.length) {
+            return i.children.some(function(c) {
+              return (c.board && c.board.get('search_string') || '').match(re);
+            });
+          }
+          return false;
         });
+      } catch (err) {
+        return list;
       }
     }
   ),
@@ -614,6 +678,13 @@ export default Controller.extend({
       this.set('parent_object', obj);
     },
     nothing: function() {
+    },
+    updateFilterString: function(event) {
+      this.set('filterString', event.target.value);
+    },
+    clearFilter: function() {
+      this.set('filterString', '');
+      this.set('filterStringDebounced', '');
     },
     badge_popup: function(badge) {
       modal.open('badge-awarded', {badge: badge, user_id: this.get('model.id')});

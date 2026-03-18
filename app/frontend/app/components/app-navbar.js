@@ -30,14 +30,12 @@ export default Component.extend({
     return app && !!app.get('isSessionAuthenticated');
   }),
 
-  /** True when current route is modern-dashboard or a child (e.g. modern-dashboard.boards). */
-  isOnModernDashboard: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
+  /** Hide "Modern Dashboard" nav link when already on dashboard home (/username/home). */
+  isOnUserHomeDashboard: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'user.home';
   }),
-  /** Show Modern Dashboard link only on the authenticated view (index), not on modern-dashboard pages. Passed to AppNavbarAuthenticatedInner. */
-  showModernDashboardLink: computed('isOnModernDashboard', function() {
-    return !this.get('isOnModernDashboard');
+  showModernDashboardLink: computed('isOnUserHomeDashboard', function() {
+    return !this.get('isOnUserHomeDashboard');
   }),
 
   /** When true, the mobile drawer (landing-alt nav) is open. */

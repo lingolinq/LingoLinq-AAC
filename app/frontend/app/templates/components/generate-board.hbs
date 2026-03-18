@@ -1,12 +1,15 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
 {{#modal-dialog action=(action "close") opening=(action "opening")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Generate Board with AI" key="generate_board_with_ai"}}</h3>
-  </div>
-  <div class="modal-body">
-    <p>{{t "Describe the board you want. AI will generate word labels for an AAC communication board." key="generate_board_prompt_instructions"}}</p>
-    <form class="form-horizontal" {{action "createBoard" on="submit"}}>
+  <div class="la-new-board-modal-wrap la-generate-board-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Generate Board with AI" key="generate_board_with_ai"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    <div class="la-support-modal-body">
+      <p style="margin-bottom: 16px; font-size: 1.365rem; color: var(--md-ink);">{{t "Describe the board you want. AI will generate word labels for an AAC communication board." key="generate_board_prompt_instructions"}}</p>
+      <form class="form-horizontal la-new-board-form" {{action "createBoard" on="submit"}}>
       <div class="form-group">
         <label for="generate_board_prompt" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-10">
@@ -67,7 +70,7 @@
       <div class="form-group">
         <label for="generate_board_locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
         <div class="col-sm-10">
-          {{bound-select select_class="form-control" select_id="generate_board_locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
+          {{modern-select class="new-board-select--modern" selectId="generate_board_locale" content=this.locales selection=this.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
         </div>
       </div>
       <div class="form-group">
@@ -80,7 +83,7 @@
         <label for="generate_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
         <div class="col-sm-10">
           <div style="margin-bottom: 8px;">
-            <button type="button" class="btn btn-default" {{action "generateLabels"}} disabled={{this.status.generatingLabels}}>
+            <button type="button" class="la-btn la-btn--ghost" {{action "generateLabels"}} disabled={{this.status.generatingLabels}}>
               {{#if this.status.generatingLabels}}
                 {{t "Generating..." key="generating"}}
               {{else}}
@@ -115,23 +118,26 @@
       <div class="form-group">
         <label for="generate_board_labels_order" class="col-sm-2 control-label">{{t "Label order" key="labels_order"}}</label>
         <div class="col-sm-10">
-          {{bound-select select_class="form-control" select_id="generate_board_labels_order" content=this.labels_order_list selection=this.labels_order action=(action (mut this.labels_order)) }}
+          {{modern-select class="new-board-select--modern" selectId="generate_board_labels_order" content=this.labels_order_list selection=this.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Label order" key="labels_order")}}
         </div>
       </div>
       {{#if this.status.error}}
         <div class="alert alert-danger">{{this.status.error}}</div>
       {{/if}}
     </form>
-  </div>
-  <div class="modal-footer">
-    <button {{action "createBoard"}} class="btn btn-primary" disabled={{this.create_board_disabled}}>
-      {{#if this.status.saving}}
-        {{t "Creating Board..." key="creating_board"}}
-      {{else}}
-        {{t "Create Board" key="create_board"}}
-      {{/if}}
-    </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    </div>
+    <div class="la-new-board-modal-footer">
+      <div class="la-new-board-modal-footer__actions">
+        <button type="button" {{action "createBoard"}} class="la-btn la-btn--primary" disabled={{this.create_board_disabled}}>
+          {{#if this.status.saving}}
+            {{t "Creating Board..." key="creating_board"}}
+          {{else}}
+            {{t "Create Board" key="create_board"}}
+          {{/if}}
+        </button>
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </div>
+    </div>
   </div>
 {{/modal-dialog}}
 {{/grid-listener}}

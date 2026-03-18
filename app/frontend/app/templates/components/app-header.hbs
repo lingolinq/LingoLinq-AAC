@@ -177,10 +177,6 @@
               {{! Hide Help when on a board in normal mode so Done with Boards is flush left }}
               {{#if this.app_state.currentBoardState.id}}
                 {{! On board, not edit: no Help (normal mode bar) }}
-              {{else}}
-                <span style='float: right;' class='not_pretty_skinny'>
-                  <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
-                </span>
               {{/if}}
             {{/unless}}
           {{/unless}}

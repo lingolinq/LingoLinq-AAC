@@ -1,0 +1,26 @@
+<div class="modern-select {{if this.isOpen "modern-select--open"}} {{this.class}}" id={{this.selectId}}>
+  <button
+    type="button"
+    class="modern-select__trigger"
+    aria-haspopup="listbox"
+    aria-expanded={{this.isOpen}}
+    aria-label={{this.ariaLabel}}
+    {{action "toggle" preventDefault=false}}
+  >
+    <span class="modern-select__trigger-text">{{this.triggerLabel}}</span>
+  </button>
+  {{#if this.isOpen}}
+    <ul class="modern-select__list" role="listbox" {{action "stopPropagation" on="click"}}>
+      {{#each this.content as |item|}}
+        <li
+          class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"
+          role="option"
+          aria-selected={{is-equal this.selection item.id}}
+          {{action "choose" item preventDefault=false}}
+        >
+          {{item.name}}
+        </li>
+      {{/each}}
+    </ul>
+  {{/if}}
+</div>

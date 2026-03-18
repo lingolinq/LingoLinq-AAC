@@ -18,9 +18,11 @@
           <span class="md-user-meta__value">{{date_ago this.model.last_access "day"}}</span>
         </div>
       {{/if}}
-      <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{action "reset_to_default"}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
-        <span class="md-user-meta__label">{{t "Reset" key="reset"}}</span>
-      </button>
+      {{#if (and this.usage_stats this.usage_stats2)}}
+        <button type="button" class="md-user-meta__chip md-user-meta__chip--reset" {{action "reset_to_default"}} aria-label={{t "Reset to default report" key="reset_to_default_report"}}>
+          <span class="md-user-meta__label">{{t "Reset" key="reset"}}</span>
+        </button>
+      {{/if}}
     </div>
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <div class="md-stats-hero__head">

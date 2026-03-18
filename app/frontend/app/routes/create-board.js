@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   router: service(),
+  store: service(),
 
   activate() {
     this._super(...arguments);
@@ -10,9 +11,13 @@ export default Route.extend({
   },
 
   actions: {
-    error(error, transition) {
-      // On any error (e.g. component init throws), send user back to modern dashboard
-      this.get('router').transitionTo('modern-dashboard');
+    error() {
+      var _this = this;
+      this.store.findRecord('user', 'self').then(function(u) {
+        _this.router.transitionTo('user.home', u.get('user_name'));
+      }, function() {
+        _this.router.transitionTo('index');
+      });
       return false;
     }
   }

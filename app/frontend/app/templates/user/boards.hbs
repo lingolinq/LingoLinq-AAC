@@ -1,12 +1,10 @@
-<div class="ub-boards-page">
+<div class="ub-boards-page ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
-    <span class="la-section-eyebrow-badge">{{t "My Boards" key="my_boards"}}</span>
     <div class="la-hero-title-wrap">
       <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
     </div>
-    <hr class="la-about-hero-separator" aria-hidden="true">
-    <p class="la-pricing-hero-subtitle">{{t "Browse, manage, and open your boards — or create" key="ub_boards_subtitle_pre"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{action "newBoard"}}>{{t "something new." key="ub_boards_subtitle_em"}}</a></em></p>
+    <p class="la-pricing-hero-subtitle">{{t "Browse, manage, and open your boards — or create" key="ub_boards_subtitle_pre"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{action "newBoard"}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>
 
   <div class="ub-boards-page__content">
@@ -36,17 +34,17 @@
     {{/if}}
   {{/if}}
 
-  {{!-- Getting Started (no home board yet) --}}
-  {{#unless this.model.preferences.home_board.key}}
-    <section class="ub-boards-page__getting-started md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
+  {{!-- Getting Started (hidden when home board is selected; wrapper ensures no layout space when hidden) --}}
+  <div class="ub-boards-page__getting-started-wrap {{if this.model.preferences.home_board.key "ub-boards-page__getting-started-wrap--hidden"}}" aria-hidden={{if this.model.preferences.home_board.key "true"}}>
+    <section class="ub-boards-page__getting-started md-card md-card--getting-started" aria-label={{t "Choose a Home Board" key="ub_boards_choose_home_board"}}>
       <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
       <div class="md-card__head md-card__head--getting-started">
         <div class="md-card__head-left">
           <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
-            <img src={{path "images/pastel-getting-started.svg"}} class="md-card__icon-img" alt="" aria-hidden="true">
+            {{ub-boards-home-grid-icon}}
           </div>
           <div class="md-card__titles">
-            <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+            <div class="md-card__title">{{t "Choose a Home Board" key="ub_boards_choose_home_board"}}</div>
             <div class="md-card__sub">{{t "You haven't selected a home board yet." key="no_home_board_yet"}}</div>
           </div>
         </div>
@@ -57,9 +55,9 @@
         <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
-  {{/unless}}
+  </div>
 
-  {{!-- Stats + Actions grid --}}
+  {{!-- Stats row --}}
   {{#if this.model.permissions.view_detailed}}
     <div class="ub-boards-page__stats-row">
       <div class="ub-boards-page__stat-card">
@@ -97,57 +95,6 @@
         </div>
       </div>
     </div>
-
-    {{!-- Action buttons --}}
-    {{#if this.app_state.currentUser.preferences.new_index}}
-      <div class="ub-boards-page__actions-row">
-        {{#if this.model.preferences.home_board.key}}
-          {{board-icon board=home_board_pref localized=true}}
-        {{else}}
-          <LinkTo @route="home-boards" class="ub-boards-page__action-btn">
-            <span class="glyphicon glyphicon-home ub-boards-page__action-icon" aria-hidden="true"></span>
-            <span class="ub-boards-page__action-label">{{t "Set Home Board" key="no_home_board_set"}}</span>
-          </LinkTo>
-        {{/if}}
-        <button class="ub-boards-page__action-btn" {{action "stats"}}>
-          <img src={{path "images/bar_chart.svg"}} class="ub-boards-page__action-icon" aria-hidden="true">
-          <span class="ub-boards-page__action-label">{{t "Reports" key="reports"}}</span>
-        </button>
-        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="ub-boards-page__action-btn">
-          <span class="glyphicon glyphicon-flag ub-boards-page__action-icon" aria-hidden="true"></span>
-          <span class="ub-boards-page__action-label">{{t "Goals" key="goals"}}</span>
-        </LinkTo>
-        <button class="ub-boards-page__action-btn" {{action "supervision_settings"}}>
-          <span class="glyphicon glyphicon-user ub-boards-page__action-icon" aria-hidden="true"></span>
-          <span class="ub-boards-page__action-label">
-            {{#if this.model.supporter_role}}
-              {{t "Supervision" key="supervision"}}
-            {{else}}
-              {{t "Supervisors" key="supervisors"}}
-            {{/if}}
-          </span>
-        </button>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          <div class="ub-boards-page__action-btn ub-boards-page__action-btn--extras dropdown">
-            <button type="button" class="dropdown-toggle ub-boards-page__extras-trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/extra_455_g.svg" class="ub-boards-page__action-icon" aria-hidden="true">
-              <span class="ub-boards-page__action-label">{{t "Extras" key="extras"}} <span class="caret"></span></span>
-            </button>
-            <ul class="dropdown-menu">
-              <li><a href="#" {{action "recordNote" "text"}}>{{t "New Note" key="text_note"}}</a></li>
-              <li><a href="#" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
-              <li><a href="#" {{action "run_eval"}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
-              {{#if this.model.permissions.edit}}
-                <li><a href="#" {{action "setup"}}>{{t "Getting Started Wizard" key="getting_started_wizard"}}</a></li>
-              {{/if}}
-              {{#if this.model.permissions.support_actions}}
-                <li><a href="#" {{action "masquerade"}}>{{t "Masquerade as User" key="masquerade_as_user"}}</a></li>
-              {{/if}}
-            </ul>
-          </div>
-        {{/unless}}
-      </div>
-    {{/if}}
   {{/if}}
 
   {{!-- Available Boards --}}
@@ -235,13 +182,26 @@
               <a href="#" class="md-btn" {{action "load_children"}}>← {{t "Back to Full List" key="back_to_full_list"}}</a>
             {{/if}}
             <form class="ub-boards-page__filter-form" {{action "nothing" on="submit"}}>
-              <Input @type="text" @value={{this.filterString}} class="ub-boards-page__filter-input" placeholder={{t "Filter Results" key="filter_results"}} />
+              <label for="ub-boards-filter-input" class="ub-boards-page__filter-label">{{t "Filter Results" key="filter_results"}}</label>
+              <input
+                id="ub-boards-filter-input"
+                type="text"
+                class="ub-boards-page__filter-input"
+                placeholder={{t "Filter Results" key="filter_results"}}
+                value={{this.filterString}}
+                {{on "input" (action "updateFilterString")}}
+              />
+              {{#if this.filterString}}
+                <button type="button" class="ub-boards-page__filter-clear" {{action "clearFilter"}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                  {{t "Clear" key="clear"}}
+                </button>
+              {{/if}}
             </form>
             <div class="ub-boards-page__board-grid">
-              {{#each this.board_list.filtered_results as |board|}}
+              {{#each this.boards_page_visible_results key="board.id" as |board|}}
                 {{#if board.board.key}}
                   {{#unless board.board.removed}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
+                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
                       {{#if board.children}}
                         {{board-icon board=board noinfo=true onAction=(action "load_children")}}
                       {{else}}
@@ -258,7 +218,7 @@
                   {{/unless}}
                 {{else if board.orphan}}
                   {{#if board.children}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder" rel={{board.hidden}} style={{safe-style (if board.hidden "position: absolute; left: -1000px; visibility: hidden;" "")}}>
+                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
                       {{board-icon board=board noinfo=true onAction=(action "load_children")}}
                       {{#if this.model.permissions.edit}}
                         <button class="board_action" {{action "remove_board" "delete_orphans" board}}>

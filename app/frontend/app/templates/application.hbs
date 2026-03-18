@@ -198,10 +198,6 @@
               {{! Hide Help when on a board in normal mode so Done with Boards is flush left }}
               {{#if this.app_state.currentBoardState.id}}
                 {{! On board, not edit: no Help (normal mode bar) }}
-              {{else}}
-                <span style='float: right;' class='not_pretty_skinny'>
-                  <a href="#" {{action "support"}} style='line-height: 70px; vertical-align: middle; margin-right: 15px; font-size: 30px; color: #aaa;'><span class='glyphicon glyphicon-question-sign'></span></a>
-                </span>
               {{/if}}
             {{/unless}}
           {{/unless}}
@@ -743,9 +739,11 @@
       {{#if this.app_state.speak_mode}}
       {{#if this.showBentoStyleHeader}}
         {{#unless this.app_state.eval_mode}}
-            <LinkTo @route="modern-dashboard" class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
+            {{#if this.app_state.currentUser.user_name}}
+            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
               <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
             </LinkTo>
+            {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
             <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{action "goUpgrade"}}>
               {{t "Upgrade" key="upgrade"}}

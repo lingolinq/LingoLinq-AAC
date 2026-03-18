@@ -130,7 +130,9 @@
     <div class="la-mobile-drawer__header">{{this.appState.currentUser.name}}</div>
     <div class="la-mobile-drawer__divider"></div>
     {{#if @showModernDashboardLink}}
-      <LinkTo @route="modern-dashboard" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Modern Dashboard" key="modern_dashboard"}}</LinkTo>
+      {{#if this.appState.currentUser.user_name}}
+        <LinkTo @route="user.home" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Modern Dashboard" key="modern_dashboard"}}</LinkTo>
+      {{/if}}
     {{/if}}
     {{#unless this.appState.currentBoardState.id}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "goUpgrade"}}>{{t "Upgrade" key="upgrade"}}</button>

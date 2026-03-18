@@ -1,10 +1,8 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
 {{#modal-dialog standalone=this.standalone action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="board_drop {{if this.standalone 'new-board--modern'}}">
+  <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
+    {{#if this.standalone}}
     <div class="modal-header">
-      {{#unless this.standalone}}
-      <button type="button" class="close" {{action "close"}}>&times;</button>
-      {{/unless}}
       <h3>{{t "Create a New Board" key="create_a_new_board"}}</h3>
       <div class="create-board-actions">
         <span class="file_select_holder">
@@ -23,8 +21,34 @@
         {{/if}}
       </div>
     </div>
-    <div class="modal-body">
-      <form class="form-horizontal" {{action "saveBoard" on="submit"}}>
+    {{else}}
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Create a New Board" key="create_a_new_board"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    {{/if}}
+    <div class="{{if this.standalone "modal-body" "la-support-modal-body"}}">
+      {{#unless this.standalone}}
+      <div class="la-new-board-modal-actions">
+        <span class="file_select_holder">
+          <button type="button" class="la-btn la-btn--ghost">
+            {{t "Import Board(s)" key="import_boards"}}
+          </button>
+          <input type="file" name="board_upload" id="board_upload">
+        </span>
+        <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
+          {{t "Paste HTML" key="paste_html"}}
+        </button>
+        {{#if this.ai_board_generation_enabled}}
+          <button type="button" class="la-btn la-btn--ghost" {{action "generateWithAi"}}>
+            {{t "Generate with AI" key="generate_with_ai"}}
+          </button>
+        {{/if}}
+      </div>
+      {{/unless}}
+      <form class="form-horizontal {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
       <!-- TODO: form should wrap to include submit button, no? -->
       <div class="form-group">
         <label for="new_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
@@ -81,10 +105,10 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="col-sm-2 control-label">{{t "Visibility" key="visibility"}}</label>
+      <div class="form-group new-board-field--visibility">
+        <label class="col-sm-2 control-label" for="new_board_visibility">{{t "Visibility" key="visibility"}}</label>
         <div class="col-sm-10">
-          {{bound-select select_class="form-control" select_id="license" content=this.public_options selection=this.model.visibility action=(action (mut this.model.visibility)) }}
+          {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
         </div>
       </div>
       <div class="form-group">
@@ -100,22 +124,22 @@
           </div>
         </div>
       {{else}}
-        <div class="form-group">
+        <div class="form-group new-board-field--key">
           <label for="new_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
           <div class="col-sm-6">
             <Input @value={{this.model.key}} class="form-control" id="new_board_key" placeholder={{this.key_placeholder}} />
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group new-board-field--license">
           <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
           <div class="col-sm-10">
-            {{bound-select select_class="form-control" select_id="license" content=this.license_options selection=this.model.license.type action=(action (mut this.model.license.type)) }}
+            {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(action "setLicenseType") ariaLabel=(t "License" key="license")}}
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group new-board-field--locale">
           <label for="locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
           <div class="col-sm-10">
-            {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.locale action=(action (mut this.model.locale)) }}
+            {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
           </div>
         </div>
         {{#if this.attributable_license_type}}
@@ -129,16 +153,16 @@
             </div>
           </div>
         {{/if}}
-        <div class="form-group">
+        <div class="form-group new-board-field--description">
           <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
           <div class="col-sm-10">
             <Textarea @value={{this.model.description}} class="form-control" id="new_board_description" placeholder="brief description of the board" />
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group new-board-checkbox-row">
           <label for="home_board" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
           <div class="col-sm-10">
-            <div class="checkbox big_checkbox">
+            <div class="checkbox big_checkbox new-board-checkbox">
               <label>
                 <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
                 {{t "This board can be used as a home board" key="is_home_board"}}
@@ -161,23 +185,23 @@
           </div>
         </div>
         {{/if}}
-        <div class="form-group">
+        <div class="form-group new-board-checkbox-row new-board-checkbox-row--suggestions">
           <label for="word_suggestions" class="col-sm-2 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
           <div class="col-sm-10">
-            <div class="checkbox big_checkbox">
+            <div class="checkbox big_checkbox new-board-checkbox">
               <label>
-<Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
-              {{t "Show word completion suggestions" key="show_word_suggestions"}}
+                <Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
+                {{t "Show word completion suggestions" key="show_word_suggestions"}}
               </label>
-            </div><br>
-            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
+            </div>
+            <p class="new-board-checkbox-hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group new-board-field--labels">
           <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
           <div class="col-sm-10">
             <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
-            {{bound-select select_class="form-control" select_id="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action (mut this.model.grid.labels_order)) }}
+            {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Labels" key="labels")}}
             <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
             <span class={{this.labels_class}}>
               {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
@@ -236,8 +260,9 @@
       {{/unless}}
       </form>
     </div>
-    <div class="modal-footer">
-      <button {{action "saveBoard"}} class="btn btn-primary new-board__submit" disabled={{this.status.saving}}>
+    <div class="{{if this.standalone "modal-footer" "la-new-board-modal-footer"}}">
+      {{#if this.standalone}}
+      <button {{action "saveBoard"}} class="btn btn-primary new-board__submit" disabled={{this.createBoardDisabled}}>
         {{#if this.status.saving}}
           {{t "Creating Board..." key="creating_board"}}
         {{else if this.status.error}}
@@ -246,6 +271,20 @@
           {{t "Create Board" key="create_board"}}
         {{/if}}
       </button>
+      {{else}}
+      <div class="la-new-board-modal-footer__actions">
+        <button type="button" {{action "saveBoard"}} class="la-btn la-btn--primary new-board__submit" disabled={{this.createBoardDisabled}}>
+          {{#if this.status.saving}}
+            {{t "Creating Board..." key="creating_board"}}
+          {{else if this.status.error}}
+            {{t "Error Creating Board" key="error_creating_board"}}
+          {{else}}
+            {{t "Create Board" key="create_board"}}
+          {{/if}}
+        </button>
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </div>
+      {{/if}}
     </div>
   </div>
 {{/modal-dialog}}

@@ -1745,12 +1745,14 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
     return (this.appState.get('index_or_landing_view') && cu) ||
-      (route === 'user.stats' && cu);
+      (route === 'user.home' && cu) ||
+      (route === 'user.extras' && cu) ||
+      (route === 'user.stats' && cu) ||
+      (route === 'user.boards' && cu);
   }),
-  /** True when current route is modern-dashboard or any nested route (e.g. modern-dashboard.index, modern-dashboard.boards). */
+  /** user.extras: full-bleed dashboard body (CSS class name is historical). */
   isModernDashboardRoute: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    return route === 'modern-dashboard' || (route && route.indexOf('modern-dashboard.') === 0);
+    return this.appState.get('current_route') === 'user.extras';
   }),
   /** True when current route is setup or any nested route (e.g. setup.intro, setup.voice). */
   isSetupRoute: computed('appState.current_route', function() {
@@ -1762,7 +1764,7 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'user' || (route && route.indexOf('user.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on an authenticated view (index, modern-dashboard/*, setup/*, user/*, home-boards/search home, user.stats, about, privacy, or landing with user). showBentoStyleHeader covers index/landing/user.stats but not modern-dashboard.* child routes; isModernDashboardRoute covers all modern-dashboard routes. Setup and user pages use same navbar as authenticated view. About, privacy, and home-boards (search/home) use same navbar when user is logged in. */
+  /** Use AppNavbar in #inner_header when authenticated on dashboard-like pages (index, user.extras shell, setup, user/*, etc.). */
   useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
@@ -1774,6 +1776,7 @@ export default Controller.extend({
       (route === 'privacy' && cu) ||
       (route === 'terms' && cu) ||
       (route === 'home-boards' && cu) ||
+      (route === 'search' && cu) ||
       route === 'support' ||
       route === 'contact';
   })

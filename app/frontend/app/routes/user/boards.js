@@ -6,6 +6,15 @@ import { inject as service } from '@ember/service';
 export default Route.extend({
   appState: service('app-state'),
   controllerName: 'user/index',
+
+  activate: function() {
+    this._super(...arguments);
+    var userController = this.controllerFor('user');
+    if (userController.get('from_dashboard')) {
+      userController.set('from_dashboard', null);
+    }
+  },
+
   model: function() {
     var model = this.modelFor('user');
     model.set('subroute_name', i18n.t('boards', 'boards'));
@@ -18,6 +27,7 @@ export default Route.extend({
     controller.set('password', null);
     controller.set('new_user_name', null);
     controller.set('filterString', '');
+    controller.set('filterStringDebounced', '');
     controller.update_selected();
     controller.reload_logs();
     controller.load_badges();

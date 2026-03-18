@@ -68,10 +68,14 @@
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
         <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
+        {{#unless this.hideMakeSupervisorButton}}
+          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
+        {{/unless}}
       {{else}}
         <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
+        {{#unless this.hideMakeSupervisorButton}}
+          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
+        {{/unless}}
       {{/if}}
       {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>
@@ -244,10 +248,14 @@
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
         <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
+        {{#unless this.hideMakeSupervisorButton}}
+          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
+        {{/unless}}
       {{else}}
         <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
+        {{#unless this.hideMakeSupervisorButton}}
+          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
+        {{/unless}}
       {{/if}}
       {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>

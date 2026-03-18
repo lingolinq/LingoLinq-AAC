@@ -124,16 +124,6 @@ export default Route.extend({
       // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
     });
 
-    // When user clicks browser back and lands on modern-dashboard home, refresh so it defaults to home tab
-    window.addEventListener('popstate', function popstateHandler() {
-      runLater(function() {
-        var router = _this.router;
-        var name = router && router.currentRouteName;
-        if (name === 'modern-dashboard' || name === 'modern-dashboard.index') {
-          window.location.reload();
-        }
-      });
-    });
   },
   actions: {
     willTransition: function(transition) {
