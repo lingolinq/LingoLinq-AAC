@@ -1,4 +1,7 @@
 class BoardsController < ApplicationController
+  before_action :load_chart_scripts_for_ember_shell,
+                only: %i[index about board user lesson utterance]
+
   def index
     @meta_record = OpenStruct.new
     @meta_record.title = "LingoLinq - Every voice should be heard"
@@ -125,5 +128,11 @@ class BoardsController < ApplicationController
     utterance = Utterance.find_by_global_id(params['id'])
     @meta_record = utterance && utterance.meta_record
     render :index
+  end
+
+  private
+
+  def load_chart_scripts_for_ember_shell
+    @load_chart_scripts = true
   end
 end
