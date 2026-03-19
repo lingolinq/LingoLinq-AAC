@@ -115,6 +115,7 @@ Router.map(function() {
     this.route('home', { path: '/home' });
     this.route('extras', { path: '/extras' });
     this.route('boards', { path: '/boards' });
+    this.route('account');
     this.route('edit');
     this.route('preferences');
     this.route('subscription');

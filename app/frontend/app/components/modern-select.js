@@ -14,6 +14,7 @@ export default Component.extend({
   class: '',
   selectId: '',
   ariaLabel: '',
+  placeholder: '- Select -',
 
   isOpen: false,
 
@@ -33,10 +34,10 @@ export default Component.extend({
   }),
 
   /** Label shown in trigger: user's choice if set, otherwise derived from selection/content */
-  triggerLabel: computed('_chosenLabel', 'displayLabel', function() {
+  triggerLabel: computed('_chosenLabel', 'displayLabel', 'placeholder', function() {
     const chosen = this.get('_chosenLabel');
     if (chosen != null && chosen !== '') { return chosen; }
-    return this.get('displayLabel') || '';
+    return this.get('displayLabel') || this.get('placeholder');
   }),
 
   close() {

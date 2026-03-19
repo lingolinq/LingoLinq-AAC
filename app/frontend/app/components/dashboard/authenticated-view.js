@@ -702,7 +702,11 @@ export default Component.extend({
       if (tab === 'boards') {
         var ub = this.appState.get('currentUser.user_name');
         if (ub) {
-          this.get('router').transitionTo('user.boards', ub);
+          this.get('router').transitionTo('user.boards', ub).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
         }
         return;
       }
@@ -761,7 +765,11 @@ export default Component.extend({
           this.get('router').transitionTo('board', homeBoard.key);
           this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
         } else if (user && user.get('user_name')) {
-          this.get('router').transitionTo('user.boards', user.get('user_name'));
+          this.get('router').transitionTo('user.boards', user.get('user_name')).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
         }
         return;
       }

@@ -7,7 +7,7 @@
     aria-label={{this.ariaLabel}}
     {{action "toggle" preventDefault=false}}
   >
-    <span class="modern-select__trigger-text">{{this.triggerLabel}}</span>
+    <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
     <ul class="modern-select__list" role="listbox" {{action "stopPropagation" on="click"}}>

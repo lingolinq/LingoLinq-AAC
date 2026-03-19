@@ -3,6 +3,7 @@
   Same content as landing; redesigned in the speech-page app-shell style.
 ============================================================================= --}}
 
+<a href="#la-main" class="la-skip-link">{{t "Skip to main content" key="skip_to_main_content"}}</a>
 <div class="la-wrapper {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
   <div class="app-shell">
     {{!-- ======== MAIN CONTENT ======== --}}
@@ -108,32 +109,32 @@
         </div>
         <div class="la-feature-grid">
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--coral">🤖</div>
+            <div class="la-feature-icon la-feature-icon--coral" aria-hidden="true">🤖</div>
             <h3>{{t "AI-Powered Board Generation" key='landing_feature_ai_title'}}</h3>
             <p>{{t "Describe a topic and LingoLinq builds communication boards automatically. What used to take hours now takes minutes." key='landing_feature_ai_desc'}}</p>
           </div>
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--teal">🌍</div>
+            <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">🌍</div>
             <h3>{{t "Multilingual from Day One" key='landing_feature_multilingual_title'}}</h3>
             <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar — not word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
           </div>
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--navy">🏫</div>
+            <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">🏫</div>
             <h3>{{t "District-Wide Management" key='landing_feature_district_title'}}</h3>
             <p>{{t "Google Classroom-style dashboard: manage students, therapists, and devices from one screen." key='landing_feature_district_desc'}}</p>
           </div>
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--teal">☁️</div>
+            <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">☁️</div>
             <h3>{{t "Cloud-Native, Any Device" key='landing_feature_cloud_title'}}</h3>
             <p>{{t "Works on tablets, phones, laptops, and smartboards. Edit from your desk; students access from anywhere." key='landing_feature_cloud_desc'}}</p>
           </div>
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--coral">📊</div>
+            <div class="la-feature-icon la-feature-icon--coral" aria-hidden="true">📊</div>
             <h3>{{t "Real Analytics for IEPs" key='landing_feature_analytics_title'}}</h3>
             <p>{{t "Track vocabulary growth, usage, and communication attempts. Reports map directly to IEP goals." key='landing_feature_analytics_desc'}}</p>
           </div>
           <div class="la-feature-card">
-            <div class="la-feature-icon la-feature-icon--navy">👨‍👩‍👧</div>
+            <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">👨‍👩‍👧</div>
             <h3>{{t "Family Access Built In" key='landing_feature_family_title'}}</h3>
             <p>{{t "Parents and caregivers get free companion access. Same boards, school to home — no extra cost." key='landing_feature_family_desc'}}</p>
           </div>
@@ -244,24 +245,28 @@
           <div class="la-footer__main--desktop">
             <div class="la-footer-col">
               <h4>{{t "Product" key='landing_footer_product'}}</h4>
+              <nav aria-label={{t "Product" key="fsa_nav_product"}}>
               <LinkTo @route="features">{{t "Features" key='landing_footer_features'}}</LinkTo>
               <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
-              <LinkTo @route="landing">{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
-              <LinkTo @route="index">{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
+              </nav>
             </div>
             <div class="la-footer-col">
               <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
-              <LinkTo @route="intro">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-              <a href="#" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</a>
-              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key='landing_footer_api'}}</a>
-              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key='landing_footer_oss'}}</a>
+              <nav aria-label={{t "Resources" key="fsa_nav_resources"}}>
+              <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+              <button type="button" class="la-footer-link-btn" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</button>
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+              </nav>
             </div>
             <div class="la-footer-col">
               <h4>{{t "Company" key='landing_footer_company'}}</h4>
+              <nav aria-label={{t "Company" key="fsa_nav_company"}}>
               <LinkTo @route="about">{{t "About Us" key='landing_footer_about'}}</LinkTo>
-              <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Blog" key='landing_footer_blog'}}</a>
+              <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" aria-label={{t "Blog (opens in new tab)" key="blog_new_tab"}}>{{t "Blog" key='landing_footer_blog'}}</a>
               <LinkTo @route="contact">{{t "Contact" key='landing_footer_contact'}}</LinkTo>
-              <a href="#" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
+              <button type="button" class="la-footer-link-btn" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</button>
+              </nav>
             </div>
             <div class="la-footer-bottom">
               <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
@@ -275,20 +280,18 @@
             <div class="la-mobile-drawer__header">{{t "Product" key='landing_footer_product'}}</div>
             <LinkTo @route="features" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Features" key='landing_footer_features'}}</LinkTo>
             <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
-            <LinkTo @route="landing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "For Schools" key='landing_footer_for_schools'}}</LinkTo>
-            <LinkTo @route="index" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "For Families" key='landing_footer_for_families'}}</LinkTo>
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
-            <LinkTo @route="intro" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-            <a href="#" class="la-mobile-drawer__link" {{action "support"}} {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</a>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "API Docs" key='landing_footer_api'}}</a>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+            <LinkTo @route="register" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
+            <button type="button" class="la-mobile-drawer__link la-footer-link-btn" {{action "support"}} {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</button>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}} {{action f.closeDrawer}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}} {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Company" key='landing_footer_company'}}</div>
             <LinkTo @route="about" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "About Us" key='landing_footer_about'}}</LinkTo>
-            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Blog" key='landing_footer_blog'}}</a>
+            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Blog (opens in new tab)" key="blog_new_tab"}} {{action f.closeDrawer}}>{{t "Blog" key='landing_footer_blog'}}</a>
             <LinkTo @route="contact" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Contact" key='landing_footer_contact'}}</LinkTo>
-            <a href="#" class="la-mobile-drawer__link" {{action "support"}} {{action f.closeDrawer}}>{{t "Accessibility" key='landing_footer_accessibility'}}</a>
+            <button type="button" class="la-mobile-drawer__link la-footer-link-btn" {{action "support"}} {{action f.closeDrawer}}>{{t "Accessibility" key='landing_footer_accessibility'}}</button>
             <div class="la-mobile-drawer__divider"></div>
             <span class="la-mobile-drawer__footer-note">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
           </LaFooterDrawer>

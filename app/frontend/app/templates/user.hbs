@@ -34,22 +34,15 @@
   <div class="md-shell md-shell--user">
     <div class="md-workspace">
       <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
-        <LinkTo @route="user.index" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.index') 'is-active'}}">{{t "summary" key="summary_lower"}}</LinkTo>
-        <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash from_dashboard=null highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.stats') 'is-active'}}">{{t "reports" key="reports_lower"}}</LinkTo>
-        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.goals') 'is-active'}}">{{t "goals" key="goals_lower"}}</LinkTo>
-        {{#if this.app_state.feature_flags.lessons}}
-          {{#if this.model.organizations.length}}
-            <LinkTo @route="user.lessons" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.lessons') 'is-active'}}">{{t "trainings" key="trainings_lower"}}</LinkTo>
-          {{/if}}
+        <LinkTo @route="user.account" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "summary" key="summary_lower"}}</LinkTo>
+        {{#if this.model.permissions.edit}}
+          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "profile" key="profile_lower"}}</LinkTo>
         {{/if}}
+        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.goals') 'is-active'}}">{{t "goals" key="goals_lower"}}</LinkTo>
         <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.recordings') 'is-active'}}">{{t "recordings" key="recordings_lower"}}</LinkTo>
         <LinkTo @route="speech" class="md-pillnav__pill">{{t "speech" key="speech_lower"}}</LinkTo>
         {{#if this.model.permissions.edit}}
-          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "profile" key="profile_lower"}}</LinkTo>
           <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "preferences" key="preferences_lower"}}</LinkTo>
-          {{#if this.app_state.feature_flags.subscriptions}}
-            <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.subscription') 'is-active'}}">{{t "billing" key="billing_lower"}}</LinkTo>
-          {{/if}}
         {{/if}}
         <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">
           {{t "logs &amp; messages" key="logs_messages"}}

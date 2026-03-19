@@ -1,56 +1,211 @@
 {{#if this.model.permissions.edit}}
-  <h2>{{t "Account Settings for %{term}" key="profile_for" term=this.model.user_name}}</h2>
-  <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
-  <div class="form-group">
-    <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
-    </div>
+<div class="md-edit-profile">
+  <div class="md-edit-profile__header">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="12" cy="7" r="4" stroke="#46505F"/></svg>
+    <h2 class="md-edit-profile__title">{{t "User Profile for %{term}" key="profile_for" term=this.model.user_name}}</h2>
   </div>
-  <div class="form-group">
-    <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
-    <div class="col-sm-5">
-      <label class="control-label">
-        {{ this.model.user_name }}
-      </label>
+  <form class="form-horizontal md-edit-profile__form" {{action "saveProfile" on="submit"}}>
+
+  {{!-- Section: Personal Information --}}
+  <fieldset class="md-edit-profile__section">
+    <legend class="md-edit-profile__section-title">{{t "Personal Information" key="profile_section_personal"}}</legend>
+    <div class="form-group">
+      <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
+    <div class="form-group">
+      <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="email" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
+    <div class="form-group">
+      <label for="cell_phone" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
-    <div class="col-sm-5">
-      {{bound-select select_class="form-control" select_id="notification_frequency" content=this.notification_frequency_options selection=this.model.preferences.notification_frequency action=(action (mut this.model.preferences.notification_frequency)) }}
+  </fieldset>
+
+  {{!-- Section: Account & Security --}}
+  <fieldset class="md-edit-profile__section">
+    <legend class="md-edit-profile__section-title">{{t "Account & Security" key="profile_section_security"}}</legend>
+    <div class="form-group">
+      <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
+      <div class="col-sm-5">
+        <label class="control-label">
+          {{ this.model.user_name }}
+        </label>
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
-    <div class="col-sm-5">
-      {{bound-select select_class="form-control" select_id="goal_notifications" content=this.goal_notification_options selection=this.model.preferences.goal_notifications action=(action (mut this.model.preferences.goal_notifications)) }}
+    <div class="form-group">
+      <label for="registration_type" class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</label>
+      <div class="col-sm-5">
+        {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="share_notifications" class="col-sm-3 control-label">{{t "Notifying of Shares" key="share_notifications"}}</label>
-    <div class="col-sm-5">
-      {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.model.preferences.share_notifications action=(action (mut this.model.preferences.share_notifications)) }}
+    {{#unless this.change_password}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
+        <div class="col-sm-5">
+          <p class="form-control-static">
+            <a href="#" {{action "enable_change_password"}}>change password</a>
+          </p>
+        </div>
+      </div>
+    {{else}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
+        <div class="col-sm-5">
+          <Input @type="password" @value={{this.model.old_password}} class="form-control" id="old_password" placeholder="current password" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label"></label>
+        <div class="col-sm-5">
+          <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="new password" />
+        </div>
+      </div>
+    {{/unless}}
+    {{#if this.model.state_2fa.required}}
+      <div class='form-group'>
+        <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
+        <div class='col-sm-8'>
+          {{#if this.status_2fa.loading}}
+            <p>{{t "updating..." key="updating_ellipsis"}}</p>
+          {{else if this.status_2fa.uri}}
+            <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
+            <div style='width: 300px'>
+            {{qr-code text=this.status_2fa.uri size=300}}
+            </div>
+            <span style='display: inline-block; width: 200px;'>
+              <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" />
+            </span>
+            {{#if this.status_2fa.error}}
+              <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
+            {{/if}}
+            <button class='btn btn-default' {{action "update_2fa" "confirm"}}>{{t "Confirm" key="confirm"}}</button>
+          {{else}}
+            {{#if this.model.permissions.edit}}
+              {{#if this.model.state_2fa.required}}
+                {{#if this.model.state_2fa.mandatory}}
+                  {{t "Required for This Account" key="required_for_this_account"}}
+                {{else}}
+                  {{t "Currently Enabled" key="currently_enabled"}}
+                {{/if}}
+                {{#unless this.model.state_2fa.mandatory}}
+                  <button class='btn btn-default' {{action "update_2fa" "disable"}}>{{t "Disable" key="disable_2fa"}}</button>
+                {{/unless}}
+                <button class='btn btn-default' {{action "update_2fa" "reset"}}>{{t "Reset" key="reset_2fa"}}</button>
+              {{else}}
+                {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
+                <button class='btn btn-default' {{action "update_2fa" "enable"}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
+              {{/if}}
+            {{/if}}
+            {{#if this.status_2fa.error}}
+              <p class='text-danger'>{{t "Error updating two-factor authentication" key="error_updating_2fa"}}</p>
+            {{else if this.status_2fa.success}}
+              <p class='text-success'>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
+            {{/if}}
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+  </fieldset>
+
+  {{!-- Section: Billing --}}
+  <fieldset class="md-edit-profile__section">
+    <legend class="md-edit-profile__section-title">{{t "Subscription Information" key="billing_lower"}}</legend>
+    <div class="form-group">
+      <label class="col-sm-3 control-label">{{t "Subscription" key="subscription"}}</label>
+      <div class="col-sm-5">
+        <p class="form-control-static">
+          <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "Manage billing & subscription" key="manage_billing_link"}}</LinkTo>
+        </p>
+      </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="registration_type" class="col-sm-3 control-label">{{t "Login is for" key="login_is_for"}}</label>
-    <div class="col-sm-5">
-      {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
+  </fieldset>
+
+  {{!-- Section: Profile & Visibility --}}
+  <fieldset class="md-edit-profile__section">
+    <legend class="md-edit-profile__section-title">{{t "Profile & Visibility" key="profile_section_visibility"}}</legend>
+    <div class="form-group">
+      <label for="description" class="col-sm-3 control-label">{{t "Short Bio" key="one_liner"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" />
+      </div>
     </div>
-  </div>
+    <div class="form-group">
+      <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
+      <div class="col-sm-5">
+        <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="avatar" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
+      <div class="col-sm-5">
+        <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
+        <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
+        <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="public" class="col-sm-3 control-label">{{t "Public" key="public"}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.model.public}} id="public" />
+            {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
+            <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
+      <div class="col-sm-5">
+        <p class="form-control-static">
+          {{#if this.model.preferences.home_board.key}}
+            <LinkTo @route="board" @model={{this.model.preferences.home_board.key}}>{{this.model.preferences.home_board.key}}</LinkTo>
+          {{else}}
+            {{t "None selected. Find the home board you would like and pick it!" key="none_selected_find_one"}}
+          {{/if}}
+        </p>
+      </div>
+    </div>
+  </fieldset>
+
+  {{!-- Section: Notifications --}}
+  <fieldset class="md-edit-profile__section">
+    <legend class="md-edit-profile__section-title">{{t "Notifications" key="profile_section_notifications"}}</legend>
+    <div class="form-group">
+      <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
+      <div class="col-sm-5">
+        {{modern-select selectId="notification_frequency" content=this.notification_frequency_options selection=this.model.preferences.notification_frequency action=(action (mut this.model.preferences.notification_frequency)) }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
+      <div class="col-sm-5">
+        {{modern-select selectId="goal_notifications" content=this.goal_notification_options selection=this.model.preferences.goal_notifications action=(action (mut this.model.preferences.goal_notifications)) }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
+      <div class="col-sm-5">
+        {{modern-select selectId="share_notifications" content=this.allow_shares_options selection=this.model.preferences.share_notifications action=(action (mut this.model.preferences.share_notifications)) }}
+      </div>
+    </div>
+  </fieldset>
+
   {{#if this.app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
       <label for='contacts' class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</label>
@@ -110,53 +265,6 @@
       {{/if}}
     </div>
   {{/if}}
-  <div class="form-group">
-    <label for="voice_pitch" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
-    <div class="col-sm-5">
-      <p class="form-control-static">
-        {{#if this.model.preferences.home_board.key}}
-          <LinkTo @route="board" @model={{this.model.preferences.home_board.key}}>{{this.model.preferences.home_board.key}}</LinkTo>
-        {{else}}
-          {{t "None selected. Find the home board you would like and pick it!" key="none_selected_find_one"}}
-        {{/if}}
-      </p>
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="public" class="col-sm-3 control-label">{{t "Public" key="public"}}</label>
-    <div class="col-sm-5">
-      <div class="checkbox big_checkbox">
-        <label>
-          <Input @type="checkbox" @checked={{this.model.public}} id="public" />
-          {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
-          <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
-        </label>
-      </div>
-    </div>
-  </div>
-  {{#unless this.change_password}}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
-      <div class="col-sm-5">
-        <p class="form-control-static">
-          <a href="#" {{action "enable_change_password"}}>change password</a>
-        </p>
-      </div>
-    </div>
-  {{else}}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
-      <div class="col-sm-5">
-        <Input @type="password" @value={{this.model.old_password}} class="form-control" id="old_password" placeholder="current password" />
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="col-sm-3 control-label"></label>
-      <div class="col-sm-5">
-        <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="new password" />
-      </div>
-    </div>
-  {{/unless}}
   {{#if this.model.single_org}}
     <div class="form-group">
       <label for="third_party" class="col-sm-3 control-label">{{t "Third-Party App" key="third_party_app"}}</label>
@@ -220,13 +328,15 @@
       <div class="form-group">
         <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
         <div class="col-sm-6">
-          {{bound-select select_class="form-control" select_id="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
+          {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
         </div>
       </div>
     {{/if}}
   {{/if}}
   {{#if this.model.supporter_role}}
     {{#if this.model.permissions.delete}}
+      <fieldset class="md-edit-profile__section md-edit-profile__section--compact">
+      <legend class="md-edit-profile__section-title">{{t "Shared Access" key="profile_section_shared_access"}}</legend>
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Classroom Login" key="classroom_login"}}</label>
         <div class="col-sm-5">
@@ -268,17 +378,24 @@
           </div>
         </div>
       {{/if}}
+      </fieldset>
     {{/if}}
   {{else}}
     {{#if this.model.permissions.delete}}
+      <fieldset class="md-edit-profile__section md-edit-profile__section--compact">
+      <legend class="md-edit-profile__section-title">{{t "Shared Access" key="profile_section_shared_access"}}</legend>
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Valet/Classroom Login" key="valet_login"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
               <Input @type="checkbox" @checked={{this.model.valet_login}} id="valet_login" />
-              <p>{{t "Enable valet login for modeling-only access, or for shared account access within a single classroom" key="enabled_valed_login"}}</p>
-              <p>{{t "Additionally, a valet login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom"}}</p>
+              {{t "Enable Valet/Classroom Login" key="enable_valet_login_label"}}
+              <ul class="md-edit-profile__feature-list">
+                <li>{{t "Modeling-only access for shared devices" key="valet_feature_modeling"}}</li>
+                <li>{{t "Speak-mode access across multiple devices simultaneously" key="valet_feature_speak"}}</li>
+                <li>{{t "Ideal for classroom or therapy settings" key="valet_feature_classroom"}}</li>
+              </ul>
               {{#if this.model.valet_disabled}}
                 <br><em class='text-danger'>{{t "(valet login was automatically disabled after being used)" key="valet_login_disabled"}}</em>
               {{/if}}
@@ -290,7 +407,7 @@
         <div class='form-group'>
           <div class='col-sm-6 col-sm-offset-3'>
             <p class='form-control-static'><em>
-              {{t "Valet login allows you to share a temporary username and password outside of a trusted device without exposing your full account. When someone uses your valet login, that device will have access to boards and user preferences only, similar to a modeling-only account. The valet password will remain available for 24 hours or until you log in using your normal username and password. After that it will be disabled until you manually re-activate it." key="valet_login_explainer"}}
+              {{t "Provides temporary, limited access to boards and preferences only — no full account access. Credentials expire after 24 hours or upon your next login." key="valet_login_explainer"}}
             </em></p>
           </div>
         </div>
@@ -340,234 +457,166 @@
         </div>
 
       {{/if}}
+      </fieldset>
     {{/if}}
   {{/if}}
-  <div class="form-group">
-    <label for="description" class="col-sm-3 control-label">{{t "One-Liner" key="one_liner"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" />
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" />
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
-    <div class="col-sm-5">
-      <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" />
-    </div>
-  </div>
-  <div class="form-group">
-    <label for="location" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
-    <div class="col-sm-5">
-      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
-      <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
-      <a href="https://www.gravatar.com" target="_blank" style="display: none;" rel="noopener">{{t "Change your avatar at Gravatar.com" key="change_at_gravatar"}}</a>
-    </div>
-  </div>
-  {{#if this.model.state_2fa.required}}
-    <div class='form-group'>
-      <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
-      <div class='col-sm-8'>
-        {{#if this.status_2fa.loading}}
-          <p>{{t "updating..." key="updating_ellipsis"}}</p>
-        {{else if this.status_2fa.uri}}
-          <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
-          <div style='width: 300px'>
-          {{qr-code text=this.status_2fa.uri size=300}}
-          </div>
-          <span style='display: inline-block; width: 200px;'>
-            <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" />
-          </span>
-          {{#if this.status_2fa.error}}
-            <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
-          {{/if}}
-          <button class='btn btn-default' {{action "update_2fa" "confirm"}}>{{t "Confirm" key="confirm"}}</button>
-        {{else}}
-          {{#if this.model.permissions.edit}}
-            {{#if this.model.state_2fa.required}}
-              {{#if this.model.state_2fa.mandatory}}
-                {{t "Required for This Account" key="required_for_this_account"}}
-              {{else}}
-                {{t "Currently Enabled" key="currently_enabled"}}
-              {{/if}}
-              {{#unless this.model.state_2fa.mandatory}}
-                <button class='btn btn-default' {{action "update_2fa" "disable"}}>{{t "Disable" key="disable_2fa"}}</button>
-              {{/unless}}
-              <button class='btn btn-default' {{action "update_2fa" "reset"}}>{{t "Reset" key="reset_2fa"}}</button>
-            {{else}}
-              {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
-              <button class='btn btn-default' {{action "update_2fa" "enable"}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
-            {{/if}}
-          {{/if}}
-          {{#if this.status_2fa.error}}
-            <p class='text-danger'>{{t "Error updating two-factor authentication" key="error_updating_2fa"}}</p>
-          {{else if this.status_2fa.success}}
-            <p class='text-success'>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
-          {{/if}}
-        {{/if}}
-      </div>
-    </div>
-  {{/if}}
   {{#if this.tools}}
-    <div class="form-group">
-      <label for="location" class="col-sm-3 control-label">{{t "Installed Tools" key="installed_tools"}}</label>
-      <div class="col-sm-5">
-        {{#each this.tools as |tool|}}
-          <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>
-            <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'>
-          </div> 
-        {{/each}}
-        <div style='clear: left;'></div>
-        {{#unless this.model.currently_premium_or_premium_supporter}}
-          <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key="premium_required_for_tools"}}</p>
-        {{/unless}}
+    <fieldset class="md-edit-profile__section">
+      <legend class="md-edit-profile__section-title">{{t "Installed Tools" key="installed_tools"}}</legend>
+      <div class="form-group">
+        <div class="col-sm-8">
+          {{#each this.tools as |tool|}}
+            <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>
+              <img src={{tool.icon_url}} alt={{tool.name}} title={{tool.name}} style='height: 50px; width: 50px; object-fit: contain; border: 1px solid #ccc; border-radius: 3px; padding: 5px; margin-right: 5px;'>
+            </div>
+          {{/each}}
+          <div style='clear: left;'></div>
+          {{#unless this.model.currently_premium_or_premium_supporter}}
+            <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key="premium_required_for_tools"}}</p>
+          {{/unless}}
+        </div>
       </div>
-    </div>
+    </fieldset>
   {{/if}}
-  <div class="form-group">
-    <div class="col-sm-offset-3 col-sm-4">
-      <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
-      <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key="cancel"}}</button>
-    </div>
+  <div class="md-edit-profile__actions">
+    <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
+    <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
   </form>
 
-  <div style='margin-top: 50px;'>
-    <div style='margin-bottom: 10px;'>
-      <button class='btn btn-default' {{action "browse_tools" "lessonpix"}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
+  <div class="md-edit-profile__connections">
+    <h3 class="md-edit-profile__connections-heading">{{t "Integrations" key="integrations_heading"}}</h3>
+    <div class="md-edit-profile__integrations-row">
+      <button class='md-edit-profile__integration-btn' {{action "browse_tools" "lessonpix"}}>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' class="md-edit-profile__integration-icon">
         {{t "Connect To LessonPix" key="connect_lessonpix"}}
       </button>
-      <button class='btn btn-default' {{action "browse_tools" "ifttt"}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' style='height: 30px; max-width: 50px; padding-right: 5px;'>
+      <button class='md-edit-profile__integration-btn' {{action "browse_tools" "ifttt"}}>
+        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' class="md-edit-profile__integration-icon">
         {{t "Connect to IFTTT" key="connect_ifttt"}}
       </button>
     </div>
     {{#if this.managing_connections}}
-      <h2>{{t "Connections" key="connections"}}</h2>
-      <div class='row' style='margin-top: 20px;'>
-        <div class='col-sm-3'>
-          <h4>{{t "Connected Tools" key="connected_tools"}}</h4>
-        </div>
-        <div class='col-sm-8'>
+      <div class="md-edit-profile__conn-panel">
+        <h3 class="md-edit-profile__conn-panel-title">{{t "Connections" key="connections"}}</h3>
+
+        <div class="md-edit-profile__conn-section">
+          <h4 class="md-edit-profile__conn-section-label">{{t "Connected Tools" key="connected_tools"}}</h4>
           {{#if this.model.integrations.loading}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading connected tools..." key="loading_connected_tools"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "Loading connected tools..." key="loading_connected_tools"}}</p>
           {{else if this.model.integrations.error}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading connected tools" key="error_loading_connected_tools"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "There was an error loading connected tools" key="error_loading_connected_tools"}}</p>
           {{else if this.model.integrations}}
-            <table class='table table-striped table-hover' style='margin-bottom: 5px;'>
-              <tbody>
-                {{#each this.model.integrations as |integration|}}
-                  <tr>
-                    <td>
-                      <div {{action "integration_details" integration}} style='cursor: pointer;'>
-                        {{#if integration.icon_url}}
-                          <img src={{integration.icon_url}} style='height: 40px; max-width: 50px; vertical-align: middle; padding-right: 10px;' >
-                        {{else}}
-                          <span class='glyphicon glyphicon-wrench' style='font-size: 30px; vertical-align: middle; padding-right: 10px;'></span>
-                        {{/if}}
-                        {{integration.name}}
+            <ul class="md-edit-profile__conn-list">
+              {{#each this.model.integrations as |integration|}}
+                <li class="md-edit-profile__conn-item" {{action "integration_details" integration}}>
+                  <div class="md-edit-profile__conn-item-info">
+                    {{#if integration.icon_url}}
+                      <img src={{integration.icon_url}} class="md-edit-profile__conn-item-icon">
+                    {{else}}
+                      <div class="md-edit-profile__conn-item-icon-placeholder">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                       </div>
-                    </td>
-                    <td>
-                      {{#if integration.custom_integration}}
-                        {{#if integration.truncated_access_token}}
-                          {{t "API: %{token}" token=integration.truncated_access_token key="displayable_access_token"}}<br>
-                          {{t "Webhooks: %{token}" token=integration.truncated_token key="displayable_token"}}
+                    {{/if}}
+                    <div>
+                      <div class="md-edit-profile__conn-item-name">{{integration.name}}</div>
+                      <div class="md-edit-profile__conn-item-meta">
+                        {{#if integration.custom_integration}}
+                          {{#if integration.truncated_access_token}}
+                            {{t "API: %{token}" token=integration.truncated_access_token key="displayable_access_token"}}
+                          {{/if}}
+                        {{else}}
+                          {{t "recognized tool" key="known_tool"}}
                         {{/if}}
-                      {{else}}
-                        {{t "recognized tool" key="known_tool"}}
-                      {{/if}}
-                      <div>
                         {{#if integration.webhook}}
-                          <span class='label label-default'>{{t "button" key="for_buttons"}}</span>
+                          <span class="md-edit-profile__conn-badge">{{t "button" key="for_buttons"}}</span>
                         {{/if}}
                         {{#if integration.render}}
-                          <span class='label label-default'>{{t "launch" key="launch"}}</span>
+                          <span class="md-edit-profile__conn-badge">{{t "launch" key="launch"}}</span>
                         {{/if}}
                       </div>
-                    </td>
-                    {{#if this.model.permissions.edit}}
-                      <td>
-                        <a href="#" {{action "delete_integration" integration}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete connected tool" key="delete_connected_tool"}}</span></a>
-                      </td>
-                    {{/if}}
-                  </tr>
-                {{/each}}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  {{#if this.model.permissions.edit}}
+                    <button class="md-edit-profile__conn-remove" {{action "delete_integration" integration}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <span class='sr-only'>{{t "delete connected tool" key="delete_connected_tool"}}</span>
+                    </button>
+                  {{/if}}
+                </li>
+              {{/each}}
+            </ul>
           {{else}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "No tools connected" key="no_tools_connected"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "No tools connected" key="no_tools_connected"}}</p>
           {{/if}}
           {{#if this.model.permissions.edit}}
-            <div>
-              <a href="#" class='btn btn-default' {{action "browse_tools"}}>{{t "browse tools" key="browse_tools_lower"}}</a>
-              <a href="#" class='btn btn-default' {{action "add_integration"}}>{{t "add custom tool" key="add_custom_tool"}}</a>
+            <div class="md-edit-profile__conn-actions">
+              <a href="#" class='md-edit-profile__integration-btn' {{action "browse_tools"}}>{{t "browse tools" key="browse_tools_lower"}}</a>
+              <a href="#" class='md-edit-profile__integration-btn' {{action "add_integration"}}>{{t "add custom tool" key="add_custom_tool"}}</a>
             </div>
           {{/if}}
         </div>
-      </div>
-      <div class='row' style='margin-top: 20px;'>
-        <div class='col-sm-3'>
-          <h4>{{t "Event Handlers" key="event_handlers"}}</h4>
-        </div>
-        <div class='col-sm-8'>
+
+        <div class="md-edit-profile__conn-section">
+          <h4 class="md-edit-profile__conn-section-label">{{t "Event Handlers" key="event_handlers"}}</h4>
           {{#if this.webhooks.loading}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "Loading event handlers..." key="loading_event_handlers"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "Loading event handlers..." key="loading_event_handlers"}}</p>
           {{else if this.webhooks.error}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "There was an error loading event handlers" key="error_loading_webhooks"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "There was an error loading event handlers" key="error_loading_webhooks"}}</p>
           {{else if this.webhooks}}
-            <table class='table table-striped table-hover' style='margin-bottom: 5px;'>
-              <tbody>
-                {{#each this.webhooks as |webhook|}}
-                  <tr>
-                    <td>
-                    <span class='glyphicon glyphicon-phone-alt' style='font-size: 20px; vertical-align: middle; padding: 5px;'></span>
-                    {{webhook.name}}
-                    {{#if webhook.include_content}}
-                      {{t "(sends content)" key="sends_content"}}
-                    {{/if}}
-                    {{#if webhook.webhooks}}
-                      <em>{{webhook.webhooks_list}}</em>
-                    {{/if}}
-                    </td>
-                    <td>
-                      {{#if webhook.custom_configuration}}
-                        <a href="#" {{action "test_webhook" webhook}}>
-                          {{t "test" key="test"}}
-                        </a>
+            <ul class="md-edit-profile__conn-list">
+              {{#each this.webhooks as |webhook|}}
+                <li class="md-edit-profile__conn-item">
+                  <div class="md-edit-profile__conn-item-info">
+                    <div class="md-edit-profile__conn-item-icon-placeholder">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </div>
+                    <div>
+                      <div class="md-edit-profile__conn-item-name">
+                        {{webhook.name}}
+                        {{#if webhook.include_content}}
+                          <span class="md-edit-profile__conn-badge">{{t "sends content" key="sends_content"}}</span>
+                        {{/if}}
+                      </div>
+                      {{#if webhook.webhooks}}
+                        <div class="md-edit-profile__conn-item-meta"><em>{{webhook.webhooks_list}}</em></div>
                       {{/if}}
-                    </td>
-                    {{#if this.model.permissions.edit}}
-                      <td>
-                        <a href="#" {{action "delete_webhook" webhook}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete event handler" key="delete_event_handler_lower"}}</span></a>
-                      </td>
+                    </div>
+                  </div>
+                  <div class="md-edit-profile__conn-item-actions">
+                    {{#if webhook.custom_configuration}}
+                      <a href="#" class="md-edit-profile__conn-test" {{action "test_webhook" webhook}}>{{t "test" key="test"}}</a>
                     {{/if}}
-                  </tr>
-                {{/each}}
-              </tbody>
-            </table>
+                    {{#if this.model.permissions.edit}}
+                      <button class="md-edit-profile__conn-remove" {{action "delete_webhook" webhook}}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span class='sr-only'>{{t "delete event handler" key="delete_event_handler_lower"}}</span>
+                      </button>
+                    {{/if}}
+                  </div>
+                </li>
+              {{/each}}
+            </ul>
           {{else}}
-            <span style='margin-top: 10px; display: inline-block;'>{{t "None enabled" key="none_enabled"}}</span>
+            <p class="md-edit-profile__conn-empty">{{t "None enabled" key="none_enabled"}}</p>
           {{/if}}
           {{#if this.model.permissions.edit}}
-            <div>
-              <a href="#" class='btn btn-sm btn-default' {{action "add_webhook"}}>{{t "add custom handler" key="add_handler"}}</a>
+            <div class="md-edit-profile__conn-actions">
+              <a href="#" class='md-edit-profile__integration-btn' {{action "add_webhook"}}>{{t "add custom handler" key="add_handler"}}</a>
             </div>
           {{/if}}
         </div>
       </div>
     {{else}}
-      <a href="#" class='btn btn-default' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a>
-    {{/if}}
-    {{#if this.model.permissions.delete}}
-      <a href="#" class='btn btn-default' {{action "delete_user"}}>{{t "Delete My Account" key="delete_my_account"}}</a>
+      <a href="#" class='md-edit-profile__integration-btn' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a>
     {{/if}}
   </div>
+  {{#if this.model.permissions.delete}}
+    <div class="md-edit-profile__delete-row">
+      <a href="#" class="md-edit-profile__delete-btn" {{action "delete_user"}}>{{t "Delete My Account" key="delete_my_account"}}</a>
+    </div>
+  {{/if}}
+</div>
 {{else if this.session.isAuthenticated}}
   <p>{{t "It appears you don't have permission to access this user's information" key="not_allowed_user_long"}}</p>
 {{else}}
