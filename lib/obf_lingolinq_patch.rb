@@ -214,8 +214,16 @@ if !defined?(OBF::External::LingoLinqPatched) &&
           'data_url' => original_image['data_url'],
           'content_type' => original_image['content_type']
         }
-        image['ext_lingolinq_protected'] = original_image['ext_lingolinq_protected'] || original_image['protected']
-        image['ext_lingolinq_protected_source'] = original_image['ext_lingolinq_protected_source'] || original_image['protected_source']
+        if original_image.key?('ext_lingolinq_protected')
+          image['ext_lingolinq_protected'] = original_image['ext_lingolinq_protected']
+        else
+          image['ext_lingolinq_protected'] = original_image['protected']
+        end
+        if original_image.key?('ext_lingolinq_protected_source')
+          image['ext_lingolinq_protected_source'] = original_image['ext_lingolinq_protected_source']
+        else
+          image['ext_lingolinq_protected_source'] = original_image['protected_source']
+        end
         original_image.each { |k, v| image[k] = v if k.to_s.match(/^ext_/) }
         image.delete('protected')
         image.delete('protected_source')
