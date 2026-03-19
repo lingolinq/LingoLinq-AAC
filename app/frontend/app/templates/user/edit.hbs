@@ -8,7 +8,7 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
+    <label class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
     <div class="col-sm-5">
       <label class="control-label">
         {{ this.model.user_name }}
@@ -22,7 +22,7 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="email" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
+    <label for="cell_phone" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
     <div class="col-sm-5">
       <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
     </div>
@@ -53,7 +53,7 @@
   </div>
   {{#if this.app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
-      <label for='contacts' class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</label>
+      <label class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</label>
       <div class='col-sm-5'>
         <p class='form-control-static'><em>{{t "You can add email addresses or cell numbers of people the communicator can message through the share tool, or through a messaging link you can send them." key="add_contacts"}}</em></p>
         {{#if this.model.contacts}}
@@ -111,7 +111,7 @@
     </div>
   {{/if}}
   <div class="form-group">
-    <label for="voice_pitch" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
+    <label class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
     <div class="col-sm-5">
       <p class="form-control-static">
         {{#if this.model.preferences.home_board.key}}
@@ -361,7 +361,7 @@
     </div>
   </div>
   <div class="form-group">
-    <label for="location" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
+    <label class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
     <div class="col-sm-5">
       <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
       <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
@@ -370,7 +370,7 @@
   </div>
   {{#if this.model.state_2fa.required}}
     <div class='form-group'>
-      <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
+      <label for='code_2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
       <div class='col-sm-8'>
         {{#if this.status_2fa.loading}}
           <p>{{t "updating..." key="updating_ellipsis"}}</p>
@@ -380,7 +380,7 @@
           {{qr-code text=this.status_2fa.uri size=300}}
           </div>
           <span style='display: inline-block; width: 200px;'>
-            <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" />
+            <Input type="number" class="form-control" id="code_2fa" @value={{this.code_2fa}} placeholder="# # # # # #" />
           </span>
           {{#if this.status_2fa.error}}
             <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
@@ -414,7 +414,7 @@
   {{/if}}
   {{#if this.tools}}
     <div class="form-group">
-      <label for="location" class="col-sm-3 control-label">{{t "Installed Tools" key="installed_tools"}}</label>
+      <label class="col-sm-3 control-label">{{t "Installed Tools" key="installed_tools"}}</label>
       <div class="col-sm-5">
         {{#each this.tools as |tool|}}
           <div style='float: left; cursor: pointer;' {{action "integration_details" tool}}>

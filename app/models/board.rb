@@ -666,7 +666,9 @@ class Board < ActiveRecord::Base
         if !url
           raise Progress::ProgressError, "No URL generated"
         end
-        res = {:download_url => Uploader.fronted_url(url)}
+        # Prefer presigned URL so downloads work when S3 bucket blocks public access
+        download_url = Uploader.presigned_url_for_uploads(url) || Uploader.fronted_url(url)
+        res = {:download_url => download_url}
       else
         raise Progress::ProgressError, "Unexpected download type, #{type}"
       end
