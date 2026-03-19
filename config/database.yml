@@ -23,6 +23,7 @@ production:
     url: <%= ENV['DATABASE_URL'] || ENV['LEADER_POSTGRES_URL'] %>
     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
     timeout: 5000
+    sslmode: require
 <% if false %>
   # TODO: see shards.yml for examples of how to process follower
   primary_replica: 
