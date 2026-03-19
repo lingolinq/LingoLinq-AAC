@@ -5,14 +5,14 @@ module ExternalTracker
   # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
     return unless user && user.external_email_allowed? && user.supporter_registration?
-    return if (user.settings['preferences'] || {})['cookies'] == false
+    return if user.cookies_opted_out?
     Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
   end
 
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
     return false unless user && user.external_email_allowed? && user.supporter_registration?
-    return false if (user.settings['preferences'] || {})['cookies'] == false
+    return false if user.cookies_opted_out?
     return false unless ENV['HUBSPOT_TOKEN']
     return false unless user.settings && user.settings['email']
 

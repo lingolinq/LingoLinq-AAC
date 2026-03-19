@@ -40,6 +40,16 @@ describe ExternalTracker do
       ExternalTracker.track_new_user(u)
       expect(Worker.scheduled_actions).to eq([])
     end
+
+    it "should not schedule when cookies preference is legacy string false" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = 'false'
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
   end
   
   describe "persist_new_user" do
@@ -63,6 +73,14 @@ describe ExternalTracker do
       u3.settings['email'] = 'therapist@example.com'
       u3.save
       expect(ExternalTracker.persist_new_user(u3.global_id)).to eq(false)
+
+      u4 = User.create
+      u4.settings['preferences'] ||= {}
+      u4.settings['preferences']['registration_type'] = 'therapist'
+      u4.settings['preferences']['cookies'] = 'false'
+      u4.settings['email'] = 'therapist2@example.com'
+      u4.save
+      expect(ExternalTracker.persist_new_user(u4.global_id)).to eq(false)
     end
     
     it "should return false if not configured" do

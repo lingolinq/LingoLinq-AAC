@@ -738,7 +738,7 @@ class SessionController < ApplicationController
   protected
   def assert_session_device(d, u, installed_app)
     d.settings ||= {}
-    store_user_data = ((u.settings || {})['preferences'] || {})['cookies'] != false
+    store_user_data = !u.cookies_opted_out?
     d.settings['ip_address'] = store_user_data ? request.remote_ip : nil
     d.settings['user_agent'] = store_user_data ? request.headers['User-Agent'] : nil
     d.settings['system'] ||= params['system']
