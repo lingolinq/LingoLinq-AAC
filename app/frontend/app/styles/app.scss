@@ -32106,6 +32106,70 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
+/* ── Offline Boards page (modern) ── */
+.md-offline-boards {
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--md-ink);
+}
+.md-offline-boards__card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
+  border: 1px solid var(--md-line);
+  border-radius: var(--md-r-lg, 22px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  padding: 28px 32px;
+}
+.md-offline-boards__intro {
+  font-size: 1.62rem;
+  line-height: 1.6;
+  color: var(--md-ink);
+  margin: 0 0 24px;
+}
+.md-offline-boards__credit {
+  font-size: 1.14rem;
+  font-style: italic;
+  color: var(--md-muted);
+  margin: 0 0 10px;
+  padding: 0 20px;
+}
+.md-offline-boards__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+}
+.md-offline-boards__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 1.38rem;
+  font-weight: 500;
+  color: var(--md-ink);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.md-offline-boards__item + .md-offline-boards__item {
+  border-top: 1px solid rgba(17, 26, 46, 0.05);
+}
+.md-offline-boards__item:hover {
+  background: rgba(42, 157, 143, 0.06);
+}
+.md-offline-boards__item--chosen {
+  background: rgba(42, 157, 143, 0.08);
+  font-weight: 600;
+  color: #147f82;
+}
+.md-offline-boards__item--chosen:hover {
+  background: rgba(42, 157, 143, 0.12);
+}
+@media (max-width: 640px) {
+  .md-offline-boards__card {
+    padding: 20px 18px;
+    border-radius: 16px;
+  }
+}
+
 /* ── Logs page (modern) ── */
 .md-logs {
   max-width: 900px;
@@ -33614,6 +33678,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 20px;
   width: 100%;
   min-width: 0;
+  border-bottom: none;
 }
 .md-card--getting-started .md-card__head-left {
   display: flex;
@@ -33731,12 +33796,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: space-between;
   gap: 12px;
 }
+.md-card__row .md-btn--primary {
+  width: fit-content;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 .md-chip {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 20px;
   border-radius: 999px;
   border: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.70);
@@ -34226,7 +34296,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 .md-stat__num { font-weight: 950; font-size: 26px; line-height: 1; }
 .md-card--boards .md-stat__num {
-  font-size: 28px;
+  font-size: 23.8px; /* 28px * 0.85 */
   color: #1B365D;
 }
 .md-grid--dashboard .md-card--boards .md-card__title {
@@ -36456,9 +36526,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: var(--md-muted);
   line-height: 1.35;
 }
+.md-extras-card__btn-wrap {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(17, 26, 46, 0.08);
+  display: flex;
+  justify-content: flex-end;
+}
 .md-extras-card__btn {
-  width: 100%;
-  margin-top: 12px;
+  width: 108px;
+  text-align: center;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
   background: #C5D0DE !important;
   border-color: rgba(70, 80, 95, 0.10) !important;
   color: #374151 !important;

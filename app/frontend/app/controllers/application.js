@@ -1777,6 +1777,7 @@ export default Controller.extend({
       (route === 'terms' && cu) ||
       (route === 'home-boards' && cu) ||
       (route === 'search' && cu) ||
+      (route === 'offline_boards' && cu) ||
       route === 'support' ||
       route === 'contact';
   })

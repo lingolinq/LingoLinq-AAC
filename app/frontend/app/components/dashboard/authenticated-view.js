@@ -696,7 +696,7 @@ export default Component.extend({
     goTab: function(tab) {
       if (tab === 'reports') {
         var u = this.appState.get('currentUser.user_name');
-        if (u) { this.get('router').transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
+        if (u) { this.get('router').transitionTo('user.stats', u); }
         return;
       }
       if (tab === 'boards') {
@@ -775,7 +775,7 @@ export default Component.extend({
       }
       if (dest === 'reports') {
         var u = this.appState.get('currentUser.user_name');
-        if (u) { this.get('router').transitionTo('user.stats', u, { queryParams: { from_dashboard: 1 } }); }
+        if (u) { this.get('router').transitionTo('user.stats', u); }
         return;
       }
       if (dest === 'boards') {
