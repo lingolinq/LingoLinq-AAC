@@ -278,8 +278,18 @@ if !defined?(OBF::External::LingoLinqPatched) &&
           'data_url' => original_sound['data_url'],
           'content_type' => original_sound['content_type']
         }
-        sound['ext_lingolinq_protected'] = original_sound['ext_lingolinq_protected'] || original_sound['protected']
-        sound['ext_lingolinq_protected_source'] = original_sound['ext_lingolinq_protected_source'] || original_sound['protected_source']
+        sound['ext_lingolinq_protected'] =
+          if original_sound.key?('ext_lingolinq_protected')
+            original_sound['ext_lingolinq_protected']
+          else
+            original_sound['protected']
+          end
+        sound['ext_lingolinq_protected_source'] =
+          if original_sound.key?('ext_lingolinq_protected_source')
+            original_sound['ext_lingolinq_protected_source']
+          else
+            original_sound['protected_source']
+          end
         original_sound.each { |k, v| sound[k] = v if k.to_s.match(/^ext_/) }
         sound.delete('protected')
         sound.delete('protected_source')
