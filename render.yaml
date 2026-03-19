@@ -3,7 +3,8 @@ services:
     name: LingoLinq-AAC
     runtime: ruby
     plan: starter
-    branch: functional-baseline
+    branch: main
+    healthCheckPath: /api/v1/health
     previews:
       generation: automatic
       expireAfterDays: 7

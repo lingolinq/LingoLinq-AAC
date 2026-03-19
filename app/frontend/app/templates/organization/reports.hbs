@@ -29,7 +29,7 @@
                 {{bound-select select_class="form-control" select_id="report_per_page" content=this.per_page_options selection=this.per_page action=(action (mut this.per_page)) }}
               </div>
               <div class="form-group" style="margin-left: 15px;">
-                <label for="report_sort">{{t "Sort:" key="sort_colon"}}</label>
+                <label for="report_sort_by">{{t "Sort:" key="sort_colon"}}</label>
                 {{#if this.show_sort_by}}
                   {{bound-select select_class="form-control" select_id="report_sort_by" content=this.sort_by_options selection=this.sort_by action=(action (mut this.sort_by)) }}
                 {{/if}}

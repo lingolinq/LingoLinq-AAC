@@ -256,6 +256,7 @@ class ButtonSound < ActiveRecord::Base
       self.settings['protected'] = params['protected'] if params['protected'] != nil
       self.settings['protected_source'] = params['protected_source'] if params['protected_source'] != nil
       self.settings['protected'] = params['ext_lingolinq_protected'] if params['ext_lingolinq_protected'] != nil
+      self.settings['protected_source'] = params['ext_lingolinq_protected_source'] if params['ext_lingolinq_protected_source'] != nil
       self.settings['suggestion'] = params['suggestion'] if params['suggestion']
       self.public = params['public'] if params['public'] != nil
     end
