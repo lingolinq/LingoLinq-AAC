@@ -90,8 +90,14 @@ module Converters::Utils
         raise "OBF export produced invalid file (#{size} bytes)"
       end
       if file_type == 'obf'
-        content = File.read(path, encoding: 'UTF-8') rescue nil
-        JSON.parse(content) if content && content.length > 0
+        content = File.read(path, encoding: 'UTF-8')
+        if content && content.length > 0
+          begin
+            JSON.parse(content)
+          rescue JSON::ParserError, Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError => e
+            raise "OBF export produced invalid JSON: #{e.class}: #{e.message}"
+          end
+        end
       end
     end
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
