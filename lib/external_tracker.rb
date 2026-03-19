@@ -1,6 +1,6 @@
 module ExternalTracker
   # HubSpot consent gate per FERPA/COPPA/GDPR:
-  # 1. Only supporters (therapists, teachers, admins) - never communicators/students/patients (FERPA/COPPA)
+  # 1. Only supporter accounts (non-communicators/students/patients), as defined by supporter_registration? (e.g., therapists, teachers, parents, evals, org-added supervisors) (FERPA/COPPA)
   # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
   # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
