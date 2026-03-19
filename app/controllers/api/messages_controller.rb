@@ -1,6 +1,10 @@
 class Api::MessagesController < ApplicationController
   def create
-    if !@api_user && !ENV['ALLOW_UNAUTHENTICATED_TICKETS']
+    # Public /contact submissions have no API user; production can opt in with
+    # ALLOW_UNAUTHENTICATED_TICKETS. Development defaults to allowed so local
+    # contact works without extra env (endpoint is still Rack::Attack throttled).
+    allow_anonymous = ENV['ALLOW_UNAUTHENTICATED_TICKETS'].present? || Rails.env.development?
+    if !@api_user && !allow_anonymous
       return api_error 400, {error: "API token required"}
     end
     

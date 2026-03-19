@@ -182,8 +182,10 @@
         <h4>{{t "Resources" key="landing_footer_resources"}}</h4>
         <LinkTo @route="intro">{{t "Getting Started" key="landing_footer_getting_started"}}</LinkTo>
         <a href="#" {{action "support"}}>{{t "Help Center" key="landing_footer_help"}}</a>
-        <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key="landing_footer_api"}}</a>
-        <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key="landing_footer_oss"}}</a>
+        {{#if this.appState.showFooterGithubLinks}}
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key="landing_footer_api"}}</a>
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key="landing_footer_oss"}}</a>
+        {{/if}}
       </div>
       <div class="landing-footer-col">
         <h4>{{t "Company" key="landing_footer_company"}}</h4>

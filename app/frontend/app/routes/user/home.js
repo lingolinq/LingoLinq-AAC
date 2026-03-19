@@ -1,13 +1,16 @@
 import IndexRoute from '../index';
 import session from '../../utils/session';
 import RSVP from 'rsvp';
+import { inject as service } from '@ember/service';
 
 /**
  * Authenticated dashboard at /:user_name/home — same UI as index (Dashboard::AuthenticatedView)
  * via index template + index controller; URL matches reports pattern (e.g. /user/stats).
  */
 export default IndexRoute.extend({
+  router: service('router'),
   controllerName: 'index',
+  templateName: 'index',
 
   activate: function() {
     this._super(...arguments);
@@ -33,13 +36,9 @@ export default IndexRoute.extend({
         return RSVP.reject();
       }
       if (selfUser.get('user_name') !== user.get('user_name')) {
-        _this.replaceWith('user.home', selfUser.get('user_name'));
+        _this.router.replaceWith('user.home', selfUser.get('user_name'));
         return RSVP.reject();
       }
     });
-  },
-
-  renderTemplate: function() {
-    this.render('index');
   }
 });

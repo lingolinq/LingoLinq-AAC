@@ -4,6 +4,7 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   appState: service('app-state'),
+  router: service('router'),
   title: "Search",
   model: function(params) {
     var q = params.q;
@@ -33,7 +34,7 @@ export default Route.extend({
   afterModel: function(model, transition) {
     var params = this.get('_searchParams');
     if (params && (params.l === 'any' || !params.l) && this.get('locale') !== 'any') {
-      this.replaceWith('search', this.get('locale'), params.q || '_');
+      this.router.replaceWith('search', this.get('locale'), params.q || '_');
     }
   },
   setupController: function(controller) {

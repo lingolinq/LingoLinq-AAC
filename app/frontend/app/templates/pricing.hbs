@@ -18,6 +18,11 @@
             {{t "We believe everyone deserves access to great communication tools. Start with a free 2-month trial—no credit card required—then choose the plan that fits your needs." key="pricing_hero_subtitle"}}
           </p>
         </div>
+        <div class="la-pricing-cloud-extras-cta">
+          <button type="button" class="la-btn la-btn--ghost la-btn--lg" {{action "openCloudExtras"}}>
+            {{t "Learn about cloud extras" key="pricing_cloud_extras_learn_more"}}
+          </button>
+        </div>
         <div class="pricing-wrapper la-pricing-preview-grid">
           {{!-- Communicator (Recommended) --}}
           <div class="pricing-card pricing-card--communicator featured la-about-glass-card la-pricing-card">
@@ -75,7 +80,7 @@
               <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
               <li>✔ {{t "Premium voices & reporting" key="premium_voices_reporting"}}</li>
               <li>✔ {{t "Modeling ideas & usage insights" key="modeling_ideas_usage"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
               <li>✔ {{t "Free modeling-only accounts are available for supporting paid communicators" key="free_modeling_only_accounts_communicator"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
               <li>➕ {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}</li>
@@ -111,7 +116,7 @@
               <li>✔ {{t "Support, edit & model boards" key="works_for_communicators"}}</li>
               <li>✔ {{t "Track usage & receive alerts" key="track_for_communicators"}}</li>
               <li>✔ {{t "Modify linked communicator boards" key="modify_linked_communicator_boards"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
               <li>✔ {{t "Free modeling-only accounts available" key="free_modeling_only_available"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
@@ -145,7 +150,7 @@
               <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
               <li>✔ {{t "Runs on one device" key="run_on_one_device"}}</li>
               <li>✔ {{t "Premium voices on request" key="premium_voices_on_request"}}</li>
-              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras reset per evaluation" key="eval_cloud_extras_reset"}}</button></li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset per evaluation" key="eval_cloud_extras_reset"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
             <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>

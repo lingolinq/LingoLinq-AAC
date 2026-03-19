@@ -5,15 +5,12 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   appState: service('app-state'),
+  templateName: 'user/index',
+  controllerName: 'user/account',
   model: function() {
     var model = this.modelFor('user');
     model.set('subroute_name', i18n.t('my_account', "My Account"));
     return model;
-  },
-  renderTemplate: function() {
-    this.render('user/index', {
-      controller: 'user/account'
-    });
   },
   setupController: function(controller, model) {
     if(model) { model.reload(); }
