@@ -712,7 +712,7 @@ class SessionController < ApplicationController
     render json: {ok: true}, status: 200
   rescue => e
     Rails.logger.warn("Health check failed: #{e.message}")
-    render json: {ok: false, error: e.message}, status: 503
+    render json: {ok: false}, status: 503
   end
 
   def status
