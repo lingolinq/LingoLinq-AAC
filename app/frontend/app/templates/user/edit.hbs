@@ -4,11 +4,10 @@
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="12" cy="7" r="4" stroke="#46505F"/></svg>
     <h2 class="md-edit-profile__title">{{t "User Profile for %{term}" key="profile_for" term=this.model.user_name}}</h2>
   </div>
-  <form class="form-horizontal md-edit-profile__form" {{action "saveProfile" on="submit"}}>
+  <form class="form-horizontal md-edit-profile__form md-preferences__form" {{action "saveProfile" on="submit"}}>
 
   {{!-- Section: Personal Information --}}
-  <fieldset class="md-edit-profile__section">
-    <legend class="md-edit-profile__section-title">{{t "Personal Information" key="profile_section_personal"}}</legend>
+  {{#preference-box title="Personal Information" glyph='glyphicon glyphicon-user' title_key='profile_section_personal' open=true}}
     <div class="form-group">
       <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
       <div class="col-sm-5">
@@ -27,11 +26,10 @@
         <Input @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" />
       </div>
     </div>
-  </fieldset>
+  {{/preference-box}}
 
   {{!-- Section: Account & Security --}}
-  <fieldset class="md-edit-profile__section">
-    <legend class="md-edit-profile__section-title">{{t "Account & Security" key="profile_section_security"}}</legend>
+  {{#preference-box title="Account & Security" glyph='glyphicon glyphicon-lock' title_key='profile_section_security' open=true}}
     <div class="form-group">
       <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
       <div class="col-sm-5">
@@ -113,24 +111,10 @@
         </div>
       </div>
     {{/if}}
-  </fieldset>
-
-  {{!-- Section: Billing --}}
-  <fieldset class="md-edit-profile__section">
-    <legend class="md-edit-profile__section-title">{{t "Subscription Information" key="billing_lower"}}</legend>
-    <div class="form-group">
-      <label class="col-sm-3 control-label">{{t "Subscription" key="subscription"}}</label>
-      <div class="col-sm-5">
-        <p class="form-control-static">
-          <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "Manage billing & subscription" key="manage_billing_link"}}</LinkTo>
-        </p>
-      </div>
-    </div>
-  </fieldset>
+  {{/preference-box}}
 
   {{!-- Section: Profile & Visibility --}}
-  <fieldset class="md-edit-profile__section">
-    <legend class="md-edit-profile__section-title">{{t "Profile & Visibility" key="profile_section_visibility"}}</legend>
+  {{#preference-box title="Profile & Visibility" glyph='glyphicon glyphicon-edit' title_key='profile_section_visibility' open=true}}
     <div class="form-group">
       <label for="description" class="col-sm-3 control-label">{{t "Short Bio" key="one_liner"}}</label>
       <div class="col-sm-5">
@@ -181,30 +165,7 @@
         </p>
       </div>
     </div>
-  </fieldset>
-
-  {{!-- Section: Notifications --}}
-  <fieldset class="md-edit-profile__section">
-    <legend class="md-edit-profile__section-title">{{t "Notifications" key="profile_section_notifications"}}</legend>
-    <div class="form-group">
-      <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
-      <div class="col-sm-5">
-        {{modern-select selectId="notification_frequency" content=this.notification_frequency_options selection=this.model.preferences.notification_frequency action=(action (mut this.model.preferences.notification_frequency)) }}
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
-      <div class="col-sm-5">
-        {{modern-select selectId="goal_notifications" content=this.goal_notification_options selection=this.model.preferences.goal_notifications action=(action (mut this.model.preferences.goal_notifications)) }}
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
-      <div class="col-sm-5">
-        {{modern-select selectId="share_notifications" content=this.allow_shares_options selection=this.model.preferences.share_notifications action=(action (mut this.model.preferences.share_notifications)) }}
-      </div>
-    </div>
-  </fieldset>
+  {{/preference-box}}
 
   {{#if this.app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
@@ -335,8 +296,7 @@
   {{/if}}
   {{#if this.model.supporter_role}}
     {{#if this.model.permissions.delete}}
-      <fieldset class="md-edit-profile__section md-edit-profile__section--compact">
-      <legend class="md-edit-profile__section-title">{{t "Shared Access" key="profile_section_shared_access"}}</legend>
+      {{#preference-box title="Shared Access" glyph='glyphicon glyphicon-share' title_key='profile_section_shared_access' open=true}}
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Classroom Login" key="classroom_login"}}</label>
         <div class="col-sm-5">
@@ -378,12 +338,11 @@
           </div>
         </div>
       {{/if}}
-      </fieldset>
+      {{/preference-box}}
     {{/if}}
   {{else}}
     {{#if this.model.permissions.delete}}
-      <fieldset class="md-edit-profile__section md-edit-profile__section--compact">
-      <legend class="md-edit-profile__section-title">{{t "Shared Access" key="profile_section_shared_access"}}</legend>
+      {{#preference-box title="Shared Access" glyph='glyphicon glyphicon-share' title_key='profile_section_shared_access' open=true}}
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Valet/Classroom Login" key="valet_login"}}</label>
         <div class="col-sm-5">
@@ -457,12 +416,11 @@
         </div>
 
       {{/if}}
-      </fieldset>
+      {{/preference-box}}
     {{/if}}
   {{/if}}
   {{#if this.tools}}
-    <fieldset class="md-edit-profile__section">
-      <legend class="md-edit-profile__section-title">{{t "Installed Tools" key="installed_tools"}}</legend>
+    {{#preference-box title="Installed Tools" glyph='glyphicon glyphicon-wrench' title_key='installed_tools' open=true}}
       <div class="form-group">
         <div class="col-sm-8">
           {{#each this.tools as |tool|}}
@@ -476,7 +434,7 @@
           {{/unless}}
         </div>
       </div>
-    </fieldset>
+    {{/preference-box}}
   {{/if}}
   <div class="md-edit-profile__actions">
     <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
@@ -484,8 +442,8 @@
   </div>
   </form>
 
-  <div class="md-edit-profile__connections">
-    <h3 class="md-edit-profile__connections-heading">{{t "Integrations" key="integrations_heading"}}</h3>
+  <hr class="md-edit-profile__divider" aria-hidden="true">
+  {{#preference-box title="Integrations" glyph='glyphicon glyphicon-link' title_key='integrations_heading'}}
     <div class="md-edit-profile__integrations-row">
       <button class='md-edit-profile__integration-btn' {{action "browse_tools" "lessonpix"}}>
         <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' class="md-edit-profile__integration-icon">
@@ -608,9 +566,9 @@
         </div>
       </div>
     {{else}}
-      <a href="#" class='md-edit-profile__integration-btn' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a>
+      <div style="padding: 0 20px 12px;"><a href="#" class='md-edit-profile__integration-btn' {{action "manage_connections"}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a></div>
     {{/if}}
-  </div>
+  {{/preference-box}}
   {{#if this.model.permissions.delete}}
     <div class="md-edit-profile__delete-row">
       <a href="#" class="md-edit-profile__delete-btn" {{action "delete_user"}}>{{t "Delete My Account" key="delete_my_account"}}</a>

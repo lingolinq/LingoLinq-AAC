@@ -19,6 +19,21 @@ import editManager from '../../utils/edit_manager';
 
 export default Controller.extend({
   router: service('router'),
+  notification_frequency_options: [
+    {name: i18n.t('no_notifications', "Don't Email Me Communicator Reports"), id: ''},
+    {name: i18n.t('weekly_notifications', "Email Me Weekly Communicator Reports"), id: '1_week'},
+    {name: i18n.t('bi_weekly_reports', "Email Me Communicator Reports Every Two Weeks"), id: '2_weeks'},
+    {name: i18n.t('monthly_reports', "Email Me Monthly Communicator Reports"), id: '1_month'}
+  ],
+  goal_notification_options: [
+    {name: i18n.t('email_goal_completion', "Email Me When Goals are Completed or Badges are Earned"), id: 'enabled'},
+    {name: i18n.t('dont_email_goal_completion', "Don't Email Me When Goals are Completed or Badges are Earned"), id: 'disabled'}
+  ],
+  allow_shares_options: [
+    {name: i18n.t('email_shares', "Email"), id: 'email'},
+    {name: i18n.t('text_shares', "Text Message"), id: 'text'},
+    {name: i18n.t('app_shares', "In-App Notification"), id: 'app'}
+  ],
   setup: function() {
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));

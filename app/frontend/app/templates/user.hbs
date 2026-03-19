@@ -34,22 +34,11 @@
   <div class="md-shell md-shell--user">
     <div class="md-workspace">
       <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
-        <LinkTo @route="user.account" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "summary" key="summary_lower"}}</LinkTo>
+        <LinkTo @route="user.account" @model={{this.model.user_name}} @query={{hash from_dashboard=null}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "Account" key="account_lower"}}</LinkTo>
         {{#if this.model.permissions.edit}}
-          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "profile" key="profile_lower"}}</LinkTo>
+          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "Profile" key="profile_lower"}}</LinkTo>
+          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Preferences" key="preferences_lower"}}</LinkTo>
         {{/if}}
-        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.goals') 'is-active'}}">{{t "goals" key="goals_lower"}}</LinkTo>
-        <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.recordings') 'is-active'}}">{{t "recordings" key="recordings_lower"}}</LinkTo>
-        <LinkTo @route="speech" class="md-pillnav__pill">{{t "speech" key="speech_lower"}}</LinkTo>
-        {{#if this.model.permissions.edit}}
-          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "preferences" key="preferences_lower"}}</LinkTo>
-        {{/if}}
-        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type=null}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">
-          {{t "logs &amp; messages" key="logs_messages"}}
-          {{#if this.app_state.currentUser.unread_messages}}
-            <span class="md-pillnav__badge">{{this.app_state.currentUser.unread_messages}}</span>
-          {{/if}}
-        </LinkTo>
       </nav>
       <main class="md-main md-main--user">
         {{outlet}}

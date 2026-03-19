@@ -1,7 +1,11 @@
 {{#if this.model.permissions.edit}}
-  <h2>{{t "General Preferences" key='general_preferences'}}</h2>
-  <form class="form-horizontal" {{action "savePreferences" on="submit"}}>
-  {{#preference-box title="Basics" title_key='basics' open=true}}
+<div class="md-preferences">
+  <div class="md-preferences__header">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#46505F"/></svg>
+    <h2 class="md-preferences__title">{{t "General Preferences" key='general_preferences'}}</h2>
+  </div>
+  <form class="form-horizontal md-preferences__form" {{action "savePreferences" on="submit"}}>
+  {{#preference-box title="Basics" glyph='glyphicon glyphicon-cog' title_key='basics' open=true}}
     <span style='display: none;'>{{t "Basics" key='basics'}}</span>
     <div class="form-group">
       <label for="role" class="col-sm-3 control-label">{{t "Account Type" key='role'}}</label>
@@ -35,7 +39,7 @@
           <div class="checkbox big_checkbox">
             <label>
               <Input @type="checkbox" @checked={{this.pending_preferences.device.long_token}} id="long_token" />
-              {{t "Keep me logged in on this device. It is a private device and I will secure it by means outside of the app itself" key='enable_long_token'}}
+              {{t "Keep me logged in on this private device" key='enable_long_token'}}
             </label>
           </div>
         </div>
@@ -171,6 +175,27 @@
         </div>
       </div>
     {{/if}}
+  {{/preference-box}}
+  {{#preference-box title="Notifications" glyph='glyphicon glyphicon-bell' title_key='notifications'}}
+    <span style='display: none;'>{{t "Notifications" key='notifications'}}</span>
+    <div class="form-group">
+      <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
+      <div class="col-sm-5">
+        {{bound-select select_class="form-control" select_id="notification_frequency" content=this.notification_frequency_options selection=this.pending_preferences.notification_frequency action=(action (mut this.pending_preferences.notification_frequency)) }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
+      <div class="col-sm-5">
+        {{bound-select select_class="form-control" select_id="goal_notifications" content=this.goal_notification_options selection=this.pending_preferences.goal_notifications action=(action (mut this.pending_preferences.goal_notifications)) }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
+      <div class="col-sm-5">
+        {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.pending_preferences.share_notifications action=(action (mut this.pending_preferences.share_notifications)) }}
+      </div>
+    </div>
   {{/preference-box}}
   {{#preference-box title="Styling" glyph='glyphicon glyphicon-picture' title_key='styling'}}
     <span style='display: none;'>{{t "Styling" key='styling'}}</span>
@@ -447,6 +472,11 @@
   {{#preference-box title="Logging and Sync" glyph='glyphicon glyphicon-refresh' title_key='logging_and_sync'}}
     <span style='display: none;'>{{t "Logging and Sync" key='logging_and_sync'}}</span>
     <div class="form-group">
+      <div style="margin-left: calc(25% - 9rem); width: calc(60% + 9rem);">
+        <p class='form-control-static text-muted'><em>{{t "Logging enables goal tracking, badges, and report charts (uses Google services for chart rendering). Disabling logging pauses all data collection." key='logging_uses_google'}}</em></p>
+      </div>
+    </div>
+    <div class="form-group">
       <label for="logging" class="col-sm-3 control-label">{{t "Logging" key='logging'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
@@ -598,13 +628,6 @@
         </div>
       {{/if}}
     {{/if}}
-    <div class="form-group">
-      <div class="col-sm-5 col-sm-offset-3">
-        <p class='form-control-static'>
-          {{t "NOTE: When logging is enabled, anonymous usage data will be sent to Google services when generating report charts. When logging is disabled, goal tracking and badge awards will not update since no data will be logged." key='logging_uses_google'}}
-        </p>
-      </div>
-    </div>
     <div class="form-group">
       <label for="cookies" class="col-sm-3 control-label">{{t "Analytics" key='analytics'}}</label>
       <div class="col-sm-5">
@@ -848,7 +871,7 @@
         <div class="checkbox big_checkbox">
           <label>
             <Input @type="checkbox" @checked={{this.pending_preferences.utterance_core_access}} id="utterance_core_access" />
-            {{t "Allow messaging recipients to compare their replies to the list of core words available for this user" key='allow_core_access_via_utterance_shares'}}
+            {{t "Let message recipients see this user's core word list when replying" key='allow_core_access_via_utterance_shares'}}
           </label>
         </div>
       </div>
@@ -1172,7 +1195,10 @@
   {{/preference-box}}
 
   <!-- keyboard shortcuts for actions/phrases, abbreviations/message expansions -->
-  <h2 style="margin: 50px 0 20px 0;">{{t "Device Preferences" key='device_preferences'}} ({{this.pending_preferences.device.name}})</h2>
+  <div class="md-preferences__header md-preferences__header--device">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="#2A9D8F"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F"/></svg>
+    <h2 class="md-preferences__title">{{t "Device Preferences" key='device_preferences'}} ({{this.pending_preferences.device.name}})</h2>
+  </div>
   {{#preference-box title="Device Layout" glyph='glyphicon glyphicon-th' title_key='device_layout'}}
     <span style='display: none;'>{{t "Device Layout" key='device_layout'}}</span>
     <div class='form-group'>
@@ -2013,21 +2039,20 @@
       </div>
     </div>
   {{/unless}}
-  <div class="form-group" style='margin-top: 20px;'>
-    <div class="col-sm-offset-3 col-sm-5">
-      <button type="submit" class="btn btn-primary">
-        {{#if (get this "status.saving")}}
-          {{t "Saving Preferences..." key='saving_preferences'}}
-        {{else if (get this "status.error")}}
-          {{t "Error Saving Preferences" key='error_saving_preferences'}}
-        {{else}}
-          {{t "Save Preferences" key='save_preferences'}}
-        {{/if}}
-      </button>
-      <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key='cancel'}}</button>
-    </div>
+  <div class="md-preferences__actions">
+    <button type="submit" class="btn btn-primary">
+      {{#if (get this "status.saving")}}
+        {{t "Saving Preferences..." key='saving_preferences'}}
+      {{else if (get this "status.error")}}
+        {{t "Error Saving Preferences" key='error_saving_preferences'}}
+      {{else}}
+        {{t "Save Preferences" key='save_preferences'}}
+      {{/if}}
+    </button>
+    <button type="button" class="btn btn-default" {{action "cancelSave"}}>{{t "Cancel" key='cancel'}}</button>
   </div>
   </form>
+</div>
 {{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key='not_authorized_for_access'}}</p>
 {{else}}

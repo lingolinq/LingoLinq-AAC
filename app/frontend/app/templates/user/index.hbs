@@ -1,3 +1,7 @@
+<header class="md-hero md-hero--dashboard md-hero--dashboard-user">
+  <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Account" key="my_account"}}</span></h1>
+  <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "View your account" key="account_sub_pre"}} <em class="md-hero__gradient-text">{{t "details" key="account_sub_em"}}</em></span></p>
+</header>
 <div class="md-user-summary">
   <header class="md-hero md-hero--user">
     <div class="md-hero--user__avatar-wrap">
@@ -5,7 +9,7 @@
       {{#if this.model.online}}
         <div title={{t "currently online" key="currently_online"}} class="online_marker"></div>
       {{/if}}
-      <div class="md-hero--user__status-inline">
+      <div class="md-hero--user__status-card">
         <span class="md-hero--user__status-label">{{t "Status" key="status"}}</span>
         {{#if this.model.public}}
           <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
@@ -24,13 +28,12 @@
         {{#if this.model.description}}
           <span class="md-hero--user__meta">{{this.model.description}}</span>
         {{/if}}
-        {{#if this.model.location}}
-          {{#if this.model.description}}
-            <span class="md-hero--user__detail-sep" aria-hidden="true"></span>
-          {{/if}}
-          <span class="md-hero--user__meta">{{this.model.location}}</span>
-        {{/if}}
       </div>
+      {{#if this.model.location}}
+        <div class="md-hero--user__location-row">
+          <span class="md-hero--user__meta">{{this.model.location}}</span>
+        </div>
+      {{/if}}
       <hr class="md-hero--user__divider" aria-hidden="true">
       <div class="md-hero--user__below-divider">
         {{#if this.model.permissions.edit}}
@@ -42,6 +45,13 @@
       {{/if}}
     </div>
   </header>
+  <hr class="md-user-summary__page-divider" aria-hidden="true">
+  <div class="md-user-summary__quick-pills">
+    <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Subscription" key="my_subscription"}}</LinkTo>
+    <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Recordings" key="recordings"}}</LinkTo>
+    <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Goals" key="goals"}}</LinkTo>
+    <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type=null}} class="md-user-summary__quick-pill">{{t "Logs & Messages" key="logs_messages"}}</LinkTo>
+  </div>
 {{#if this.model.permissions.view_detailed}}
   {{#if this.model.permissions.delete}}
     {{#if this.model.pending_org}}
