@@ -1,15 +1,18 @@
 module ExternalTracker
-  # HubSpot consent gate: only track supporters (therapists, teachers, admins, purchasers).
-  # Never send communicator/student/patient PII to HubSpot per COMPLIANCE.md.
+  # HubSpot consent gate per FERPA/COPPA/GDPR:
+  # 1. Only supporters (therapists, teachers, admins) - never communicators/students/patients (FERPA/COPPA)
+  # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
+  # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
-    if user && user.external_email_allowed? && user.supporter_registration?
-      Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
-    end
+    return unless user && user.external_email_allowed? && user.supporter_registration?
+    return if (user.settings['preferences'] || {})['cookies'] == false
+    Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
   end
 
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
     return false unless user && user.external_email_allowed? && user.supporter_registration?
+    return false if (user.settings['preferences'] || {})['cookies'] == false
     return false unless ENV['HUBSPOT_TOKEN']
     return false unless user.settings && user.settings['email']
 

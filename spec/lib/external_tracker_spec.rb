@@ -30,6 +30,16 @@ describe ExternalTracker do
       ExternalTracker.track_new_user(u)
       expect(Worker.scheduled_actions).to eq([])
     end
+
+    it "should not schedule when user opted out of cookies (GDPR consent)" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = false
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
   end
   
   describe "persist_new_user" do
@@ -45,6 +55,14 @@ describe ExternalTracker do
       u2.settings['email'] = 'comm@example.com'
       u2.save
       expect(ExternalTracker.persist_new_user(u2.global_id)).to eq(false)
+
+      u3 = User.create
+      u3.settings['preferences'] ||= {}
+      u3.settings['preferences']['registration_type'] = 'therapist'
+      u3.settings['preferences']['cookies'] = false
+      u3.settings['email'] = 'therapist@example.com'
+      u3.save
+      expect(ExternalTracker.persist_new_user(u3.global_id)).to eq(false)
     end
     
     it "should return false if not configured" do
