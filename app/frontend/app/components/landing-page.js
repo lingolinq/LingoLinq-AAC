@@ -1,8 +1,10 @@
 import Component from '@ember/component';
+import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 
 export default Component.extend({
   tagName: '',
+  appState: service('app-state'),
   activeFont: null,
   actions: {
     support() {

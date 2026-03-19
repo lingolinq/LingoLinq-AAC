@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import { run } from '@ember/runloop';
+import { next, run, scheduleOnce } from '@ember/runloop';
 
 /**
  * Dropdown that renders a custom list (not native select) so the inner
@@ -56,11 +56,11 @@ export default Component.extend({
         return;
       }
       if (self.get('isOpen')) {
-        run(self, 'close');
+        run(() => self.close());
       }
     };
     this.set('_clickOutside', handler);
-    run.next(() => {
+    next(() => {
       document.addEventListener('click', handler, true);
     });
   },
@@ -93,14 +93,14 @@ export default Component.extend({
       const name = (item && item.name) != null ? item.name : '';
       const callback = this.get('action');
       const self = this;
-      run(function() {
+      run(() => {
         self.set('_chosenLabel', name);
         self.set('selection', id);
         if (typeof callback === 'function') {
           callback(id);
         }
       });
-      run.scheduleOnce('afterRender', this, function() {
+      scheduleOnce('afterRender', this, function() {
         this.close();
       });
     }

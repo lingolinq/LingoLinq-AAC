@@ -44,9 +44,11 @@
           <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
           {{this.app_state.current_locale_string}}
         </a>
-        {{#unless this.app_state.installed_app}}
-          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
-        {{/unless}}
+        {{#if this.app_state.showFooterGithubLinks}}
+          {{#unless this.app_state.installed_app}}
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+          {{/unless}}
+        {{/if}}
         <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
         <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
       </div>
