@@ -39,6 +39,7 @@
           <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "Profile" key="profile_lower"}}</LinkTo>
           <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Preferences" key="preferences_lower"}}</LinkTo>
         {{/if}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type="all"}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">{{t "Logs" key="logs"}}</LinkTo>
       </nav>
       <main class="md-main md-main--user">
         {{outlet}}

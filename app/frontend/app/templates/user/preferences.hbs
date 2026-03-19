@@ -418,54 +418,42 @@
       </div>
       <div class="form-group">
         <label for="activation_cutoff" class="col-sm-3 control-label">{{t "Select Without Release After" key='activation_cutoff'}}</label>
-        <div class="col-sm-3">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.activation_cutoff"}}>-</button>
-            </span>
-            <Input @value={{this.pending_preferences.activation_cutoff}} class="form-control" id="activation_cutoff" placeholder="disabled" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.activation_cutoff"}}>+</button>
-            </span>
+        <div class="col-sm-5">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="md-number-picker">
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.activation_cutoff"}}>−</button>
+              <Input @value={{this.pending_preferences.activation_cutoff}} class="md-number-picker__input" id="activation_cutoff" placeholder="disabled" />
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.activation_cutoff"}}>+</button>
+            </div>
+            <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
           </div>
-        </div>
-        <div class="col-sm-2">
-          <p class="form-control-static">{{t "milliseconds" key='milliseconds'}}</p>
         </div>
       </div>
       <div class="form-group">
         <label for="activation_minimum" class="col-sm-3 control-label">{{t "Must Press Button At Least" key='activation_minimum'}}</label>
-        <div class="col-sm-3">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.activation_minimum"}}>-</button>
-            </span>
-            <Input @value={{this.pending_preferences.activation_minimum}} class="form-control" id="activation_minimum" placeholder="disabled" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.activation_minimum"}}>+</button>
-            </span>
+        <div class="col-sm-5">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="md-number-picker">
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.activation_minimum"}}>−</button>
+              <Input @value={{this.pending_preferences.activation_minimum}} class="md-number-picker__input" id="activation_minimum" placeholder="disabled" />
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.activation_minimum"}}>+</button>
+            </div>
+            <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
           </div>
-        </div>
-        <div class="col-sm-2">
-          <p class="form-control-static">{{t "milliseconds" key='milliseconds'}}</p>
         </div>
       </div>
     {{/unless}}
     <div class="form-group">
       <label for="debounce" class="col-sm-3 control-label">{{t "Ignore Repeat Hits For" key='ignore_repeat_hits'}}</label>
-      <div class="col-sm-3">
-        <div class="input-group">
-          <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.debounce"}}>-</button>
-          </span>
-          <Input @value={{this.pending_preferences.debounce}} class="form-control" id="debounce" placeholder="100" />
-          <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.debounce"}}>+</button>
-          </span>
+      <div class="col-sm-5">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="md-number-picker">
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.debounce"}}>−</button>
+            <Input @value={{this.pending_preferences.debounce}} class="md-number-picker__input" id="debounce" placeholder="100" />
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.debounce"}}>+</button>
+          </div>
+          <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
         </div>
-      </div>
-      <div class="col-sm-2">
-        <p class="form-control-static">{{t "milliseconds" key='milliseconds'}}</p>
       </div>
     </div>
   {{/preference-box}}
@@ -833,19 +821,15 @@
     </div>
     <div class="form-group">
       <label for="board_jump_delay" class="col-sm-3 control-label">{{t "On Load, Prevent Selection For" key='board_jump_delay'}}</label>
-      <div class="col-sm-3">
-        <div class="input-group">
-          <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.board_jump_delay"}}>-</button>
-          </span>
-          <Input @value={{this.pending_preferences.board_jump_delay}} class="form-control" id="board_jump_delay" placeholder="500" />
-          <span class="input-group-btn">
-            <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.board_jump_delay"}}>+</button>
-          </span>
+      <div class="col-sm-5">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="md-number-picker">
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.board_jump_delay"}}>−</button>
+            <Input @value={{this.pending_preferences.board_jump_delay}} class="md-number-picker__input" id="board_jump_delay" placeholder="500" />
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.board_jump_delay"}}>+</button>
+          </div>
+          <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
         </div>
-      </div>
-      <div class="col-sm-2">
-        <p class="form-control-static">{{t "milliseconds" key='milliseconds'}}</p>
       </div>
     </div>
     <div class="form-group">
@@ -970,15 +954,17 @@
         {{else if this.core_lists.error}}
           <p class='form-control-static'>{{t "Error loading core word list" key='error_loading_core_word_list'}}</p>
         {{else if this.core_lists}}
-          <p class='form-control-static'><em>{{t "Core words are the most common words in a language, and often express multiple intents or meanings. The following list of words will be marked as \"core\" (as opposed to \"fringe\") for this user." key='core_words_explainer'}}</em></p>
-          <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
-            {{this.raw_user_core_list}}
+          <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "Core words are the most common words in a language, and often express multiple intents or meanings. The following list of words will be marked as \"core\" (as opposed to \"fringe\") for this user." key='core_words_explainer'}}</em></p>
+          <div style='max-height: 120px; overflow: auto; padding: 12px 18px; border: 1.5px solid rgba(17, 26, 46, 0.08); border-radius: 10px; background: rgba(248, 250, 252, 0.8); margin-bottom: 14px; line-height: 1.6; font-size: 14px;'>
+            {{this.raw_core_word_list}}
           </div>
-          <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
-          <span style='padding-left: 10px;'>
-            {{t "core word" count=this.core_lists.for_user.length}}
-            {{t "listed" key='listed'}}
-          </span>
+          <div style='margin-top: 12px;'>
+            <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
+            <span style='padding-left: 12px; font-size: 1.1rem; color: #5a6a85;'>
+              {{t "core word" count=this.core_lists.for_user.length}}
+              {{t "listed" key='listed'}}
+            </span>
+          </div>
         {{else}}
           <p class='form-control-static'>{{t "None available" key='none_available'}}</p>
         {{/if}}
@@ -1007,35 +993,37 @@
         <div class="form-group">
           <label for="core_word_list" class="col-sm-3 control-label">{{t "Requested Buttons" key='requested_buttons'}}</label>
           <div class='col-sm-6'>
-            <p class='form-control-static'><em>{{t "Communicators and supporters can request that phrases or words be added to a communicator's vocabulary set. Those requests are listed here." key='requested_phrases_explainer'}}</em></p>
-            <div style='max-height: 100px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; margin-bottom: 5px;'>
+            <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "Communicators and supporters can request that phrases or words be added to a communicator's vocabulary set. Those requests are listed here." key='requested_phrases_explainer'}}</em></p>
+            <div style='max-height: 120px; overflow: auto; padding: 12px 18px; border: 1.5px solid rgba(17, 26, 46, 0.08); border-radius: 10px; background: rgba(248, 250, 252, 0.8); margin-bottom: 14px; line-height: 1.6; font-size: 14px;'>
               {{#if this.requested_phrases}}
                 {{#each this.requested_phrases as |phrase|}}
-                  <div style='padrequested_phrase_changesding-left: 10px;'>
+                  <div style='padding-left: 10px; margin-bottom: 4px;'>
                     {{#if phrase.used}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
                     {{phrase.text}}
-                    <a href="#" {{action 'remove_phrase' phrase.text}} style='padding-left: 5px; font-size: 12px;'>{{t "remove" key='remove_lower'}}</a>
+                    <a href="#" {{action 'remove_phrase' phrase.text}} style='padding-left: 8px; font-size: 13px;'>{{t "remove" key='remove_lower'}}</a>
                   </div>
                 {{/each}}
               {{else}}
-                <p>{{t "No requested phrases" key='no_requested_phrases'}}</p>
+                <p style='margin: 0; color: #5a6a85; font-style: italic;'>{{t "No requested phrases" key='no_requested_phrases'}}</p>
               {{/if}}
             </div>
-          </div>
-          <div class='col-sm-3 col-sm-offset-3'>
-            <Input @type="text" class="form-control" @value={{this.new_phrase}} placeholder="request additional phrase" />
-          </div>
-          <div class='col-sm-1'>
-            <button type='button' class='btn btn-default' {{action 'add_phrase'}}>{{t "Add" key='add'}}</button>
+            <div style='display: flex; gap: 10px; margin-top: 12px;'>
+              <Input @type="text" class="form-control" @value={{this.new_phrase}} placeholder="request additional phrase" />
+              <button type='button' class='btn btn-default' style='white-space: nowrap;' {{action 'add_phrase'}}>{{t "Add" key='add'}}</button>
+            </div>
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="phrase_categories" class="col-sm-3 control-label">{{t "Saved Phrase Types" key='saved_phrase_types'}}</label>
         <div class="col-sm-5">
-          <Input class="form-control" @type="text" @value={{this.phrase_categories_string}} placeholder="list, of, phrase, categories" />
-          <em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em><br>
-          <button class='btn btn-default' {{action 'phrases'}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+          <div style='margin-bottom: 12px;'>
+            <Input class="form-control" @type="text" @value={{this.phrase_categories_string}} placeholder="list, of, phrase, categories" />
+          </div>
+          <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
+          <div style='margin-top: 12px;'>
+            <button class='btn btn-default' {{action 'phrases'}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -1096,7 +1084,9 @@
         <label class="col-sm-3 control-label">{{t "Links and Buttons" key='links_and_buttons'}}</label>
         <div class="col-sm-5">
           {{#unless this.editing_sidebar}}
-            <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button><br>
+            <div style='margin-bottom: 12px;'>
+              <button class='btn btn-default' {{action 'edit_sidebar'}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
+            </div>
           {{else}}
             <p class="form-control-static">
               <strong>Active</strong>
@@ -1164,7 +1154,7 @@
               {{/if}}
             </div>
           {{/unless}}
-          <em>{{t "You can add any boards you find by finding them and selecting <span style='white-space: nowrap'>More -> Add to Sidebar</span>" key='add_to_sidebar_hint'}}</em>
+          <p class='form-control-static' style='margin-top: 14px;'><em>{{t "To add boards to your sidebar, open a board and select More → Add to Sidebar." key='add_to_sidebar_hint'}}</em></p>
         </div>
       </div>
     {{/unless}}
@@ -1172,17 +1162,19 @@
       <div class="form-group">
         <label for="enable_tags" class="col-sm-3 control-label">{{t "NFC Tags" key='nfc_tags'}}</label>
         <div class="col-sm-5">
-          <p class='form-control-static'>
+          <p class='form-control-static' style='margin-bottom: 12px;'>
             {{#if this.pending_preferences.tag_ids}}
               {{t "tag" count=pending_preferences.tag_ids.length key='n_tags'}} {{t "saved" key='saved'}}
             {{else}}
-              {{t "No tags saved" key='no_tags_saved'}}
+              <em style='color: var(--md-muted);'>{{t "No tags saved" key='no_tags_saved'}}</em>
             {{/if}}
           </p>
-          {{#if this.can_record_tags}}
-            <button class='btn btn-default' {{action 'program_tag'}}>{{t "Save New Tag" key='save_new_tag'}}</button>
-          {{/if}}
-          <button class='btn btn-default' {{action 'clear_nfc_tags'}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+          <div style='display: flex; gap: 10px; flex-wrap: wrap;'>
+            {{#if this.can_record_tags}}
+              <button class='btn btn-default' {{action 'program_tag'}}>{{t "Save New Tag" key='save_new_tag'}}</button>
+            {{/if}}
+            <button class='btn btn-default' {{action 'clear_nfc_tags'}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+          </div>
         </div>
       </div>
     {{else}}
@@ -1397,22 +1389,12 @@
         {{else}}
           <div class="form-group">
             <label for="scanning_interval" class="col-sm-3 control-label">{{t "Scanning Interval" key='scanning_interval'}}</label>
-            <div class="col-sm-3">
-              <div class="input-group">
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.scanning_interval"}}>-</button>
-                </span>
-                <Input @value={{this.pending_preferences.device.scanning_interval}} class="form-control" id="scanning_interval" placeholder="1000" />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.scanning_interval"}}>+</button>
-                </span>
+            <div class="col-sm-5">
+              <div style='display: flex; align-items: center; gap: 10px;'>
+                <Input @value={{this.pending_preferences.device.scanning_interval}} class="form-control" id="scanning_interval" placeholder="1000" style="max-width: 120px;" />
+                <span class='form-control-static' style='white-space: nowrap;'>{{t "milliseconds" key='milliseconds'}}</span>
               </div>
-            </div>
-            <div class="col-sm-2">
-              <p class="form-control-static">{{t "milliseconds" key='milliseconds'}}</p>
-            </div>
-            <div class='col-sm-5 col-sm-offset-3'>
-              <div class='text-muted'>{{t "(enter 0 to prevent auto-scanning)" key='zero_to_prevent_scanning' }}</div>
+              <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Set to 0 to disable auto-scanning" key='zero_to_prevent_scanning'}}</em></p>
             </div>
           </div>
           <div class="form-group">
@@ -1472,39 +1454,47 @@
           <div class="form-group">
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Scanning \"Select\" Key" key='scanning_select_keycode'}}</label>
             <div class="col-sm-5">
-              <label style="width: 50px;">
-                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='hit any key'}}
-              </label>
-              &nbsp;{{select_keycode_string}}
+              <div style='display: flex; align-items: center; gap: 10px;'>
+                <div style='width: 60px;'>
+                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='press a key'}}
+                </div>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{select_keycode_string}}</span>
+              </div>
             </div>
           </div>
           {{#unless axes_scanning}}
             <div class="form-group">
               <label for="scanning_next_keycode" class="col-sm-3 control-label">{{t "Scanning \"Next\" Key" key='scanning_next_keycode'}}</label>
               <div class="col-sm-5">
-                <label style="width: 50px;">
-                  {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='hit any key'}}
-                </label>
-                &nbsp;{{next_keycode_string}}
+                <div style='display: flex; align-items: center; gap: 10px;'>
+                  <div style='width: 60px;'>
+                    {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='press a key'}}
+                  </div>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{next_keycode_string}}</span>
+                </div>
               </div>
             </div>
             <div class="form-group">
               <label for="scanning_prev_keycode" class="col-sm-3 control-label">{{t "Scanning \"Previous\" Key" key='scanning_prev_keycode'}}</label>
               <div class="col-sm-5">
-                <label style="width: 50px;">
-                  {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='hit any key'}}
-                </label>
-                &nbsp;{{prev_keycode_string}}
+                <div style='display: flex; align-items: center; gap: 10px;'>
+                  <div style='width: 60px;'>
+                    {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='press a key'}}
+                  </div>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{prev_keycode_string}}</span>
+                </div>
               </div>
             </div>
           {{/unless}}
           <div class="form-group">
             <label for="scanning_cancel_keycode" class="col-sm-3 control-label">{{t "Scanning \"Cancel\" Key" key='scanning_cancel_keycode'}}</label>
             <div class="col-sm-5">
-              <label style="width: 50px;">
-                {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='hit any key'}}
-              </label>
-              &nbsp;{{cancel_keycode_string}}
+              <div style='display: flex; align-items: center; gap: 10px;'>
+                <div style='width: 60px;'>
+                  {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='press a key'}}
+                </div>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{cancel_keycode_string}}</span>
+              </div>
             </div>
           </div>
         {{/if}}
@@ -1589,12 +1579,12 @@
                   <p class="form-control-static"><em>{{t "The built-in features of Apple Face ID support limited eye gaze control. For devices without Face ID a camera-based head tracker will be used." key='ios_gaze_tracking'}}</em></p>
                 {{/if}}
               {{else}}
-                <p class="form-control-static"><em>{{t "Many eye trackers will work in %app_name% using cursor control mode or using a built-in integrate (EyeX, Eyegaze Edge). If no native trackers are available then a lower-quality camera-based eye tracker can be used." key='supported_eye_trackers'}}</em></p>
+                <p class="form-control-static" style="margin-bottom: 8px;"><em>{{t "Many eye trackers will work in %app_name% using cursor control mode or using a built-in integrate (EyeX, Eyegaze Edge). If no native trackers are available then a lower-quality camera-based eye tracker can be used." key='supported_eye_trackers'}}</em></p>
                 {{#unless this.native_eyegaze_capable}}
-                  <p class='form-control-static text-danger'>
-                    {{t "Integrated eye trackers will only work in the" key='eyegaze_windows_only_1'}}
+                  <p class='form-control-static' style="margin-top: 0;">
+                    <em>{{t "Integrated eye trackers will only work in the" key='eyegaze_windows_only_1'}}
                     <LinkTo @route="download">{{t "Windows app" key='windows_app'}}</LinkTo>.
-                    {{t "If your eye tracker can control the mouse cursor, you can try dwell tracking instead." key='eyegaze_windows_only_2'}}
+                    {{t "If your eye tracker can control the mouse cursor, you can try dwell tracking instead." key='eyegaze_windows_only_2'}}</em>
                   </p>
                 {{/unless}}
               {{/if}}
@@ -1701,36 +1691,28 @@
           </div>
           <div class="form-group">
             <label for="dwell_duration" class="col-sm-3 control-label">{{t "Dwell Time" key='dwell_duration'}}</label>
-            <div class="col-sm-3">
-              <div class="input-group">
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_duration"}}>-</button>
-                </span>
-                <Input @value={{this.pending_preferences.device.dwell_duration}} class="form-control" id="dwell_duration" placeholder="1000" />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_duration"}}>+</button>
-                </span>
+            <div class="col-sm-5">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="md-number-picker">
+                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_duration"}}>−</button>
+                  <Input @value={{this.pending_preferences.device.dwell_duration}} class="md-number-picker__input" id="dwell_duration" placeholder="1000" />
+                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_duration"}}>+</button>
+                </div>
+                <span class="form-control-static" style="white-space: nowrap;">{{t "ms to select" key='milliseconds_to_select'}}</span>
               </div>
-            </div>
-            <div class="col-sm-4">
-              <p class="form-control-static">{{t "milliseconds to select a target" key='milliseconds_to_select'}}</p>
             </div>
           </div>
           <div class="form-group">
             <label for="dwell_delay" class="col-sm-3 control-label">{{t "Dwell Selection Delay" key='dwell_delay'}}</label>
-            <div class="col-sm-3">
-              <div class="input-group">
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_delay"}}>-</button>
-                </span>
-                <Input @value={{this.pending_preferences.device.dwell_delay}} class="form-control" id="dwell_delay" placeholder="100" />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_delay"}}>+</button>
-                </span>
+            <div class="col-sm-5">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="md-number-picker">
+                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.dwell_delay"}}>−</button>
+                  <Input @value={{this.pending_preferences.device.dwell_delay}} class="md-number-picker__input" id="dwell_delay" placeholder="100" />
+                  <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.dwell_delay"}}>+</button>
+                </div>
+                <span class="form-control-static" style="white-space: nowrap;">{{t "ms before new selection" key='milliseconds_delay'}}</span>
               </div>
-            </div>
-            <div class="col-sm-4">
-              <p class="form-control-static">{{t "milliseconds before starting a new selection" key='milliseconds_delay'}}</p>
             </div>
           </div>
           <div class="form-group">
@@ -1815,18 +1797,16 @@
       <span style='display: none;'>{{t "Voice Settings" key='voice_settings'}}</span>
       {{#if this.user_voice_list}}
         <div class="form-group">
-          <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice" key='voiceURI'}}</label>
-          <div class="col-sm-3 col-xs-7">
-            {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(action (mut this.pending_preferences.device.voice.voice_uri)) }}
-          </div>
-          <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{action "premium_voices"}}>{{t "Premium Voices" key='premium_voices'}}</button>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top: -15px;">
-          <div class="col-sm-6 col-sm-offset-3">
+          <label for="voiceURI" class="col-sm-3 col-xs-12 control-label">{{t "Voice" key='voiceURI'}}</label>
+          <div class="col-sm-5">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="flex: 1 1 auto; min-width: 180px;">
+                {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(action (mut this.pending_preferences.device.voice.voice_uri)) }}
+              </div>
+              <button class='btn btn-default' {{action "premium_voices"}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+            </div>
             {{#if this.ios_app}}
-              <p class='text-info'>{{t "NOTE: There is a bug in Apple's speech engine which can cause some system voices not to work. If this is happening for you, try using a Premium Voice or selecting \"System Default Voice\" to get around the problem." key='apple_tts_bug'}}</p>
+              <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
             {{/if}}
           </div>
         </div>
@@ -1845,52 +1825,36 @@
       {{/if}}
       <div class="form-group">
         <label for="voice_rate" class="col-sm-3 col-xs-12 control-label">{{t "Voice Rate" key='voice_rate'}}</label>
-        <div class="col-sm-3 col-xs-7">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.rate"}}>-</button>
-            </span>
-            <Input @value={{this.pending_preferences.device.voice.rate}} class="form-control" id="voice_rate" placeholder="1.0" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.rate"}}>+</button>
-            </span>
+        <div class="col-sm-5">
+          <div class="md-number-picker">
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.rate"}}>−</button>
+            <Input @value={{this.pending_preferences.device.voice.rate}} class="md-number-picker__input" id="voice_rate" placeholder="1.0" />
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.rate"}}>+</button>
           </div>
         </div>
       </div>
       <div class="form-group">
         <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice Pitch" key='voice_pitch'}}</label>
-        <div class="col-sm-3 col-xs-7">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.pitch"}}>-</button>
-            </span>
-            <Input @value={{this.pending_preferences.device.voice.pitch}} class="form-control" id="voice_pitch" placeholder="1.0" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.pitch"}}>+</button>
-            </span>
+        <div class="col-sm-5">
+          <div class="md-number-picker">
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.pitch"}}>−</button>
+            <Input @value={{this.pending_preferences.device.voice.pitch}} class="md-number-picker__input" id="voice_pitch" placeholder="1.0" />
+            <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.pitch"}}>+</button>
           </div>
-        </div>
-      </div>
-      <div class="form-group" style="margin-top: -15px;">
-        <div class="col-sm-6 col-sm-offset-3">
-          (some voices don't support changing pitch/volume/etc.)
         </div>
       </div>
       <div class="form-group">
         <label for="voice_volume" class="col-sm-3 col-xs-12 control-label">{{t "Voice Volume" key='voice_volume'}}</label>
-        <div class="col-sm-3 col-xs-7">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.volume"}}>-</button>
-            </span>
-            <Input @value={{this.pending_preferences.device.voice.volume}} class="form-control" id="voice_volume" placeholder="1.0" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.volume"}}>+</button>
-            </span>
+        <div class="col-sm-5">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="md-number-picker">
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "minus" "this.pending_preferences.device.voice.volume"}}>−</button>
+              <Input @value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" />
+              <button type="button" class="md-number-picker__btn" {{action "plus_minus" "plus" "this.pending_preferences.device.voice.volume"}}>+</button>
+            </div>
+            <button class='btn btn-default' {{action "test_voice"}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
           </div>
-        </div>
-        <div class="col-sm-2 col-xs-5">
-          <button class='btn btn-default' {{action "test_voice"}}>{{t "Test Voice" key='test_voice'}}</button>
+          <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some voices may not support changing pitch or volume" key='voice_pitch_volume_note'}}</em></p>
         </div>
       </div>
       {{#if this.audio_target_available}}
