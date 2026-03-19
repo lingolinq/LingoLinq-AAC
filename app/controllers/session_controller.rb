@@ -526,9 +526,8 @@ class SessionController < ApplicationController
 
         u.password_used!
         token_json = JsonApi::Token.as_json(u, d)
-        # Debug logging for token response
-        Rails.logger.info("Token response for user #{u.user_name}: #{token_json.keys.inspect}")
-        Rails.logger.debug("Token response full: #{token_json.inspect}")
+        # Log only non-sensitive metadata; never log tokens (security)
+        Rails.logger.info("Token issued for user #{u.user_name}: keys=#{token_json.keys.join(',')}")
         # Rails 7: render json: expects a hash, not a pre-encoded string
         render json: token_json
       else
@@ -704,6 +703,16 @@ class SessionController < ApplicationController
 
   def heartbeat
     render json: {active: true}
+  end
+
+  def health
+    # Lightweight health check for Render/orchestrators: verify DB and Redis
+    ActiveRecord::Base.connection.execute('SELECT 1')
+    RedisInit.default.ping
+    render json: {ok: true}, status: 200
+  rescue => e
+    Rails.logger.warn("Health check failed: #{e.message}")
+    render json: {ok: false, error: e.message}, status: 503
   end
 
   def status
