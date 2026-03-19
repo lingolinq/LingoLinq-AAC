@@ -19,7 +19,6 @@ module Converters::LingoLinq
     res['name'] = board.settings['name']
     res['locale'] = board.settings['locale'] || 'en'
     res['default_layout'] = 'landscape'
-    res['image_url'] = board.settings['image_url']
     res['ext_lingolinq_image_url'] = board.settings['image_url']
     res['url'] = "#{JsonApi::Json.current_host}/#{board.key}"
     if opts && opts['simple']
@@ -38,7 +37,7 @@ module Converters::LingoLinq
       end
       bg = BoardContent.load_content(board, 'background')
       if bg
-        res['background'] = {
+        res['ext_lingolinq_background'] = {
           'image_url' => bg['image'] || bg['image_url'],
           'ext_lingolinq_image_exclusion' => bg['ext_lingolinq_image_exclusion'],
           'color' => bg['color'],
@@ -48,7 +47,7 @@ module Converters::LingoLinq
           'delayed_prompts' => bg['delay_prompts'] || bg['delayed_prompts'],
           'delay_prompt_timeout' => bg['delay_prompt_timeout']
         }
-        res['background'].keys.each{|key| res['background'].delete(key) unless res['background'][key] }
+        res['ext_lingolinq_background'].keys.each { |key| res['ext_lingolinq_background'].delete(key) unless res['ext_lingolinq_background'][key] }
       end
 
       res['ext_lingolinq_settings'] = {
@@ -176,8 +175,8 @@ module Converters::LingoLinq
               'id' => image.global_id,
               'width' => image_settings['width'],
               'height' => image_settings['height'],
-              'protected' => image_settings['protected'],
-              'protected_source' => image_settings['protected_source'],
+              'ext_lingolinq_protected' => image_settings['protected'],
+              'ext_lingolinq_protected_source' => image_settings['protected_source'],
               'license' => OBF::Utils.parse_license(image_settings['license']),
               'url' => image_settings['url'].present? ? Uploader.fronted_url(image_settings['url']) : nil,
               'data_url' => "#{JsonApi::Json.current_host}/api/v1/images/#{image.global_id}",
@@ -195,7 +194,7 @@ module Converters::LingoLinq
               image['url'] = Uploader.fronted_url(skinned_url)
             end
             alt_urls = []
-            if image['protected_source'] == 'pcs' && image['url'] && image['url'].match(/\.svg$/)
+            if image['ext_lingolinq_protected_source'] == 'pcs' && image['url'] && image['url'].match(/\.svg$/)
               if image['url'].match(/varianted-skin/)
                 alt_urls << image['url'].sub(/varianted-skin\.svg/, '') + 'png'
                 alt_urls << image['url'].sub(/varianted-skin\.svg/, '') + 'raster.png'
@@ -233,17 +232,20 @@ module Converters::LingoLinq
         end
         if !opts || !opts['simple']
           if original_button['sound_id']
-            sound = board.known_button_sounds.detect{|i| i.global_id == original_button['sound_id'] }
-            if sound
+            sound_record = board.known_button_sounds.detect{|i| i.global_id == original_button['sound_id'] }
+            if sound_record
+              duration = sound_record.settings['duration']
+              duration = 1 if !duration.is_a?(Numeric) || duration <= 0
+              duration = duration.to_i if duration.is_a?(Float)
               sound = {
-                'id' => sound.global_id,
-                'duration' => sound.settings['duration'],
-                'protected' => sound.settings['protected'],
-                'protected_source' => sound.settings['protected_source'],
-                'license' => OBF::Utils.parse_license(sound.settings['license']),
-                'url' => sound.url_for(opts['user']),
-                'data_url' => "#{JsonApi::Json.current_host}/api/v1/sounds/#{sound.global_id}",
-                'content_type' => sound.settings['content_type']
+                'id' => sound_record.global_id,
+                'duration' => duration,
+                'ext_lingolinq_protected' => sound_record.settings['protected'],
+                'ext_lingolinq_protected_source' => sound_record.settings['protected_source'],
+                'license' => OBF::Utils.parse_license(sound_record.settings['license']),
+                'url' => sound_record.url_for(opts['user']),
+                'data_url' => "#{JsonApi::Json.current_host}/api/v1/sounds/#{sound_record.global_id}",
+                'content_type' => sound_record.settings['content_type']
               }
             
               res['sounds'] << sound
@@ -308,7 +310,9 @@ module Converters::LingoLinq
       (obj[list] || {}).each do |id, item|
         next unless hashes["#{list}_ids"].include?(item['id'])
         record = Converters::Utils.find_by_data_url(item['data_url'])
-        if item['protected'] && item['protected_source'] && !protected_sources.include?(item['protected_source'])
+        protected_val = item['ext_lingolinq_protected'] || item['protected']
+        protected_src = item['ext_lingolinq_protected_source'] || item['protected_source']
+        if protected_val && protected_src && !protected_sources.include?(protected_src)
           # If the image/sound is protected and the user doesn't have permission
           # to access the source, then skip importing it rather than failing
           next
@@ -353,7 +357,7 @@ module Converters::LingoLinq
     non_user_params = {'user' => opts['user']}
     params['name'] = obj['name']
     params['description'] = obj['description_html']
-    params['image_url'] = obj['image_url']
+    params['image_url'] = obj['ext_lingolinq_image_url'] || obj['image_url']
     params['license'] = OBF::Utils.parse_license(obj['license'])
     params['locale'] = obj['locale'] || 'en'
 
@@ -451,8 +455,8 @@ module Converters::LingoLinq
     params['text_only'] = (obj['ext_lingolinq_settings'] || {})['text_only'] || false
     params['hide_empty'] = (obj['ext_lingolinq_settings'] || {})['hide_empty'] || false
 
-    if obj['background']
-      params['background'] = obj['background']
+    if obj['ext_lingolinq_background'] || obj['background']
+      params['background'] = obj['ext_lingolinq_background'] || obj['background']
     end
 
     non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])

@@ -41,7 +41,7 @@
       {{#if this.app_state.sessionUser}}
         {{#if this.app_state.sessionUser.supervisors}}
           <div class="form-group">
-            <label for="author_id" class="col-sm-3 control-label">{{t "Send Reply To" key="send_reply_to"}}</label>
+            <label for="supervisor_type" class="col-sm-3 control-label">{{t "Send Reply To" key="send_reply_to"}}</label>
             <div class="col-sm-7">
               {{bound-select select_class="form-control" select_id="supervisor_type" content=this.author_ids selection=this.author_id action=(action (mut this.author_id)) }}
             </div>

@@ -92,7 +92,13 @@ module Uploader
       if exp && exp < 48.hours.from_now
         return {found: true, expired: true}
       else
-        return {found: true, url: "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"}
+        # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
+        url = if ENV['UPLOADS_S3_CDN'].present?
+          "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"
+        else
+          "#{config[:upload_url]}#{remote_path}"
+        end
+        return {found: true, url: url}
       end
     end
     return {found: false}
@@ -182,6 +188,26 @@ module Uploader
     return nil unless config[:access_key] && config[:secret]
     service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
     bucket = service.buckets.find(config[:static_bucket_name])
+    object = bucket.objects.find(remote_path) rescue nil
+    if object
+      object.temporary_url.sub(/^http:/, 'https:')
+    else
+      nil
+    end
+  end
+
+  # Presigned URL for uploads bucket (board downloads, etc). Works even when bucket blocks public access.
+  def self.presigned_url_for_uploads(url_or_path)
+    remote_path = url_or_path.to_s
+    remote_path = remote_path.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
+    remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
+    remote_path = remote_path.sub(/^https?:\/\/[^\/]+\//, '') if remote_path.match?(/^https?:\/\//)
+    remote_path = remote_path[1..-1] if remote_path.start_with?('/')
+
+    config = remote_upload_config
+    return nil unless config[:access_key] && config[:secret] && config[:bucket_name]
+    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
+    bucket = service.buckets.find(config[:bucket_name])
     object = bucket.objects.find(remote_path) rescue nil
     if object
       object.temporary_url.sub(/^http:/, 'https:')

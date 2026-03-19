@@ -84,6 +84,16 @@ module Converters::Utils
       end
     end
     Progress.update_current_progress(0.9, :uploading_file)
+    if file_type == 'obf' || file_type == 'obz'
+      size = File.size(path) rescue 0
+      if file_type == 'obf' && size < 200
+        raise "OBF export produced invalid file (#{size} bytes)"
+      end
+      if file_type == 'obf'
+        content = File.read(path, encoding: 'UTF-8') rescue nil
+        JSON.parse(content) if content && content.length > 0
+      end
+    end
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
     raise "File not uploaded" unless url
     File.unlink(path) if File.exist?(path)
@@ -112,20 +122,5 @@ module Converters::Utils
       file.unlink
     end
     return result
-  end
-  
-  def self.obf_shell
-    {
-      'format' => 'open-board-0.1',
-      'license' => {'type' => 'private'},
-      'buttons' => [],
-      'grid' => {
-        'rows' => 0,
-        'columns' => 0,
-        'order' => [[]]
-      },
-      'images' => [],
-      'sounds' => []
-    }
   end
 end
