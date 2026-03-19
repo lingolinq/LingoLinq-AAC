@@ -63,6 +63,11 @@
   <link rel="icon" href="/images/logo-new.png?v=3" type="image/png" />
   <link rel="apple-touch-icon" href="/images/logo-new.png?v=3" />
   <%= javascript_include_tag "globals" %>
+  <% if @load_chart_scripts %>
+    <%# Chart.js + Sankey: before application.js; only Ember shell (boards/* that render index). See app/frontend/app/index.html for ember serve. %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js" crossorigin="anonymous"></script>
+  <% end %>
 </head>
 <body class="<%= 'pretty_loader' if pretty_loader %>">
 <% if @meta_record && crawler? %>

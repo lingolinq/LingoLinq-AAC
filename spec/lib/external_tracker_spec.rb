@@ -30,6 +30,26 @@ describe ExternalTracker do
       ExternalTracker.track_new_user(u)
       expect(Worker.scheduled_actions).to eq([])
     end
+
+    it "should not schedule when user opted out of cookies (GDPR consent)" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = false
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
+
+    it "should not schedule when cookies preference is legacy string false" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = 'false'
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
   end
   
   describe "persist_new_user" do
@@ -46,7 +66,41 @@ describe ExternalTracker do
       u2.save
       expect(ExternalTracker.persist_new_user(u2.global_id)).to eq(false)
     end
-    
+
+    it "should not call HubSpot when user opted out of cookies (GDPR)" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = false
+        u.settings['email'] = 'therapist@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
+    it "should not call HubSpot when cookies preference is legacy string false" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = 'false'
+        u.settings['email'] = 'therapist2@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
     it "should return false if not configured" do
       u = User.create
       ENV['HUBSPOT_KEY'] = nil

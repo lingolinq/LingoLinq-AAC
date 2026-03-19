@@ -108,7 +108,14 @@ class User < ActiveRecord::Base
   def supporter_registration?
     !['unspecified', 'communicator'].include?(self.registration_type)
   end
-  
+
+  # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
+  # legacy rows may still have the string 'false'.
+  def cookies_opted_out?
+    c = settings&.dig('preferences', 'cookies')
+    c == false || c == 'false'
+  end
+
   def log_session_duration
     (self.settings['preferences'] && self.settings['preferences']['log_session_duration']) || User.default_log_session_duration
   end
@@ -425,7 +432,7 @@ class User < ActiveRecord::Base
         self.settings['preferences']['devices'][key][attr] = val if self.settings['preferences']['devices'][key][attr] == nil
       end
     end
-    if self.settings['preferences']['cookies'] == false
+    if cookies_opted_out?
       self.settings['preferences']['protected_user'] = true
     end
     self.settings['preferences']['disable_quick_sidebar'] = false if self.settings['preferences']['quick_sidebar']
@@ -938,8 +945,9 @@ class User < ActiveRecord::Base
             'setting' => key,
             'timestamp' => Time.now.utc.iso8601
           }
-          if self.id && key == 'cookies' && params['preferences'] && params['preferences']['cookies'] == false && self.settings['preferences']['cookies'] == true
-            @opt_out = 'disabled'
+          if self.id && key == 'cookies' && params['preferences'] && !params['preferences']['cookies'].nil?
+            old_enabled = self.settings['preferences']['cookies'].nil? || process_boolean(self.settings['preferences']['cookies'])
+            @opt_out = 'disabled' if !process_boolean(params['preferences']['cookies']) && old_enabled
           end
         end
       end
@@ -959,6 +967,9 @@ class User < ActiveRecord::Base
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
     PREFERENCE_PARAMS.each do |attr|
       self.settings['preferences'][attr] = params['preferences'][attr] if params['preferences'] && params['preferences'][attr] != nil
+    end
+    if params['preferences'] && !params['preferences']['cookies'].nil?
+      self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
     end
     if params['preferences']
       self.settings['preferences']['clear_vocalization_history'] = process_boolean(params['preferences']['clear_vocalization_history']) if params['preferences'] && params['preferences']['clear_vocalization_history'] != nil
@@ -1082,7 +1093,7 @@ class User < ActiveRecord::Base
         end
       end
     end
-    if params['preferences'] && params['preferences']['cookies'] == true
+    if params['preferences'] && !params['preferences']['cookies'].nil? && process_boolean(params['preferences']['cookies'])
       self.settings['preferences']['protected_user'] = false
     end
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'

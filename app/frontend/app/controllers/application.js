@@ -366,10 +366,10 @@ export default Controller.extend({
   actions: {
     invalidateSession: function() {
       var sess = this.get('session');
-      if(sess && typeof sess.invalidate === 'function') {
+      if (sess && typeof sess.invalidate === 'function') {
         sess.invalidate(true);
-      } else {
-        session.invalidate(true);
+      } else if (LingoLinq.session && typeof LingoLinq.session.invalidate === 'function') {
+        LingoLinq.session.invalidate(true);
       }
     },
     authenticateSession: function() {

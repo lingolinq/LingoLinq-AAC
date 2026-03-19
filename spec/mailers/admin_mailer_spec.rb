@@ -80,6 +80,14 @@ describe AdminMailer, :type => :mailer do
       u.process({'preferences' => {'cookies' => false}})
       Worker.process_queues
     end
+
+    it "should be triggered when cookies is sent as string false" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
+      expect(u.settings['preferences']['cookies']).to eq(true)
+      expect(AdminMailer).to receive(:schedule_delivery).with(:opt_out, u.global_id, 'disabled')
+      u.process({'preferences' => {'cookies' => 'false'}})
+      Worker.process_queues
+    end
   end
   
 end
