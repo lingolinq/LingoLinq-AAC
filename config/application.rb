@@ -35,7 +35,10 @@ module LingoLinq
     # config.autoloader = :zeitwerk  # This is the default, no need to set explicitly
     
     # Eager load paths for lib directory (Zeitwerk will handle autoloading)
-    config.eager_load_paths += %W(#{config.root}/lib)
+    # Skip eager loading lib/ for Resque workers to reduce memory footprint
+    unless ENV['RESQUE_WORKER'] == 'true'
+      config.eager_load_paths += %W(#{config.root}/lib)
+    end
     
     # Ignore files/directories that don't conform to Zeitwerk naming conventions
     # (files with hyphens in names, or files that don't define expected constants)
