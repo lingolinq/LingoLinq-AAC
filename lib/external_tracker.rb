@@ -1,13 +1,15 @@
 module ExternalTracker
+  # HubSpot consent gate: only track supporters (therapists, teachers, admins, purchasers).
+  # Never send communicator/student/patient PII to HubSpot per COMPLIANCE.md.
   def self.track_new_user(user)
-    if user && user.external_email_allowed?
+    if user && user.external_email_allowed? && user.supporter_registration?
       Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
     end
   end
-  
+
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
-    return false unless user && user.external_email_allowed?
+    return false unless user && user.external_email_allowed? && user.supporter_registration?
     return false unless ENV['HUBSPOT_TOKEN']
     return false unless user.settings && user.settings['email']
 
