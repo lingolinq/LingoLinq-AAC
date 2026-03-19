@@ -24,6 +24,14 @@ export default Route.extend({
     controller.load_goals();
   },
   actions: {
+    didTransition: function() {
+      var content = document.getElementById('content');
+      if (content) {
+        content.scrollTop = 0;
+      }
+      window.scrollTo(0, 0);
+      return true;
+    },
     recordNote: function(type) {
       var _this = this;
       var user = this.modelFor('user');

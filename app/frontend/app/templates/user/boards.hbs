@@ -1,3 +1,11 @@
+<div class="md-shell md-shell--reports-view">
+  <div class="md-workspace">
+    <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <LinkTo @route="user.home" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
+      <span class="md-pillnav__pill is-active" aria-current="page">{{t "Boards" key="boards"}}</span>
+      <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
+      <LinkTo @route="user.extras" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
+    </nav>
 <div class="ub-boards-page ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
@@ -261,4 +269,6 @@
     </div>
   {{/if}}
 
+</div>
+  </div>
 </div>

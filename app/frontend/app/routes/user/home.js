@@ -14,10 +14,6 @@ export default IndexRoute.extend({
 
   activate: function() {
     this._super(...arguments);
-    var userController = this.controllerFor('user');
-    if (userController.get('from_dashboard')) {
-      userController.set('from_dashboard', null);
-    }
   },
 
   model: function() {

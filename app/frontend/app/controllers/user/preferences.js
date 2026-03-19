@@ -400,10 +400,12 @@ export default Controller.extend({
     return capabilities.system == 'iOS' && capabilities.installed_app;
   }),
   raw_core_word_list: computed('core_lists.for_user', function() {
+    var list = this.get('core_lists.for_user') || [];
     var div = document.createElement('div');
-    (this.get('core_lists.for_user') || []).each(function(w) {
+    var arr = list.toArray ? list.toArray() : (Array.isArray(list) ? list : []);
+    arr.forEach(function(w) {
       var span = document.createElement('span');
-      span.innerText = w;
+      span.innerText = w + ' ';
       div.appendChild(span);
     });
     return htmlSafe(div.innerHTML);

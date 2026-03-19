@@ -274,15 +274,17 @@
                     <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
                   </div>
                 </div>
+                <div class="md-extras-card__btn-wrap">
                 {{#if (is-equal item.action "supervisors")}}
-                  <button type="button" class="md-btn md-btn--primary md-btn--wide md-extras-card__btn" {{action "openSupervisorsModal"}}>
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "openSupervisorsModal"}}>
                     {{t "View" key="view"}} →
                   </button>
                 {{else}}
-                  <button type="button" class="md-btn md-btn--primary md-btn--wide md-extras-card__btn" {{action "extraAction" item.action}}>
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
                     {{t item.btn_default key=item.btn_key}} →
                   </button>
                 {{/if}}
+                </div>
               </article>
             {{/if}}
           {{/each}}

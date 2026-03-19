@@ -50,7 +50,6 @@
     <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Subscription" key="my_subscription"}}</LinkTo>
     <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "Recordings" key="recordings"}}</LinkTo>
     <LinkTo @route="user.goals" @model={{this.model.user_name}} class="md-user-summary__quick-pill">{{t "My Goals" key="goals"}}</LinkTo>
-    <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash from_dashboard=null type=null}} class="md-user-summary__quick-pill">{{t "Logs & Messages" key="logs_messages"}}</LinkTo>
   </div>
 {{#if this.model.permissions.view_detailed}}
   {{#if this.model.permissions.delete}}

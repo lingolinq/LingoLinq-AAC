@@ -5,9 +5,6 @@ import { computed } from '@ember/object';
 export default Controller.extend({
   app_state: service('app-state'),
   router: service('router'),
-  queryParams: ['from_dashboard'],
-  from_dashboard: null,
-
   /**
    * Full dashboard or board-alt: render only {{outlet}} (no md-user-layout / User menu).
    * Uses router + URL so user.extras always matches even if current_route leaf name differs.
@@ -18,7 +15,7 @@ export default Controller.extend({
     'model.user_name',
     function() {
       var name = this.get('router.currentRouteName') || '';
-      if (name === 'user.board-alt.index' || name === 'user.home' || name === 'user.extras') {
+      if (name === 'user.board-alt.index' || name === 'user.home' || name === 'user.extras' || name === 'user.boards') {
         return true;
       }
       var un = this.get('model.user_name');
