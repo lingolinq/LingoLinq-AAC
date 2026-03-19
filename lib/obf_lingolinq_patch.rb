@@ -4,35 +4,35 @@
 # Patches OBF gem to avoid validator warnings for background and image.protected.
 # Must be required after 'obf' gem is loaded.
 # Set OBF_LINGOLINQ_PATCH=0 to disable (use original OBF gem) if zip validation fails.
-return if defined?(OBF::External::LingoLinqPatched)
-return if ENV['OBF_LINGOLINQ_PATCH'].to_s.match(/\A(0|false|no|off)\z/i)
+if !defined?(OBF::External::LingoLinqPatched) &&
+   !ENV['OBF_LINGOLINQ_PATCH'].to_s.match(/\A(0|false|no|off)\z/i)
 
-require 'obf'
+  require 'obf'
 
-module OBF
-  module External
-    module LingoLinqPatch
-      def self.to_obf(hash, dest_path, path_hash = nil, to_include = nil)
-        to_include ||= { images: true, sounds: true }
-        if hash['boards']
-          old_hash = hash
-          hash = old_hash['boards'][0]
-          hash['images'] = old_hash['images'] || []
-          hash['sounds'] = old_hash['sounds'] || []
-          path_hash = nil
-        end
+  module OBF
+    module External
+      module LingoLinqPatch
+        def self.to_obf(hash, dest_path, path_hash = nil, to_include = nil)
+          to_include ||= { images: true, sounds: true }
+          if hash['boards']
+            old_hash = hash
+            hash = old_hash['boards'][0]
+            hash['images'] = old_hash['images'] || []
+            hash['sounds'] = old_hash['sounds'] || []
+            path_hash = nil
+          end
 
-        res = ::OBF::Utils.obf_shell
-        res['id'] = hash['id']
-        res['locale'] = hash['locale'] || 'en'
-        res['format'] = ::OBF::OBF::FORMAT
-        res['name'] = hash['name']
-        res['default_layout'] = hash['default_layout'] || 'landscape'
-        # OBF spec: use ext_lingolinq_background, don't set background when nil
-        res['background'] = hash['background'] if hash['background']
-        res['url'] = hash['url']
-        res['data_url'] = hash['data_url']
-        ::OBF::Utils.log("compressing board #{res['name'] || res['id']}")
+          res = ::OBF::Utils.obf_shell
+          res['id'] = hash['id']
+          res['locale'] = hash['locale'] || 'en'
+          res['format'] = ::OBF::OBF::FORMAT
+          res['name'] = hash['name']
+          res['default_layout'] = hash['default_layout'] || 'landscape'
+          # OBF spec: use ext_lingolinq_background, don't set background when nil
+          res['background'] = hash['background'] if hash['background']
+          res['url'] = hash['url']
+          res['data_url'] = hash['data_url']
+          ::OBF::Utils.log("compressing board #{res['name'] || res['id']}")
 
         res['default_locale'] = hash['default_locale'] if hash['default_locale']
         res['label_locale'] = hash['label_locale'] if hash['label_locale']
@@ -317,4 +317,6 @@ module OBF
 
     LingoLinqPatched = true
   end
+end
+
 end
