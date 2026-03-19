@@ -310,8 +310,18 @@ module Converters::LingoLinq
       (obj[list] || {}).each do |id, item|
         next unless hashes["#{list}_ids"].include?(item['id'])
         record = Converters::Utils.find_by_data_url(item['data_url'])
-        protected_val = item['ext_lingolinq_protected'] || item['protected']
-        protected_src = item['ext_lingolinq_protected_source'] || item['protected_source']
+        protected_val =
+          if item.key?('ext_lingolinq_protected')
+            item['ext_lingolinq_protected']
+          else
+            item['protected']
+          end
+        protected_src =
+          if item.key?('ext_lingolinq_protected_source')
+            item['ext_lingolinq_protected_source']
+          else
+            item['protected_source']
+          end
         if protected_val && protected_src && !protected_sources.include?(protected_src)
           # If the image/sound is protected and the user doesn't have permission
           # to access the source, then skip importing it rather than failing
