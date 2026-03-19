@@ -65,24 +65,42 @@ describe ExternalTracker do
       u2.settings['email'] = 'comm@example.com'
       u2.save
       expect(ExternalTracker.persist_new_user(u2.global_id)).to eq(false)
-
-      u3 = User.create
-      u3.settings['preferences'] ||= {}
-      u3.settings['preferences']['registration_type'] = 'therapist'
-      u3.settings['preferences']['cookies'] = false
-      u3.settings['email'] = 'therapist@example.com'
-      u3.save
-      expect(ExternalTracker.persist_new_user(u3.global_id)).to eq(false)
-
-      u4 = User.create
-      u4.settings['preferences'] ||= {}
-      u4.settings['preferences']['registration_type'] = 'therapist'
-      u4.settings['preferences']['cookies'] = 'false'
-      u4.settings['email'] = 'therapist2@example.com'
-      u4.save
-      expect(ExternalTracker.persist_new_user(u4.global_id)).to eq(false)
     end
-    
+
+    it "should not call HubSpot when user opted out of cookies (GDPR)" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = false
+        u.settings['email'] = 'therapist@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
+    it "should not call HubSpot when cookies preference is legacy string false" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = 'false'
+        u.settings['email'] = 'therapist2@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
     it "should return false if not configured" do
       u = User.create
       ENV['HUBSPOT_KEY'] = nil
