@@ -117,9 +117,6 @@ export default Component.extend({
   },
 
   actions: {
-    support() {
-      // placeholder for support/help action
-    },
     applicationSupport() {
       modal.open('support');
     },

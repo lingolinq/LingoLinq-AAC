@@ -254,7 +254,8 @@
               <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
               <nav aria-label={{t "Resources" key="fsa_nav_resources"}}>
               <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-              <button type="button" class="la-footer-link-btn" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</button>
+              <LinkTo @route="support" class="la-footer-link-btn">{{t "Help Center" key='landing_footer_help'}}</LinkTo>
+              <LinkTo @route="faq" class="la-footer-link-btn">{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
               {{#if this.appState.showFooterGithubLinks}}
                 <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
                 <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}}>{{t "Open Source" key='landing_footer_oss'}}</a>
@@ -265,16 +266,19 @@
               <h4>{{t "Company" key='landing_footer_company'}}</h4>
               <nav aria-label={{t "Company" key="fsa_nav_company"}}>
               <LinkTo @route="about">{{t "About Us" key='landing_footer_about'}}</LinkTo>
-              <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" aria-label={{t "Blog (opens in new tab)" key="blog_new_tab"}}>{{t "Blog" key='landing_footer_blog'}}</a>
               <LinkTo @route="contact">{{t "Contact" key='landing_footer_contact'}}</LinkTo>
-              <button type="button" class="la-footer-link-btn" {{action "support"}}>{{t "Accessibility" key='landing_footer_accessibility'}}</button>
+              <LinkTo @route="terms">{{t "Terms of Service" key="landing_footer_terms"}}</LinkTo>
+              <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo>
               </nav>
             </div>
             <div class="la-footer-bottom">
-              <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
-              <div class="la-footer-bottom-badges">
-                <span class="la-badge la-badge--wcag">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
-                <span class="la-badge la-badge--oss">{{t "Open Source" key='landing_oss_badge'}}</span>
+              <span class="la-footer-bottom__copy">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
+              <div class="la-footer-bottom-trailing">
+                <a href="https://www.w3.org/WAI/WCAG21/Understanding/conformance" target="_blank" rel="noopener noreferrer" class="la-footer-bottom-a11y-wcag" title={{t "Read about what accessibility compliance means and how WCAG 2.1 AA is defined (opens in new tab)." key="landing_footer_a11y_wcag_pill_title"}} aria-label={{t "Accessibility and WCAG 2.1 AA: W3C conformance and testing guidance (opens in new tab)" key="landing_footer_a11y_wcag_link_aria"}}>
+                  <span class="la-footer-bottom-a11y-wcag__label">{{t "Accessibility" key='landing_footer_accessibility'}}</span>
+                  <span class="la-badge la-badge--wcag la-badge--in-a11y-wcag-pill">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
+                </a>
+                {{!-- Open Source badge omitted (la-badge--oss / landing_oss_badge) --}}
               </div>
             </div>
           </div>
@@ -285,7 +289,8 @@
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
             <LinkTo @route="register" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-            <button type="button" class="la-mobile-drawer__link la-footer-link-btn" {{action "support"}} {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</button>
+            <LinkTo @route="support" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</LinkTo>
+            <LinkTo @route="faq" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
             {{#if this.appState.showFooterGithubLinks}}
               <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}} {{action f.closeDrawer}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
               <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}} {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
@@ -293,9 +298,15 @@
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Company" key='landing_footer_company'}}</div>
             <LinkTo @route="about" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "About Us" key='landing_footer_about'}}</LinkTo>
-            <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Blog (opens in new tab)" key="blog_new_tab"}} {{action f.closeDrawer}}>{{t "Blog" key='landing_footer_blog'}}</a>
             <LinkTo @route="contact" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Contact" key='landing_footer_contact'}}</LinkTo>
-            <button type="button" class="la-mobile-drawer__link la-footer-link-btn" {{action "support"}} {{action f.closeDrawer}}>{{t "Accessibility" key='landing_footer_accessibility'}}</button>
+            <LinkTo @route="terms" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Terms of Service" key="landing_footer_terms"}}</LinkTo>
+            <LinkTo @route="privacy" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Privacy" key="privacy"}}</LinkTo>
+            <div class="la-mobile-drawer__divider"></div>
+            <a href="https://www.w3.org/WAI/WCAG21/Understanding/conformance" target="_blank" rel="noopener noreferrer" class="la-footer-bottom-a11y-wcag la-mobile-drawer-a11y-wcag" title={{t "Read about what accessibility compliance means and how WCAG 2.1 AA is defined (opens in new tab)." key="landing_footer_a11y_wcag_pill_title"}} aria-label={{t "Accessibility and WCAG 2.1 AA: W3C conformance and testing guidance (opens in new tab)" key="landing_footer_a11y_wcag_link_aria"}} {{action f.closeDrawer preventDefault=false}}>
+              <span class="la-footer-bottom-a11y-wcag__label">{{t "Accessibility" key='landing_footer_accessibility'}}</span>
+              <span class="la-badge la-badge--wcag la-badge--in-a11y-wcag-pill">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
+            </a>
+            {{!-- Open Source footer badge: <span class="la-badge la-badge--oss">landing_oss_badge</span> --}}
             <div class="la-mobile-drawer__divider"></div>
             <span class="la-mobile-drawer__footer-note">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
           </LaFooterDrawer>
