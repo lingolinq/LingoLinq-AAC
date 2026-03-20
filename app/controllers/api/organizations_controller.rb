@@ -727,4 +727,16 @@ class Api::OrganizationsController < ApplicationController
     org.destroy
     render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
   end
+
+  def update_data_policy
+    return unless allowed?(@org, 'manage')
+    policy_params = params[:data_policy]
+    policy_params = policy_params.permit! if policy_params.is_a?(ActionController::Parameters)
+    @org.update_data_policy(policy_params.to_h.stringify_keys, @api_user)
+    if @org.save
+      render json: JsonApi::Organization.as_json(@org, :wrapper => true, :permissions => @api_user).to_json
+    else
+      api_error(400, {error: "failed to update data policy"})
+    end
+  end
 end

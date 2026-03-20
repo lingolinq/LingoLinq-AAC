@@ -234,6 +234,7 @@ LingoLinq::Application.routes.draw do
       post 'alias'
       post 'start_code' => 'organizations#start_code'
       post 'status/:user_id' => 'organizations#set_status'
+      put 'data_policy' => 'organizations#update_data_policy'
     end
     
     resources :utterances do

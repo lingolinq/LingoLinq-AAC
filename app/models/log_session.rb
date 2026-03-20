@@ -61,7 +61,16 @@ class LogSession < ActiveRecord::Base
     self.ip_cluster_id = nil if !self.data['ip_address']
     self.ip_cluster_id = nil if self.data['ip_address'] && self.ip_cluster_id == -1
     self.data['readable_ip_address'] = attrs['readable_ip_address']
-    
+
+    # Enforce org data policy: strip geo/IP data if org explicitly disallows geo logging
+    if self.user && self.user.effective_data_policy['geo_logging_allowed'] == false
+      self.data.delete('geo')
+      self.data.delete('ip_address')
+      self.data.delete('readable_ip_address')
+      self.geo_cluster_id = nil
+      self.ip_cluster_id = nil
+    end
+
     self.data['duration'] = last && last['timestamp'] && first && first['timestamp'] && (last['timestamp'] - first['timestamp'])
     utterances = self.data['events'].select{|e| e['type'] == 'utterance' }
     buttons = self.data['events'].select{|e| e['type'] == 'button' }
@@ -314,7 +323,8 @@ class LogSession < ActiveRecord::Base
     
     self.processed ||= false
     if self.needs_remote_push == nil
-      self.needs_remote_push = !!(self.log_type == 'session' && self.user_id && self.user && !self.user.private_logging?) 
+      org_allows_logging = self.user.effective_data_policy['logging_allowed'] != false
+      self.needs_remote_push = !!(self.log_type == 'session' && self.user_id && self.user && !self.user.private_logging? && org_allows_logging) 
     end
     throw(:abort) unless self.user_id && self.author_id && self.device_id
     true

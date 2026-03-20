@@ -1233,6 +1233,50 @@ class User < ActiveRecord::Base
     end
   end
 
+  # Org data policy floor enforcement.
+  # Returns the org's effective data policy, or empty hash if no org.
+  def effective_data_policy
+    org = self.managing_organization
+    return {} unless org
+    org.effective_data_policy
+  end
+
+  def effective_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['logging'])
+  end
+
+  def effective_geo_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['geo_logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['geo_logging'])
+  end
+
+  def effective_log_reports_allowed?
+    policy = effective_data_policy
+    return false if policy['log_reports_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_reports'])
+  end
+
+  def effective_log_publishing_allowed?
+    policy = effective_data_policy
+    return false if policy['log_publishing_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_publishing'])
+  end
+
+  def effective_logging_cutoff_for(user, code)
+    base_cutoff = logging_cutoff_for(user, code)
+    policy = effective_data_policy
+    max_hours = policy['max_logging_cutoff_hours']
+    return base_cutoff unless max_hours
+    if base_cutoff.nil?
+      max_hours
+    else
+      [base_cutoff, max_hours].min
+    end
+  end
+
   def update_home_board_inflections
     board = Board.find_by_path(self.settings['preferences']['home_board']['id']) if self.settings['preferences'] && self.settings['preferences']['home_board']
     if board
