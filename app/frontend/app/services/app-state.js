@@ -53,6 +53,10 @@ export default Service.extend({
   router: service('router'),
   session: service('session'),
   contentGrabbers: service('content-grabbers'),
+
+  /** Set true to show GitHub links in footers (Developers, API Docs, Open Source). */
+  showFooterGithubLinks: false,
+
   init() {
     LingoLinq.appState = this;
     // Expose globally for utilities

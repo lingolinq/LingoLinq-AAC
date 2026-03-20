@@ -34,7 +34,7 @@ export default Route.extend({
   },
   afterModel: function(model) {
     if (model && model.get('user_name') && session.get('access_token')) {
-      this.replaceWith('user.home', model.get('user_name'));
+      this.router.replaceWith('user.home', model.get('user_name'));
     }
   },
   setupController: function(controller, model) {

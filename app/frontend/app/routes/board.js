@@ -11,6 +11,7 @@ import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
   appState: service('app-state'),
@@ -23,7 +24,7 @@ export default Route.extend({
       var parts = key.split('/');
       var user_id = parts[0];
       var boardname = parts.slice(1).join('/');
-      this.replaceWith('user.board-alt', user_id, boardname);
+      this.router.replaceWith('user.board-alt', user_id, boardname);
     }
   },
   model: function(params) {

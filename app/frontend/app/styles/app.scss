@@ -21438,8 +21438,39 @@ $aac-z-topbar:   400;
   margin-left: auto;
   margin-right: auto;
 }
+.la-pricing-cloud-extras-cta {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto $aac-spacing-24;
+  padding: 0 1rem;
+  max-width: 748px;
+  box-sizing: border-box;
+}
+
+/* Pricing cards: cloud extras open-modal control reads clearly as a link */
+.la-wrapper.la-wrapper--pricing .la-pricing-card__cloud-extras-link {
+  font-weight: $aac-font-weight-semi;
+  text-decoration: none;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+  border-bottom-color: rgba(42, 157, 143, 0.55);
+  padding-bottom: 1px;
+
+  &:hover,
+  &:focus-visible {
+    border-bottom-color: var(--fs-dark-teal, #2A9D8F);
+    color: color.adjust(#2a9d8f, $lightness: -8%);
+    outline: none;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 4px var(--fs-dark-teal, #2A9D8F);
+    border-radius: 2px;
+  }
+}
+
 .la-wrapper.la-wrapper--pricing .la-section .la-pricing-preview-grid {
-  margin-top: -2rem;
+  margin-top: 0;
 }
 
 .la-wrapper .la-main {
@@ -25351,7 +25382,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 }
 
-.la-wrapper.la-wrapper--pricing .la-cta-buttons .la-btn--ghost {
+.la-wrapper.la-wrapper--pricing .la-cta-buttons .la-btn--ghost,
+.la-wrapper.la-wrapper--pricing .la-pricing-cloud-extras-cta .la-btn--ghost {
   font-weight: $aac-font-weight-semi;
   background: rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(10px);

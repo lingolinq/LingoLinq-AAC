@@ -255,8 +255,10 @@
               <nav aria-label={{t "Resources" key="fsa_nav_resources"}}>
               <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
               <button type="button" class="la-footer-link-btn" {{action "support"}}>{{t "Help Center" key='landing_footer_help'}}</button>
-              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
-              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+              {{#if this.appState.showFooterGithubLinks}}
+                <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
+                <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+              {{/if}}
               </nav>
             </div>
             <div class="la-footer-col">
@@ -284,8 +286,10 @@
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
             <LinkTo @route="register" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
             <button type="button" class="la-mobile-drawer__link la-footer-link-btn" {{action "support"}} {{action f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</button>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}} {{action f.closeDrawer}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
-            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}} {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+            {{#if this.appState.showFooterGithubLinks}}
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "API Docs (opens in new tab)" key="api_docs_new_tab"}} {{action f.closeDrawer}}>{{t "API Docs" key='fsa_footer_api_docs'}}</a>
+              <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="la-mobile-drawer__link" aria-label={{t "Open Source (opens in new tab)" key="open_source_new_tab"}} {{action f.closeDrawer}}>{{t "Open Source" key='landing_footer_oss'}}</a>
+            {{/if}}
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Company" key='landing_footer_company'}}</div>
             <LinkTo @route="about" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "About Us" key='landing_footer_about'}}</LinkTo>

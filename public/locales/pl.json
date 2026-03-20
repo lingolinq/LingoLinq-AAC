@@ -5130,7 +5130,7 @@
   "about_check_export": "*** Easy data export",
   "about_check_obf": "*** Open Board Format standard",
   "about_check_privacy": "*** Privacy-first design",
-  "open_source_content_concise": "*** Proprietary AAC tools lock you in and hide how they work. <a href='https://github.com/swahlquist/LingoLinq-AAC' target='_blank' rel='noopener'>%app_name% is open source</a> — inspect the code, export your data anytime, and never worry about vendor lock-in.",
+  "open_source_content_concise": "*** Proprietary AAC tools lock you in and hide how they work. <a href='https://github.com/lingolinq/LingoLinq-AAC' target='_blank' rel='noopener'>%app_name% is open source</a> — inspect the code, export your data anytime, and never worry about vendor lock-in.",
   "fsa_ready_to_start": "*** Ready to start?",
   "landing_cta_title_1": "*** Give every student",
   "landing_cta_title_2": "*** a voice",
