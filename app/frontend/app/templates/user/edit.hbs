@@ -31,15 +31,15 @@
   {{!-- Section: Account & Security --}}
   {{#preference-box title="Account & Security" glyph='glyphicon glyphicon-lock' title_key='profile_section_security' open=true}}
     <div class="form-group">
-      <label for="user_name" class="col-sm-3 control-label">{{t "Username" key="username"}}</label>
+      <span class="col-sm-3 control-label">{{t "Username" key="username"}}</span>
       <div class="col-sm-5">
-        <label class="control-label">
+        <span class="form-control-static">
           {{ this.model.user_name }}
-        </label>
+        </span>
       </div>
     </div>
     <div class="form-group">
-      <label for="registration_type" class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</label>
+      <span class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</span>
       <div class="col-sm-5">
         {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
       </div>
@@ -61,7 +61,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="col-sm-3 control-label"></label>
+        <span class="col-sm-3 control-label"></span>
         <div class="col-sm-5">
           <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="new password" />
         </div>
@@ -134,7 +134,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label for="avatar" class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</label>
+      <span class="col-sm-3 control-label">{{t "Avatar" key="avatar"}}</span>
       <div class="col-sm-5">
         <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
         <a href="#" {{action "pick_avatar"}}>{{t "Choose a different profile pic" key="choose_a_different_profile_pic"}}</a>
@@ -154,7 +154,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
+      <span class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</span>
       <div class="col-sm-5">
         <p class="form-control-static">
           {{#if this.model.preferences.home_board.key}}
@@ -169,7 +169,7 @@
 
   {{#if this.app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
-      <label for='contacts' class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</label>
+      <span class='col-sm-3 control-label'>{{t "Contacts" key="contacts"}}</span>
       <div class='col-sm-5'>
         <p class='form-control-static'><em>{{t "You can add email addresses or cell numbers of people the communicator can message through the share tool, or through a messaging link you can send them." key="add_contacts"}}</em></p>
         {{#if this.model.contacts}}
@@ -287,7 +287,7 @@
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
+        <span class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</span>
         <div class="col-sm-6">
           {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=(action (mut this.external_access_method)) }}
         </div>
@@ -317,7 +317,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Classroom User Name" key="classroom_user_name"}}</label>
+          <span class="col-sm-3 control-label">{{t "Classroom User Name" key="classroom_user_name"}}</span>
           <div class="col-sm-5">
             <p class="form-control-static">
               {{this.valet_user_name}}
@@ -371,7 +371,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="valet_user_name" class="col-sm-3 control-label">{{t "Valet User Name" key="valet_user_name"}}</label>
+          <span class="col-sm-3 control-label">{{t "Valet User Name" key="valet_user_name"}}</span>
           <div class="col-sm-5">
             <p class="form-control-static">
               {{this.valet_user_name}}

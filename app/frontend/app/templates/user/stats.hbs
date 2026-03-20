@@ -1,4 +1,16 @@
 {{#opening-observer done_opening=(action "draw_charts")}}
+<div class="md-shell md-shell--reports-view">
+  <div class="md-workspace">
+    <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <LinkTo @route="user.home" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
+      <LinkTo @route="user.boards" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Boards" key="boards"}}</LinkTo>
+      <span class="md-pillnav__pill is-active" aria-current="page">{{t "Reports" key="reports"}}</span>
+      <LinkTo @route="user.extras" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
+    </nav>
+    <header class="md-hero md-hero--dashboard md-hero--reports-dashboard">
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Reports for %{username}" key="reports_for_username" username=this.model.user_name}}</span></h1>
+      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's look at some" key="reports_dashboard_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "useful information..." key="reports_dashboard_hero_sub_em"}}</em></span></p>
+    </header>
 <div class="md-stats-page">
   <main class="md-stats-main">
 {{#if this.app_state.currentUser.modeling_only}}
@@ -362,5 +374,7 @@
   {{login-form left=true prompt=true return=true}}
 {{/if}}
   </main>
+</div>
+  </div>
 </div>
 {{/opening-observer}}

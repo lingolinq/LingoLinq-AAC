@@ -30364,6 +30364,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-pillnav--user {
   margin-top: 18px;
   margin-bottom: 0;
+  padding-top: 8px;
+  padding-bottom: 8px !important;
   width: fit-content;
   max-width: 100%;
   box-sizing: border-box;
@@ -30485,6 +30487,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   max-width: none;
   margin: 0;
   padding: 0;
+  animation: md-reports-fade-in 0.35s ease-out 0.1s both;
 }
 /* Stats page inside md-workspace (same container as home/boards): use shell bg, no duplicate gradient */
 .md-workspace .md-stats-page {
@@ -30497,6 +30500,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-shell--reports-view .md-stats-main {
   margin-top: 0;
+}
+/* Staggered fade-in for stats content sections */
+@keyframes md-stats-section-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.md-stats-main > .md-user-meta {
+  animation: md-stats-section-in 0.3s ease-out both;
+}
+.md-stats-main .md-stats-hero-card {
+  animation: md-stats-section-in 0.35s ease-out 0.05s both;
+}
+.md-stats-main .md-stats-grid,
+.md-stats-main .md-stats-row,
+.md-stats-main > div,
+.md-stats-main > section:not(.md-stats-hero-card) {
+  animation: md-stats-section-in 0.4s ease-out 0.15s both;
+}
+.md-stats-actions {
+  animation: md-stats-section-in 0.4s ease-out 0.25s both;
 }
 .md-shell--reports-view .md-stats-hero__title {
   display: none;
@@ -31209,6 +31238,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin: 0 auto;
   color: var(--md-ink);
 }
+@keyframes md-slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 .md-edit-profile__header {
   display: flex;
   align-items: center;
@@ -31216,6 +31255,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 28px;
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba(17, 26, 46, 0.12);
+  animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .md-edit-profile__title {
   margin: 0;
@@ -32183,6 +32223,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 28px;
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba(17, 26, 46, 0.12);
+  animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .md-logs__title {
   margin: 0;
@@ -32462,6 +32503,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 28px;
   padding-bottom: 18px;
   border-bottom: 1.5px solid rgba(17, 26, 46, 0.12);
+  animation: md-slide-in-from-left 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 .md-preferences__title {
   margin: 0;
@@ -36295,6 +36337,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   pointer-events: none;
   visibility: hidden;
 }
+/* Reports page: smooth fade-in for shell and quick animations for hero */
+.md-shell--reports-view {
+  animation: md-reports-fade-in 0.3s ease-out both;
+}
+@keyframes md-reports-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.md-hero--reports-dashboard .md-hero__title--from-left {
+  animation-duration: 0.4s !important;
+  animation-delay: 0s !important;
+}
+.md-hero--reports-dashboard .md-hero__sub--from-right {
+  animation-duration: 0.4s !important;
+  animation-delay: 0.15s !important;
+}
 /* Dashboard greeting above stats outlet (user.hbs) — same hero as home; override reports-shell hide */
 .md-shell--reports-view .md-hero--reports-dashboard {
   opacity: 1;
@@ -38023,6 +38081,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 0 0 $aac-spacing-48;
   max-width: 1120px;
   margin: 0 auto;
+  width: 100%;
+  min-height: 80vh;
+  box-sizing: border-box;
+  animation: md-reports-fade-in 0.25s ease-out both;
 
   /* Primary nav is user.hbs md-pillnav--dashboard above outlet */
   &--below-dashboard-pills {
