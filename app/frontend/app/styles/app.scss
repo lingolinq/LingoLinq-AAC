@@ -56,6 +56,36 @@ header.header--unauthenticated:has(.la-topbar-nav) #inner_header {
   padding-top: 6px;
   padding-bottom: 6px;
 }
+header.header--unauthenticated #inner_header {
+  display: flex;
+  align-items: center;
+  height: 70px;
+}
+header.header--unauthenticated #inner_header #nav_header {
+  height: 100%;
+  margin-top: 0 !important;
+  display: flex;
+  align-items: center;
+}
+header.header--unauthenticated #inner_header h1,
+header.header--unauthenticated #inner_header #nav_header h1,
+header.header--unauthenticated #nav_header h1 {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+header.header--unauthenticated #inner_header .nav-header__brand {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+header.header--unauthenticated #inner_header .nav-header__logo-link {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
 /* Hide page footer in unauthenticated view (login, register, landing-alt, etc.) */
 #within_ember:has(header.header--unauthenticated) .page-footer {
   display: none !important;
@@ -1825,6 +1855,17 @@ h1 a:hover {
 }
 #nav_header h1 .nav-header__brand .nav-header__logo {
   display: inline-flex;
+}
+.nav-header__logo-svg {
+  height: 22px;
+  width: auto;
+  display: block;
+  margin-left: 36px;
+}
+.nav-header__logo img {
+  height: 22px;
+  width: auto;
+  margin-left: 36px;
 }
 #nav_header h1 .nav-header__brand .nav-header__app-name,
 #nav_header h1 .nav-header__brand .nav-header__app-name span {
@@ -10810,6 +10851,25 @@ body:-ms-fullscreen {
   height: auto;
   overflow: visible;
 }
+/* Authenticated pages (no board bar): header, inner_header, and navbar all 70px */
+#within_ember > header.header-index-with-dark-toggle:not(.header--unauthenticated):has(.app-navbar):not(:has(#speak)):not(:has(#nav_header)) {
+  height: 70px;
+  min-height: 70px;
+}
+header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header:not(:has(#speak)):not(:has(#nav_header)),
+header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header:not(:has(#speak)):not(:has(#nav_header)) .app-navbar,
+header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header:not(:has(#speak)):not(:has(#nav_header)) .app-navbar__inner {
+  height: 70px;
+  min-height: 70px;
+  max-height: 70px;
+}
+header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header .app-navbar {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+#within_ember > header.header-index-with-dark-toggle.header--unauthenticated:has(.app-navbar) {
+  min-height: 82px;
+}
 /* Board page: header needs solid background so two-row bar is visible */
 #within_ember > header.header-index-with-dark-toggle:has(#inner_header #speak),
 #within_ember > header.header-index-with-dark-toggle:has(#inner_header #nav_header) {
@@ -10822,6 +10882,13 @@ body:-ms-fullscreen {
   flex: 1;
   min-width: 0;
   width: 100%;
+}
+.header--unauthenticated .app-navbar,
+.header--unauthenticated .app-navbar__inner {
+  min-height: 82px;
+}
+.header--unauthenticated .app-navbar {
+  padding-bottom: 0;
 }
 /* Single baseline for authenticated nav inner (index + modern-dashboard). Content and styling shared; Modern Dashboard link shown only on index via @showModernDashboardLink. */
 .app-navbar .app-navbar-authenticated-inner {
@@ -11314,7 +11381,7 @@ body:-ms-fullscreen {
   background-color: #000 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   height: auto;
-  min-height: 70px;
+  min-height: 82px;
   overflow: visible;
 }
 
@@ -20339,6 +20406,13 @@ $aac-z-topbar:   400;
   .la-troubleshooting-content .la-btn--ghost {
     padding: 0.35rem 0.75rem;
     font-size: 0.875rem;
+    background: rgba(55, 65, 81, 0.08);
+    color: #374151;
+    border: 1px solid rgba(55, 65, 81, 0.2);
+    &:hover {
+      background: rgba(55, 65, 81, 0.14);
+      color: #1f2937;
+    }
   }
 
   // Glass cards — glossy inner cards
@@ -20488,6 +20562,52 @@ $aac-z-topbar:   400;
       background: rgba(42, 90, 168, 0.08);
     }
   }
+}
+
+/* Troubleshooting page: app-shell fills remaining viewport height */
+.la-wrapper--troubleshooting .app-shell {
+  min-height: calc(100vh - var(--topbar-height));
+  display: flex;
+  flex-direction: column;
+}
+.la-wrapper--troubleshooting .app-shell .la-main {
+  flex: 1;
+}
+
+/* Troubleshooting page: reduce top spacing on first section */
+.la-wrapper--troubleshooting .la-section:first-child {
+  padding-top: 0.5rem;
+}
+
+/* Support, Contact & Troubleshooting page: hero-gradient matches base title size */
+.la-wrapper--support .hero-gradient,
+.la-wrapper--contact .hero-gradient,
+.la-wrapper--troubleshooting .hero-gradient {
+  font-size: 1em;
+}
+
+/* Troubleshooting page: primary and ghost buttons match support page */
+.la-wrapper--troubleshooting .la-btn.la-btn--primary {
+  background: #46505F;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.la-wrapper--troubleshooting .la-btn.la-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+  color: #fff;
+}
+.la-wrapper--troubleshooting .la-troubleshooting-actions .la-btn--ghost {
+  background: rgba(55, 65, 81, 0.08);
+  color: #374151;
+  border: 1px solid rgba(55, 65, 81, 0.2);
+}
+.la-wrapper--troubleshooting .la-troubleshooting-actions .la-btn--ghost:hover {
+  background: rgba(55, 65, 81, 0.14);
+  color: #1f2937;
 }
 
 // About, Pricing, Contact, Troubleshooting: same space between eyebrow badge and hero header
@@ -24010,15 +24130,27 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   font-size: 1.40625em; /* scale with list item */
 }
 
+.la-wrapper--support .la-support-form__actions {
+  justify-content: center;
+}
+.la-wrapper--support .la-support-form__actions .la-btn--ghost {
+  background: rgba(55, 65, 81, 0.08);
+  color: #374151;
+  border: 1px solid rgba(55, 65, 81, 0.2);
+}
+.la-wrapper--support .la-support-form__actions .la-btn--ghost:hover {
+  background: rgba(55, 65, 81, 0.14);
+  color: #1f2937;
+}
 .la-wrapper--support .la-support-form__actions .la-btn {
   font-size: 1.40625rem; /* 25% larger than 1.125rem */
   padding: 0.5rem 1.25rem;
   min-height: 44px;
 }
 
-/* Send Message button on support page: same background as Sign In on login page */
+/* Send Message button on support page */
 .la-wrapper--support .la-support-form__actions .la-btn--primary {
-  background: #4c86d8;
+  background: #46505F;
   color: #fff;
   border: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
@@ -27090,6 +27222,176 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   background: #566878;
 }
 
+/* ── Record Note modal (modern) ── */
+.la-record-note-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-record-note-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-record-note-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-record-note-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-record-note-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--note {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(42, 157, 143, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-record-note-modal-body {
+  padding: 20px 24px;
+}
+.la-record-note-modal-body .form-control {
+  font-size: 15px;
+  border: 1.5px solid rgba(17, 26, 46, 0.12);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: var(--md-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.la-record-note-modal-body .form-control:focus {
+  border-color: var(--md-teal);
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.12);
+  outline: none;
+}
+.la-record-note-modal-body .control-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #5a6a85;
+}
+.la-record-note-modal-body .checkbox label {
+  font-size: 15px;
+  color: var(--md-ink);
+}
+.la-record-note-modal-body .btn-default {
+  border: 1px solid rgba(17, 26, 46, 0.12);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--md-ink);
+  background: #f8f9fb;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-record-note-modal-body .btn-default:hover {
+  background: #eef1f5;
+  border-color: rgba(20, 127, 130, 0.3);
+}
+.la-record-note-type-toggle {
+  display: inline-flex;
+  border: 1.5px solid rgba(17, 26, 46, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.la-record-note-type-btn {
+  padding: 8px 20px;
+  border: none;
+  background: #f8f9fb;
+  color: var(--md-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.la-record-note-type-btn + .la-record-note-type-btn {
+  border-left: 1px solid rgba(17, 26, 46, 0.08);
+}
+.la-record-note-type-btn--active {
+  background: #374151;
+  color: #fff;
+}
+.la-record-note-type-btn--active:hover {
+  background: #4b5563;
+}
+.la-record-note-type-btn:not(.la-record-note-type-btn--active):hover {
+  background: #eef1f5;
+  color: var(--md-ink);
+}
+.la-record-note-statuses {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.la-record-note-prior {
+  border-left: 3px solid rgba(42, 157, 143, 0.3);
+  font-style: italic;
+  padding: 8px 0 8px 14px;
+  color: var(--md-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.la-record-note-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--md-line);
+}
+.la-record-note-save-btn {
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: #374151;
+  border: 1px solid rgba(55, 65, 81, 0.3);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-record-note-save-btn:hover:not(:disabled) {
+  background: #4b5563;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.la-record-note-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.la-record-note-cancel-btn {
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(17, 26, 46, 0.15);
+  background: #fff;
+  color: #374151;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-record-note-cancel-btn:hover {
+  background: #f3f4f6;
+  border-color: rgba(17, 26, 46, 0.25);
+}
+
 .la-support-modal-wrap {
   color: var(--md-ink);
   min-width: 0;
@@ -28456,15 +28758,16 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin-top: 8px;
   gap: 12px;
   justify-content: center;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
 .la-support-modal-body .la-contact-form__actions .la-btn {
   padding: 5.44px 20.4px; /* height 20% smaller (6.8px × 0.8), horizontal unchanged */
 }
-/* Send Message in support modal: same background as Sign In on login page */
+/* Send Message in support modal */
 .la-support-modal-body .la-contact-form__actions .la-btn--primary {
-  background: #4c86d8;
+  background: #46505F;
   color: #fff;
   border: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
@@ -30204,7 +30507,6 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .md-workspace > .md-pillnav {
   flex-shrink: 0;
   margin-top: 0;
-  padding-bottom: 14px;
   margin-bottom: 12px;
   position: relative;
 }
@@ -30288,7 +30590,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .md-pillnav {
   max-width: 1120px;
   margin: 42px auto 0;
-  padding: 8px 14px 8px 16px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: center;

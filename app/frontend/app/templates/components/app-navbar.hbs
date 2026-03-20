@@ -13,12 +13,7 @@
             <h1 class="app-navbar__brand">
               <span class="nav-header__brand">
                 <LinkTo @route="index" class="nav-header__logo-link">
-                  <span class="nav-header__logo">
-                    <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} alt="LingoLinq">
-                  </span>
-                </LinkTo>
-                <LinkTo @route="index" class="nav-header__app-name-link">
-                  <span class="nav-header__app-name"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></span>
+                  <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt="LingoLinq" class="nav-header__logo-svg">
                 </LinkTo>
               </span>
             </h1>
@@ -31,6 +26,31 @@
           <div class="la-topbar-right header-unauth-right">
             <LinkTo @route="login" class="la-topbar-sign-in">{{t "Sign In" key="login"}}</LinkTo>
             <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key="fsa_try_free"}}</LinkTo>
+            <span id="identity" class="advanced_selection app-navbar-auth-nav--desktop identity-with-dark-toggle">
+              <span style="display: inline-block;" class="dropdown">
+                <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
+                  {{t "Sign In" key="login"}}
+                  <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
+                  <li role="presentation">
+                    <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
+                  </li>
+                  {{#unless this.appState.no_linky}}
+                    {{#if this.appState.domain_settings.full_domain}}
+                      <li role="presentation">
+                        <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                      </li>
+                    {{/if}}
+                  {{/unless}}
+                  {{#if this.appState.feature_flags.emergency_boards}}
+                    <li role="presentation">
+                      <LinkTo @route="offline_boards" class="critical_access">{{t "Basic Access" key="critical_access"}}</LinkTo>
+                    </li>
+                  {{/if}}
+                </ul>
+              </span>
+            </span>
             <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key="fsa_open_menu"}} aria-expanded={{this.isLandingDrawerOpen}} {{action "toggleLandingDrawer"}}>
               <span class="la-topbar-hamburger__bar"></span>
               <span class="la-topbar-hamburger__bar"></span>

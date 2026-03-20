@@ -24,12 +24,7 @@
 
       <span class="nav-header__brand">
         <a href="#" {{action "index" target=@controller}} class="nav-header__logo-link">
-          <span class="nav-header__logo">
-            <img src={{if @controller.app_state.domain_settings.logo_url @controller.app_state.domain_settings.logo_url (path "images/logo-big-blue-gold.png")}} alt="LingoLinq">
-          </span>
-        </a>
-        <a href="#" {{action "index" target=@controller}} class="nav-header__app-name-link">
-          <span class="nav-header__app-name"><span class="nav-header__app-name-primary">Lingo</span><span class="nav-header__app-name-accent">Linq</span></span>
+          <img src={{if @controller.app_state.domain_settings.logo_url @controller.app_state.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt="LingoLinq" class="nav-header__logo-svg">
         </a>
       </span>
     </h1>

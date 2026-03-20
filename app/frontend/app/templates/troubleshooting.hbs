@@ -1,26 +1,29 @@
-<div class="la-wrapper la-wrapper--troubleshooting">
+<div class="la-wrapper la-wrapper--pricing la-wrapper--troubleshooting">
   <div class="app-shell">
     <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--troubleshooting">
 
-      {{!-- ── Hero (same layout as About / Contact) ── --}}
-      <section class="la-hero-card" style="display: block; text-align: center; padding: 4rem 6rem;">
-        <span class="la-section-eyebrow-badge">
-          {{t "Support" key="support"}} <span style="color: #2a5aa8;">Lingo</span><span style="color: #3a6bc7; font-style: italic;">Linq</span>
-        </span>
-        <div class="la-hero-title-wrap">
-          <h1 class="la-hero-title">
-            {{t "App Troubleshooting" key="app_troubleshooting"}}
-          </h1>
+      {{!-- Hero (same structure as Support page) --}}
+      <section class="la-section">
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge">
+            <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "SUPPORT" key="support_eyebrow"}}
+          </span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">
+              {{t "App " key="app_prefix"}}<span class="hero-gradient">{{t "Troubleshooting" key="troubleshooting"}}</span>
+            </h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle la-troubleshooting-intro">
+            {{t "The checks below verify that your browser and device support the features %app_name% needs. Most run automatically; a few may ask you to do something quick (for example, play a sound). If anything looks wrong or you have questions, use the Support link at the bottom of the page—we read every message and are here to help." key="troubleshooting_intro"}}
+          </p>
         </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
-        <p class="la-pricing-hero-subtitle la-troubleshooting-intro">
-          {{t "The checks below verify that your browser and device support the features %app_name% needs. Most run automatically; a few may ask you to do something quick (for example, play a sound). If anything looks wrong or you have questions, use the Support link at the bottom of the page—we read every message and are here to help." key="troubleshooting_intro"}}
-        </p>
 
-        {{!-- Initial state: run tests CTA ── --}}
+        {{!-- Initial state: run tests CTA --}}
         {{#unless this.testing}}
           {{#unless this.errors}}
-            <div class="la-hero-actions" style="justify-content: center; margin-top: 1.5rem;">
+            <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex; gap: 12px;">
               <button type="button" class="la-btn la-btn--primary" {{action "run_default_tests"}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
               {{#if this.error_count}}
                 <button type="button" class="la-btn la-btn--ghost" {{action "show_errors"}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
@@ -30,11 +33,11 @@
         {{/unless}}
       </section>
 
-      {{!-- ── Content: test results, app details, or errors ── --}}
+      {{!-- Content: test results, app details, or errors --}}
       {{#if this.testing}}
         <section class="la-section la-troubleshooting-section">
-          <div class="la-about-glass-card la-troubleshooting-card">
-            <div class="la-troubleshooting-content">
+          <article class="la-about-glass-card la-support-page-card la-troubleshooting-card" aria-label={{t "Test Results" key="results"}}>
+            <div class="la-support-page-card__body la-troubleshooting-content">
               <table class="table table-striped table-hover la-troubleshooting-table">
                 <thead>
                   <tr>
@@ -100,6 +103,8 @@
                   </tr>
                 </tbody>
               </table>
+
+              <div class="la-support-page-card__divider" aria-hidden="true"></div>
 
               <h4 class="la-troubleshooting-subtitle">{{t "App Details" key="app_details"}}</h4>
               <table class="table table-striped table-hover la-troubleshooting-table la-troubleshooting-table--details">
@@ -195,12 +200,12 @@
                 </tbody>
               </table>
             </div>
-          </div>
+          </article>
         </section>
       {{else if this.errors}}
         <section class="la-section la-troubleshooting-section">
-          <div class="la-about-glass-card la-troubleshooting-card">
-            <div class="la-troubleshooting-content">
+          <article class="la-about-glass-card la-support-page-card la-troubleshooting-card" aria-label={{t "Errors" key="error_upper"}}>
+            <div class="la-support-page-card__body la-troubleshooting-content">
               <table class="table table-striped table-hover la-troubleshooting-table">
                 <thead>
                   <tr>
@@ -221,14 +226,15 @@
                   {{/each}}
                 </tbody>
               </table>
-              <div class="la-troubleshooting-actions">
+              <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex;">
                 <button type="button" class="la-btn la-btn--primary" {{action "show_errors"}}>{{t "Done With Errors" key="done_with_errors"}}</button>
               </div>
             </div>
-          </div>
+          </article>
         </section>
       {{/if}}
 
+      </div>
     </main>
   </div>
 </div>

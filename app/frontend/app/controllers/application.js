@@ -1764,12 +1764,13 @@ export default Controller.extend({
     var route = this.appState.get('current_route');
     return route === 'user' || (route && route.indexOf('user.') === 0);
   }),
-  /** Use AppNavbar in #inner_header when authenticated on dashboard-like pages (index, user.extras shell, setup, user/*, etc.). */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', function() {
+  /** Use AppNavbar in #inner_header for both authenticated dashboard-like pages and unauthenticated landing/info pages. */
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', function() {
     var route = this.appState.get('current_route');
     var cu = this.appState.get('currentUser');
     if (route === 'user.board-alt.index') { return false; }
-    return this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
+    // Authenticated pages
+    if (this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
       (route === 'about' && cu) ||
       (route === 'features' && cu) ||
       (route === 'pricing' && cu) ||
@@ -1779,6 +1780,14 @@ export default Controller.extend({
       (route === 'search' && cu) ||
       (route === 'offline_boards' && cu) ||
       route === 'support' ||
-      route === 'contact';
+      route === 'contact' ||
+      route === 'troubleshooting') {
+      return true;
+    }
+    // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure
+    if (!cu && !this.appState.get('currentBoardState.id')) {
+      return true;
+    }
+    return false;
   })
 });

@@ -4,12 +4,7 @@
     <h1 class="app-navbar__brand">
       <span class="nav-header__brand">
         <LinkTo @route="index" class="nav-header__logo-link">
-          <span class="nav-header__logo">
-            <img src={{path "images/logo-big-blue-gold.png"}} alt={{t "%app_name%" key="app_name"}}>
-          </span>
-        </LinkTo>
-        <LinkTo @route="index" class="nav-header__app-name-link">
-          <span class="nav-header__app-name"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></span>
+          <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt={{t "%app_name%" key="app_name"}} class="nav-header__logo-svg">
         </LinkTo>
       </span>
     </h1>
@@ -86,9 +81,9 @@
             <img src={{path "images/icon-language-new2.png"}} class="dropdown-menu__language-icon" alt="" aria-hidden="true">
           </a>
         </li>
-        <li class="divider" role="separator"></li>
-        <li class="dropdown-header ll-theme-picker-dropdown-label">{{t "Color Tone" key="color_tone"}}</li>
-        <li class="ll-bento-theme-picker-dropdown">
+        <li class="divider ll-theme-picker-divider-top" role="separator" style="display: none;"></li>
+        <li class="dropdown-header ll-theme-picker-dropdown-label" style="display: none;">{{t "Color Tone" key="color_tone"}}</li>
+        <li class="ll-bento-theme-picker-dropdown" style="display: none;">
           <div class="ll-bento-theme-picker ll-bento-theme-picker--in-dropdown" role="group" aria-label={{t "Choose theme" key="choose_theme"}}>
             <div class="ll-bento-theme-picker__row">
               <div class="ll-bento-theme-picker__options">
@@ -108,7 +103,7 @@
             </div>
           </div>
         </li>
-        <li class="divider" role="separator"></li>
+        <li class="divider ll-theme-picker-divider-bottom" role="separator" style="display: none;"></li>
         <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
     </span>

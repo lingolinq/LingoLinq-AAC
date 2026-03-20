@@ -833,7 +833,7 @@ export default Component.extend({
         var list = (p && p.get && p.get('sync_log')) ? [].concat(p.get('sync_log')).reverse() : [];
         modal.open('sync-details', { details: list });
       } else if (name === 'goals') {
-        if (userName) { this.get('router').transitionTo('user.stats', userName, { queryParams: { start: null, end: null, device_id: null, location_id: null } }); }
+        if (userName) { this.get('router').transitionTo('user.goals', userName); }
       } else if (name === 'record_note') {
         if (this.appState.check_for_needing_purchase) {
           this.appState.check_for_needing_purchase().then(function() { modal.open('record-note', { note_type: 'text', user: user }); }, function() { modal.open('record-note', { note_type: 'text', user: user }); });

@@ -22,28 +22,28 @@
       {{#if this.appState.no_linky}}
         {{#if this.ios}}
           <ul class="la-support-list">
-            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🔊</span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
             {{#if this.appState.domain_settings.support_url}}
-              <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true">❓</span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+              <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
             {{/if}}
             {{#if this.appState.currentUser}}
-              <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+              <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
             {{/if}}
           </ul>
         {{/if}}
       {{else}}
         <ul class="la-support-list">
           {{#if this.ios}}
-            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🔊</span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
           {{/if}}
           {{#if this.appState.domain_settings.support_url}}
-            <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true">❓</span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+            <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
           {{/if}}
           {{#if this.appState.domain_settings.youtube_url}}
-            <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true">🎬</span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
+            <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2" ry="2"/></svg></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
           {{/if}}
           {{#if this.appState.currentUser}}
-            <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true">💬</span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+            <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
           {{/if}}
         </ul>
       {{/if}}
@@ -82,7 +82,7 @@
           {{/if}}
           <div class="la-contact-form__actions">
             <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
-            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
+            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn" style="display: none;">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
             <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         </form>
@@ -90,7 +90,7 @@
 
       <p class="la-support-cookies">
         <button type="button" class="la-support-cookies__btn" {{action "toggle_cookies"}} aria-pressed={{if this.cookies "true" "false"}}>
-          <span class="la-support-cookies__icon {{unless this.cookies "la-support-cookies__icon--off"}}" aria-hidden="true">🍪</span>
+          <span class="la-support-cookies__icon {{unless this.cookies "la-support-cookies__icon--off"}}" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg></span>
           {{#if this.cookies}}
             {{t "disable cookies" key="disable_cookies"}}
           {{else}}
