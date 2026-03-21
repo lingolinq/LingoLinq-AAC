@@ -63,7 +63,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='prompts'>
-                <Input type="checkbox" @checked={{this.settings.prompts}} />
+                <Input @type="checkbox" @checked={{this.settings.prompts}} />
                 {{t "Speak prompts out loud" key="speak_prompts_out_loud"}}
               </label>
             </div>
@@ -87,7 +87,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox">
               <label id='chimes'>
-                <Input type="checkbox" @checked={{this.settings.chimes}} />
+                <Input @type="checkbox" @checked={{this.settings.chimes}} />
                 {{t "Play a sound on correct actions" key="play_sound_on_success"}}
               </label>
             </div>
