@@ -611,7 +611,7 @@ describe SessionController, :type => :controller do
       u.generate_password("seashell")
       u.save
       expect(Device.count).to eq(0)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'false'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -690,7 +690,7 @@ describe SessionController, :type => :controller do
       d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!
       expect(Device.count).to eq(1)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'false'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :long_token => true, :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -724,6 +724,21 @@ describe SessionController, :type => :controller do
       expect(d.settings['long_token_set']).to eq(nil)
     end
 
+    it "prefers header false over installed_app param for device classification" do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => "hdrwins")
+      u.generate_password("seashell")
+      u.save
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'hdrwins', :password => 'seashell', :installed_app => 'true'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      d = Device.find_by_global_id(json['access_token'])
+      expect(d.token_type).to eq(:browser)
+      expect(d.settings['browser']).to eq(true)
+      expect(d.settings['app']).to eq(nil)
+    end
+
     it "should handle long_token for app" do
       token = GoSecure.browser_token
       u = User.new(:user_name => "fred")
@@ -732,7 +747,7 @@ describe SessionController, :type => :controller do
       d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
       d.generate_token!
       expect(Device.count).to eq(1)
-      request.headers['X-INSTALLED-COUGHDROP'] = 'true'
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :long_token => true, :client_secret => token, :username => 'fred', :password => 'seashell'}
       expect(response).to be_successful
       json = JSON.parse(response.body)

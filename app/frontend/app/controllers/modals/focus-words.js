@@ -143,7 +143,7 @@ export default modal.ModalController.extend({
           res.push(item);
         }
       });
-      persistence.ajax('/api/v1/search/focus?locale=' + (app_state.get('label_locale') || 'en').split(/-|_/)[0] + '&q=' + encodeURIComponent(_this.get('search_term')), {type: 'GET'}).then(function(list) {
+      persistence.ajax('/api/v1/search/focus?locale=' + (app_state.get('label_locale') || 'en').split(/-|_/)[0] + '&q=' + encodeURIComponent(_this.get('search.term') || ''), {type: 'GET'}).then(function(list) {
         _this.set('search.loading', false);
         res = res.concat(list);
         _this.set('search.results', res.slice(0, 20));
@@ -317,7 +317,10 @@ export default modal.ModalController.extend({
       }
 
       app_state.set('focus_words', {list: words, focus_id: Math.random()});
-      editManager.controller.model.set('focus_id', 'force_refresh');
+      var boardController = editManager.controller;
+      if (boardController && boardController.get && boardController.get('model')) {
+        boardController.get('model').set('focus_id', 'force_refresh');
+      }
       modal.close();
       editManager.process_for_displaying();
       if(app_state.get('pairing') || app_state.get('followers.allowed')) {
@@ -327,6 +330,10 @@ export default modal.ModalController.extend({
     analyze_focus_words: function() {
       var _this = this;
       var words = _this.get('words_list');
+      if(!_this.get('model.root_board_id')) {
+        modal.error(i18n.t('focus_words_analyze_needs_home_board', "Set or open a home board first. Analysis looks up each word on that board."));
+        return;
+      }
       if(_this.get('reuse')) {
         if(!_this.get('title')) { return; }
         _this.save_set();

@@ -93,7 +93,7 @@ Authorization: Bearer <access_token>
 ### Additional Headers
 
 - `X-Device-Id`: Device identifier
-- `X-INSTALLED-COUGHDROP`: Indicates mobile/desktop app
+- `X-INSTALLED-LINGOLINQ`: `true` / `false` — native app vs browser (used with registration and token). When this header is present, it overrides the `installed_app` request param; if absent, `installed_app=true` is treated as app.
 - `X-LingoLinq-Version`: App version
 
 ## Response Format

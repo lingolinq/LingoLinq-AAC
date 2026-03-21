@@ -715,6 +715,58 @@ describe Api::UsersController, :type => :controller do
     end
     
     it "should throttle or captcha or something to prevent abuse"
+
+    describe "device classification on registration" do
+      def device_for_create_response
+        json = JSON.parse(response.body)
+        u = User.find_by_path(json['user']['id'])
+        Device.find_by!(:user_id => u.id, :device_key => 'default', :developer_key_id => 0)
+      end
+
+      it "sets app when X-INSTALLED-LINGOLINQ is true" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_app'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "sets browser when X-INSTALLED-LINGOLINQ is false" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_browser'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "sets app when installed_app param is true and header is absent" do
+        post :create, params: {:user => {'name' => 'reg_param_app'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "treats header false as authoritative when it conflicts with installed_app param" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_wins'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "matches session-style resolution when header is true (param ignored)" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_over_param'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+    end
   end
   
   describe "replace_board" do

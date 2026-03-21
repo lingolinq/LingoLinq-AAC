@@ -238,12 +238,12 @@
     </div>
   </div>
   <div class="modal-footer">
-    <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
+    <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
     {{#if this.analysis}}
-      <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
+      <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Open a printable view of this analysis." key='printable_analysis_tooltip')}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
     {{else}}
-      <button class='btn btn-default btn-lg' disabled={{this.not_ready}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
+      <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Look up where each word appears on the home board and list words that are not found." key='analyze_focus_words_tooltip')}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
     {{/if}}
-    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

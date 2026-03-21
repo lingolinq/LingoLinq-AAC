@@ -231,4 +231,31 @@ class ApplicationController < ActionController::Base
   def set_browser_token_header
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
   end
+
+  # X-INSTALLED-LINGOLINQ: client declares native app vs browser. Header wins over params when present.
+  protected
+
+  def installed_app_header
+    request.headers['X-INSTALLED-LINGOLINQ'].to_s.strip.downcase
+  end
+
+  def installed_app?
+    h = installed_app_header
+    if h.present?
+      h == 'true'
+    else
+      params['installed_app'].to_s == 'true'
+    end
+  end
+
+  def browser_client?
+    installed_app_header == 'false'
+  end
+
+  # TODO: Remove after validating device classification in production (few days).
+  def log_installed_client_signal(source)
+    h = installed_app_header
+    return if h.blank? && !params.key?('installed_app')
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+  end
 end
