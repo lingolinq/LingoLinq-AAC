@@ -130,6 +130,7 @@ Router.map(function() {
     this.route('history');
     this.route('lessons');
     this.route('focus');
+    this.route('board-detail', { path: 'board-detail/:boardname' });
     this.route('board-alt', { path: 'board/:boardname' }, function() {
       this.route('index', { path: '/' });
     });

@@ -68,6 +68,9 @@ export default Controller.extend({
   on_board_alt: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
+  on_board_detail: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'user.board-detail';
+  }),
   /** True when the current page is the regular board view (not board-alt). */
   on_board: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'board.index';
@@ -552,6 +555,14 @@ export default Controller.extend({
     },
     pickBoard: function(key) {
       this.set('boardPickerVisible', false);
+      // If on board-detail page, navigate to the new board-detail instead of the board page
+      if(this.get('on_board_detail') && key) {
+        var parts = key.split('/');
+        if(parts.length === 2) {
+          this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+          return;
+        }
+      }
       this.jumpToBoard({ key: key });
     },
     home: function(opts) {

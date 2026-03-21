@@ -1,0 +1,369 @@
+<div class="md-shell md-shell--board-detail">
+  <div class="md-board-detail-layout {{if this.panels_collapsed 'md-board-detail-layout--collapsed'}}">
+    {{!-- Left Sidebar Navigation --}}
+    <aside class="md-board-detail-sidebar {{if this.panels_collapsed 'md-board-detail-sidebar--collapsed'}}" aria-label={{t "Board navigation" key="board_navigation"}}>
+      <section class="md-board-detail-sidebar__section">
+        <h3 class="md-board-detail-sidebar__heading">{{t "Communicate" key="board_detail_communicate"}}</h3>
+        {{#each this.sidebar_nav.communicate as |item|}}
+          <button type="button"
+            class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            {{action "nav_select" item.id}}>
+            <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
+            <span class="md-board-detail-sidebar__label">{{item.label}}</span>
+          </button>
+        {{/each}}
+      </section>
+
+      <section class="md-board-detail-sidebar__section">
+        <h3 class="md-board-detail-sidebar__heading">{{t "Clinical" key="board_detail_clinical"}}</h3>
+        {{#each this.sidebar_nav.clinical as |item|}}
+          <button type="button"
+            class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            {{action "nav_select" item.id}}>
+            <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
+            <span class="md-board-detail-sidebar__label">{{item.label}}</span>
+          </button>
+        {{/each}}
+      </section>
+
+      <section class="md-board-detail-sidebar__section">
+        <h3 class="md-board-detail-sidebar__heading">{{t "Settings" key="board_detail_settings"}}</h3>
+        {{#each this.sidebar_nav.settings as |item|}}
+          <button type="button"
+            class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            {{action "nav_select" item.id}}>
+            <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
+            <span class="md-board-detail-sidebar__label">{{item.label}}</span>
+          </button>
+        {{/each}}
+      </section>
+    </aside>
+
+    {{!-- Main Content Area --}}
+    <main class="md-board-detail-main">
+      {{!-- Sentence Bar --}}
+      <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
+        <div class="md-board-detail-sentence-bar__text" aria-live="polite">
+          {{#if this.has_sentence}}
+            {{this.sentence_text}}
+          {{else}}
+            <span class="md-board-detail-sentence-bar__placeholder">{{t "Tap symbols to build your message" key="board_detail_tap_symbols"}}</span>
+          {{/if}}
+        </div>
+        <div class="md-board-detail-sentence-bar__actions">
+          <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" {{action "speak_sentence"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            {{t "Speak" key="board_detail_speak"}}
+          </button>
+          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+              <line x1="18" y1="9" x2="12" y2="15"/>
+              <line x1="12" y1="9" x2="18" y2="15"/>
+            </svg>
+          </button>
+          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Clear" key="board_detail_clear"}} {{action "clear_sentence"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Speak options" key="speak_options"}} {{action "open_speak_menu"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {{!-- Board Title --}}
+      <header class="md-board-detail-header">
+        <div class="md-board-detail-header__row">
+          <div class="md-board-detail-header__title-group">
+            <button type="button"
+              class="md-board-detail-boards-btn"
+              {{action "open_board_picker"}}
+              aria-label={{t "My Boards" key="my_boards"}}
+              title={{t "Switch boards" key="board_detail_switch_boards"}}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true">
+                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div>
+              <h1 class="md-board-detail-header__title">{{this.title}}</h1>
+              <p class="md-board-detail-header__sub">{{this.subtitle}}</p>
+            </div>
+          </div>
+          <div class="md-board-detail-header__actions">
+            <button type="button"
+              class="md-board-detail-color-legend-toggle {{if this.show_color_legend 'md-board-detail-color-legend-toggle--active'}}"
+              {{action "toggle_color_legend"}}
+              title={{t "Color key — see what each button color means" key="board_detail_color_key_tooltip"}}>
+              <span class="md-board-detail-color-legend-toggle__icon" aria-hidden="true">&#x1F3A8;</span>
+              <span class="md-board-detail-color-legend-toggle__label">{{t "Color Key" key="board_detail_color_key"}}</span>
+            </button>
+            <LinkTo @route="user.board-alt" @model={{this.user.user_name}} @query={{hash boardname=this.boardname}} class="md-board-detail-edit-btn">
+              <svg class="md-board-detail-edit-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              <span class="md-board-detail-edit-btn__label">{{t "Edit Board" key="board_detail_edit_board"}}</span>
+            </LinkTo>
+            <button type="button"
+              class="md-board-detail-expand-toggle"
+              {{action "toggle_panels"}}
+              title={{if this.panels_collapsed (t "Expand panels" key="board_detail_expand") (t "Collapse panels" key="board_detail_collapse")}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                {{#if this.panels_collapsed}}
+                  <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                {{else}}
+                  <polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+                {{/if}}
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {{#if this.show_color_legend}}
+          <div class="md-board-detail-color-legend" role="region" aria-label={{t "Button color legend" key="board_detail_color_legend"}}>
+            <div class="md-board-detail-color-legend__grid">
+              {{#each this.color_legend_items as |item|}}
+                <div class="md-board-detail-color-legend__item">
+                  <span class="md-board-detail-color-legend__swatch md-board-detail-symbol-card--{{item.css_class}}"></span>
+                  <div class="md-board-detail-color-legend__info">
+                    <span class="md-board-detail-color-legend__type">{{item.type}}</span>
+                    <span class="md-board-detail-color-legend__parts">{{item.parts}}</span>
+                  </div>
+                </div>
+              {{/each}}
+            </div>
+          </div>
+        {{/if}}
+      </header>
+
+      {{!-- Toolbar row: Quick Phrases + Category Filter --}}
+      <div class="md-board-detail-toolbar">
+        <div class="md-board-detail-quick-wrap">
+          <button type="button"
+            class="md-board-detail-quick-toggle {{if this.show_quick_phrases 'md-board-detail-quick-toggle--active'}}"
+            {{action "toggle_quick_phrases"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>{{t "Quick Phrases" key="board_detail_quick_phrases_label"}}</span>
+            <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {{#if this.show_quick_phrases}}
+            <div class="md-board-detail-quick-reveal" role="toolbar" aria-label={{t "Quick phrases" key="board_detail_quick_phrases"}}>
+              {{#each this.quick_buttons as |qb|}}
+                <button type="button" class="md-board-detail-quick-reveal__btn" {{action "select_quick" qb}}>
+                  <span class="md-board-detail-quick-reveal__btn-icon" aria-hidden="true">{{qb.icon}}</span>
+                  <span class="md-board-detail-quick-reveal__btn-label">{{qb.label}}</span>
+                </button>
+              {{/each}}
+            </div>
+          {{/if}}
+        </div>
+
+        <div class="md-board-detail-quick-wrap">
+          <button type="button"
+            class="md-board-detail-quick-toggle {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
+            {{action "toggle_categories"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span>{{t "Categories" key="board_detail_categories_label"}}</span>
+            <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {{#if this.active_filter_label}}
+            <span class="md-board-detail-filter-chip">
+              {{#if this.active_filter_css}}
+                <span class="md-board-detail-filter-chip__swatch md-board-detail-symbol-card--{{this.active_filter_css}}"></span>
+              {{/if}}
+              <span class="md-board-detail-filter-chip__label">{{this.active_filter_label}}</span>
+              <button type="button" class="md-board-detail-filter-chip__clear" {{action "set_category" "all"}} title={{t "Clear filter" key="board_detail_clear_filter"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </span>
+          {{/if}}
+
+          {{#if this.show_categories}}
+            <div class="md-board-detail-cat-panel" role="toolbar" aria-label={{t "Symbol categories" key="board_detail_symbol_categories"}}>
+              <div class="md-board-detail-cat-panel__left">
+                <button type="button"
+                  class="md-board-detail-quick-reveal__btn {{if (is-equal 'all' this.active_category) 'md-board-detail-quick-reveal__btn--active'}}"
+                  {{action "set_category" "all"}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  <span class="md-board-detail-quick-reveal__btn-label">{{t "All" key="category_all"}}</span>
+                </button>
+                <button type="button"
+                  class="md-board-detail-quick-reveal__btn {{if (is-equal 'folder' this.active_category) 'md-board-detail-quick-reveal__btn--active'}}"
+                  {{action "set_category" "folder"}}>
+                  <span class="md-board-detail-quick-reveal__swatch md-board-detail-symbol-card--folder"></span>
+                  <span class="md-board-detail-quick-reveal__btn-label">{{t "Folders" key="category_folders"}}</span>
+                </button>
+              </div>
+              <div class="md-board-detail-cat-panel__divider"></div>
+              <div class="md-board-detail-cat-panel__right">
+                {{#each this.pos_type_categories as |cat|}}
+                  <button type="button"
+                    class="md-board-detail-quick-reveal__btn {{if (is-equal cat.id this.active_category) 'md-board-detail-quick-reveal__btn--active'}}"
+                    {{action "set_category" cat.id}}>
+                    <span class="md-board-detail-quick-reveal__swatch md-board-detail-symbol-card--{{cat.css_class}}"></span>
+                    <span class="md-board-detail-quick-reveal__btn-label">{{cat.label}}</span>
+                  </button>
+                {{/each}}
+              </div>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+
+      {{!-- Symbol Grid --}}
+      <div class="md-board-detail-grid" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}>
+        {{#each this.filtered_buttons as |btn|}}
+          <div class="md-board-detail-grid__cell">
+            <div
+              class="md-board-detail-symbol-card md-board-detail-symbol-card--{{btn.pos_class}}"
+              role="gridcell"
+              style={{if btn.custom_bg (concat "background-color:" btn.custom_bg ";border-color:" btn.custom_border)}}
+              {{action "select_button" btn}}>
+              <button type="button"
+                class="md-board-detail-color-trigger"
+                title={{t "Change button color" key="board_detail_change_color"}}
+                {{action "open_color_picker" btn bubbles=false}}>
+                <span aria-hidden="true">&#x1F3A8;</span>
+              </button>
+              {{#if btn.image_url}}
+                <div class="md-board-detail-symbol-card__image">
+                  <img src={{btn.image_url}} alt={{btn.label}} loading="lazy">
+                </div>
+              {{else}}
+                <div class="md-board-detail-symbol-card__image md-board-detail-symbol-card__image--placeholder">
+                  {{#if btn.is_folder}}
+                    <span class="md-board-detail-symbol-card__placeholder-icon" aria-hidden="true">&#x1F4C1;</span>
+                  {{else}}
+                    <span class="md-board-detail-symbol-card__placeholder-icon" aria-hidden="true">&#x1F4AC;</span>
+                  {{/if}}
+                </div>
+              {{/if}}
+              <span class="md-board-detail-symbol-card__label">{{btn.label}}</span>
+            </div>
+
+            {{!-- Color Picker Popover --}}
+            {{#if (is-equal this.color_picker_button btn)}}
+              <div class="md-board-detail-color-picker">
+                <div class="md-board-detail-color-picker__header">
+                  <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
+                  <button type="button" class="md-board-detail-color-picker__close" {{action "close_color_picker"}}>&times;</button>
+                </div>
+
+                <div class="md-board-detail-color-picker__swatches">
+                  {{#each this.color_picker_swatches as |swatch|}}
+                    <button type="button"
+                      class="md-board-detail-color-picker__swatch"
+                      {{action "apply_swatch_color" swatch}}>
+                      <span class="md-board-detail-color-picker__swatch-color" style={{concat "background-color:" swatch.bg ";border-color:" swatch.border}}></span>
+                      <span class="md-board-detail-color-picker__swatch-label">{{swatch.label}}</span>
+                    </button>
+                  {{/each}}
+                </div>
+
+                <div class="md-board-detail-color-picker__custom">
+                  <div class="md-board-detail-color-picker__custom-header">
+                    <label class="md-board-detail-color-picker__custom-label">{{t "Custom Color" key="board_detail_custom_color"}}</label>
+                  </div>
+                  <div class="md-board-detail-color-picker__custom-row">
+                    <span class="md-board-detail-color-picker__preview"
+                      {{action "toggle_minicolors"}}
+                      style={{if this.custom_color_value (concat "background-color:" this.custom_color_value)}}></span>
+                    <input type="text" id="board-detail-custom-color" class="md-board-detail-color-picker__input" placeholder="#hex" />
+                    <button type="button" class="md-board-detail-color-picker__apply" {{action "apply_custom_color"}}>{{t "Apply" key="board_detail_apply"}}</button>
+                  </div>
+                </div>
+              </div>
+            {{/if}}
+          </div>
+        {{/each}}
+        {{#unless this.filtered_buttons}}
+          <div class="md-board-detail-grid__empty">
+            <p>{{t "No symbols found for this category" key="board_detail_no_symbols"}}</p>
+          </div>
+        {{/unless}}
+      </div>
+    </main>
+
+    {{!-- Right Sidebar --}}
+    <aside class="md-board-detail-right-panel {{if this.panels_collapsed 'md-board-detail-right-panel--collapsed'}}" aria-label={{t "Activity panel" key="board_detail_activity_panel"}}>
+      {{!-- Recent Phrases --}}
+      <section class="md-board-detail-right-panel__section">
+        <h3 class="md-board-detail-right-panel__heading">{{t "Recent Phrases" key="board_detail_recent_phrases"}}</h3>
+        {{#if this.recent_phrases.length}}
+          <ul class="md-board-detail-phrase-list">
+            {{#each this.recent_phrases as |phrase|}}
+              <li class="md-board-detail-phrase-list__item">
+                <span class="md-board-detail-phrase-list__dot" aria-hidden="true"></span>
+                {{phrase.text}}
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="md-board-detail-right-panel__empty">{{t "Phrases appear here" key="board_detail_phrases_empty"}}</p>
+        {{/if}}
+      </section>
+
+      {{!-- Weekly Goals --}}
+      <section class="md-board-detail-right-panel__section">
+        <h3 class="md-board-detail-right-panel__heading">{{t "Weekly Goals" key="board_detail_weekly_goals"}}</h3>
+        {{#if this.weekly_goals.length}}
+          <ul class="md-board-detail-goals-list">
+            {{#each this.weekly_goals as |goal|}}
+              <li class="md-board-detail-goals-list__item">
+                <div class="md-board-detail-goals-list__header">
+                  <span class="md-board-detail-goals-list__label">{{goal.label}}</span>
+                  <span class="md-board-detail-goals-list__count">{{goal.current}} / {{goal.target}}</span>
+                </div>
+                <div class="md-board-detail-goals-list__bar">
+                  <div class="md-board-detail-goals-list__fill md-board-detail-goals-list__fill--{{goal.color}}" style={{concat "width:" goal.percent "%"}}></div>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="md-board-detail-right-panel__empty">{{t "No goals set yet" key="board_detail_no_goals"}}</p>
+        {{/if}}
+      </section>
+
+      {{!-- Today's Schedule --}}
+      <section class="md-board-detail-right-panel__section">
+        <h3 class="md-board-detail-right-panel__heading">{{t "Today's Schedule" key="board_detail_todays_schedule"}}</h3>
+        {{#if this.todays_schedule.length}}
+          <ul class="md-board-detail-schedule-list">
+            {{#each this.todays_schedule as |event|}}
+              <li class="md-board-detail-schedule-list__item">
+                <span class="md-board-detail-schedule-list__time">{{event.time}}</span>
+                <div class="md-board-detail-schedule-list__info">
+                  <span class="md-board-detail-schedule-list__name">{{event.name}}</span>
+                  <span class="md-board-detail-schedule-list__type md-board-detail-schedule-list__type--{{event.type_class}}">{{event.type}}</span>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        {{else}}
+          <p class="md-board-detail-right-panel__empty">{{t "No events scheduled" key="board_detail_no_events"}}</p>
+        {{/if}}
+      </section>
+    </aside>
+  </div>
+</div>
