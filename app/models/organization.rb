@@ -54,23 +54,25 @@ class Organization < ActiveRecord::Base
   end
 
   def effective_data_policy
-    policy = data_policy.dup
-    if self.parent_organization_id
-      parent = Organization.find_by(id: self.parent_organization_id)
-      if parent
-        parent_policy = parent.effective_data_policy
-        %w[logging_allowed geo_logging_allowed log_reports_allowed
-           log_publishing_allowed research_opt_in_allowed].each do |key|
-          policy[key] = false if parent_policy[key] == false
-        end
-        %w[max_logging_cutoff_hours retention_months].each do |key|
-          if parent_policy[key] && (policy[key].nil? || parent_policy[key] < policy[key])
-            policy[key] = parent_policy[key]
+    @effective_data_policy ||= begin
+      policy = data_policy.dup
+      if self.parent_organization_id
+        parent = Organization.find_by(id: self.parent_organization_id)
+        if parent
+          parent_policy = parent.effective_data_policy
+          %w[logging_allowed geo_logging_allowed log_reports_allowed
+             log_publishing_allowed research_opt_in_allowed].each do |key|
+            policy[key] = false if parent_policy[key] == false
+          end
+          %w[max_logging_cutoff_hours retention_months].each do |key|
+            if parent_policy[key] && (policy[key].nil? || parent_policy[key] < policy[key])
+              policy[key] = parent_policy[key]
+            end
           end
         end
       end
+      policy
     end
-    policy
   end
 
   def update_data_policy(policy_params, updater)
@@ -84,6 +86,8 @@ class Organization < ActiveRecord::Base
     self.settings['data_policy']['updated_at'] = Time.now.iso8601
     self.settings['data_policy']['updated_by'] = updater.global_id
     self.data_policy_version = (self.data_policy_version || 0) + 1
+
+    @effective_data_policy = nil # clear memoized cache
 
     AuditEvent.log_command(updater.global_id, {
       'type' => 'data_policy_update',

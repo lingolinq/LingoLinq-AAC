@@ -1235,10 +1235,17 @@ class User < ActiveRecord::Base
 
   # Org data policy floor enforcement.
   # Returns the org's effective data policy, or empty hash if no org.
+  # Memoized per instance to avoid repeated DB lookups during a single
+  # request (LogSession save calls this multiple times).
   def effective_data_policy
-    org = self.managing_organization
-    return {} unless org
-    org.effective_data_policy
+    @effective_data_policy ||= begin
+      org = self.managing_organization
+      org ? org.effective_data_policy : {}
+    end
+  end
+
+  def clear_effective_data_policy_cache
+    @effective_data_policy = nil
   end
 
   def effective_logging_allowed?
