@@ -1,39 +1,41 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-rename-board-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Change Board Key" key="change_board_key"}}</h3>
   </div>
   <div class="modal-body">
-    <p>
+    <div class="la-rename-board-info">
+      <img src={{this.model.board.icon_url_with_fallback}} class="la-rename-board-icon" alt="">
+      <div>
+        <strong class="la-rename-board-name">{{this.model.board.name}}</strong>
+        <span class="la-rename-board-dims">{{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}</span>
+      </div>
+    </div>
+
+    <p class="la-rename-board-desc">
       {{t "Are you sure you want to change this board's key?" key="confirm_rename_board"}}
     </p>
-    <img src={{ this.model.board.icon_url_with_fallback }} style="width: 40px; float: left; margin-right: 10px;">
-    <strong>{{this.model.board.name}}</strong><br>
-    {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
 
-    <div style='margin: 20px 0;'>
+    <div class="la-rename-board-hint">
       {{t "To confirm the change, please enter the board's current key and new key below. The board's current key is <b>%{k}</b>" key="confirm_change_with_entry" k=this.old_key}}
     </div>
 
-    <form class="form-horizontal" {{action "nothing"}}>
-      <div class="form-group">
-        <label for="old_key" class="col-sm-3 control-label">{{t "Current Key" key="current_key"}}</label>
-        <div class="col-sm-5">
-          <Input @type="text" class="form-control" id="old_key" @value={{this.old_key_value}} placeholder="shown above" />
-        </div>
+    <form class="la-rename-board-form" {{action "nothing"}}>
+      <div class="la-rename-board-field">
+        <label for="old_key" class="la-rename-board-label">{{t "Current Key" key="current_key"}}</label>
+        <Input @type="text" class="la-rename-board-input" id="old_key" @value={{this.old_key_value}} placeholder="shown above" />
       </div>
 
-      <div class="form-group">
-        <label for="new_key" class="col-sm-3 control-label">{{t "New Key" key="new_key"}}</label>
-        <div class="col-sm-5">
-          <Input @type="text" class="form-control" id="new_key" @value={{this.new_key_value}} placeholder="new key" />
-        </div>
+      <div class="la-rename-board-field">
+        <label for="new_key" class="la-rename-board-label">{{t "New Key" key="new_key"}}</label>
+        <Input @type="text" class="la-rename-board-input" id="new_key" @value={{this.new_key_value}} placeholder="new key" />
       </div>
     </form>
 
   </div>
   <div class="modal-footer">
-    <button class='btn btn-primary' disabled={{this.not_ready}} {{action "rename"}}>
+    <button class='btn la-rename-board-submit' disabled={{this.not_ready}} {{action "rename"}}>
       {{#if this.status.renaming}}
         {{t "Changing Board Key..." key="changing_board_key"}}
       {{else if this.status.error}}
@@ -42,6 +44,7 @@
         {{t "Change Board Key" key="change_board_key"}}
       {{/if}}
     </button>
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="btn la-rename-board-close" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
   </div>
 {{/modal-dialog}}

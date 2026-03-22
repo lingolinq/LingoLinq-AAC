@@ -2093,7 +2093,7 @@ var buttonTracker = EmberObject.extend({
         var sidebarTarget = $target[0] && $target[0].closest ? $target[0].closest('.btn,a') : $target.closest('.btn,a')[0];
         return buttonTracker.element_wrap(sidebarTarget);
       } else if(region.id == 'speak_menu') {
-        return buttonTracker.element_wrap($target.closest("a,.speak_menu_button")[0]);
+        return buttonTracker.element_wrap($target.closest("a,.speak_menu_button,.md-speak-menu__btn,.md-speak-menu__close,.md-speak-menu__bottom-btn,.md-speak-menu__sidebar-btn,button")[0]);
       } else if(region.tagName == 'HEADER') {
         var $elem = $target.closest(".btn:not(.pass_through),#button_list,.extra-btn")
         if($elem.hasClass('pass_to_btn_list') && allow_dwell === false) {

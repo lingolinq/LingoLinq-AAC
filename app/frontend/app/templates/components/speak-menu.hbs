@@ -11,7 +11,7 @@
     </svg>
 
     {{!-- Header with close button --}}
-    <div class="md-speak-menu__header">
+    <div class="md-speak-menu__header pass_to_btn_list">
       <span class="md-speak-menu__title">{{t "Speak Options" key="speak_options"}}</span>
       <button type="button" class="md-speak-menu__close pass_to_btn_list" {{action 'close'}}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -167,7 +167,7 @@
 
     {{else}}
       {{!-- Legacy menu --}}
-      <ul class="md-speak-menu__legacy-list">
+      <ul class="md-speak-menu__legacy-list pass_to_btn_list">
         <li class="md-speak-menu__legacy-context">
           {{this.working_vocalization_text}}
         </li>
@@ -186,7 +186,7 @@
     {{/if}}
 
     {{!-- Bottom actions --}}
-    <div class='md-speak-menu__bottom'>
+    <div class='md-speak-menu__bottom pass_to_btn_list'>
       {{#if this.app_state.feature_flags.new_speak_menu}}
         {{#if this.working_vocalization_text}}
           <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remember" {{action "selectButton" "remember"}}>

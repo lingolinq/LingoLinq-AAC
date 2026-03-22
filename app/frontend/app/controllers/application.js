@@ -69,7 +69,8 @@ export default Controller.extend({
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
   on_board_detail: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'user.board-detail';
+    var route = this.appState.get('current_route') || '';
+    return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
   }),
   /** True when the current page is the regular board view (not board-alt). */
   on_board: computed('appState.current_route', function() {

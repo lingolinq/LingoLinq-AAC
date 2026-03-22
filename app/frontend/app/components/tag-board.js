@@ -1,5 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import modalUtil from '../utils/modal';
 
@@ -26,9 +28,21 @@ export default Component.extend({
     this.set('status', null);
   },
 
+  not_ready: computed('tag', function() {
+    return !this.get('tag') || !this.get('tag').trim();
+  }),
+
+  _return_to_details: function() {
+    var board = this.get('model.board');
+    if(board) {
+      runLater(function() { modalUtil.open('board-details', { board: board }); }, 200);
+    }
+  },
+
   actions: {
     close() {
       this.get('modal').close();
+      this._return_to_details();
     },
     opening() {
       this.get('modal').setComponent(this);
@@ -50,7 +64,7 @@ export default Component.extend({
       this.get('model.user').tag_board(this.get('model.board'), this.get('tag'), false, downstream).then(function() {
         _this.set('status', null);
         _this.get('modal').close();
-        modalUtil.success(i18n.t('categorization_complete', "Board Categorization Complete"));
+        _this._return_to_details();
       }, function() {
         _this.set('status', { error: true });
       });

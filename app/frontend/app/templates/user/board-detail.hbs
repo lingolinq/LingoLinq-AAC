@@ -1,5 +1,10 @@
-<div class="md-shell md-shell--board-detail">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}}">
+  {{outlet}}
   <div class="md-board-detail-layout {{if this.panels_collapsed 'md-board-detail-layout--collapsed'}}">
+    {{!-- Overlay backdrop for mobile panels --}}
+    {{#unless this.panels_collapsed}}
+      <div class="md-board-detail-overlay-backdrop" {{action "toggle_panels"}}></div>
+    {{/unless}}
     {{!-- Left Sidebar Navigation --}}
     <aside class="md-board-detail-sidebar {{if this.panels_collapsed 'md-board-detail-sidebar--collapsed'}}" aria-label={{t "Board navigation" key="board_navigation"}}>
       <section class="md-board-detail-sidebar__section">
@@ -60,24 +65,26 @@
             </svg>
             {{t "Speak" key="board_detail_speak"}}
           </button>
-          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-              <line x1="18" y1="9" x2="12" y2="15"/>
-              <line x1="12" y1="9" x2="18" y2="15"/>
+          <div class="md-board-detail-sentence-bar__tools">
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                <line x1="18" y1="9" x2="12" y2="15"/>
+                <line x1="12" y1="9" x2="18" y2="15"/>
+              </svg>
+            </button>
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} {{action "clear_sentence"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Speak options" key="speak_options"}} {{action "open_speak_menu"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
             </svg>
-          </button>
-          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Clear" key="board_detail_clear"}} {{action "clear_sentence"}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-          <button type="button" class="md-board-detail-sentence-bar__icon-btn" title={{t "Speak options" key="speak_options"}} {{action "open_speak_menu"}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -95,7 +102,17 @@
               </svg>
             </button>
             <div>
-              <h1 class="md-board-detail-header__title">{{this.title}}</h1>
+              <div class="md-board-detail-header__title-row">
+                <h1 class="md-board-detail-header__title">{{this.title}}</h1>
+                <button type="button"
+                  class="md-board-detail-info-btn"
+                  title={{t "Board information" key="board_detail_board_info"}}
+                  {{action "board_details"}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                </button>
+              </div>
               <p class="md-board-detail-header__sub">{{this.subtitle}}</p>
             </div>
           </div>
@@ -107,13 +124,22 @@
               <span class="md-board-detail-color-legend-toggle__icon" aria-hidden="true">&#x1F3A8;</span>
               <span class="md-board-detail-color-legend-toggle__label">{{t "Color Key" key="board_detail_color_key"}}</span>
             </button>
-            <LinkTo @route="user.board-alt" @model={{this.user.user_name}} @query={{hash boardname=this.boardname}} class="md-board-detail-edit-btn">
-              <svg class="md-board-detail-edit-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              <span class="md-board-detail-edit-btn__label">{{t "Edit Board" key="board_detail_edit_board"}}</span>
-            </LinkTo>
+            {{#if this.edit_mode}}
+              <LinkTo @route="user.board-detail.index" class="md-board-detail-edit-btn md-board-detail-edit-btn--active">
+                <svg class="md-board-detail-edit-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span class="md-board-detail-edit-btn__label">{{t "Done Editing" key="board_detail_done_editing"}}</span>
+              </LinkTo>
+            {{else}}
+              <LinkTo @route="user.board-detail.edit" class="md-board-detail-edit-btn">
+                <svg class="md-board-detail-edit-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span class="md-board-detail-edit-btn__label">{{t "Edit Board" key="board_detail_edit_board"}}</span>
+              </LinkTo>
+            {{/if}}
             <button type="button"
               class="md-board-detail-expand-toggle"
               {{action "toggle_panels"}}
@@ -145,6 +171,176 @@
           </div>
         {{/if}}
       </header>
+
+      {{!-- Edit Mode Toolbar --}}
+      {{#if this.edit_mode}}
+        <div class="md-board-detail-edit-toolbar" role="toolbar" aria-label={{t "Edit tools" key="board_detail_edit_tools"}}>
+          <div class="md-board-detail-edit-toolbar__group">
+            {{!-- Undo --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              disabled={{this.noUndo}}
+              title={{t "Undo" key="board_detail_undo"}}
+              {{action "undo_edit"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Undo" key="board_detail_undo"}}</span>
+            </button>
+            {{!-- Redo --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              disabled={{this.noRedo}}
+              title={{t "Redo" key="board_detail_redo"}}
+              {{action "redo_edit"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Redo" key="board_detail_redo"}}</span>
+            </button>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          <div class="md-board-detail-edit-toolbar__group">
+            {{!-- Paint mode toggle --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn {{if this.paint_mode 'md-board-detail-edit-toolbar__btn--active'}}"
+              title={{if this.paint_mode (t "Exit paint mode" key="board_detail_exit_paint") (t "Paint mode" key="board_detail_paint_mode")}}
+              {{action "clear_paint_mode"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Paint" key="board_detail_paint"}}</span>
+            </button>
+            {{!-- Paint swatches (shown when paint mode is active or for quick access) --}}
+            {{#each this.color_picker_swatches as |swatch|}}
+              <button type="button"
+                class="md-board-detail-edit-toolbar__paint-swatch"
+                title={{swatch.label}}
+                {{action "set_paint_mode" swatch.bg swatch.border swatch.pos_class}}>
+                <span class="md-board-detail-edit-toolbar__paint-dot" style={{safe-style (concat "background-color:" swatch.bg ";border-color:" swatch.border)}}></span>
+              </button>
+            {{/each}}
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          <div class="md-board-detail-edit-toolbar__group">
+            {{!-- Edit Board Details --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Edit Name & Details" key="board_detail_edit_details"}}
+              {{action "edit_board_details"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Details" key="board_detail_details"}}</span>
+            </button>
+            {{!-- Button Stash --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Button Stash" key="board_detail_button_stash"}}
+              {{action "open_button_stash"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Stash" key="board_detail_stash"}}</span>
+            </button>
+            {{!-- Suggestions --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Button Suggestions" key="board_detail_suggestions"}}
+              {{action "suggestions"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Ideas" key="board_detail_ideas"}}</span>
+            </button>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          {{!-- Grid Configuration --}}
+          <div class="md-board-detail-edit-toolbar__group">
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Add Row" key="board_detail_add_row"}}
+              {{action "modify_size" "row" "add"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Row" key="board_detail_row"}}</span>
+            </button>
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Remove Row" key="board_detail_remove_row"}}
+              {{action "modify_size" "row" "remove"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Row" key="board_detail_row"}}</span>
+            </button>
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Add Column" key="board_detail_add_col"}}
+              {{action "modify_size" "column" "add"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Col" key="board_detail_col"}}</span>
+            </button>
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn"
+              title={{t "Remove Column" key="board_detail_remove_col"}}
+              {{action "modify_size" "column" "remove"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Col" key="board_detail_col"}}</span>
+            </button>
+          </div>
+
+          {{#if this.has_levels}}
+            <div class="md-board-detail-edit-toolbar__divider"></div>
+
+            {{!-- Level Preview --}}
+            <div class="md-board-detail-edit-toolbar__group">
+              <button type="button"
+                class="md-board-detail-edit-toolbar__btn {{if this.preview_levels 'md-board-detail-edit-toolbar__btn--active'}}"
+                title={{t "Preview Levels" key="board_detail_preview_levels"}}
+                {{action "toggle_preview_levels"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <span class="md-board-detail-edit-toolbar__label">{{t "Levels" key="board_detail_levels"}}</span>
+              </button>
+              {{#if this.preview_levels}}
+                <button type="button"
+                  class="md-board-detail-edit-toolbar__btn"
+                  title={{t "Level Down" key="board_detail_level_down"}}
+                  {{action "shift_level" "down"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {{#if this.preview_level}}
+                  <span class="md-board-detail-edit-toolbar__level-badge">{{this.preview_level}}</span>
+                {{/if}}
+                <button type="button"
+                  class="md-board-detail-edit-toolbar__btn"
+                  title={{t "Level Up" key="board_detail_level_up"}}
+                  {{action "shift_level" "up"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button type="button"
+                  class="md-board-detail-edit-toolbar__btn"
+                  title={{t "Exit Level Preview" key="board_detail_exit_level"}}
+                  {{action "shift_level" "done"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+              {{/if}}
+            </div>
+          {{/if}}
+
+          <div class="md-board-detail-edit-toolbar__spacer"></div>
+
+          <div class="md-board-detail-edit-toolbar__group">
+            {{!-- Save --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--save"
+              title={{t "Save Board" key="board_detail_save_board"}}
+              {{action "save_board"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Save" key="board_detail_save"}}</span>
+            </button>
+            {{!-- Cancel --}}
+            <button type="button"
+              class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--cancel"
+              title={{t "Cancel Changes" key="board_detail_cancel_changes"}}
+              {{action "cancel_edit"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span class="md-board-detail-edit-toolbar__label">{{t "Cancel" key="board_detail_cancel"}}</span>
+            </button>
+          </div>
+        </div>
+      {{/if}}
 
       {{!-- Toolbar row: Quick Phrases + Category Filter --}}
       <div class="md-board-detail-toolbar">
@@ -230,21 +426,65 @@
         </div>
       </div>
 
+      <div class="md-board-detail-divider">
+        {{#unless this.edit_mode}}
+          <button type="button"
+            class="md-board-detail-collapse-btn"
+            title={{if this.board_collapsed (t "Show header" key="board_detail_show_header") (t "Hide header" key="board_detail_hide_header")}}
+            {{action "toggle_board_collapsed"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              {{#if this.board_collapsed}}
+                <polyline points="6 15 12 9 18 15"/>
+              {{else}}
+                <polyline points="18 9 12 15 6 9"/>
+              {{/if}}
+            </svg>
+          </button>
+        {{/unless}}
+      </div>
+
       {{!-- Symbol Grid --}}
-      <div class="md-board-detail-grid" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}>
-        {{#each this.filtered_buttons as |btn|}}
-          <div class="md-board-detail-grid__cell">
+      <div class="md-board-detail-grid" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+        style={{safe-style this.grid_style}}>
+        {{#each this.ordered_buttons as |row|}}
+          {{#each row as |btn|}}
+          <div class="md-board-detail-grid__cell"
+            data-id={{btn.id}}
+            draggable={{if this.edit_mode "true" "false"}}>
             <div
-              class="md-board-detail-symbol-card md-board-detail-symbol-card--{{btn.pos_class}}"
+              class="md-board-detail-symbol-card md-board-detail-symbol-card--{{btn.part_of_speech}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}}"
               role="gridcell"
-              style={{if btn.custom_bg (concat "background-color:" btn.custom_bg ";border-color:" btn.custom_border)}}
+              data-id={{btn.id}}
+              style={{if btn.background_color (safe-style (concat "background-color:" btn.background_color ";border-color:" btn.border_color))}}
               {{action "select_button" btn}}>
-              <button type="button"
-                class="md-board-detail-color-trigger"
-                title={{t "Change button color" key="board_detail_change_color"}}
-                {{action "open_color_picker" btn bubbles=false}}>
-                <span aria-hidden="true">&#x1F3A8;</span>
-              </button>
+              {{#if this.edit_mode}}
+                <div class="md-board-detail-symbol-card__edit-actions">
+                  <button type="button"
+                    class="md-board-detail-symbol-card__edit-btn"
+                    title={{t "Change button color" key="board_detail_change_color"}}
+                    {{action "open_color_picker" btn bubbles=false}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-symbol-card__edit-btn"
+                    title={{t "Copy to Button Stash" key="copy_to_button_stash"}}
+                    {{action "stash_button" btn bubbles=false}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-symbol-card__edit-btn"
+                    title={{t "Word Data" key="view_word_data"}}
+                    {{action "word_data" btn bubbles=false}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-symbol-card__edit-btn md-board-detail-symbol-card__edit-btn--danger"
+                    title={{t "Clear button" key="board_detail_clear_button"}}
+                    {{action "clear_button" btn bubbles=false}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              {{/if}}
               {{#if btn.image_url}}
                 <div class="md-board-detail-symbol-card__image">
                   <img src={{btn.image_url}} alt={{btn.label}} loading="lazy">
@@ -258,45 +498,58 @@
                   {{/if}}
                 </div>
               {{/if}}
-              <span class="md-board-detail-symbol-card__label">{{btn.label}}</span>
+              {{#if this.edit_mode}}
+                <input type="text"
+                  class="md-board-detail-symbol-card__label-input"
+                  value={{btn.label}}
+                  placeholder={{t "enter label" key="enter_label"}}
+                  data-button-id={{btn.id}}
+                  {{on "change" (action "update_button_label" btn)}}
+                  {{on "focusout" (action "update_button_label" btn)}} />
+              {{else}}
+                <span class="md-board-detail-symbol-card__label">{{btn.label}}</span>
+              {{/if}}
             </div>
 
-            {{!-- Color Picker Popover --}}
-            {{#if (is-equal this.color_picker_button btn)}}
-              <div class="md-board-detail-color-picker">
-                <div class="md-board-detail-color-picker__header">
-                  <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
-                  <button type="button" class="md-board-detail-color-picker__close" {{action "close_color_picker"}}>&times;</button>
-                </div>
-
-                <div class="md-board-detail-color-picker__swatches">
-                  {{#each this.color_picker_swatches as |swatch|}}
-                    <button type="button"
-                      class="md-board-detail-color-picker__swatch"
-                      {{action "apply_swatch_color" swatch}}>
-                      <span class="md-board-detail-color-picker__swatch-color" style={{concat "background-color:" swatch.bg ";border-color:" swatch.border}}></span>
-                      <span class="md-board-detail-color-picker__swatch-label">{{swatch.label}}</span>
-                    </button>
-                  {{/each}}
-                </div>
-
-                <div class="md-board-detail-color-picker__custom">
-                  <div class="md-board-detail-color-picker__custom-header">
-                    <label class="md-board-detail-color-picker__custom-label">{{t "Custom Color" key="board_detail_custom_color"}}</label>
+            {{#if this.edit_mode}}
+              {{!-- Color Picker Popover --}}
+              {{#if (is-equal this.color_picker_button btn)}}
+                <div class="md-board-detail-color-picker">
+                  <div class="md-board-detail-color-picker__header">
+                    <span class="md-board-detail-color-picker__title">{{t "Choose Color" key="board_detail_choose_color"}}</span>
+                    <button type="button" class="md-board-detail-color-picker__close" {{action "close_color_picker"}}>&times;</button>
                   </div>
-                  <div class="md-board-detail-color-picker__custom-row">
-                    <span class="md-board-detail-color-picker__preview"
-                      {{action "toggle_minicolors"}}
-                      style={{if this.custom_color_value (concat "background-color:" this.custom_color_value)}}></span>
-                    <input type="text" id="board-detail-custom-color" class="md-board-detail-color-picker__input" placeholder="#hex" />
-                    <button type="button" class="md-board-detail-color-picker__apply" {{action "apply_custom_color"}}>{{t "Apply" key="board_detail_apply"}}</button>
+
+                  <div class="md-board-detail-color-picker__swatches">
+                    {{#each this.color_picker_swatches as |swatch|}}
+                      <button type="button"
+                        class="md-board-detail-color-picker__swatch"
+                        {{action "apply_swatch_color" swatch}}>
+                        <span class="md-board-detail-color-picker__swatch-color" style={{safe-style (concat "background-color:" swatch.bg ";border-color:" swatch.border)}}></span>
+                        <span class="md-board-detail-color-picker__swatch-label">{{swatch.label}}</span>
+                      </button>
+                    {{/each}}
+                  </div>
+
+                  <div class="md-board-detail-color-picker__custom">
+                    <div class="md-board-detail-color-picker__custom-header">
+                      <label class="md-board-detail-color-picker__custom-label">{{t "Custom Color" key="board_detail_custom_color"}}</label>
+                    </div>
+                    <div class="md-board-detail-color-picker__custom-row">
+                      <span class="md-board-detail-color-picker__preview"
+                        {{action "toggle_minicolors"}}
+                        style={{if this.custom_color_value (safe-style (concat "background-color:" this.custom_color_value))}}></span>
+                      <input type="text" id="board-detail-custom-color" class="md-board-detail-color-picker__input" placeholder="#hex" />
+                      <button type="button" class="md-board-detail-color-picker__apply" {{action "apply_custom_color"}}>{{t "Apply" key="board_detail_apply"}}</button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              {{/if}}
             {{/if}}
           </div>
+          {{/each}}
         {{/each}}
-        {{#unless this.filtered_buttons}}
+        {{#unless this.ordered_buttons.length}}
           <div class="md-board-detail-grid__empty">
             <p>{{t "No symbols found for this category" key="board_detail_no_symbols"}}</p>
           </div>
@@ -335,7 +588,7 @@
                   <span class="md-board-detail-goals-list__count">{{goal.current}} / {{goal.target}}</span>
                 </div>
                 <div class="md-board-detail-goals-list__bar">
-                  <div class="md-board-detail-goals-list__fill md-board-detail-goals-list__fill--{{goal.color}}" style={{concat "width:" goal.percent "%"}}></div>
+                  <div class="md-board-detail-goals-list__fill md-board-detail-goals-list__fill--{{goal.color}}" style={{safe-style (concat "width:" goal.percent "%")}}></div>
                 </div>
               </li>
             {{/each}}

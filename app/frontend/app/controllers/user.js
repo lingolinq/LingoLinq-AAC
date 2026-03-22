@@ -15,7 +15,7 @@ export default Controller.extend({
     'model.user_name',
     function() {
       var name = this.get('router.currentRouteName') || '';
-      if (name === 'user.board-alt.index' || name === 'user.board-detail' || name === 'user.home' || name === 'user.extras' || name === 'user.boards' || name === 'user.stats') {
+      if (name === 'user.board-alt.index' || name === 'user.board-detail.index' || name === 'user.board-detail.edit' || name === 'user.home' || name === 'user.extras' || name === 'user.boards' || name === 'user.stats') {
         return true;
       }
       var un = this.get('model.user_name');

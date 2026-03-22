@@ -1,164 +1,200 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-board-details-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Board Details" key="board_details"}}</h3>
   </div>
   <div class="modal-body">
-    <dl class="dl-horizontal">
-      <dt>{{t "Name" key="name"}}</dt>
-        <dd>{{this.model.name}}</dd>
-      <dt>{{t "Description" key="description"}}</dt>
-        <dd style="white-space: pre-line;">{{this.model.description}}</dd>
-      <dt>{{t "Created" key="created"}}</dt>
-        <dd>{{date this.model.created "day"}}</dd>
-      <dt>{{t "Last Updated" key="updated"}}</dt>
-        <dd>{{date this.model.updated "day"}}</dd>
-      {{#if this.model.locale}}
-        <dt>{{t "Default Language" key="default_language"}}</dt>
-          <dd>{{this.language}}</dd>
-      {{/if}}
-      {{#if this.multiple_locales}}
-        <dt>{{t "Translations" key="translations"}}</dt>
-          <dd>{{this.languages}}</dd>
-      {{/if}}
-      {{#if this.model.parent_board_key}}
-        <dt>{{t "Copied From" key="copied_from"}}</dt>
-        <dd>
-          <LinkTo @route="board" @model={{this.model.parent_board_key}}>{{this.model.parent_board_key}}</LinkTo>
-        </dd>
-      {{/if}}
-      <dt>{{t "Public" key="public"}}</dt>
-        <dd>
-        {{#if this.model.public}}
-          {{t "Anyone can see this board" key="anyone_can_see"}}
-        {{else}}
-          {{t "This board is private" key="this_board_is_private"}}
-        {{/if}}
-        </dd>
-      {{#if this.model.word_suggestions}}
-        <dt>{{t "Suggestions" key="suggestions"}}</dt>
-        <dd>{{t "Shows word completion suggestions" key="shows_word_completion_suggestions"}}</dd>
-      {{/if}}
 
-      <dt>{{t "License" key="license"}}</dt>
-        <dd>
-          {{license-attribution license=this.model.license}}
-          {{#if this.model.protected_material}}
-            <div style='margin-bottom: 10px; margin-top: 5px;'>
-              {{#if this.model.has_fallbacks}}
-                <em>{{t "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent" key="protected_fallback_material"}}</em>
-              {{else if this.model.copying_state}}
-                <em>{{t "This board contains protected material, and cannot be made public" key="board_contains_protected_material"}}</em>
-              {{else}}
-                <em>{{t "This board contains protected material which cannot be made public. If this board is shared or made public, users without proper access will see free images and sounds instead which may not perfectly match the author's intent." key="board_contains_protected_material_will_use_fallbacks"}}</em>
-              {{/if}}
-            </div>
-          {{/if}}
-        </dd>
-      {{#unless this.model.local_only}}
-        <dt>{{t "People Using" key="people_using"}}</dt>
+    {{!-- Overview Section --}}
+    <div class="la-board-details-section">
+      <h4 class="la-board-details-section__heading">{{t "Overview" key="board_detail_overview"}}</h4>
+      <dl class="dl-horizontal">
+        <dt>{{t "Name" key="name"}}</dt>
           <dd>
-            {{this.model.non_author_uses}}
-            <a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a>
-          </dd>
-      {{/unless}}
-      {{#unless this.model.fresh}}
-        <dt>{{t "Local Result" key="local_result"}}</dt>
-          {{#if this.model.local_only}}
-            <dd>{{t "generated locally" key="generated_locally"}}</dd>
-          {{else}}
-            <dd>{{t "retrieved from local storage" key="retrieved_from_local"}}</dd>
-          {{/if}}
-      {{/unless}}
-      <dt>{{t "Dimensions" key="dimensions"}}</dt>
-        <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
-      {{#unless this.model.local_only}}
-        <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
-          <dd>
-            {{this.model.downstream_boards}}
-          </dd>
-        <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
-          <dd>
-            {{this.model.unlinked_buttons}}
-            {{#if this.model.button_set}}
-              <a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a>
+            {{this.model.name}}
+            {{#if this.model.permissions.edit}}
+              <a href="#" class="la-board-details-rename-link" {{action "renameBoard"}} title={{t "Rename board" key="rename_board"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
             {{/if}}
           </dd>
-        <dt>{{t "Revisions" key="revisions"}}</dt>
+        <dt>{{t "Description" key="description"}}</dt>
+          <dd style="white-space: pre-line;">{{this.model.description}}</dd>
+        <dt>{{t "Dimensions" key="dimensions"}}</dt>
+          <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
+        <dt>{{t "Created" key="created"}}</dt>
+          <dd>{{date this.model.created "day"}}</dd>
+        <dt>{{t "Last Updated" key="updated"}}</dt>
+          <dd>{{date this.model.updated "day"}}</dd>
+        {{#if this.model.parent_board_key}}
+          <dt>{{t "Copied From" key="copied_from"}}</dt>
           <dd>
-            <LinkTo @route="board.history" @model={{this.model.key}}>{{t "see board edit history" key="see_history"}}</LinkTo>
-          </dd>
-        <dt>{{t "Likes" key="stars"}}</dt>
-          <dd>
-            {{this.model.stars}}
-          </dd>
-        {{#if this.model.permissions.edit}}
-          <dt>{{t "Rename" key="rename"}}</dt>
-          <dd>
-            <a href="#" {{action "renameBoard"}}>{{t "change board key" key="change_board_key_lower"}}</a>
+            <LinkTo @route="board" @model={{this.model.parent_board_key}}>{{this.model.parent_board_key}}</LinkTo>
           </dd>
         {{/if}}
-      {{/unless}}
       </dl>
-      {{#unless this.model.local_only}}
-        {{#if this.hierarchy}}
-          <dl class="dl-horizontal" style="margin-top: 20px;">
-            <dt>{{t "Linked Boards" key="linked_boards"}}</dt>
+    </div>
+
+    {{!-- Language & Localization Section --}}
+    {{#if this.model.locale}}
+      <div class="la-board-details-section">
+        <h4 class="la-board-details-section__heading">{{t "Language" key="language"}}</h4>
+        <dl class="dl-horizontal">
+          <dt>{{t "Default Language" key="default_language"}}</dt>
             <dd>
-              {{#if this.hierarchy.loading}}
-                {{t "Loading linked boards..." key="loading_linked_boards"}}
-              {{else if this.hierarchy.error}}
-                {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
-              {{else}}
-                <div style='margin-top: -15px;'>
-                  {{board-hierarchy hierarchy=this.hierarchy}}
-                </div>
+              {{this.language}}
+              {{#if this.model.permissions.edit}}
+                <a href="#" class="la-board-details-rename-link" {{action "translate"}} title={{t "Translate board" key="translate_this_board"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </a>
               {{/if}}
             </dd>
-          </dl>
-        {{/if}}
-      {{/unless}}
-    <dl class="dl-horizontal" style="margin-top: 50px;">
-      <dt>{{t "Additional Licenses" key="additional_license"}}</dt>
-        <dd>
-          {{#unless this.showing_licenses}}
-            <a href="#" {{action "show_licenses"}}>{{t "show additional licenses" class="show_additiona"}}</a>
+          {{#if this.multiple_locales}}
+            <dt>{{t "Translations" key="translations"}}</dt>
+              <dd>{{this.languages}}</dd>
+          {{/if}}
+        </dl>
+      </div>
+    {{/if}}
+
+    {{!-- Visibility & License Section --}}
+    <div class="la-board-details-section">
+      <h4 class="la-board-details-section__heading">{{t "Visibility & License" key="board_detail_visibility_license"}}</h4>
+      <dl class="dl-horizontal">
+        <dt>{{t "Public" key="public"}}</dt>
+          <dd>
+          {{#if this.model.public}}
+            {{t "Anyone can see this board" key="anyone_can_see"}}
           {{else}}
-            <ul class="list-unstyled">
-            {{#each this.images_with_license as |image|}}
-              <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;">
-              {{license-attribution license=image.license}}
-              </li>
-            {{/each}}
-            {{#each this.sounds_with_license as |sound|}}
-              <li>
-                <strong>{{sound.filename}}</strong><br>
-                <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
-                <span style="padding-left: 20px;">
-                  {{license-attribution license=sound.license}}
-                </span>
-              </li>
-            {{/each}}
-            </ul>
-          {{/unless}}
-        </dd>
-    </dl>
-    <div style='margin-bottom: 5px;'>
-      {{#if this.model.permissions.edit}}
-        <button class='btn btn-default' {{action "privacy"}}>{{t "Change Privacy" key="change_privacy"}}</button>
+            {{t "This board is private" key="this_board_is_private"}}
+          {{/if}}
+          {{#if this.model.permissions.edit}}
+            <a href="#" class="la-board-details-rename-link" {{action "privacy"}} title={{t "Change privacy" key="change_privacy"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+          {{/if}}
+          </dd>
+        <dt>{{t "License" key="license"}}</dt>
+          <dd>
+            {{license-attribution license=this.model.license}}
+            {{#if this.model.protected_material}}
+              <div style='margin-top: 5px;'>
+                {{#if this.model.has_fallbacks}}
+                  <em>{{t "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent" key="protected_fallback_material"}}</em>
+                {{else if this.model.copying_state}}
+                  <em>{{t "This board contains protected material, and cannot be made public" key="board_contains_protected_material"}}</em>
+                {{else}}
+                  <em>{{t "This board contains protected material which cannot be made public. If this board is shared or made public, users without proper access will see free images and sounds instead which may not perfectly match the author's intent." key="board_contains_protected_material_will_use_fallbacks"}}</em>
+                {{/if}}
+              </div>
+            {{/if}}
+          </dd>
+        {{#if this.model.word_suggestions}}
+          <dt>{{t "Suggestions" key="suggestions"}}</dt>
+          <dd>{{t "Shows word completion suggestions" key="shows_word_completion_suggestions"}}</dd>
+        {{/if}}
+      </dl>
+    </div>
+
+    {{!-- Stats & Connections Section --}}
+    {{#unless this.model.local_only}}
+      <div class="la-board-details-section">
+        <h4 class="la-board-details-section__heading">{{t "Stats & Connections" key="board_detail_stats_connections"}}</h4>
+        <dl class="dl-horizontal">
+          <dt>{{t "People Using" key="people_using"}}</dt>
+            <dd>
+              {{this.model.non_author_uses}}
+              <a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a>
+            </dd>
+          <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
+            <dd>{{this.model.downstream_boards}}</dd>
+          <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
+            <dd>
+              {{this.model.unlinked_buttons}}
+              {{#if this.model.button_set}}
+                <a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a>
+              {{/if}}
+            </dd>
+          <dt>{{t "Likes" key="stars"}}</dt>
+            <dd>{{this.model.stars}}</dd>
+          <dt>{{t "Revisions" key="revisions"}}</dt>
+            <dd>
+              <LinkTo @route="board.history" @model={{this.model.key}}>{{t "see board edit history" key="see_history"}}</LinkTo>
+            </dd>
+        </dl>
+      </div>
+
+      {{!-- Linked Boards Section --}}
+      {{#if this.hierarchy}}
+        <div class="la-board-details-section">
+          <h4 class="la-board-details-section__heading">{{t "Linked Boards" key="linked_boards"}}</h4>
+          {{#if this.hierarchy.loading}}
+            <p>{{t "Loading linked boards..." key="loading_linked_boards"}}</p>
+          {{else if this.hierarchy.error}}
+            <p>{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</p>
+          {{else}}
+            {{board-hierarchy hierarchy=this.hierarchy}}
+          {{/if}}
+        </div>
       {{/if}}
+    {{/unless}}
+
+    {{!-- Local Info --}}
+    {{#unless this.model.fresh}}
+      <div class="la-board-details-section">
+        <h4 class="la-board-details-section__heading">{{t "Storage" key="board_detail_storage"}}</h4>
+        <dl class="dl-horizontal">
+          <dt>{{t "Local Result" key="local_result"}}</dt>
+            {{#if this.model.local_only}}
+              <dd>{{t "generated locally" key="generated_locally"}}</dd>
+            {{else}}
+              <dd>{{t "retrieved from local storage" key="retrieved_from_local"}}</dd>
+            {{/if}}
+        </dl>
+      </div>
+    {{/unless}}
+
+    {{!-- Licensing Details Section --}}
+    <div class="la-board-details-section">
+      <h4 class="la-board-details-section__heading">{{t "Additional Licenses" key="additional_license"}}</h4>
+      {{#unless this.showing_licenses}}
+        <a href="#" {{action "show_licenses"}}>{{t "show additional licenses" class="show_additiona"}}</a>
+      {{else}}
+        <ul class="list-unstyled">
+        {{#each this.images_with_license as |image|}}
+          <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;">
+          {{license-attribution license=image.license}}
+          </li>
+        {{/each}}
+        {{#each this.sounds_with_license as |sound|}}
+          <li>
+            <strong>{{sound.filename}}</strong><br>
+            <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
+            <span style="padding-left: 20px;">
+              {{license-attribution license=sound.license}}
+            </span>
+          </li>
+        {{/each}}
+        </ul>
+      {{/unless}}
+    </div>
+
+    {{!-- Actions Section --}}
+    <div class="la-board-details-section la-board-details-section--actions">
       {{#if this.appState.currentUser}}
         <button class='btn btn-default' {{action "categorize"}}>{{t "Categorize Board" key="categorize_board"}}</button>
       {{/if}}
+      {{#if this.model.permissions.edit}}
+        <button class='btn btn-default' {{action "swap_images"}}>{{t "Swap Images" key="swap_images_for_this_board"}}</button>
+        <button class='btn btn-default' {{action "batch_recording"}}>{{t "Record Messages" key="record_messages"}}</button>
+        <button class='btn btn-default la-board-details-delete-btn' {{action "delete"}}>{{t "Delete Board" key="delete_board"}}</button>
+      {{/if}}
     </div>
-    {{#if this.model.permissions.edit}}
-      <button class='btn btn-default' {{action "translate"}}>{{t "Translate Board" key="translate_this_board"}}</button>
-      <button class='btn btn-default' {{action "swap_images"}}>{{t "Swap Images" key="swap_images_for_this_board"}}</button>
-      <button class='btn btn-default' {{action "batch_recording"}}>{{t "Record Messages" key="record_messages"}}</button>
-      <button class='btn btn-default' {{action "delete"}}>{{t "Delete Board" key="delete_board"}}</button>
-    {{/if}}
+
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="btn btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
   </div>
 {{/modal-dialog}}
