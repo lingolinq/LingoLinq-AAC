@@ -1,254 +1,210 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-edit-board-details-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Edit Board Details" key="edit_board_details"}}
-    </h3>
+    <h3>{{t "Edit Board Details" key="edit_board_details"}}</h3>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" {{action "close" on="submit" preventDefault=true}}>
-      <div class="form-group">
-        <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
-        <div class="col-sm-7">
-          <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Board Name" />
-        </div>
+
+    {{!-- Basic Info --}}
+    <div class="la-edit-board-section">
+      <h4 class="la-edit-board-section__heading">{{t "Basic Info" key="board_detail_basic_info"}}</h4>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label" for="name">{{t "Name" key="name"}}</label>
+        <Input @value={{this.model.name}} class="la-edit-board-input" id="name" placeholder="Board Name" />
       </div>
-      <div class="form-group">
-        <label for="decription" class="col-sm-3 control-label">{{t "Description" key="description"}}</label>
-        <div class="col-sm-7">
-          <Textarea @value={{this.model.description}} class="form-control" id="decription" placeholder="Details about this board" />
-        </div>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label" for="decription">{{t "Description" key="description"}}</label>
+        <Textarea @value={{this.model.description}} class="la-edit-board-input la-edit-board-textarea" id="decription" placeholder="Details about this board" />
       </div>
-      <div class="form-group">
-        <label for="image_url" class="col-sm-3 control-label">{{t "Icon" key="icon"}}</label>
-        <div class="col-sm-7">
-          <Input @value={{this.model.image_url}} class="form-control" id="image_url" placeholder="URL or pick from the list" />
-          <div style="margin-top: 12px; float: left; height: 42px; width: 42px; border: 1px solid #ccc; overflow: hidden;">
-            {{#if this.model.image_url}}
-              <img src={{this.model.image_url}} {{action "pickImageUrl" this.model.image_url}} style="width: 40px; height: 40px;" alt="current image">
-            {{/if}}
-          </div>
-          <div class="icon_urls">
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label" for="image_url">{{t "Icon" key="icon"}}</label>
+        <Input @value={{this.model.image_url}} class="la-edit-board-input" id="image_url" placeholder="URL or pick from the list" />
+        <div class="la-edit-board-icon-row">
+          {{#if this.model.image_url}}
+            <div class="la-edit-board-icon-preview">
+              <img src={{this.model.image_url}} {{action "pickImageUrl" this.model.image_url}} alt="current image">
+            </div>
+          {{/if}}
+          <div class="la-edit-board-icon-options">
             {{#each this.iconUrls as |icon|}}
-              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} >
+              <img src={{icon.url}} {{action "pickImageUrl" icon.url}} alt={{icon.alt}} class="la-edit-board-icon-option">
             {{/each}}
           </div>
-          <div style="clear: left;"></div>
         </div>
       </div>
-      <div class="form-group">
-        <label for="license" class="col-sm-3 control-label">{{t "License" key="license"}}</label>
-        <div class="col-sm-7">
-          {{bound-select select_class="form-control" select_id="license" content=this.licenseOptions selection=this.model.license.type action=(action "update_license_type") }}
-        </div>
+    </div>
+
+    {{!-- License --}}
+    <div class="la-edit-board-section">
+      <h4 class="la-edit-board-section__heading">{{t "License" key="license"}}</h4>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label" for="license">{{t "License Type" key="license_type"}}</label>
+        {{bound-select select_class="la-edit-board-select" select_id="license" content=this.licenseOptions selection=this.model.license.type action=(action "update_license_type") }}
       </div>
       {{#if this.attributable_license_type}}
-        <div class="form-group">
-          <label for="author" class="col-sm-3 control-label">{{t "Author" key="author"}}</label>
-          <div class="col-sm-4">
-            <Input @value={{this.model.license.author_name}} class="form-control" id="author" placeholder="Name" />
+        <div class="la-edit-board-field-row">
+          <div class="la-edit-board-field la-edit-board-field--half">
+            <label class="la-edit-board-label" for="author">{{t "Author" key="author"}}</label>
+            <Input @value={{this.model.license.author_name}} class="la-edit-board-input" id="author" placeholder="Name" />
           </div>
-          <div class="col-sm-5">
-            <Input @value={{this.model.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" />
+          <div class="la-edit-board-field la-edit-board-field--half">
+            <label class="la-edit-board-label">{{t "Author URL" key="author_url"}}</label>
+            <Input @value={{this.model.license.author_url}} class="la-edit-board-input" placeholder="Author URL" />
           </div>
         </div>
       {{/if}}
-      <div class="form-group">
-        <label for="locale" class="col-sm-3 control-label">{{t "Default Language" key="default_language"}}</label>
-        <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.locale action=(action "update_locale") }}
-        </div>
+    </div>
+
+    {{!-- Language --}}
+    <div class="la-edit-board-section">
+      <h4 class="la-edit-board-section__heading">{{t "Language" key="language"}}</h4>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label" for="locale">{{t "Default Language" key="default_language"}}</label>
+        {{bound-select select_class="la-edit-board-select" select_id="locale" content=this.locales selection=this.model.locale action=(action "update_locale") }}
       </div>
-      <div class="form-group">
-        <label for="locale" class="col-sm-3 control-label">{{t "Current Language" key="button_locale"}}</label>
-        <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="locale" content=this.locales selection=this.model.button_locale action=(action "update_button_locale") }}
-        </div>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label">{{t "Current Language" key="button_locale"}}</label>
+        {{bound-select select_class="la-edit-board-select" content=this.locales selection=this.model.button_locale action=(action "update_button_locale") }}
       </div>
-      <div class="form-group">
-        <label for="home_board" class="col-sm-3 control-label">{{t "Home Board" key="home_board"}}</label>
-        <div class="col-sm-9">
-          <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.model.home_board}} />
-              {{t "This board can be used as a home board" key="is_home_board"}}
-            </label>
-          </div>
-        </div>
+    </div>
+
+    {{!-- Visibility --}}
+    <div class="la-edit-board-section">
+      <h4 class="la-edit-board-section__heading">{{t "Visibility" key="visibility"}}</h4>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-checkbox">
+          <Input @type="checkbox" @checked={{this.model.home_board}} class="la-edit-board-check" />
+          <span>{{t "This board can be used as a home board" key="is_home_board"}}</span>
+        </label>
       </div>
       {{#if this.model.home_board}}
-      <div class="form-group">
-        <div class="col-sm-9 col-sm-offset-3">
-          {{t "Select any categories that this home board may fit well into." key="select_categories"}}
+        <div class="la-edit-board-field">
+          <p class="la-edit-board-hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
           {{#each this.board_categories as |category|}}
-            <div><div class='checkbox big_checkbox'>
-              <label {{action "toggle_category" category on="click" preventDefault=true}}>
-                <Input @type="checkbox" @checked={{category.selected}} />
-                {{category.name}}
-              </label>
-            </div></div>
+            <label class="la-edit-board-checkbox" {{action "toggle_category" category on="click" preventDefault=true}}>
+              <Input @type="checkbox" @checked={{category.selected}} class="la-edit-board-check" />
+              <span>{{category.name}}</span>
+            </label>
           {{/each}}
         </div>
-      </div>
       {{/if}}
-      <div class="form-group">
-        <label for="public" class="col-sm-3 control-label">{{t "Visibility" key="visibility"}}</label>
-        <div class="col-sm-9">
-          {{#if this.model.copying_state}}
-            <p class='form-control-static'><em>{{t "Boards with protected content can't be made public" key="protected_boards_no_public"}}</em></p>
-          {{else}}
-            {{bound-select select_class="form-control" select_id="license" content=this.public_options selection=this.model.visibility action=(action "update_visibility") }}
-            {{#unless this.model.visibility_setting.private}}
-              {{#if this.model.protected_material}}
-                <em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key="premium_public_fallbacks_warning"}}</em>
-              {{/if}}
-            {{/unless}}
-          {{/if}}
-        </div>
+      <div class="la-edit-board-field">
+        <label class="la-edit-board-label">{{t "Visibility" key="visibility"}}</label>
+        {{#if this.model.copying_state}}
+          <p class="la-edit-board-hint"><em>{{t "Boards with protected content can't be made public" key="protected_boards_no_public"}}</em></p>
+        {{else}}
+          {{bound-select select_class="la-edit-board-select" content=this.public_options selection=this.model.visibility action=(action "update_visibility") }}
+          {{#unless this.model.visibility_setting.private}}
+            {{#if this.model.protected_material}}
+              <p class="la-edit-board-hint"><em>{{t "NOTE: Users who do not have access to premium content on this board will see free alternatives instead, which may not exactly match the author's intent." key="premium_public_fallbacks_warning"}}</em></p>
+            {{/if}}
+          {{/unless}}
+        {{/if}}
         {{#if this.model.downstream_boards}}
           {{#if this.visibility_changed}}
-            <div class="col-sm-9 col-sm-offset-3">
-              <div class="checkbox big_checkbox">
-                <label>
-                  <Input @type="checkbox" @checked={{this.model.update_visibility_downstream}} />
-                  {{t "Update all linked boards to the same visibility" key="update_downstream_visibility"}}
-                </label>
-              </div>
-            </div>
+            <label class="la-edit-board-checkbox">
+              <Input @type="checkbox" @checked={{this.model.update_visibility_downstream}} class="la-edit-board-check" />
+              <span>{{t "Update all linked boards to the same visibility" key="update_downstream_visibility"}}</span>
+            </label>
           {{/if}}
         {{/if}}
       </div>
-      {{#if this.advanced}}
+    </div>
+
+    {{!-- Advanced --}}
+    {{#if this.advanced}}
+      <div class="la-edit-board-section">
+        <h4 class="la-edit-board-section__heading">{{t "Advanced" key="advanced_options"}}</h4>
         {{#if this.model.visibility_setting.private}}
-          <div class="form-group">
-            <label for="public" class="col-sm-3 control-label">{{t "Copying" key="copying"}}</label>
-            <div class="col-sm-9">
-              <div class="checkbox big_checkbox">
-                <label>
-                  <Input @type="checkbox" @checked={{this.protected_vocabulary}} disabled={{this.model.copying_state.none}} />
-                  {{t "Only the author can make copies of this board, and any copies cannot be re-copied by others" key="protected_vocabulary"}}
-                </label>
-              </div>
-            </div>
+          <div class="la-edit-board-field">
+            <label class="la-edit-board-checkbox">
+              <Input @type="checkbox" @checked={{this.protected_vocabulary}} disabled={{this.model.copying_state.none}} class="la-edit-board-check" />
+              <span>{{t "Only the author can make copies of this board, and any copies cannot be re-copied by others" key="protected_vocabulary"}}</span>
+            </label>
           </div>
         {{/if}}
-        <div class="form-group">
-          <label for="suggestions" class="col-sm-3 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
-          <div class="col-sm-9">
-            <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.model.word_suggestions}} />
-                {{t "Show word completion suggestions" key="show_word_suggestions"}}
-              </label>
-            </div><br>
-            <em style="padding-left: 20px;">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</em>
-          </div>
+        <div class="la-edit-board-field">
+          <label class="la-edit-board-checkbox">
+            <Input @type="checkbox" @checked={{this.model.word_suggestions}} class="la-edit-board-check" />
+            <span>{{t "Show word completion suggestions" key="show_word_suggestions"}}</span>
+          </label>
+          <p class="la-edit-board-hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
         </div>
-        <div class="form-group">
-          <label for="home_board" class="col-sm-3 control-label">{{t "Adjust Header" key="adjust_header"}}</label>
-          <div class="col-sm-9">
-            <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.model.dim_header}} />
-                {{t "Dim the header and vocalization box while on this board" key="dim_header_on_this_board"}}
-              </label>
-            </div>
-          </div>
-          <div class="col-sm-9 col-sm-offset-3">
-            <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.model.small_header}} />
-                {{t "Shrink the header and vocalization box while on this board" key="small_header_on_this_board"}}
-              </label>
-            </div>
-          </div>
+        <div class="la-edit-board-field">
+          <label class="la-edit-board-checkbox">
+            <Input @type="checkbox" @checked={{this.model.dim_header}} class="la-edit-board-check" />
+            <span>{{t "Dim the header and vocalization box while on this board" key="dim_header_on_this_board"}}</span>
+          </label>
+          <label class="la-edit-board-checkbox">
+            <Input @type="checkbox" @checked={{this.model.small_header}} class="la-edit-board-check" />
+            <span>{{t "Shrink the header and vocalization box while on this board" key="small_header_on_this_board"}}</span>
+          </label>
         </div>
-        <div class="form-group">
-          <label for="background" class="col-sm-3 control-label">{{t "Background" key="background"}}</label>
-          <div class="col-sm-9">
-            <div class="checkbox big_checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.background_enabled}} />
-                {{t "Use a custom background for this board" key="add_custom_background"}}
-              </label>
-            </div>
-          </div>
+        <div class="la-edit-board-field">
+          <label class="la-edit-board-label">{{t "Background" key="background"}}</label>
+          <label class="la-edit-board-checkbox">
+            <Input @type="checkbox" @checked={{this.background_enabled}} class="la-edit-board-check" />
+            <span>{{t "Use a custom background for this board" key="add_custom_background"}}</span>
+          </label>
           {{#if this.model.background}}
-            <div class="col-sm-9 col-sm-offset-3" style='margin-top: 10px;'>
-              <Input @value={{this.model.background.image}} class="form-control" id="background_image_url" placeholder="URL for background" />
-              <div style="margin-top: 12px; float: left; height: 60px; width: 80px; border: 1px solid #ccc; overflow: hidden;">
-                {{#if this.model.background.image}}
-                  <img src={{this.model.background.image}} style="width: 80px; height: 60px; obect-fit: contain; object-position: center;" alt="current image">
-                {{/if}}
+            <Input @value={{this.model.background.image}} class="la-edit-board-input" id="background_image_url" placeholder="URL for background" />
+            {{#if this.model.background.image}}
+              <div class="la-edit-board-bg-preview">
+                <img src={{this.model.background.image}} alt="background preview">
               </div>
-              <div style="clear: left;"></div>
-            </div>
-            <div class="col-sm-6 col-sm-offset-3" style='margin-top: 10px;'>
-              <Input @value={{this.model.background.position}} class="form-control" id="background_image_position" placeholder="image positioning" />
-            </div>
-            <div class='col-sm-2' style='margin-left: -50px; margin-top: 10px;'>
-              <div class="btn-group dropup">
-                <button class="btn btn-default dropdown-toggle" style="border-top-left-radius: 0; border-bottom-left-radius: 0;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {{t "choose" key="choose"}} <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu" style="right: 0; left: inherit; text-align: left;">
+            {{/if}}
+            <div class="la-edit-board-field-row">
+              <Input @value={{this.model.background.position}} class="la-edit-board-input" placeholder="image positioning" />
+              <div class="la-edit-board-dropdown">
+                <button class="la-edit-board-dropdown-btn" data-toggle="dropdown">{{t "choose" key="choose"}} <svg width="10" height="6" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 1.5 6 6.5 11 1.5"/></svg></button>
+                <ul class="dropdown-menu">
                   <li><a href="#" {{action "set_position" "center"}}>{{t "center" key="center"}}</a></li>
                   <li><a href="#" {{action "set_position" "stretch"}}>{{t "stretch" key="stretch"}}</a></li>
                   <li><a href="#" {{action "set_position" "cover"}}>{{t "cover" key="cover"}}</a></li>
                 </ul>
               </div>
-              <div style="clear: left;"></div>
             </div>
-            <div class="col-sm-9 col-sm-offset-3" style='margin-top: 10px;'>
-              <span {{action "toggle_color" "fill"}} style={{this.bg_style}}></span>
-              <span class="button_field">
-                <Input @value={{this.model.background.color}} class="form-control" id="background" />
-              </span>
+            <div class="la-edit-board-field-row">
+              <span {{action "toggle_color" "fill"}} style={{this.bg_style}} class="la-edit-board-color-swatch"></span>
+              <Input @value={{this.model.background.color}} class="la-edit-board-input" id="background" />
             </div>
           {{/if}}
         </div>
-        <div class="form-group">
-          <label for="copy_key" class="col-sm-3 control-label">{{t "Root Key" key="root_key"}}</label>
-          <div class="col-sm-7">
-            <Input @value={{this.model.copy_key}} class="form-control" id="copy_key" placeholder="Root board key" />
-          </div>
+        <div class="la-edit-board-field">
+          <label class="la-edit-board-label" for="copy_key">{{t "Root Key" key="root_key"}}</label>
+          <Input @value={{this.model.copy_key}} class="la-edit-board-input" id="copy_key" placeholder="Root board key" />
         </div>
         {{#if this.model.home_board}}
           {{#if this.appState.feature_flags.find_multiple_buttons}}
-            <div class="form-group">
-              <label for="board_intro" class="col-sm-3 control-label">{{t "Board Intro" key="board_intro"}}</label>
+            <div class="la-edit-board-field">
+              <label class="la-edit-board-label">{{t "Board Intro" key="board_intro"}}</label>
               {{#unless this.model.intro.sections}}
-                <div class="col-sm-9" style='margin-bottom: 10px;'>
-                  <em class='form-control-static'>{{t "You can build a short lesson that people will walk through when they choose this board set, including explanations and practice phrases for them to find using the board set." key="board_intro_explainer"}}</em>
-                </div>
+                <p class="la-edit-board-hint">{{t "You can build a short lesson that people will walk through when they choose this board set, including explanations and practice phrases for them to find using the board set." key="board_intro_explainer"}}</p>
               {{/unless}}
-              {{#each this.model.intro.sections as |section index|}}
-                <div class={{if index "col-sm-7 col-sm-offset-3" "col-sm-7"}}>
-                  <Textarea @value={{section.description}} class="form-control" placeholder="Explanation, notes, etc." />
-                  <div style='margin-top: 3px; margin-bottom: 15px;'>
-                    <Input @type="text" @value={{section.prompt}} class="form-control" placeholder="optional button sequence to find" />
-                  </div>
-                </div>
-                <div class='col-sm-2'>
-                  <button class='btn btn-default' {{action "delete_board_intro_section" section}}><span class='glyphicon glyphicon-remove'></span></button>
+              {{#each this.model.intro.sections as |section|}}
+                <div class="la-edit-board-intro-section">
+                  <Textarea @value={{section.description}} class="la-edit-board-input la-edit-board-textarea" placeholder="Explanation, notes, etc." />
+                  <Input @type="text" @value={{section.prompt}} class="la-edit-board-input" placeholder="optional button sequence to find" />
+                  <button class='la-edit-board-remove-btn' {{action "delete_board_intro_section" section}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
                 </div>
               {{/each}}
-              <div class='col-sm-9 col-sm-offset-3'>
-                <button class='btn btn-default' {{action "add_board_intro_section"}}>{{t "Add Intro Section" key="add_intro_section"}}</button>
-              </div>
+              <button class='la-edit-board-add-btn' {{action "add_board_intro_section"}}>{{t "Add Intro Section" key="add_intro_section"}}</button>
             </div>
           {{/if}}
         {{/if}}
-      {{else}}
-        <div class='form-group'>
-          <div class='col-sm-9 col-sm-offset-3'>
-            <p><a href='#' {{action "show_advanced"}}>{{t "advanced options" key="advanced_options"}}</a></p>
-          </div>
-        </div>
-      {{/if}}
-    </form>
+      </div>
+    {{else}}
+      <div class="la-edit-board-section">
+        <a href='#' class="la-edit-board-advanced-link" {{action "show_advanced"}}>{{t "advanced options" key="advanced_options"}}</a>
+      </div>
+    {{/if}}
+
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="la-edit-board-close" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
   </div>
 {{/modal-dialog}}

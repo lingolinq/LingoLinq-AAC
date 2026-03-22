@@ -1095,18 +1095,10 @@
     {{#if this.app_state.currentBoardState.id}}
       {{#unless this.app_state.speak_mode}}
         {{#unless this.app_state.edit_mode}}
-          {{#if this.on_board_alt}}
-            <LinkTo @route="board" @model={{this.board.model.key}} class="board-alt-view-toggle board-alt-view-toggle--active" aria-label={{t "View in Standard Mode" key="view_standard_mode"}} title={{t "View in Standard Mode" key="view_standard_mode"}}>
-              <span class="board-alt-view-toggle__icon"></span>
-            </LinkTo>
-          {{else}}
-            <LinkTo @route="user.board-alt.index" @models={{array this.board_alt_username this.board_alt_boardname}} class="board-alt-view-toggle" aria-label={{t "View in Board Alt Mode" key="view_board_alt_mode"}} title={{t "View in Board Alt Mode" key="view_board_alt_mode"}}>
-              <span class="board-alt-view-toggle__icon"></span>
-            </LinkTo>
-          {{/if}}
         {{/unless}}
       {{/unless}}
     {{/if}}
+    {{style-switcher}}
     {{#if this.app_state.currentUser}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">

@@ -1,4 +1,4 @@
-<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}}">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}}">
   {{outlet}}
   <div class="md-board-detail-layout {{if this.panels_collapsed 'md-board-detail-layout--collapsed'}}">
     {{!-- Overlay backdrop for mobile panels --}}
@@ -47,6 +47,16 @@
     {{!-- Main Content Area --}}
     <main class="md-board-detail-main">
       {{!-- Sentence Bar --}}
+      <div class="md-board-detail-sentence-row">
+      <button type="button"
+        class="md-board-detail-boards-btn"
+        {{action "open_board_picker"}}
+        aria-label={{t "My Boards" key="my_boards"}}
+        title={{t "Switch boards" key="board_detail_switch_boards"}}>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true">
+          <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+        </svg>
+      </button>
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
         <div class="md-board-detail-sentence-bar__text" aria-live="polite">
           {{#if this.has_sentence}}
@@ -87,20 +97,50 @@
           </div>
         </div>
       </div>
+      <div class="md-board-detail-options-dropdown">
+        <button type="button"
+          class="md-board-detail-options-btn"
+          title={{t "Options" key="board_detail_options"}}
+          {{action "toggle_options_menu"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        {{#if this.show_options_menu}}
+          <div class="md-board-detail-options-menu">
+            <button type="button" class="md-board-detail-options-menu__item" {{action "revert_to_old_style"}}>
+              {{t "Revert to Old Style" key="board_detail_revert_old_style"}}
+            </button>
+          </div>
+        {{/if}}
+      </div>
+      </div>
+
+      {{!-- Word Suggestions --}}
+      {{#if this.show_word_suggestions}}
+        <div class="md-board-detail-suggestions" role="region" aria-label={{t "Word suggestions" key="board_detail_word_suggestions"}}>
+          {{#if this.suggestions.ready}}
+            {{#each this.suggestions.list as |suggestion|}}
+              <button type="button" class="md-board-detail-suggestion" {{action "complete_word" suggestion}}>
+                {{#if suggestion.image}}
+                  <img src={{suggestion.image}} class="md-board-detail-suggestion__img" alt="">
+                {{/if}}
+                <span class="md-board-detail-suggestion__text">{{suggestion.word}}</span>
+              </button>
+            {{/each}}
+          {{else}}
+            <span class="md-board-detail-suggestion__loading">{{t "Loading suggestions..." key="loading_word_suggestions"}}</span>
+          {{/if}}
+        </div>
+      {{/if}}
 
       {{!-- Board Title --}}
       <header class="md-board-detail-header">
         <div class="md-board-detail-header__row">
           <div class="md-board-detail-header__title-group">
-            <button type="button"
-              class="md-board-detail-boards-btn"
-              {{action "open_board_picker"}}
-              aria-label={{t "My Boards" key="my_boards"}}
-              title={{t "Switch boards" key="board_detail_switch_boards"}}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true">
-                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
-              </svg>
-            </button>
+            {{#if this.board_image_url}}
+              <img src={{this.board_image_url}} alt="" class="md-board-detail-header__board-icon">
+            {{/if}}
             <div>
               <div class="md-board-detail-header__title-row">
                 <h1 class="md-board-detail-header__title">{{this.title}}</h1>
@@ -344,6 +384,7 @@
 
       {{!-- Toolbar row: Quick Phrases + Category Filter --}}
       <div class="md-board-detail-toolbar">
+        {{#unless this.edit_mode}}
         <div class="md-board-detail-quick-wrap">
           <button type="button"
             class="md-board-detail-quick-toggle {{if this.show_quick_phrases 'md-board-detail-quick-toggle--active'}}"
@@ -368,7 +409,10 @@
             </div>
           {{/if}}
         </div>
+        {{/unless}}
 
+        {{!-- Categories dropdown — hidden for now, will fix functionality later --}}
+        {{#if false}}
         <div class="md-board-detail-quick-wrap">
           <button type="button"
             class="md-board-detail-quick-toggle {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
@@ -424,6 +468,7 @@
             </div>
           {{/if}}
         </div>
+        {{/if}}
       </div>
 
       <div class="md-board-detail-divider">
@@ -443,8 +488,16 @@
         {{/unless}}
       </div>
 
+      {{!-- Loading indicator --}}
+      {{#if this.board_saving}}
+        <div class="md-board-detail-loading">
+          <div class="md-board-detail-loading__spinner"></div>
+          <span class="md-board-detail-loading__text">{{t "Saving..." key="board_detail_saving"}}</span>
+        </div>
+      {{/if}}
+
       {{!-- Symbol Grid --}}
-      <div class="md-board-detail-grid" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+      <div class="md-board-detail-grid {{if this.board_saving 'md-board-detail-grid--hidden'}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
         style={{safe-style this.grid_style}}>
         {{#each this.ordered_buttons as |row|}}
           {{#each row as |btn|}}
@@ -499,13 +552,7 @@
                 </div>
               {{/if}}
               {{#if this.edit_mode}}
-                <input type="text"
-                  class="md-board-detail-symbol-card__label-input"
-                  value={{btn.label}}
-                  placeholder={{t "enter label" key="enter_label"}}
-                  data-button-id={{btn.id}}
-                  {{on "change" (action "update_button_label" btn)}}
-                  {{on "focusout" (action "update_button_label" btn)}} />
+                {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label"}}
               {{else}}
                 <span class="md-board-detail-symbol-card__label">{{btn.label}}</span>
               {{/if}}

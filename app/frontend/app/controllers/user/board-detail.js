@@ -33,6 +33,8 @@ export default Controller.extend({
   color_picker_button: null,
   custom_color_value: null,
   paint_mode: null,
+  show_options_menu: false,
+  board_saving: false,
   ordered_buttons: null,
   preview_level: null,
   noUndo: true,
@@ -60,6 +62,12 @@ export default Controller.extend({
     var desc = this.get('model.description');
     if(desc) { return desc; }
     return i18n.t('board_detail_subtitle', "Tap symbols to build your message");
+  }),
+
+  board_image_url: computed('board_data', 'model.image_url', function() {
+    var board_data = this.get('board_data');
+    if(board_data && board_data.image_url) { return board_data.image_url; }
+    return this.get('model.image_url') || null;
   }),
 
   sentence_text: computed('sentence_parts.[]', function() {
@@ -142,15 +150,15 @@ export default Controller.extend({
 
   color_picker_swatches: computed(function() {
     return [
-      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#D9E6F7', border: '#4C86D8' },
-      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#D4F0EC', border: '#2A9D8F' },
-      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#FBF0D3', border: '#F2B95A' },
-      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#F9E4CE', border: '#E08A3A' },
-      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#E5E0F0', border: '#7B6BAD' },
-      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5D7D3', border: '#C0392B' },
-      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#D6D8DC', border: '#374151' },
-      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#EDE6D6', border: '#A08860' },
-      { label: i18n.t('swatch_grammar', "Grammar"), pos_class: 'conjunction', bg: '#F5F3EF', border: '#E0DCD6' }
+      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#C8D8F0', border: '#3A6FBF' },
+      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#B8E8DF', border: '#1D8C7A' },
+      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#F7E5A8', border: '#C4920A' },
+      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FBCFA0', border: '#D07318' },
+      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#D8CFF0', border: '#6B4FAD' },
+      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5C4C0', border: '#C0362A' },
+      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#C5CCD8', border: '#3C4E6A' },
+      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#E0D4B8', border: '#8B7340' },
+      { label: i18n.t('swatch_grammar', "Grammar"), pos_class: 'conjunction', bg: '#E8E4DC', border: '#8A8070' }
     ];
   }),
 
@@ -331,7 +339,12 @@ export default Controller.extend({
         translatable: board_langs.length > 1
       });
 
+      // Temporarily clear ordered_buttons during setup so clear_history
+      // doesn't iterate plain objects (it expects Ember Button objects)
+      var saved_buttons = _this.get('ordered_buttons');
+      _this.set('ordered_buttons', null);
       editManager.setup(_this, appState, persistence, stashes);
+      _this.set('ordered_buttons', saved_buttons);
       contentGrabbers.board_controller = _this;
     }, function() {
       // Could not load Ember Data model — edit mode may not work
@@ -346,7 +359,46 @@ export default Controller.extend({
   update_button_symbol_class: function() { },
   computeHeight: function() { },
   redraw_if_needed: function() { },
-  updateSuggestions: function() { },
+
+  // Word suggestions
+  suggestions: null,
+  show_word_suggestions: computed('model.word_suggestions', 'edit_mode', function() {
+    return this.get('model.word_suggestions') && !this.get('edit_mode');
+  }),
+
+  updateSuggestions: observer(
+    'app_state.button_list',
+    'app_state.button_list.[]',
+    function() {
+      if(!this.get('model.word_suggestions') || this.get('edit_mode')) { return; }
+      var _this = this;
+      var word_suggestions = window.LingoLinq && window.LingoLinq.word_suggestions;
+      if(!word_suggestions) {
+        try { word_suggestions = require('lingolinq-aac/utils/word_suggestions').default; } catch(e) { }
+      }
+      if(!word_suggestions || !word_suggestions.lookup) { return; }
+
+      var button_list = this.get('app_state.button_list') || [];
+      var last_button = button_list[button_list.length - 1];
+      var current_button = null;
+      if(last_button && last_button.in_progress) {
+        current_button = last_button;
+        last_button = button_list[button_list.length - 2];
+      }
+      var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
+      var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
+
+      word_suggestions.lookup({
+        last_finished_word: last_finished_word,
+        word_in_progress: word_in_progress,
+        board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
+      }).then(function(result) {
+        _this.set('suggestions', { ready: true, list: result });
+      }, function() {
+        _this.set('suggestions', { ready: true, list: [] });
+      });
+    }
+  ),
 
   has_rendered_material: computed('ordered_buttons', function() {
     return !!(this.get('ordered_buttons'));
@@ -588,7 +640,21 @@ export default Controller.extend({
       return;
     }
 
-    var state = editManager.process_for_saving();
+    // Use board_data directly (it has our paint/label changes applied)
+    // rather than editManager.process_for_saving() which may not have them
+    var board_data = this.get('board_data');
+    var state;
+    if(board_data && board_data.buttons && board_data.grid) {
+      state = {
+        buttons: board_data.buttons,
+        grid: board_data.grid
+      };
+    } else if(editManager.controller === this) {
+      state = editManager.process_for_saving();
+    } else {
+      modal.error(i18n.t('board_save_failed', "Failed to save board"));
+      return;
+    }
     var board = this.get('model');
     if(!board) { return; }
 
@@ -673,30 +739,52 @@ export default Controller.extend({
       });
     });
 
-    // Push content locally before save
-    var pushPromise = (persistence.get('online') && board.get && board.find_content_locally) ?
-      (board.set('fetched', false), board.find_content_locally()) : RSVP.resolve();
-    pushPromise.catch(function() {
-      return RSVP.resolve();
+    // Save via persistence.ajax PUT (proven approach)
+    var user = _this.get('user');
+    var boardname = _this.get('boardname');
+    if(!user || !boardname) { return; }
+    var board_key = user.get('user_name') + '/' + boardname;
+
+    // Show loading state and clear current display
+    _this.set('board_saving', true);
+    _this.set('ordered_buttons', null);
+
+    persistence.ajax('/api/v1/boards/' + board_key, {
+      type: 'PUT',
+      data: {
+        board: {
+          buttons: state.buttons,
+          grid: state.grid
+        }
+      }
     }).then(function() {
-      return board.save();
-    }).then(function(brd) {
-      // Merge image URLs back in
-      var fromServer = brd.get('image_urls') || {};
-      var merged = Object.assign({}, fromServer, imageUrlsBeforeSave);
-      brd.set('image_urls', merged);
       if(update_locale) {
         stashes.persist('label_locale', update_locale);
         _this.get('app_state').set('label_locale', update_locale);
         stashes.persist('vocalization_locale', update_locale);
         _this.get('app_state').set('vocalization_locale', update_locale);
       }
-      board.set('update_visibility_downstream', false);
-      editManager.process_for_displaying();
+
+      // Transition back to index subroute so edit mode fully exits
+      _this.transitionToRoute('user.board-detail.index', _this.get('user.user_name'), boardname);
 
       // Auto-rename the board key if the display name changed
       var original_name = _this.get('_original_board_name');
       var current_name = board.get('name');
+
+      // Reload board data with fresh saved data, then clear saving state
+      var reload_key = user.get('user_name') + '/' + boardname;
+      persistence.ajax('/api/v1/boards/' + reload_key, { type: 'GET' }).then(function(data) {
+        if(data && data.board) {
+          _this.set('board_data', data.board);
+          _this.set('_original_board_name', data.board.name);
+          _this._rebuild_display_buttons();
+        }
+        _this.set('board_saving', false);
+      }, function() {
+        _this.set('board_saving', false);
+      });
+
       if(original_name && current_name && original_name !== current_name) {
         _this._auto_rename_board(board, current_name);
       } else {
@@ -704,6 +792,7 @@ export default Controller.extend({
       }
     }, function(err) {
       console.error(err);
+      _this.set('board_saving', false);
       modal.error(i18n.t('board_save_failed', "Failed to save board"));
     });
   },
@@ -761,7 +850,35 @@ export default Controller.extend({
     return btn.get ? btn.get('id') : btn.id;
   },
 
+  // Find a display button in ordered_buttons by ID
+  _find_display_button: function(btn_id) {
+    var ob = this.get('ordered_buttons') || [];
+    for(var ri = 0; ri < ob.length; ri++) {
+      var row = ob[ri] || [];
+      for(var ci = 0; ci < row.length; ci++) {
+        var btn = row[ci];
+        if(btn && (btn.id === btn_id || (btn.get && btn.get('id') === btn_id))) {
+          return btn;
+        }
+      }
+    }
+    return null;
+  },
+
   actions: {
+    toggle_options_menu: function() {
+      this.toggleProperty('show_options_menu');
+    },
+
+    revert_to_old_style: function() {
+      this.set('show_options_menu', false);
+      var user = this.get('user');
+      var boardname = this.get('boardname');
+      if(user && boardname) {
+        this.transitionToRoute('user.board-alt', user.get('user_name'), boardname);
+      }
+    },
+
     toggle_board_collapsed: function() {
       var collapsing = !this.get('board_collapsed');
       this.set('board_collapsed', collapsing);
@@ -807,7 +924,7 @@ export default Controller.extend({
         }
         // In paint mode, paint the button
         if(this.get('paint_mode')) {
-          editManager.paint_button(btn_id);
+          this.send('paint_button', button);
           return;
         }
         // Otherwise open button settings modal
@@ -855,7 +972,13 @@ export default Controller.extend({
 
     // Action dispatched by raw_events.js for button paint
     buttonPaint: function(id) {
-      if(id) { editManager.paint_button(id); }
+      if(!id) { return; }
+      var btn = this._find_display_button(id);
+      if(btn) {
+        this.send('paint_button', btn);
+      } else if(editManager.controller === this) {
+        try { editManager.paint_button(id); } catch(e) { }
+      }
     },
 
     // Action dispatched by raw_events.js for symbol click in edit mode
@@ -960,6 +1083,15 @@ export default Controller.extend({
       modal.open('speak-menu', { inactivity_timeout: true, scannable: true });
     },
 
+    complete_word: function(word) {
+      if(!word) { return; }
+      var text = word.word;
+      var parts = (this.get('sentence_parts') || []).slice();
+      parts.push({ id: 'suggestion', label: text, image_url: word.image || word.original_image });
+      this.set('sentence_parts', parts);
+      speecher.speak_text(text);
+    },
+
     speak_sentence: function() {
       var text = this.get('sentence_text');
       if(text) {
@@ -1019,41 +1151,67 @@ export default Controller.extend({
     // ── Paint Mode ──
 
     set_paint_mode: function(fill, border, part_of_speech) {
-      editManager.set_paint_mode(fill, border, part_of_speech);
+      if(fill === 'hide') {
+        this.set('paint_mode', { hidden: true });
+      } else if(fill === 'show') {
+        this.set('paint_mode', { hidden: false });
+      } else {
+        var fill_tc = window.tinycolor(fill);
+        var border_tc = border ? window.tinycolor(border) : window.tinycolor(fill_tc.toRgb()).darken(30);
+        this.set('paint_mode', {
+          fill: fill_tc.toRgbString(),
+          border: border_tc.toRgbString(),
+          part_of_speech: part_of_speech
+        });
+      }
+      // Also set on editManager if available
+      if(editManager.controller === this) {
+        editManager.set_paint_mode(fill, border, part_of_speech);
+      }
     },
 
     clear_paint_mode: function() {
-      editManager.clear_paint_mode();
+      this.set('paint_mode', null);
+      if(editManager.controller === this) {
+        editManager.clear_paint_mode();
+      }
     },
 
     paint_button: function(btn) {
+      var pm = this.get('paint_mode');
+      if(!pm || !btn) { return; }
       var btn_id = this._btn_id(btn);
-      if(btn_id) { editManager.paint_button(btn_id); }
+
+      // Update the display object directly
+      if(pm.fill && pm.border) {
+        emberSet(btn, 'background_color', pm.fill);
+        emberSet(btn, 'border_color', pm.border);
+        if(pm.part_of_speech) {
+          emberSet(btn, 'part_of_speech', pm.part_of_speech);
+        }
+      }
+      if(pm.hidden === true) { emberSet(btn, 'hidden', true); }
+      if(pm.hidden === false) { emberSet(btn, 'hidden', false); }
+
+      // Update raw board_data
+      var raw_btn = this._find_raw_button(btn_id);
+      if(raw_btn) {
+        if(pm.fill) { raw_btn.background_color = pm.fill; }
+        if(pm.border) { raw_btn.border_color = pm.border; }
+        if(pm.part_of_speech) { raw_btn.painted_part_of_speech = pm.part_of_speech; }
+        if(pm.hidden === true) { raw_btn.hidden = true; }
+        if(pm.hidden === false) { delete raw_btn.hidden; }
+      }
+
+      // Also update via editManager if available
+      if(editManager.controller === this && btn_id) {
+        try { editManager.paint_button(btn_id); } catch(e) { }
+      }
+
+      this.notifyPropertyChange('ordered_buttons');
     },
 
     // ── Button Operations ──
-
-    update_button_label: function(btn, event) {
-      if(!btn || !event || !event.target) { return; }
-      var new_label = event.target.value;
-      var old_label = btn.label;
-      if(new_label === old_label) { return; }
-
-      // Update the display object
-      emberSet(btn, 'label', new_label);
-
-      // Update the raw board_data
-      var raw_btn = this._find_raw_button(btn.id);
-      if(raw_btn) {
-        raw_btn.label = new_label;
-      }
-
-      // Also update via editManager if available (for undo/redo and save)
-      if(editManager.controller === this) {
-        editManager.change_button(btn.id, { label: new_label });
-        editManager.lucky_symbol(btn.id);
-      }
-    },
 
     clear_button: function(btn) {
       var btn_id = this._btn_id(btn);
