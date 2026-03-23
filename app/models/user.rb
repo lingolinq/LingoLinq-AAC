@@ -16,6 +16,8 @@ class User < ActiveRecord::Base
   has_many :boards
   has_many :devices
   has_many :user_integrations
+  has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
+  has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
   has_one :user_extra
   before_save :generate_defaults
   after_save :track_boards

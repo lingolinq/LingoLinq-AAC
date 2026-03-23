@@ -198,6 +198,16 @@ LingoLinq::Application.routes.draw do
     
     resources :goals
 
+    get "supervisor_relationships/consent_lookup" => "supervisor_relationships#consent_lookup"
+    post "supervisor_relationships/consent_response" => "supervisor_relationships#consent_response"
+    resources :supervisor_relationships, only: [:index, :show, :create, :destroy] do
+      post :consent_response, on: :member
+      member do
+        put :approve
+        put :deny
+      end
+    end
+
     resources :profiles do
       get 'latest', on: :collection
     end
