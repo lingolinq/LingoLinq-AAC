@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_17_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -451,6 +451,36 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_17_000001) do
     t.datetime "updated_at", precision: nil, null: false
     t.text "data"
     t.index ["key"], name: "index_settings_on_key", unique: true
+  end
+
+  create_table "supervisor_relationships", force: :cascade do |t|
+    t.integer "supervisor_user_id", null: false
+    t.integer "communicator_user_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "permission_level", default: "view_only", null: false
+    t.string "initiated_by"
+    t.string "creation_method"
+    t.string "lookup_method"
+    t.string "consent_response_token"
+    t.datetime "consent_token_expires_at"
+    t.string "consent_email_sent_to"
+    t.datetime "consent_requested_at"
+    t.datetime "consent_responded_at"
+    t.datetime "activated_at"
+    t.datetime "revoked_at"
+    t.integer "revoked_by"
+    t.string "revocation_reason"
+    t.boolean "supervisor_created_account", default: false
+    t.integer "user_link_id"
+    t.integer "organization_id"
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["communicator_user_id"], name: "index_supervisor_relationships_on_communicator_user_id"
+    t.index ["consent_response_token"], name: "index_supervisor_rel_consent_token", unique: true, where: "(consent_response_token IS NOT NULL)"
+    t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
+    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
+    t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
   end
 
   create_table "user_badges", id: :serial, force: :cascade do |t|

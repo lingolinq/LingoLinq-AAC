@@ -1,0 +1,17 @@
+Hello <%= @communicator.settings['name'] || @communicator.display_user_name %>,<br/><br/>
+
+<b><%= @supervisor.settings['name'] || @supervisor.display_user_name %></b><% if @org %>, at <b><%= @org.settings['name'] %></b><% end %>, is requesting <b><%= @permission_description %></b> access to your <%= app_name %> account.<br/><br/>
+
+This means they would be able to help support your communication by viewing and interacting with your account at the requested level.<br/><br/>
+
+<b>You are in control.</b> You can approve or deny this request, and you can remove access at any time from your account settings.<br/><br/>
+
+<a href="<%= @approve_url %>" style="display: inline-block; padding: 10px 20px; background-color: #4ECDC4; color: #fff; text-decoration: none; border-radius: 4px; margin-right: 10px;">Approve Access</a>
+<a href="<%= @deny_url %>" style="display: inline-block; padding: 10px 20px; background-color: #ccc; color: #333; text-decoration: none; border-radius: 4px;">Deny Request</a><br/><br/>
+
+This link will expire in 14 days. If you did not expect this request, you can safely ignore this email or deny the request.<br/><br/>
+
+If you have questions, please <a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>.<br/><br/>
+
+Thanks!<br/>
+<%= email_signature %>

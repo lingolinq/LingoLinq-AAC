@@ -1,0 +1,49 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Request Supervision Access" key="request_supervision_access"}}</h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.submitted}}
+      <div class="alert alert-success">
+        <p>{{t "Your request has been submitted. If the account was found, the account owner will receive a consent request via email. You will be notified when they respond." key="request_submitted_message"}}</p>
+      </div>
+    {{else}}
+      <p>{{t "Enter the username or email address of the communicator you would like to supervise. The account owner will receive a consent request and must approve before access is granted." key="request_supervision_intro"}}</p>
+      <form class="form-horizontal" {{action "submit" on="submit"}} style='margin-top: 20px;'>
+        <div class="form-group">
+          <label for="communicator_lookup" class="col-sm-3 control-label">{{t "User" key="user"}}</label>
+          <div class="col-sm-8">
+            <Input @value={{this.lookup_value}} class="form-control" id="communicator_lookup" placeholder={{t "Username or email address" key="username_or_email_placeholder"}} />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="permission_level" class="col-sm-3 control-label">{{t "Access Level" key="access_level"}}</label>
+          <div class="col-sm-8">
+            {{bound-select select_class="form-control" select_id="permission_level" content=this.permission_levels selection=this.permission_level action=(action "updatePermissionLevel") }}
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-9 col-sm-offset-3">
+            <button type="submit" class='btn btn-primary' disabled={{if this.can_submit false true}}>
+              {{#if this.submitting}}
+                {{t "Submitting Request..." key="submitting_request"}}
+              {{else}}
+                {{t "Send Consent Request" key="send_consent_request"}}
+              {{/if}}
+            </button>
+            <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+            {{#if this.error}}
+              <p class="text-danger" style="margin-top: 10px;">{{this.error}}</p>
+            {{/if}}
+          </div>
+        </div>
+      </form>
+    {{/if}}
+  </div>
+  {{#if this.submitted}}
+    <div class="modal-footer">
+      <a href="#" class="btn btn-default" {{action "close"}}>{{t "Close" key="close"}}</a>
+    </div>
+  {{/if}}
+{{/modal-dialog}}

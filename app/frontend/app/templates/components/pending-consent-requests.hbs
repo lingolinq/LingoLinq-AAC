@@ -1,0 +1,41 @@
+{{#if this.has_pending}}
+  <div class="alert alert-info" style="margin-top: 10px;">
+    <h4>{{t "Pending Supervision Requests" key="pending_supervision_requests"}}</h4>
+    <table class="table" style="background: transparent; margin-bottom: 0;">
+      <tbody>
+        {{#each this.pending_requests as |request|}}
+          <tr>
+            <td style="vertical-align: middle;">
+              {{#if request.requester_avatar_url}}
+                <img src={{request.requester_avatar_url}} style="height: 40px; width: 40px; margin-right: 10px;">
+              {{/if}}
+              <strong>{{request.requester_name}}</strong>
+              <span class="text-muted">
+                {{t "requests" key="requests_lower"}}
+                {{#if (is-equal request.permission_level "view_only")}}
+                  {{t "view-only access" key="view_only_access_lower"}}
+                {{else if (is-equal request.permission_level "edit_boards")}}
+                  {{t "board editing access" key="edit_boards_access_lower"}}
+                {{else if (is-equal request.permission_level "manage_devices")}}
+                  {{t "device management access" key="manage_devices_access_lower"}}
+                {{else if (is-equal request.permission_level "full")}}
+                  {{t "full access" key="full_access_lower"}}
+                {{else}}
+                  {{t "supervision access" key="supervision_access_lower"}}
+                {{/if}}
+              </span>
+            </td>
+            <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+              <button class="btn btn-success btn-sm" {{action "approve" request.id}} disabled={{is-equal this.responding_id request.id}}>
+                {{t "Approve" key="approve"}}
+              </button>
+              <button class="btn btn-danger btn-sm" style="margin-left: 5px;" {{action "deny" request.id}} disabled={{is-equal this.responding_id request.id}}>
+                {{t "Deny" key="deny"}}
+              </button>
+            </td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+{{/if}}
