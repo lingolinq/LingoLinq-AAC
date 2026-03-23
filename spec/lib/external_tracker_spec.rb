@@ -13,10 +13,42 @@ describe ExternalTracker do
       expect(Worker.scheduled_actions).to eq([])
     end
     
-    it "should schedule a persistence if allowed" do
+    it "should schedule a persistence if allowed (supporter only)" do
       u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.save
       ExternalTracker.track_new_user(u)
       expect(Worker.scheduled?(ExternalTracker, :persist_new_user, u.global_id)).to eq(true)
+    end
+
+    it "should not schedule for communicator accounts" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'communicator'
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
+
+    it "should not schedule when user opted out of cookies (GDPR consent)" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = false
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
+    end
+
+    it "should not schedule when cookies preference is legacy string false" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['preferences']['cookies'] = 'false'
+      u.save
+      ExternalTracker.track_new_user(u)
+      expect(Worker.scheduled_actions).to eq([])
     end
   end
   
@@ -26,8 +58,49 @@ describe ExternalTracker do
       u.settings['authored_organization_id'] = 'asdf'
       u.save
       expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+
+      u2 = User.create
+      u2.settings['preferences'] ||= {}
+      u2.settings['preferences']['registration_type'] = 'communicator'
+      u2.settings['email'] = 'comm@example.com'
+      u2.save
+      expect(ExternalTracker.persist_new_user(u2.global_id)).to eq(false)
     end
-    
+
+    it "should not call HubSpot when user opted out of cookies (GDPR)" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = false
+        u.settings['email'] = 'therapist@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
+    it "should not call HubSpot when cookies preference is legacy string false" do
+      original_token = ENV['HUBSPOT_TOKEN']
+      begin
+        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        u = User.create
+        u.settings['preferences'] ||= {}
+        u.settings['preferences']['registration_type'] = 'therapist'
+        u.settings['preferences']['cookies'] = 'false'
+        u.settings['email'] = 'therapist2@example.com'
+        u.save
+        expect(Typhoeus).not_to receive(:post)
+        expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
+      ensure
+        ENV['HUBSPOT_TOKEN'] = original_token
+      end
+    end
+
     it "should return false if not configured" do
       u = User.create
       ENV['HUBSPOT_KEY'] = nil
@@ -43,6 +116,8 @@ describe ExternalTracker do
     it "should return non-false on success" do
       u = User.create
       u.settings['email'] = 'testing@example.com'
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
       u.save
       ENV['HUBSPOT_TOKEN'] = 'hubby'
 #       geo = {
@@ -59,7 +134,7 @@ describe ExternalTracker do
           {property: 'city', value: nil},
           {property: 'username', value: u.user_name},
           {property: 'state', value: nil},
-          {property: 'account_type', value: 'Communicator Account'},
+          {property: 'account_type', value: 'Therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}

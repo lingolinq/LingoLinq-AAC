@@ -54,9 +54,11 @@
           {{/unless}}
         {{/unless}}
         <div class="form-group">
+          <label for="identification" class="sr-only">{{t "Username" key="username"}}</label>
           {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
         </div>
         <div class="form-group">
+          <label for="password" class="sr-only">{{t "Password" key="password"}}</label>
           <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}

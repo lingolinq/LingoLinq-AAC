@@ -525,6 +525,15 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
+    it "should coerce preferences cookies to boolean" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'cookies' => 'false'}}, {})
+      expect(u.settings['preferences']['cookies']).to eq(false)
+      u.process_params({'preferences' => {'cookies' => 'true'}}, {})
+      expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
     it "should remove spaces from email" do
       u = User.new
       u.process({'email' => 'bob@ example.com '})

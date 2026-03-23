@@ -135,15 +135,15 @@
           <span class="dropdown dropup" style="display: inline-block; width: 100%;">
             <button class='btn btn-default symbol_target small' data-toggle="dropdown" style='width: 100%; text-align: left; white-space: nowrap; overflow: hidden;'>
               <span class='text'>
-                {{#each current_skin.image_urls as |url|}}
+                {{#each this.current_skin.image_urls as |url|}}
                   <img src={{url}} >
                 {{/each}}
-                {{current_skin.label}}
+                {{this.current_skin.label}}
               </span>
               <span class='caret' style='position: absolute; right: 5px; top: 15px;'></span>
             </button>
             <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 225px; overflow: auto;'>
-              {{#each skin_options as |option|}}
+              {{#each this.skin_options as |option|}}
                 <li role="presentation">
                   <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose_skin" option.id}}>
                     <img src={{option.image_url}} >
@@ -155,7 +155,7 @@
           </span>
           {{#if current_skin.options}}
             <div style='margin-left: 15px;'>
-              {{#each current_skin.options as |option|}}
+              {{#each this.current_skin.options as |option|}}
                 <div>
                   <div class='checkbox big_checkbox'>
                     <label>
@@ -473,7 +473,7 @@
         </div>
       </div>
       {{#if this.limited_logging}}
-        {{#if uncomfirmed_pin}}
+        {{#if this.uncomfirmed_pin}}
           <div class="form-group">
             <label for="logging_PIN" class="col-sm-3 control-label">{{t "Logging PIN" key='logging_pin'}}</label>
             <div class='col-sm-5'>
@@ -530,7 +530,7 @@
                   {{/if}}
                 </label>
               </div>
-              {{#if logging_pin}}
+              {{#if this.logging_pin}}
                 {{#if this.cant_change_private_logging}}
                 {{else}}
                   <div>
@@ -1079,7 +1079,7 @@
               <strong>Active</strong>
             </p>
             <ul class="list-group">
-              {{#each active_sidebar_options as |option|}}
+              {{#each this.active_sidebar_options as |option|}}
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{action "sidebar_button_settings" option}}>
                   <span style="float: right; margin-top: 5px;">
@@ -1102,12 +1102,12 @@
                 </li>
               {{/each}}
             </ul>
-            {{#if disabled_sidebar_options_or_prior_sidebar_boards}}
+            {{#if this.disabled_sidebar_options_or_prior_sidebar_boards}}
               <p class="form-control-static">
                 <strong>Disabled</strong>
               </p>
               <ul class="list-group">
-                {{#each disabled_sidebar_options as |option|}}
+                {{#each this.disabled_sidebar_options as |option|}}
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
@@ -1124,7 +1124,7 @@
                 {{/each}}
               </ul>
               {{#if this.pending_preferences.prior_sidebar_boards}}
-                {{#unless include_prior_sidebar_buttons}}
+                {{#unless this.include_prior_sidebar_buttons}}
                   <a href="#" {{action 'include_prior_sidebar_buttons'}}>{{t "show prior sidebar links and buttons" key='show_prior_buttons'}}</a>
                 {{/unless}}
               {{/if}}
@@ -1134,10 +1134,10 @@
                 <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder="add board key/action" />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{action 'add_sidebar_board' new_sidebar_board}}>{{t "Add" key='add'}}</button>
+                <button class='btn btn-default' {{action 'add_sidebar_board' this.new_sidebar_board}}>{{t "Add" key='add'}}</button>
               </span>
-              {{#if add_sidebar_board_error}}
-                <p class='text-danger'>{{add_sidebar_board_error}}</p>
+              {{#if this.add_sidebar_board_error}}
+                <p class='text-danger'>{{this.add_sidebar_board_error}}</p>
               {{/if}}
             </div>
           {{/unless}}
@@ -1304,7 +1304,7 @@
             {{bound-select select_class="form-control" select_id="scanning_mode" content=this.scanningModeList selection=this.pending_preferences.device.scanning_mode action=(action (mut this.pending_preferences.device.scanning_mode)) }}
           </div>
         </div>
-        {{#if axes_scanning}}
+        {{#if this.axes_scanning}}
           <div class="form-group">
             <label for="scanning_sweep_speed" class="col-sm-3 control-label">{{t "Scanning Speed" key='scanning_sweep_speed'}}</label>
             <div class="col-sm-5">
@@ -1312,7 +1312,7 @@
             </div>
           </div>
         {{else}}
-          {{#if region_scanning}}
+          {{#if this.region_scanning}}
             <div class="form-group">
               <label for="scanning_size" class="col-sm-3 control-label">{{t "Scanning Grid of" key='scanning_size'}}</label>
               <div class="col-sm-2">
@@ -1367,7 +1367,7 @@
             </div>
           </div>
         </div>
-        {{#if axes_scanning}}
+        {{#if this.axes_scanning}}
         {{else}}
           <div class="form-group">
             <label for="scanning_interval" class="col-sm-3 control-label">{{t "Scanning Interval" key='scanning_interval'}}</label>
@@ -1429,7 +1429,7 @@
           </div>
         </div>
         {{#if this.pending_preferences.device.scanning_select_on_any_event}}
-          {{#unless axes_scanning}}
+          {{#unless this.axes_scanning}}
             <label for="scanning_screen_buttons" class="col-sm-3 control-label">{{t "Psuedo-Switch Screen Buttons" key='psuedo-switch_buttons'}}</label>
             <div class="form-group">
               <div class="col-sm-2">
@@ -1449,17 +1449,17 @@
               <label style="width: 50px;">
                 {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='hit any key'}}
               </label>
-              &nbsp;{{select_keycode_string}}
+              &nbsp;{{this.select_keycode_string}}
             </div>
           </div>
-          {{#unless axes_scanning}}
+          {{#unless this.axes_scanning}}
             <div class="form-group">
               <label for="scanning_next_keycode" class="col-sm-3 control-label">{{t "Scanning \"Next\" Key" key='scanning_next_keycode'}}</label>
               <div class="col-sm-5">
                 <label style="width: 50px;">
                   {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='hit any key'}}
                 </label>
-                &nbsp;{{next_keycode_string}}
+                &nbsp;{{this.next_keycode_string}}
               </div>
             </div>
             <div class="form-group">
@@ -1468,7 +1468,7 @@
                 <label style="width: 50px;">
                   {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='hit any key'}}
                 </label>
-                &nbsp;{{prev_keycode_string}}
+                &nbsp;{{this.prev_keycode_string}}
               </div>
             </div>
           {{/unless}}
@@ -1478,11 +1478,11 @@
               <label style="width: 50px;">
                 {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='hit any key'}}
               </label>
-              &nbsp;{{cancel_keycode_string}}
+              &nbsp;{{this.cancel_keycode_string}}
             </div>
           </div>
         {{/if}}
-        {{#unless axes_scanning}}
+        {{#unless this.axes_scanning}}
           <div class="form-group">
             <label for="scanning_auto_select" class="col-sm-3 control-label">{{t "Scanning Auto-Select" key='scanning_auto_select'}}</label>
             <div class="col-sm-5">
@@ -1586,7 +1586,7 @@
           </div>
         {{/if}}
         {{#if this.arrow_or_head_dwell}}
-          {{#if head_dwell}}
+          {{#if this.head_dwell}}
             <div class="form-group">
               <label for="dwell_tilt_sensitivity" class="col-sm-3 control-label">{{t "Dwell Head Sensitivity" key='dwell_tilt_sensitivity'}}</label>
               <div class="col-sm-3">
@@ -1651,7 +1651,7 @@
               <label style="width: 50px;">
                 {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(action (mut this.pending_preferences.device.scanning_select_keycode)) placeholder='hit any key'}}
               </label>
-              &nbsp;{{select_keycode_string}}
+              &nbsp;{{this.select_keycode_string}}
             </div>
           </div>
         {{else if this.expression_select}}

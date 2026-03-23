@@ -4,7 +4,7 @@ describe Converters::PDF do
   describe "from_obf" do
     it "should render a basic obf" do
       f = Tempfile.new("stash")
-      f.puts Converters::Utils.obf_shell.to_json
+      f.puts OBF::Utils.obf_shell.to_json
       f.rewind
       f2 = Tempfile.new("stash")
       Converters::PDF.from_obf(f.path, f2.path)

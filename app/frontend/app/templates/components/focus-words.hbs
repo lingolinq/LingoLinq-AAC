@@ -224,7 +224,7 @@
             <div class="col-sm-12" style='margin-top: -30px;'>
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input type="checkbox" @checked={{this.reuse}} />
+                  <Input @type="checkbox" @checked={{this.reuse}} />
                   {{t "Save for Re-Use" key="save_for_reuse"}}
                   {{#if this.model.user.user_name}}
                     {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}

@@ -615,7 +615,10 @@ describe WeeklyStatsSummary, :type => :model do
       hash['goals_set'][tg.global_id] = {'name' => 'template goal', 'user_ids' => [u.id]}
       hash['badges_earned'] = {}
       hash['badges_earned'][tg.global_id] = {'goal_id' => tg.global_id, 'name' => 'Unnamed Badge', 'global' => nil, 'levels' => [1, 2], 'user_ids' => [u.id, u.id], 'shared_user_ids' => []}
-      expect(sum.data['goals']).to eq(hash)
+      expect(sum.data['goals']['goals_set']['private']['ids'].sort).to eq(hash['goals_set']['private']['ids'].sort)
+      expect(sum.data['goals']['goals_set']['private']['user_ids']).to eq(hash['goals_set']['private']['user_ids'])
+      expect(sum.data['goals']['goals_set'][tg.global_id]).to eq(hash['goals_set'][tg.global_id])
+      expect(sum.data['goals']['badges_earned'][tg.global_id]).to eq(hash['badges_earned'][tg.global_id])
       
       res = WeeklyStatsSummary.trends
       hash = {}

@@ -329,7 +329,7 @@ export default Controller.extend({
     _this.set('storage', {pending: true});
     var storageTimeout = runLater(function() {
       if(_this.get('storage.pending')) {
-        _this.set('storage', {size: 'unavailable'});
+        _this.set('storage', {size: -1});
       }
     }, 8000);
     capabilities.storage.all_files().then(function(res) {
@@ -337,7 +337,7 @@ export default Controller.extend({
       _this.set('storage', {size: Math.round((res.size || 0) * 10 / 1024 / 1024) / 10});
     }, function(err) {
       runCancel(storageTimeout);
-      _this.set('storage', {size: 'unavailable'});
+      _this.set('storage', {size: -1});
     });
 
     _this.set('local_storage', false);

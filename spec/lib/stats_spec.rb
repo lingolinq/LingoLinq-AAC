@@ -51,6 +51,7 @@ describe Stats do
         :start_at => start_at.iso8601,
         :end_at => ((end_at.to_date + 1).to_time + offset - 1).utc.iso8601,
         :depth_counts => {},
+        :word_pairs => {},
         :word_travels => {},
         :started_at => nil,
         :ended_at => nil,

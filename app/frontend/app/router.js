@@ -46,11 +46,21 @@ Router.reopen({
 Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
+  this.route('modern-dashboard', { path: '/modern-dashboard' }, function() {
+    this.route('index', { path: '/' });
+    this.route('boards', { path: '/boards' });
+    this.route('boards-new', { path: '/boards/new' });
+    this.route('extras', { path: '/extras' });
+    this.route('supervisors', { path: '/supervisors' });
+  });
+  this.route('create-board', { path: '/create-board' });
   this.route('about', { path: '/about' });
+  this.route('landing', { path: '/landing' });
+  this.route('landing-alt', { path: '/landing-alt' });
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });
   this.route('privacy', { path: '/privacy' });
-  this.route('privacy_practices', { path: '/privacy_practices' });
+  this.route('privacy-practices', { path: '/privacy_practices' });
   this.route('jobs', { path: '/jobs' });
   this.route('pricing', { path: '/pricing' });
   this.route('contact', { path: '/contact' });
@@ -115,6 +125,7 @@ Router.map(function() {
     this.route('confirm_registration', { path: '/confirm_registration/:code' });
     this.route('password_reset', { path: '/password_reset/:code' });
   });
+  this.route('speech', { path: '/speech' });
   this.route('board', { resetNamespace: true, path: '/*key'}, function() {
 //    this.route('error');
     this.route('stats');

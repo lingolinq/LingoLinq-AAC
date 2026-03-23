@@ -2935,7 +2935,7 @@ var persistence = Service.extend({
           });
           // Try to download in chunks instead of as individual records, if possible
           if(need_fresh_ids.length > 0 && need_fresh_ids.length < 100) {
-            var _this_sync_boards = this;
+            var _this_sync_boards = _this;
             if(_this_sync_boards.get('sync_progress')) {
               _this_sync_boards.set('sync_progress.pre_total', need_fresh_ids.length);
               _this_sync_boards.set('sync_progress.pre_visited', 0);

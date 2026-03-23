@@ -10,7 +10,7 @@
       <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
       {{#if this.start_code_ref}}
         <div class="form-group">
-          <label for="sponsor" class="col-sm-4 control-label">
+          <label class="col-sm-4 control-label">
             {{#if this.start_code_ref.image_url}}
               <img src={{this.start_code_ref.image_url}} style='width: 75px; height: 75px; object-fit: contain; object-position: center;'>
             {{else}}
@@ -79,7 +79,7 @@
         {{#if this.start_code}}
           <label for="start_code" class="col-sm-4 control-label">{{t "Start Code" key="start_code"}}</label>
           <div class="col-sm-8">
-            <Input @value={{this.model.start_code}} class="form-control" placeholder="optional, if provided" />
+            <Input @value={{this.model.start_code}} class="form-control" id="start_code" placeholder="optional, if provided" />
           </div>
         {{else}}
           <div class='col-sm-8 col-sm-offset-4'>
@@ -98,7 +98,7 @@
           <div class="checkbox big_checkbox" style='margin-bottom: 10px;'>
             <label style="font-weight: normal;">
               <Input @type="checkbox" @checked={{this.model.terms_agree}} />
-              By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
+              By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, and are capable of binding to a legal contract.
             </label>
           </div>
           {{#if (persistence-online)}}

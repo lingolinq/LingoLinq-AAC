@@ -37,7 +37,7 @@ LingoLinq::Application.routes.draw do
   get '/goal_status/:goal_id/:goal_code' => 'boards#log_goal_status'
   get '/videos/:source/:id' => 'boards#video'
   get '/privacy' => 'boards#privacy'
-  get '/privacy_practices' => 'boards#privacy_practices'
+  get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
@@ -92,7 +92,8 @@ LingoLinq::Application.routes.draw do
   get 'api/v1/status' => 'session#status'
   get 'api/v1/token_check' => 'session#token_check'
   get 'api/v1/status/heartbeat' => 'session#heartbeat'
-  
+  get 'api/v1/health' => 'session#health'
+
   scope 'api/v1', module: 'api' do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'

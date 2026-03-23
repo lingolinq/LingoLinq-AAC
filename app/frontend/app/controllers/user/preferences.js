@@ -876,8 +876,14 @@ export default Controller.extend({
             }
           }
         } else if(['string', 'boolean', 'number'].indexOf(typeof(pending[key])) != -1) {
-          if(pending[key] != orig[key]) {
-            user.set('preferences.' + key, pending[key]);
+          var val = pending[key];
+          var origVal = orig[key];
+          if(key === 'cookies') {
+            val = val === true || val === 'true';
+            origVal = origVal === true || origVal === 'true';
+          }
+          if(val != origVal) {
+            user.set('preferences.' + key, val);
           }
         } else {
           user.set('preferences.' + key, pending[key]);
