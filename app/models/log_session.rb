@@ -323,7 +323,7 @@ class LogSession < ActiveRecord::Base
     
     self.processed ||= false
     if self.needs_remote_push == nil
-      org_allows_logging = self.user.effective_data_policy['logging_allowed'] != false
+      org_allows_logging = self.user && self.user.effective_data_policy['logging_allowed'] != false
       self.needs_remote_push = !!(self.log_type == 'session' && self.user_id && self.user && !self.user.private_logging? && org_allows_logging) 
     end
     throw(:abort) unless self.user_id && self.author_id && self.device_id
