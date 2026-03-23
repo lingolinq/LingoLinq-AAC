@@ -18,6 +18,7 @@ export default Route.extend({
     // Uses the appState service's check_for_needing_purchase which returns a promise
     _this.appState.check_for_needing_purchase().then(function() {
       boardDetailController.set('edit_mode', true);
+      boardDetailController.set('board_collapsed', false);
       _this.stashes.persist('current_mode', 'edit');
     }, function() {
       // Purchase required but not completed — stay in view mode
