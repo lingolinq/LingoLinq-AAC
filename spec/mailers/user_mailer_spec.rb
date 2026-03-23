@@ -262,7 +262,7 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      ENV['IPSTACK_KEY'] = 'testkey'
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('LingoLinq - New Communicator Registration')
@@ -282,7 +282,7 @@ describe UserMailer, :type => :mailer do
       u = User.create(:settings => {'preferences' => {'registration_type' => 'therapist'}})
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      ENV['IPSTACK_KEY'] = 'testkey'
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
       expect(Typhoeus).to receive(:get).and_raise("no worky")
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('LingoLinq - New Supervisor Registration')
@@ -302,8 +302,8 @@ describe UserMailer, :type => :mailer do
       u = User.create
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      ENV['IPSTACK_KEY'] = 'testkey'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("https://iplocate.io/api/lookup/1.2.3.4?apikey=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', subdivision: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('LingoLinq - New Communicator Registration')
       html = message_body(m, :html)
@@ -311,7 +311,7 @@ describe UserMailer, :type => :mailer do
       expect(html).to match(/#{u.user_name}/)
       expect(html).to match(/Location: Paris, Texas, US/)
       expect(html).to_not match(/Start Code:/)
-      
+
       text = message_body(m, :text)
       expect(text).to match(/just signed up/)
       expect(text).to match(/#{u.user_name}/)
@@ -324,8 +324,8 @@ describe UserMailer, :type => :mailer do
       u.save
       d = Device.create(:user => u, :settings => {'ip_address' => '1.2.3.4'})
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
-      ENV['IPSTACK_KEY'] = 'testkey'
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', region_name: 'Texas', country_code: 'US'}.to_json))
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
+      expect(Typhoeus).to receive(:get).with("https://iplocate.io/api/lookup/1.2.3.4?apikey=testkey", {timeout: 5}).and_return(OpenStruct.new(body: {city: 'Paris', subdivision: 'Texas', country_code: 'US'}.to_json))
       m = UserMailer.new_user_registration(u.global_id)
       expect(m.subject).to eq('LingoLinq - New Communicator Registration')
       html = message_body(m, :html)

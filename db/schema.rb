@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_12_000000) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_17_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -380,6 +380,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_12_000000) do
     t.string "external_auth_key"
     t.string "external_auth_shortcut"
     t.integer "user_goal_id"
+    t.integer "data_policy_version", default: 0
     t.index ["admin"], name: "index_organizations_on_admin", unique: true
     t.index ["custom_domain"], name: "index_organizations_on_custom_domain"
     t.index ["external_auth_key"], name: "index_organizations_on_external_auth_key", unique: true

@@ -124,6 +124,12 @@ task "scheduler:dispatch" => :environment do
       JobStash.flush_old_records
       "#{count} deleted"
     end
+
+    run_task.call("enforce_data_retention_policies") do
+      require_relative '../data_policy_enforcer'
+      count = DataPolicyEnforcer.enforce_retention!
+      "#{count} stale sessions purged"
+    end
   end
 
   puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch Complete ==="

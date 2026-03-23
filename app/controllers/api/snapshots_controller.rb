@@ -12,10 +12,12 @@ class Api::SnapshotsController < ApplicationController
   end
   
   def create
-    user = User.find_by_global_id(params['snapshot']['user_id'])
-    return unless exists?(user, params['snapshot']['user_id'])
+    snap_data = params['snapshot']
+    snap_data = snap_data.permit! if snap_data.is_a?(ActionController::Parameters)
+    user = User.find_by_global_id(snap_data['user_id'])
+    return unless exists?(user, snap_data['user_id'])
     return unless allowed?(user, 'edit')
-    @snapshot = LogSnapshot.process_new(params['snapshot'], {:user => user})
+    @snapshot = LogSnapshot.process_new(snap_data, {:user => user})
     if @snapshot.errored?
       api_error(400, {error: "snapshot creation failed", errors: @snapshot && @snapshot.processing_errors})
     else
@@ -34,7 +36,9 @@ class Api::SnapshotsController < ApplicationController
     @snapshot = LogSnapshot.find_by_global_id(params['id'])
     return unless exists?(@snapshot, params['id'])
     return unless allowed?(@snapshot, 'edit')
-    if @snapshot.process(params['snapshot'])
+    snap_update = params['snapshot']
+    snap_update = snap_update.permit! if snap_update.is_a?(ActionController::Parameters)
+    if @snapshot.process(snap_update)
       render json: JsonApi::Snapshot.as_json(@snapshot, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "snapshot update failed", errors: @snapshot.processing_errors})

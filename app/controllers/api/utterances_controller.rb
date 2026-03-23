@@ -15,13 +15,15 @@ class Api::UtterancesController < ApplicationController
   end
   
   def create
+    utt_data = params['utterance']
+    utt_data = utt_data.permit! if utt_data.is_a?(ActionController::Parameters)
     user = @api_user
-    if params['utterance'] && params['utterance']['user_id']
-      user = User.find_by_path(params['utterance']['user_id'])
-      return unless exists?(user, params['utterance']['user_id'])
+    if utt_data && utt_data['user_id']
+      user = User.find_by_path(utt_data['user_id'])
+      return unless exists?(user, utt_data['user_id'])
       return unless allowed?(user, 'model')
     end
-    utterance = Utterance.process_new(params['utterance'], {:user => user})
+    utterance = Utterance.process_new(utt_data, {:user => user})
     if !utterance || utterance.errored?
       api_error(400, {error: "utterance creation failed", errors: utterance.processing_errors})
     else
@@ -43,7 +45,8 @@ class Api::UtterancesController < ApplicationController
     if params['user_id'] && !sharer.any_premium_or_grace_period?(true)
       return allowed?(user, 'premium_access_required')      
     end
-    res = utterance.share_with(params, sharer, @api_user.global_id)
+    share_params = params.permit(:user_id, :email, :message, :sharer_id, :sentence, :reply_id, :share_type, :supervisor_id, :cell, :subject)
+    res = utterance.share_with(share_params, sharer, @api_user.global_id)
     if res
       render json: {shared: true, details: res}.to_json
     else
@@ -55,7 +58,9 @@ class Api::UtterancesController < ApplicationController
     utterance = Utterance.find_by_global_id(params['id'])
     return unless exists?(utterance)
     return unless allowed?(utterance, 'edit')
-    if utterance.process(params['utterance'])
+    utt_update = params['utterance']
+    utt_update = utt_update.permit! if utt_update.is_a?(ActionController::Parameters)
+    if utterance.process(utt_update)
       render json: JsonApi::Utterance.as_json(utterance, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "utterance update failed", errors: utterance.processing_errors})

@@ -35,12 +35,12 @@ class Api::LogsController < ApplicationController
       sups = user.supervisees.select{|u| !u.private_logging? }
       sups.each do |sup|
         user_ids << sup.id
-        cutoff = sup.logging_cutoff_for(@api_user, logging_code_for(sup))
+        cutoff = sup.effective_logging_cutoff_for(@api_user, logging_code_for(sup))
         user_id_cutoffs[sup.id] = cutoff if cutoff
       end
       for_self = false
     else
-      cutoff = user.logging_cutoff_for(@api_user, logging_code_for(user))
+      cutoff = user.effective_logging_cutoff_for(@api_user, logging_code_for(user))
       # Users can always see their own logs when cutoff is 0 (which would otherwise hide everything)
       cutoff = nil if cutoff == 0 && @api_user == user
       if cutoff
@@ -159,7 +159,7 @@ class Api::LogsController < ApplicationController
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
-    cutoff = user.logging_cutoff_for(@api_user, logging_code_for(user))
+    cutoff = user.effective_logging_cutoff_for(@api_user, logging_code_for(user))
     if cutoff && log.started_at < cutoff.hours.ago
       return unless allowed?(user, 'never_allow')
     end
@@ -172,7 +172,9 @@ class Api::LogsController < ApplicationController
     user = user_id ? User.find_by_path(user_id) : @api_user
     return unless allowed?(user, 'model')
     
-    log = LogSession.process_as_follow_on(params['log'].to_unsafe_h, {
+    log_data = params['log']
+    log_data = log_data.permit! if log_data.is_a?(ActionController::Parameters)
+    log = LogSession.process_as_follow_on(log_data.to_unsafe_h, {
       :author => @api_user,
       :ip_address => ip,
       :user => user,
@@ -216,12 +218,14 @@ class Api::LogsController < ApplicationController
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
-    cutoff = user.logging_cutoff_for(@api_user, logging_code_for(user))
+    cutoff = user.effective_logging_cutoff_for(@api_user, logging_code_for(user))
     if cutoff && log.started_at < cutoff.hours.ago
       return unless allowed?(user, 'never_allow')
     end    
     
-    log.process(params['log'], {
+    log_update_data = params['log']
+    log_update_data = log_update_data.permit! if log_update_data.is_a?(ActionController::Parameters)
+    log.process(log_update_data, {
       :author => @api_user,
       :user => user,
       :device => Device.find_by_global_id(@api_device_id),
@@ -249,7 +253,7 @@ class Api::LogsController < ApplicationController
       if log.user.private_logging? && (@true_user || @api_user) != log.user
         return unless allowed?(log.user, 'never_allow')
       end
-      cutoff = log.user.logging_cutoff_for(@api_user, logging_code_for(log.user))
+      cutoff = log.user.effective_logging_cutoff_for(@api_user, logging_code_for(log.user))
       if cutoff && log.started_at < cutoff.hours.ago
         return unless allowed?(log.user, 'never_allow')
       end    
@@ -263,7 +267,7 @@ class Api::LogsController < ApplicationController
       if user.private_logging? && (@true_user || @api_user) != user
         return unless allowed?(user, 'never_allow')
       end
-      cutoff = user.logging_cutoff_for(@api_user, logging_code_for(user))
+      cutoff = user.effective_logging_cutoff_for(@api_user, logging_code_for(user))
       if cutoff
         return unless allowed?(user, 'never_allow')
       end    

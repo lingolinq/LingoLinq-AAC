@@ -51,15 +51,17 @@ class Api::OrganizationsController < ApplicationController
     user = link && User.find_by_path(link['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
+    status_data = params['status']
+    status_data = status_data.permit(:state, :note) if status_data.is_a?(ActionController::Parameters)
     link = UserLink.where(user_id: user.id, record_code: link['record_code']).detect{|l| l.data['type'] == 'org_user' }
     if link
       link.data['state'] ||= {}
       link.data['state']['status'] = {
         'date' => Time.now.to_i,
-        'state' => params['status']['state']
+        'state' => status_data['state']
       }
-      if params['status']['note']
-        link.data['state']['status']['note'] = params['status']['note']
+      if status_data['note']
+        link.data['state']['status']['note'] = status_data['note']
       end
       link.save
       states = {
@@ -78,9 +80,9 @@ class Api::OrganizationsController < ApplicationController
           states[status['id']] = status['label']
         end
       end
-      state = states[params['status']['state']] || params['status']['state']
-      log_note = "Status set to #{params['status']['state']}"
-      log_note += " - #{params['status']['note']}" if params['status']['note']
+      state = states[status_data['state']] || status_data['state']
+      log_note = "Status set to #{status_data['state']}"
+      log_note += " - #{status_data['note']}" if status_data['note']
       LogSession.message({
         recipient: user,
         sender: @api_user,
@@ -103,7 +105,9 @@ class Api::OrganizationsController < ApplicationController
     else
       code = nil
       begin
-        code = Organization.activation_code(@org, params['overrides'])
+        overrides = params['overrides']
+        overrides = overrides.permit! if overrides.is_a?(ActionController::Parameters)
+        code = Organization.activation_code(@org, overrides)
       rescue => e
         err = {error: e.message}
         err[:code_taken] = true if e.message == 'code is taken'
@@ -773,7 +777,9 @@ class Api::OrganizationsController < ApplicationController
   def create
     admin_org = Organization.admin
     return unless allowed?(admin_org, 'manage')
-    org = Organization.process_new(params['organization'], {'updater' => @api_user})
+    org_data = params['organization']
+    org_data = org_data.permit! if org_data.is_a?(ActionController::Parameters)
+    org = Organization.process_new(org_data, {'updater' => @api_user})
     if org.errored?
       api_error(400, {error: "organization creation failed", errors: org && org.processing_errors})
     else
@@ -785,18 +791,20 @@ class Api::OrganizationsController < ApplicationController
     org = Organization.find_by_global_id(params['id'])
     return unless exists?(org, params['id'])
     return unless allowed?(org, 'edit')
-    if params['organization'] && !org.allows?(@api_user, 'update_licenses')
-      params['organization'].delete('allotted_licenses') 
-      params['organization'].delete('licenses_expire') 
-      params['organization'].delete('include_extras')
-      params['organization'].delete('org_access')
-      params['organization'].delete('inactivity_timeout')
-      params['organization'].delete('premium')
+    org_data = params['organization']
+    org_data = org_data.permit! if org_data.is_a?(ActionController::Parameters)
+    if org_data && !org.allows?(@api_user, 'update_licenses')
+      org_data.delete('allotted_licenses')
+      org_data.delete('licenses_expire')
+      org_data.delete('include_extras')
+      org_data.delete('org_access')
+      org_data.delete('inactivity_timeout')
+      org_data.delete('premium')
     end
-    if params['organization'] && !org.allows?(@api_user, 'delete')
-      params['organization'].delete('parent_org') 
+    if org_data && !org.allows?(@api_user, 'delete')
+      org_data.delete('parent_org')
     end
-    if org.process(params['organization'], {'updater' => @api_user})
+    if org.process(org_data, {'updater' => @api_user})
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "organization update failed", errors: org.processing_errors})
@@ -809,5 +817,17 @@ class Api::OrganizationsController < ApplicationController
     return unless allowed?(org, 'delete')
     org.destroy
     render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
+  end
+
+  def update_data_policy
+    return unless allowed?(@org, 'manage')
+    policy_params = params[:data_policy]
+    policy_params = policy_params.permit! if policy_params.is_a?(ActionController::Parameters)
+    @org.update_data_policy(policy_params.to_h.stringify_keys, @api_user)
+    if @org.save
+      render json: JsonApi::Organization.as_json(@org, :wrapper => true, :permissions => @api_user).to_json
+    else
+      api_error(400, {error: "failed to update data policy"})
+    end
   end
 end

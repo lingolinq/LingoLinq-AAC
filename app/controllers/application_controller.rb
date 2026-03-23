@@ -51,8 +51,6 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
-    # Rails 7: Ensure params are accessible
-    params.permit! if params.respond_to?(:permit!)
     token = params['access_token']
     # If token is "none" (default value from frontend), treat it as missing and check Authorization header
     token = nil if token == 'none' || token.blank?
@@ -142,35 +140,22 @@ class ApplicationController < ActionController::Base
   end
   
   def replace_helper_params
-    # Rails 7: Ensure params are permitted for modification
-    # After permit!, params should be mutable, but we need to iterate over the actual params
-    # object keys, not a copy, to ensure modifications persist
-    if params.respond_to?(:permit!)
-      params.permit!
-    end
-    
-    # Get all parameter keys as an array to iterate over (avoids modification during iteration)
-    # Use to_unsafe_h to get all parameters including unpermitted ones
-    param_keys = (params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h).keys.map(&:to_s)
-    
-    # Iterate over the keys and modify params directly
-    # This ensures we're modifying the actual params object, not a copy
-    param_keys.each do |key_str|
-      val = params[key_str]
-      
-      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
-        # Modify params directly - after permit! this should persist
+    # Iterate over routing/id params to replace 'self' and 'my_org' placeholders.
+    # We only modify simple string params (id, *_id), not nested hashes.
+    # Use to_unsafe_h for read-only iteration to find keys needing replacement.
+    raw = params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
+    raw.each do |key_str, val|
+      key_str = key_str.to_s
+      next unless val.is_a?(String)
+      next unless key_str == 'id' || key_str.match?(/_id$/)
+
+      if @api_user && val == 'self'
         params[key_str] = @api_user.global_id
-      elsif !@api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
-        # If user_id=self but no @api_user, this will fail later, but don't crash here
-        # The controller will handle the authentication error
       end
-      
-      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'my_org' && Organization.manager?(@api_user)
+
+      if @api_user && val == 'my_org' && Organization.manager?(@api_user)
         org = @api_user.organization_hash.select{|o| o['type'] == 'manager' }.sort_by{|o| o['added'] || Time.now.iso8601 }[0]
-        if org
-          params[key_str] = org['id']
-        end
+        params[key_str] = org['id'] if org
       end
     end
   end

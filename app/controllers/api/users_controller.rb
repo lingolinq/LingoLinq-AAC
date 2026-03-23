@@ -195,28 +195,29 @@ class Api::UsersController < ApplicationController
     user_device = (user && @api_user && @api_user.global_id == user.global_id) && Device.find_by_global_id(@api_device_id)
     return unless exists?(user)
     options = {}
+    # Build user_data from params, restricting fields based on authorization level
+    user_data = params['user'] || {}
+    user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
+    user_data = user_data.to_h if user_data.respond_to?(:to_h) && !user_data.is_a?(Hash)
     if params['reset_token'] && user.valid_reset_token?(params['reset_token'])
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('password')
+      user_data = user_data.slice('password')
       options[:allow_password_change] = true
       user.used_reset_token!(params['reset_token'])
     elsif params['reset_token'] == 'admin' && user.allows?(@api_user, 'support_actions')
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('password')
+      user_data = user_data.slice('password')
       options[:allow_password_change] = true
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('supervisor_key')
+      user_data = user_data.slice('supervisor_key')
     else
       return unless allowed?(user, 'edit')
     end
     # we don't want to set device preferences unless the user actually changed device settings
-    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated']
+    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if user_data && user_data['preference'] && user_data['preference']['device'] && user_data['preference']['device']['updated']
     options['device'] = user_device
     options['updater'] = @api_user
-      
-    if user.process(params['user'], options)
+
+    if user.process(user_data, options)
       start_code_progress = user.instance_variable_get('@start_code_progress')
       json = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user, :device => user_device)
       if start_code_progress
@@ -229,19 +230,21 @@ class Api::UsersController < ApplicationController
   end
   
   def create
-    if params['user'] && params['user']['start_code']
+    user_data = params['user']
+    user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
+    if user_data && user_data['start_code']
       # Validate user.start_code if present and error before trying to create
-      code = Organization.parse_activation_code(params['user']['start_code'])
+      code = Organization.parse_activation_code(user_data['start_code'])
       return api_error(400, {error: "invalid start code", start_code_error: true}) if !code || code[:disabled]
     end
-    user = User.process_new(params['user'], {:pending => true, :author => @api_user})
+    user = User.process_new(user_data, {:pending => true, :author => @api_user})
     start_progress = nil
     if !user || user.errored?
       return api_error(400, {error: "user creation failed", errors: user && user.processing_errors})
     end
-    if params['user']['start_code']
+    if user_data['start_code']
       # Process start code actions once the user is fully created (can't add supervisors beforehand)
-      res = Organization.parse_activation_code(params['user']['start_code'], user)
+      res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
     end
     UserMailer.schedule_delivery(:confirm_registration, user.global_id)
@@ -292,7 +295,9 @@ class Api::UsersController < ApplicationController
     else
       code = nil
       begin
-        code = Organization.activation_code(user, params['overrides'])
+        overrides = params['overrides']
+        overrides = overrides.permit! if overrides.is_a?(ActionController::Parameters)
+        code = Organization.activation_code(user, overrides)
       rescue => e
         err = {error: e.message}
         err[:code_taken] = true if e.message == 'code is taken'
@@ -384,7 +389,9 @@ class Api::UsersController < ApplicationController
     return unless allowed?(user, 'edit')
     device = Device.find_by_global_id(params['device_id'])
     if device && device.user_id == user.id
-      device.settings['name'] = params['device']['name']
+      device_data = params['device']
+      device_data = device_data.permit(:name) if device_data.is_a?(ActionController::Parameters)
+      device.settings['name'] = device_data['name']
       device.save
       render json: JsonApi::Device.as_json(device, :current_device => Device.find_by_global_id(@api_device_id))
     else
@@ -444,9 +451,9 @@ class Api::UsersController < ApplicationController
 
     admin = Organization.admin
     token = nil
-    if params['token'] && params['token'].respond_to?(:to_unsafe_h)
-      token = params['token'].to_unsafe_h
-    elsif params['token'] && params['token'].respond_to?(:to_h)
+    if params['token'].is_a?(ActionController::Parameters)
+      token = params['token'].permit!.to_h
+    elsif params['token'].respond_to?(:to_h)
       token = params['token'].to_h
     end
     if params['type'] == 'gift_code'
