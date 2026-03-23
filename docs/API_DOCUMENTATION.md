@@ -93,7 +93,7 @@ Authorization: Bearer <access_token>
 ### Additional Headers
 
 - `X-Device-Id`: Device identifier
-- `X-INSTALLED-LINGOLINQ`: `true` / `false` — native app vs browser (used with registration and token). When this header is present, it overrides the `installed_app` request param; if absent, `installed_app=true` is treated as app.
+- `X-INSTALLED-LINGOLINQ`: `true` / `false` — native app vs browser (used with registration and token). Only these canonical values (case-insensitive) are used; other non-blank values are ignored and `installed_app` request param applies. When the header is absent, blank, or ignored, `installed_app=true` marks an app client and `installed_app=false` marks a browser client. When the header is `true` or `false`, it overrides the param for that classification.
 - `X-LingoLinq-Version`: App version
 
 ## Response Format

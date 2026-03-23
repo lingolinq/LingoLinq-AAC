@@ -1048,7 +1048,7 @@
     {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       {{#unless this.app_state.sidebar_relegated}}
         {{#unless this.app_state.eval_mode}}
-          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} role="button" tabindex="0">
+          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} {{action "toggleSidebarTeaseKeydown" on="keyDown"}} role="button" tabindex="0">
             {{#if this.app_state.fenced_sidebar_board}}
               <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;'></span>
             {{/if}}

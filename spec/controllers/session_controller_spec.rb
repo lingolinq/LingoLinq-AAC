@@ -724,19 +724,88 @@ describe SessionController, :type => :controller do
       expect(d.settings['long_token_set']).to eq(nil)
     end
 
-    it "prefers header false over installed_app param for device classification" do
+    it "header overrides params when conflicting" do
       token = GoSecure.browser_token
       u = User.new(:user_name => "hdrwins")
       u.generate_password("seashell")
       u.save
       request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
-      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'hdrwins', :password => 'seashell', :installed_app => 'true'}
+      post :token, params: {grant_type: 'password', client_id: 'browser', client_secret: token, username: 'hdrwins', password: 'seashell', installed_app: 'true'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      device = Device.find_by_global_id(json['access_token'])
+      expect(device.token_type).to eq(:browser)
+      expect(device.settings['browser']).to eq(true)
+      expect(device.settings['app']).to be_nil
+    end
+
+    it "sets browser from installed_app param when header is absent" do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => "parambrowser")
+      u.generate_password("seashell")
+      u.save
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'parambrowser', :password => 'seashell', :installed_app => 'false'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       d = Device.find_by_global_id(json['access_token'])
       expect(d.token_type).to eq(:browser)
       expect(d.settings['browser']).to eq(true)
       expect(d.settings['app']).to eq(nil)
+    end
+
+    it "ignores non-canonical header and uses installed_app param for app on token" do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => "garbagehdrapp")
+      u.generate_password("seashell")
+      u.save
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'maybe'
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'garbagehdrapp', :password => 'seashell', :installed_app => 'true'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      d = Device.find_by_global_id(json['access_token'])
+      expect(d.token_type).to eq(:app)
+      expect(d.settings['app']).to eq(true)
+      expect(d.settings['browser']).to eq(nil)
+    end
+
+    it "clears stale browser flag when same device logs in as app" do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => "stalebrowser")
+      u.generate_password("seashell")
+      u.save
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
+      d.settings['browser'] = true
+      d.save!
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'stalebrowser', :password => 'seashell'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      d2 = Device.find_by_global_id(json['access_token'])
+      expect(d2).to eq(d)
+      d.reload
+      expect(d.settings['browser']).to eq(nil)
+      expect(d.settings['app']).to eq(true)
+      expect(d.token_type).to eq(:app)
+    end
+
+    it "clears stale app flag when same device logs in as browser" do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => "staleapp")
+      u.generate_password("seashell")
+      u.save
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
+      d.settings['app'] = true
+      d.save!
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'staleapp', :password => 'seashell'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      d2 = Device.find_by_global_id(json['access_token'])
+      expect(d2).to eq(d)
+      d.reload
+      expect(d.settings['app']).to eq(nil)
+      expect(d.settings['browser']).to eq(true)
+      expect(d.token_type).to eq(:browser)
     end
 
     it "should handle long_token for app" do
@@ -1332,6 +1401,7 @@ describe SessionController, :type => :controller do
           "org_id" => o.global_id,
           "auth_user_id" => @user.global_id,
           "user_id" => @user.global_id,
+          "app" => false,
         })
       end
 
@@ -1355,6 +1425,19 @@ describe SessionController, :type => :controller do
           'embed' => true,
           'oauth_code' => 'asdfjkl'
         })
+      end
+
+      it "does not treat 'false' string as true for app param" do
+        o = Organization.create
+        o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
+        o.save
+        expect_any_instance_of(SessionController).to receive(:saml_settings).and_return("saml_stuff")
+        expect(GoSecure).to receive(:nonce).with('saml_session_code').and_return('baconator')
+        expect_any_instance_of(OneLogin::RubySaml::Authrequest).to receive(:create).with("saml_stuff", :RelayState => 'baconator').and_return("https://www.example.com/saml/auth")
+        get 'saml_start', params: {org_id: o.global_id, app: 'false'}
+        expect(response).to be_redirect
+        stored = JSON.parse(RedisInit.default.get("saml_#{assigns[:saml_code]}"))
+        expect(stored['app']).to eq(false)
       end
 
       it "should include popout_id if defined" do
@@ -1738,6 +1821,45 @@ describe SessionController, :type => :controller do
           :roles => [],
           :user_name => "myname",          
         })
+      end
+
+      it "clears stale app flag on SAML consume when stored config denies app" do
+        o = Organization.create
+        o.settings['saml_metadata_url'] = 'https://www.example.com/saml/meta'
+        o.save
+        u = User.create
+        u.settings['email'] = 'nunya@example.com'
+        u.save
+        o.add_user(u.user_name, false, false)
+        o.reload
+
+        d = Device.find_or_create_by!(user_id: u.id, developer_key_id: 0, device_key: 'unnamed device')
+        d.settings['app'] = true
+        d.save!
+
+        settings = OneLogin::RubySaml::Settings.new
+        settings.assertion_consumer_service_url = "http://test.host/saml/consume"
+        settings.sp_entity_id                   = "http://test.host/saml/metadata"
+        settings.idp_sso_service_url             = "https://app.example.com/saml/signon"
+        settings.name_identifier_format         = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+        expect_any_instance_of(OneLogin::RubySaml::IdpMetadataParser).to receive(:parse_remote).with('https://www.example.com/saml/meta', {:slo_binding=>["urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"], :sso_binding=>["urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"]}).and_return(settings)
+        attrs = {}
+        expect(attrs).to receive(:fetch).with('email').and_return('nunya@example.com')
+        expect(attrs).to receive(:fetch).with('uid').and_return('myname')
+        expect(attrs).to receive(:multi).with(:role).and_return([])
+        obj = OpenStruct.new({
+          attributes: attrs,
+          name_id: '123456',
+          issuers: ['https://www.example.com/saml/meta'],
+        })
+        expect(obj).to receive(:is_valid?).and_return(true).at_least(1).times
+        expect(OneLogin::RubySaml::Response).to receive(:new).with('ressy', :settings => settings).and_return(obj)
+
+        RedisInit.default.setex("saml_watermelon", 1.hour.to_i, {org_id: o.global_id, embed: true, 'app' => false, device_id: 'unnamed device'}.to_json)
+        post 'saml_consume', params: {RelayState: 'watermelon', SAMLResponse: "ressy"}
+        expect(response).to_not be_redirect
+        d.reload
+        expect(d.settings.key?('app')).to eq(false)
       end
 
       it "should redirect to the profile page if specified" do

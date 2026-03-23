@@ -9,6 +9,14 @@ import { debounce as runDebounce, cancel as runCancel } from '@ember/runloop';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
+  _filterDebounceTimer: null,
+  willDestroy() {
+    this._super(...arguments);
+    if (this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+      this._filterDebounceTimer = null;
+    }
+  },
   queryParams: ['current_report', 'per_page', 'sort_by', 'sort_order', 'filter'],
   current_report: null,
   per_page: 25,
@@ -230,6 +238,9 @@ export default Controller.extend({
     var _this = this;
     this._filterDebounceTimer = runDebounce(this, function() {
       _this._filterDebounceTimer = null;
+      if (_this.isDestroying || _this.isDestroyed) {
+        return;
+      }
       _this.fetch_report();
     }, 300);
   }),
@@ -318,7 +329,7 @@ export default Controller.extend({
       model.set('management_action', action + '-' + user_name);
       model.save().then(function() {
         modal.success(i18n.t('user_removed', "The user %{user_name} was successfully removed.", {user_name: user.user_name}));
-        _this.fetch_report();
+        _this.get_report();
       }, function(err) {
         modal.error(i18n.t('error_removing_user_name', "There was an error removing the user %{user_name}", {user_name: user.user_name}));
       });

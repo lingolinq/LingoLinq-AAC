@@ -2655,12 +2655,24 @@ var persistence = Service.extend({
     return new RSVP.Promise(function(resolve, reject) {
       var url = '/api/v1/users/' + user.get('id') + '/alerts';
       var parse_before_resolve = function(object) {
-        var alertList = object.alert || [];
-        (object.clears || []).forEach(function(id) {
+        object = object || {};
+        var alertList = object.alert;
+        if (!alertList || !Array.isArray(alertList)) {
+          alertList = [];
+        }
+        var clears = object.clears;
+        if (!clears || !Array.isArray(clears)) {
+          clears = [];
+        }
+        var alertIds = object.alerts;
+        if (!alertIds || !Array.isArray(alertIds)) {
+          alertIds = [];
+        }
+        clears.forEach(function(id) {
           var ref = alertList.find(function(a) { return a.id == id; });
           if(ref && !ref.cleared) { emberSet(ref, 'cleared', true); }
         });
-        (object.alerts || []).forEach(function(id) {
+        alertIds.forEach(function(id) {
           var ref = alertList.find(function(a) { return a.id == id; });
           if(ref && ref.unread) { emberSet(ref, 'unread', false); }
         });

@@ -3681,6 +3681,7 @@
   "focus_words_modal_close_tooltip": "Close this window without applying focus words.",
   "focus_words_need_words_tooltip": "Choose or enter at least one word to use this action.",
   "focus_words_analyze_needs_home_board": "Set or open a home board first. Analysis looks up each word on that board.",
+  "focus_words_analyze_needs_user": "User information is not available. Try opening this screen again or signing in.",
   "assessment_settings": "Eval Settings",
   "prompt_symbols": "Prompt Symbol(s)",
   "search_target": "Search Target",

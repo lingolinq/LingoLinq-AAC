@@ -29,9 +29,30 @@ export default Component.extend({
     this.set('model', options);
   },
 
+  willDestroy() {
+    this._super(...arguments);
+    this.set('_findButtonOpeningSetupDone', false);
+  },
+
   /**
-   * Tagless component (tagName: '') — didInsertElement never runs. Modal-dialog
-   * invokes this on first render so we load the button set, reset state, and focus.
+   * Tagless component (tagName: '') — didInsertElement never runs. Run setup on
+   * first didRender and/or when modal-dialog invokes opening() (same guard).
+   */
+  ensureFindButtonOpeningOnce() {
+    if (this.get('_findButtonOpeningSetupDone')) {
+      return;
+    }
+    this.set('_findButtonOpeningSetupDone', true);
+    this.runOpeningSetup();
+  },
+
+  didRender() {
+    this._super(...arguments);
+    this.ensureFindButtonOpeningOnce();
+  },
+
+  /**
+   * Resets search state, loads the board button set, and focuses the search field.
    */
   runOpeningSetup() {
     this.set('results', null);
@@ -128,11 +149,11 @@ export default Component.extend({
   }),
 
   actions: {
+    opening() {
+      this.ensureFindButtonOpeningOnce();
+    },
     close() {
       this.get('modal').close();
-    },
-    opening() {
-      this.runOpeningSetup();
     },
     closing() {},
     pick_result(result) {
@@ -142,14 +163,14 @@ export default Component.extend({
       if (!result) { return; }
       const appState = this.get('appState');
       const controller = appState.get('controller');
-      const boardController = editManager.controller;
+      const boardController = editManager && editManager.controller;
       const currentBoard = boardController && boardController.get && boardController.get('model');
       const onCurrentBoard = currentBoard && result.board_id === currentBoard.get('id');
       if (onCurrentBoard) {
+        const board = currentBoard;
         const $button = $(".button[data-id='" + result.id + "']");
         modal.highlight($button, { highlight_type: 'button_search' }).then(function() {
-          const button = editManager.find_button(result.id);
-          const board = boardController.get('model');
+          const button = editManager && editManager.find_button(result.id);
           if (controller && controller.activateButton && button && board) {
             controller.activateButton(button, { board: board, trigger_source: 'click' });
           }

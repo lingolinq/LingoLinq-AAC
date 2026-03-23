@@ -373,6 +373,16 @@ export default Controller.extend({
     toggleSidebar: function() {
       this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
     },
+    toggleSidebarTeaseKeydown: function(event) {
+      var key = event && event.key;
+      var code = event && event.keyCode;
+      if (key === 'Enter' || key === ' ' || code === 13 || code === 32) {
+        if (event.preventDefault) {
+          event.preventDefault();
+        }
+        this.send('toggleSidebar');
+      }
+    },
     hide_temporary_sidebar: function() {
       if(this.stashes.get('sidebarEnabled') && !this.appState.get('currentUser.preferences.quick_sidebar')) {
         this.send('toggleSidebar');

@@ -354,7 +354,13 @@ export default Component.extend({
     analyze_focus_words() {
       const _this = this;
       const words = _this.get('words_list');
-      if (!_this.get('model.root_board_id')) {
+      const model = _this.get('model');
+      if (!model) {
+        modal.error(i18n.t('focus_words_analyze_needs_user', "User information is not available. Try opening this screen again or signing in."));
+        return;
+      }
+      const rootBoardId = _this.get('model.root_board_id');
+      if (!rootBoardId) {
         modal.error(i18n.t('focus_words_analyze_needs_home_board', "Set or open a home board first. Analysis looks up each word on that board."));
         return;
       }
@@ -367,7 +373,7 @@ export default Component.extend({
       const locale = app_state.get('label_locale');
       _this.set('analysis', { loading: true });
       let board = null;
-      const find_board = LingoLinq.store.findRecord('board', _this.get('model.root_board_id'));
+      const find_board = LingoLinq.store.findRecord('board', rootBoardId);
       const load_buttons = find_board.then(function(brd) {
         board = brd;
         return board.load_button_set();

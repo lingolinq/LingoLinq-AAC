@@ -2558,6 +2558,7 @@ var persistence = EmberObject.extend({
     return new RSVP.Promise(function(resolve, reject) {
       var url = '/api/v1/users/' + user.get('id') + '/alerts';
       var parse_before_resolve = function(object) {
+        object = object || {};
         var alertList = object.alert || [];
         (object.clears || []).forEach(function(id) {
           var ref = alertList.find(function(a) { return a.id == id; });
