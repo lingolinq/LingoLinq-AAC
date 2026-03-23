@@ -253,8 +253,8 @@ class Api::UsersController < ApplicationController
 
     d = Device.find_or_create_by(:user_id => user.id, :device_key => 'default', :developer_key_id => 0)
     d.settings['ip_address'] = request.remote_ip
-    d.settings['browser'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'false'
-    d.settings['app'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'true'
+    log_installed_client_signal('api/users#create')
+    apply_device_classification!(d, installed_app?)
     d.settings['user_agent'] = request.headers['User-Agent']
     
     d.generate_token!(!!d.settings['app'])
@@ -709,11 +709,11 @@ class Api::UsersController < ApplicationController
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      # Return empty structure when no log exists yet; frontend shows "No data loaded"
-      # instead of error; log is created when user first pushes usage via stashes
+      # No LogSession row yet — omit persisted id so the client does not push a fake
+      # record into the store (log is created when usage is first pushed via stashes).
       render json: {
         log: {
-          id: "daily_use-empty-#{user.global_id}",
+          empty_daily_use_log: true,
           type: 'daily_use',
           user: { id: user.global_id, user_name: user.user_name },
           author: { id: user.global_id, user_name: user.user_name },

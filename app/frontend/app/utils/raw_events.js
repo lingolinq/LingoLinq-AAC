@@ -43,6 +43,22 @@ import frame_listener from './frame_listener';
 // - find a button needs to work for touch and eye gaze
 // - select text in a button's text box when editing a button
 
+// Ember uses native event dispatch (jquery-integration off). jQuery $.trigger('click')
+// does not reach Ember actions; native MouseEvent does. Custom pass_through must be
+// readable from jQuery's delegated handler (see originalEvent below).
+function dispatchPassThroughClick(dom, clientX, clientY) {
+  if (!dom) { return; }
+  var evt = new MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: clientX != null ? clientX : 0,
+    clientY: clientY != null ? clientY : 0
+  });
+  evt.pass_through = true;
+  dom.dispatchEvent(evt);
+}
+
 var $board_canvas = null;
 
 var eat_events = function(event) {
@@ -400,7 +416,8 @@ var buttonTracker = EmberObject.extend({
     $("#within_ember").on('click', '.advanced_selection', function(event) {
       // we're basically replacing all click events by tracking up and down explicitly,
       // so we don't want any unintentional double-triggers
-      if(event.pass_through) { return; }
+      var passThrough = event.pass_through || (event.originalEvent && event.originalEvent.pass_through);
+      if (passThrough) { return; }
 
       // allow dropdown menu item clicks to propagate so Ember actions run
       if($(event.target).closest('.dropdown-menu').length > 0) {
@@ -1177,21 +1194,16 @@ var buttonTracker = EmberObject.extend({
             }
           } else if(elem_wrap.dom.id == 'identity' || elem_wrap.dom.id == 'identity_button') {
             event.preventDefault();
-            // click events are eaten by our listener above, unless you
-            // explicitly tell it to pass them through
-            var e = $.Event( "click" );
-            e.clientX = event.clientX;
-            e.clientY = event.clientY;
-            e.pass_through = true;
-      
-            if(elem_wrap.wait) {
+            var cx = event.clientX;
+            var cy = event.clientY;
+            if (elem_wrap.wait) {
               runLater(function() {
-                if($("#identity .dropdown-menu:visible").length == 0) {
-                  $(elem_wrap.dom).trigger(e);
+                if ($("#identity .dropdown-menu:visible").length === 0) {
+                  dispatchPassThroughClick(elem_wrap.dom, cx, cy);
                 }
               }, 500);
             }
-            $(elem_wrap.dom).trigger(e);
+            dispatchPassThroughClick(elem_wrap.dom, cx, cy);
           } else if(elem_wrap.dom.id == 'button_list') {
             event.preventDefault();
             var $elem = $(elem_wrap.dom);
@@ -1204,33 +1216,24 @@ var buttonTracker = EmberObject.extend({
             event.preventDefault();
             $(elem_wrap.dom).trigger('select');
           } else if(elem_wrap.dom.classList.contains('speak_menu_button')) {
-            var e = $.Event( 'speakmenuselect' );
-            e.button_id = elem_wrap.dom.id;
-            e.swipe_direction = swipe_direction;
-            $(elem_wrap.dom).trigger(e);
+            // Native CustomEvent so Ember's event dispatcher receives it (jquery-integration is off).
+            var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
+            speakMenuEvent.button_id = elem_wrap.dom.id;
+            speakMenuEvent.swipe_direction = swipe_direction;
+            elem_wrap.dom.dispatchEvent(speakMenuEvent);
           } else if((elem_wrap.dom.className || "").match(/button/) || elem_wrap.virtual_button) {
             event.swipe_direction = swipe_direction;
             buttonTracker.button_release(elem_wrap, event, event_source);
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            // Let sidebar_tease and sidebar_close fall through to trigger synthetic click
-            // so Ember actions (toggleSidebar) receive the event and run
+            // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
-            var e = $.Event( 'click' );
-            e.clientX = event.clientX;
-            e.clientY = event.clientY;
-            e.pass_through = true;
-            $(elem_wrap.dom).trigger(e);
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else {
             event.preventDefault();
-            // click events are eaten by our listener above, unless you
-            // explicitly tell it to pass them through
-            var e = $.Event( "click" );
-            e.clientX = event.clientX;
-            e.clientY = event.clientY;
-            e.pass_through = true;
-            $(elem_wrap.dom).trigger(e);
+            // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           }
         }
 

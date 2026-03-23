@@ -563,8 +563,13 @@ class User < ActiveRecord::Base
       fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
     end
 
-    # In development mode, always use local fallback unless explicitly overridden
+    # In development, use local /avatars/ paths for the default image, but still expose a
+    # custom settings['avatar_url'] (https or same-origin path) so profile edits persist in JSON.
     if Rails.env.development? && !override_url
+      url = self.settings && self.settings['avatar_url']
+      if url.present? && url != 'default'
+        return url if url.match(/^https?:\/\//o) || url.match(/^\//o)
+      end
       return fallback
     end
 

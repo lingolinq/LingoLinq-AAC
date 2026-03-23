@@ -4,71 +4,71 @@
       {{#button-listener buttonEvent=(action "button_event")}}
         <div class='row' style='margin-left: -1px; margin-top: -1px; width: calc(100% + 2px); border-bottom: 1px solid #000;'>
           {{#if this.repeat_menu}}
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_quieter'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_quieter' title={{t "Speak more quietly" key="speak_menu_hint_quiet"}}>
               <span class='glyphicon glyphicon-volume-down'></span>
               {{t "Quiet" key="quiet"}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button radial radial_on_click' id='menu_repeat_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button radial radial_on_click' id='menu_repeat_button' title={{t "Return to the main speak menu" key="speak_menu_hint_repeat_back"}}>
               <span class='glyphicon glyphicon-arrow-left' style='opacity: 0.7;'></span>
               <span style='opacity: 0.7;'>{{t "Back" key="back"}}</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_louder'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_louder' title={{t "Speak more loudly" key="speak_menu_hint_loud"}}>
               <span class='glyphicon glyphicon-volume-up'></span>
               {{t "Loud" key="loud"}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_text'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_text' title={{t "Show your message as a large full-screen button" key="speak_menu_hint_big_button"}}>
               <span class='glyphicon glyphicon-modal-window'></span>
               {{t "Button" key="Button"}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_flip'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_flip' title={{t "Flip text for someone facing you" key="speak_menu_hint_flip"}}>
               <span class='glyphicon glyphicon-repeat'></span>
               {{t "Flip Text" key="flip_text"}}
             </div>
             {{#if this.app_state.referenced_user.preferences.hide_gif}}
-              <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button'>
+              <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button' title={{t "Share your current message with others" key="speak_menu_hint_share"}}>
                 <span class='glyphicon glyphicon-share'></span>
                 {{t "Share" key="share"}}
               </div>
             {{else}}
-              <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_gif'>
+              <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repeat_gif' title={{t "Create or choose a GIF for your message" key="speak_menu_hint_gif"}}>
                 <span class='glyphicon glyphicon-picture'></span>
                 {{t "GIF" key="gif"}}
               </div>
             {{/if}}
           {{else if this.punctuation_menu}}
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_contraction_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_contraction_button' title={{t "Use a shorter contraction for a word in your message" key="speak_menu_hint_contraction"}}>
               <span style='font-size: 25px; display: block; line-height: 50px'>{{this.contraction.label}}</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_quote_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_quote_button' title={{t "Add quotation marks" key="speak_menu_hint_quote"}}>
               <span style='font-size: 80px; display: block; line-height: 60px'>"</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_colon_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_colon_button' title={{t "Add a colon" key="speak_menu_hint_colon"}}>
               <span style='font-size: 80px; display: block; line-height: 50px'>:</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_exclamation_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_exclamation_button' title={{t "Add an exclamation mark" key="speak_menu_hint_exclamation"}}>
               <span style='font-size: 80px; display: block; line-height: 60px'>!</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_comma_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_comma_button' title={{t "Add a comma" key="speak_menu_hint_comma"}}>
               <span style='font-size: 80px; display: block; line-height: 50px'>,</span>
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_question_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_question_button' title={{t "Add a question mark" key="speak_menu_hint_question"}}>
               <span style='font-size: 80px; display: block; line-height: 60px'>?</span>
             </div>
           {{else}}
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_share_button' title={{t "Share your current message with others" key="speak_menu_hint_share"}}>
               <span class='glyphicon glyphicon-share'></span>
               {{t "Share" key='share'}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button radial radial_on_click' id='menu_repeat_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button radial radial_on_click' id='menu_repeat_button' title={{t "Repeat, volume, large text, flip text, and GIF options. Swipe in four directions on this button for shortcuts." key="speak_menu_hint_repeats"}}>
               <div style='position: absolute; top: 0; right: 0; width: 10px; height: 10px; border: 6px solid #888; border-bottom-left-radius: 15px; '></div>
               <span class='glyphicon glyphicon-volume-up'></span>
               {{t "Repeats" key='repeats'}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repair_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_repair_button' title={{t "Fix or change words in your message" key="speak_menu_hint_repairs"}}>
               <span class='glyphicon glyphicon-edit'></span>
               {{t "Repairs" key='repairs'}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_inbox_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_inbox_button' title={{t "Open notifications and messages" key="speak_menu_hint_alerts"}}>
               {{#if this.app_state.referenced_user.unread_alerts}}
                 <span class='label label-danger unread' style='position: absolute; top: 5px; right: 10px; border-radius: 10px; font-size: 14px;'>{{this.app_state.referenced_user.unread_alerts}}</span>
               {{else if this.app_state.referenced_user.request_alert}}
@@ -77,11 +77,11 @@
               <span class='glyphicon glyphicon-inbox'></span>
               {{t "Alerts" key='alerts'}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_phrases_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_phrases_button' title={{t "Open saved phrases" key="speak_menu_hint_phrases"}}>
               <span class='glyphicon glyphicon-align-justify'></span>
               {{t "Phrases" key='phrases'}}
             </div>
-            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_hold_thought_button'>
+            <div class='col-sm-2 col-xs-4 speak_menu_button' id='menu_hold_thought_button' title={{t "Save your message in the sentence box to finish later" key="speak_menu_hint_hold"}}>
               <span class='glyphicon glyphicon-pushpin'></span>
               {{t "Hold Thought" key='hold_thought'}}
             </div>
@@ -94,24 +94,24 @@
           {{this.working_vocalization_text}}
         </li>
         <li>
-          <a href="#" {{action "selectButton" "remember"}}>{{t "Remember this" key='remember_this'}}</a>
+          <a href="#" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{action "selectButton" "remember"}}>{{t "Remember this" key='remember_this'}}</a>
         </li>
         {{#if this.sharing_allowed}}
           <li>
-            <a href="#" {{action "selectButton" "share"}}>{{t "Share this" key='share_this'}}</a>
+            <a href="#" title={{t "Share your current message with others" key="speak_menu_hint_share"}} {{action "selectButton" "share"}}>{{t "Share this" key='share_this'}}</a>
           </li>
         {{/if}}
         <li>
-          <a href="#" {{action "selectButton" "sayLouder"}}>{{t "Say this Louder" key='say_this_louder'}}</a>
+          <a href="#" title={{t "Speak more loudly" key="speak_menu_hint_loud"}} {{action "selectButton" "sayLouder"}}>{{t "Say this Louder" key='say_this_louder'}}</a>
         </li>
       </ul>
     {{/if}}
     <div style='float: right; width: 100px;'>
       {{#button-listener buttonEvent=(action "button_event")}}
-        <div class='speak_menu_button' id='menu_period_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-top-width: 0;'>
+        <div class='speak_menu_button' id='menu_period_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-top-width: 0;' title={{t "Add a period. Swipe left for comma, right for exclamation, up for question mark." key="speak_menu_hint_period"}}>
           <span style='font-size: 80px; display: block; line-height: 20px'>.</span>
         </div>
-        <div class='speak_menu_button' id='menu_punctuation_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-bottom-width: 2px; position: relative;'>
+        <div class='speak_menu_button' id='menu_punctuation_button' style='width: 100px; border-left-width: 2px; border-right-width: 0; border-bottom-width: 2px; position: relative;' title={{t "More punctuation and contractions. Open the submenu, or choose Back when it is open." key="speak_menu_hint_punctuation"}}>
           {{#if this.punctuation_menu}}
             <span class='glyphicon glyphicon-arrow-left' style='opacity: 0.7;'></span>
             <span style='opacity: 0.7;'>{{t "Back" key='back'}}</span>
@@ -126,18 +126,18 @@
     <ul class="nav nav-pills nav-stacked" style='width: calc(100% - 100px);'>
 
       <li style='text-align: left; float: left; width: 50%;'>
-        <a href="#" {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
+        <a href="#" title={{t "Close this menu without changing your message" key="speak_menu_hint_cancel"}} {{action 'close'}}>{{t "Cancel" key='cancel'}}</a>
       </li>
       {{#if this.app_state.feature_flags.new_speak_menu}}
         {{#if this.working_vocalization_text}}
           <li style='text-align: right; float: left; width: 50%;'>
-            <a href="#" {{action "selectButton" "remember"}}>{{t "Remember this" key="remember_this"}}</a>
+            <a href="#" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{action "selectButton" "remember"}}>{{t "Remember this" key="remember_this"}}</a>
           </li>
         {{/if}}
       {{/if}}
       {{#if this.app_state.reply_note}}
         <li style='clear: left;'>
-          <a href="#" {{action 'reply_note'}}>
+          <a href="#" title={{t "Send your message as a reply to this person" key="speak_menu_hint_reply"}} {{action 'reply_note'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-envelope'></span></span>
             {{t "Send Reply" key='send_rely'}}
             {{#if this.app_state.reply_note.author}}
@@ -147,14 +147,14 @@
         </li>
       {{else if this.app_state.insertion}}
         <li style='clear: left;'>
-          <a href="#" {{action 'end_insertion'}}>
+          <a href="#" title={{t "Finish inserting text and return to the board" key="speak_menu_hint_done_insert"}} {{action 'end_insertion'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-console'></span></span>
             {{t "Done Inserting Text" key='done_inserting_text'}}
           </a>
         </li>
       {{else if this.app_state.flipped}}
         <li style='clear: left;'>
-          <a href="#" {{action 'flip_text'}}>
+          <a href="#" title={{t "Turn off flipped text" key="speak_menu_hint_unflip"}} {{action 'flip_text'}}>
             <span id='reply_icon' class='label label-info'><span class='glyphicon glyphicon-repeat'></span></span>
             {{t "Un-Flip Text" key='unflip_text'}}
           </a>

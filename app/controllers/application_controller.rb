@@ -216,4 +216,59 @@ class ApplicationController < ActionController::Base
   def set_browser_token_header
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
   end
+
+  # X-INSTALLED-LINGOLINQ: client declares native app vs browser.
+  # Only canonical values 'true' and 'false' (case-insensitive) are honored; other non-blank values are ignored
+  # and params['installed_app'] is used for both app and browser classification.
+  # When the effective header is 'true' or 'false', it wins over params for the corresponding signal.
+  protected
+
+  def installed_app_header
+    request.headers['X-INSTALLED-LINGOLINQ'].to_s.strip.downcase
+  end
+
+  # 'true', 'false', or nil (nil: treat like absent header — use params).
+  def installed_app_header_effective
+    h = installed_app_header
+    return nil if h.blank?
+    return h if h == 'true' || h == 'false'
+    nil
+  end
+
+  def installed_app?
+    eh = installed_app_header_effective
+    if eh
+      eh == 'true'
+    else
+      params['installed_app'].to_s == 'true'
+    end
+  end
+
+  def browser_client?
+    eh = installed_app_header_effective
+    return true if eh == 'false'
+    return false if eh == 'true'
+    params['installed_app'].to_s == 'false'
+  end
+
+  # System device (developer_key_id 0): app/browser flags via DeviceClassification + request.
+  # +native_app_device+ — password/registration: pass installed_app?; SAML: pass config['app'].
+  # +force+ — clear stored app/browser before applying (SAML ACS: authoritative refresh).
+  def apply_device_classification!(device, native_app_device, force: false)
+    device.settings ||= {}
+    DeviceClassification.apply_to_settings!(
+      device.settings,
+      native_app_device: native_app_device,
+      browser_client: browser_client?,
+      force: force
+    )
+    device
+  end
+
+  # TODO: Remove after validating device classification in production (few days).
+  def log_installed_client_signal(source)
+    h = installed_app_header
+    return if h.blank? && !params.key?('installed_app')
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} effective=#{installed_app_header_effective.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+  end
 end
