@@ -89,18 +89,25 @@ export default Component.extend({
     },
     send_consent_request() {
       var _this = this;
-      var owner_email = _this.get('owner_email');
-      var permission = _this.get('supervisor_permission');
-      if (!owner_email || !permission) { return; }
+      var lookup_key = (_this.get('owner_email') || '').trim();
+      var uiPermission = _this.get('supervisor_permission');
+      if (!lookup_key || !uiPermission) { return; }
+      var permission_level = 'view_only';
+      if (uiPermission === 'edit') {
+        permission_level = 'edit_boards';
+      } else if (uiPermission === 'modeling_only') {
+        permission_level = 'modeling_only';
+      } else if (uiPermission === 'read_only') {
+        permission_level = 'view_only';
+      }
       _this.set('consent_submitting', true);
       _this.set('error', null);
       persistence.ajax('/api/v1/supervisor_relationships', {
         type: 'POST',
         data: {
           supervisor_relationship: {
-            owner_email: owner_email,
-            communicator_user_name: _this.get('model.user.user_name'),
-            permission_level: permission
+            lookup_key: lookup_key,
+            permission_level: permission_level
           }
         }
       }).then(function() {

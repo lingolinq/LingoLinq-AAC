@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import EmberObject, { set as emberSet, get as emberGet, observer, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { later as runLater } from '@ember/runloop';
@@ -28,6 +29,16 @@ export default Component.extend({
     this._super(...arguments);
     // Initialize supervisees_with_badges to empty array
     this.set('supervisees_with_badges', []);
+    // Same explicit lookup as application controller (implicit injection removed)
+    var owner = getOwner(this);
+    var extras = owner && owner.lookup('lingolinq:extras');
+    if (extras) {
+      Object.defineProperty(this, 'extras', {
+        value: extras,
+        writable: false,
+        configurable: true
+      });
+    }
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {

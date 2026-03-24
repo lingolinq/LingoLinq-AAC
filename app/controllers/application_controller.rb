@@ -51,6 +51,9 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
+    # NOTE: Do not globally call `params.permit!` here; keep Strong Parameters
+    # protections intact. Controllers that need nested params must explicitly
+    # permit them or use `to_unsafe_h` in a narrowly scoped way.
     token = params['access_token']
     # If token is "none" (default value from frontend), treat it as missing and check Authorization header
     token = nil if token == 'none' || token.blank?
