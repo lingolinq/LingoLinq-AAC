@@ -36,7 +36,9 @@ class Api::SupervisorRelationshipsController < ApplicationController
     rel_params = params['supervisor_relationship'] || {}
     rel_params = rel_params.permit! if rel_params.is_a?(ActionController::Parameters)
 
-    lookup_key = rel_params['lookup_key'].presence || rel_params['owner_email'].presence
+    lookup_key = rel_params['lookup_key'].presence ||
+                 rel_params['owner_email'].presence ||
+                 rel_params['communicator_lookup'].presence
     permission_level = rel_params['permission_level'].presence || 'view_only'
     permission_level = { 'read_only' => 'view_only', 'edit' => 'edit_boards' }.fetch(permission_level, permission_level)
     service = SupervisorConsentService.new
