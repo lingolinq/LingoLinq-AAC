@@ -187,6 +187,9 @@ export default Component.extend({
         emberSet(org, 'alias_state', {temp_error: true});
       });
     },
+    request_access: function() {
+      modalUtil.open('request-supervision', {user: this.get('model')});
+    },
     start_codes: function() {
       modalUtil.open('modals/start-codes', {user: this.get('model')});
     }

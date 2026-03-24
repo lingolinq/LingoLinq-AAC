@@ -4401,4 +4401,77 @@ describe LogSession, :type => :model do
       expect(Permissable.permissions_redis.get('global/anonymous/logs/url')).to eq(["http://www.example.com/file.zip"].to_json)
     end
   end
+
+  describe "org data policy enforcement" do
+    it "should strip geo data when org disallows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['geo_logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i, 'geo' => ['1.0', '2.0']}
+        ]
+      }
+      s.save!
+
+      expect(s.data['geo']).to be_nil
+      expect(s.data['ip_address']).to be_nil
+      expect(s.geo_cluster_id).to be_nil
+      expect(s.ip_cluster_id).to be_nil
+    end
+
+    it "should not strip geo data when org allows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['geo_logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i}
+        ]
+      }
+      s.save!
+      expect(s.user.effective_geo_logging_allowed?).to eq(true)
+    end
+
+    it "should set needs_remote_push to false when org disallows logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i}
+        ]
+      }
+      s.save!
+
+      expect(s.needs_remote_push).to eq(false)
+    end
+  end
 end

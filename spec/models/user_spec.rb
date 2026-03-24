@@ -3673,4 +3673,94 @@ describe User, :type => :model do
       u.save_sync_supervisors(true)
     end
   end
+
+  describe "effective data policy preferences" do
+    it "should return true when user enables logging and no org policy" do
+      u = User.create
+      u.settings['preferences'] = {'logging' => true}
+      expect(u.effective_logging_allowed?).to eq(true)
+    end
+
+    it "should return false when user disables logging regardless of org" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging' => false}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "should return false when org disallows logging even if user enables it" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging' => true}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "should return false for geo when org disallows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'geo_logging' => true}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_geo_logging_allowed?).to eq(false)
+    end
+
+    it "should allow user to be more private than org policy" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'geo_logging' => false}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_geo_logging_allowed?).to eq(false)
+    end
+
+    it "should enforce org max logging cutoff" do
+      o = Organization.create
+      o.settings['data_policy'] = {'max_logging_cutoff_hours' => 48}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging_cutoff' => nil}
+      o.add_user(u.user_name, false, true)
+      u.reload
+
+      supervisor = User.create
+      expect(u.effective_logging_cutoff_for(supervisor, nil)).to eq(48)
+    end
+
+    it "should use user cutoff when more restrictive than org" do
+      o = Organization.create
+      o.settings['data_policy'] = {'max_logging_cutoff_hours' => 48}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['logging_cutoff'] = 24
+      u.save
+
+      supervisor = User.create
+      expect(u.effective_logging_cutoff_for(supervisor, nil)).to eq(24)
+    end
+
+    it "should return empty policy for users without an org" do
+      u = User.create
+      expect(u.effective_data_policy).to eq({})
+    end
+  end
 end

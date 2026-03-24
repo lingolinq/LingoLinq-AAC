@@ -51,17 +51,19 @@ class Api::GoalsController < ApplicationController
   end
   
   def create
-    params['goal']['user_id'] ||= @api_user.global_id
-    user = User.find_by_global_id(params['goal']['user_id'])
-    return unless exists?(user, params['goal']['user_id'])
+    goal_data = params['goal']
+    goal_data = goal_data.permit! if goal_data.is_a?(ActionController::Parameters)
+    goal_data['user_id'] ||= @api_user.global_id
+    user = User.find_by_global_id(goal_data['user_id'])
+    return unless exists?(user, goal_data['user_id'])
     return unless allowed?(user, 'set_goals')
-    
+
     admin_org = Organization.admin
-    if params['goal']['template_header']
+    if goal_data['template_header']
       return unless allowed?(admin_org, 'edit')
     end
-    
-    goal = UserGoal.process_new(params['goal'], {:user => user, :author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
+
+    goal = UserGoal.process_new(goal_data, {:user => user, :author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
     if !goal || goal.errored?
       api_error(400, {error: "goal creation failed", errors: goal && goal.processing_errors})
     else
@@ -73,16 +75,15 @@ class Api::GoalsController < ApplicationController
     goal = UserGoal.find_by_global_id(params['id'])
     return unless exists?(goal, params['id'])
     return unless allowed?(goal, 'comment')
-    
+
+    goal_data = params['goal']
+    goal_data = goal_data.permit! if goal_data.is_a?(ActionController::Parameters)
     if !goal.allows?(@api_user, 'edit')
-      new_params = {
-        'comment' => params['goal']['comment']
-      }
-      params['goal'] = new_params
+      goal_data = {'comment' => goal_data['comment']}
     end
-    
+
     admin_org = Organization.admin
-    if goal.process(params['goal'], {:author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
+    if goal.process(goal_data, {:author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
       render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error 400, {error: 'update failed', errors: goal.processing_errors}

@@ -35,14 +35,18 @@ export default Component.extend({
 
   update_list: observer('app_state.referenced_user', function() {
     const _this = this;
+    const loadId = (_this.get('_inbox_load_seq') || 0) + 1;
+    _this.set('_inbox_load_seq', loadId);
     if (!_this.get('status.ready')) {
       _this.set('status', { loading: true });
     }
     persistence.fetch_inbox(app_state.get('referenced_user')).then(function(res) {
+      if (_this.get('_inbox_load_seq') !== loadId) { return; }
       _this.set('alerts', res.alert);
       _this.set('fetched_inbox', res);
       _this.set('status', { ready: true });
     }, function() {
+      if (_this.get('_inbox_load_seq') !== loadId) { return; }
       _this.set('status', { error: true });
     });
   }),

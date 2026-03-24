@@ -15,9 +15,22 @@
             <button type="button" class="md-btn {{if this.existing_user "md-btn--primary" "md-btn--ghost"}}" {{action "set_user_type" "existing"}}>{{t "Add an Existing User" key="add_existing_user"}}</button>
             <button type="button" class="md-btn {{if this.new_user "md-btn--primary" "md-btn--ghost"}}" {{action "set_user_type" "new"}}>{{t "Add a New User" key="add_new_user"}}</button>
             <button type="button" class="md-btn {{if this.start_code "md-btn--primary" "md-btn--ghost"}}" {{action "set_user_type" "start_code"}}>{{t "Add Start Code" key="add_start_code"}}</button>
+            <button type="button" class="md-btn {{if this.consent_request "md-btn--primary" "md-btn--ghost"}}" {{action "set_user_type" "consent_request"}}>{{t "Request via Email" key="request_via_email"}}</button>
           </div>
         </div>
-        {{#if this.existing_user}}
+        {{#if this.consent_request}}
+          {{#if this.consent_submitted}}
+            <div class="md-add-supervisor__field" role="status">
+              <p class="md-muted">{{t "If the email address is associated with an account, the account owner will receive a consent request. You will be notified when they respond." key="consent_request_sent_message"}}</p>
+            </div>
+          {{else}}
+            <p class="md-add-supervisor__hint md-muted"><em>{{t "Enter the email address of the person you want to add as a supervisor. They will receive a consent request and must approve before access is granted." key="consent_request_intro"}}</em></p>
+            <div class="md-add-supervisor__field">
+              <label for="owner_email" class="md-add-supervisor__label">{{t "Email" key="email"}}</label>
+              <Input @value={{this.owner_email}} class="md-add-supervisor__input" id="owner_email" placeholder={{t "Supervisor's email address" key="supervisor_email_placeholder"}} />
+            </div>
+          {{/if}}
+        {{else if this.existing_user}}
           <div class="md-add-supervisor__field">
             <label for="add_supervisee_key" class="md-add-supervisor__label">{{t "Supervisor" key="supervisor"}}</label>
             <Input @value={{this.supervisor_key}} class="md-add-supervisor__input" id="add_supervisee_key" placeholder="User name" />
@@ -48,42 +61,58 @@
           </div>
         {{/if}}
         {{#unless this.start_code}}
-          <div class="md-add-supervisor__field">
-            <label for="supervisor_type" class="md-add-supervisor__label">{{t "Access" key="access"}}</label>
-            {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(action "updateSupervisorPermission") }}
-          </div>
-          {{#if this.supervisor_sponsorships}}
-            <div class="md-add-supervisor__field md-add-supervisor__field--checkbox">
-              <label class="md-add-supervisor__checkbox-label">
-                <Input @checked={{this.premium_supporter}} @type="checkbox" />
-                <span>{{t "use one of my supervisor credits (%{n} left) to make this person a premium supporter" n=this.supervisor_sponsorships key="grant_premium_supporter"}}</span>
-              </label>
+          {{#unless this.consent_submitted}}
+            <div class="md-add-supervisor__field">
+              <label for="supervisor_type" class="md-add-supervisor__label">{{t "Access" key="access"}}</label>
+              {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(action "updateSupervisorPermission") }}
             </div>
-          {{/if}}
-        {{/unless}}
-        <div class="md-add-supervisor__actions">
-          <button type="submit" class="md-btn md-btn--primary" disabled={{this.linking}}>
-            {{#if this.linking.start_code}}
-              {{t "Handling Start Code..." key="handling_start_code"}}
-            {{else if this.linking}}
-              {{t "Adding Supervisor..." key="adding_supervisor"}}
-            {{else}}
-              {{#if this.error}}
-                {{t "Adding Supervisor Failed" key="adding_supervisor_failed"}}
-              {{else}}
-                {{#if this.start_code}}
-                  {{t "Add From Start Code" key="add_from_start_code"}}
-                {{else}}
-                  {{t "Add Supervisor" key="add_supervisor"}}
-                {{/if}}
-              {{/if}}
+            {{#if this.supervisor_sponsorships}}
+              {{#unless this.consent_request}}
+                <div class="md-add-supervisor__field md-add-supervisor__field--checkbox">
+                  <label class="md-add-supervisor__checkbox-label">
+                    <Input @checked={{this.premium_supporter}} @type="checkbox" />
+                    <span>{{t "use one of my supervisor credits (%{n} left) to make this person a premium supporter" n=this.supervisor_sponsorships key="grant_premium_supporter"}}</span>
+                  </label>
+                </div>
+              {{/unless}}
             {{/if}}
-          </button>
-          <button type="button" class="md-btn md-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-          {{#if this.error}}
-            <p class="md-add-supervisor__error">{{this.error}}</p>
-          {{/if}}
-        </div>
+          {{/unless}}
+        {{/unless}}
+        {{#unless this.consent_submitted}}
+          <div class="md-add-supervisor__actions">
+            {{#if this.consent_request}}
+              <button type="button" class="md-btn md-btn--primary" {{action "send_consent_request"}} disabled={{this.consent_submitting}}>
+                {{#if this.consent_submitting}}
+                  {{t "Sending Request..." key="sending_consent_request"}}
+                {{else}}
+                  {{t "Send Consent Request" key="send_consent_request"}}
+                {{/if}}
+              </button>
+            {{else}}
+              <button type="submit" class="md-btn md-btn--primary" disabled={{this.linking}}>
+                {{#if this.linking.start_code}}
+                  {{t "Handling Start Code..." key="handling_start_code"}}
+                {{else if this.linking}}
+                  {{t "Adding Supervisor..." key="adding_supervisor"}}
+                {{else}}
+                  {{#if this.error}}
+                    {{t "Adding Supervisor Failed" key="adding_supervisor_failed"}}
+                  {{else}}
+                    {{#if this.start_code}}
+                      {{t "Add From Start Code" key="add_from_start_code"}}
+                    {{else}}
+                      {{t "Add Supervisor" key="add_supervisor"}}
+                    {{/if}}
+                  {{/if}}
+                {{/if}}
+              </button>
+            {{/if}}
+            <button type="button" class="md-btn md-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+            {{#if this.error}}
+              <p class="md-add-supervisor__error">{{this.error}}</p>
+            {{/if}}
+          </div>
+        {{/unless}}
       </form>
     </div>
   </div>

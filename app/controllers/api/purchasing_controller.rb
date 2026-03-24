@@ -19,6 +19,7 @@ class Api::PurchasingController < ApplicationController
   def purchase_gift
     return api_error 400, {error: "invalid purchase token"} unless params['token'] && params['token']['id']
     token = params['token']
+    token = token.permit! if token.is_a?(ActionController::Parameters)
     user_id = @api_user && @api_user.global_id
     extras = params['extras'] == true || params['extras'] == 'true'
     donate = params['donate'] == true || params['donate'] == 'true'

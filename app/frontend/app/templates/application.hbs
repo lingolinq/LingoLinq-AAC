@@ -1163,6 +1163,7 @@
     {{/if}}
     {{style-switcher}}
     {{#if this.app_state.currentUser}}
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
@@ -1333,7 +1334,7 @@
     {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       {{#unless this.app_state.sidebar_relegated}}
         {{#unless this.app_state.eval_mode}}
-          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} role="button" tabindex="0">
+          <div id="sidebar_tease" class={{if this.app_state.skinny_sidebar "advanced_selection noselect skinny" "advanced_selection noselect"}} {{action "toggleSidebar"}} {{action "toggleSidebarTeaseKeydown" on="keyDown"}} role="button" tabindex="0">
             {{#if this.app_state.fenced_sidebar_board}}
               <span class='glyphicon glyphicon-map-marker' style='font-size: 20px; vertical-align: middle;'></span>
             {{/if}}

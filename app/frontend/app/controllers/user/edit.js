@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
@@ -10,6 +11,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  router: service('router'),
   registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
     {name: i18n.t('email_shares', "Email"), id: 'email'},
@@ -114,7 +116,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('pick-avatar', {user: this.get('model')}).then(function(res) {
         if(res && res.image_url) {
-          _this.set('model.avatar_url', res.image_url);
+          _this.get('model').set('avatar_url', res.image_url);
         }
       });
     },
@@ -185,7 +187,7 @@ export default Controller.extend({
         if(action == 'qr') {
           modal.open('modals/valet-mode', {user: user});
         } else {
-          _this.transitionToRoute('user', user.get('user_name'));
+          _this.get('router').transitionTo('user', user.get('user_name'));
         }
       }, function(err) {
         if(err.responseJSON && err.responseJSON.errors && err.responseJSON.errors[0] == "incorrect current password") {
@@ -198,7 +200,7 @@ export default Controller.extend({
     cancelSave: function() {
       var user = this.get('model');
       user.rollbackAttributes();
-      this.transitionToRoute('user', user.get('user_name'));
+      this.get('router').transitionTo('user', user.get('user_name'));
     },
     manage_connections: function() {
       this.set('managing_connections', !this.get('managing_connections'));

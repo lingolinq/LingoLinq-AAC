@@ -234,24 +234,25 @@ module PiiScrubber
 
     # Configure a blocklist of names that should always be redacted.
     # Typically loaded from the app's user records or environment config.
+    # Uses Thread.current storage for thread safety under Puma concurrency.
     #
     # @param names [Array<String>] list of names to add to the blocklist
     def configure_blocklist(names)
-      @blocklist = Array(names).map { |n| n.to_s.strip }.reject(&:empty?).uniq
-      @blocklist_pattern = nil # reset cached pattern
+      Thread.current[:pii_scrubber_blocklist] = Array(names).map { |n| n.to_s.strip }.reject(&:empty?).uniq
+      Thread.current[:pii_scrubber_blocklist_pattern] = nil
     end
 
     # Returns the current blocklist
     #
     # @return [Array<String>]
     def blocklist
-      @blocklist || []
+      Thread.current[:pii_scrubber_blocklist] || []
     end
 
     # Reset the blocklist (useful in tests)
     def reset_blocklist!
-      @blocklist = []
-      @blocklist_pattern = nil
+      Thread.current[:pii_scrubber_blocklist] = []
+      Thread.current[:pii_scrubber_blocklist_pattern] = nil
     end
 
     private

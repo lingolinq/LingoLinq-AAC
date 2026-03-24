@@ -21,8 +21,10 @@ module JsonApi::User
     json['id'] = user.global_id
     json['user_name'] = user.user_name
 
-    json['avatar_url'] = user.generated_avatar_url('fallback')
-    json['fallback_avatar_url'] = json['avatar_url']
+    # Primary avatar must reflect settings['avatar_url'] when set; passing 'fallback'
+    # to generated_avatar_url forces the default slot/gravatar path and would hide custom pics.
+    json['avatar_url'] = user.generated_avatar_url
+    json['fallback_avatar_url'] = user.generated_avatar_url('fallback')
     json['link'] = "#{JsonApi::Json.current_host}/#{user.user_name}"
     
     

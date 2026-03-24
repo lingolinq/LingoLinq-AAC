@@ -65,6 +65,7 @@
         <p>{{t "None found" key="none_found"}}</p>
       {{/unless}}
     {{/if}}
+    {{pending-consent-requests user=this.model}}
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
         <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
@@ -80,6 +81,9 @@
       {{#if this.add_supervisee_hit}}
         <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>
       {{/if}}
+    {{/if}}
+    {{#if this.model.supporter_role}}
+      <button type='button' class='btn btn-default' style='margin-top: 5px;' {{action "request_access"}}>{{t "Request Access to a Communicator" key="request_access_communicator"}}</button>
     {{/if}}
     {{#if this.aliasable_orgs}}
       {{#if this.model.permissions.link_auth}}

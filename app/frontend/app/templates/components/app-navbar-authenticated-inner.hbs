@@ -35,6 +35,7 @@
     {{/if}}
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
@@ -128,6 +129,7 @@
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
+    <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     {{/unless}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>
     {{#if this.application.showThemePicker}}

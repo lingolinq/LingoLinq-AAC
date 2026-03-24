@@ -1,0 +1,8 @@
+Hello <%= @supervisor.settings['name'] || @supervisor.display_user_name %>,<br/><br/>
+
+<b><%= @communicator.settings['name'] || @communicator.display_user_name %></b> has declined your supervisor access request for their <%= app_name %> account.<br/><br/>
+
+If you believe this was a mistake, you may reach out to them directly to discuss. You can also submit a new request if appropriate.<br/><br/>
+
+Thanks!<br/>
+<%= email_signature %>
