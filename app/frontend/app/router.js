@@ -106,6 +106,7 @@ Router.map(function() {
   this.route('gift_purchase', { path: '/gift' });
   this.route('bulk_purchase', { path: '/purchase/:id'});
   this.route('support', { path: '/support' });
+  this.route('faq', { path: '/faq' });
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});

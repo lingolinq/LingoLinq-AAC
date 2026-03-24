@@ -1813,6 +1813,7 @@ export default Controller.extend({
       (route === 'search' && cu) ||
       (route === 'offline_boards' && cu) ||
       route === 'support' ||
+      route === 'faq' ||
       route === 'contact' ||
       route === 'troubleshooting') {
       return true;

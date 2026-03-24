@@ -33,6 +33,10 @@ $la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
 #within_ember:has(header:not(.header--unauthenticated)) {
   --topbar-height: 16px;
 }
+/* App-navbar-only header (no speak row, no legacy #nav_header): bar is 70px; 16px left #content tucked under the fixed header (e.g. /offline-boards on narrow screens). */
+#within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):has(#inner_header .app-navbar):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header))) {
+  --topbar-height: 70px;
+}
 /* Board page: navbar + board bar (speak or nav_header) need a taller header so both rows fit */
 #within_ember:has(header.header-index-with-dark-toggle #speak),
 #within_ember:has(header.header-index-with-dark-toggle #nav_header) {
@@ -24126,6 +24130,14 @@ $la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
   letter-spacing: 0.02em;
 }
 
+.la-mobile-drawer__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $aac-spacing-10;
+  padding: 10px 16px 4px;
+}
+
 /* ── LingoLinq company sidebar (About, Pricing, Developers, etc.) ── */
 .ll-company-sidebar {
   position: fixed;
@@ -25962,12 +25974,15 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   font-weight: normal;
   margin-bottom: 24px;
 }
-#about-what-we-offer .la-section-header .la-section-title {
+#about-what-we-offer .la-section-header .la-section-title,
+#faq-items .la-section-header .la-section-title,
+#faq-questions .la-section-header .la-section-title {
   margin-bottom: 48px;
 }
 
 /* About page hero: same styling as landing-alt "Built for how schools" (#la-features) */
-#about-hero {
+#about-hero,
+#faq-hero {
   margin-top: calc(#{$aac-spacing-48} * 1.2);
   padding-top: $aac-spacing-32;
   background-color: transparent;
@@ -26320,7 +26335,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 }
 
 /* About "Built around" section: same 1px divider as top of page */
-.la-wrapper.la-wrapper--about #about-what-we-offer .la-section-header .la-about-hero-separator {
+.la-wrapper.la-wrapper--about #about-what-we-offer .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-items .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-questions .la-section-header .la-about-hero-separator {
   height: 1px;
   max-width: 100%;
   border: none;
@@ -26328,7 +26345,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   background: rgba(0, 0, 0, 0.12);
 }
 
-.la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle {
+.la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle,
+.la-wrapper.la-wrapper--about #faq-hero .la-pricing-hero-subtitle {
   max-width: 748px;
   margin-left: auto;
   margin-right: auto;
@@ -26418,7 +26436,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 #support-hero .la-about-hero-brand,
 #support-hero .la-about-hero-brand--italic,
 #terms-hero .la-about-hero-brand,
-#terms-hero .la-about-hero-brand--italic {
+#terms-hero .la-about-hero-brand--italic,
+#faq-hero .la-about-hero-brand,
+#faq-hero .la-about-hero-brand--italic {
   color: #1b2a4a;
 }
 
@@ -26693,6 +26713,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 // ── Feature grid & cards (landing-alt + about "What We Offer" + features page + features modal) ─
 #la-features,
 #about-what-we-offer,
+#faq-items,
+#faq-questions,
 #features-hero,
 .la-features-modal-body {
 .la-feature-grid {
@@ -26804,12 +26826,208 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   .la-feature-card:nth-child(6):hover {
     transform: translateY(21px);
   }
+
+  .la-feature-card--faq {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: min(64rem, 100%);
+    margin-left: auto;
+    margin-right: auto;
+    text-align: left;
+  }
+
+  .la-feature-card--faq .la-feature-icon {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .la-feature-card--faq h3 {
+    text-align: left;
+  }
+
+  .la-faq-card__text {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.75;
+    color: rgba(27, 42, 74, 0.88);
+    text-align: left;
+  }
+
+  .la-feature-card--faq .la-faq-card__text + .la-faq-card__text {
+    margin-top: 1rem;
+  }
+
+  .la-faq-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.35rem;
+    text-align: left;
+    line-height: 1.75;
+    font-size: 17px;
+    color: rgba(27, 42, 74, 0.88);
+  }
+
+  .la-faq-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .la-faq-list li:last-child {
+    margin-bottom: 0;
+  }
+
+  .la-faq-article__title {
+    margin: 0 0 0.25rem;
+  }
+
+  .la-faq-article-body {
+    margin-top: 0.75rem;
+  }
+
+  .la-faq-read-toggle {
+    margin: 0;
+    padding: 0.5rem 0;
+    min-height: 44px;
+    align-self: flex-start;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: $aac-font-weight-bold;
+    color: #147f82;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      color: #0e6669;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #2a9d8f;
+      outline-offset: 2px;
+    }
+  }
+
+  .la-faq-read-toggle--after {
+    margin-top: 1rem;
+  }
+
+  .la-faq-subhead {
+    margin: 1.75rem 0 0.65rem;
+    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    font-size: 1.2rem;
+    font-weight: $aac-font-weight-bold;
+    color: #1b2a4a;
+    line-height: 1.35;
+    text-align: left;
+  }
+
+  .la-faq-article-body .la-faq-subhead:first-of-type {
+    margin-top: 0.25rem;
+  }
+
+  .la-faq-type-block__title {
+    margin: 1.25rem 0 0.5rem;
+    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    font-size: 1.08rem;
+    font-weight: $aac-font-weight-bold;
+    color: #147f82;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .la-faq-type-block {
+    margin-top: 1rem;
+    padding: $aac-spacing-20 $aac-spacing-24;
+    background: rgba(63, 127, 123, 0.06);
+    border: 1px solid rgba(63, 127, 123, 0.14);
+    border-radius: $aac-radius-lg;
+    text-align: left;
+  }
+
+  .la-faq-type-block--follow {
+    margin-top: $aac-spacing-20;
+  }
+
+  .la-faq-type-block .la-faq-type-block__title:first-child {
+    margin-top: 0;
+  }
+
+  .la-faq-inline-label {
+    margin: 1rem 0 0.35rem;
+    font-size: 16px;
+    font-weight: $aac-font-weight-bold;
+    color: rgba(27, 42, 74, 0.92);
+    text-align: left;
+  }
+
+  .la-faq-type-block .la-faq-inline-label:first-of-type {
+    margin-top: 0.5rem;
+  }
+
+  .la-faq-lead {
+    font-weight: $aac-font-weight-bold;
+    color: rgba(27, 42, 74, 0.95);
+  }
+
+  .la-faq-list--tight {
+    margin-top: 0.35rem;
+  }
+
+  .la-faq-list--tight li {
+    margin-bottom: 0.35rem;
+  }
+
+  .la-faq-callout {
+    margin: 1.25rem 0;
+    padding: $aac-spacing-20 $aac-spacing-24;
+    background: linear-gradient(135deg, rgba(58, 107, 199, 0.08), rgba(20, 127, 130, 0.08));
+    border-left: 4px solid #3a6bc7;
+    border-radius: 0 $aac-radius-md $aac-radius-md 0;
+    text-align: left;
+  }
+
+  .la-faq-callout__title {
+    margin: 0 0 0.5rem;
+    font-size: 17px;
+    font-weight: $aac-font-weight-bold;
+    color: #1b2a4a;
+  }
+
+  .la-faq-callout__text {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.75;
+    color: rgba(27, 42, 74, 0.9);
+  }
+}
+
+#faq-items .la-feature-grid,
+#faq-questions .la-feature-grid {
+  gap: $aac-spacing-28;
+}
+
+/* FAQ articles: use more horizontal space on large screens (cards were capped at ~52rem) */
+@media (min-width: 1100px) {
+  #faq-items .la-feature-card--faq,
+  #faq-questions .la-feature-card--faq {
+    max-width: min(76rem, 100%);
+  }
+}
+
+@media (min-width: 1400px) {
+  #faq-items .la-feature-card--faq,
+  #faq-questions .la-feature-card--faq {
+    max-width: min(88rem, 100%);
+  }
 }
 
 /* Tablet: 2 columns, no stagger */
 @media (max-width: 1024px) {
   #la-features,
   #about-what-we-offer,
+  #faq-items,
+  #faq-questions,
   .la-features-modal-body {
     .la-feature-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -26834,6 +27052,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 @media (max-width: 768px) {
   #la-features,
   #about-what-we-offer,
+  #faq-items,
+  #faq-questions,
   .la-features-modal-body {
     .la-feature-grid {
       grid-template-columns: 1fr;
@@ -26858,6 +27078,8 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 @media (prefers-reduced-motion: reduce) {
   #la-features,
   #about-what-we-offer,
+  #faq-items,
+  #faq-questions,
   .la-features-modal-body {
     .la-feature-card,
 .la-feature-icon {
@@ -27919,20 +28141,99 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 .la-footer-bottom {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: $aac-spacing-16;
+  gap: $aac-spacing-12;
   padding-top: $aac-spacing-28;
   border-top: 1px solid rgba($la-navy, 0.08);
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
+}
 
-  span {
-    font-size: $aac-font-size-xs;
-    color: rgba($la-navy, 0.75);
-    letter-spacing: 0.02em;
+.la-footer-bottom__copy {
+  font-size: $aac-font-size-xs;
+  color: rgba($la-navy, 0.75);
+  letter-spacing: 0.02em;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.la-footer-bottom-trailing {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: $aac-spacing-10;
+  flex: 0 0 auto;
+}
+
+/* Hero-aligned pill: same radius, surface, and shadow as .la-hero-badge (Cloud-based, etc.) */
+a.la-footer-bottom-a11y-wcag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 12px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
+
+    .la-footer-bottom-a11y-wcag__label {
+      color: #147f82;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid #2a9d8f;
+    outline-offset: 2px;
+    border-radius: 12px;
+  }
+
+  .la-badge--in-a11y-wcag-pill {
+    opacity: 1;
+    text-transform: none;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+    font-weight: $aac-font-weight-semi;
+    padding: 4px 8px;
+    margin: 0;
+    border-radius: 8px;
+    background: rgba(20, 127, 130, 0.12);
+    color: #0d5c5f;
+    border: 1px solid rgba(20, 127, 130, 0.2);
+    box-shadow: none;
+  }
+
+  .la-footer-bottom-a11y-wcag__label {
+    font-size: $aac-font-size-sm;
+    font-weight: $aac-font-weight-semi;
+    color: rgba($la-navy, 0.88);
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    text-align: left;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+  }
+}
+
+.la-mobile-drawer-a11y-wcag {
+  margin: 6px 16px 10px;
+  align-self: flex-start;
+
+  .la-footer-bottom-a11y-wcag__label {
+    text-align: left;
   }
 }
 
@@ -27981,10 +28282,6 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   .la-footer-bottom {
     padding-top: $aac-spacing-16;
     gap: $aac-spacing-12;
-  }
-.la-footer-bottom-badges {
-    flex-wrap: wrap;
-  gap: $aac-spacing-8;
   }
 }
 
@@ -31571,8 +31868,11 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   }
 
   .la-footer-bottom {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $aac-spacing-10;
   }
 
   // Plan: single column grid
