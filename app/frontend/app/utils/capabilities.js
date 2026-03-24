@@ -1543,7 +1543,7 @@ var capabilities;
                 writer.onerror = function(err) {
                   promise.reject(err);
                 };
-                if(capabilities.system == 'Android' && capabilities.system.installed_app) {
+                if(capabilities.system == 'Android' && capabilities.installed_app) {
                   var reader = new FileReader();
                   reader.onload = function() {
                     writer.write(this.result);

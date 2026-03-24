@@ -1,5 +1,5 @@
-# Rails 7: Permit all parameters by default for API compatibility
-# This allows the existing API code to work without requiring explicit parameter permitting
-Rails.application.config.action_controller.permit_all_parameters = true
+# SECURITY: permit_all_parameters was inherited from CoughDrop and globally disabled
+# strong parameters. Individual controllers now define their own strong params methods.
+# Rails.application.config.action_controller.permit_all_parameters = true
 
 

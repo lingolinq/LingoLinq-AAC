@@ -216,7 +216,7 @@ import app_state from './app_state';
           options.url = capabilities.api_host + options.url;
         }
         options.headers = options.headers || {};
-        options.headers['X-INSTALLED-COUGHDROP'] = (!!capabilities.installed_app).toString();
+        options.headers['X-INSTALLED-LINGOLINQ'] = (!!capabilities.installed_app).toString();
         
         // Resolve token: capabilities first, then session, then stashes (avoids race after login)
         var token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ? capabilities.access_token : null;

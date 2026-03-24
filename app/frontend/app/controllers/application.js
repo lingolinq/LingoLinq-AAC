@@ -453,6 +453,16 @@ export default Controller.extend({
     toggleSidebar: function() {
       this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
     },
+    toggleSidebarTeaseKeydown: function(event) {
+      var key = event && event.key;
+      var code = event && event.keyCode;
+      if (key === 'Enter' || key === ' ' || code === 13 || code === 32) {
+        if (event.preventDefault) {
+          event.preventDefault();
+        }
+        this.send('toggleSidebar');
+      }
+    },
     hide_temporary_sidebar: function() {
       if(this.stashes.get('sidebarEnabled') && !this.appState.get('currentUser.preferences.quick_sidebar')) {
         this.send('toggleSidebar');
@@ -877,9 +887,11 @@ export default Controller.extend({
     },
     find_button: function() {
       var include_other_boards = this.appState.get('speak_mode') && ((this.stashes.get('root_board_state') || {}).key) == this.appState.get('currentUser.preferences.home_board.key');
+      var boardCtrl = this.get('board');
+      var boardModel = boardCtrl && boardCtrl.get('model');
       modal.open('find-button', {
         inactivity_timeout: this.appState.get('speak_mode'),
-        board: this.get('board').get('model'),
+        board: boardModel,
         include_other_boards: include_other_boards
       });
     },

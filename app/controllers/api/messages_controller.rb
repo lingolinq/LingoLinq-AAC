@@ -18,7 +18,9 @@ class Api::MessagesController < ApplicationController
       return render json: {received: true}.to_json
     end
 
-    m = params['message'] && ContactMessage.process_new(params['message'], {
+    msg_data = params['message']
+    msg_data = msg_data.permit! if msg_data.is_a?(ActionController::Parameters)
+    m = msg_data && ContactMessage.process_new(msg_data, {
       'ip_address' => request.remote_ip,
       'user_agent' => request.headers['User-Agent'],
       'version' => request.headers['X-LingoLinq-Version'],

@@ -94,11 +94,14 @@ var editManager = EmberObject.extend({
       if(opts.button_id && this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.long_press_edit_disabled')) {
         if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
           modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
-        } else if(this.appState.get('currentUser.preferences.long_press_edit')) {
-          app.toggleMode('edit');
+          return true;
         }
-        return true;
-      } else if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
+        if(this.appState.get('currentUser.preferences.long_press_edit')) {
+          app.toggleMode('edit');
+          return true;
+        }
+      }
+      if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
         if(opts.button_id) {
           // INFLECTIONS OVERLAY: Long-press in Speak Mode shows inflection options.
           // grid_for() builds the 3x3 grid (nw,n,ne, w,c,e, sw,s,se) from button inflections.

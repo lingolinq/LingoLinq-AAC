@@ -16,6 +16,8 @@ class User < ActiveRecord::Base
   has_many :boards
   has_many :devices
   has_many :user_integrations
+  has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
+  has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
   has_one :user_extra
   before_save :generate_defaults
   after_save :track_boards
@@ -561,8 +563,13 @@ class User < ActiveRecord::Base
       fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
     end
 
-    # In development mode, always use local fallback unless explicitly overridden
+    # In development, use local /avatars/ paths for the default image, but still expose a
+    # custom settings['avatar_url'] (https or same-origin path) so profile edits persist in JSON.
     if Rails.env.development? && !override_url
+      url = self.settings && self.settings['avatar_url']
+      if url.present? && url != 'default'
+        return url if url.match(/^https?:\/\//o) || url.match(/^\//o)
+      end
       return fallback
     end
 
@@ -1241,6 +1248,57 @@ class User < ActiveRecord::Base
       end
     else
       nil
+    end
+  end
+
+  # Org data policy floor enforcement.
+  # Returns the org's effective data policy, or empty hash if no org.
+  # Memoized per instance to avoid repeated DB lookups during a single
+  # request (LogSession save calls this multiple times).
+  def effective_data_policy
+    @effective_data_policy ||= begin
+      org = self.managing_organization
+      org ? org.effective_data_policy : {}
+    end
+  end
+
+  def clear_effective_data_policy_cache
+    @effective_data_policy = nil
+  end
+
+  def effective_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['logging'])
+  end
+
+  def effective_geo_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['geo_logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['geo_logging'])
+  end
+
+  def effective_log_reports_allowed?
+    policy = effective_data_policy
+    return false if policy['log_reports_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_reports'])
+  end
+
+  def effective_log_publishing_allowed?
+    policy = effective_data_policy
+    return false if policy['log_publishing_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_publishing'])
+  end
+
+  def effective_logging_cutoff_for(user, code)
+    base_cutoff = logging_cutoff_for(user, code)
+    policy = effective_data_policy
+    max_hours = policy['max_logging_cutoff_hours']
+    return base_cutoff unless max_hours
+    if base_cutoff.nil?
+      max_hours
+    else
+      [base_cutoff, max_hours].min
     end
   end
 

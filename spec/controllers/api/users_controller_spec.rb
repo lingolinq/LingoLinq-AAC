@@ -715,6 +715,116 @@ describe Api::UsersController, :type => :controller do
     end
     
     it "should throttle or captcha or something to prevent abuse"
+
+    describe "device classification on registration" do
+      def device_for_create_response
+        json = JSON.parse(response.body)
+        u = User.find_by_path(json['user']['id'])
+        Device.find_by!(:user_id => u.id, :device_key => 'default', :developer_key_id => 0)
+      end
+
+      it "sets app when X-INSTALLED-LINGOLINQ is true" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_app'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "sets browser when X-INSTALLED-LINGOLINQ is false" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_browser'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "sets app when installed_app param is true and header is absent" do
+        post :create, params: {:user => {'name' => 'reg_param_app'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "treats header false as authoritative when it conflicts with installed_app param" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_wins'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "matches session-style resolution when header is true (param ignored)" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_over_param'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "sets browser when installed_app param is false and header is absent" do
+        post :create, params: {:user => {'name' => 'reg_param_browser'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "ignores non-canonical header and uses installed_app param for app" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'yes'
+        post :create, params: {:user => {'name' => 'reg_garbage_app'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "ignores non-canonical header and uses installed_app param for browser" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = '1'
+        post :create, params: {:user => {'name' => 'reg_garbage_browser'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "clears stale app flag on browser registration" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        allow(Device).to receive(:find_or_create_by).and_wrap_original do |method, *args, **kwargs, &block|
+          d = method.call(*args, **kwargs, &block)
+          d.settings ||= {}
+          d.settings['app'] = true
+          d.save! if d.persisted?
+          d
+        end
+        post :create, params: {:user => {'name' => 'stale_app_cleared_reg'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(nil)
+        expect(d.settings['browser']).to eq(true)
+      end
+
+      it "clears stale browser flag on app registration" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        allow(Device).to receive(:find_or_create_by).and_wrap_original do |method, *args, **kwargs, &block|
+          d = method.call(*args, **kwargs, &block)
+          d.settings ||= {}
+          d.settings['browser'] = true
+          d.save! if d.persisted?
+          d
+        end
+        post :create, params: {:user => {'name' => 'stale_browser_cleared_reg'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(nil)
+        expect(d.settings['app']).to eq(true)
+      end
+    end
   end
   
   describe "replace_board" do
@@ -2235,7 +2345,8 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['log']).to_not eq(nil)
       expect(json['log']['daily_use']).to eq([])
-      expect(json['log']['id']).to include('daily_use-empty-')
+      expect(json['log']['empty_daily_use_log']).to eq(true)
+      expect(json['log'].key?('id')).to eq(false)
       # No LogSession should be created
       expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end

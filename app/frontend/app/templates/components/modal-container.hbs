@@ -132,6 +132,8 @@
     {{sidebar-button-settings}}
   {{else if (is-equal this.currentTemplate "premium-voices")}}
     {{premium-voices}}
+  {{else if (is-equal this.currentTemplate "pick-avatar")}}
+    {{pick-avatar}}
   {{else if (is-equal this.currentTemplate "modify-core-words")}}
     {{modify-core-words}}
   {{else if (is-equal this.currentTemplate "button-set")}}
@@ -210,6 +212,8 @@
     {{manual-log}}
   {{else if (is-equal this.currentTemplate "modals/importing-logs")}}
     {{importing-logs}}
+  {{else if (is-equal this.currentTemplate "request-supervision")}}
+    {{request-supervision}}
   {{else if (is-equal this.currentTemplate "modals/request-supervisee")}}
     {{request-supervisee}}
   {{else if (is-equal this.currentTemplate "modals/user-status")}}

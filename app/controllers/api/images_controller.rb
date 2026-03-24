@@ -3,10 +3,12 @@ class Api::ImagesController < ApplicationController
   before_action :require_api_token, :except => [:upload_success]
   
   def create
-    if !params['image'] || !params['image']['content_type']
+    image_data = params['image']
+    image_data = image_data.permit! if image_data.is_a?(ActionController::Parameters)
+    if !image_data || !image_data['content_type']
       return api_error(400, {error: 'content type required for image creationg'})
     end
-    image = ButtonImage.process_new(params['image'], {:user => @api_user, :remote_upload_possible => true})
+    image = ButtonImage.process_new(image_data, {:user => @api_user, :remote_upload_possible => true})
     if !image || image.errored?
       api_error(400, {error: "image creation failed", errors: image && image.processing_errors})
     elsif !image.settings['content_type']
@@ -40,7 +42,9 @@ class Api::ImagesController < ApplicationController
     image = ButtonImage.find_by_path(params['id'])
     return unless exists?(image)
     return unless allowed?(image, 'view')
-    if image.process(params['image'], {:user => @api_user})
+    image_update = params['image']
+    image_update = image_update.permit! if image_update.is_a?(ActionController::Parameters)
+    if image.process(image_update, {:user => @api_user})
       render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "image update failed", errors: image.processing_errors})

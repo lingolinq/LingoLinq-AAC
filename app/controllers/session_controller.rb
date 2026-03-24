@@ -336,7 +336,8 @@ class SessionController < ApplicationController
     end
     return_params['oauth_code'] = params['oauth_code'] if params['oauth_code']
     return_params['device_id'] = params['device_id'] || 'unnamed device'
-    return_params['app'] = true if params['app']
+    # Always boolean in Redis; cast so app=false is not truthy (Ruby strings are truthy).
+    return_params['app'] = ActiveModel::Type::Boolean.new.cast(params['app'] || false)
     return_params['embed'] = true if params['embed']
     return_params['popout_id'] = params['popout_id'] if params['popout_id']
 
@@ -413,6 +414,7 @@ class SessionController < ApplicationController
     if response.is_valid? && authenticated_user
       RedisInit.default.del("saml_#{code}")
       device = Device.find_or_create_by(:user_id => authenticated_user.id, :developer_key_id => 0, :device_key => config['device_id'] || 'unnamed device')
+      native_app_device = ActiveModel::Type::Boolean.new.cast(config['app'])
       if config['oauth_code']
         # Redirect back to authorization for oauth flow
         RedisInit.default.del("saml_#{config['oauth_code']}")
@@ -426,7 +428,7 @@ class SessionController < ApplicationController
       elsif config['embed']
         # For embed flow, show success and post it to the parent window
         device.settings['used_for_saml'] = true
-        assert_session_device(device, authenticated_user, config['app'])
+        assert_session_device(device, authenticated_user, native_app_device, force_device_classification: true)
         @saml_data = data
         @authenticated_user = authenticated_user
         render
@@ -435,7 +437,7 @@ class SessionController < ApplicationController
         # show a success message and direct the user to return to the app
         device.settings['used_for_saml'] = true
         Permissions.setex(RedisInit.default, "token_popout_#{config['popout_id']}", 30.minutes.to_i, {user_id: authenticated_user.global_id, device_id: device.global_id}.to_json, true)
-        assert_session_device(device, authenticated_user, config['app'])
+        assert_session_device(device, authenticated_user, native_app_device, force_device_classification: true)
         @saml_data = data
         @authenticated_user = authenticated_user
         @no_parent = true
@@ -447,7 +449,7 @@ class SessionController < ApplicationController
         device.settings['used_for_saml'] = true
         # For standard flow, redirect to login page with temporary auth token
         nonce = GoSecure.nonce('saml_tmp_token')
-        assert_session_device(device, authenticated_user, config['app'])
+        assert_session_device(device, authenticated_user, native_app_device, force_device_classification: true)
         access, refresh = device.tokens
         @temp_token = nonce
         Permissions.setex(RedisInit.default, "token_tmp_#{nonce}", 15.minutes.to_i, access, true)
@@ -518,11 +520,12 @@ class SessionController < ApplicationController
       if u && u.valid_password?(params['password'])
         # generated based on request headers
         device_key = request.headers['X-Device-Id'] || params['device_id'] || 'default'
-        
-        installed_app = request.headers['X-INSTALLED-COUGHDROP'] == 'true' || params['installed_app'] == 'true'
+
+        log_installed_client_signal('session/token')
+        native_app_device = installed_app?
         d = Device.find_or_create_by(:user_id => u.id, :developer_key_id => 0, :device_key => device_key)
         d.save! if d.new_record?
-        assert_session_device(d, u, installed_app)
+        assert_session_device(d, u, native_app_device)
 
         u.password_used!
         token_json = JsonApi::Token.as_json(u, d)
@@ -736,7 +739,11 @@ class SessionController < ApplicationController
   end
 
   protected
-  def assert_session_device(d, u, installed_app)
+  # native_app_device: true when this auth flow is a native/installed client — from password token
+  # (installed_app?) or SAML (normalized config['app']). When true, request browser signals must not downgrade
+  # the device to :browser (SAML ACS posts often lack the install header).
+  # +force_device_classification+ — SAML: drop stale app/browser before re-applying from flow + request.
+  def assert_session_device(d, u, native_app_device, force_device_classification: false)
     d.settings ||= {}
     store_user_data = !u.cookies_opted_out?
     d.settings['ip_address'] = store_user_data ? request.remote_ip : nil
@@ -744,9 +751,9 @@ class SessionController < ApplicationController
     d.settings['system'] ||= params['system']
     d.settings['system_version'] ||= params['system_version']
     d.settings['mobile'] = params['mobile'] == 'true' if params['mobile'] != nil
-    d.settings['browser'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'false'
+    apply_device_classification!(d, native_app_device, force: force_device_classification)
     long_token = params['long_token'] && params['long_token'] != 'false'
-    if installed_app
+    if native_app_device
       long_token = true
       app_devices = Device.where(user_id: u.id, developer_key_id: 0).select{|d| d.token_type == :app && !d.settings['temporary_device'] }
       if app_devices.length > 0 && u.eval_account?
@@ -763,7 +770,6 @@ class SessionController < ApplicationController
     d.settings.delete('auth_device')
     d.settings['valet'] = !!u.valet_mode?
     d.settings['valet_long_term'] = !!(u.valet_mode? && u.settings['valet_long_term'])
-    d.settings['app'] = true if installed_app
     if u.valet_mode? && !u.settings['valet_long_term']
       long_token = false
     end

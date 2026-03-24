@@ -105,6 +105,7 @@ LingoLinq.User = DS.Model.extend({
   contacts: DS.attr('raw'),
   goal: DS.attr('raw'),
   pending_board_shares: DS.attr('raw'),
+  pending_supervisor_requests: DS.attr('raw'),
   edit_permission: DS.attr('boolean'),
   cell_phone: DS.attr('string'),
   next_notification_delay: DS.attr('string'),

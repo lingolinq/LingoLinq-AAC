@@ -144,7 +144,7 @@ describe ExternalTracker do
     end
     
     it "should check for geo location based on ip address" do
-      ENV['IPSTACK_KEY'] = 'testkey'
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'eval'
@@ -157,9 +157,9 @@ describe ExternalTracker do
       geo = {
         'country_code' => 'US',
         'city' => 'Sandy',
-        'region_name' => 'Utah'
+        'subdivision' => 'Utah'
       }
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: geo.to_json))
+      expect(Typhoeus).to receive(:get).with("https://iplocate.io/api/lookup/1.2.3.4?apikey=#{ENV['IPLOCATE_API_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: geo.to_json))
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
@@ -176,9 +176,9 @@ describe ExternalTracker do
       res = ExternalTracker.persist_new_user(u.global_id)
       expect(res).to eq('201')
     end
-    
+
     it "should push to external systems" do
-      ENV['IPSTACK_KEY'] = 'testkey'
+      ENV['IPLOCATE_API_KEY'] = 'testkey'
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'therapist'
@@ -191,9 +191,9 @@ describe ExternalTracker do
       geo = {
         'country_code' => 'US',
         'city' => 'Sandy',
-        'region_name' => 'Utah'
+        'subdivision' => 'Utah'
       }
-      expect(Typhoeus).to receive(:get).with("http://api.ipstack.com/1.2.3.4?access_key=#{ENV['IPSTACK_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: geo.to_json))
+      expect(Typhoeus).to receive(:get).with("https://iplocate.io/api/lookup/1.2.3.4?apikey=#{ENV['IPLOCATE_API_KEY']}", {timeout: 5}).and_return(OpenStruct.new(body: geo.to_json))
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },

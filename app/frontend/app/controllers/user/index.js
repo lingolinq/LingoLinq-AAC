@@ -49,12 +49,16 @@ export default Controller.extend({
       _this.set('daily_use', {loading: true});
       _this.persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
         if(data && data.log) {
-          var log = LingoLinq.store.push({ data: {
-            id: data.log.id,
-            type: 'log',
-            attributes: data.log
-          }});
-          _this.set('daily_use', log);
+          if(data.log.empty_daily_use_log) {
+            _this.set('daily_use', {user_name: user_name, daily_use_history: null});
+          } else {
+            var log = LingoLinq.store.push({ data: {
+              id: data.log.id,
+              type: 'log',
+              attributes: data.log
+            }});
+            _this.set('daily_use', log);
+          }
         } else {
           _this.set('daily_use', null);
         }

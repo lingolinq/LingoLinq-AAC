@@ -73,6 +73,7 @@ Router.map(function() {
   this.route('inflections', { path: '/inflections/:ref/:locale' });
   this.route('old_search', { path: '/search/:q' });
   this.route('utterance-reply', { path: '/u/:reply_code'})
+  this.route('consent-response', { path: '/consent/:token' });
   this.route('login', function() {
     this.route('device');
   });
