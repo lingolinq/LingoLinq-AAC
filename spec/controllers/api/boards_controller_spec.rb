@@ -18,25 +18,25 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'][0]['id']).to eq(b.global_id)
     end
 
-    # it "should not 500 on custom_order sort when a starred board has nil settings" do
-    #   token_user
-    #   u = @user
-    #   u.settings['public'] = true
-    #   u.save
-    #   b = Board.create(user: u, public: true)
-    #   b.update_column(:settings, nil)
-    #   u.reload
-    #   u.settings['starred_board_ids'] = [b.global_id]
-    #   u.save
-    #   get :index, params: {
-    #     user_id: u.global_id,
-    #     public: 'true',
-    #     starred: 'true',
-    #     sort: 'custom_order',
-    #     category: 'robust'
-    #   }
-    #   expect(response).to be_successful
-    # end
+    it "should not 500 on custom_order sort when a starred board has nil settings" do
+      token_user
+      u = @user
+      u.settings['public'] = true
+      u.save
+      b = Board.create(user: u, public: true)
+      b.update_column(:settings, nil)
+      u.reload
+      u.settings['starred_board_ids'] = [b.global_id]
+      u.save
+      get :index, params: {
+        user_id: u.global_id,
+        public: 'true',
+        starred: 'true',
+        sort: 'custom_order',
+        category: 'robust'
+      }
+      expect(response).to be_successful
+    end
 
     it "should return root shallow clones for a user" do
       token_user
