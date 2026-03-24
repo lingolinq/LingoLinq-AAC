@@ -167,7 +167,7 @@
         <h2 class="ll-company-sidebar__title"><span class="nav-header__app-name-primary">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-accent">{{t "Linq" key="app_name_linq"}}</span></h2>
         <nav class="ll-company-sidebar__nav" aria-label={{t "More Resources" key="more_resources"}}>
           <LinkTo @route="about" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "About" key="about"}}</LinkTo>
-          <LinkTo @route="pricing" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Pricing" key="pricing"}}</LinkTo>
+          {{!-- <LinkTo @route="pricing" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Pricing" key="pricing"}}</LinkTo> --}}
           <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Developers" key="developers"}}</a>
           <LinkTo @route="privacy" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Privacy" key="privacy"}}</LinkTo>
           <LinkTo @route="terms" class="ll-company-sidebar__link" {{action "closeCompanySidebar"}}>{{t "Terms" key="terms"}}</LinkTo>

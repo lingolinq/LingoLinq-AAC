@@ -435,7 +435,7 @@
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
+                {{!-- <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span> --}}
               {{/if}}
             {{/if}}
           {{/unless}}

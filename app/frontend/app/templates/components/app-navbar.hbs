@@ -20,7 +20,7 @@
           </span>
           <div class="la-topbar-nav header-unauth-nav" role="menubar" aria-label={{t "Page sections" key="fsa_page_sections"}}>
             <LinkTo @route="features" class="la-topbar-link" role="menuitem">{{t "Features" key="fsa_nav_features"}}</LinkTo>
-            <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo>
+            {{!-- <LinkTo @route="pricing" class="la-topbar-link" role="menuitem">{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key="fsa_nav_about"}}</LinkTo>
           </div>
           <div class="la-topbar-right header-unauth-right">
@@ -59,7 +59,7 @@
           </div>
           <LaMobileDrawer @isOpen={{this.isLandingDrawerOpen}} @onClose={{action "closeLandingDrawer"}}>
             <LinkTo @route="features" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Features" key="fsa_nav_features"}}</LinkTo>
-            <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo>
+            {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Pricing" key="fsa_nav_pricing"}}</LinkTo> --}}
             <LinkTo @route="about" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "About" key="fsa_nav_about"}}</LinkTo>
             <div class="la-mobile-drawer__divider"></div>
             <LinkTo @route="login" class="la-mobile-drawer__link" {{action "closeLandingDrawer"}}>{{t "Sign In" key="login"}}</LinkTo>

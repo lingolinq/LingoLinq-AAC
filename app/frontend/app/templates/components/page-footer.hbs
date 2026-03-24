@@ -11,7 +11,7 @@
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                <span class="page-footer__hide-at-sm"><LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span></span>
+                {{!-- <span class="page-footer__hide-at-sm"><LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span></span> --}}
               {{/if}}
             {{/if}}
           {{/unless}}
@@ -70,7 +70,7 @@
           {{#if this.app_state.feature_flags.subscriptions}}
             {{#if this.app_state.domain_settings.full_domain}}
               <li class="page-footer__menu-top-at-sm">
-                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo>
+                {{!-- <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> --}}
               </li>
             {{/if}}
           {{/if}}

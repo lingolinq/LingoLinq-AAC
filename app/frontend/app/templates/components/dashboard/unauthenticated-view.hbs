@@ -3,7 +3,7 @@
     {{#if this.app_state.domain_settings.full_domain}}
       <div style='position: absolute; top: 0; left: 0; width: 100%;'>
         <div style='width: 400px; margin: 0 auto; background: rgba(255, 255, 255, 0.7); color: #000; line-height: 22px; padding: 10px; border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;'>
-          {{t "Did you know? %app_name% is now available as a" key="did_you_know"}}<br><span style='font-size: 20px; text-shadow: -1px -1px 2px #fff, 1px 1px 2px #fff, -1px 1px 2px #fff, 1px -1px 2px #fff;'><LinkTo @route="pricing">{{t "lifetime purchase" key="lifetime_purpose"}}</LinkTo></span>!
+          {{!-- {{t "Did you know? %app_name% is now available as a" key="did_you_know"}}<br><span style='font-size: 20px; text-shadow: -1px -1px 2px #fff, 1px 1px 2px #fff, -1px 1px 2px #fff, 1px -1px 2px #fff;'><LinkTo @route="pricing">{{t "lifetime purchase" key="lifetime_purpose"}}</LinkTo></span>! --}}
         </div>
       </div>
     {{/if}}
@@ -160,9 +160,9 @@
         {{#if this.subscription.sale}}
           <span class='label label-danger'>{{t "SALE NOW" key="sale_now"}}</span>
         {{/if}}
-        <LinkTo @route="pricing">
+        {{!-- <LinkTo @route="pricing">
           {{t "see our pricing details." key="whats_it_cost"}}
-        </LinkTo>
+        </LinkTo> --}}
       </div>
     {{/if}}
   </div>

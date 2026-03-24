@@ -247,7 +247,7 @@
               <h4>{{t "Product" key='landing_footer_product'}}</h4>
               <nav aria-label={{t "Product" key="fsa_nav_product"}}>
               <LinkTo @route="features">{{t "Features" key='landing_footer_features'}}</LinkTo>
-              <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
+              {{!-- <LinkTo @route="pricing">{{t "Pricing" key='landing_footer_pricing'}}</LinkTo> --}}
               </nav>
             </div>
             <div class="la-footer-col">
@@ -281,7 +281,7 @@
           <LaFooterDrawer as |f|>
             <div class="la-mobile-drawer__header">{{t "Product" key='landing_footer_product'}}</div>
             <LinkTo @route="features" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Features" key='landing_footer_features'}}</LinkTo>
-            <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo>
+            {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo> --}}
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
             <LinkTo @route="register" class="la-mobile-drawer__link" {{action f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
