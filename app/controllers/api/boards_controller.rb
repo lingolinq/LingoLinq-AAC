@@ -228,7 +228,7 @@ class Api::BoardsController < ApplicationController
             boards = boards.order(home_popularity: :desc, id: :desc)
           end
         elsif params['sort'] == 'custom_order'
-          boards = boards[0, 100].sort_by{|b| b.settings['custom_order'] || b.id }
+          boards = boards[0, 100].sort_by { |b| (b.settings || {})['custom_order'] || b.id }
         end
       else
         boards = boards.order(popularity: :desc, any_upstream: :asc, id: :desc)
@@ -445,7 +445,14 @@ class Api::BoardsController < ApplicationController
     board_params = if request.content_type == 'application/json'
       processed_params['board'] || {}
     else
-      params['board'] ? params.require('board').permit! : {}
+      raw_board = params['board']
+      if raw_board.is_a?(ActionController::Parameters)
+        raw_board.permit!.to_unsafe_h
+      elsif raw_board.is_a?(Hash)
+        raw_board
+      else
+        {}
+      end
     end
     if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
       user = User.find_by_path(board_params['for_user_id'])

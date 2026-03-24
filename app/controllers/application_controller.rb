@@ -51,6 +51,9 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
+    # Legacy API clients send deep nested hashes; permit top-level once here so
+    # controllers can read nested keys (models still enforce their own filtering).
+    params.permit! if params.respond_to?(:permit!)
     token = params['access_token']
     # If token is "none" (default value from frontend), treat it as missing and check Authorization header
     token = nil if token == 'none' || token.blank?
@@ -140,6 +143,7 @@ class ApplicationController < ActionController::Base
   end
   
   def replace_helper_params
+    params.permit! if params.respond_to?(:permit!)
     # Iterate over routing/id params to replace 'self' and 'my_org' placeholders.
     # We only modify simple string params (id, *_id), not nested hashes.
     # Use to_unsafe_h for read-only iteration to find keys needing replacement.

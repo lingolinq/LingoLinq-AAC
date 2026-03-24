@@ -675,6 +675,42 @@ var buttonTracker = EmberObject.extend({
       return;
     }
 
+    // Speak-mode long-press (inflections overlay) must schedule before the scanning block below.
+    // Otherwise touchstart/mousedown returns early from scanner.pick/next and longPressEvent is never set.
+    if(buttonTracker.buttonDown && !editManager.paint_mode && (event.type == 'touchstart' || event.type == 'mousedown') && buttonTracker.appState.get('speak_mode')) {
+      event.long_press_target = event.target;
+      if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
+        if(!buttonTracker.ignored_region(event)) {
+          buttonTracker.ignoredPressEvent = event;
+          event.preventDefault();
+        }
+      } else {
+        buttonTracker.lastLastPressEvent = buttonTracker.lastPressEvent;
+        buttonTracker.lastPressEvent = event;
+        buttonTracker.longPressEvent = event;
+        if(buttonTracker.check('short_press_delay')) {
+          buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
+        }
+        runLater(function() {
+          if(buttonTracker.track_long_press.later) {
+            runCancel(buttonTracker.track_long_press.later);
+            buttonTracker.track_long_press.later = null;
+          }
+          if(buttonTracker.track_short_press.later) {
+            runCancel(buttonTracker.track_short_press.later);
+            buttonTracker.track_short_press.later = null;
+          }
+          var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
+          if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
+            buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
+          }
+          if(buttonTracker.check('short_press_delay')) {
+            buttonTracker.track_short_press.later = runLater(buttonTracker, buttonTracker.track_short_press, buttonTracker.short_press_delay);
+          }
+        });
+      }
+    }
+
     if(buttonTracker.buttonDown && buttonTracker.check('any_select') && buttonTracker.check('scanning_enabled')) {
       var skip_screen_touch = $(event.target).closest("#identity").length > 0;
       skip_screen_touch = skip_screen_touch || (buttonTracker.check('skip_header') && $(event.target).closest('header').length > 0);
@@ -736,47 +772,7 @@ var buttonTracker = EmberObject.extend({
       }
     } else if(buttonTracker.buttonDown) {
       var elem_wrap = buttonTracker.track_drag(event);
-      if(event.type == 'touchstart' || event.type == 'mousedown') {
-        if(buttonTracker.appState.get('speak_mode')) {
-          event.long_press_target = event.target;
-          if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
-            // TODO: I think this is only required as long as we use UIWekView
-            // instead of WKWebView. Once we switch, if you set touches to
-            // select after 100ms and you can hit blank spaces without it
-            // hitting somewhere else then you should be good
-            if(!buttonTracker.ignored_region(event)) {
-              buttonTracker.ignoredPressEvent = event;
-              event.preventDefault();  
-            }
-          } else {
-            buttonTracker.lastLastPressEvent = buttonTracker.lastPressEvent;
-            buttonTracker.lastPressEvent = event;
-            buttonTracker.longPressEvent = event;
-            if(buttonTracker.check('short_press_delay')) {
-              buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
-            }
-            // INFLECTIONS OVERLAY: Schedule long-press handler when inflections_overlay is enabled.
-            // track_long_press fires after long_press_delay and calls editManager.long_press_mode.
-            runLater(function() {
-              if(buttonTracker.track_long_press.later) {
-                runCancel(buttonTracker.track_long_press.later);
-                buttonTracker.track_long_press.later = null;
-              }
-              if(buttonTracker.track_short_press.later) {
-                runCancel(buttonTracker.track_short_press.later);
-                buttonTracker.track_short_press.later = null;
-              }
-              var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
-              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
-                buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
-              }
-              if(buttonTracker.check('short_press_delay')) {
-                buttonTracker.track_short_press.later = runLater(buttonTracker, buttonTracker.track_short_press, buttonTracker.short_press_delay);
-              }  
-            });
-          }
-        }
-      } else {
+      if(event.type != 'touchstart' && event.type != 'mousedown') {
         if(event.type == 'touchend' || event.type == 'mouseup' || !buttonTracker.longPressEvent || event.target != buttonTracker.longPressEvent.long_press_target) {
           buttonTracker.longPressEvent = null;
           buttonTracker.shortPressEvent = null;

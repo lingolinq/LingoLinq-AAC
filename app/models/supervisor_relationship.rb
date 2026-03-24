@@ -10,12 +10,13 @@ class SupervisorRelationship < ApplicationRecord
   secure_serialize :metadata
 
   STATUSES = %w[pending approved denied revoked expired].freeze
-  PERMISSION_LEVELS = %w[view_only edit_boards manage_devices full].freeze
+  PERMISSION_LEVELS = %w[view_only edit_boards manage_devices full modeling_only].freeze
   PERMISSION_DESCRIPTIONS = {
     'view_only' => 'Can view boards and activity logs',
     'edit_boards' => 'Can view and edit communication boards',
     'manage_devices' => 'Can view, edit boards, and manage devices',
-    'full' => 'Full access including supervision settings'
+    'full' => 'Full access including supervision settings',
+    'modeling_only' => 'Can see boards and model only'
   }.freeze
 
   validates :status, inclusion: { in: STATUSES }
@@ -55,6 +56,8 @@ class SupervisorRelationship < ApplicationRecord
     case permission_level
     when 'view_only'
       'read_only'
+    when 'modeling_only'
+      'modeling_only'
     else
       'edit'
     end

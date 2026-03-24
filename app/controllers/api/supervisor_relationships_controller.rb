@@ -36,11 +36,14 @@ class Api::SupervisorRelationshipsController < ApplicationController
     rel_params = params['supervisor_relationship'] || {}
     rel_params = rel_params.permit! if rel_params.is_a?(ActionController::Parameters)
 
+    lookup_key = rel_params['lookup_key'].presence || rel_params['owner_email'].presence
+    permission_level = rel_params['permission_level'].presence || 'view_only'
+    permission_level = { 'read_only' => 'view_only', 'edit' => 'edit_boards' }.fetch(permission_level, permission_level)
     service = SupervisorConsentService.new
     result = service.request_access(
       supervisor: @api_user,
-      lookup_key: rel_params['lookup_key'],
-      permission_level: rel_params['permission_level'] || 'view_only',
+      lookup_key: lookup_key,
+      permission_level: permission_level,
       organization_id: rel_params['organization_id']
     )
 

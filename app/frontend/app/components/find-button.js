@@ -134,6 +134,10 @@ export default Component.extend({
                 _this.set('loading', false);
               });
             }
+            // Offline: show full matches immediately, then the promise above narrows to
+            // buttons with local images. Online: same assignments as the branch above.
+            _this.set('results', results);
+            _this.set('loading', false);
           }, function(err) {
             _this.set('loading', false);
             _this.set('error', err && err.error);
