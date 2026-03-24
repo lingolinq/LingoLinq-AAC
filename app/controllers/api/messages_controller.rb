@@ -7,7 +7,17 @@ class Api::MessagesController < ApplicationController
     if !@api_user && !allow_anonymous
       return api_error 400, {error: "API token required"}
     end
-    
+
+    # Beta feedback honeypot: must stay empty. Respond success without saving so bots cannot tune payloads.
+    raw_message = params['message']
+    if raw_message.is_a?(ActionController::Parameters)
+      raw_message = raw_message.to_unsafe_h
+    end
+    if raw_message.is_a?(Hash) && raw_message['recipient'].to_s == 'beta_feedback' &&
+        raw_message['beta_feedback_hp'].to_s.strip.present?
+      return render json: {received: true}.to_json
+    end
+
     m = params['message'] && ContactMessage.process_new(params['message'], {
       'ip_address' => request.remote_ip,
       'user_agent' => request.headers['User-Agent'],

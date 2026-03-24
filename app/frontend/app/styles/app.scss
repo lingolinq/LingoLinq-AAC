@@ -1711,6 +1711,12 @@ header.speaking #identity .user_name {
   animation-delay: 0ms;
 }
 
+// Beta feedback link — between upgrade and help
+#identity.app-navbar-auth-nav--desktop .app-navbar__beta-feedback-link {
+  animation: nav-btn-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 50ms;
+}
+
 // Help button — enters second
 #identity.app-navbar-auth-nav--desktop .ll-bento-help-btn--support {
   animation: nav-btn-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -13009,6 +13015,26 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
 .app-navbar .md-pillnav__upgrade-nav:active {
   transform: translateY(-2px) scale(var(--md-tap, 0.99));
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.app-navbar .app-navbar__beta-feedback-link {
+  margin-right: 4px;
+  padding: 6px 10px;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.app-navbar .app-navbar__beta-feedback-link:hover,
+.app-navbar .app-navbar__beta-feedback-link:focus {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
 }
 
 .app-navbar .header-unauth-nav {
@@ -26125,10 +26151,46 @@ $la-mockup-blue-bg:    $cat-actions-bg;
     transform: translateY(-1px);
     color: #fff;
   }
+
   &:active:not(:disabled) {
     transform: translateY(0);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
+}
+
+/* Beta feedback form (same wrapper as support) */
+.la-wrapper--support .la-support-form.md-support-form {
+  position: relative;
+}
+.la-wrapper--support .la-contact-input--file {
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-preview {
+  margin-top: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba(55, 65, 81, 0.15);
+  display: block;
+}
+.la-wrapper--support .la-beta-feedback__clear-shot {
+  margin-top: 0.5rem;
+}
+
+/* Honeypot row: off-screen, not keyboard-focusable in normal tab order */
+.la-wrapper--support .la-beta-feedback-hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.la-wrapper--support .la-beta-feedback-hp__input {
+  pointer-events: none;
 }
 
 .la-wrapper--support .la-support-cookies-btn {
