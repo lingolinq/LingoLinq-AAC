@@ -51,9 +51,9 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
-    # Legacy API clients send deep nested hashes; permit top-level once here so
-    # controllers can read nested keys (models still enforce their own filtering).
-    params.permit! if params.respond_to?(:permit!)
+    # NOTE: Do not globally call `params.permit!` here; keep Strong Parameters
+    # protections intact. Controllers that need nested params must explicitly
+    # permit them or use `to_unsafe_h` in a narrowly scoped way.
     token = params['access_token']
     # If token is "none" (default value from frontend), treat it as missing and check Authorization header
     token = nil if token == 'none' || token.blank?
