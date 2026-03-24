@@ -287,6 +287,69 @@
               </span>
             {{/if}}
           {{/if}}
+
+          {{!-- Hamburger menu for small screens --}}
+          <button class="la-board-hamburger" type="button" {{action "toggleBoardMenu" target=@controller}} aria-label={{t "Menu" key="menu"}}>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+          </button>
+          {{#if @controller.boardMenuOpen}}
+            <div class="la-board-mobile-menu">
+              {{#if @controller.board.model.permissions.edit}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "toggleEditMode" target=@controller}}>
+                  <span class="glyphicon glyphicon-pencil"></span>
+                  {{t "Edit Board" key="edit_board"}}
+                </button>
+              {{/if}}
+              {{#if @controller.app_state.current_board_not_home_or_supervising}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "setAsHome" target=@controller}}>
+                  <span class="glyphicon glyphicon-home"></span>
+                  {{t "Set as Home" key="set_as_home"}}
+                </button>
+              {{/if}}
+              {{#unless @controller.board.model.uncopyable}}
+                {{#if @controller.app_state.currentUser}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "star" target=@controller}}>
+                    <img src={{@controller.board.starImage}} alt="" style="width: 16px; height: 16px;">
+                    {{t "Like" key="star"}}
+                  </button>
+                {{/if}}
+                {{#if @controller.board.model.shareable}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "shareBoard" target=@controller}}>
+                    <span class="glyphicon glyphicon-share"></span>
+                    {{t "Share" key="share"}}
+                  </button>
+                {{/if}}
+              {{/unless}}
+              <div class="la-board-mobile-menu__divider"></div>
+              <button type="button" class="la-board-mobile-menu__item" {{action "boardDetails" target=@controller}}>
+                <span class="glyphicon glyphicon-info-sign"></span>
+                {{t "Board Details" key="board_details"}}
+              </button>
+              {{#unless @controller.board.model.uncopyable}}
+                {{#if @controller.app_state.currentUser}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "tweakBoard" target=@controller}}>
+                    <span class="glyphicon glyphicon-duplicate"></span>
+                    {{t "Make a Copy" key="make_copy"}}
+                  </button>
+                {{/if}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "downloadBoard" target=@controller}}>
+                  <span class="glyphicon glyphicon-cloud-download"></span>
+                  {{t "Download Board" key="download_board"}}
+                </button>
+                <button type="button" class="la-board-mobile-menu__item" {{action "printBoard" target=@controller}}>
+                  <span class="glyphicon glyphicon-print"></span>
+                  {{t "Print Board" key="print_board"}}
+                </button>
+              {{/unless}}
+              <div class="la-board-mobile-menu__divider"></div>
+              <button type="button" class="la-board-mobile-menu__item la-board-mobile-menu__item--exit" {{action "back_to_from_route" target=@controller}}>
+                <span class="glyphicon glyphicon-log-out"></span>
+                {{t "Exit Boards" key="exit_boards"}}
+              </button>
+            </div>
+          {{/if}}
         </span>
         <span id="board_id">
           {{#if @controller.app_state.current_board_is_home}}

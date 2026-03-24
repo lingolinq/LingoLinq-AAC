@@ -82,6 +82,7 @@ export default Controller.extend({
   }),
 
   boardPickerVisible: false,
+  boardMenuOpen: false,
   boardPickerLoading: false,
   boardPickerBoards: null,
 
@@ -1008,7 +1009,27 @@ export default Controller.extend({
         this.appState.check_scanning();
       }
     },
+    exitBoards: function() {
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+    },
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {

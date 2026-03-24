@@ -28,7 +28,7 @@
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
     {{#unless this.appState.currentBoardState.id}}
     {{#if this.appState.currentUser}}
-      <LinkTo @route="speech" class="md-navbar__speech-dot" aria-label={{t "Speech" key="speech_lower"}}></LinkTo>
+      {{!-- <LinkTo @route="speech" class="md-navbar__speech-dot" aria-label={{t "Speech" key="speech_lower"}}></LinkTo> --}}
       <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>
         {{t "Upgrade" key="upgrade"}}
       </LinkTo>

@@ -483,6 +483,69 @@
               </span>
             {{/if}}
           {{/if}}
+
+          {{!-- Hamburger menu for small screens --}}
+          <button class="la-board-hamburger" type="button" {{action "toggleBoardMenu"}} aria-label={{t "Menu" key="menu"}}>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+            <span class="la-board-hamburger__bar"></span>
+          </button>
+          {{#if this.boardMenuOpen}}
+            <div class="la-board-mobile-menu">
+              {{#if this.board.model.permissions.edit}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "toggleEditMode"}}>
+                  <span class="glyphicon glyphicon-pencil"></span>
+                  {{t "Edit Board" key="edit_board"}}
+                </button>
+              {{/if}}
+              {{#if this.app_state.current_board_not_home_or_supervising}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "setAsHome"}}>
+                  <span class="glyphicon glyphicon-home"></span>
+                  {{t "Set as Home" key="set_as_home"}}
+                </button>
+              {{/if}}
+              {{#unless this.board.model.uncopyable}}
+                {{#if this.app_state.currentUser}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "star"}}>
+                    <img src={{this.board.starImage}} alt="" style="width: 16px; height: 16px;">
+                    {{t "Like" key="star"}}
+                  </button>
+                {{/if}}
+                {{#if this.board.model.shareable}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "shareBoard"}}>
+                    <span class="glyphicon glyphicon-share"></span>
+                    {{t "Share" key="share"}}
+                  </button>
+                {{/if}}
+              {{/unless}}
+              <div class="la-board-mobile-menu__divider"></div>
+              <button type="button" class="la-board-mobile-menu__item" {{action "boardDetails"}}>
+                <span class="glyphicon glyphicon-info-sign"></span>
+                {{t "Board Details" key="board_details"}}
+              </button>
+              {{#unless this.board.model.uncopyable}}
+                {{#if this.app_state.currentUser}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "tweakBoard"}}>
+                    <span class="glyphicon glyphicon-duplicate"></span>
+                    {{t "Make a Copy" key="make_copy"}}
+                  </button>
+                {{/if}}
+                <button type="button" class="la-board-mobile-menu__item" {{action "downloadBoard"}}>
+                  <span class="glyphicon glyphicon-cloud-download"></span>
+                  {{t "Download Board" key="download_board"}}
+                </button>
+                <button type="button" class="la-board-mobile-menu__item" {{action "printBoard"}}>
+                  <span class="glyphicon glyphicon-print"></span>
+                  {{t "Print Board" key="print_board"}}
+                </button>
+              {{/unless}}
+              <div class="la-board-mobile-menu__divider"></div>
+              <button type="button" class="la-board-mobile-menu__item la-board-mobile-menu__item--exit" {{action "exitBoards"}}>
+                <span class="glyphicon glyphicon-log-out"></span>
+                {{t "Exit Boards" key="exit_boards"}}
+              </button>
+            </div>
+          {{/if}}
         </span>
         <span id="board_id">
           {{#if this.app_state.current_board_is_home}}

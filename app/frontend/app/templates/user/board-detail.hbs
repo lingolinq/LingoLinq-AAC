@@ -4,6 +4,9 @@
     {{!-- Overlay backdrop for mobile panels --}}
     {{#unless this.panels_collapsed}}
       <div class="md-board-detail-overlay-backdrop" {{action "toggle_panels"}}></div>
+      <button type="button" class="md-board-detail-panels-close-btn" {{action "toggle_panels"}} aria-label={{t "Collapse panels" key="board_detail_collapse_panels"}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     {{/unless}}
     {{!-- Left Sidebar Navigation --}}
     <aside class="md-board-detail-sidebar {{if this.panels_collapsed 'md-board-detail-sidebar--collapsed'}}" aria-label={{t "Board navigation" key="board_navigation"}}>
@@ -64,7 +67,7 @@
               <line x1="12" y1="19" x2="12" y2="23"/>
               <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
-            {{t "Speak" key="board_detail_speak"}}
+            <span class="md-board-detail-sentence-bar__btn-label">{{t "Speak" key="board_detail_speak"}}</span>
           </button>
           <div class="md-board-detail-sentence-bar__tools">
             <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
