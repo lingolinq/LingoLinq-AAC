@@ -172,15 +172,15 @@
           {{this.working_vocalization_text}}
         </li>
         <li>
-          <a href="#" {{action "selectButton" "remember"}}>{{t "Remember this" key='remember_this'}}</a>
+          <a href="#" title={{t "Save this message as a phrase you can open again from Phrases" key="speak_menu_hint_remember"}} {{action "selectButton" "remember"}}>{{t "Remember this" key='remember_this'}}</a>
         </li>
         {{#if this.sharing_allowed}}
           <li>
-            <a href="#" {{action "selectButton" "share"}}>{{t "Share this" key='share_this'}}</a>
+            <a href="#" title={{t "Share your current message with others" key="speak_menu_hint_share"}} {{action "selectButton" "share"}}>{{t "Share this" key='share_this'}}</a>
           </li>
         {{/if}}
         <li>
-          <a href="#" {{action "selectButton" "sayLouder"}}>{{t "Say this Louder" key='say_this_louder'}}</a>
+          <a href="#" title={{t "Speak more loudly" key="speak_menu_hint_loud"}} {{action "selectButton" "sayLouder"}}>{{t "Say this Louder" key='say_this_louder'}}</a>
         </li>
       </ul>
     {{/if}}
