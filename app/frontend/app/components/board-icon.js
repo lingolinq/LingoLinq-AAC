@@ -179,12 +179,17 @@ export default Component.extend({
         });
       } else {
         var key = board_record.get ? board_record.get('key') : board_record.key;
-        var id = board_record.get ? board_record.get('id') : board_record.id;
-        var opts = {force_board_state: {key: key, id: id}};
-        if(_this.get('localized')) {
-          opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
+        var parts = key ? key.split('/') : [];
+        if(parts.length === 2) {
+          this.appState.controller.transitionToRoute('user.board-detail', parts[0], parts[1]);
+        } else {
+          var id = board_record.get ? board_record.get('id') : board_record.id;
+          var opts = {force_board_state: {key: key, id: id}};
+          if(_this.get('localized')) {
+            opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
+          }
+          this.appState.home_in_speak_mode(opts);
         }
-        this.appState.home_in_speak_mode(opts);
       }
     }
   }

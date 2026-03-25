@@ -1247,8 +1247,26 @@ export default Controller.extend({
     return { id: id, event: event };
   },
 
+  boardMenuOpen: false,
+
   actions: {
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('model')});
     },
     buttonSelect: function(id, event) {

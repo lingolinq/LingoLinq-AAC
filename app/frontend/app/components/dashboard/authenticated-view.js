@@ -671,7 +671,12 @@ export default Component.extend({
   actions: {
     goToBoard: function(boardKey) {
       if (boardKey) {
-        this.get('router').transitionTo('board', boardKey);
+        var parts = boardKey.split('/');
+        if(parts.length === 2) {
+          this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+        } else {
+          this.get('router').transitionTo('board', boardKey);
+        }
       }
     },
     invalidateSession: function() {
@@ -770,11 +775,21 @@ export default Component.extend({
         }
         var homeBoard = user && user.get('preferences.home_board');
         if (lastBoard && lastBoard.key) {
-          this.get('router').transitionTo('board', lastBoard.key);
-          this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
+          var lbParts = lastBoard.key.split('/');
+          if(lbParts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', lbParts[0], lbParts[1]);
+          } else {
+            this.get('router').transitionTo('board', lastBoard.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
+          }
         } else if (homeBoard && homeBoard.key) {
-          this.get('router').transitionTo('board', homeBoard.key);
-          this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+          var hbParts = homeBoard.key.split('/');
+          if(hbParts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', hbParts[0], hbParts[1]);
+          } else {
+            this.get('router').transitionTo('board', homeBoard.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+          }
         } else if (user && user.get('user_name')) {
           this.get('router').transitionTo('user.boards', user.get('user_name')).then(function() {
             var content = document.getElementById('content');

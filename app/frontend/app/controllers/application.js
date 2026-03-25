@@ -82,6 +82,7 @@ export default Controller.extend({
   }),
 
   boardPickerVisible: false,
+  boardMenuOpen: false,
   boardPickerLoading: false,
   boardPickerBoards: null,
 
@@ -1020,7 +1021,27 @@ export default Controller.extend({
         this.appState.check_scanning();
       }
     },
+    exitBoards: function() {
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+    },
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {
@@ -1267,13 +1288,13 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      var from = this.appState.get('from_route');
-      if(from && from.length && this.router) {
-        // from is [routeName, ...paramValues] from the previous transition; pass directly.
-        this.router.transitionTo.apply(this.router, from);
-      } else {
-        this.appState.return_to_index();
-      }
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+      setTimeout(function() {
+        window.scrollTo(0, 0);
+        var content = document.getElementById('content');
+        if(content) { content.scrollTop = 0; }
+      }, 100);
     },
     suggestions: function() {
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
@@ -1805,6 +1826,7 @@ export default Controller.extend({
       (route === 'offline_boards' && cu) ||
       route === 'support' ||
       route === 'faq' ||
+      route === 'beta-feedback' ||
       route === 'contact' ||
       route === 'troubleshooting') {
       return true;

@@ -42,7 +42,7 @@ export default Controller.extend({
 
   feedbackTypeOptions: computed(function() {
     return [
-      { id: '', name: i18n.t('beta_feedback_type_prompt', "Choose a category") },
+      { id: '', name: i18n.t('beta_feedback_type_prompt', "Choose a category"), disabled: true },
       { id: 'crash', name: i18n.t('beta_feedback_type_crash', "Crash or freeze") },
       { id: 'speak_mode', name: i18n.t('beta_feedback_type_speak_mode', "Speak mode or speech / TTS") },
       { id: 'boards', name: i18n.t('beta_feedback_type_boards', "Boards or editing") },
@@ -95,7 +95,7 @@ export default Controller.extend({
 
   severityOptions: computed(function() {
     return [
-      { id: '', name: i18n.t('beta_feedback_severity_prompt', "How severe is the impact?") },
+      { id: '', name: i18n.t('beta_feedback_severity_prompt', "How severe is the impact?"), disabled: true },
       { id: 'blocker', name: i18n.t('beta_feedback_severity_blocker', "Blocker — cannot complete key tasks") },
       { id: 'major', name: i18n.t('beta_feedback_severity_major', "Major — serious problem with a workaround") },
       { id: 'minor', name: i18n.t('beta_feedback_severity_minor', "Minor — small issue or polish") },
@@ -237,7 +237,8 @@ export default Controller.extend({
           feedback_type: '',
           severity: '',
           feedback_hp: '',
-          screenshotData: null
+          screenshotData: null,
+          screenshotDragActive: false
         });
         const el = document.getElementById('beta_feedback_screenshot');
         if (el) {

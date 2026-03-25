@@ -153,7 +153,12 @@ export default Route.extend({
       LingoLinq.Log.manual_log(this.appState.get('currentUser.id'), !!this.appState.get('currentUser.external_device'))
     },
     home_board: function(key) {
-      this.router.transitionTo('board', key);
+      var parts = key ? key.split('/') : [];
+      if(parts.length === 2) {
+        this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+      } else {
+        this.router.transitionTo('board', key);
+      }
     },
     saveProfile: function() {
       var controller = this.get('controller');

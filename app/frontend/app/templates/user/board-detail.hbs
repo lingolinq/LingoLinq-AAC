@@ -1,9 +1,12 @@
-<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}}">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}}">
   {{outlet}}
   <div class="md-board-detail-layout {{if this.panels_collapsed 'md-board-detail-layout--collapsed'}}">
     {{!-- Overlay backdrop for mobile panels --}}
     {{#unless this.panels_collapsed}}
       <div class="md-board-detail-overlay-backdrop" {{action "toggle_panels"}}></div>
+      <button type="button" class="md-board-detail-panels-close-btn" {{action "toggle_panels"}} aria-label={{t "Collapse panels" key="board_detail_collapse_panels"}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     {{/unless}}
     {{!-- Left Sidebar Navigation --}}
     <aside class="md-board-detail-sidebar {{if this.panels_collapsed 'md-board-detail-sidebar--collapsed'}}" aria-label={{t "Board navigation" key="board_navigation"}}>
@@ -48,6 +51,27 @@
     <main class="md-board-detail-main">
       {{!-- Sentence Bar --}}
       <div class="md-board-detail-sentence-row">
+      {{#unless this.edit_mode}}
+      <div class="md-board-detail-sentence-nav">
+        <button type="button"
+          class="md-board-detail-sentence-nav__btn"
+          title={{t "Home Board" key="board_detail_home_board"}}
+          {{action "go_home"}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+            <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+          </svg>
+        </button>
+        <div class="md-board-detail-sentence-nav__divider"></div>
+        <button type="button"
+          class="md-board-detail-sentence-nav__btn"
+          title={{t "My Boards" key="my_boards"}}
+          {{action "open_board_picker"}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+            <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
+      {{/unless}}
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
         <div class="md-board-detail-sentence-bar__text" aria-live="polite">
           {{#if this.has_sentence}}
@@ -64,7 +88,6 @@
               <line x1="12" y1="19" x2="12" y2="23"/>
               <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
-            {{t "Speak" key="board_detail_speak"}}
           </button>
           <div class="md-board-detail-sentence-bar__tools">
             <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace_lower"}} {{action "backspace_sentence"}}>
@@ -100,18 +123,6 @@
         {{#if this.show_options_menu}}
           <div class="md-board-detail-actions-backdrop" {{action "toggle_options_menu"}}></div>
           <div class="md-board-detail-actions-menu">
-            <button type="button" class="md-board-detail-actions-menu__item" {{action "go_home"}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
-              </svg>
-              <span>{{t "Home Board" key="board_detail_home_board"}}</span>
-            </button>
-            <button type="button" class="md-board-detail-actions-menu__item" {{action "open_board_picker"}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
-              </svg>
-              <span>{{t "My Boards" key="my_boards"}}</span>
-            </button>
             {{#unless this.edit_mode}}
               <button type="button" class="md-board-detail-actions-menu__item" {{action "enter_edit_mode"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -133,6 +144,19 @@
                 <span>{{if this.panels_collapsed (t "Expand Panels" key="board_detail_expand_panels") (t "Collapse Panels" key="board_detail_collapse_panels")}}</span>
               </button>
             {{/unless}}
+            <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_dark_mode"}}>
+              {{#if this.dark_mode}}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
+                </svg>
+                <span>{{t "Light Mode" key="board_detail_light_mode"}}</span>
+              {{else}}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+                </svg>
+                <span>{{t "Dark Mode" key="board_detail_dark_mode"}}</span>
+              {{/if}}
+            </button>
             <button type="button" class="md-board-detail-actions-menu__item" {{action "revert_to_old_style"}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
@@ -193,14 +217,6 @@
             <div>
               <div class="md-board-detail-header__title-row">
                 <h1 class="md-board-detail-header__title">{{this.title}}</h1>
-                <button type="button"
-                  class="md-board-detail-info-btn"
-                  title={{t "Board information" key="board_detail_board_info"}}
-                  {{action "board_details"}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                  </svg>
-                </button>
               </div>
               <p class="md-board-detail-header__sub {{unless this.description_expanded 'md-board-detail-header__sub--collapsed'}}">{{this.subtitle}}</p>
               {{#if this.subtitle_is_long}}
@@ -214,6 +230,66 @@
               {{/if}}
             </div>
           </div>
+          {{#if this.edit_mode}}
+            <div class="md-board-detail-board-actions-wrap">
+            <div class="md-board-detail-board-actions">
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Board Details" key="board_details"}} {{action "board_details"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <span>{{t "Details" key="board_details"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Make a Copy" key="make_copy"}} {{action "make_a_copy"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>{{t "Copy" key="make_copy"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Set as Home Board" key="set_as_home_board"}} {{action "set_as_home"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+                </svg>
+                <span>{{t "Home" key="set_as_home_board"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Add to Sidebar" key="add_to_sidebar"}} {{action "add_to_sidebar"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                </svg>
+                <span>{{t "Sidebar" key="add_to_sidebar"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Print Board" key="print_board"}} {{action "print_board"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                <span>{{t "Print" key="print_board"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Download Board" key="download_board"}} {{action "download_board"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>{{t "Download" key="download_board"}}</span>
+              </button>
+              <div class="md-board-detail-board-actions__divider"></div>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Favorite" key="star"}} {{action "toggle_favorite"}}>
+                {{#if this.model.starred}}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                {{else}}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                {{/if}}
+                <span>{{t "Favorite" key="star"}}</span>
+              </button>
+            </div>
+            </div>
+          {{/if}}
           <div class="md-board-detail-header__actions">
             <button type="button"
               class="md-board-detail-color-legend-toggle {{if this.show_color_legend 'md-board-detail-color-legend-toggle--active'}}"

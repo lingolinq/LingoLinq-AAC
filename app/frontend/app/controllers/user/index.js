@@ -213,7 +213,7 @@ export default Controller.extend({
         list = this.get('model.starred_boards');
         res.remove_type = 'unstar';
         res.remove_label = i18n.t('unstar', "un-like");
-        res.remove_icon = 'glyphicon glyphicon-star-empty';
+        res.remove_icon = 'md-icon-heart';
       } else if(this.get('selected') == 'shared') {
         list = this.get('model.shared_boards');
         res.remove_type = 'unlink';

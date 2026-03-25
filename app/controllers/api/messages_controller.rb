@@ -8,6 +8,7 @@ class Api::MessagesController < ApplicationController
       return api_error 400, {error: "API token required"}
     end
 
+
     # Beta feedback honeypot: must stay empty. Respond success without saving so bots cannot tune payloads.
     raw_message = params['message']
     if raw_message.is_a?(ActionController::Parameters)
@@ -17,6 +18,7 @@ class Api::MessagesController < ApplicationController
         raw_message['beta_feedback_hp'].to_s.strip.present?
       return render json: {received: true}.to_json
     end
+
 
     msg_data = params['message']
     msg_data = msg_data.permit! if msg_data.is_a?(ActionController::Parameters)

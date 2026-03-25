@@ -47,6 +47,7 @@ export default Controller.extend({
   custom_paint_color: '#4a90d9',
   paint_mode: null,
   show_options_menu: false,
+  dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -177,15 +178,15 @@ export default Controller.extend({
 
   color_picker_swatches: computed(function() {
     return [
-      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#C8D8F0', border: '#3A6FBF' },
-      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#B8E8DF', border: '#1D8C7A' },
-      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#F7E5A8', border: '#C4920A' },
-      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FBCFA0', border: '#D07318' },
-      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#D8CFF0', border: '#6B4FAD' },
-      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5C4C0', border: '#C0362A' },
-      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#C5CCD8', border: '#3C4E6A' },
-      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#E0D4B8', border: '#8B7340' },
-      { label: i18n.t('swatch_grammar', "Grammar"), pos_class: 'conjunction', bg: '#E8E4DC', border: '#8A8070' }
+      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#B9D0F6', border: '#6B80B8' },
+      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#C6F4B9', border: '#50A868' },
+      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#FAFAAA', border: '#C8C840' },
+      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FDC498', border: '#D87050' },
+      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#F2B5D0', border: '#A870A0' },
+      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5A0A0', border: '#D04040' },
+      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#D0B8E8', border: '#7850A8' },
+      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#D4BD9C', border: '#A08850' },
+      { label: i18n.t('swatch_grammar', "Grammar"), pos_class: 'conjunction', bg: '#DCDCDC', border: '#909090' }
     ];
   }),
 
@@ -904,6 +905,67 @@ export default Controller.extend({
       this.toggleProperty('panels_collapsed');
     },
 
+    toggle_dark_mode: function() {
+      this.toggleProperty('dark_mode');
+    },
+
+    toggle_favorite: function() {
+      var board = this.get('model');
+      if(board.get('starred')) {
+        board.unstar();
+      } else {
+        board.star();
+      }
+    },
+
+    board_details: function() {
+      modal.open('board-details', {board: this.get('model')});
+    },
+
+    make_a_copy: function() {
+      var _this = this;
+      var board = _this.get('model');
+      if(!persistence.get('online')) {
+        modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
+        return;
+      }
+      modal.open('copy-board', {board: board}).then(function(opts) {
+        if(opts && opts.board) {
+          _this.get('app_state').jump_to_board({
+            id: opts.board.get('id'),
+            key: opts.board.get('key')
+          });
+        }
+      });
+    },
+
+    set_as_home: function() {
+      var board = this.get('model');
+      modal.open('set-as-home', {board: board});
+    },
+
+    add_to_sidebar: function() {
+      var _this = this;
+      var board = _this.get('model');
+      modal.open('add-to-sidebar', {board: {
+        name: board.get('name'),
+        key: board.get('key'),
+        levels: board.get('levels'),
+        home_lock: false,
+        image: board.get('image_url')
+      }});
+    },
+
+    download_board: function() {
+      var has_links = this.get('model.linked_boards.length') > 0;
+      modal.open('download-board', {type: 'obf', has_links: has_links, id: this.get('model.id')});
+    },
+
+    print_board: function() {
+      var has_links = this.get('model.linked_boards.length') > 0;
+      modal.open('download-board', {type: 'pdf', has_links: has_links, id: this.get('model.id')});
+    },
+
     open_board_picker: function() {
       var appController = getOwner(this).lookup('controller:application');
       if(appController) {
@@ -1158,17 +1220,31 @@ export default Controller.extend({
     },
 
     cancel_edit: function() {
-      this.set('edit_mode', false);
-      this.set('paint_mode', null);
-      this.set('color_picker_button', null);
-      this.get('stashes').persist('current_mode', 'default');
-      // Discard unsaved changes and re-render
-      this.get('model').rollbackAttributes();
-      this.processButtons();
+      var _this = this;
+      var msg = i18n.t('confirm_discard_changes', "Are you sure you want to discard your changes?");
+      if(!confirm(msg)) { return; }
+      _this.set('edit_mode', false);
+      _this.set('paint_mode', null);
+      _this.set('color_picker_button', null);
+      _this.get('stashes').persist('current_mode', 'default');
+      // Discard unsaved changes: rollback Ember Data model and reload fresh from server
+      _this.get('model').rollbackAttributes();
+      _this.set('ordered_buttons', null);
+      _this.set('board_loading', true);
+      var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
+      persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+        if(data && data.board) {
+          _this.set('_raw_board_data', data.board);
+          _this._build_from_raw(data.board);
+        }
+        _this.set('board_loading', false);
+      }, function() {
+        _this.set('board_loading', false);
+      });
       // Transition back to the index subroute with panels collapsed
-      this.set('panels_collapsed', true);
-      this.set('board_collapsed', true);
-      this.transitionToRoute('user.board-detail.index', this.get('user.user_name'), this.get('boardname'));
+      _this.set('panels_collapsed', true);
+      _this.set('board_collapsed', true);
+      _this.transitionToRoute('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
     },
 
     // ── Paint Mode ──

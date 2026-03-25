@@ -58,14 +58,8 @@ var boundClasses = {};
           button.text_color = text.toRgbString();
           str = str + 'color: ' + button.text_color + ';';
           if(button.background_color == button.border_color) {
-            var border = window.tinycolor(button.border_color || '#eee');
-            if(text.toHexString() == '#ffffff') {
-              var light_corner = border.lighten(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + light_corner + ' !important;'
-            } else {
-              var dark_corner = border.darken(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + dark_corner + ' !important;'
-            }
+            // Corner tab uses background with filter:brightness() from CSS,
+            // no border-color override needed
           }
         }
 
