@@ -111,26 +111,18 @@ export default Controller.extend({
   applyScreenshotFile(file) {
     if (!file || !file.type || file.type.indexOf('image/') !== 0) {
       modal.error(i18n.t('beta_feedback_screenshot_invalid_type', "Please use a PNG, JPG, GIF, or WebP image."));
-      const el = document.getElementById('beta_feedback_screenshot');
-      if (el) {
-        el.value = '';
-      modal.error(i18n.t('beta_feedback_screenshot_invalid_type', "Please use a PNG, JPG, GIF, or WebP image."));
-      const el = document.getElementById('beta_feedback_screenshot');
-      if (el) {
-        el.value = '';
+      const invalidInput = document.getElementById('beta_feedback_screenshot');
+      if (invalidInput) {
+        invalidInput.value = '';
       }
       return;
     }
     const max = 1.5 * 1024 * 1024;
     if (file.size > max) {
       modal.error(i18n.t('beta_feedback_screenshot_too_large', "Please choose an image about 1.5 MB or smaller."));
-      const el = document.getElementById('beta_feedback_screenshot');
-      if (el) {
-        el.value = '';
-      }
-      const el = document.getElementById('beta_feedback_screenshot');
-      if (el) {
-        el.value = '';
+      const largeInput = document.getElementById('beta_feedback_screenshot');
+      if (largeInput) {
+        largeInput.value = '';
       }
       return;
     }
@@ -142,9 +134,9 @@ export default Controller.extend({
       });
     };
     reader.readAsDataURL(file);
-    const el = document.getElementById('beta_feedback_screenshot');
-    if (el) {
-      el.value = '';
+    const fileInput = document.getElementById('beta_feedback_screenshot');
+    if (fileInput) {
+      fileInput.value = '';
     }
   },
 
