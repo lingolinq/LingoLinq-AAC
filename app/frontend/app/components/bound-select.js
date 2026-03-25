@@ -43,18 +43,13 @@ export default Component.extend({
       return htmlSafe('');
     }
   }),
-  raw_content: computed('content', 'selection', function() {
+  raw_content: computed('content', function() {
     // Ember got super slow at long lists for some reason..
+    // Selection sync is handled by didInsertElement and update_selection observer.
     var elem = document.createElement('select');
-    var sel = this.get('selection');
     (this.get('content') || []).forEach(function(c) {
       var opt = document.createElement('option');
       opt.value = c.id;
-      // Match '' so disabled placeholder options get `selected`; `if (sel)` skipped them and the
-      // browser then picked the first enabled option while the bound value stayed ''.
-      if (sel == opt.value) {
-        opt.setAttribute('selected', true);
-      }
       opt.innerText = c.name;
       opt.disabled = !!c.disabled;
       elem.appendChild(opt);
