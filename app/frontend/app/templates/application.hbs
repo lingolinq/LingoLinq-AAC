@@ -1161,9 +1161,14 @@
         {{/unless}}
       {{/unless}}
     {{/if}}
+    {{#if this.app_state.currentUser}}
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      {{t "Beta feedback" key="beta_feedback_nav"}}
+    </LinkTo>
+    {{/if}}
     {{style-switcher}}
     {{#if this.app_state.currentUser}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">

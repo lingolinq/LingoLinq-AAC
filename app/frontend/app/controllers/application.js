@@ -1288,13 +1288,13 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      var from = this.appState.get('from_route');
-      if(from && from.length && this.router) {
-        // from is [routeName, ...paramValues] from the previous transition; pass directly.
-        this.router.transitionTo.apply(this.router, from);
-      } else {
-        this.appState.return_to_index();
-      }
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+      setTimeout(function() {
+        window.scrollTo(0, 0);
+        var content = document.getElementById('content');
+        if(content) { content.scrollTop = 0; }
+      }, 100);
     },
     suggestions: function() {
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
@@ -1826,6 +1826,7 @@ export default Controller.extend({
       (route === 'offline_boards' && cu) ||
       route === 'support' ||
       route === 'faq' ||
+      route === 'beta-feedback' ||
       route === 'contact' ||
       route === 'troubleshooting') {
       return true;

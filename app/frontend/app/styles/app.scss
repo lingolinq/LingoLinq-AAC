@@ -13217,22 +13217,111 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
 }
 
 .app-navbar .app-navbar__beta-feedback-link {
-  margin-right: 4px;
-  padding: 6px 10px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  top: calc(14px + 0.5rem);
+  padding: 6px 14px;
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
-  font-weight: 400;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
   line-height: 1.2;
-  color: rgba(255, 255, 255, 0.78);
+  color: #374151;
   text-decoration: none;
   white-space: nowrap;
-  border-radius: 8px;
-  transition: color 0.15s ease, background 0.15s ease;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  z-index: 5;
+}
+.app-navbar .app-navbar__beta-feedback-link svg {
+  color: #46505f;
+  flex-shrink: 0;
+}
+/* Beta feedback hero: remove top margin */
+#beta-feedback-hero {
+  margin-top: 2rem;
+  padding-top: 0;
+}
+#beta-feedback-hero select.la-contact-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2346505f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid rgba(27, 54, 93, 0.15);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+#beta-feedback-hero select.la-contact-input:hover {
+  border-color: rgba(42, 157, 143, 0.4);
+}
+#beta-feedback-hero select.la-contact-input:focus {
+  border-color: #2a9d8f;
+  box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.12);
+  outline: none;
+}
+#beta-feedback-hero select.la-contact-input option {
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+}
+
+/* Beta feedback pill on the board page only (when nav_header board bar is showing) */
+#inner_header:has(#nav_header) .app-navbar__beta-feedback-link {
+  padding: 6px 14px;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #374151;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+#inner_header:has(#nav_header) .app-navbar__beta-feedback-link svg {
+  color: #46505f;
+  flex-shrink: 0;
+}
+#inner_header:has(#nav_header) .app-navbar__beta-feedback-link:hover,
+#inner_header:has(#nav_header) .app-navbar__beta-feedback-link:focus {
+  color: #1b365d;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+  text-decoration: none;
 }
 .app-navbar .app-navbar__beta-feedback-link:hover,
 .app-navbar .app-navbar__beta-feedback-link:focus {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  color: #1b365d;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
   text-decoration: none;
 }
 
@@ -27759,6 +27848,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   padding: $aac-spacing-64 $aac-spacing-40;
   position: relative;
   overflow: hidden;
+  border-radius: 24px;
 }
 
 @keyframes la-cta-gradient-shift {
@@ -42202,6 +42292,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-sentence-row > .md-board-detail-boards-btn {
   flex-shrink: 0;
 }
+/* Stacked nav buttons (home + back) to the left of the sentence bar */
+.md-board-detail-sentence-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  background: rgba(50, 62, 80, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.md-board-detail-sentence-nav__btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-board-detail-sentence-nav__btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+.md-board-detail-sentence-nav__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.md-board-detail-sentence-nav__btn:disabled:hover {
+  background: none;
+}
+.md-board-detail-sentence-nav__divider {
+  width: 20px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.20);
+  margin: 2px 0;
+}
 .md-board-detail-sentence-bar {
   flex: 1;
   display: flex;
@@ -43269,73 +43404,74 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    ──────────────────────────────────────────────────── */
 
 // Pronouns — Blue (WCAG: bg #C8D8F0, border #3A6FBF, text #1B365D = 9.2:1)
+// Pronouns — Light Blue/Periwinkle (matching grid: I, me, you, your, he, she)
 .md-board-detail-symbol-card--pronoun {
-  background-color: #C8D8F0;
-  border-color: #3A6FBF;
-  .md-board-detail-symbol-card__label { color: #1B365D; }
+  background-color: #B9D0F6;
+  border-color: #6B80B8;
+  .md-board-detail-symbol-card__label { color: #1B2D5C; }
 }
 
-// Verbs — Teal/Green (WCAG: bg #B8E8DF, border #1D8C7A, text #0F4F44 = 8.5:1)
+// Verbs — Soft Green (matching grid: am, go, come, be, get, was, are)
 .md-board-detail-symbol-card--verb {
-  background-color: #B8E8DF;
-  border-color: #1D8C7A;
-  .md-board-detail-symbol-card__label { color: #0F4F44; }
+  background-color: #C6F4B9;
+  border-color: #50A868;
+  .md-board-detail-symbol-card__label { color: #1A4028; }
 }
 
-// Descriptors — Yellow/Gold (WCAG: bg #F7E5A8, border #C4920A, text #5C4300 = 7.1:1)
+// Descriptors — Light Yellow (matching grid: good, on, up, same, new, big, easy)
 .md-board-detail-symbol-card--adjective,
 .md-board-detail-symbol-card--adverb {
-  background-color: #F7E5A8;
-  border-color: #C4920A;
-  .md-board-detail-symbol-card__label { color: #5C4300; }
+  background-color: #FAFAAA;
+  border-color: #C8C840;
+  .md-board-detail-symbol-card__label { color: #4A4A00; }
 }
 
-// Nouns — Orange (WCAG: bg #FBCFA0, border #D07318, text #5A3000 = 7.8:1)
+// Nouns — Light Coral (eat, drink, have, need, make, look, wear)
 .md-board-detail-symbol-card--noun,
 .md-board-detail-symbol-card--nominative {
-  background-color: #FBCFA0;
-  border-color: #D07318;
-  .md-board-detail-symbol-card__label { color: #5A3000; }
+  background-color: #FDC498;
+  border-color: #D87050;
+  .md-board-detail-symbol-card__label { color: #5A2018; }
 }
 
-// Social — Purple (WCAG: bg #D8CFF0, border #6B4FAD, text #2D1F5E = 9.0:1)
+// Social — Mauve/Dusty Rose (mix of negatives pink + questions lavender)
 .md-board-detail-symbol-card--social,
 .md-board-detail-symbol-card--interjection {
-  background-color: #D8CFF0;
-  border-color: #6B4FAD;
-  .md-board-detail-symbol-card__label { color: #2D1F5E; }
+  background-color: #F2B5D0;
+  border-color: #A870A0;
+  .md-board-detail-symbol-card__label { color: #3E1838; }
 }
 
-// Grammar — Warm Gray (WCAG: bg #E8E4DC, border #8A8070, text #3D3730 = 8.8:1)
+// Grammar — Cool Gray (matching grid: the, a, some, more, other, all, these, those)
 .md-board-detail-symbol-card--conjunction,
 .md-board-detail-symbol-card--number,
 .md-board-detail-symbol-card--article,
 .md-board-detail-symbol-card--determiner {
-  background-color: #E8E4DC;
-  border-color: #8A8070;
-  .md-board-detail-symbol-card__label { color: #3D3730; }
+  background-color: #DCDCDC;
+  border-color: #909090;
+  .md-board-detail-symbol-card__label { color: #2A2A2A; }
 }
 
-// Prepositions — Brown/Tan (WCAG: bg #E0D4B8, border #8B7340, text #4A3C1C = 7.6:1)
+// Prepositions — Tan/Brown (matching grid: mine, yours, ours, away)
 .md-board-detail-symbol-card--preposition {
-  background-color: #E0D4B8;
-  border-color: #8B7340;
+  background-color: #D4BD9C;
+  border-color: #A08850;
   .md-board-detail-symbol-card__label { color: #4A3C1C; }
 }
 
-// Negatives — Red (WCAG: bg #F5C4C0, border #C0362A, text #5C1510 = 8.1:1)
+// Negatives — Pink/Rose (matching grid: stop, no, don't, not)
 .md-board-detail-symbol-card--negation,
 .md-board-detail-symbol-card--expletive {
-  background-color: #F5C4C0;
-  border-color: #C0362A;
+  background-color: #F5A0A0;
+  border-color: #D04040;
   .md-board-detail-symbol-card__label { color: #5C1510; }
 }
 
-// Questions — Steel Blue/Gray (WCAG: bg #C5CCD8, border #3C4E6A, text #1E2A3E = 8.6:1)
+// Questions — Lavender/Purple (matching grid: what, who, when, where, how, which, why)
 .md-board-detail-symbol-card--question {
-  background-color: #C5CCD8;
-  border-color: #3C4E6A;
-  .md-board-detail-symbol-card__label { color: #1E2A3E; }
+  background-color: #D0B8E8;
+  border-color: #7850A8;
+  .md-board-detail-symbol-card__label { color: #2D1F5E; }
 }
 
 // Folder — styled via the consolidated folder section below
