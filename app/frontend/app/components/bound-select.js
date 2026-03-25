@@ -16,13 +16,24 @@ export default Component.extend({
     this._super(...arguments);
   },
   didInsertElement: function() {
-    if(this.get('selection') && this.element.querySelector('select')) {
-      this.element.querySelector('select').value = this.get('selection');
+    const selectEl = this.element && this.element.querySelector('select');
+    if (!selectEl) {
+      return;
+    }
+    const sel = this.get('selection');
+    // Include '' so placeholder options (id '') stay in sync; `if (sel)` wrongly skipped them.
+    if (sel !== undefined && sel !== null) {
+      selectEl.value = sel;
     }
   },
   update_selection: observer('selection', function() {
-    if(this.get('selection') && this.element.querySelector('select')) {
-      this.element.querySelector('select').value = this.get('selection');
+    const selectEl = this.element && this.element.querySelector('select');
+    if (!selectEl) {
+      return;
+    }
+    const sel = this.get('selection');
+    if (sel !== undefined && sel !== null) {
+      selectEl.value = sel;
     }
   }),
   select_style: computed('short', function() {
@@ -32,14 +43,16 @@ export default Component.extend({
       return htmlSafe('');
     }
   }),
-  raw_content: computed('content', function() {
+  raw_content: computed('content', 'selection', function() {
     // Ember got super slow at long lists for some reason..
     var elem = document.createElement('select');
     var sel = this.get('selection');
     (this.get('content') || []).forEach(function(c) {
       var opt = document.createElement('option');
       opt.value = c.id;
-      if(sel && sel == opt.value) {
+      // Match '' so disabled placeholder options get `selected`; `if (sel)` skipped them and the
+      // browser then picked the first enabled option while the bound value stayed ''.
+      if (sel == opt.value) {
         opt.setAttribute('selected', true);
       }
       opt.innerText = c.name;

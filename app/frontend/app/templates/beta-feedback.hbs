@@ -18,7 +18,7 @@
           <article class="la-about-glass-card la-support-page-card" aria-label={{t "Beta feedback form" key="beta_feedback_form_aria"}}>
             <div class="la-support-page-card__section">
               <div class="la-support-page-card__body md-support-content">
-                <form class="la-contact-form la-support-form md-support-form" {{action "submit_feedback" on="submit"}}>
+                <form class="la-contact-form la-support-form md-support-form" {{action "submit_feedback" on="submit"}} {{on "paste" (action "screenshotPaste")}}>
                   {{!-- Honeypot: hidden from assistive tech; bots often fill “company website”. Must remain empty. --}}
                   <div class="la-beta-feedback-hp" aria-hidden="true">
                     <label for="beta_feedback_hp">{{t "Company website" key="beta_feedback_hp_label"}}</label>
@@ -68,7 +68,19 @@
                   </div>
                   <div class="la-contact-form__row">
                     <label for="beta_feedback_screenshot" class="la-contact-form__label">{{t "Screenshot (optional)" key="beta_feedback_screenshot_label"}}</label>
-                    <input type="file" class="la-contact-input la-contact-input--file" id="beta_feedback_screenshot" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" {{on "change" (action "screenshotChanged")}} />
+                    <div
+                      class="la-beta-feedback__dropzone {{if this.screenshotDragActive "la-beta-feedback__dropzone--active"}}"
+                      tabindex="0"
+                      role="region"
+                      aria-label={{t "Drop an image file here or paste from the clipboard" key="beta_feedback_dropzone_aria"}}
+                      {{on "dragenter" (action "screenshotDragEnter")}}
+                      {{on "dragover" (action "screenshotDragOver")}}
+                      {{on "dragleave" (action "screenshotDragLeave")}}
+                      {{on "drop" (action "screenshotDrop")}}
+                    >
+                      <p class="la-beta-feedback__dropzone-hint">{{t "Drop an image here, paste from the clipboard (when not typing in a field), or choose a file." key="beta_feedback_dropzone_hint"}}</p>
+                      <input type="file" class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_screenshot" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" {{on "change" (action "screenshotChanged")}} />
+                    </div>
                     <p class="la-contact-form__hint">{{t "PNG, JPG, GIF, or WebP, about 1.5 MB or smaller." key="beta_feedback_screenshot_hint"}}</p>
                     <p class="la-contact-form__hint">{{t "Screenshots may show personal or sensitive information—only attach what you are comfortable sharing." key="beta_feedback_screenshot_sensitive_hint"}}</p>
                     {{#if this.screenshotData}}

@@ -26180,6 +26180,35 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   margin-top: 0.5rem;
 }
 
+.la-wrapper--support .la-beta-feedback__dropzone {
+  border: 2px dashed rgba(55, 65, 81, 0.28);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+  min-height: 5.5rem;
+  background: rgba(255, 255, 255, 0.45);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-wrapper--support .la-beta-feedback__dropzone:focus {
+  outline: 2px solid rgba(70, 80, 95, 0.45);
+  outline-offset: 2px;
+}
+.la-wrapper--support .la-beta-feedback__dropzone--active {
+  border-color: rgba(70, 80, 95, 0.55);
+  background: rgba(70, 95, 120, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(70, 80, 95, 0.12);
+}
+.la-wrapper--support .la-beta-feedback__dropzone-hint {
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+}
+.la-wrapper--support .la-beta-feedback__file-input {
+  width: 100%;
+  max-width: 100%;
+}
+
 /* Honeypot row: off-screen, not keyboard-focusable in normal tab order */
 .la-wrapper--support .la-beta-feedback-hp {
   position: absolute;
