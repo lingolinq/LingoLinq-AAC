@@ -19,11 +19,15 @@ class AdminMailer < ActionMailer::Base
     if @message.settings['screenshot_base64'].present? && @message.settings['screenshot_filename'].present?
       attachments[@message.settings['screenshot_filename']] = Base64.decode64(@message.settings['screenshot_base64'])
     end
-    mail(
+    opts = {
       to: recipient,
-      subject: "#{app_name} - Beta Feedback: #{@message.settings['subject']}",
-      reply_to: @message.settings['email']
-    )
+      subject: "#{app_name} - Beta Feedback: #{@message.settings['subject']}"
+    }
+    reply = @message.settings['email'].to_s.strip
+    if reply.present? && reply.length <= 254 && reply.match?(URI::MailTo::EMAIL_REGEXP)
+      opts[:reply_to] = reply
+    end
+    mail(opts)
   end
   
   def opt_out(user_id, reason)

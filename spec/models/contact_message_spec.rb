@@ -116,14 +116,16 @@ describe ContactMessage, :type => :model do
     })
   end
 
-  it "should reject beta feedback without email" do
+  it "should accept beta feedback without email" do
+    expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
     m = ContactMessage.process_new({
       'recipient' => 'beta_feedback',
       'subject' => 'Summary',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
       'general_feedback' => 'x' * 12
     })
-    expect(m.errored?).to eq(true)
-    expect(m.processing_errors).to eq(['Email required for beta feedback'])
+    expect(m.errored?).to eq(false)
   end
 
   it "should reject beta feedback without subject" do

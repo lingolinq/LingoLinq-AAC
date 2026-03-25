@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { run } from '@ember/runloop';
+import { run, scheduleOnce } from '@ember/runloop';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
@@ -25,8 +25,12 @@ export default Controller.extend({
   screenshotData: null,
   screenshotDragActive: false,
 
+  /** Per-field validation flags; replaced as a whole object for template updates */
+  errors: null,
+
   init() {
     this._super(...arguments);
+    this.clearAllErrors();
     const u = this.get('appState.sessionUser');
     if (u) {
       this.setProperties({
@@ -35,6 +39,41 @@ export default Controller.extend({
       });
     }
   },
+
+  clearAllErrors() {
+    this.set('errors', {
+      feedback_type: false,
+      severity: false,
+      subject: false,
+      details: false
+    });
+  },
+
+  markError(field) {
+    this.set('errors', Object.assign({}, this.get('errors') || {}, { [field]: true }));
+  },
+
+  clearError(field) {
+    this.set('errors', Object.assign({}, this.get('errors') || {}, { [field]: false }));
+  },
+
+  hasAnyError: computed('errors', function() {
+    const e = this.get('errors');
+    if (!e) {
+      return false;
+    }
+    return !!(e.feedback_type || e.severity || e.subject || e.details);
+  }),
+
+  selectClassFeedbackType: computed('errors', function() {
+    const e = this.get('errors');
+    return e && e.feedback_type ? 'la-contact-input la-contact-input--invalid' : 'la-contact-input';
+  }),
+
+  selectClassSeverity: computed('errors', function() {
+    const e = this.get('errors');
+    return e && e.severity ? 'la-contact-input la-contact-input--invalid' : 'la-contact-input';
+  }),
 
   prompt_user: computed('appState.sessionUser', function() {
     return !this.get('appState.sessionUser');
@@ -104,11 +143,16 @@ export default Controller.extend({
   }),
 
   actions: {
+    clearFieldError(field) {
+      this.clearError(field);
+    },
     updateFeedbackType(id) {
       this.set('feedback_type', id);
+      this.clearError('feedback_type');
     },
     updateSeverity(id) {
       this.set('severity', id);
+      this.clearError('severity');
     },
     screenshotChanged(event) {
       const input = event.target;
@@ -175,28 +219,49 @@ export default Controller.extend({
       }
     },
     submit_feedback() {
-      if (!this.get('email') && !this.get('appState.currentUser')) {
+      this.clearAllErrors();
+      this.set('error', false);
+      if ((this.get('feedback_hp') || '').trim().length > 0) {
         return;
       }
+
+      let firstFieldId = null;
+      const mark = (field, id) => {
+        this.markError(field);
+        if (!firstFieldId) {
+          firstFieldId = id;
+        }
+      };
+
       if (!this.get('feedback_type')) {
-        modal.error(i18n.t('beta_feedback_validation_type', "Please choose a feedback category."));
-        return;
+        mark('feedback_type', 'beta_feedback_type');
       }
       if (!this.get('severity')) {
-        modal.error(i18n.t('beta_feedback_validation_severity', "Please choose a severity level."));
-        return;
+        mark('severity', 'beta_severity');
       }
       if (!this.get('subject') || !this.get('subject').trim()) {
-        modal.error(i18n.t('beta_feedback_validation_summary', "Please add a short summary."));
-        return;
+        mark('subject', 'beta_subject');
       }
       const detail = (this.get('general_feedback') || '').trim();
       const steps = (this.get('steps_to_reproduce') || '').trim();
       if (detail.length < 10 && steps.length < 10) {
-        modal.error(i18n.t('beta_feedback_validation_details', "Please describe what happened in “General feedback” or “Steps to reproduce” (at least a few words)."));
-        return;
+        mark('details', 'beta_steps');
       }
-      if ((this.get('feedback_hp') || '').trim().length > 0) {
+
+      if (this.get('hasAnyError')) {
+        scheduleOnce('afterRender', this, function() {
+          const el = firstFieldId && document.getElementById(firstFieldId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (el.focus && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
+              try {
+                el.focus({ preventScroll: true });
+              } catch (e) {
+                el.focus();
+              }
+            }
+          }
+        });
         return;
       }
       const message = {
@@ -227,6 +292,7 @@ export default Controller.extend({
         dataType: 'json'
       }).then(function() {
         _this.set('disabled', false);
+        _this.clearAllErrors();
         _this.setProperties({
           subject: '',
           steps_to_reproduce: '',

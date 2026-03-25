@@ -72,18 +72,16 @@ class ContactMessage < ActiveRecord::Base
       unless process_beta_feedback_screenshot(params['screenshot_data'])
         return false
       end
-      if !self.settings['email'].present?
-        add_processing_error("Email required for beta feedback")
-        return false
-      end
       if self.settings['subject'].blank?
         add_processing_error("Summary is required for beta feedback")
         return false
       end
-      email = self.settings['email'].to_s.strip
-      if email.length > 254 || !email.match?(URI::MailTo::EMAIL_REGEXP)
-        add_processing_error("Invalid email address")
-        return false
+      if self.settings['email'].present?
+        email = self.settings['email'].to_s.strip
+        if email.length > 254 || !email.match?(URI::MailTo::EMAIL_REGEXP)
+          add_processing_error("Invalid email address")
+          return false
+        end
       end
       ft = self.settings['feedback_type'].to_s
       unless BETA_FEEDBACK_ALLOWED_TYPES.include?(ft)

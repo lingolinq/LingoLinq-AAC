@@ -26497,6 +26497,37 @@ $la-mockup-blue-bg:    $cat-actions-bg;
   max-width: 100%;
 }
 
+/* Beta feedback: client-side validation banner and field highlights */
+#beta-feedback-hero .la-beta-feedback__validation-banner {
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.95);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+#beta-feedback-hero .la-contact-form__field-error {
+  font-size: 1rem;
+  line-height: 1.45;
+  color: #b91c1c;
+  margin: 0.375rem 0 0;
+}
+#beta-feedback-hero .la-contact-form__row--error .la-contact-form__label {
+  color: #991b1b;
+}
+#beta-feedback-hero .la-contact-input--invalid,
+#beta-feedback-hero select.la-contact-input--invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+#beta-feedback-hero .la-contact-input--invalid:focus {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  outline: none;
+}
+
 /* Honeypot row: off-screen, not keyboard-focusable in normal tab order */
 .la-wrapper--support .la-beta-feedback-hp {
   position: absolute;
