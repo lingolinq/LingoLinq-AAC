@@ -47,6 +47,7 @@ export default Controller.extend({
   custom_paint_color: '#4a90d9',
   paint_mode: null,
   show_options_menu: false,
+  dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -902,6 +903,67 @@ export default Controller.extend({
 
     toggle_panels: function() {
       this.toggleProperty('panels_collapsed');
+    },
+
+    toggle_dark_mode: function() {
+      this.toggleProperty('dark_mode');
+    },
+
+    toggle_favorite: function() {
+      var board = this.get('model');
+      if(board.get('starred')) {
+        board.unstar();
+      } else {
+        board.star();
+      }
+    },
+
+    board_details: function() {
+      modal.open('board-details', {board: this.get('model')});
+    },
+
+    make_a_copy: function() {
+      var _this = this;
+      var board = _this.get('model');
+      if(!persistence.get('online')) {
+        modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
+        return;
+      }
+      modal.open('copy-board', {board: board}).then(function(opts) {
+        if(opts && opts.board) {
+          _this.get('app_state').jump_to_board({
+            id: opts.board.get('id'),
+            key: opts.board.get('key')
+          });
+        }
+      });
+    },
+
+    set_as_home: function() {
+      var board = this.get('model');
+      modal.open('set-as-home', {board: board});
+    },
+
+    add_to_sidebar: function() {
+      var _this = this;
+      var board = _this.get('model');
+      modal.open('add-to-sidebar', {board: {
+        name: board.get('name'),
+        key: board.get('key'),
+        levels: board.get('levels'),
+        home_lock: false,
+        image: board.get('image_url')
+      }});
+    },
+
+    download_board: function() {
+      var has_links = this.get('model.linked_boards.length') > 0;
+      modal.open('download-board', {type: 'obf', has_links: has_links, id: this.get('model.id')});
+    },
+
+    print_board: function() {
+      var has_links = this.get('model.linked_boards.length') > 0;
+      modal.open('download-board', {type: 'pdf', has_links: has_links, id: this.get('model.id')});
     },
 
     open_board_picker: function() {
