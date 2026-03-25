@@ -1169,6 +1169,7 @@
     {{/if}}
     {{style-switcher}}
     {{#if this.app_state.currentUser}}
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">

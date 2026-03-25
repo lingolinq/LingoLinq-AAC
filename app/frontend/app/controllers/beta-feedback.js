@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { run } from '@ember/runloop';
+import { run, scheduleOnce } from '@ember/runloop';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
@@ -23,9 +23,14 @@ export default Controller.extend({
   /** Honeypot — must stay empty; submitted for server validation */
   feedback_hp: '',
   screenshotData: null,
+  screenshotDragActive: false,
+
+  /** Per-field validation flags; replaced as a whole object for template updates */
+  errors: null,
 
   init() {
     this._super(...arguments);
+    this.clearAllErrors();
     const u = this.get('appState.sessionUser');
     if (u) {
       this.setProperties({
@@ -34,6 +39,41 @@ export default Controller.extend({
       });
     }
   },
+
+  clearAllErrors() {
+    this.set('errors', {
+      feedback_type: false,
+      severity: false,
+      subject: false,
+      details: false
+    });
+  },
+
+  markError(field) {
+    this.set('errors', Object.assign({}, this.get('errors') || {}, { [field]: true }));
+  },
+
+  clearError(field) {
+    this.set('errors', Object.assign({}, this.get('errors') || {}, { [field]: false }));
+  },
+
+  hasAnyError: computed('errors', function() {
+    const e = this.get('errors');
+    if (!e) {
+      return false;
+    }
+    return !!(e.feedback_type || e.severity || e.subject || e.details);
+  }),
+
+  selectClassFeedbackType: computed('errors', function() {
+    const e = this.get('errors');
+    return e && e.feedback_type ? 'la-contact-input la-contact-input--invalid' : 'la-contact-input';
+  }),
+
+  selectClassSeverity: computed('errors', function() {
+    const e = this.get('errors');
+    return e && e.severity ? 'la-contact-input la-contact-input--invalid' : 'la-contact-input';
+  }),
 
   prompt_user: computed('appState.sessionUser', function() {
     return !this.get('appState.sessionUser');
@@ -54,6 +94,60 @@ export default Controller.extend({
     ];
   }),
 
+  _isPasteTargetTextField(target) {
+    if (!target || !target.closest) {
+      return false;
+    }
+    if (target.closest('textarea')) {
+      return true;
+    }
+    const inp = target.closest('input');
+    if (inp && /^(text|email|search|url|tel|password|number)$/i.test(inp.type)) {
+      return true;
+    }
+    return false;
+  },
+
+  applyScreenshotFile(file) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+      modal.error(i18n.t('beta_feedback_screenshot_invalid_type', "Please use a PNG, JPG, GIF, or WebP image."));
+      const el = document.getElementById('beta_feedback_screenshot');
+      if (el) {
+        el.value = '';
+      modal.error(i18n.t('beta_feedback_screenshot_invalid_type', "Please use a PNG, JPG, GIF, or WebP image."));
+      const el = document.getElementById('beta_feedback_screenshot');
+      if (el) {
+        el.value = '';
+      }
+      return;
+    }
+    const max = 1.5 * 1024 * 1024;
+    if (file.size > max) {
+      modal.error(i18n.t('beta_feedback_screenshot_too_large', "Please choose an image about 1.5 MB or smaller."));
+      const el = document.getElementById('beta_feedback_screenshot');
+      if (el) {
+        el.value = '';
+      }
+      const el = document.getElementById('beta_feedback_screenshot');
+      if (el) {
+        el.value = '';
+      }
+      return;
+    }
+    const reader = new FileReader();
+    const _this = this;
+    reader.onload = function() {
+      run(_this, function() {
+        _this.set('screenshotData', reader.result);
+      });
+    };
+    reader.readAsDataURL(file);
+    const el = document.getElementById('beta_feedback_screenshot');
+    if (el) {
+      el.value = '';
+    }
+  },
+
   severityOptions: computed(function() {
     return [
       { id: '', name: i18n.t('beta_feedback_severity_prompt', "How severe is the impact?"), disabled: true },
@@ -65,11 +159,16 @@ export default Controller.extend({
   }),
 
   actions: {
+    clearFieldError(field) {
+      this.clearError(field);
+    },
     updateFeedbackType(id) {
       this.set('feedback_type', id);
+      this.clearError('feedback_type');
     },
     updateSeverity(id) {
       this.set('severity', id);
+      this.clearError('severity');
     },
     screenshotChanged(event) {
       const input = event.target;
@@ -78,52 +177,107 @@ export default Controller.extend({
         this.set('screenshotData', null);
         return;
       }
-      const max = 1.5 * 1024 * 1024;
-      if (file.size > max) {
-        modal.error(i18n.t('beta_feedback_screenshot_too_large', "Please choose an image about 1.5 MB or smaller."));
-        input.value = '';
-        this.set('screenshotData', null);
+      this.applyScreenshotFile(file);
+    },
+    screenshotPaste(event) {
+      const items = event.clipboardData && event.clipboardData.items;
+      if (!items || !items.length) {
         return;
       }
-      const reader = new FileReader();
-      const _this = this;
-      reader.onload = function() {
-        run(_this, function() {
-          _this.set('screenshotData', reader.result);
-        });
-      };
-      reader.readAsDataURL(file);
+      let imageFile = null;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file' && items[i].type.indexOf('image/') === 0) {
+          imageFile = items[i].getAsFile();
+          if (imageFile) {
+            break;
+          }
+        }
+      }
+      if (!imageFile) {
+        return;
+      }
+      if (this._isPasteTargetTextField(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      this.applyScreenshotFile(imageFile);
+    },
+    screenshotDragEnter(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.set('screenshotDragActive', true);
+    },
+    screenshotDragOver(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.set('screenshotDragActive', true);
+    },
+    screenshotDragLeave(event) {
+      event.preventDefault();
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        this.set('screenshotDragActive', false);
+      }
+    },
+    screenshotDrop(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.set('screenshotDragActive', false);
+      const files = event.dataTransfer && event.dataTransfer.files;
+      if (files && files[0]) {
+        this.applyScreenshotFile(files[0]);
+      }
     },
     clearScreenshot() {
-      this.set('screenshotData', null);
+      this.setProperties({ screenshotData: null, screenshotDragActive: false });
       const el = document.getElementById('beta_feedback_screenshot');
       if (el) {
         el.value = '';
       }
     },
     submit_feedback() {
-      if (!this.get('email') && !this.get('appState.currentUser')) {
+      this.clearAllErrors();
+      this.set('error', false);
+      if ((this.get('feedback_hp') || '').trim().length > 0) {
         return;
       }
+
+      let firstFieldId = null;
+      const mark = (field, id) => {
+        this.markError(field);
+        if (!firstFieldId) {
+          firstFieldId = id;
+        }
+      };
+
       if (!this.get('feedback_type')) {
-        modal.error(i18n.t('beta_feedback_validation_type', "Please choose a feedback category."));
-        return;
+        mark('feedback_type', 'beta_feedback_type');
       }
       if (!this.get('severity')) {
-        modal.error(i18n.t('beta_feedback_validation_severity', "Please choose a severity level."));
-        return;
+        mark('severity', 'beta_severity');
       }
       if (!this.get('subject') || !this.get('subject').trim()) {
-        modal.error(i18n.t('beta_feedback_validation_summary', "Please add a short summary."));
-        return;
+        mark('subject', 'beta_subject');
       }
       const detail = (this.get('general_feedback') || '').trim();
       const steps = (this.get('steps_to_reproduce') || '').trim();
       if (detail.length < 10 && steps.length < 10) {
-        modal.error(i18n.t('beta_feedback_validation_details', "Please describe what happened in “General feedback” or “Steps to reproduce” (at least a few words)."));
-        return;
+        mark('details', 'beta_steps');
       }
-      if ((this.get('feedback_hp') || '').trim().length > 0) {
+
+      if (this.get('hasAnyError')) {
+        scheduleOnce('afterRender', this, function() {
+          const el = firstFieldId && document.getElementById(firstFieldId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (el.focus && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
+              try {
+                el.focus({ preventScroll: true });
+              } catch (e) {
+                el.focus();
+              }
+            }
+          }
+        });
         return;
       }
       const message = {
@@ -146,11 +300,15 @@ export default Controller.extend({
       const _this = this;
       this.set('disabled', true);
       this.set('error', false);
+      // JSON avoids application/x-www-form-urlencoded issues with large base64 screenshots (+/space and size).
       this.get('persistence').ajax('/api/v1/messages', {
         type: 'POST',
-        data: { message: message }
+        contentType: 'application/json; charset=UTF-8',
+        data: JSON.stringify({ message: message }),
+        dataType: 'json'
       }).then(function() {
         _this.set('disabled', false);
+        _this.clearAllErrors();
         _this.setProperties({
           subject: '',
           steps_to_reproduce: '',
@@ -161,7 +319,8 @@ export default Controller.extend({
           feedback_type: '',
           severity: '',
           feedback_hp: '',
-          screenshotData: null
+          screenshotData: null,
+          screenshotDragActive: false
         });
         const el = document.getElementById('beta_feedback_screenshot');
         if (el) {
@@ -169,9 +328,21 @@ export default Controller.extend({
         }
         modal.success(i18n.t('beta_feedback_sent', "Thank you! Your beta feedback was sent."));
         _this.get('router').transitionTo('index');
-      }, function() {
+      }, function(xhr) {
         _this.set('error', true);
         _this.set('disabled', false);
+        let detail = '';
+        try {
+          const json = xhr.responseJSON || (xhr.responseText && JSON.parse(xhr.responseText));
+          if (json && json.errors && json.errors.length) {
+            detail = json.errors.join(' ');
+          } else if (json && json.error) {
+            detail = json.error;
+          }
+        } catch (e) { /* ignore parse errors */ }
+        if (detail) {
+          modal.error(detail);
+        }
       });
     }
   }
