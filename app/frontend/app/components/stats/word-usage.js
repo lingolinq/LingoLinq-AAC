@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { run } from '@ember/runloop';
+import { run, schedule } from '@ember/runloop';
 import LingoLinq from '../../app';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
@@ -150,7 +150,7 @@ export default Component.extend({
       _this.set('_wordUsageRawData', raw_data);
       _this.set('_wordUsageMaxWords', max_words);
 
-      run.schedule('afterRender', _this, function() {
+      schedule('afterRender', _this, function() {
         requestAnimationFrame(function() {
           var el = _this.get('element');
           if (!el || _this.isDestroyed || _this.isDestroying) { return; }

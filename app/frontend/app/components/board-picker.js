@@ -7,7 +7,7 @@ import LingoLinq from '../app';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
-import { run } from '@ember/runloop';
+import { schedule } from '@ember/runloop';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -30,7 +30,7 @@ export default Component.extend({
   },
   _scheduleExplainOverflowCheck: function() {
     var _this = this;
-    run.schedule('afterRender', function() {
+    schedule('afterRender', _this, function() {
       _this._checkExplainOverflow();
     });
   },
