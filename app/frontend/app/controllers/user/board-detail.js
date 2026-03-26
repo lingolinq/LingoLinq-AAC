@@ -18,6 +18,7 @@ import boundClasses from '../../utils/bound_classes';
 export default Controller.extend({
   app_state: service('app-state'),
   stashes: service('stashes'),
+  router: service('router'),
 
   boardname: null,
   active_category: 'all',
@@ -690,7 +691,7 @@ export default Controller.extend({
         _this.set('board_saving', false);
 
         // Transition to index subroute so edit route can be re-entered
-        _this.transitionToRoute('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+        _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
         _this.set('panels_collapsed', true);
         _this.set('board_collapsed', true);
 
@@ -705,7 +706,7 @@ export default Controller.extend({
         }
       }, function() {
         _this.set('board_saving', false);
-        _this.transitionToRoute('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+        _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
         _this.set('panels_collapsed', true);
         _this.set('board_collapsed', true);
         modal.success(i18n.t('board_saved', "Board saved!"));
@@ -746,7 +747,7 @@ export default Controller.extend({
       _this.set('boardname', new_slug);
       modal.success(i18n.t('board_saved_and_renamed', "Board saved and URL updated!"));
       // Update the URL to reflect the new board key
-      _this.transitionToRoute('user.board-detail', user_name, new_slug);
+      _this.get('router').transitionTo('user.board-detail', user_name, new_slug);
     }, function() {
       // Rename failed (possibly a collision) — board was still saved
       modal.success(i18n.t('board_saved_rename_failed', "Board saved! (URL could not be updated — a board with that name may already exist)"));
@@ -810,13 +811,13 @@ export default Controller.extend({
       this.set('show_options_menu', false);
       this.set('board_collapsed', false);
       this.set('panels_collapsed', false);
-      this.transitionToRoute('user.board-detail.edit', this.get('user.user_name'), this.get('boardname'));
+      this.get('router').transitionTo('user.board-detail.edit', this.get('user.user_name'), this.get('boardname'));
     },
 
     exit_to_home: function() {
       this.set('app_state.board_detail_nav_history', []);
       this.set('app_state.board_detail_entry_board', null);
-      this.transitionToRoute('index');
+      this.get('router').transitionTo('index');
     },
 
     revert_to_old_style: function() {
@@ -824,7 +825,7 @@ export default Controller.extend({
       var user = this.get('user');
       var boardname = this.get('boardname');
       if(user && boardname) {
-        this.transitionToRoute('user.board-alt', user.get('user_name'), boardname);
+        this.get('router').transitionTo('user.board-alt', user.get('user_name'), boardname);
       }
     },
 
@@ -855,7 +856,7 @@ export default Controller.extend({
       var prev = history.pop();
       if(!prev) { return; }
       this.set('app_state.board_detail_nav_history', history);
-      this.transitionToRoute('user.board-detail', prev.user_name, prev.boardname);
+      this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
     },
 
     go_home: function() {
@@ -865,7 +866,7 @@ export default Controller.extend({
       if(home && home.key) {
         this.set('app_state.board_detail_nav_history', []);
         var parts = home.key.split('/');
-        this.transitionToRoute('user.board-detail', parts[0], parts.slice(1).join('/'));
+        this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         return;
       }
       // Fall back to the first board the user entered on this session
@@ -879,7 +880,7 @@ export default Controller.extend({
           return;
         }
         this.set('app_state.board_detail_nav_history', []);
-        this.transitionToRoute('user.board-detail', entry.user_name, entry.boardname);
+        this.get('router').transitionTo('user.board-detail', entry.user_name, entry.boardname);
         return;
       }
       // No entry board either
@@ -918,10 +919,6 @@ export default Controller.extend({
       }
     },
 
-    board_details: function() {
-      modal.open('board-details', {board: this.get('model')});
-    },
-
     make_a_copy: function() {
       var _this = this;
       var board = _this.get('model');
@@ -957,13 +954,38 @@ export default Controller.extend({
     },
 
     download_board: function() {
-      var has_links = this.get('model.linked_boards.length') > 0;
-      modal.open('download-board', {type: 'obf', has_links: has_links, id: this.get('model.id')});
+      var _this = this;
+      this.get('app_state').assert_source().then(function() {
+        var board = _this.get('model');
+        if(!board) { return; }
+        var linked = board.get('linked_boards');
+        var has_links = !!(linked && linked.length > 0);
+        var board_id = board.get('key') || board.get('id');
+        modal.open('download-board', { type: 'obf', has_links: has_links, id: board_id });
+      }, function() {});
     },
 
     print_board: function() {
-      var has_links = this.get('model.linked_boards.length') > 0;
-      modal.open('download-board', {type: 'pdf', has_links: has_links, id: this.get('model.id')});
+      var _this = this;
+      this.get('app_state').assert_source().then(function() {
+        var board = _this.get('model');
+        if(!board) { return; }
+        var linked = board.get('linked_boards');
+        var has_links = !!(linked && linked.length > 0);
+        var board_id = board.get('key') || board.get('id');
+        modal.open('download-board', { type: 'pdf', has_links: has_links, id: board_id });
+      }, function() {});
+    },
+
+    share_board: function() {
+      var _this = this;
+      this.get('app_state').assert_source().then(function() {
+        modal.open('share-board', { board: _this.get('model') });
+      }, function() {});
+    },
+
+    other_board_actions: function() {
+      modal.open('modals/board-actions', { board: this.get('model') });
     },
 
     open_board_picker: function() {
@@ -1006,7 +1028,7 @@ export default Controller.extend({
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           var key_parts = board_key.split('/');
-          _this.transitionToRoute('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+          _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
           return;
         }
         var lookup = board_key || load_board.id;
@@ -1014,7 +1036,7 @@ export default Controller.extend({
           persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
             if(data && data.board && data.board.key) {
               var parts = data.board.key.split('/');
-              _this.transitionToRoute('user.board-detail', parts[0], parts.slice(1).join('/'));
+              _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
             }
           });
           return;
@@ -1197,11 +1219,11 @@ export default Controller.extend({
       if(!user) { return; }
       var un = user.get('user_name');
       if(item_id === 'preferences') {
-        this.transitionToRoute('user.preferences', un);
+        this.get('router').transitionTo('user.preferences', un);
       } else if(item_id === 'progress-reports') {
-        this.transitionToRoute('user.stats', un);
+        this.get('router').transitionTo('user.stats', un);
       } else if(item_id === 'goal-tracking') {
-        this.transitionToRoute('user.goals', un);
+        this.get('router').transitionTo('user.goals', un);
       }
     },
 
@@ -1244,7 +1266,7 @@ export default Controller.extend({
       // Transition back to the index subroute with panels collapsed
       _this.set('panels_collapsed', true);
       _this.set('board_collapsed', true);
-      _this.transitionToRoute('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+      _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
     },
 
     // ── Paint Mode ──
