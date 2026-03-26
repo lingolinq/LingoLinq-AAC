@@ -1143,12 +1143,39 @@ export default Service.extend({
       this.controller.send('pickWhichHome');
     }
   },
+  /**
+   * Board model for the current screen.
+   * `setup_controller` always passes the application controller, not child routes.
+   * Classic board UI uses application.board.model; board-detail keeps the board on
+   * controller:user.board-detail only.
+   */
+  resolve_board_from_controller: function() {
+    var c = this.controller;
+    if(!c || typeof c.get !== 'function') { return null; }
+    var board = c.get('board.model');
+    if(board) { return board; }
+    var routeName = this.get('router.currentRouteName') || '';
+    if(routeName.indexOf('board-detail') !== -1) {
+      var owner = getOwner(this);
+      if(owner) {
+        var detailCtrl = owner.lookup('controller:user.board-detail') ||
+          owner.lookup('controller:user/board-detail');
+        if(detailCtrl) {
+          var m = detailCtrl.get('model');
+          if(m && m.get && !m.get('error') && (m.get('key') || m.get('id'))) {
+            return m;
+          }
+        }
+      }
+    }
+    return null;
+  },
   assert_source: function() {
     var _this = this;
     if(!_this.controller || typeof _this.controller.get !== 'function') {
       return RSVP.reject({error: 'no board controller'});
     }
-    var board = _this.controller.get('board.model');
+    var board = _this.resolve_board_from_controller();
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
       if(board.get('locale') && !this.get('speak_mode')) {
