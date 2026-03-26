@@ -1435,9 +1435,10 @@ var persistence = Service.extend({
 //         head.appendChild(style);
 //       }
 //     }
-    res.then(function() { 
+    res.then(function() {
+      // Always set primed on success so find_url can resolve (was only set for mobile
+      // localhost here, leaving web/desktop stuck in 500ms retry until the 10s fallback).
       if(!_this.primed && capabilities.mobile && capabilities.installed_app && location.host.match(/^localhost/)) {
-        _this.primed = true; 
         // When being served by a local file server, when you open a board
         // the images cascade into visibility unless you prefetch them,
         // so we try to do this while still letting other requests slip in.
@@ -1490,6 +1491,7 @@ var persistence = Service.extend({
           }
         });
       }
+      _this.primed = true;
       console.log("LINGOLINQ: done priming caches", check_file_system, (new Date()).getTime() - now);
     }, function() { 
       console.log("LINGOLINQ: done priming caches", check_file_system, (new Date()).getTime() - now);

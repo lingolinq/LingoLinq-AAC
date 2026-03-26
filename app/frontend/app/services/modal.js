@@ -372,7 +372,7 @@ export default Service.extend({
    */
   scannableTargets() {
     if (this.isOpen()) {
-      return document.querySelectorAll('.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button');
+      return document.querySelectorAll('.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn');
     }
     return document.querySelectorAll('nothing'); // Return empty NodeList
   },
