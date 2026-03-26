@@ -961,6 +961,9 @@ var editManager = EmberObject.extend({
       div.id = 'overlay_container';
       var boardEl = document.getElementsByClassName('board')[0];
       div.setAttribute('class', (boardEl && boardEl.getAttribute('class')) || 'board speak overlay');
+      // Remove board-detail-only layout classes so #overlay_container keeps float/block layout
+      // (copying md-board-detail-grid would switch it to CSS grid and break overlay rows/buttons).
+      ['md-board-detail-grid'].forEach(function(cls) { div.classList.remove(cls); });
       div.classList.add('overlay');
       div.classList.add('board');
       // raw_events.find_selectable_under_event requires .advanced_selection on the region so
