@@ -1438,7 +1438,7 @@ var persistence = Service.extend({
     res.then(function() {
       // Always set primed on success so find_url can resolve (was only set for mobile
       // localhost here, leaving web/desktop stuck in 500ms retry until the 10s fallback).
-      if(capabilities.mobile && capabilities.installed_app && location.host.match(/^localhost/)) {
+      if(!_this.primed && capabilities.mobile && capabilities.installed_app && location.host.match(/^localhost/)) {
         // When being served by a local file server, when you open a board
         // the images cascade into visibility unless you prefetch them,
         // so we try to do this while still letting other requests slip in.

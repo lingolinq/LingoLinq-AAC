@@ -701,6 +701,7 @@ var speecher = EmberObject.extend({
           }
         }
         var handle_callback = function() {
+          if(utterance.handled) { return; }
           utterance.handled = true;
           if(callback) { callback(); }
         };
@@ -1223,8 +1224,6 @@ var speecher = EmberObject.extend({
     if(url && this.last_spoken_audio_url === url && (now - (this.last_spoken_audio_time || 0)) < 1000) {
       return;
     }
-    this.last_spoken_audio_url = url;
-    this.last_spoken_audio_time = now;
     var already_in_collection = collection_id && this.speaking_from_collection == collection_id;
     if(this.speaking_from_collection && !collection_id) {
       // lets the user start building their next sentence without interrupting the current one
@@ -1236,6 +1235,9 @@ var speecher = EmberObject.extend({
     } else if(this.speaking_from_collection && opts.prevent_repeat && opts.prevent_any) {
       return;
     }
+    // Only record the dedup state once we know the call will proceed with playback
+    this.last_spoken_audio_url = url;
+    this.last_spoken_audio_time = now;
     if(opts.interrupt !== false && type != 'background') {
       this.speaking = true;
       this.speaking_from_collection = collection_id;
