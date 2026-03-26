@@ -623,14 +623,14 @@ var scanner = EmberObject.extend({
     });
   },
   pick_elem: function(dom) {
-    var $closest = scanner.find_elem(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button');
+    var $closest = scanner.find_elem(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button,.md-speak-menu__btn');
     if($closest.length > 0) { dom = $closest; }
     scanner.element_index = 0;
     scanner.element_index_advanced = false;
     scanner.last_spoken_elem = null;
     var reset_now = true;
 
-    if(dom && dom.hasClass('speak_menu_button')) {
+    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn'))) {
       var e = new CustomEvent( 'speakmenuselect', { bubbles: true, cancelable: true } );
       e.button_id = dom.attr('id');
       dom[0].dispatchEvent(e);

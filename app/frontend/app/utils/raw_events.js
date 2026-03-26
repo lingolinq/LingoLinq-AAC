@@ -1221,7 +1221,7 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.tagName == 'A' && $(elem_wrap.dom).closest('#pin').length > 0) {
             event.preventDefault();
             $(elem_wrap.dom).trigger('select');
-          } else if(elem_wrap.dom.classList.contains('speak_menu_button')) {
+          } else if(elem_wrap.dom.classList.contains('speak_menu_button') || elem_wrap.dom.classList.contains('md-speak-menu__btn')) {
             // Native CustomEvent so Ember's event dispatcher receives it (jquery-integration is off).
             var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
             speakMenuEvent.button_id = elem_wrap.dom.id;

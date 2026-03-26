@@ -3274,7 +3274,10 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
+            var speakDone = false;
             var doSpeak = function() {
+              if(speakDone) { return; }
+              speakDone = true;
               if (typeof console !== 'undefined' && console.log) {
                 console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
               }
