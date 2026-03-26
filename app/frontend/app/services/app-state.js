@@ -1170,6 +1170,21 @@ export default Service.extend({
     }
     return null;
   },
+  /**
+   * True when the board-detail symbol grid should get speak-mode-style long-press scheduling
+   * (inflections overlay) even if global speak_mode is off. Board-detail uses Ember actions
+   * for taps, so it must not use the .advanced_selection click trap on the grid.
+   */
+  board_detail_inflections_active: function() {
+    var routeName = this.get('current_route') || '';
+    if(routeName.indexOf('board-detail') === -1) { return false; }
+    var owner = getOwner(this);
+    if(!owner) { return false; }
+    var detailCtrl = owner.lookup('controller:user.board-detail') ||
+      owner.lookup('controller:user/board-detail');
+    if(!detailCtrl || typeof detailCtrl.get !== 'function') { return false; }
+    return !detailCtrl.get('edit_mode');
+  },
   assert_source: function() {
     var _this = this;
     if(!_this.controller || typeof _this.controller.get !== 'function') {
@@ -3220,7 +3235,7 @@ export default Service.extend({
     var skip_auto_return = false;
     // check if the button is part of a board that has a custom handler,
     // and skip the other actions if handled
-    if(button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
+    if(button.board && button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
       var button_handled = button.board.get('button_handler')(button, obj);
       if(button_handled) { 
         if(button_handled.highlight === false) { skip_highlight = true; }
@@ -3424,6 +3439,53 @@ export default Service.extend({
       }, 100);
     } else if(!skip_auto_return) {
       this.possible_auto_home(obj);
+    }
+    // Board-detail sentence bar uses sentence_parts; overlay inflections only update utterance
+    // via add_button. Mirror the chosen label into the last matching token (or append if none).
+    if(obj.source === 'overlay' && this.board_detail_inflections_active() && obj.label) {
+      var owner = getOwner(this);
+      var detailCtrl = owner && (owner.lookup('controller:user.board-detail') ||
+        owner.lookup('controller:user/board-detail'));
+      if(detailCtrl && typeof detailCtrl.get === 'function') {
+        var bid = button.get ? button.get('id') : button.id;
+        var sparts = (detailCtrl.get('sentence_parts') || []).slice();
+        var replaced = false;
+        for(var spi = sparts.length - 1; spi >= 0; spi--) {
+          if(String((sparts[spi] || {}).id) === String(bid)) {
+            sparts[spi] = Object.assign({}, sparts[spi], { label: obj.label });
+            replaced = true;
+            break;
+          }
+        }
+        if(!replaced && bid != null) {
+          var imgUrl = button.get && (button.get('local_image_url') || button.get('image_url'));
+          if(!imgUrl) {
+            imgUrl = button.local_image_url || button.image_url;
+          }
+          sparts.push({ id: bid, label: obj.label, image_url: imgUrl });
+        }
+        detailCtrl.set('sentence_parts', sparts);
+      }
+    }
+    // Speak menu punctuation (.,?! etc.) updates utterance; board-detail bar uses sentence_parts.
+    if(obj.source === 'speak_menu' && this.board_detail_inflections_active() && obj.label) {
+      var ownerSm = getOwner(this);
+      var detailSm = ownerSm && (ownerSm.lookup('controller:user.board-detail') ||
+        ownerSm.lookup('controller:user/board-detail'));
+      if(detailSm && typeof detailSm.get === 'function') {
+        var smParts = (detailSm.get('sentence_parts') || []).slice();
+        var punct = String(obj.label);
+        var gluePunct = /^[.!?,;:]$/.test(punct);
+        if(smParts.length > 0 && gluePunct) {
+          var lastPart = smParts[smParts.length - 1];
+          smParts[smParts.length - 1] = Object.assign({}, lastPart, {
+            label: (lastPart.label || '') + punct
+          });
+        } else {
+          smParts.push({ id: 'punct_' + Date.now(), label: punct, image_url: null });
+        }
+        detailSm.set('sentence_parts', smParts);
+      }
     }
     frame_listener.notify_of_button(button, obj);
     return true;

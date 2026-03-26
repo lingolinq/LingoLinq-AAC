@@ -43542,6 +43542,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
   min-width: 0;
 }
+
+/* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
+#within_ember.board-detail-view .md-board-detail-grid.board {
+  margin: 0;
+}
+#within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card {
+  margin: 0;
+}
+
 /* Layer 3: Controls — elevated cards matching header icon style */
 .md-board-detail-symbol-card {
   position: relative;
