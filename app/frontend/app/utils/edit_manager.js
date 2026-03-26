@@ -101,9 +101,12 @@ var editManager = EmberObject.extend({
           return true;
         }
       }
-      if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
+      var routeName = this.appState.get('current_route') || '';
+      var boardDetailCommunicate = routeName.indexOf('board-detail') !== -1 && this.controller && !this.controller.get('edit_mode');
+      var inflectionsUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((this.appState.get('speak_mode') || boardDetailCommunicate) && inflectionsUser && inflectionsUser.get('preferences.inflections_overlay')) {
         if(opts.button_id) {
-          // INFLECTIONS OVERLAY: Long-press in Speak Mode shows inflection options.
+          // INFLECTIONS OVERLAY: Long-press in Speak Mode (or board-detail communicate surface) shows inflection options.
           // grid_for() builds the 3x3 grid (nw,n,ne, w,c,e, sw,s,se) from button inflections.
           // overlay_grid() creates #overlay_container and appends to document.body.
           // TODO: scanning will require a reset, and looking for this
@@ -663,7 +666,7 @@ var editManager = EmberObject.extend({
     var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
     var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (this.appState.controller.get('board.model.translations') || {})[button_id];
+    var trans = (board.get('translations') || {})[button_id];
     var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
     var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
@@ -679,7 +682,8 @@ var editManager = EmberObject.extend({
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
-      var for_current_locale = !voc_locale || !this.appState.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == this.appState.controller.get('model.board.locale'));
+      var board_locale = board.get('locale');
+      var for_current_locale = !voc_locale || !board_locale || (voc_locale == lab_locale && voc_locale == board_locale);
       for(var idx = 0; idx < 8; idx++) {
         var trans_voc = voc && (voc.inflections || [])[idx];
         if(!ignore_defaults && !trans_voc && voc) {
@@ -955,9 +959,18 @@ var editManager = EmberObject.extend({
       var pad = 5;
       var div = document.createElement('div');
       div.id = 'overlay_container';
-      div.setAttribute('class', document.getElementsByClassName('board')[0].getAttribute('class'));
+      var boardEl = document.getElementsByClassName('board')[0];
+      div.setAttribute('class', (boardEl && boardEl.getAttribute('class')) || 'board speak overlay');
+      // Remove board-detail-only layout classes so #overlay_container keeps float/block layout
+      // (copying md-board-detail-grid would switch it to CSS grid and break overlay rows/buttons).
+      ['md-board-detail-grid'].forEach(function(cls) { div.classList.remove(cls); });
       div.classList.add('overlay');
       div.classList.add('board');
+      // raw_events.find_selectable_under_event requires .advanced_selection on the region so
+      // touch_release runs button_select → overlay_button.select_callback. Board-detail's
+      // grid intentionally omits advanced_selection (Ember actions for taps), so the copied
+      // class list may lack it — always set on the overlay.
+      div.classList.add('advanced_selection');
       div.style.left = (far_left - pad) + 'px';
       div.style.width = (far_right - far_left + (pad * 2)) + 'px';
       div.style.top = (far_top - pad) + 'px';

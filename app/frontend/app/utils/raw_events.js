@@ -687,7 +687,7 @@ var buttonTracker = EmberObject.extend({
 
     // Speak-mode long-press (inflections overlay) must schedule before the scanning block below.
     // Otherwise touchstart/mousedown returns early from scanner.pick/next and longPressEvent is never set.
-    if(buttonTracker.buttonDown && !editManager.paint_mode && (event.type == 'touchstart' || event.type == 'mousedown') && buttonTracker.appState.get('speak_mode')) {
+    if(buttonTracker.buttonDown && !editManager.paint_mode && (event.type == 'touchstart' || event.type == 'mousedown') && (buttonTracker.appState.get('speak_mode') || (typeof buttonTracker.appState.board_detail_inflections_active === 'function' && buttonTracker.appState.board_detail_inflections_active()))) {
       event.long_press_target = event.target;
       if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
         if(!buttonTracker.ignored_region(event)) {

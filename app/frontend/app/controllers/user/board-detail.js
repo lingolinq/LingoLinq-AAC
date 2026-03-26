@@ -14,6 +14,7 @@ import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
+import wordSuggestionsModule from '../../utils/word_suggestions';
 
 export default Controller.extend({
   app_state: service('app-state'),
@@ -307,10 +308,7 @@ export default Controller.extend({
     function() {
       if(!this.get('model.word_suggestions') || this.get('edit_mode')) { return; }
       var _this = this;
-      var word_suggestions = window.LingoLinq && window.LingoLinq.word_suggestions;
-      if(!word_suggestions) {
-        try { word_suggestions = require('lingolinq-aac/utils/word_suggestions').default; } catch(e) { }
-      }
+      var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
       if(!word_suggestions || !word_suggestions.lookup) { return; }
 
       var button_list = this.get('app_state.button_list') || [];

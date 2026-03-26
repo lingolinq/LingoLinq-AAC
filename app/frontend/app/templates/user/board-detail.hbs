@@ -659,7 +659,8 @@
 
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
-      <div class="md-board-detail-grid {{if this.board_saving 'md-board-detail-grid--hidden'}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+      {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
+      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
         style={{safe-style this.grid_style}}>
         {{#each this.ordered_buttons as |row|}}
           {{#each row as |btn|}}
@@ -672,7 +673,7 @@
               </div>
             {{/if}}
             <div
-              class="md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}}"
+              class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}}"
               role="gridcell"
               data-id={{btn.id}}
               style={{if btn.background_color (safe-style (concat "background-color:" btn.background_color ";border-color:" btn.border_color))}}
@@ -707,7 +708,7 @@
               {{/if}}
               {{#if btn.image_url}}
                 <div class="md-board-detail-symbol-card__image">
-                  <img src={{btn.image_url}} alt={{btn.label}} loading="lazy" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');">
+                  <img class="symbol" src={{btn.image_url}} alt={{btn.label}} loading="lazy" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');">
                   <span class="md-board-detail-symbol-card__alt-text" style="display:none;">{{btn.label}}</span>
                 </div>
               {{else}}
