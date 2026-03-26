@@ -653,7 +653,8 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'view')
     extra = UserExtra.find_or_create_by(user: @api_user)
     res = extra.tag_board(board, params['tag'], params['remove'], params['downstream'])
-    render json: {tagged: !!res, board_tags: res}
+    board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+    render json: {tagged: !!res, board_tags: res, board_tag_map: board_tag_map}
   end
   
   def unstar

@@ -176,8 +176,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         if extra
           json['lesson_ids'] = (extra.settings['lessons'] || []).map{|l| l['id'] }
           user_topics += extra.settings['topics'] || []
-          tags = (extra.settings['board_tags'] || {}).to_a.map(&:first).sort
+          board_tags_hash = (extra.settings['board_tags'] || {})
+          tags = board_tags_hash.to_a.map(&:first).sort
           json['board_tags'] = tags if !tags.blank?
+          if !board_tags_hash.blank?
+            json['board_tag_map'] = board_tags_hash.transform_values { |v| v || [] }
+          end
           json['focus_words'] = extra.active_focus_words
           if json['permissions']['supervise']
             soonest = nil
