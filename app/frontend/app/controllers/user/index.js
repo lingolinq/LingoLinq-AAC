@@ -184,14 +184,24 @@ export default Controller.extend({
       return res;
     }
   ),
-  _findMineBoardByGlobalId: function(gid) {
-    var boards = this.get('model.my_boards');
-    if (!boards || !boards.forEach) { return null; }
-    var found = null;
+  myBoardsByGlobalIdMap: computed('model.my_boards.[]', function() {
+    var boards = this.get('model.my_boards') || [];
+    var map = Object.create(null);
+    if (!boards.forEach) { return map; }
     boards.forEach(function(b) {
-      if (b && b.get && b.get('global_id') === gid) { found = b; }
+      if (b && b.get) {
+        var gid = b.get('global_id');
+        if (gid !== undefined && gid !== null) {
+          map[gid] = b;
+        }
+      }
     });
-    return found;
+    return map;
+  }),
+  _findMineBoardByGlobalId: function(gid) {
+    var map = this.get('myBoardsByGlobalIdMap');
+    if (!map) { return null; }
+    return Object.prototype.hasOwnProperty.call(map, gid) ? map[gid] : null;
   },
   boards_page_raw_list: computed(
     'selected',
