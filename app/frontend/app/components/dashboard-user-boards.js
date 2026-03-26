@@ -74,19 +74,21 @@ export default Component.extend({
     try {
       c.update_selected();
     } catch (e) { /* noop */ }
-    user.reload().then(
-      function() {
-        c.update_selected();
-        try {
-          c.reload_logs();
-          c.load_badges();
-          c.load_goals();
-        } catch (e) { /* noop */ }
-      },
-      function() {
-        c.update_selected();
-      }
-    );
+    if (typeof user.reload === 'function') {
+      user.reload().then(
+        function() {
+          c.update_selected();
+          try {
+            c.reload_logs();
+            c.load_badges();
+            c.load_goals();
+          } catch (e) { /* noop */ }
+        },
+        function() {
+          c.update_selected();
+        }
+      );
+    }
   },
 
   actions: {

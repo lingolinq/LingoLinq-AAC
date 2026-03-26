@@ -168,6 +168,7 @@ LingoLinq::Application.routes.draw do
       get 'protected_image/:library/:image_id' => 'users#protected_image'
       get 'word_map' => 'users#word_map'
       get 'word_activities' => 'users#word_activities'
+      post 'board_tags/ensure' => 'users#ensure_board_tag'
       post 'evals/transfer' => 'users#transfer_eval'
       post 'evals/reset' => 'users#reset_eval'
       post '2fa' => 'users#update_2fa'

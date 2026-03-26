@@ -119,9 +119,26 @@ class UserExtra < ApplicationRecord
       end
       self.settings['board_tags'][tag].uniq!
     end
-    self.settings['board_tags'].each do |k, list|
-      self.settings['board_tags'].delete(k) if !list || list.empty?  
-    end
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
+  # Create a tag entry with no boards (empty folder). Idempotent.
+  def ensure_board_tag(tag)
+    tag = tag.to_s.strip
+    return nil if tag.blank?
+    self.settings['board_tags'] ||= {}
+    self.settings['board_tags'][tag] ||= []
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
+  # Remove a tag key entirely (delete folder).
+  def delete_board_tag_folder(tag)
+    tag = tag.to_s.strip
+    return nil if tag.blank?
+    self.settings['board_tags'] ||= {}
+    self.settings['board_tags'].delete(tag)
     self.save!
     self.settings['board_tags'].keys.sort
   end

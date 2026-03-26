@@ -1,0 +1,155 @@
+{{#if this.boardsCtrl.board_list}}
+  {{#if this.boardsCtrl.board_list.loading}}
+    <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
+  {{else if this.boardsCtrl.board_list.error}}
+    <p class="ub-boards-page__loading">{{t "Failed to load" key="failed_to_load"}}</p>
+  {{else if this.boardsCtrl.board_list.results}}
+    {{#if this.boardsCtrl.prior_home_selected}}
+      <ul class="list-group" style="max-width: 350px;">
+        {{#each this.boardsCtrl.board_list.filtered_results as |board|}}
+          <li class="list-group-item">
+            <LinkTo @route="board" @model={{board.board.key}}>{{board.board.key}}</LinkTo>
+          </li>
+        {{/each}}
+      </ul>
+      {{#if this.boardsCtrl.board_list.has_more}}
+        <a href="#" {{action "show_more_boards" target=this.boardsCtrl}}>{{t "show more" key="show_more"}}</a>
+      {{else}}
+        {{#unless this.boardsCtrl.show_all_boards}}
+          <a href="#" {{action "show_more_boards" target=this.boardsCtrl}}>{{t "show more" key="show_more"}}</a>
+        {{/unless}}
+      {{/if}}
+    {{else}}
+      {{#if this.boardsCtrl.board_list.sub_result}}
+        <p><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</em></p>
+        <a href="#" class="md-btn" {{action "load_children" target=this.boardsCtrl}}>← {{t "Back to Full List" key="back_to_full_list"}}</a>
+      {{/if}}
+
+      <form class="ub-boards-page__filter-form ub-boards-page__filter-form--with-actions" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+        <label for={{this.filterInputId}} class="ub-boards-page__filter-label">{{t "Filter Results" key="filter_results"}}</label>
+        <input
+          id={{this.filterInputId}}
+          type="text"
+          class="ub-boards-page__filter-input"
+          placeholder={{t "Filter Results" key="filter_results"}}
+          value={{this.boardsCtrl.filterString}}
+          {{on "input" (action "updateFilterString" target=this.boardsCtrl)}}
+        />
+        {{#if this.boardsCtrl.filterString}}
+          <button type="button" class="ub-boards-page__filter-clear" {{action "clearFilter" target=this.boardsCtrl}} aria-label={{t "Clear filter" key="clear_filter"}}>
+            {{t "Clear" key="clear"}}
+          </button>
+        {{/if}}
+        {{#if this.boardsCtrl.mineFoldersEnabled}}
+          {{#if this.boardsCtrl.model.permissions.model}}
+          <div class="ub-boards-page__filter-actions">
+            <button type="button" class="md-btn md-btn--secondary ub-boards-page__filter-action-btn" {{action "openNewBoardFolderModal" target=this.boardsCtrl}}>
+              {{t "New folder" key="new_board_folder_title"}}
+            </button>
+            <button type="button" class="md-btn md-btn--secondary ub-boards-page__filter-action-btn" {{action "openTagBoardModal"}}>
+              {{t "Tag a board" key="tag_a_board"}}
+            </button>
+          </div>
+          {{/if}}
+        {{/if}}
+      </form>
+
+      {{#if this.boardsCtrl.mineFoldersEnabled}}
+        {{#if this.boardsCtrl.mineTagFolderDrillIn}}
+        <div class="ub-boards-page__folder-context">
+          <button type="button" class="md-btn md-btn--secondary ub-boards-page__folder-back" {{action "exitMineFolderTag" target=this.boardsCtrl}}>
+            {{t "Back" key="back"}}
+          </button>
+          <span class="ub-boards-page__folder-context-title">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
+        </div>
+        {{/if}}
+      {{/if}}
+
+      {{#if this.boardsCtrl.mineFoldersEnabled}}
+        {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
+        <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}>
+          {{#each this.boardsCtrl.mineTagFolderSummaries as |folder|}}
+            <button
+              type="button"
+              class="ub-boards-page__tag-folder"
+              role="listitem"
+              {{action "enterMineFolderTag" folder.tag target=this.boardsCtrl}}
+              {{on "dragover" (action "folderDragOver" folder.tag)}}
+              {{on "dragenter" (action "folderDragEnter" folder.tag)}}
+              {{on "dragleave" (action "folderDragLeave" folder.tag)}}
+              {{on "drop" (action "folderDrop" folder.tag)}}
+            >
+              <span class="ub-boards-page__tag-folder-name">{{folder.tag}}</span>
+              <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
+            </button>
+          {{/each}}
+        </div>
+        {{#if this.boardsCtrl.mine_selected}}
+          <p class="ub-boards-page__folder-hint">{{t "The same board can appear in more than one folder. Dropping adds the folder tag; use the board menu to remove a tag from one folder only." key="mine_folders_multi_tag_hint"}}</p>
+        {{/if}}
+        {{/unless}}
+      {{/if}}
+
+      {{#if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit this.boardsCtrl.mineFoldersEnabled)}}
+        {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
+        <p class="ub-boards-page__drag-hint" id="{{concat this.filterInputId "-mine-drag-hint"}}">{{t "Tip: drag a board onto a folder to add it to that folder." key="mine_board_drag_hint"}}</p>
+        {{/unless}}
+      {{/if}}
+
+      <div
+        class="ub-boards-page__board-grid"
+        aria-describedby={{this.boardGridAriaDescribedby}}
+      >
+        {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
+          {{#if board.board.key}}
+            {{#unless board.board.removed}}
+              <div
+                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}}"
+                draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) (if board.children false true) false}}
+                {{on "dragstart" (action "boardDragStart" board.board)}}
+              >
+                {{#if board.children}}
+                  {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
+                {{else}}
+                  {{board-icon board=board.board}}
+                {{/if}}
+                {{#if this.boardsCtrl.model.permissions.edit}}
+                  {{#if board.board.id}}
+                    <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
+                      <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>
+                    </button>
+                  {{/if}}
+                {{/if}}
+              </div>
+            {{/unless}}
+          {{else if board.orphan}}
+            {{#if board.children}}
+              <div class="ub-boards-page__board-item board_with_action simple_board_holder">
+                {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
+                {{#if this.boardsCtrl.model.permissions.edit}}
+                  <button type="button" class="board_action" {{action "remove_board" "delete_orphans" board target=this.boardsCtrl}}>
+                    <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>
+                  </button>
+                {{/if}}
+              </div>
+            {{/if}}
+          {{/if}}
+        {{/each}}
+        {{#if this.boardsCtrl.board_list.has_more}}
+          {{#unless this.boardsCtrl.filterString}}
+            <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
+              <a href="#" class="ub-boards-page__show-more-btn" {{action "show_more_boards" target=this.boardsCtrl}}>
+                {{t "More" key="more"}}
+                <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
+                  <span class="glyphicon glyphicon-chevron-down"></span><span class="glyphicon glyphicon-chevron-down"></span>
+                </span>
+              </a>
+            </div>
+          {{/unless}}
+        {{/if}}
+      </div>
+    {{/if}}
+  {{else}}
+    <p class="ub-boards-page__loading">{{t "None found" key="none_found"}}</p>
+  {{/if}}
+{{/if}}

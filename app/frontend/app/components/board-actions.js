@@ -74,8 +74,10 @@ export default Component.extend({
       this.appState.assert_source().then(function() {
         if (!_this.get('model') || !_this.get('model.board')) { return; }
         const board = _this.get('model.board');
-        const has_links = board && board.linked_boards && board.linked_boards.length > 0;
-        modalUtil.open('download-board', { type: 'obf', has_links: has_links, id: _this.get('model.board.id') });
+        const linked = board.get && board.get('linked_boards');
+        const has_links = !!(linked && linked.length > 0);
+        const board_id = (board.get && (board.get('key') || board.get('id'))) || board.id;
+        modalUtil.open('download-board', { type: 'obf', has_links: has_links, id: board_id });
       }, function() {});
     },
     batch_recording() {

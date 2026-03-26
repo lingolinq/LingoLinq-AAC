@@ -11374,9 +11374,35 @@ form.row.subscription-form-with-cards {
   display: grid;
   gap: 8px;
 }
+.md-speak-menu__row--1 { grid-template-columns: 1fr; }
 .md-speak-menu__row--2 { grid-template-columns: repeat(2, 1fr); }
 .md-speak-menu__row--3 { grid-template-columns: repeat(3, 1fr); }
 .md-speak-menu__row--5 { grid-template-columns: repeat(5, 1fr); }
+.md-speak-menu__row--locale {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+
+/* Speak menu: board tools (speak mode + languages) above main actions */
+.md-speak-menu__section-wrap--board-tools {
+  border-bottom: 1px solid rgba(27, 54, 93, 0.15);
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+}
+.md-speak-menu__btn--text-row {
+  min-height: 52px;
+  justify-content: center;
+  padding: 12px 10px;
+}
+.md-speak-menu__btn--locale-chip {
+  min-height: 48px;
+  padding: 10px 8px;
+}
+.md-speak-menu__btn-label--locale {
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  font-weight: 600;
+  word-break: break-word;
+}
 
 /* Individual buttons */
 .md-speak-menu__btn {
@@ -41735,6 +41761,110 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       box-shadow: 0 0 0 3px rgba(20,127,130,0.12);
     }
   }
+  &__filter-form--with-actions {
+    align-items: flex-start;
+  }
+  &__filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  &__filter-action-btn {
+    font-size: 1.1rem;
+    white-space: nowrap;
+  }
+
+  &__folder-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+  }
+  &__tag-folder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(17, 26, 46, 0.12);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1b2a4a;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    &:hover,
+    &:focus {
+      outline: none;
+      border-color: rgba(20, 127, 130, 0.45);
+      box-shadow: 0 2px 10px rgba(20, 127, 130, 0.12);
+    }
+    &--dropping {
+      border-color: #147f82;
+      background: rgba(20, 127, 130, 0.1);
+      box-shadow: 0 0 0 3px rgba(20, 127, 130, 0.2);
+    }
+  }
+  &__tag-folder-name {
+    text-align: left;
+    word-break: break-word;
+  }
+  &__tag-folder-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #147f82;
+    background: rgba(20, 127, 130, 0.12);
+  }
+
+  &__folder-context {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  &__folder-back {
+    font-size: 1.1rem;
+  }
+  &__folder-context-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1b2a4a;
+  }
+  &__folder-hint {
+    margin: 0 0 14px;
+    font-size: 1.05rem;
+    line-height: 1.45;
+    color: #5a6a85;
+    max-width: 52rem;
+  }
+  &__drag-hint {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+    line-height: 1.45;
+    color: #5a6a85;
+    max-width: 52rem;
+  }
+
+  &__board-item--draggable {
+    cursor: grab;
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
   /* Fixed card width so every board tile aligns on boards + search pages */
   $ub-boards-page-card-w: 280px;
   &__board-grid {
@@ -42668,12 +42798,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-board-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 4px;
   gap: 0;
   padding: 4px 6px;
   background: rgba(27, 54, 93, 0.05);
   border: 1px solid rgba(27, 54, 93, 0.08);
   border-radius: 12px;
   flex-shrink: 0;
+  max-width: 100%;
 }
 .md-board-detail-board-actions__btn {
   display: flex;

@@ -7,6 +7,18 @@
   <div class="modal-body">
     <p class="la-tag-board-desc">{{t "You can organize individual boards or sets of boards to make them easier to find in the future. Choose a new category name or select from the list of names you've already used." key="tag_explainer"}}</p>
 
+    {{#unless this.model.board}}
+      <div class="la-tag-board-section">
+        <label class="la-tag-board-label" for="tag-board-board">{{t "Board" key="board"}}</label>
+        <select id="tag-board-board" class="la-tag-board-input" {{on "change" (action "pickBoard")}}>
+          <option value="">{{t "Choose a board" key="tag_board_pick_board"}}</option>
+          {{#each this.boardChoicesList as |brd|}}
+            <option value={{brd.id}}>{{brd.name}}</option>
+          {{/each}}
+        </select>
+      </div>
+    {{/unless}}
+
     <div class="la-tag-board-section">
       <label class="la-tag-board-label" for="category">{{t "Category" key="category"}}</label>
       {{#if this.model.user.board_tags}}
@@ -29,7 +41,7 @@
       {{/if}}
     </div>
 
-    {{#if this.model.board.downstream_boards}}
+    {{#if this.boardForTag.downstream_boards}}
       <div class="la-tag-board-section">
         <label class="la-tag-board-checkbox">
           <Input type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
