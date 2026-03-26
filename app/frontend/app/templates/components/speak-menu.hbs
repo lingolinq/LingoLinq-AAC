@@ -19,6 +19,84 @@
     </div>
 
     {{#if this.app_state.feature_flags.new_speak_menu}}
+      {{#if this.showSpeakLocaleSection}}
+        <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools">
+          {{#if this.app_state.speak_mode_possible}}
+            <div class="md-speak-menu__section">
+              <div class="md-speak-menu__section-label">{{t "Speak Mode" key="speak_mode"}}</div>
+              {{#if this.app_state.speak_mode}}
+                <div class="md-speak-menu__row md-speak-menu__row--1">
+                  <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "speak_mode_toggle"}}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    <span class="md-speak-menu__btn-label">{{t "Exit Speak Mode" key="exit_speak_mode"}}</span>
+                  </button>
+                </div>
+              {{else}}
+                {{#if this.applicationController.currentUser.supporter_view}}
+                  <div class="md-speak-menu__row md-speak-menu__row--2">
+                    {{#if this.applicationController.currentUser.communicator_in_supporter_view}}
+                      <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "set_speak_mode_user" "self" "modeling"}}>
+                        <span class="md-speak-menu__btn-label">{{t "model for me" key="model_for_me"}}</span>
+                      </button>
+                    {{/if}}
+                    <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "set_speak_mode_user" "self"}}>
+                      <span class="md-speak-menu__btn-label">{{t "speak as me" key="speak_as_me"}}</span>
+                    </button>
+                    {{#if this.applicationController.currentUser.permissions.delete}}
+                      {{#if this.applicationController.few_supervisees}}
+                        {{#each this.applicationController.few_supervisees.list as |supervisee|}}
+                          <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "set_speak_mode_user" supervisee.id "modeling"}}>
+                            <span class="md-speak-menu__btn-label">{{t "model for" key="model_for_lower"}} {{supervisee.user_name}}</span>
+                          </button>
+                          <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "set_speak_mode_user" supervisee.id}}>
+                            <span class="md-speak-menu__btn-label">{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</span>
+                          </button>
+                        {{/each}}
+                        {{#if this.applicationController.few_supervisees.more}}
+                          <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "pick_speak_mode_user" "modeling"}}>
+                            <span class="md-speak-menu__btn-label">{{t "model for..." key="model_for_ellipsis"}}</span>
+                          </button>
+                          <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "pick_speak_mode_user" "speak"}}>
+                            <span class="md-speak-menu__btn-label">{{t "speak as..." key="speak_as_ellipsis"}}</span>
+                          </button>
+                        {{/if}}
+                      {{else}}
+                        <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "pick_speak_mode_user" "modeling"}}>
+                          <span class="md-speak-menu__btn-label">{{t "model for..." key="model_for_ellipsis"}}</span>
+                        </button>
+                        <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "pick_speak_mode_user" "speak"}}>
+                          <span class="md-speak-menu__btn-label">{{t "speak as..." key="speak_as_ellipsis"}}</span>
+                        </button>
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                {{else}}
+                  <div class="md-speak-menu__row md-speak-menu__row--1">
+                    <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{action "speak_mode_toggle"}}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                      <span class="md-speak-menu__btn-label">{{t "Speak Mode" key="speak_mode"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
+              {{/if}}
+            </div>
+          {{/if}}
+          {{#if this.localeBoardModel}}
+            {{#if this.app_state.currentBoardState.translatable}}
+              <div class="md-speak-menu__section">
+                <div class="md-speak-menu__section-label">{{t "Board Languages" key="board_languages"}}</div>
+                <div class="md-speak-menu__row md-speak-menu__row--locale">
+                  {{#each this.localeBoardModel.readable_locales as |loc|}}
+                    <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row md-speak-menu__btn--locale-chip" {{action "set_board_locale" loc.locale}}>
+                      <span class="md-speak-menu__btn-label md-speak-menu__btn-label--locale">{{loc.string}}</span>
+                    </button>
+                  {{/each}}
+                </div>
+              </div>
+            {{/if}}
+          {{/if}}
+        </div>
+      {{/if}}
       {{#button-listener buttonEvent=(action "button_event")}}
         {{#if this.repeat_menu}}
           {{!-- Repeat / Volume group --}}
