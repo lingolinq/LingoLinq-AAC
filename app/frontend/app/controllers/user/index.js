@@ -14,6 +14,32 @@ import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 
+function invertBoardTagMap(map) {
+  var inv = {};
+  if (!map || typeof map !== 'object') { return inv; }
+  Object.keys(map).forEach(function(tag) {
+    (map[tag] || []).forEach(function(gid) {
+      if (!gid) { return; }
+      inv[gid] = inv[gid] || [];
+      if (inv[gid].indexOf(tag) === -1) {
+        inv[gid].push(tag);
+      }
+    });
+  });
+  return inv;
+}
+
+function allTaggedGlobalIds(map) {
+  var s = {};
+  if (!map || typeof map !== 'object') { return s; }
+  Object.keys(map).forEach(function(tag) {
+    (map[tag] || []).forEach(function(gid) {
+      if (gid) { s[gid] = true; }
+    });
+  });
+  return s;
+}
+
 export default Controller.extend({
   store: service('store'),
   router: service('router'),
@@ -88,6 +114,8 @@ export default Controller.extend({
     }
   ),
   filterStringDebounced: '',
+  /** When set, Mine tab shows boards tagged with this folder name (flat folders). */
+  mineTagFolderDrillIn: null,
   _scheduleFilterDebounce: observer('filterString', function() {
     var _this = this;
     debounce(this, function() {
@@ -99,6 +127,72 @@ export default Controller.extend({
       }
     }, 300);
   }),
+  mineFoldersEnabled: computed(
+    'selected',
+    'parent_object',
+    'model.board_tag_map',
+    function() {
+      if (this.get('parent_object')) { return false; }
+      var sel = this.get('selected');
+      if (sel && sel !== 'mine') { return false; }
+      var m = this.get('model.board_tag_map');
+      return !!(m && typeof m === 'object' && Object.keys(m).length > 0);
+    }
+  ),
+  /** Sorted folder rows: { tag, count } for strip (hidden when filter excludes tag name and all boards in tag). */
+  mineTagFolderSummaries: computed(
+    'model.board_tag_map',
+    'filterStringDebounced',
+    'model.my_boards.[]',
+    function() {
+      var map = this.get('model.board_tag_map');
+      if (!map || typeof map !== 'object') { return []; }
+      var filter = (this.get('filterStringDebounced') || '').trim();
+      var re = null;
+      if (filter) {
+        try { re = new RegExp(filter, 'i'); } catch (e) { re = null; }
+      }
+      var gidToTags = invertBoardTagMap(map);
+      var keys = Object.keys(map).sort();
+      var res = [];
+      var _this = this;
+      keys.forEach(function(tag) {
+        var ids = map[tag] || [];
+        if (re) {
+          var show = tag.match(re);
+          if (!show) {
+            show = ids.some(function(gid) {
+              var b = _this._findMineBoardByGlobalId(gid);
+              if (!b) { return false; }
+              return _this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags);
+            });
+          }
+          if (!show) { return; }
+          var cnt = 0;
+          ids.forEach(function(gid) {
+            var b = _this._findMineBoardByGlobalId(gid);
+            if (!b) { return; }
+            if (_this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags)) {
+              cnt++;
+            }
+          });
+          res.push({ tag: tag, count: cnt });
+        } else {
+          res.push({ tag: tag, count: ids.length });
+        }
+      });
+      return res;
+    }
+  ),
+  _findMineBoardByGlobalId: function(gid) {
+    var boards = this.get('model.my_boards');
+    if (!boards || !boards.forEach) { return null; }
+    var found = null;
+    boards.forEach(function(b) {
+      if (b && b.get && b.get('global_id') === gid) { found = b; }
+    });
+    return found;
+  },
   boards_page_raw_list: computed(
     'selected',
     'parent_object',
@@ -138,13 +232,16 @@ export default Controller.extend({
     'filterStringDebounced',
     'boards_page_raw_list',
     'parent_object',
+    'mineFoldersEnabled',
+    'model.board_tag_map',
     function() {
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
         return this.get('filtered_results') || [];
       }
       var rawList = this.get('boards_page_raw_list');
-      if (rawList && rawList.length > 0) {
+      var useMineFolder = this.get('mineFoldersEnabled');
+      if (rawList && rawList.length > 0 && !useMineFolder) {
         try {
           var re = new RegExp(filter, 'i');
           return rawList.filter(function(b) {
@@ -157,23 +254,35 @@ export default Controller.extend({
         }
       }
       var list = this.get('filtered_results') || [];
+      var tagMap = this.get('model.board_tag_map');
+      var gidToTags = invertBoardTagMap(tagMap);
       try {
         var re = new RegExp(filter, 'i');
         return list.filter(function(i) {
-          var search = (i.board && i.board.get('search_string')) || '';
-          if (search.match(re)) { return true; }
-          if (i.children && i.children.length) {
-            return i.children.some(function(c) {
-              return (c.board && c.board.get('search_string') || '').match(re);
-            });
-          }
-          return false;
-        });
+          return this._boardRowMatchesFilter(i, re, gidToTags);
+        }.bind(this));
       } catch (err) {
         return list;
       }
     }
   ),
+  _boardRowMatchesFilter: function(row, re, gidToTags) {
+    if (!row || !row.board || !row.board.get) { return false; }
+    var board = row.board;
+    var search = (board.get('search_string') || '');
+    if (search.match(re)) { return true; }
+    var gid = board.get('global_id');
+    var tags = (gidToTags && gidToTags[gid]) || [];
+    for (var t = 0; t < tags.length; t++) {
+      if (tags[t].match(re)) { return true; }
+    }
+    if (row.children && row.children.length) {
+      return row.children.some(function(c) {
+        return this._boardRowMatchesFilter({ board: c.board, children: [] }, re, gidToTags);
+      }.bind(this));
+    }
+    return false;
+  },
   board_list: computed(
     'selected',
     'parent_object',
@@ -181,6 +290,8 @@ export default Controller.extend({
     'boards_display_limit',
     // 'filterString',
     'model.id',
+    'model.board_tag_map',
+    'mineTagFolderDrillIn',
     'model.my_boards',
     'model.prior_home_boards',
     'model.public_boards',
@@ -329,6 +440,28 @@ export default Controller.extend({
         //     new_list.push(obj);
         //   }
         // });
+      }
+      if (cluster_orphans && !this.get('parent_object')) {
+        var tagMap = this.get('model.board_tag_map');
+        if (tagMap && typeof tagMap === 'object' && Object.keys(tagMap).length > 0) {
+          var drill = this.get('mineTagFolderDrillIn');
+          var taggedSet = allTaggedGlobalIds(tagMap);
+          var idsInDrill = {};
+          if (drill) {
+            (tagMap[drill] || []).forEach(function(gid) {
+              if (gid) { idsInDrill[gid] = true; }
+            });
+          }
+          new_list = new_list.filter(function(row) {
+            if (row.orphan) { return !drill; }
+            var gid = row.board && row.board.get && row.board.get('global_id');
+            if (!gid) { return true; }
+            if (drill) {
+              return !!idsInDrill[gid];
+            }
+            return !taggedSet[gid];
+          });
+        }
       }
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');
@@ -662,15 +795,29 @@ export default Controller.extend({
       this.set('show_all_boards', false);
       this.set('boards_display_limit', null);
       this.set('parent_object', null);
+      this.set('mineTagFolderDrillIn', null);
 //       this.set('filterString', '');
     },
     set_tag: function(tag) {
+      this.set('mineTagFolderDrillIn', null);
       this.set('selected', 'tagged');
       this.set('show_all_boards', false);
       this.set('parent_object', null);
       this.set('current_tag', tag);
     },
+    enterMineFolderTag: function(tag) {
+      this.set('mineTagFolderDrillIn', tag);
+      this.set('show_all_boards', false);
+      this.set('boards_display_limit', null);
+    },
+    exitMineFolderTag: function() {
+      this.set('mineTagFolderDrillIn', null);
+    },
+    openNewBoardFolderModal: function() {
+      modal.open('new-board-folder', { user: this.get('model') });
+    },
     load_children: function(obj) {
+      this.set('mineTagFolderDrillIn', null);
       this.set('show_all_boards', false);
       if(obj) {
         this.set('prior_filter_string', this.get('filterString') || '');
