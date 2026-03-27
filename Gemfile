@@ -31,7 +31,12 @@ gem 'matrix'
 gem 'concurrent-ruby', '~> 1.3'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
-gem 'rails', '~> 7.2.0'
+# 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
+gem 'rails', '>= 7.2.3.1', '< 7.3'
+# CVE-2026-33210 (format string); bundler-audit advisory minimum
+gem 'json', '>= 2.19.2'
+# GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer allows ~> 2.21
+gem 'loofah', '>= 2.25.1'
 gem 'pg', '~> 1.5'
 gem 'sass-rails', '~> 6.0'
 gem 'sprockets-rails', '~> 3.5'
