@@ -44118,7 +44118,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   line-height: 1.3;
 }
 .md-board-detail-symbol-card__label {
-  font-size: clamp(8px, 1.2vw, 18px);
+  font-size: var(--bd-button-text-size, 18px);
   font-weight: 600;
   color: #1b365d;
   text-align: center;
@@ -44131,7 +44131,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   max-height: 2.3em;
 }
 .md-board-detail-symbol-card__label-input {
-  font-size: 14px;
+  font-size: var(--bd-button-text-size, 18px);
   font-weight: 600;
   color: #1b365d;
   text-align: center;
@@ -45839,9 +45839,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-board-detail-symbol-card__image {
     min-height: 24px;
   }
-  .md-board-detail-symbol-card__label {
-    font-size: 12px;
-  }
   .md-board-detail-edit-btn {
     padding: 8px 14px;
     font-size: 13px;
@@ -45924,9 +45921,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-board-detail-symbol-card__image {
     min-height: 18px;
-  }
-  .md-board-detail-symbol-card__label {
-    font-size: 10px;
   }
   .md-board-detail-color-trigger {
     width: 22px;

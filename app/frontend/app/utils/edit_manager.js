@@ -1179,7 +1179,19 @@ var editManager = EmberObject.extend({
       var arr = [];
       for(var jdx = 0; jdx < oldState[idx].length; jdx++) {
         var btn = oldState[idx][jdx];
-        var raw = (btn.raw && typeof btn.raw === 'function') ? btn.raw() : Object.assign({}, btn);
+        var raw;
+        if(btn.raw && typeof btn.raw === 'function') {
+          raw = btn.raw();
+        } else if(btn.getProperties && typeof btn.getProperties === 'function') {
+          raw = btn.getProperties('id', 'label', 'vocalization', 'image_id', 'sound_id', 'background_color', 'border_color', 'part_of_speech', 'suggested_part_of_speech', 'painted_part_of_speech', 'hidden', 'link_disabled', 'load_board', 'url', 'apps', 'empty', 'text_only', 'level', 'home_lock');
+        } else {
+          raw = {};
+          for(var key in btn) {
+            if(btn.hasOwnProperty && btn.hasOwnProperty(key) && typeof btn[key] !== 'function') {
+              raw[key] = btn[key];
+            }
+          }
+        }
         raw.local_image_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_image_url') : btn.local_image_url;
         raw.local_sound_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_sound_url') : btn.local_sound_url;
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
@@ -1332,10 +1344,14 @@ var editManager = EmberObject.extend({
     this.change_button(id, opts);
   },
   change_button: function(id, options) {
-    this.save_state({
-      button_id: id,
-      changes: Object.keys(options)
-    });
+    try {
+      this.save_state({
+        button_id: id,
+        changes: Object.keys(options)
+      });
+    } catch(e) {
+      console.warn('edit_manager: save_state failed during change_button', e);
+    }
     var button = this.find_button(id);
     if(button) {
       if(options.image) {

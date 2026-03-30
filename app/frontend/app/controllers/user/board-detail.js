@@ -368,6 +368,10 @@ export default Controller.extend({
     return !!(this.get('ordered_buttons'));
   }),
 
+  undo_redo_disabled: computed('borders_matched', 'board_recolored', 'folder_labels_on_tab', function() {
+    return this.get('borders_matched') || this.get('board_recolored') || this.get('folder_labels_on_tab');
+  }),
+
   // Button text preferences from user device settings
   button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
     var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
