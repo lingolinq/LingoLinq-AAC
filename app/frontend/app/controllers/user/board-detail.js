@@ -48,6 +48,8 @@ export default Controller.extend({
   show_paint_color_picker: false,
   custom_paint_color: '#4a90d9',
   paint_mode: null,
+  show_add_menu: false,
+  placing_button: false,
   show_options_menu: false,
   dark_mode: false,
   board_saving: false,
@@ -646,6 +648,9 @@ export default Controller.extend({
     this.set('edit_mode', false);
     this.set('paint_mode', null);
     this.set('color_picker_button', null);
+    this.set('show_add_menu', false);
+    this.set('placing_button', false);
+    this._teardown_placement_cursor();
     stashes.persist('current_mode', 'default');
 
     // Preserve image_urls before save
@@ -763,6 +768,153 @@ export default Controller.extend({
     }
   },
 
+  // Set up the floating cursor element for manual placement mode
+  _setup_placement_cursor: function() {
+    var cursor = document.createElement('div');
+    cursor.className = 'md-board-detail-placement-cursor';
+    cursor.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+    document.body.appendChild(cursor);
+    this._placementCursor = cursor;
+    var _this = this;
+    this._placementMouseHandler = function(e) {
+      if(_this._placementCursor) {
+        _this._placementCursor.style.left = (e.clientX + 12) + 'px';
+        _this._placementCursor.style.top = (e.clientY + 12) + 'px';
+      }
+    };
+    this._placementKeyHandler = function(e) {
+      if(e.key === 'Escape') {
+        _this.send('cancel_placement');
+      }
+    };
+    document.addEventListener('mousemove', this._placementMouseHandler);
+    document.addEventListener('keydown', this._placementKeyHandler);
+  },
+
+  // Remove the floating cursor element and event listeners
+  _teardown_placement_cursor: function() {
+    if(this._placementCursor && this._placementCursor.parentNode) {
+      this._placementCursor.parentNode.removeChild(this._placementCursor);
+    }
+    this._placementCursor = null;
+    if(this._placementMouseHandler) {
+      document.removeEventListener('mousemove', this._placementMouseHandler);
+      this._placementMouseHandler = null;
+    }
+    if(this._placementKeyHandler) {
+      document.removeEventListener('keydown', this._placementKeyHandler);
+      this._placementKeyHandler = null;
+    }
+  },
+
+  // Insert a new empty button before an existing button, shifting subsequent buttons right
+  _insert_before: function(target_button) {
+    var _this = this;
+    var ob = this.get('ordered_buttons') || [];
+    var board = this.get('model');
+    if(!board || !ob.length) { return; }
+
+    var target_id = target_button.get ? target_button.get('id') : target_button.id;
+
+    // Flatten the 2D grid into a linear list to find position
+    var flat = [];
+    var target_flat_idx = -1;
+    for(var ri = 0; ri < ob.length; ri++) {
+      var row = ob[ri] || [];
+      for(var ci = 0; ci < row.length; ci++) {
+        var btn = row[ci];
+        var bid = btn && (btn.get ? btn.get('id') : btn.id);
+        if(bid === target_id) {
+          target_flat_idx = flat.length;
+        }
+        flat.push(btn);
+      }
+    }
+    if(target_flat_idx < 0) { return; }
+
+    // Check if there is at least one empty cell at the end to absorb the shift
+    var has_empty_at_end = false;
+    for(var i = flat.length - 1; i > target_flat_idx; i--) {
+      var b = flat[i];
+      if(b && (b.get ? b.get('empty') : b.empty)) {
+        has_empty_at_end = true;
+        // Remove that trailing empty to make room
+        flat.splice(i, 1);
+        break;
+      }
+    }
+    if(!has_empty_at_end) {
+      modal.warning(i18n.t('no_room_to_insert', "No empty spots after this position to shift into. Try adding a row or column first."), true);
+      return;
+    }
+
+    // Create a new empty button placeholder at the target position
+    var new_id = _this._next_button_id();
+    var new_btn = { id: new_id, label: '', empty: true };
+    if(typeof editManager.Button !== 'undefined' && editManager.Button.create) {
+      new_btn = editManager.Button.create({ id: new_id, label: '', empty: true });
+      new_btn.set('board', board);
+    }
+
+    flat.splice(target_flat_idx, 0, new_btn);
+
+    // Re-shape flat list back into 2D grid
+    var cols = ob[0] ? ob[0].length : flat.length;
+    var new_ob = [];
+    for(var fi = 0; fi < flat.length; fi++) {
+      var row_idx = Math.floor(fi / cols);
+      if(!new_ob[row_idx]) { new_ob[row_idx] = []; }
+      new_ob[row_idx].push(flat[fi]);
+    }
+
+    // Also update the model's grid.order and buttons array
+    var grid = board.get('grid');
+    if(grid && grid.order) {
+      var new_order = [];
+      for(var r = 0; r < new_ob.length; r++) {
+        var grid_row = [];
+        for(var c = 0; c < new_ob[r].length; c++) {
+          var btn_obj = new_ob[r][c];
+          var id = btn_obj && (btn_obj.get ? btn_obj.get('id') : btn_obj.id);
+          grid_row.push(id || null);
+        }
+        new_order.push(grid_row);
+      }
+      grid.order = new_order;
+      board.set('grid', $.extend({}, grid));
+    }
+
+    // Add the new empty button to the model's buttons array so it persists
+    var model_buttons = board.get('buttons') || [];
+    model_buttons.push({ id: new_id, label: '' });
+    board.set('buttons', [].concat(model_buttons));
+
+    _this.set('ordered_buttons', new_ob);
+
+    // Open button settings for the newly inserted button
+    _this._open_button_settings(new_id, 'general');
+  },
+
+  // Generate the next available button ID for the board
+  _next_button_id: function() {
+    var board = this.get('model');
+    var buttons = (board && board.get('buttons')) || [];
+    var max_id = 0;
+    buttons.forEach(function(b) {
+      var id = parseInt(b.id, 10);
+      if(id > max_id) { max_id = id; }
+    });
+    // Also check ordered_buttons for IDs from fake buttons
+    var ob = this.get('ordered_buttons') || [];
+    ob.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        var id = parseInt(btn.get ? btn.get('id') : btn.id, 10);
+        if(id > max_id) { max_id = id; }
+      });
+    });
+    return max_id + 1;
+  },
+
   // Push current board state to navigation history
   _push_nav_history: function() {
     var user = this.get('user');
@@ -816,6 +968,70 @@ export default Controller.extend({
       this.set('app_state.board_detail_nav_history', []);
       this.set('app_state.board_detail_entry_board', null);
       this.get('router').transitionTo('index');
+    },
+
+    exit_speak_mode: function() {
+      this.set('show_options_menu', false);
+      this.get('app_state').toggle_speak_mode();
+    },
+
+    toggle_all_buttons: function() {
+      this.set('show_options_menu', false);
+      var state = this.get('stashes').get('all_buttons_enabled');
+      if(state) {
+        this.get('stashes').persist('all_buttons_enabled', null);
+      } else {
+        this.get('stashes').persist('all_buttons_enabled', true);
+      }
+    },
+
+    toggle_focus: function() {
+      this.set('show_options_menu', false);
+      if(this.get('app_state').get('focus_words')) {
+        this.get('app_state').set('focus_words', null);
+        this.get('model').set('focus_id', 'blank');
+        editManager.process_for_displaying();
+      } else {
+        modal.open('modals/focus-words', {board: this.get('model')});
+      }
+    },
+
+    switch_communicators: function() {
+      this.set('show_options_menu', false);
+      var _this = this;
+      var ready = RSVP.resolve({correct_pin: true});
+      if(this.get('app_state').get('speak_mode') && this.get('app_state').get('currentUser.preferences.require_speak_mode_pin') && this.get('app_state').get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {actual_pin: this.get('app_state').get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.get('app_state').get('currentUser.preferences.hide_pin_hint')});
+      }
+      ready.then(function(res) {
+        if(res && res.correct_pin) {
+          modal.open('switch-communicators', {});
+        }
+      }, function() { });
+    },
+
+    find_button: function() {
+      this.set('show_options_menu', false);
+      var include_other_boards = this.get('app_state').get('speak_mode') && ((this.get('stashes').get('root_board_state') || {}).key) == this.get('app_state').get('currentUser.preferences.home_board.key');
+      modal.open('find-button', {
+        inactivity_timeout: this.get('app_state').get('speak_mode'),
+        board: this.get('model'),
+        include_other_boards: include_other_boards
+      });
+    },
+
+    toggle_sticky_board: function() {
+      this.set('show_options_menu', false);
+      this.get('stashes').persist('sticky_board', !this.get('stashes').get('sticky_board'));
+    },
+
+    toggle_pause_logging: function() {
+      this.set('show_options_menu', false);
+      var ts = (new Date()).getTime();
+      if(this.get('stashes').get('logging_paused_at')) {
+        ts = null;
+      }
+      this.get('stashes').persist('logging_paused_at', ts);
     },
 
     revert_to_old_style: function() {
@@ -1000,6 +1216,10 @@ export default Controller.extend({
 
       var btn_id = this._btn_id(button);
       if(this.get('edit_mode')) {
+        if(this.get('placing_button')) {
+          this.send('place_button_at', button);
+          return;
+        }
         if(editManager.finding_target()) {
           editManager.apply_to_target(btn_id);
           return;
@@ -1246,6 +1466,9 @@ export default Controller.extend({
       _this.set('edit_mode', false);
       _this.set('paint_mode', null);
       _this.set('color_picker_button', null);
+      _this.set('show_add_menu', false);
+      _this.set('placing_button', false);
+      _this._teardown_placement_cursor();
       _this.get('stashes').persist('current_mode', 'default');
       // Discard unsaved changes: rollback Ember Data model and reload fresh from server
       _this.get('model').rollbackAttributes();
@@ -1370,7 +1593,69 @@ export default Controller.extend({
       }
     },
 
+    // ── Add Button Menu ──
+
+    toggle_add_menu: function() {
+      this.toggleProperty('show_add_menu');
+    },
+
+    add_to_first_spot: function() {
+      this.set('show_add_menu', false);
+      var ob = this.get('ordered_buttons') || [];
+      var target = null;
+      for(var ri = 0; ri < ob.length && !target; ri++) {
+        var row = ob[ri] || [];
+        for(var ci = 0; ci < row.length && !target; ci++) {
+          var btn = row[ci];
+          if(btn && btn.empty) {
+            target = btn;
+          }
+        }
+      }
+      if(!target) {
+        modal.warning(i18n.t('no_empty_spots', "No empty spots available. Try adding a row or column first."), true);
+        return;
+      }
+      var btn_id = target.get ? target.get('id') : target.id;
+      this._open_button_settings(btn_id, 'general');
+    },
+
+    start_manual_place: function() {
+      this.set('show_add_menu', false);
+      this.set('placing_button', true);
+      this._setup_placement_cursor();
+    },
+
+    cancel_placement: function() {
+      this.set('placing_button', false);
+      this._teardown_placement_cursor();
+    },
+
+    place_button_at: function(button) {
+      var _this = this;
+      var btn_id = button.get ? button.get('id') : button.id;
+      var is_empty = button.get ? button.get('empty') : button.empty;
+
+      _this.set('placing_button', false);
+      _this._teardown_placement_cursor();
+
+      if(is_empty) {
+        // Place into the empty slot and open settings
+        _this._open_button_settings(btn_id, 'general');
+      } else {
+        // Insert before the occupied button: shift buttons right from this position
+        _this._insert_before(button);
+      }
+    },
+
     // ── Button Operations ──
+
+    edit_button_settings: function(btn) {
+      var btn_id = this._btn_id(btn);
+      if(btn_id) {
+        this._open_button_settings(btn_id, 'general');
+      }
+    },
 
     clear_button: function(btn) {
       var btn_id = this._btn_id(btn);
@@ -1398,7 +1683,7 @@ export default Controller.extend({
     board_details: function() {
       var board = this.get('model');
       if(!board) { return; }
-      modal.open('board-details', { board: board });
+      modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
     },
 
     edit_board_details: function() {
