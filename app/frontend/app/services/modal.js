@@ -90,13 +90,17 @@ export default Service.extend({
     if (this.get('currentTemplate')) {
       this._resolveCurrentPromise({replaced: true});
     }
-    
+
+    // Always clear first so Ember detects the change even if the same
+    // template name is opened twice in a row (e.g. after a close/reopen cycle)
+    this.set('currentTemplate', null);
+
     // Store settings
     if (!this.settingsFor) {
       this.settingsFor = {};
     }
     this.settingsFor[template] = options;
-    
+
     // Set current state
     this.set('currentTemplate', template);
     this.set('currentOptions', options);

@@ -152,6 +152,10 @@
     {{generate-board}}
   {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
     {{confirm-delete-board}}
+  {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
+    {{confirm-discard-changes}}
+  {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
+    {{confirm-recolor-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}
     {{speak-menu}}
   {{else if (is-equal this.currentTemplate "modals/board-intro")}}

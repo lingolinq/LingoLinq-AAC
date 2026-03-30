@@ -1178,9 +1178,10 @@ var editManager = EmberObject.extend({
     for(var idx = 0; idx < oldState.length; idx++) {
       var arr = [];
       for(var jdx = 0; jdx < oldState[idx].length; jdx++) {
-        var raw = oldState[idx][jdx].raw();
-        raw.local_image_url = oldState[idx][jdx].get('local_image_url');
-        raw.local_sound_url = oldState[idx][jdx].get('local_sound_url');
+        var btn = oldState[idx][jdx];
+        var raw = (btn.raw && typeof btn.raw === 'function') ? btn.raw() : Object.assign({}, btn);
+        raw.local_image_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_image_url') : btn.local_image_url;
+        raw.local_sound_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_sound_url') : btn.local_sound_url;
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
         raw.pending_image = false;
         raw.pending_sound = false;
@@ -1480,7 +1481,8 @@ var editManager = EmberObject.extend({
     buttona.set('for_swap', false);
     buttonb.set('for_swap', false);
     this.swapId = null;
-    this.controller.set('ordered_buttons', ob);
+    // Create a new array reference so Ember detects the change and re-renders
+    this.controller.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
     this.update_color_key_id();
     this.controller.redraw_if_needed();
   },
@@ -2112,7 +2114,7 @@ var editManager = EmberObject.extend({
       // Previously we only called this when !button.image, which meant buttons with
       // images (e.g. from backend process_suggested_symbols) never got part-of-speech colors.
       if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
-        button.check_for_parts_of_speech();
+        button.check_for_parts_of_speech(editManager.get_keyed_colors());
       }
       if(needs_check) {
         var locale = _this.controller.get('model.locale') || 'en';
@@ -2497,6 +2499,19 @@ editManager.get_app_state = function() {
 
 editManager.get_persistence = function() {
   return editManager._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+};
+
+editManager.get_keyed_colors = function() {
+  // Use board-detail colors when the active controller is the board-detail page
+  if(editManager.controller && editManager.controller.constructor &&
+     editManager.controller.constructor.toString().match(/board-detail/)) {
+    return window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
+  }
+  // Check for a board_detail_route flag set by the board-detail controller
+  if(editManager.controller && editManager.controller.get && editManager.controller.get('is_board_detail')) {
+    return window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
+  }
+  return window.LingoLinq.keyed_colors;
 };
 
 editManager.get_stashes = function() {

@@ -1,67 +1,86 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Swap or Drop Button?" key="swap_or_drop"}}
-    </h3>
+  <div class="md-modal-header">
+    <button type="button" class="close" {{action "close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Swap or Move Button" key="swap_or_drop"}}</h3>
   </div>
-  <div class="modal-body">
-    <div class="row" style="margin-bottom: 10px;">
-      <div class="col-sm-5" style="text-align: center;">
-        <img src={{this.model.button.image.best_url}} style="height: 50px;"><br>
-        {{#if this.model.button.label}}
-          {{this.model.button.label}}
-        {{else}}
-          {{t "Unnamed button" key="unnamed_button"}}
+  <div class="md-modal-body">
+    <div class="md-swap-preview">
+      <div class="md-swap-preview__card">
+        {{#if this.model.button.image.best_url}}
+          <img class="md-swap-preview__img" src={{this.model.button.image.best_url}} alt={{this.model.button.label}}>
         {{/if}}
-      </div>
-      <div class="col-sm-2">
-        <span class="glyphicon glyphicon-arrow-right" style="font-size: 30px; padding-top: 20px;"></span>
-      </div>
-      <div class="col-sm-5" style="text-align: center;">
-        <img src={{this.model.folder.image.best_url}} style="height: 50px;">
-        <br>
-        {{#if this.model.folder.label}}
-          {{this.model.folder.label}}
-        {{else}}
-          {{t "Unnamed button" key="unnamed_button"}}
-        {{/if}}
-        <br>
-        <img src={{path "images/folder.png"}} style="height: 20px;">
-        {{this.model.folder.load_board.key}}
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-sm-12">
-        {{#if this.status}}
-          {{#if this.status.error}}
-            <div class="alert alert-danger">{{this.status.error}}</div>
+        <span class="md-swap-preview__label">
+          {{#if this.model.button.label}}
+            {{this.model.button.label}}
           {{else}}
-            {{#if this.status.need_decision}}
-              <div class="alert alert-warning">
-                {{t "You don't have permission to edit the linked board, but you can make a copy of it and move the button if you'd like." key="no_edit_yes_copy"}}
-              </div>
-              <div>
-                <button class='btn btn-default' {{action "move_button" "copy"}}>{{t "Copy the Board" key="copy_the_board"}}</button>
-                <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-              </div>
-            {{else}}
-              <div class="alert alert-info">{{this.status.message}}</div>
-            {{/if}}
+            {{t "Unnamed button" key="unnamed_button"}}
           {{/if}}
-        {{else}}
-          <p>
-            {{t "The button you dropped onto is a link to another board. Would you like to swap the location of the two buttons, or move this button to the other board?" key="confirm_swap_or_drop"}}
-          </p>
-          <p>
-            {{t "If you move the button to the other board but there are no empty buttons available on that board, the button will still be available in the board's stash." key="button_in_stash"}}
-          </p>
+        </span>
+      </div>
+      <div class="md-swap-preview__arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </div>
+      <div class="md-swap-preview__card md-swap-preview__card--folder">
+        {{#if this.model.folder.image.best_url}}
+          <img class="md-swap-preview__img" src={{this.model.folder.image.best_url}} alt={{this.model.folder.label}}>
         {{/if}}
+        <span class="md-swap-preview__label">
+          {{#if this.model.folder.label}}
+            {{this.model.folder.label}}
+          {{else}}
+            {{t "Unnamed button" key="unnamed_button"}}
+          {{/if}}
+        </span>
+        <span class="md-swap-preview__folder-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+          {{this.model.folder.load_board.key}}
+        </span>
       </div>
     </div>
+
+    {{#if this.status}}
+      {{#if this.status.error}}
+        <div class="md-swap-alert md-swap-alert--error">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          {{this.status.error}}
+        </div>
+      {{else if this.status.need_decision}}
+        <div class="md-swap-alert md-swap-alert--warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          {{t "You don't have permission to edit the linked board, but you can make a copy of it and move the button if you'd like." key="no_edit_yes_copy"}}
+        </div>
+        <div class="md-modal-footer" style="border: none; justify-content: center;">
+          <button class="md-modal-btn md-modal-btn--primary" {{action "move_button" "copy"}}>{{t "Copy the Board" key="copy_the_board"}}</button>
+          <button class="md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+        </div>
+      {{else}}
+        <div class="md-swap-alert md-swap-alert--info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {{this.status.message}}
+        </div>
+      {{/if}}
+    {{else}}
+      <p class="md-modal-message">
+        {{t "You dropped this button onto a folder. You can swap their positions on this board, or move the button into the folder's board." key="confirm_swap_or_drop"}}
+      </p>
+      <p class="md-modal-message" style="font-size: 13px; color: #8896a7;">
+        {{t "If the folder's board is full, the moved button will be saved to the board's stash." key="button_in_stash"}}
+      </p>
+    {{/if}}
   </div>
-  <div class="modal-footer">
-    <button class='btn btn-primary' {{action "swap_buttons"}} disabled={{this.pending}}>{{t "Swap Buttons" key="swap_buttons"}}</button>
-    <button class='btn btn-default' {{action "move_button"}} disabled={{this.pending}}>{{t "Move Button" key="move_button"}}</button>
-  </div>
+  {{#unless this.status}}
+    <div class="md-modal-footer">
+      <button class="md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      <button class="md-modal-btn md-modal-btn--secondary" {{action "swap_buttons"}} disabled={{this.pending}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        {{t "Swap Buttons" key="swap_buttons"}}
+      </button>
+      <button class="md-modal-btn md-modal-btn--primary" {{action "move_button"}} disabled={{this.pending}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        {{t "Move to Folder" key="move_button"}}
+      </button>
+    </div>
+  {{/unless}}
 {{/modal-dialog}}

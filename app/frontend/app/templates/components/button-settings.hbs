@@ -100,7 +100,7 @@
           <div class="form-group">
             <label for="border" class="col-sm-2 control-label">{{t "Border" key="border"}}</label>
             <div class="col-sm-10">
-              <span {{action "toggle_color" "border"}} id="background_pattern" style="display: inline-block; border-width: 3px; height: 34px; width: 70px; vertical-align: bottom;" class={{this.fake_button_class}}></span>
+              <span {{action "toggle_color" "border"}} id="background_pattern" style={{safe-style (concat "display: inline-block; height: 34px; width: 70px; vertical-align: bottom; border: 6px solid " this.model.border_color "; background-color:" this.model.background_color ";")}}></span>
               <span class="button_field">
                 <Input @value={{this.model.border_color}} class="form-control" id="border" />
               </span>

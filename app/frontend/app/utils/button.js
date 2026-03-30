@@ -684,9 +684,10 @@ var Button = EmberObject.extend({
       promises.forEach(function(p) { p.then(null, function() { }); });
     });
   }),
-  check_for_parts_of_speech: function() {
+  check_for_parts_of_speech: function(keyed_colors) {
     var appState = this.appState || app_state;
     var persistenceService = this.persistence || persistence;
+    var colors = keyed_colors || LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
     if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
       var text = this.get('vocalization') || this.get('label');
       var _this = this;
@@ -696,7 +697,7 @@ var Button = EmberObject.extend({
           _this.set('parts_of_speech_matching_word', res.word);
           res.types.forEach(function(type) {
             if(!found) {
-              LingoLinq.keyed_colors.forEach(function(color) {
+              colors.forEach(function(color) {
                 if(!found && color.types && color.types.indexOf(type) >= 0) {
                   _this.set('background_color', color.fill);
                   _this.set('border_color', color.border);

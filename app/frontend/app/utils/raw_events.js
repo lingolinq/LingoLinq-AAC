@@ -13,6 +13,8 @@ import scanner from './scanner';
 // import stashes from './_stashes';
 import utterance from './utterance';
 import frame_listener from './frame_listener';
+
+
 // TODO: change scanning options to allow multiple buttons
 // for each action if desired
 
@@ -91,6 +93,7 @@ window.addEventListener('touchforcechange', function() {
 });
 document.addEventListener('touchstart', eat_events, {passive: false});
 document.addEventListener('mousedown', eat_events, {passive: false});
+
 $(document).on('mousedown touchstart', function(event) {
   var now = (new Date()).getTime();
   if(event.type == 'touchstart') {
@@ -873,6 +876,19 @@ var buttonTracker = EmberObject.extend({
               left: $elem.css('left')
             });
             $elem.hide().after($overClone);
+            // On board-detail, style the placeholder as a neutral gray
+            // (must run after insertion so closest() can find the grid)
+            if($overClone.closest('.md-board-detail-grid').length > 0 && elem_wrap.dom != buttonTracker.drag.data('elem')) {
+              $overClone.find('.md-board-detail-symbol-card').addBack('.md-board-detail-symbol-card').css({
+                'background': 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(235,237,240,0.95) 100%)',
+                'outline-color': 'rgba(27, 54, 93, 0.12)',
+                'box-shadow': 'inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -1px 3px rgba(27, 42, 74, 0.06)',
+                'border-color': 'transparent'
+              });
+              $overClone.find('img, .md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, .md-board-detail-symbol-card__folder-badge').css({'opacity': '0.3', 'filter': 'grayscale(100%)'});
+              $overClone.find('.md-board-detail-symbol-card__edit-actions').css('visibility', 'hidden');
+              $overClone.css('opacity', 0.85);
+            }
           }
         }
       }
@@ -982,6 +998,7 @@ var buttonTracker = EmberObject.extend({
         $over.css('opacity', 1.0);
       }
       $(buttonTracker.drag.data('elem')).css('opacity', 1.0).show();
+      $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
       buttonTracker.drag.remove();
       // if it's on a different button, trigger the swap event
       var button_wrap = buttonTracker.find_button_under_event(event);
@@ -2209,6 +2226,11 @@ var buttonTracker = EmberObject.extend({
           var e = $.Event( event );
           e.trigger_source = source;
           $e.trigger(e);
+          // Also dispatch native DOM event for Ember's custom event system
+          // (needed when jquery-integration is disabled)
+          var nativeEvent = new CustomEvent(event, { bubbles: true, cancelable: true });
+          nativeEvent.trigger_source = source;
+          elem.dispatchEvent(nativeEvent);
         },
         trigger_special: function(event, args, source) {
           var e = $.Event( event );
@@ -2217,6 +2239,13 @@ var buttonTracker = EmberObject.extend({
             e[idx] = args[idx];
           }
           $e.trigger(e);
+          // Also dispatch native DOM event
+          var nativeEvent = new CustomEvent(event, { bubbles: true, cancelable: true });
+          nativeEvent.trigger_source = source;
+          for(var idx in args) {
+            nativeEvent[idx] = args[idx];
+          }
+          elem.dispatchEvent(nativeEvent);
         },
         loose_bounds: function() {
           if(res.cached_loose_bounds) { return res.cached_loose_bounds; }
@@ -2231,6 +2260,10 @@ var buttonTracker = EmberObject.extend({
           return res.cached_loose_bounds;
         },
         data: function(attr, val) {
+          if(arguments.length >= 2) {
+            // Store in both jQuery data and DOM dataset for native event compatibility
+            elem.dataset[attr] = val;
+          }
           return $e.data(attr, val);
         }
       };
@@ -2403,6 +2436,8 @@ var buttonTracker = EmberObject.extend({
     // buttonTracker.drag.find('.button').css('background', '#fff');
     buttonTracker.drag.data('elem', $elem[0]);
     $('body').append(buttonTracker.drag);
+    // Mark the source cell as having its button dragged away
+    $elem.closest('.md-board-detail-grid__cell').addClass('md-board-detail-grid__cell--drag-source');
 
     editManager.set_drag_mode(true);
     var offset = $elem.offset();
@@ -2414,6 +2449,7 @@ var buttonTracker = EmberObject.extend({
     this.measureAdjustY = (this.initialButtonY + (height / 2)) - event.pageY;
   },
   stop_dragging: function() {
+    $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
     editManager.set_drag_mode(false);
     this.startEvent = null;
     this.initialButtonX = 0;
@@ -2445,13 +2481,15 @@ var buttonTracker = EmberObject.extend({
   },
   ignored_region: function(event) {
     var target = event && event.target;
+    var $target = target && $(target);
     var result = !!(target && (
                       target.tagName == 'INPUT' ||
                       target.tagName == 'SELECT' ||
                       target.tagName == 'LABEL' ||
 //                      target.className == 'dropdown-backdrop' ||
                       target.className == 'modal' ||
-                      target.className == 'modal-dialog'
+                      target.className == 'modal-dialog' ||
+                      ($target && $target.closest('.md-board-detail-symbol-card__edit-actions, .md-board-detail-symbol-card__edit-dropdown, .md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
                     ));
     return result;
   },

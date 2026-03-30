@@ -85,19 +85,21 @@ var modal = EmberObject.extend({
       options.secondary_highlight = true;
       options.clear_overlay = true;
     }
-    
+
     // All modals use component-based rendering via the service (no outlet)
     var useComponentRendering = service && outlet == 'modal';
-    
+
     // For modal outlet, handle entirely via service and skip outlet-based rendering
     // and skip all outlet-based rendering logic
     if (useComponentRendering) {
       // Update service state
       service.set('settingsFor', service.get('settingsFor') || {});
       service.settingsFor[render_template] = options;
-      service.set('currentTemplate', template);
+      // Do NOT set currentTemplate here — service.open() will set it.
+      // Setting it twice to the same value causes Ember to skip the re-render
+      // because computed properties don't fire when a value doesn't change.
       service.set('currentOptions', options);
-      
+
       // Handle scanner integration
       if(template != 'highlight' && template != 'highlight-secondary') {
         this.resume_scanning = true;

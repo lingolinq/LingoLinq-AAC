@@ -191,17 +191,6 @@
       {{/unless}}
     </div>
 
-    {{!-- Actions Section --}}
-    <div class="la-board-details-section la-board-details-section--actions">
-      {{#if this.appState.currentUser}}
-        <button class='btn btn-default' {{action "categorize"}}>{{t "Categorize Board" key="categorize_board"}}</button>
-      {{/if}}
-      {{#if this.model.permissions.edit}}
-        <button class='btn btn-default' {{action "swap_images"}}>{{t "Swap Images" key="swap_images_for_this_board"}}</button>
-        <button class='btn btn-default' {{action "batch_recording"}}>{{t "Record Messages" key="record_messages"}}</button>
-        <button class='btn btn-default la-board-details-delete-btn' {{action "delete"}}>{{t "Delete Board" key="delete_board"}}</button>
-      {{/if}}
-    </div>
 
   </div>
   <div class="modal-footer">

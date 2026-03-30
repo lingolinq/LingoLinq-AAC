@@ -21263,6 +21263,7 @@ $aac-z-topbar:   400;
   white-space: nowrap;
   border: 0;
 }
+.sr-only { @include aac-sr-only; }
 
 @mixin aac-btn-base {
   display: inline-flex;
@@ -30914,7 +30915,13 @@ a.la-footer-bottom-a11y-wcag {
   white-space: nowrap;
   cursor: pointer;
   &:hover:not(:disabled) { filter: brightness(1.1); text-decoration: none; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  &:disabled {
+    background: #c4cad4 !important;
+    border-color: #b0b8c4 !important;
+    color: #1b2a4a !important;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 }
 .la-focus-words-modal-wrap .modal-footer a.btn {
   display: inline-flex;
@@ -42633,7 +42640,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(70, 80, 95, 0.55);
+  color: rgba(50, 58, 70, 0.78);
   padding: 0 14px 8px;
   margin: 0;
 }
@@ -43011,6 +43018,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 14px;
+  width: 48%;
+  flex-shrink: 0;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .md-board-detail-header__title-group {
+    width: 100%;
+    padding: 0 16px;
+  }
+  .md-board-detail-header__title {
+    margin: 4px 0 0;
+  }
+  .md-board-detail-header__sub {
+    margin-top: -0.5rem;
+  }
 }
 /* Back / Home nav buttons */
 .md-board-detail-nav-btns {
@@ -43043,22 +43065,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Board actions panel (edit mode, right of title) */
 .md-board-detail-board-actions-wrap {
-  flex: 1;
+  width: 100%;
   display: flex;
-  justify-content: center;
 }
 .md-board-detail-board-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: center;
   row-gap: 4px;
   gap: 0;
-  padding: 4px 6px;
+  padding: 8px 16px;
   background: rgba(27, 54, 93, 0.05);
   border: 1px solid rgba(27, 54, 93, 0.08);
   border-radius: 12px;
-  flex-shrink: 0;
   max-width: 100%;
 }
 .md-board-detail-board-actions__btn {
@@ -43088,6 +43108,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-board-actions__btn:hover {
   background: rgba(42, 157, 143, 0.10);
   color: #1b365d;
+}
+@media (min-width: 1025px) {
+  .md-board-detail-board-actions__btn span {
+    font-size: 14px;
+  }
+  .md-board-detail-board-actions__btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  .md-board-detail-board-actions__btn {
+    padding: 10px 16px;
+    gap: 4px;
+  }
 }
 .md-board-detail-board-actions__btn:hover svg {
   color: #2a9d8f;
@@ -43232,6 +43265,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: 2px solid transparent;
   flex-shrink: 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: visible;
+}
+.md-board-detail-color-legend__folder-wrap {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.md-board-detail-color-legend__folder-wrap .md-folder-back {
+  position: absolute;
+  top: 3px;
+  left: -1px;
+  right: -1px;
+  bottom: -2px;
+  border-radius: 6px 6px 10px 10px;
+}
+.md-board-detail-color-legend__folder-wrap .md-folder-tab {
+  top: -4px;
+  left: 4px;
+  width: 37.5%;
+  height: 5px;
+  border-radius: 3px 3px 0 0;
+}
+.md-board-detail-color-legend__folder-wrap .md-board-detail-color-legend__swatch {
+  position: absolute;
+  bottom: 0;
+  left: 2px;
+  right: 2px;
+  height: 82%;
+  width: auto;
+  z-index: 1;
+  border-radius: 4px 4px 8px 8px;
 }
 .md-board-detail-color-legend__info {
   display: flex;
@@ -43253,9 +43319,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Quick phrases toggle + dropdown */
 .md-board-detail-quick-wrap {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 0;
+  gap: 6px;
+  width: 100%;
 }
 .md-board-detail-quick-toggle {
   display: inline-flex;
@@ -43292,12 +43359,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Quick phrases inline reveal */
 .md-board-detail-quick-reveal {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-left: 10px;
   padding: 10px 14px;
-  max-width: 480px;
+  flex-basis: 100%;
   border-radius: 16px;
   background: rgba(27, 54, 93, 0.04);
   border: 1px solid rgba(27, 54, 93, 0.06);
@@ -43409,7 +43475,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-wrap: wrap;
   gap: 5px;
   padding-left: 12px;
-  max-width: 420px;
+  flex: 1;
   align-content: center;
 }
 .md-board-detail-quick-reveal__btn--active {
@@ -43944,10 +44010,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: grid;
   grid-template-columns: repeat(var(--board-columns), minmax(0, 1fr));
   grid-template-rows: repeat(var(--board-rows), minmax(clamp(40px, 6vh, 80px), 1fr));
-  gap: clamp(2px, 0.6vw, 10px);
+  gap: clamp(4px, 0.8vw, 10px);
   margin-bottom: 0;
   flex: 1 1 0;
-  min-height: 0;
+  min-height: 200px;
   min-width: 0;
 }
 
@@ -43963,6 +44029,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Layer 3: Controls — elevated cards matching header icon style */
 .md-board-detail-symbol-card {
+  container-type: size;
+  container-name: symbol-card;
   position: relative;
   display: flex;
   flex: 1 1 0;
@@ -43980,7 +44048,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 6px 12px rgba(27, 42, 74, 0.10),
     0 1px 2px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  outline: 1.5px solid rgba(27, 42, 74, 0.22);
+  outline: 4px solid rgba(27, 42, 74, 0.22);
   transform: translateY(-2px);
   outline-offset: -1px;
   transition:
@@ -44012,7 +44080,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: clamp(1px, 0.3vw, 6px);
+  padding: clamp(6px, 1.2vw, 16px);
+  margin-bottom: clamp(1px, 0.3vw, 4px);
   overflow: hidden;
 }
 .md-board-detail-symbol-card__image img {
@@ -44020,10 +44089,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   max-height: 100%;
   height: auto;
   object-fit: contain;
-  /* Normalize visual weight across different symbol libraries —
-     reduce heavy/bold icons, lift thin ones toward consistent weight */
-  filter: contrast(0.85) brightness(1.06);
-  opacity: 0.82;
+  filter: none;
+  opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
 }
 .md-board-detail-symbol-card:hover .md-board-detail-symbol-card__image img {
@@ -44088,6 +44155,44 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-weight: 400;
   font-style: italic;
 }
+/* ── Button text user preferences ── */
+/* Font family + text transform from user preferences (set as CSS vars on grid) */
+.md-board-detail-grid {
+  --bd-button-font: inherit;
+  --bd-button-text-transform: none;
+}
+.md-board-detail-symbol-card__label,
+.md-board-detail-symbol-card__label-input {
+  font-family: var(--bd-button-font);
+  text-transform: var(--bd-button-text-transform);
+}
+
+/* Text size preferences */
+/* Button text size driven by user preference via CSS variable */
+.md-board-detail-symbol-card__label,
+.md-board-detail-symbol-card__label-input {
+  font-size: var(--bd-button-text-size, 18px);
+}
+
+/* Text position preferences */
+.md-board-detail-grid--text-pos-top .md-board-detail-symbol-card {
+  flex-direction: column-reverse;
+}
+.md-board-detail-grid--text-pos-bottom .md-board-detail-symbol-card {
+  flex-direction: column;
+}
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card__label,
+.md-board-detail-grid--text-pos-none .md-board-detail-symbol-card__label-input {
+  display: none !important;
+}
+.md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__image {
+  display: none !important;
+}
+.md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label,
+.md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label-input {
+  font-size: calc(var(--bd-button-text-size, 18px) * 1.2);
+}
+
 /* When paint mode is active, make label inputs click-through so paint works */
 .md-shell--board-detail-edit.md-shell--board-paint .md-board-detail-symbol-card__label-input {
   pointer-events: none;
@@ -44108,73 +44213,88 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 // Pronouns — Blue (WCAG: bg #C8D8F0, border #3A6FBF, text #1B365D = 9.2:1)
 // Pronouns — Light Blue/Periwinkle (matching grid: I, me, you, your, he, she)
+// Pronouns — Yellow
 .md-board-detail-symbol-card--pronoun {
-  background-color: #B9D0F6;
-  border-color: #6B80B8;
-  .md-board-detail-symbol-card__label { color: #1B2D5C; }
-}
-
-// Verbs — Soft Green (matching grid: am, go, come, be, get, was, are)
-.md-board-detail-symbol-card--verb {
-  background-color: #C6F4B9;
-  border-color: #50A868;
-  .md-board-detail-symbol-card__label { color: #1A4028; }
-}
-
-// Descriptors — Light Yellow (matching grid: good, on, up, same, new, big, easy)
-.md-board-detail-symbol-card--adjective,
-.md-board-detail-symbol-card--adverb {
   background-color: #FAFAAA;
-  border-color: #C8C840;
   .md-board-detail-symbol-card__label { color: #4A4A00; }
 }
 
-// Nouns — Light Coral (eat, drink, have, need, make, look, wear)
+// Verbs — Soft Green
+.md-board-detail-symbol-card--verb {
+  background-color: #C0E8C8;
+  .md-board-detail-symbol-card__label { color: #1A4028; }
+}
+
+// Adjectives/Descriptors — Blue
+.md-board-detail-symbol-card--adjective {
+  background-color: #B9D0F6;
+  .md-board-detail-symbol-card__label { color: #1B2D5C; }
+}
+
+// Nouns — Orange
 .md-board-detail-symbol-card--noun,
 .md-board-detail-symbol-card--nominative {
-  background-color: #FDC498;
-  border-color: #D87050;
+  background-color: #FDCF98;
   .md-board-detail-symbol-card__label { color: #5A2018; }
 }
 
-// Social — Mauve/Dusty Rose (mix of negatives pink + questions lavender)
+// Social — Pink
 .md-board-detail-symbol-card--social,
-.md-board-detail-symbol-card--interjection {
-  background-color: #F2B5D0;
-  border-color: #A870A0;
+.md-board-detail-symbol-card--social_phrase {
+  background-color: #E8B5DC;
   .md-board-detail-symbol-card__label { color: #3E1838; }
 }
 
-// Grammar — Cool Gray (matching grid: the, a, some, more, other, all, these, those)
-.md-board-detail-symbol-card--conjunction,
-.md-board-detail-symbol-card--number,
-.md-board-detail-symbol-card--article,
-.md-board-detail-symbol-card--determiner {
-  background-color: #DCDCDC;
-  border-color: #909090;
-  .md-board-detail-symbol-card__label { color: #2A2A2A; }
-}
-
-// Prepositions — Tan/Brown (matching grid: mine, yours, ours, away)
-.md-board-detail-symbol-card--preposition {
-  background-color: #D4BD9C;
-  border-color: #A08850;
-  .md-board-detail-symbol-card__label { color: #4A3C1C; }
-}
-
-// Negatives — Pink/Rose (matching grid: stop, no, don't, not)
+// Negatives — Red
 .md-board-detail-symbol-card--negation,
-.md-board-detail-symbol-card--expletive {
+.md-board-detail-symbol-card--expletive,
+.md-board-detail-symbol-card--interjection {
   background-color: #F5A0A0;
-  border-color: #D04040;
   .md-board-detail-symbol-card__label { color: #5C1510; }
 }
 
-// Questions — Lavender/Purple (matching grid: what, who, when, where, how, which, why)
+// Questions — Purple
 .md-board-detail-symbol-card--question {
   background-color: #D0B8E8;
-  border-color: #7850A8;
   .md-board-detail-symbol-card__label { color: #2D1F5E; }
+}
+
+// Prepositions — Muted Pink
+.md-board-detail-symbol-card--preposition {
+  background-color: #F5DCEA;
+  .md-board-detail-symbol-card__label { color: #5A2838; }
+}
+
+// Adverbs — Brown
+.md-board-detail-symbol-card--adverb {
+  background-color: #D4B896;
+  .md-board-detail-symbol-card__label { color: #4A3C1C; }
+}
+
+// Determiners — Gray
+.md-board-detail-symbol-card--article,
+.md-board-detail-symbol-card--determiner {
+  background-color: #DCDCDC;
+  .md-board-detail-symbol-card__label { color: #2A2A2A; }
+}
+
+// Conjunctions/Numbers — White
+.md-board-detail-symbol-card--conjunction,
+.md-board-detail-symbol-card--number {
+  background-color: #fff;
+  .md-board-detail-symbol-card__label { color: #333; }
+}
+
+// Other — Bluish
+.md-board-detail-symbol-card--other {
+  background-color: rgb(115, 204, 255);
+  .md-board-detail-symbol-card__label { color: #0a3a5c; }
+}
+
+// Contrast — Black
+.md-board-detail-symbol-card--contrast {
+  background-color: #000;
+  .md-board-detail-symbol-card__label { color: #fff; }
 }
 
 // Folder — styled via the consolidated folder section below
@@ -44197,6 +44317,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.md-board-detail-grid__cell--filtered-out {
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.md-board-detail-grid__cell--drag-source {
+  border-radius: clamp(8px, 1vw, 16px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(235,237,240,0.95) 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.7),
+    inset 0 -1px 3px rgba(27, 42, 74, 0.06),
+    0 1px 2px rgba(0,0,0,0.04);
+  border: 2px dashed rgba(27, 54, 93, 0.15);
 }
 
 .md-board-detail-grid__empty {
@@ -44414,6 +44549,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 8px 12px;
   background:
@@ -44633,6 +44769,72 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     padding: 6px 8px;
   }
 }
+/* Paint swatches: inline vs collapsed dropdown */
+.md-board-detail-edit-toolbar__paint-inline {
+  display: contents;
+}
+.md-board-detail-edit-toolbar__paint-collapsed {
+  display: none;
+  position: relative;
+}
+.md-board-detail-edit-toolbar__paint-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10);
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  padding: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  min-width: 180px;
+}
+.md-board-detail-edit-toolbar__paint-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #46505f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.md-board-detail-edit-toolbar__paint-dropdown-item:hover {
+  background: rgba(27, 54, 93, 0.06);
+}
+@media (max-width: 575px) {
+  .md-board-detail-edit-toolbar__group--board-tools {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    border-top: 1px solid rgba(27, 54, 93, 0.08);
+    padding-top: 6px;
+    margin-top: 2px;
+  }
+}
+@media (max-width: 450px) {
+  .md-board-detail-edit-toolbar__paint-inline {
+    display: none;
+  }
+  .md-board-detail-edit-toolbar__paint-collapsed {
+    display: block;
+  }
+  .md-board-detail-paint-custom-wrap {
+    display: none;
+  }
+  .md-board-detail-edit-toolbar__group--board-tools {
+    flex-basis: auto;
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+  }
+}
 
 /* ── Card edit hover actions ─────────────────────────── */
 
@@ -44676,6 +44878,87 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: #c0392b;
 }
 
+/* ── Inline vs dropdown edit actions (container query) ── */
+/* By default: show inline, hide dropdown */
+.md-board-detail-symbol-card__edit-actions--dropdown {
+  display: none;
+}
+.md-board-detail-symbol-card__edit-actions--inline {
+  display: flex;
+}
+/* When card is too short for inline icons, swap to dropdown */
+@container symbol-card (max-height: 149px) {
+  .md-board-detail-symbol-card__edit-actions--inline {
+    display: none !important;
+  }
+  .md-board-detail-symbol-card__edit-actions--dropdown {
+    display: flex;
+  }
+}
+
+/* Dropdown menu styles */
+/* Allow dropdown to escape card overflow */
+.md-board-detail-symbol-card:has(.md-board-detail-symbol-card__edit-dropdown) {
+  overflow: visible;
+}
+.md-board-detail-symbol-card__edit-dropdown {
+  position: absolute;
+  top: 0;
+  right: 30px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10);
+  border: 1px solid rgba(27, 54, 93, 0.12);
+  padding: 4px 0;
+  z-index: 10;
+  min-width: 120px;
+  white-space: nowrap;
+}
+.md-board-detail-symbol-card__edit-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: #4a5568;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.md-board-detail-symbol-card__edit-dropdown-item:hover {
+  background: #f0faf8;
+  color: #2a9d8f;
+}
+.md-board-detail-symbol-card__edit-dropdown-item--danger:hover {
+  background: #fef2f2;
+  color: #c0392b;
+}
+
+/* ── Focus-visible styles for board-detail interactive elements ── */
+.md-board-detail-collapse-btn:focus-visible,
+.md-board-detail-sentence-bar__btn:focus-visible,
+.md-board-detail-sentence-bar__icon-btn:focus-visible,
+.md-board-detail-sentence-bar__tool-btn:focus-visible,
+.md-board-detail-board-actions__btn:focus-visible,
+.md-board-detail-edit-toolbar__btn:focus-visible,
+.md-board-detail-edit-toolbar__paint-swatch:focus-visible,
+.md-board-detail-sidebar__item:focus-visible,
+.md-board-detail-quick-reveal__btn:focus-visible,
+.md-board-detail-symbol-card:focus-visible,
+.md-board-detail-symbol-card__edit-btn:focus-visible,
+.md-board-detail-symbol-card__edit-dropdown-item:focus-visible,
+.md-board-detail-symbol-card__edit-menu-trigger:focus-visible,
+.md-board-detail-paint-picker__apply:focus-visible,
+.md-board-detail-paint-picker__close:focus-visible,
+.md-board-detail-color-picker__swatch:focus-visible,
+.md-modal-btn:focus-visible {
+  outline: 2px solid #2a9d8f;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.15);
+}
+
 /* ── Edit-mode layout overrides ──────────────────────── */
 /* Hide left sidebar, right panel, sentence bar, expand toggle, and Done Editing button */
 /* Hide the original board page sidebar on board-detail */
@@ -44686,10 +44969,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 .md-shell--board-detail-edit .md-board-detail-sidebar {
-  display: none;
+  display: none !important;
 }
 .md-shell--board-detail-edit .md-board-detail-right-panel {
-  display: none;
+  display: none !important;
 }
 .md-shell--board-detail-edit .md-board-detail-sentence-row {
   display: none;
@@ -44701,8 +44984,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: none;
 }
 /* Collapse to single-column layout with no sidebar gaps */
-.md-shell--board-detail-edit .md-board-detail-layout {
-  grid-template-columns: 1fr;
+.md-shell--board-detail-edit .md-board-detail-layout,
+.md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed) {
+  grid-template-columns: 1fr !important;
 }
 .md-shell--board-detail-edit .md-board-detail-overlay-backdrop {
   display: none;
@@ -44917,6 +45201,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: 2px dashed rgba(27, 42, 74, 0.10) !important;
   outline-offset: -6px;
 }
+.md-board-detail-symbol-card--no-color {
+  outline-color: transparent !important;
+}
 .md-board-detail-symbol-card--empty .md-board-detail-symbol-card__placeholder-icon {
   opacity: 0.55;
 }
@@ -44945,7 +45232,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ── Board-Detail: Folder card — modern lifted folder ─ */
 .md-board-detail-grid__cell--folder {
-  padding-top: 9px;
+  padding-top: 12px;
   overflow: visible;
 }
 /* Folder back panel — elevated, solid with depth */
@@ -44967,16 +45254,97 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Folder tab — solid, sharp */
 .md-folder-tab {
   position: absolute;
-  top: -7px;
+  top: -10px;
   left: 10px;
   width: 30%;
-  height: 8px;
+  height: 12px;
   background: #525d6e;
   border-radius: 5px 5px 0 0;
   box-shadow:
     0 -2px 8px rgba(27, 42, 65, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  transition: background 0.25s ease;
+  transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
+  overflow: hidden;
+}
+/* Tab label — hidden by default */
+.md-folder-tab__label {
+  display: none;
+  color: #fff;
+  font-size: clamp(8px, 1.2vw, 12px);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+  font-family: var(--bd-button-font);
+  text-transform: var(--bd-button-text-transform);
+}
+/* Folder tab label text size preferences */
+/* Folder tab label size driven by preference variable */
+.md-folder-tab__label {
+  font-size: var(--bd-button-text-size, 18px);
+}
+/* Toggle: folder labels on tab */
+.md-board-detail-grid--folder-tab-labels .md-folder-tab {
+  width: calc(100% - 20px);
+  height: 24px !important;
+  padding: 6px 8px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: -22px;
+  border-radius: 10px 10px 0 0;
+}
+.md-board-detail-grid--folder-tab-labels .md-folder-tab {
+  cursor: pointer;
+}
+.md-board-detail-grid--folder-tab-labels .md-folder-tab:hover {
+  background: #5d6878;
+}
+.md-board-detail-grid--folder-tab-labels .md-folder-tab__label,
+.md-board-detail-grid--folder-tab-labels .md-folder-tab__label-input {
+  display: block;
+}
+.md-folder-tab__label-input {
+  display: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: clamp(8px, 1.2vw, 12px);
+  font-weight: 600;
+  font-family: var(--bd-button-font);
+  text-transform: var(--bd-button-text-transform);
+  text-align: center;
+  width: 100%;
+  padding: 0;
+  cursor: text;
+}
+.md-folder-tab__label-input:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+.md-folder-tab__label-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+/* Folder tab label input text size preferences */
+.md-folder-tab__label-input {
+  font-size: var(--bd-button-text-size, 18px);
+}
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder {
+  justify-content: flex-end;
+}
+.md-board-detail-grid--folder-tab-labels .md-folder-back {
+  top: 24px;
+}
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+  flex: 0 0 auto !important;
+  height: calc(100% - 21px);
+}
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label,
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label-input {
+  display: none;
 }
 /* Card sits on top — elevated above folder */
 .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
@@ -45034,6 +45402,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__label {
   font-weight: 600;
 }
+.md-board-detail-color-legend__swatch.md-board-detail-symbol-card--folder {
+  background: #fff;
+  z-index: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
 
 /* ── Board-Detail: Drag & Drop feedback ─────────────── */
 .md-board-detail-grid__cell[draggable="true"] {
@@ -45076,6 +45449,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     gap: 12px;
   }
   .md-board-detail-board-actions-wrap {
+    width: 100%;
+    justify-content: center;
+  }
+  .md-board-detail-board-actions {
+    width: 100%;
     justify-content: center;
   }
   .md-board-detail-board-actions__btn span {
@@ -45104,6 +45482,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-board-detail-board-actions__divider {
     height: clamp(16px, 5vw, 28px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .md-board-detail-grid {
+    gap: 8px;
   }
 }
 
@@ -45927,6 +46311,149 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: none;
   border-color: #2a9d8f;
   box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.12);
+}
+
+/* ── Swap or Drop Modal ── */
+.md-swap-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.md-swap-preview__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(27, 54, 93, 0.04);
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  min-width: 110px;
+}
+.md-swap-preview__card--folder {
+  background: rgba(42, 157, 143, 0.06);
+  border-color: rgba(42, 157, 143, 0.18);
+}
+.md-swap-preview__img {
+  height: 48px;
+  max-width: 80px;
+  object-fit: contain;
+}
+.md-swap-preview__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1b365d;
+}
+.md-swap-preview__folder-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #2a9d8f;
+  font-weight: 500;
+}
+.md-swap-preview__arrow {
+  color: #8896a7;
+  flex-shrink: 0;
+}
+.md-swap-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.md-swap-alert svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.md-swap-alert--error {
+  background: #fef2f2;
+  color: #c0392b;
+  border: 1px solid rgba(192, 57, 43, 0.15);
+}
+.md-swap-alert--warning {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid rgba(146, 64, 14, 0.15);
+}
+.md-swap-alert--info {
+  background: rgba(42, 157, 143, 0.06);
+  color: #2a9d8f;
+  border: 1px solid rgba(42, 157, 143, 0.15);
+}
+
+/* ── Manage Languages Modal ── */
+.md-manage-lang-section {
+  margin-bottom: 8px;
+}
+.md-manage-lang-boards {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  border-radius: 10px;
+  background: rgba(27, 54, 93, 0.02);
+}
+.md-manage-lang-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  color: #8896a7;
+  font-size: 14px;
+}
+.md-manage-lang-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.md-manage-lang-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(27, 54, 93, 0.10);
+  background: rgba(27, 54, 93, 0.02);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  margin: 0;
+  font-weight: normal;
+}
+.md-manage-lang-item:hover {
+  background: rgba(27, 54, 93, 0.05);
+}
+.md-manage-lang-item--active {
+  background: rgba(42, 157, 143, 0.06);
+  border-color: rgba(42, 157, 143, 0.25);
+  font-weight: 600;
+}
+.md-manage-lang-item--active:hover {
+  background: rgba(42, 157, 143, 0.10);
+}
+.md-manage-lang-checkbox {
+  margin: 0 !important;
+  accent-color: #2a9d8f;
+}
+.md-manage-lang-name {
+  font-size: 14px;
+  color: #1b365d;
+  flex: 1;
+}
+.md-manage-lang-code {
+  font-size: 12px;
+  color: #8896a7;
+  font-family: monospace;
+  background: rgba(27, 54, 93, 0.06);
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 .md-modal-input {
   width: 100%;

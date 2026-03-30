@@ -5,6 +5,7 @@ import { observer } from '@ember/object';
 import { set as emberSet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
+import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -21,6 +22,8 @@ export default Controller.extend({
   stashes: service('stashes'),
   router: service('router'),
 
+  is_board_detail: true,
+  folder_labels_on_tab: false,
   boardname: null,
   active_category: 'all',
 
@@ -48,8 +51,8 @@ export default Controller.extend({
   show_paint_color_picker: false,
   custom_paint_color: '#4a90d9',
   paint_mode: null,
-  show_add_menu: false,
-  placing_button: false,
+  show_paint_dropdown: false,
+  button_menu_id: null,
   show_options_menu: false,
   dark_mode: false,
   board_saving: false,
@@ -145,7 +148,10 @@ export default Controller.extend({
       { id: 'negation', label: i18n.t('category_negatives', "Negatives"), css_class: 'negation' },
       { id: 'question', label: i18n.t('category_questions', "Questions"), css_class: 'question' },
       { id: 'preposition', label: i18n.t('category_prepositions', "Prepositions"), css_class: 'preposition' },
-      { id: 'conjunction', label: i18n.t('category_grammar', "Grammar"), css_class: 'conjunction' },
+      { id: 'adverb', label: i18n.t('category_adverbs', "Adverbs"), css_class: 'adverb' },
+      { id: 'determiner', label: i18n.t('category_determiners', "Determiners"), css_class: 'determiner' },
+      { id: 'conjunction', label: i18n.t('category_conjunctions', "Conjunctions"), css_class: 'conjunction' },
+      { id: 'other', label: i18n.t('category_other', "Other"), css_class: 'other' },
       { id: 'folder', label: i18n.t('category_folders', "Folders"), css_class: 'folder' }
     ];
   }),
@@ -176,22 +182,41 @@ export default Controller.extend({
       { id: 'negation', label: i18n.t('category_negatives', "Negatives"), css_class: 'negation' },
       { id: 'question', label: i18n.t('category_questions', "Questions"), css_class: 'question' },
       { id: 'preposition', label: i18n.t('category_prepositions', "Prepositions"), css_class: 'preposition' },
-      { id: 'conjunction', label: i18n.t('category_grammar', "Grammar"), css_class: 'conjunction' }
+      { id: 'adverb', label: i18n.t('category_adverbs', "Adverbs"), css_class: 'adverb' },
+      { id: 'determiner', label: i18n.t('category_determiners', "Determiners"), css_class: 'determiner' },
+      { id: 'conjunction', label: i18n.t('category_conjunctions', "Conjunctions"), css_class: 'conjunction' },
+      { id: 'other', label: i18n.t('category_other', "Other"), css_class: 'other' }
     ];
   }),
 
   color_picker_swatches: computed(function() {
-    return [
-      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#B9D0F6', border: '#6B80B8' },
-      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#C6F4B9', border: '#50A868' },
-      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#FAFAAA', border: '#C8C840' },
-      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FDC498', border: '#D87050' },
-      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#F2B5D0', border: '#A870A0' },
-      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5A0A0', border: '#D04040' },
-      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#D0B8E8', border: '#7850A8' },
-      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#D4BD9C', border: '#A08850' },
-      { label: i18n.t('swatch_grammar', "Grammar"), pos_class: 'conjunction', bg: '#DCDCDC', border: '#909090' }
+    var darken = function(color) {
+      if(window.tinycolor) {
+        return window.tinycolor(color).darken(30).toHexString();
+      }
+      return color;
+    };
+    var swatches = [
+      { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#FAFAAA' },
+      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#C0E8C8' },
+      { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#B9D0F6' },
+      { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FDCF98' },
+      { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#E8B5DC' },
+      { label: i18n.t('swatch_negative', "Negative"), pos_class: 'negation', bg: '#F5A0A0' },
+      { label: i18n.t('swatch_question', "Question"), pos_class: 'question', bg: '#D0B8E8' },
+      { label: i18n.t('swatch_preposition', "Preposition"), pos_class: 'preposition', bg: '#F5DCEA' },
+      { label: i18n.t('swatch_adverb', "Adverb"), pos_class: 'adverb', bg: '#D4B896' },
+      { label: i18n.t('swatch_determiner', "Determiner"), pos_class: 'determiner', bg: '#DCDCDC' },
+      { label: i18n.t('swatch_conjunction', "Conjunction"), pos_class: 'conjunction', bg: '#fff', border: '#ccc' },
+      { label: i18n.t('swatch_other', "Other"), pos_class: 'other', bg: 'rgb(115, 204, 255)' },
+      { label: i18n.t('swatch_contrast', "Contrast"), pos_class: 'contrast', bg: '#000' }
     ];
+    swatches.forEach(function(s) {
+      if(!s.border) {
+        s.border = (s.bg === '#fff') ? '#eee' : darken(s.bg);
+      }
+    });
+    return swatches;
   }),
 
   color_legend_items: computed(function() {
@@ -201,10 +226,14 @@ export default Controller.extend({
       { type: i18n.t('legend_descriptor', "Descriptors"), parts: i18n.t('legend_descriptor_ex', "big, happy, fast, more"), css_class: 'adjective' },
       { type: i18n.t('legend_noun', "Nouns"), parts: i18n.t('legend_noun_ex', "cat, water, home, school"), css_class: 'noun' },
       { type: i18n.t('legend_social', "Social"), parts: i18n.t('legend_social_ex', "please, hello, thank you"), css_class: 'social' },
-      { type: i18n.t('legend_grammar', "Grammar"), parts: i18n.t('legend_grammar_ex', "the, and, a, is"), css_class: 'conjunction' },
+      { type: i18n.t('legend_determiner', "Determiners"), parts: i18n.t('legend_determiner_ex', "the, a, this, that"), css_class: 'determiner' },
+      { type: i18n.t('legend_conjunction', "Conjunctions"), parts: i18n.t('legend_conjunction_ex', "and, or, but, if"), css_class: 'conjunction' },
       { type: i18n.t('legend_negatives', "Negatives"), parts: i18n.t('legend_negatives_ex', "no, not, don't, stop"), css_class: 'negation' },
       { type: i18n.t('legend_questions', "Questions"), parts: i18n.t('legend_questions_ex', "what, where, who, why"), css_class: 'question' },
       { type: i18n.t('legend_prepositions', "Prepositions"), parts: i18n.t('legend_prepositions_ex', "in, on, to, with"), css_class: 'preposition' },
+      { type: i18n.t('legend_adverb', "Adverbs"), parts: i18n.t('legend_adverb_ex', "quickly, very, well, always"), css_class: 'adverb' },
+      { type: i18n.t('legend_other', "Other"), parts: i18n.t('legend_other_ex', "miscellaneous words"), css_class: 'other' },
+      { type: i18n.t('legend_contrast', "Contrast"), parts: i18n.t('legend_contrast_ex', "high contrast buttons"), css_class: 'contrast' },
       { type: i18n.t('legend_folder', "Folder"), parts: i18n.t('legend_folder_ex', "links to another board"), css_class: 'folder' }
     ];
   }),
@@ -339,6 +368,48 @@ export default Controller.extend({
     return !!(this.get('ordered_buttons'));
   }),
 
+  // Button text preferences from user device settings
+  button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
+    var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
+    return 'md-board-detail-grid--text-' + size;
+  }),
+
+  button_text_size_px: computed('app_state.referenced_user.preferences.device.button_text', function() {
+    var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
+    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
+    return map[size] || 18;
+  }),
+
+  button_text_position_class: computed('app_state.referenced_user.preferences.device.button_text_position', function() {
+    var pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || 'top';
+    return 'md-board-detail-grid--text-pos-' + pos;
+  }),
+
+  button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
+    var style = this.get('app_state.referenced_user.preferences.device.button_style') || 'default';
+    var fonts = {
+      'arial': 'Arial, sans-serif',
+      'arial_caps': 'Arial, sans-serif',
+      'arial_small': 'Arial, sans-serif',
+      'comic_sans': '"Comic Sans MS", cursive',
+      'comic_sans_caps': '"Comic Sans MS", cursive',
+      'comic_sans_small': '"Comic Sans MS", cursive',
+      'open_dyslexic': 'OpenDyslexic, sans-serif',
+      'open_dyslexic_caps': 'OpenDyslexic, sans-serif',
+      'open_dyslexic_small': 'OpenDyslexic, sans-serif',
+      'architects_daughter': 'ArchitectsDaughter, cursive',
+      'architects_daughter_caps': 'ArchitectsDaughter, cursive',
+      'architects_daughter_small': 'ArchitectsDaughter, cursive'
+    };
+    var cases = {};
+    if(style && style.match(/_caps$/)) { cases.transform = 'uppercase'; }
+    if(style && style.match(/_small$/)) { cases.transform = 'lowercase'; }
+    return {
+      family: fonts[style] || 'inherit',
+      transform: cases.transform || 'none'
+    };
+  }),
+
   // Current grid dimensions from ordered_buttons
   current_grid: computed('ordered_buttons', function() {
     var ob = this.get('ordered_buttons');
@@ -374,6 +445,51 @@ export default Controller.extend({
   }),
 
   // Returns the POS CSS class for a button (works with both Button objects and plain objects)
+  _apply_category_filter: function(category) {
+    var ob = this.get('ordered_buttons') || [];
+    var _this = this;
+    var match_map = {
+      'pronoun': ['pronoun'],
+      'verb': ['verb'],
+      'adjective': ['adjective'],
+      'noun': ['noun', 'nominative'],
+      'social': ['social', 'social_phrase', 'interjection'],
+      'negation': ['negation', 'expletive'],
+      'question': ['question'],
+      'preposition': ['preposition'],
+      'adverb': ['adverb'],
+      'determiner': ['determiner', 'article'],
+      'conjunction': ['conjunction', 'number'],
+      'other': ['other'],
+      'folder': ['folder']
+    };
+    var matches = match_map[category] || null;
+    for(var ri = 0; ri < ob.length; ri++) {
+      var row = ob[ri] || [];
+      for(var ci = 0; ci < row.length; ci++) {
+        var btn = row[ci];
+        if(!btn) { continue; }
+        var is_empty = (btn.get && btn.get('empty')) || btn.empty;
+        if(is_empty) {
+          if(btn.set) { btn.set('_filtered_out', category !== 'all'); }
+          else { btn._filtered_out = category !== 'all'; }
+          continue;
+        }
+        if(!category || category === 'all') {
+          if(btn.set) { btn.set('_filtered_out', false); }
+          else { btn._filtered_out = false; }
+        } else {
+          var pos = _this.pos_css_class(btn);
+          var out = matches ? matches.indexOf(pos) < 0 : false;
+          if(btn.set) { btn.set('_filtered_out', out); }
+          else { btn._filtered_out = out; }
+        }
+      }
+    }
+    // Force re-render
+    this.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
+  },
+
   pos_css_class: function(btn) {
     if(!btn) { return 'default'; }
     var load_board = btn.get ? btn.get('load_board') : btn.load_board;
@@ -483,13 +599,16 @@ export default Controller.extend({
     var match_map = {
       'pronoun': ['pronoun'],
       'verb': ['verb'],
-      'adjective': ['adjective', 'adverb'],
+      'adjective': ['adjective'],
       'noun': ['noun', 'nominative'],
-      'social': ['social', 'interjection'],
+      'social': ['social', 'social_phrase', 'interjection'],
       'negation': ['negation', 'expletive'],
       'question': ['question'],
       'preposition': ['preposition'],
-      'conjunction': ['conjunction', 'number', 'article', 'determiner'],
+      'adverb': ['adverb'],
+      'determiner': ['determiner', 'article'],
+      'conjunction': ['conjunction', 'number'],
+      'other': ['other'],
       'folder': ['folder']
     };
     var matches = match_map[category] || [category];
@@ -648,9 +767,10 @@ export default Controller.extend({
     this.set('edit_mode', false);
     this.set('paint_mode', null);
     this.set('color_picker_button', null);
-    this.set('show_add_menu', false);
-    this.set('placing_button', false);
-    this._teardown_placement_cursor();
+    this.set('board_recolored', false);
+    this.set('_saved_recolor', null);
+    this.set('borders_matched', false);
+    this.set('_saved_border_colors', null);
     stashes.persist('current_mode', 'default');
 
     // Preserve image_urls before save
@@ -769,131 +889,6 @@ export default Controller.extend({
   },
 
   // Set up the floating cursor element for manual placement mode
-  _setup_placement_cursor: function() {
-    var cursor = document.createElement('div');
-    cursor.className = 'md-board-detail-placement-cursor';
-    cursor.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
-    document.body.appendChild(cursor);
-    this._placementCursor = cursor;
-    var _this = this;
-    this._placementMouseHandler = function(e) {
-      if(_this._placementCursor) {
-        _this._placementCursor.style.left = (e.clientX + 12) + 'px';
-        _this._placementCursor.style.top = (e.clientY + 12) + 'px';
-      }
-    };
-    this._placementKeyHandler = function(e) {
-      if(e.key === 'Escape') {
-        _this.send('cancel_placement');
-      }
-    };
-    document.addEventListener('mousemove', this._placementMouseHandler);
-    document.addEventListener('keydown', this._placementKeyHandler);
-  },
-
-  // Remove the floating cursor element and event listeners
-  _teardown_placement_cursor: function() {
-    if(this._placementCursor && this._placementCursor.parentNode) {
-      this._placementCursor.parentNode.removeChild(this._placementCursor);
-    }
-    this._placementCursor = null;
-    if(this._placementMouseHandler) {
-      document.removeEventListener('mousemove', this._placementMouseHandler);
-      this._placementMouseHandler = null;
-    }
-    if(this._placementKeyHandler) {
-      document.removeEventListener('keydown', this._placementKeyHandler);
-      this._placementKeyHandler = null;
-    }
-  },
-
-  // Insert a new empty button before an existing button, shifting subsequent buttons right
-  _insert_before: function(target_button) {
-    var _this = this;
-    var ob = this.get('ordered_buttons') || [];
-    var board = this.get('model');
-    if(!board || !ob.length) { return; }
-
-    var target_id = target_button.get ? target_button.get('id') : target_button.id;
-
-    // Flatten the 2D grid into a linear list to find position
-    var flat = [];
-    var target_flat_idx = -1;
-    for(var ri = 0; ri < ob.length; ri++) {
-      var row = ob[ri] || [];
-      for(var ci = 0; ci < row.length; ci++) {
-        var btn = row[ci];
-        var bid = btn && (btn.get ? btn.get('id') : btn.id);
-        if(bid === target_id) {
-          target_flat_idx = flat.length;
-        }
-        flat.push(btn);
-      }
-    }
-    if(target_flat_idx < 0) { return; }
-
-    // Check if there is at least one empty cell at the end to absorb the shift
-    var has_empty_at_end = false;
-    for(var i = flat.length - 1; i > target_flat_idx; i--) {
-      var b = flat[i];
-      if(b && (b.get ? b.get('empty') : b.empty)) {
-        has_empty_at_end = true;
-        // Remove that trailing empty to make room
-        flat.splice(i, 1);
-        break;
-      }
-    }
-    if(!has_empty_at_end) {
-      modal.warning(i18n.t('no_room_to_insert', "No empty spots after this position to shift into. Try adding a row or column first."), true);
-      return;
-    }
-
-    // Create a new empty button placeholder at the target position
-    var new_id = _this._next_button_id();
-    var new_btn = { id: new_id, label: '', empty: true };
-    if(typeof editManager.Button !== 'undefined' && editManager.Button.create) {
-      new_btn = editManager.Button.create({ id: new_id, label: '', empty: true });
-      new_btn.set('board', board);
-    }
-
-    flat.splice(target_flat_idx, 0, new_btn);
-
-    // Re-shape flat list back into 2D grid
-    var cols = ob[0] ? ob[0].length : flat.length;
-    var new_ob = [];
-    for(var fi = 0; fi < flat.length; fi++) {
-      var row_idx = Math.floor(fi / cols);
-      if(!new_ob[row_idx]) { new_ob[row_idx] = []; }
-      new_ob[row_idx].push(flat[fi]);
-    }
-
-    // Also update the model's grid.order and buttons array
-    var grid = board.get('grid');
-    if(grid && grid.order) {
-      var new_order = [];
-      for(var r = 0; r < new_ob.length; r++) {
-        var grid_row = [];
-        for(var c = 0; c < new_ob[r].length; c++) {
-          var btn_obj = new_ob[r][c];
-          var id = btn_obj && (btn_obj.get ? btn_obj.get('id') : btn_obj.id);
-          grid_row.push(id || null);
-        }
-        new_order.push(grid_row);
-      }
-      grid.order = new_order;
-      board.set('grid', $.extend({}, grid));
-    }
-
-    // Add the new empty button to the model's buttons array so it persists
-    var model_buttons = board.get('buttons') || [];
-    model_buttons.push({ id: new_id, label: '' });
-    board.set('buttons', [].concat(model_buttons));
-
-    _this.set('ordered_buttons', new_ob);
-
-    // Open button settings for the newly inserted button
-    _this._open_button_settings(new_id, 'general');
-  },
 
   // Generate the next available button ID for the board
   _next_button_id: function() {
@@ -959,8 +954,9 @@ export default Controller.extend({
 
     enter_edit_mode: function() {
       this.set('show_options_menu', false);
+      this.set('show_color_legend', false);
       this.set('board_collapsed', false);
-      this.set('panels_collapsed', false);
+      this.set('panels_collapsed', true);
       this.get('router').transitionTo('user.board-detail.edit', this.get('user.user_name'), this.get('boardname'));
     },
 
@@ -1216,16 +1212,17 @@ export default Controller.extend({
 
       var btn_id = this._btn_id(button);
       if(this.get('edit_mode')) {
-        if(this.get('placing_button')) {
-          this.send('place_button_at', button);
-          return;
-        }
         if(editManager.finding_target()) {
           editManager.apply_to_target(btn_id);
           return;
         }
         if(this.get('paint_mode')) {
           this.send('paint_button', button);
+          return;
+        }
+        // If the click landed on the label input, let it focus for inline editing
+        var activeEl = document.activeElement;
+        if(activeEl && (activeEl.classList.contains('md-board-detail-symbol-card__label-input') || activeEl.classList.contains('md-folder-tab__label-input'))) {
           return;
         }
         this._open_button_settings(btn_id, 'general');
@@ -1318,6 +1315,7 @@ export default Controller.extend({
     // ── Color Picker (board-detail specific) ──
 
     open_color_picker: function(button, event) {
+      this.set('button_menu_id', null);
       if(event) { event.stopPropagation(); }
       if(this.get('color_picker_button') === button) {
         this.set('color_picker_button', null);
@@ -1430,6 +1428,7 @@ export default Controller.extend({
     set_category: function(category_id) {
       this.set('active_category', category_id);
       this.set('show_categories', false);
+      this._apply_category_filter(category_id);
     },
 
     nav_select: function(item_id) {
@@ -1461,38 +1460,42 @@ export default Controller.extend({
 
     cancel_edit: function() {
       var _this = this;
-      var msg = i18n.t('confirm_discard_changes', "Are you sure you want to discard your changes?");
-      if(!confirm(msg)) { return; }
-      _this.set('edit_mode', false);
-      _this.set('paint_mode', null);
-      _this.set('color_picker_button', null);
-      _this.set('show_add_menu', false);
-      _this.set('placing_button', false);
-      _this._teardown_placement_cursor();
-      _this.get('stashes').persist('current_mode', 'default');
-      // Discard unsaved changes: rollback Ember Data model and reload fresh from server
-      _this.get('model').rollbackAttributes();
-      _this.set('ordered_buttons', null);
-      _this.set('board_loading', true);
-      var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
-      persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          _this.set('_raw_board_data', data.board);
-          _this._build_from_raw(data.board);
+      modal.open('confirm-discard-changes', {}).then(function(result) {
+        if(result === 'discard') {
+          _this.set('edit_mode', false);
+          _this.set('paint_mode', null);
+          _this.set('color_picker_button', null);
+          _this.set('board_recolored', false);
+          _this.set('_saved_recolor', null);
+          _this.set('borders_matched', false);
+          _this.set('_saved_border_colors', null);
+          _this.get('stashes').persist('current_mode', 'default');
+          // Discard unsaved changes: rollback Ember Data model and reload fresh from server
+          _this.get('model').rollbackAttributes();
+          _this.set('ordered_buttons', null);
+          _this.set('board_loading', true);
+          var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
+          persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+            if(data && data.board) {
+              _this.set('_raw_board_data', data.board);
+              _this._build_from_raw(data.board);
+            }
+            _this.set('board_loading', false);
+          }, function() {
+            _this.set('board_loading', false);
+          });
+          // Transition back to the index subroute with panels collapsed
+          _this.set('panels_collapsed', true);
+          _this.set('board_collapsed', true);
+          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
         }
-        _this.set('board_loading', false);
-      }, function() {
-        _this.set('board_loading', false);
       });
-      // Transition back to the index subroute with panels collapsed
-      _this.set('panels_collapsed', true);
-      _this.set('board_collapsed', true);
-      _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
     },
 
     // ── Paint Mode ──
 
     set_paint_mode: function(fill, border, part_of_speech) {
+      this.set('show_paint_dropdown', false);
       if(fill === 'hide') {
         this.set('paint_mode', { hidden: true });
       } else if(fill === 'show') {
@@ -1522,6 +1525,10 @@ export default Controller.extend({
 
     toggle_paint_color_picker: function() {
       this.toggleProperty('show_paint_color_picker');
+    },
+
+    toggle_paint_dropdown: function() {
+      this.toggleProperty('show_paint_dropdown');
     },
 
     update_custom_paint_color: function(color) {
@@ -1593,64 +1600,19 @@ export default Controller.extend({
       }
     },
 
-    // ── Add Button Menu ──
-
-    toggle_add_menu: function() {
-      this.toggleProperty('show_add_menu');
-    },
-
-    add_to_first_spot: function() {
-      this.set('show_add_menu', false);
-      var ob = this.get('ordered_buttons') || [];
-      var target = null;
-      for(var ri = 0; ri < ob.length && !target; ri++) {
-        var row = ob[ri] || [];
-        for(var ci = 0; ci < row.length && !target; ci++) {
-          var btn = row[ci];
-          if(btn && btn.empty) {
-            target = btn;
-          }
-        }
-      }
-      if(!target) {
-        modal.warning(i18n.t('no_empty_spots', "No empty spots available. Try adding a row or column first."), true);
-        return;
-      }
-      var btn_id = target.get ? target.get('id') : target.id;
-      this._open_button_settings(btn_id, 'general');
-    },
-
-    start_manual_place: function() {
-      this.set('show_add_menu', false);
-      this.set('placing_button', true);
-      this._setup_placement_cursor();
-    },
-
-    cancel_placement: function() {
-      this.set('placing_button', false);
-      this._teardown_placement_cursor();
-    },
-
-    place_button_at: function(button) {
-      var _this = this;
-      var btn_id = button.get ? button.get('id') : button.id;
-      var is_empty = button.get ? button.get('empty') : button.empty;
-
-      _this.set('placing_button', false);
-      _this._teardown_placement_cursor();
-
-      if(is_empty) {
-        // Place into the empty slot and open settings
-        _this._open_button_settings(btn_id, 'general');
-      } else {
-        // Insert before the occupied button: shift buttons right from this position
-        _this._insert_before(button);
-      }
-    },
-
     // ── Button Operations ──
 
+    toggle_button_menu: function(btn) {
+      var btn_id = btn.get ? btn.get('id') : btn.id;
+      if(this.get('button_menu_id') === btn_id) {
+        this.set('button_menu_id', null);
+      } else {
+        this.set('button_menu_id', btn_id);
+      }
+    },
+
     edit_button_settings: function(btn) {
+      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) {
         this._open_button_settings(btn_id, 'general');
@@ -1658,11 +1620,13 @@ export default Controller.extend({
     },
 
     clear_button: function(btn) {
+      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) { editManager.clear_button(btn_id); }
     },
 
     stash_button: function(btn) {
+      this.set('button_menu_id', null);
       var btn_id = this._btn_id(btn);
       if(btn_id) {
         editManager.stash_button(btn_id);
@@ -1671,6 +1635,7 @@ export default Controller.extend({
     },
 
     word_data: function(btn) {
+      this.set('button_menu_id', null);
       if(!btn) { return; }
       var label = btn.get ? btn.get('label') : btn.label;
       var vocalization = btn.get ? btn.get('vocalization') : btn.vocalization;
@@ -1690,6 +1655,117 @@ export default Controller.extend({
       var board = this.get('model');
       if(!board) { return; }
       modal.open('edit-board-details', { board: board });
+    },
+
+    recolor_board: function() {
+      var _this = this;
+      var saved = this.get('_saved_recolor');
+
+      if(saved) {
+        // Revert to saved colors
+        for(var id in saved) {
+          editManager.change_button(id, {
+            background_color: saved[id].bg,
+            border_color: saved[id].border
+          });
+        }
+        this.set('_saved_recolor', null);
+        this.set('board_recolored', false);
+        return;
+      }
+
+      modal.open('confirm-recolor-board', {}).then(function(result) {
+        if(result === 'recolor') {
+          var ob = _this.get('ordered_buttons') || [];
+          var colors = window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
+          var savedColors = {};
+          for(var ri = 0; ri < ob.length; ri++) {
+            var row = ob[ri] || [];
+            for(var ci = 0; ci < row.length; ci++) {
+              var btn = row[ci];
+              if(!btn) { continue; }
+              var is_empty = btn.get ? btn.get('empty') : btn.empty;
+              var is_folder = btn.get ? btn.get('load_board') : btn.load_board;
+              var label = btn.get ? btn.get('label') : btn.label;
+              if(is_empty || is_folder || !label) { continue; }
+              var btn_id = btn.get ? btn.get('id') : btn.id;
+              // Save current colors before overwriting
+              savedColors[btn_id] = {
+                bg: btn.get ? btn.get('background_color') : btn.background_color,
+                border: btn.get ? btn.get('border_color') : btn.border_color
+              };
+              // Clear existing colors so check_for_parts_of_speech will assign new ones
+              editManager.change_button(btn_id, {
+                background_color: null,
+                border_color: null
+              });
+              btn.check_for_parts_of_speech(colors);
+            }
+          }
+          _this.set('_saved_recolor', savedColors);
+          _this.set('board_recolored', true);
+          // If borders are matched, re-apply after API calls complete
+          if(_this.get('borders_matched')) {
+            runLater(function() {
+              var currentOb = _this.get('ordered_buttons') || [];
+              for(var ri2 = 0; ri2 < currentOb.length; ri2++) {
+                var row2 = currentOb[ri2] || [];
+                for(var ci2 = 0; ci2 < row2.length; ci2++) {
+                  var b = row2[ci2];
+                  if(!b) { continue; }
+                  var bEmpty = (b.get && b.get('empty')) || b.empty;
+                  var bFolder = (b.get && b.get('load_board')) || b.load_board;
+                  var bBg = (b.get && b.get('background_color')) || b.background_color;
+                  if(bEmpty || bFolder || !bBg) { continue; }
+                  var bId = (b.get && b.get('id')) || b.id;
+                  editManager.change_button(bId, { border_color: bBg });
+                }
+              }
+              _this.set('ordered_buttons', currentOb.map(function(r) { return [].concat(r); }));
+            }, 2000);
+          }
+        }
+      });
+    },
+
+    toggle_folder_label_position: function() {
+      this.toggleProperty('folder_labels_on_tab');
+    },
+
+    match_borders_to_fill: function() {
+      var ob = this.get('ordered_buttons') || [];
+      var saved = this.get('_saved_border_colors');
+
+      if(saved) {
+        // Revert to saved border colors
+        for(var id in saved) {
+          editManager.change_button(id, { border_color: saved[id] });
+        }
+        this.set('_saved_border_colors', null);
+        this.set('borders_matched', false);
+      } else {
+        // Save current borders and match to fill
+        var savedColors = {};
+        for(var ri = 0; ri < ob.length; ri++) {
+          var row = ob[ri] || [];
+          for(var ci = 0; ci < row.length; ci++) {
+            var btn = row[ci];
+            if(!btn) { continue; }
+            var is_empty = (btn.get && btn.get('empty')) || btn.empty;
+            var is_folder = (btn.get && btn.get('load_board')) || btn.load_board;
+            var bg = (btn.get && btn.get('background_color')) || btn.background_color;
+            if(is_empty || is_folder || !bg) { continue; }
+            var btn_id = (btn.get && btn.get('id')) || btn.id;
+            var current_border = (btn.get && btn.get('border_color')) || btn.border_color;
+            savedColors[btn_id] = current_border || null;
+            editManager.change_button(btn_id, { border_color: bg });
+          }
+        }
+        this.set('_saved_border_colors', savedColors);
+        this.set('borders_matched', true);
+      }
+      // Force Ember to re-render the grid by creating a new array reference
+      this.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
     },
 
     open_button_stash: function() {

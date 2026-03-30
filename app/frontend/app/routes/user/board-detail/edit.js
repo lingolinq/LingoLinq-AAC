@@ -16,6 +16,11 @@ export default Route.extend({
 
     // Check if the user needs to purchase before entering edit mode
     // Uses the appState service's check_for_needing_purchase which returns a promise
+    if(!model) {
+      // Model not loaded yet — redirect to parent route
+      _this.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
+      return;
+    }
     _this.appState.check_for_needing_purchase().then(function() {
       boardDetailController.set('edit_mode', true);
       boardDetailController.set('board_collapsed', false);

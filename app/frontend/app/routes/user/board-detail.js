@@ -50,9 +50,22 @@ export default Route.extend({
     controller.set('boardname', (model.get ? model.get('key') : '').split('/').slice(1).join('/') || '');
     controller.set('ordered_buttons', null);
     controller.set('preview_level', null);
+    controller.set('show_options_menu', false);
+    controller.set('show_color_legend', false);
+    controller.set('edit_mode', false);
+    controller.set('paint_mode', null);
+    controller.set('color_picker_button', null);
+    controller.set('button_menu_id', null);
+    controller.set('show_paint_color_picker', false);
+    controller.set('board_recolored', false);
+    controller.set('_saved_recolor', null);
+    controller.set('borders_matched', false);
+    controller.set('_saved_border_colors', null);
+    controller.set('folder_labels_on_tab', false);
 
     // Default panels to collapsed (unexpanded)
     controller.set('panels_collapsed', true);
+    controller.set('board_collapsed', true);
 
     // Initialize the user's saved voice for speech synthesis
     if(user && user.get && user.get('preferences.device.voice')) {

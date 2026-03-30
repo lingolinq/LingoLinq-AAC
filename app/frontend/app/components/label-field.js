@@ -6,7 +6,7 @@ import { observer } from '@ember/object';
 export default Component.extend({
   tagName: 'input',
   type: 'text',
-  attributeBindings: ['placeholder', 'value'],
+  attributeBindings: ['placeholder', 'value', 'aria-label'],
 
   // Find the button ID from the closest parent with data-id
   _getButtonId: function() {
@@ -41,6 +41,7 @@ export default Component.extend({
       this.change.call(this);
       var id = this._getButtonId();
       editManager.lucky_symbol(id);
+      this.get('element').blur();
     }
   },
   focusOut: function() {
