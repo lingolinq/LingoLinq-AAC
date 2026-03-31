@@ -25081,7 +25081,7 @@ header #identity #identity_button.btn::after {
 // Full-width hero: break out of .la-main so hero spans viewport; content stays centered. Sits just below navbar.
 .la-hero-card {
   position: relative;
-  margin-top: clamp(0rem, 0rem + 2vw, 2rem); /* 2rem less than previous */
+  margin-top: clamp(0rem, calc(0rem + 2vw), 2rem); /* 2rem less than previous */
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
@@ -25126,9 +25126,9 @@ header #identity #identity_button.btn::after {
   position: relative;
   z-index: 1;
   max-width: min(1320px, 94%);
-  margin: clamp(1.5rem, 0.5rem + 1.75vw, 3rem) auto 0;
-  padding: clamp(24px, 12px + 2.5vw, 48px) clamp(28px, 12px + 3.5vw, 72px) clamp(28px, 14px + 2.9vw, 56px) clamp(20px, 4px + 3vw, 48px);
-  border-radius: clamp(16px, 10px + 1.25vw, 28px);
+  margin: clamp(1.5rem, calc(0.5rem + 1.75vw), 3rem) auto 0;
+  padding: clamp(24px, calc(12px + 2.5vw), 48px) clamp(28px, calc(12px + 3.5vw), 72px) clamp(28px, calc(14px + 2.9vw), 56px) clamp(20px, calc(4px + 3vw), 48px);
+  border-radius: clamp(16px, calc(10px + 1.25vw), 28px);
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -25142,7 +25142,7 @@ header #identity #identity_button.btn::after {
   padding: 0;
   display: grid;
   grid-template-columns: 6fr 4fr; /* 60% left (text), 40% right (mockup) */
-  gap: clamp(24px, 8px + 3.3vw, 56px);
+  gap: clamp(24px, calc(8px + 3.3vw), 56px);
   align-items: start; /* let columns grow with content so mockup margin/scale have room */
   position: relative;
   background: transparent;
@@ -25269,7 +25269,7 @@ header #identity #identity_button.btn::after {
   margin-bottom: 14px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.11);
-  font-size: clamp(1.3rem, 1.2rem + 0.32vw, 1.4rem);
+  font-size: clamp(1.3rem, calc(1.2rem + 0.32vw), 1.4rem);
   font-weight: 500;
   letter-spacing: 0.035em;
   color: rgba(255, 255, 255, 0.78);
@@ -25283,7 +25283,7 @@ header #identity #identity_button.btn::after {
 
 .la-hero-badges-section {
   width: fit-content;
-  padding: clamp(8px, 4px + 0.56vw, 12px);
+  padding: clamp(8px, calc(4px + 0.56vw), 12px);
   margin-bottom: 28px; /* 28px feature pills → CTA buttons */
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -25316,7 +25316,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-eyebrow {
-  font-size: clamp(11px, 8px + 0.35vw, 13px);
+  font-size: clamp(11px, calc(8px + 0.35vw), 13px);
   font-weight: $aac-font-weight-bold;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -25325,12 +25325,12 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-title-wrap {
-  padding-bottom: clamp(12px, 6px + 1.25vw, 24px);
+  padding-bottom: clamp(12px, calc(6px + 1.25vw), 24px);
 }
 
 .la-wrapper .la-hero-title {
   font-family: 'Maitree', serif;
-  font-size: clamp(2rem, 0.8rem + 3.47vw, 3.575rem);
+  font-size: clamp(2rem, calc(0.8rem + 3.47vw), 3.575rem);
   font-weight: 600; /* semi-bold: cleaner, calmer, more editorial than 700 */
   color: #ffffff;
   line-height: 1.08;
@@ -25515,7 +25515,7 @@ header #identity #identity_button.btn::after {
 
 .la-wrapper .la-hero-subtitle {
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
-  font-size: clamp(1.25rem, 0.65rem + 1.38vw, 1.755rem);
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
   font-weight: 400;
   color: #FFFFFF;
   line-height: 1.7;
@@ -25538,7 +25538,7 @@ header #identity #identity_button.btn::after {
 .la-hero-badges {
   display: flex;
   flex-wrap: nowrap;
-  gap: clamp(4px, 2px + 0.42vw, 8px);
+  gap: clamp(4px, calc(2px + 0.42vw), 8px);
   margin-top: 0;
   margin-bottom: 0;
 }
@@ -25546,8 +25546,8 @@ header #identity #identity_button.btn::after {
 .la-hero-badge {
   display: inline-flex;
   align-items: center;
-  gap: clamp(8px, 4px + 0.56vw, 12px);
-  padding: clamp(3px, 2px + 0.14vw, 5px) clamp(12px, 4px + 1.11vw, 20px) clamp(3px, 2px + 0.14vw, 5px) clamp(12px, 8px + 0.56vw, 16px);
+  gap: clamp(8px, calc(4px + 0.56vw), 12px);
+  padding: clamp(3px, calc(2px + 0.14vw), 5px) clamp(12px, calc(4px + 1.11vw), 20px) clamp(3px, calc(2px + 0.14vw), 5px) clamp(12px, calc(8px + 0.56vw), 16px);
   flex-shrink: 0; /* overridden in .la-hero-badges-section for equal fit */
   background: rgba(255, 255, 255, 0.98);
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -25578,12 +25578,12 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: clamp(26px, 20px + 0.83vw, 32px);
-  height: clamp(26px, 20px + 0.83vw, 32px);
+  width: clamp(26px, calc(20px + 0.83vw), 32px);
+  height: clamp(26px, calc(20px + 0.83vw), 32px);
   min-width: 26px;
   min-height: 26px;
   border-radius: 50%;
-  font-size: clamp(13px, 10px + 0.35vw, 15px);
+  font-size: clamp(13px, calc(10px + 0.35vw), 15px);
   line-height: 1;
   background: rgba(color.adjust(#F2C94C, $saturation: -15%, $lightness: 15%), 0.88);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -25620,7 +25620,7 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
 }
 
 .la-hero-badge-label {
-  font-size: clamp(11.7px, 9px + 0.32vw, 13.5px); /* 10% smaller than previous */
+  font-size: clamp(11.7px, calc(9px + 0.32vw), 13.5px); /* 10% smaller than previous */
   font-weight: $aac-font-weight-semi;
   color: #FFFFFF;
   letter-spacing: 0.01em;
@@ -25628,7 +25628,7 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
 
 .la-hero-actions {
   display: flex;
-  gap: clamp(10px, 4px + 0.83vw, 16px);
+  gap: clamp(10px, calc(4px + 0.83vw), 16px);
   flex-wrap: wrap;
   margin-top: 0; /* 32px from pills section margin-bottom */
 }
@@ -25835,10 +25835,10 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: clamp(216px, 144px + 11.25vw, 306px);
-  margin-top: calc((clamp(24px, 8px + 3.33vw, 56px) - 4rem) / 2);
+  min-height: clamp(216px, calc(144px + 11.25vw), 306px);
+  margin-top: calc((clamp(24px, calc(8px + 3.33vw), 56px) - 4rem) / 2);
   overflow: visible; /* allow scaled mockup to show */
-  padding: clamp(7px, 4px + 0.55vw, 12px) clamp(25px, 14px + 1.8vw, 43px) clamp(25px, 15px + 1.82vw, 43px);
+  padding: clamp(7px, calc(4px + 0.55vw), 12px) clamp(25px, calc(14px + 1.8vw), 43px) clamp(25px, calc(15px + 1.82vw), 43px);
   background: rgb(55, 65, 81);
   border-radius: 24px;
   box-shadow:
@@ -25904,13 +25904,13 @@ $la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%)
 
   /* Offsets — kept within mockup-wrap bounds */
   &.la-floating-chip--tl {
-    top: clamp(4px, 0px + 1.25vw, 20px);
-    right: clamp(-4px, -12px + 0.83vw, 4px);
+    top: clamp(4px, calc(0px + 1.25vw), 20px);
+    right: clamp(-4px, calc(-12px + 0.83vw), 4px);
   }
 
   &.la-floating-chip--br {
     bottom: calc(20% - 6rem); /* 3.5rem lower than before (was 20% - 2.5rem) */
-    left: clamp(-4px, -12px + 0.83vw, 4px);
+    left: clamp(-4px, calc(-12px + 0.83vw), 4px);
     animation-delay: 1.5s;
   }
 }
@@ -26048,9 +26048,9 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 .la-mockup {
   position: relative;
   z-index: 1;
-  width: clamp(252px, 126px + 20.4vw, 420px);
+  width: clamp(252px, calc(126px + 20.4vw), 420px);
   max-width: 100%;
-  margin-top: clamp(18px, 8px + 2vw, 36px);
+  margin-top: clamp(18px, calc(8px + 2vw), 36px);
   background: white;
   border-radius: 20px;
   overflow: hidden;
@@ -36919,7 +36919,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ---------- About page hero (modern dashboard styling) ---------- */
 .md-about-hero {
-  margin-top: clamp(2rem, 1rem + 2vw, 4rem);
+  margin-top: clamp(2rem, calc(1rem + 2vw), 4rem);
   margin-bottom: 0;
   padding: 0 1rem 3rem;
   color: var(--md-ink);
