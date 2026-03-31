@@ -43970,6 +43970,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-header__sub--collapsed {
   display: -webkit-box;
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -45204,9 +45205,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 // Custom user-picked color (inline style applied via save)
-.md-board-detail-symbol-card--custom {
-  // Colors set via inline style from save_button_color
-}
+// .md-board-detail-symbol-card--custom { Colors set via inline style from save_button_color }
 
 .md-board-detail-grid__cell {
   position: relative;
