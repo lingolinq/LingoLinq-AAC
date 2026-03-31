@@ -975,6 +975,7 @@ header #normal_mode .glyphicon-arrow-left {
   /* Keep visible: speak mode button (#speak_mode) */
   .nav-header__board-bar #normal_mode #speak_mode {
     display: inline-flex !important;
+    margin-left: 8px;
   }
   .nav-header__board-bar #normal_mode .btn-group:has(#speak_mode) {
     display: inline-flex !important;
@@ -6278,9 +6279,9 @@ body.pretty_loader #loading_box {
 #sidebar {
   top: 0;
   margin-top: calc(100px - 3.75rem + var(--speak-bar-extra, 0px));
-  position: absolute; 
-  right: 0; 
-  width: 100px; 
+  position: absolute;
+  right: 0;
+  width: 100px;
   z-index: 2;
   background: #fff;
   overflow-y: auto;
@@ -6288,6 +6289,35 @@ body.pretty_loader #loading_box {
   border-left: 1px solid #eee;
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
+}
+// Board-alt page (user/board/boardname) speak mode: slate background
+#within_ember.board-alt-view #content {
+  background: #7e858f;
+}
+#within_ember.board-alt-view #sidebar {
+  background: #7e858f;
+  border-left-color: #6b737d;
+  border-bottom-color: #6b737d;
+}
+#within_ember.board-alt-view #sidebar .sidebar_item {
+  color: #1b2a4a;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+#within_ember.board-alt-view #sidebar .sidebar_item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+#within_ember.board-alt-view #sidebar #sidebar_close {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+#within_ember.board-alt-view #sidebar #sidebar_close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+#within_ember.board-alt-view #sidebar_tease {
+  background: #7e858f;
+  border-color: #6b737d;
+  color: #fff;
 }
 .noselect {
   -webkit-touch-callout: none; /* iOS Safari */
@@ -13627,6 +13657,19 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
   text-decoration: none;
+}
+// Hide standalone beta feedback link on small screens; show in dropdown instead
+.app-navbar__beta-feedback-menu-item {
+  display: none;
+}
+@media (max-width: 767px) {
+  .app-navbar .app-navbar__beta-feedback-link,
+  #inner_header .app-navbar__beta-feedback-link {
+    display: none !important;
+  }
+  .app-navbar__beta-feedback-menu-item {
+    display: list-item;
+  }
 }
 
 .app-navbar .header-unauth-nav {
@@ -40494,7 +40537,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 // === Board Alt View: speech-card styled buttons ===
 #within_ember.board-alt-view {
   .board {
-    background: #FAFAF7 !important;
+    background: #7e858f !important;
   }
 
   &:has(#nav_header) .board {
@@ -42116,18 +42159,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     white-space: nowrap;
     padding: 9px 18px;
     border-radius: 999px;
-    border: none;
-    background: linear-gradient(135deg, #95b0d1, #6a7a8f);
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(17, 26, 46, 0.15);
+    background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--md-ink);
+    text-shadow: none;
     font-weight: 700;
     font-size: 13px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(70, 80, 95, 0.2);
-    transition: filter 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 8px rgba(17, 26, 46, 0.12), 0 1px 3px rgba(17, 26, 46, 0.08);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     &:hover {
-      filter: brightness(1.1);
-      box-shadow: 0 4px 14px rgba(70, 80, 95, 0.3);
+      background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15));
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 4px 12px rgba(17, 26, 46, 0.15), 0 2px 6px rgba(17, 26, 46, 0.10);
     }
   }
 
@@ -43465,7 +43511,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: stretch;
   gap: 12px;
   flex-shrink: 0;
-  margin: 4px 4px 24px 4px;
+  margin: 4px 4px 12px 4px;
 }
 .md-board-detail-sentence-row > .md-board-detail-boards-btn {
   flex-shrink: 0;
@@ -44201,6 +44247,116 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+}
+.md-board-detail-tease-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 2px 4px;
+}
+.md-board-detail-tease-row #sidebar_tease {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  border: 1px solid #888;
+  opacity: 0.7;
+}
+.md-board-detail-tease-row .md-board-detail-collapse-btn {
+  position: static;
+  transform: none;
+}
+.md-board-detail-sidebar-toggle {
+  width: 56px;
+  height: 40px;
+  background: #eee;
+  text-align: center;
+  border-radius: 5px;
+  border: 1px solid #888;
+  color: #888;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 8px 0;
+  &:hover {
+    opacity: 1;
+  }
+}
+// Hide the application-level sidebar on board-detail (we render it inline instead)
+#content:has(.md-shell--board-detail) ~ #sidebar {
+  display: none !important;
+}
+#content:has(.md-shell--board-detail) ~ #sidebar_tease {
+  display: none !important;
+}
+.md-board-detail-grid-sidebar-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+.md-board-detail-grid-sidebar-wrap > .md-board-detail-grid,
+.md-board-detail-grid-sidebar-wrap > div:has(.md-board-detail-grid) {
+  flex: 1;
+  min-width: 0;
+}
+.md-board-detail-inline-sidebar {
+  width: 100px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #eee;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 10px;
+  max-height: 100%;
+}
+.md-board-detail-inline-sidebar__close {
+  display: block;
+  width: 90%;
+  margin: 5px auto;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f5f5f5;
+  cursor: pointer;
+  text-align: center;
+  color: #888;
+  &:hover {
+    background: #eee;
+    color: #555;
+  }
+}
+.md-board-detail-inline-sidebar__item {
+  display: block;
+  padding: 6px 8px;
+  text-decoration: none;
+  color: #333;
+  font-size: 12px;
+  line-height: 1.2;
+  border-bottom: 1px solid #f0f0f0;
+  &:hover {
+    background: #f5f5f5;
+    text-decoration: none;
+  }
+}
+.md-board-detail-inline-sidebar__img {
+  display: block;
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin: 0 auto 4px;
+}
+.md-board-detail-inline-sidebar__name {
+  display: block;
+  text-align: center;
+  word-break: break-word;
+  font-size: 11px;
 }
 /* Add Button (+) toggle and dropdown */
 .md-board-detail-add-wrap {

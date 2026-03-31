@@ -380,7 +380,7 @@ export default Controller.extend({
       }
       var width = inner_width;
       var sidebar_width = window.innerWidth <= 767 ? 75 : 100;
-      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
+      if(this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width; // TODO: make sidebar size configurable, or have it match top bar
       }
       this.set('window_inner_width', inner_width);

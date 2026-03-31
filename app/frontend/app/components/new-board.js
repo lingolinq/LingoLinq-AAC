@@ -443,7 +443,13 @@ export default Component.extend({
         modalUtil.close(true);
         editManager.auto_edit(board.get('id'));
         _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
-        _this.get('router').transitionTo('board', board.get('key'));
+        var key = board.get('key') || '';
+        var parts = key.split('/');
+        if (parts.length >= 2) {
+          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        } else {
+          _this.get('router').transitionTo('board', key);
+        }
       }, function() {
         _this.set('status', {error: true});
       });
