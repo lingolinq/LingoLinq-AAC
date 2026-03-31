@@ -17,12 +17,12 @@ class UserMailer < ActionMailer::Base
     d = @user.devices[0]
     ip = d && d.settings['ip_address']
     @location = nil
-    if ip && ENV['IPSTACK_KEY']
-      url = "http://api.ipstack.com/#{ip}?access_key=#{ENV['IPSTACK_KEY']}"
+    if ip && ENV['IPLOCATE_API_KEY']
+      url = "https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}"
       begin
         res = Typhoeus.get(url, timeout: 5)
         json = JSON.parse(res.body)
-        @location = json && "#{json['city']}, #{json['region_name']}, #{json['country_code']}"
+        @location = json && "#{json['city']}, #{json['subdivision']}, #{json['country_code']}"
       rescue => e
       end
     end

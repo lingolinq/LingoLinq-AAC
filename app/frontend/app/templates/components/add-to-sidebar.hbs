@@ -1,75 +1,71 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Add Board to Sidebar" key="add_board_to_sidebar"}}
-    </h3>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="close" {{action "close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Add Board to Sidebar" key="add_board_to_sidebar"}}</h3>
   </div>
-  <div class="modal-body">
-    <form class="form-horizontal" {{action "nothing" on="submit"}}>
-      <p>
-        {{t "The sidebar is a set of quick links you can use to jump to commonly-used boards other than the home board. It can be useful for school or home-specific board sets, quick phrases, keyboard access, etc." key="sidebar_boards_explanation"}}
-      </p>
-      <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">{{t "Board" key="board"}}</label>
-        <div class="col-sm-10">
-          <p class='form-control-static'>{{this.model.board.key}}</p>
-        </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+        </svg>
       </div>
-      <div class="form-group">
-        <label for="name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
-        <div class="col-sm-10">
-          <div style="width: 100px;">
-            <Input @value={{this.model.board.name}} class="form-control" id="name" placeholder="Board" />
-          </div>
-        </div>
+    </div>
+    <p class="md-modal-message">{{t "The sidebar is a set of quick links you can use to jump to commonly-used boards other than the home board. It can be useful for school or home-specific board sets, quick phrases, keyboard access, etc." key="sidebar_boards_explanation"}}</p>
+
+    <form {{action "nothing" on="submit"}}>
+      <div class="md-modal-field">
+        <label class="md-modal-label" for="board_key">{{t "Board" key="board"}}</label>
+        <p class="md-modal-board-name">{{this.model.board.key}}</p>
       </div>
-      <div class="form-group">
-        <label for="icon" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
-        <div class="col-sm-10">
-          {{icon-select selection=this.model.board.image action=(action "updateBoardImage") }}
-        </div>
+      <div class="md-modal-field">
+        <label class="md-modal-label" for="name">{{t "Name" key="name"}}</label>
+        <Input @value={{this.model.board.name}} class="md-modal-input" id="name" placeholder="Board" />
+      </div>
+      <div class="md-modal-field">
+        <label class="md-modal-label" for="icon">{{t "Icon" key="icon"}}</label>
+        {{icon-select selection=this.model.board.image action=(action "updateBoardImage") }}
       </div>
       {{#if this.model.board.levels}}
         {{#if this.appState.feature_flags.board_levels}}
-          <div class="form-group">
-            <label for="level" class="col-sm-2 control-label">{{t "Level" key="level"}}</label>
-            <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="level" content=this.board_levels selection=this.model.level action=(action "updateLevel") }}
-            </div>
+          <div class="md-modal-field">
+            <label class="md-modal-label" for="level">{{t "Level" key="level"}}</label>
+            {{bound-select select_class="md-modal-select" select_id="level" content=this.board_levels selection=this.model.level action=(action "updateLevel") }}
           </div>
         {{/if}}
       {{/if}}
-      <div class="form-group">
-        <label for="home" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
-        <div class="col-sm-10">
-          <label id='home'>
-            <Input @type="checkbox" @checked={{this.model.board.home_lock}} />
-            {{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}
-          </label>
-        </div>
+      <div class="md-modal-field">
+        <label class="md-modal-checkbox-label" id="home">
+          <Input @type="checkbox" @checked={{this.model.board.home_lock}} class="md-modal-checkbox" />
+          <span>{{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}</span>
+        </label>
       </div>
     </form>
 
     {{#if this.has_supervisees}}
-      <p>
-        {{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key="which_user_set_as_sidebar" board_key=this.model.board.key}}
-      </p>
-      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+      <div class="md-modal-field">
+        <p class="md-modal-message">{{t "For which user would you like to add <b>%{board_key}</b> as a sidebar board?" key="which_user_set_as_sidebar" board_key=this.model.board.key}}</p>
+        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
+      </div>
     {{/if}}
 
     {{#if this.error}}
-      <p class='text-danger'>{{t "Adding to sidebar failed unexpectedly" key="add_to_sidebar_failed"}}</p>
+      <p class="md-modal-status md-modal-status--error">{{t "Adding to sidebar failed unexpectedly" key="add_to_sidebar_failed"}}</p>
     {{/if}}
   </div>
-  <div class="modal-footer">
-    <button {{action "add"}} class="btn btn-primary" disabled={{this.loading}}>
+  <div class="modal-footer md-modal-footer">
+    <button {{action "add"}} class="btn md-modal-btn md-modal-btn--primary" disabled={{this.loading}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+      </svg>
       {{#if this.loading}}
-        {{t "Adding to Sidebar..." key="adding_to_sidebar"}}
+        {{t "Adding..." key="adding_to_sidebar"}}
       {{else}}
-        {{t "Add Board to Sidebar" key="add_board_to_sidebar"}}
+        {{t "Add to Sidebar" key="add_board_to_sidebar"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default" disabled={{this.loading}}>{{t "Cancel" key="cancel"}}</button>
+    <button {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel" disabled={{this.loading}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

@@ -1,0 +1,47 @@
+---
+alwaysApply: true
+---
+---
+description: Lingolinq app context - architecture, accessibility, and UI conventions
+alwaysApply: true
+---
+
+# Lingolinq App Context
+
+## Stack and architecture
+
+- The app uses a Ruby on Rails backend and an Ember.js frontend.
+- Prefer Rails and Ember conventions over custom patterns.
+- Use Ember patterns appropriate to the codebase’s current version and style.
+- Favor incremental, low-risk changes over broad rewrites.
+
+## Accessibility and AAC context
+
+- Lingolinq is an AAC-focused product used by speech therapists, educators, caregivers, and students with communication needs.
+- Prioritize clarity, predictability, and low cognitive load in UI decisions.
+- Prefer large tap targets, clear hierarchy, strong contrast, and simple interactions.
+- Avoid unnecessary motion, distracting visual effects, or interaction patterns that may increase cognitive load.
+- Preserve accessibility and existing workflows unless explicitly asked to change them.
+
+**Typography and font size:** This is an AAC site; text must remain readable. When applying modern styling or redesigning a page, do not use very small font sizes—nothing so small that it is hard to read. Prefer body text in the ~1rem–1.15rem range as a baseline; headings and emphasis can be larger. Avoid making fonts too small (e.g. oversized body copy). If in doubt, err on the side of slightly larger and clearer rather than smaller and “sleek.”
+
+**When changing or restyling sections:** Do not shrink section text by roughly 25% (a common mistake). Section headings, leads, and body copy should stay at least as large as existing patterns or slightly larger. If the current section uses e.g. 1.25rem, match or increase it—do not reduce to ~1rem for a "cleaner" look. Reference existing font sizes on similar pages that have our new styles (e.g. pricing, contact, about) and match them.
+## UI and styling conventions
+
+- Match the existing visual system: calm, modern SaaS styling with soft gradients, rounded surfaces, and restrained depth.
+- Prefer subtle, polished styling over dense or overly playful interfaces.
+- Keep layouts responsive, especially for tablet use.
+- Maintain consistency with existing component structure and styling patterns.
+
+## Terminology
+
+- "Boards" means AAC communication boards.
+- "Speak Mode" is the speech-generation interface.
+- "Symbols" are vocabulary/communication symbols.
+- "Reports" and analytics may be used for educational and IEP-related tracking.
+
+## Change strategy
+
+- When editing code, prefer the smallest change that solves the problem.
+- Do not rewrite unrelated code for style consistency alone.
+- If a change may affect app behavior, styling hooks, or user workflows, ask first.

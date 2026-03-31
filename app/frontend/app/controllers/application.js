@@ -35,19 +35,64 @@ export default Controller.extend({
   app_state: alias('appState'),
   board: inject('board.index'),
   session: session,
-  
+
+  isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', function() {
+    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
+  }),
+
+  landingNavOpen: false,
+  useAltLanding: true, // default unauthenticated view is landing-alt
+  useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
+
+  /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
+  footer: computed('appState.currentBoardState', 'appState.current_route', function() {
+    if (this.isSetupRoute) {
+      return true;
+    }
+    return !this.appState.get('currentBoardState');
+  }),
+
+  /** Username segment for Board Alt route (user_id in URL). */
+  board_alt_username: computed('appState.currentBoardState.key', function() {
+    var key = this.get('appState.currentBoardState.key');
+    if (!key || key.indexOf('/') === -1) { return null; }
+    return key.split('/')[0];
+  }),
+  /** Boardname segment for Board Alt route (boardname in URL). */
+  board_alt_boardname: computed('appState.currentBoardState.key', function() {
+    var key = this.get('appState.currentBoardState.key');
+    if (!key || key.indexOf('/') === -1) { return null; }
+    return key.split('/').slice(1).join('/');
+  }),
+  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
+  on_board_alt: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'user.board-alt.index';
+  }),
+  on_board_detail: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route') || '';
+    return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
+  }),
+  /** True when the current page is the regular board view (not board-alt). */
+  on_board: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'board.index';
+  }),
+  /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
+  on_board_or_alt: computed('on_board', 'on_board_alt', function() {
+    return this.get('on_board') || this.get('on_board_alt');
+  }),
+
+  boardPickerVisible: false,
+  boardMenuOpen: false,
+  boardPickerLoading: false,
+  boardPickerBoards: null,
+
   init() {
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
     var owner = getOwner(this);
-    var sessionService = owner.lookup('lingolinq:session');
+    var sessionService = owner.lookup('service:session') || owner.lookup('lingolinq:session');
     if(sessionService) {
-      // Use defineProperty to set it without triggering read-only error
-      Object.defineProperty(this, 'session', {
-        value: sessionService,
-        writable: false,
-        configurable: true
-      });
+      this.set('session', sessionService);
     }
     // Explicit lookup of extras (fixing implicit injection deprecation)
     var extras = owner.lookup('lingolinq:extras');
@@ -325,7 +370,12 @@ export default Controller.extend({
   }),
   actions: {
     invalidateSession: function() {
-      session.invalidate(true);
+      var sess = this.get('session');
+      if (sess && typeof sess.invalidate === 'function') {
+        sess.invalidate(true);
+      } else if (LingoLinq.session && typeof LingoLinq.session.invalidate === 'function') {
+        LingoLinq.session.invalidate(true);
+      }
     },
     authenticateSession: function() {
       if(location.hostname == '127.0.0.1') {
@@ -347,7 +397,43 @@ export default Controller.extend({
       this.appState.return_to_index();
     },
     support: function() {
-      modal.open('support');
+      this.get('router').transitionTo('support');
+    },
+    getting_started: function() {
+      this.get('modalService').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
+    },
+    toggleHeroColors: function() {
+      this.set('useAltHeroColors', !this.get('useAltHeroColors'));
+    },
+    goUpgrade: function() {
+      var user = this.appState.get('currentUser');
+      if (user) {
+        this.get('router').transitionTo('user.subscription', user.get('user_name'));
+      } else {
+        modal.open('premium-required', { remind_to_upgrade: true });
+      }
+    },
+    toggleDarkMode: function() {
+      this.appState.toggleDarkMode();
+    },
+    toggleThemePicker: function() {
+      this.set('showThemePicker', !this.get('showThemePicker'));
+    },
+    selectThemeMode: function(mode) {
+      this.appState.setThemeMode(mode);
+      this.set('showThemePicker', false);
+    },
+    closeThemePicker: function() {
+      this.set('showThemePicker', false);
+    },
+    toggleLandingNav: function() {
+      this.set('landingNavOpen', !this.get('landingNavOpen'));
+    },
+    closeLandingNav: function() {
+      this.set('landingNavOpen', false);
+    },
+    toggleAltLanding: function() {
+      this.toggleProperty('useAltLanding');
     },
     language: function() {
       modal.open('modals/choose-locale');
@@ -367,6 +453,16 @@ export default Controller.extend({
     },
     toggleSidebar: function() {
       this.stashes.persist('sidebarEnabled', !this.stashes.get('sidebarEnabled'));
+    },
+    toggleSidebarTeaseKeydown: function(event) {
+      var key = event && event.key;
+      var code = event && event.keyCode;
+      if (key === 'Enter' || key === ' ' || code === 13 || code === 32) {
+        if (event.preventDefault) {
+          event.preventDefault();
+        }
+        this.send('toggleSidebar');
+      }
     },
     hide_temporary_sidebar: function() {
       if(this.stashes.get('sidebarEnabled') && !this.appState.get('currentUser.preferences.quick_sidebar')) {
@@ -446,6 +542,40 @@ export default Controller.extend({
       runLater(function() {
         model.prompt();
       }, 100);
+    },
+    openBoardPicker: function() {
+      var _this = this;
+      _this.set('boardPickerVisible', true);
+      _this.set('boardPickerLoading', true);
+      _this.set('boardPickerBoards', null);
+      var userId = _this.appState.get('referenced_user.id');
+      LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
+        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
+        var arr = boards.toArray().sort(function(a, b) {
+          if(a.get('key') === homeKey) { return -1; }
+          if(b.get('key') === homeKey) { return 1; }
+          return (a.get('name') || '').localeCompare(b.get('name') || '');
+        });
+        _this.set('boardPickerBoards', arr);
+        _this.set('boardPickerLoading', false);
+      }, function() {
+        _this.set('boardPickerLoading', false);
+      });
+    },
+    closeBoardPicker: function() {
+      this.set('boardPickerVisible', false);
+    },
+    pickBoard: function(key) {
+      this.set('boardPickerVisible', false);
+      // If on board-detail page, navigate to the new board-detail instead of the board page
+      if(this.get('on_board_detail') && key) {
+        var parts = key.split('/');
+        if(parts.length === 2) {
+          this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+          return;
+        }
+      }
+      this.jumpToBoard({ key: key });
     },
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
@@ -758,9 +888,11 @@ export default Controller.extend({
     },
     find_button: function() {
       var include_other_boards = this.appState.get('speak_mode') && ((this.stashes.get('root_board_state') || {}).key) == this.appState.get('currentUser.preferences.home_board.key');
+      var boardCtrl = this.get('board');
+      var boardModel = boardCtrl && boardCtrl.get('model');
       modal.open('find-button', {
         inactivity_timeout: this.appState.get('speak_mode'),
-        board: this.get('board').get('model'),
+        board: boardModel,
         include_other_boards: include_other_boards
       });
     },
@@ -889,7 +1021,27 @@ export default Controller.extend({
         this.appState.check_scanning();
       }
     },
+    exitBoards: function() {
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+    },
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {
@@ -1136,13 +1288,13 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      var from = this.appState.get('from_route');
-      if(from && from.length && this.router) {
-        // from is [routeName, ...paramValues] from the previous transition; pass directly.
-        this.router.transitionTo.apply(this.router, from);
-      } else {
-        this.appState.return_to_index();
-      }
+      this.set('boardMenuOpen', false);
+      this.appState.return_to_index();
+      setTimeout(function() {
+        window.scrollTo(0, 0);
+        var content = document.getElementById('content');
+        if(content) { content.scrollTop = 0; }
+      }, 100);
     },
     suggestions: function() {
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
@@ -1188,7 +1340,19 @@ export default Controller.extend({
         if(user_id) {
           params.user_id = user_id;
         }
-        _this.router.transitionTo('setup', {queryParams: params});
+        var transition = _this.router.transitionTo('setup', {queryParams: params});
+        transition.then(function() {
+          runLater(function() {
+            var container = document.getElementById('setup_container');
+            if (container && typeof container.scrollIntoView === 'function') {
+              container.scrollIntoView({ behavior: 'instant', block: 'start' });
+            }
+            if (document.scrollingElement) {
+              document.scrollingElement.scrollTop = 0;
+            }
+            window.scrollTo(0, 0);
+          }, 0);
+        }, function() { });
       }, function() { });
     },
     speak_mode_notification: function() {
@@ -1561,15 +1725,25 @@ export default Controller.extend({
   content_class: computed(
     'appState.sidebar_visible',
     'appState.index_view',
+    'appState.current_route',
+    'appState.index_or_landing_view',
     'session.isAuthenticated',
     'appState.currentUser.preferences.new_index',
+    'isModernDashboardRoute',
     function() {
       var res = "";
       if(this.appState.get('sidebar_visible')) {
         res = res + "with_sidebar ";
       }
-      if(this.appState.get('index_view')) {
+      var route = this.appState.get('current_route');
+      if(this.appState.get('index_or_landing_view')) {
         res = res + "index ";
+      }
+      if(this.get('isModernDashboardRoute')) {
+        res = res + "modern-dashboard ";
+      }
+      if(route === 'user.stats') {
+        res = res + "stats-page ";
       }
       if(this.get('session.isAuthenticated')) {
         res = res + "with_user ";
@@ -1582,6 +1756,9 @@ export default Controller.extend({
         res = res + "low_for_high_contrast ";
       }
       res = res + "new_index ";
+      if(route === 'landing') {
+        res = res + "landing ";
+      }
       return res;
     }
   ),
@@ -1600,5 +1777,64 @@ export default Controller.extend({
       }
       return res;
     }
-  )
+  ),
+  /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
+  showBentoPageWithFooter: computed('footer', 'appState.index_or_landing_view', 'appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return this.get('footer') &&
+      (this.appState.get('index_or_landing_view') || route === 'home-boards') &&
+      route !== 'landing';
+  }),
+  /** True when the top navbar should use bento styling and contents (index/landing or user.stats with currentUser). */
+  showBentoStyleHeader: computed('appState.index_or_landing_view', 'appState.current_route', 'appState.currentUser', function() {
+    var route = this.appState.get('current_route');
+    var cu = this.appState.get('currentUser');
+    return (this.appState.get('index_or_landing_view') && cu) ||
+      (route === 'user.home' && cu) ||
+      (route === 'user.extras' && cu) ||
+      (route === 'user.stats' && cu) ||
+      (route === 'user.boards' && cu);
+  }),
+  /** user.extras: full-bleed dashboard body (CSS class name is historical). */
+  isModernDashboardRoute: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'user.extras';
+  }),
+  /** True when current route is setup or any nested route (e.g. setup.intro, setup.voice). */
+  isSetupRoute: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'setup' || (route && route.indexOf('setup.') === 0);
+  }),
+  /** True when current route is user or any nested route (e.g. user.index, user.edit, user.preferences). */
+  isUserRoute: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route');
+    return route === 'user' || (route && route.indexOf('user.') === 0);
+  }),
+  /** Use AppNavbar in #inner_header for both authenticated dashboard-like pages and unauthenticated landing/info pages. */
+  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', function() {
+    var route = this.appState.get('current_route');
+    var cu = this.appState.get('currentUser');
+    if (route === 'user.board-alt.index') { return false; }
+    // Authenticated pages
+    if (this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) ||
+      (route === 'about' && cu) ||
+      (route === 'features' && cu) ||
+      (route === 'pricing' && cu) ||
+      (route === 'privacy' && cu) ||
+      (route === 'terms' && cu) ||
+      (route === 'home-boards' && cu) ||
+      (route === 'search' && cu) ||
+      (route === 'offline_boards' && cu) ||
+      route === 'support' ||
+      route === 'faq' ||
+      route === 'beta-feedback' ||
+      route === 'contact' ||
+      route === 'troubleshooting') {
+      return true;
+    }
+    // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure
+    if (!cu && !this.appState.get('currentBoardState.id')) {
+      return true;
+    }
+    return false;
+  })
 });

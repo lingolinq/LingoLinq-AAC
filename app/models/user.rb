@@ -16,6 +16,8 @@ class User < ActiveRecord::Base
   has_many :boards
   has_many :devices
   has_many :user_integrations
+  has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
+  has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
   has_one :user_extra
   before_save :generate_defaults
   after_save :track_boards
@@ -108,7 +110,14 @@ class User < ActiveRecord::Base
   def supporter_registration?
     !['unspecified', 'communicator'].include?(self.registration_type)
   end
-  
+
+  # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
+  # legacy rows may still have the string 'false'.
+  def cookies_opted_out?
+    c = settings&.dig('preferences', 'cookies')
+    c == false || c == 'false'
+  end
+
   def log_session_duration
     (self.settings['preferences'] && self.settings['preferences']['log_session_duration']) || User.default_log_session_duration
   end
@@ -425,7 +434,7 @@ class User < ActiveRecord::Base
         self.settings['preferences']['devices'][key][attr] = val if self.settings['preferences']['devices'][key][attr] == nil
       end
     end
-    if self.settings['preferences']['cookies'] == false
+    if cookies_opted_out?
       self.settings['preferences']['protected_user'] = true
     end
     self.settings['preferences']['disable_quick_sidebar'] = false if self.settings['preferences']['quick_sidebar']
@@ -554,8 +563,13 @@ class User < ActiveRecord::Base
       fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
     end
 
-    # In development mode, always use local fallback unless explicitly overridden
+    # In development, use local /avatars/ paths for the default image, but still expose a
+    # custom settings['avatar_url'] (https or same-origin path) so profile edits persist in JSON.
     if Rails.env.development? && !override_url
+      url = self.settings && self.settings['avatar_url']
+      if url.present? && url != 'default'
+        return url if url.match(/^https?:\/\//o) || url.match(/^\//o)
+      end
       return fallback
     end
 
@@ -938,8 +952,9 @@ class User < ActiveRecord::Base
             'setting' => key,
             'timestamp' => Time.now.utc.iso8601
           }
-          if self.id && key == 'cookies' && params['preferences'] && params['preferences']['cookies'] == false && self.settings['preferences']['cookies'] == true
-            @opt_out = 'disabled'
+          if self.id && key == 'cookies' && params['preferences'] && !params['preferences']['cookies'].nil?
+            old_enabled = self.settings['preferences']['cookies'].nil? || process_boolean(self.settings['preferences']['cookies'])
+            @opt_out = 'disabled' if !process_boolean(params['preferences']['cookies']) && old_enabled
           end
         end
       end
@@ -959,6 +974,9 @@ class User < ActiveRecord::Base
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
     PREFERENCE_PARAMS.each do |attr|
       self.settings['preferences'][attr] = params['preferences'][attr] if params['preferences'] && params['preferences'][attr] != nil
+    end
+    if params['preferences'] && !params['preferences']['cookies'].nil?
+      self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
     end
     if params['preferences']
       self.settings['preferences']['clear_vocalization_history'] = process_boolean(params['preferences']['clear_vocalization_history']) if params['preferences'] && params['preferences']['clear_vocalization_history'] != nil
@@ -1082,7 +1100,7 @@ class User < ActiveRecord::Base
         end
       end
     end
-    if params['preferences'] && params['preferences']['cookies'] == true
+    if params['preferences'] && !params['preferences']['cookies'].nil? && process_boolean(params['preferences']['cookies'])
       self.settings['preferences']['protected_user'] = false
     end
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'
@@ -1230,6 +1248,57 @@ class User < ActiveRecord::Base
       end
     else
       nil
+    end
+  end
+
+  # Org data policy floor enforcement.
+  # Returns the org's effective data policy, or empty hash if no org.
+  # Memoized per instance to avoid repeated DB lookups during a single
+  # request (LogSession save calls this multiple times).
+  def effective_data_policy
+    @effective_data_policy ||= begin
+      org = self.managing_organization
+      org ? org.effective_data_policy : {}
+    end
+  end
+
+  def clear_effective_data_policy_cache
+    @effective_data_policy = nil
+  end
+
+  def effective_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['logging'])
+  end
+
+  def effective_geo_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['geo_logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['geo_logging'])
+  end
+
+  def effective_log_reports_allowed?
+    policy = effective_data_policy
+    return false if policy['log_reports_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_reports'])
+  end
+
+  def effective_log_publishing_allowed?
+    policy = effective_data_policy
+    return false if policy['log_publishing_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_publishing'])
+  end
+
+  def effective_logging_cutoff_for(user, code)
+    base_cutoff = logging_cutoff_for(user, code)
+    policy = effective_data_policy
+    max_hours = policy['max_logging_cutoff_hours']
+    return base_cutoff unless max_hours
+    if base_cutoff.nil?
+      max_hours
+    else
+      [base_cutoff, max_hours].min
     end
   end
 

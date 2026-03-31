@@ -1,21 +1,26 @@
 module ExternalTracker
+  # HubSpot consent gate per FERPA/COPPA/GDPR:
+  # 1. Only supporter accounts (non-communicators/students/patients), as defined by supporter_registration? (e.g., therapists, teachers, parents, evals, org-added supervisors) (FERPA/COPPA)
+  # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
+  # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
-    if user && user.external_email_allowed?
-      Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
-    end
+    return unless user && user.external_email_allowed? && user.supporter_registration?
+    return if user.cookies_opted_out?
+    Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
   end
-  
+
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
-    return false unless user && user.external_email_allowed?
+    return false unless user && user.external_email_allowed? && user.supporter_registration?
+    return false if user.cookies_opted_out?
     return false unless ENV['HUBSPOT_TOKEN']
     return false unless user.settings && user.settings['email']
 
     d = user.devices[0]
     ip = d && d.settings['ip_address']
     location = nil
-    if ip && ENV['IPSTACK_KEY']
-      url = "http://api.ipstack.com/#{ip}?access_key=#{ENV['IPSTACK_KEY']}"
+    if ip && ENV['IPLOCATE_API_KEY']
+      url = "https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}"
       begin
         res = Typhoeus.get(url, timeout: 5)
         location = JSON.parse(res.body)
@@ -27,7 +32,7 @@ module ExternalTracker
     state = nil
     if location && (location['country_code'] == 'USA' || location['country_code'] == 'US')
       city = location['city']
-      state = location['region_name']
+      state = location['subdivision']
     end
 
 

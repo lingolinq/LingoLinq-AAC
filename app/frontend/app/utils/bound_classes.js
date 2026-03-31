@@ -51,20 +51,15 @@ var boundClasses = {};
         if(button.background_color) {
           var fill = window.tinycolor(button.background_color || '#fff');
           str = str + 'background-color: ' + fill.toRgbString() + ';';
+          str = str + '--btn-bg: ' + fill.toRgbString() + ';';
           button.dark_background_color = window.tinycolor(fill.toRgb()).darken(5).toRgbString();
           hoverStr = hoverStr + 'background-color: ' + button.dark_background_color + ';';
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
           button.text_color = text.toRgbString();
           str = str + 'color: ' + button.text_color + ';';
           if(button.background_color == button.border_color) {
-            var border = window.tinycolor(button.border_color || '#eee');
-            if(text.toHexString() == '#ffffff') {
-              var light_corner = border.lighten(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + light_corner + ' !important;'
-            } else {
-              var dark_corner = border.darken(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + dark_corner + ' !important;'
-            }
+            // Corner tab uses background with filter:brightness() from CSS,
+            // no border-color override needed
           }
         }
 

@@ -18,10 +18,19 @@ class Api::OrganizationsController < ApplicationController
   def users
     return unless allowed?(@org, 'edit')
     users = @org.users
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
     if params['recent']
       users = users.order(id: :desc)
+    elsif sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     else
-      users = users.order('user_name')
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     end
     prefix = "/organizations/#{@org.global_id}/users"
     org_manager = @org.allows?(@api_user, 'manage')
@@ -42,15 +51,17 @@ class Api::OrganizationsController < ApplicationController
     user = link && User.find_by_path(link['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
+    status_data = params['status']
+    status_data = status_data.permit(:state, :note) if status_data.is_a?(ActionController::Parameters)
     link = UserLink.where(user_id: user.id, record_code: link['record_code']).detect{|l| l.data['type'] == 'org_user' }
     if link
       link.data['state'] ||= {}
       link.data['state']['status'] = {
         'date' => Time.now.to_i,
-        'state' => params['status']['state']
+        'state' => status_data['state']
       }
-      if params['status']['note']
-        link.data['state']['status']['note'] = params['status']['note']
+      if status_data['note']
+        link.data['state']['status']['note'] = status_data['note']
       end
       link.save
       states = {
@@ -69,9 +80,9 @@ class Api::OrganizationsController < ApplicationController
           states[status['id']] = status['label']
         end
       end
-      state = states[params['status']['state']] || params['status']['state']
-      log_note = "Status set to #{params['status']['state']}"
-      log_note += " - #{params['status']['note']}" if params['status']['note']
+      state = states[status_data['state']] || status_data['state']
+      log_note = "Status set to #{status_data['state']}"
+      log_note += " - #{status_data['note']}" if status_data['note']
       LogSession.message({
         recipient: user,
         sender: @api_user,
@@ -94,7 +105,9 @@ class Api::OrganizationsController < ApplicationController
     else
       code = nil
       begin
-        code = Organization.activation_code(@org, params['overrides'])
+        overrides = params['overrides']
+        overrides = overrides.permit! if overrides.is_a?(ActionController::Parameters)
+        code = Organization.activation_code(@org, overrides)
       rescue => e
         err = {error: e.message}
         err[:code_taken] = true if e.message == 'code is taken'
@@ -153,9 +166,20 @@ class Api::OrganizationsController < ApplicationController
   
   def supervisors
     return unless allowed?(@org, 'edit')
-    users = @org.supervisors.order('user_name')
+    users = @org.supervisors
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    if sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    else
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    end
     prefix = "/organizations/#{@org.global_id}/supervisors"
-
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix, :profile_type => 'supervisor'})
   end
 
@@ -168,7 +192,19 @@ class Api::OrganizationsController < ApplicationController
   
   def evals
     return unless allowed?(@org, 'edit')
-    users = @org.evals.order('user_name')
+    users = @org.evals
+    filter_str = (params['filter'] || params['q'] || '').to_s.strip
+    if filter_str.present?
+      users = users.where('user_name ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(filter_str)}%")
+    end
+    sort_by = (params['sort_by'] || 'user_name').to_s
+    sort_order = (params['sort_order'] || 'asc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    if sort_by == 'joined'
+      users = users.order("created_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    else
+      users = users.order("user_name #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    end
     prefix = "/organizations/#{@org.global_id}/evals"
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix})
   end
@@ -590,26 +626,85 @@ class Api::OrganizationsController < ApplicationController
       return api_error 400, {:error => "unrecognized report: #{params['report']}"}
     end
     res = {}
-    res[:user] = users.sort_by(&:user_name).map{|u| 
-      r = JsonApi::User.as_json(u, limited_identity: true); 
-      r['org_status'] = u.instance_variable_get('@org_status') if u.instance_variable_get('@org_status')
-      r['vocab_name'] = u.instance_variable_get('@vocab_name') if u.instance_variable_get('@vocab_name')
-      r['email'] = u.settings['email'];
-      if org.admin?
-        r['referrer'] = u.settings['referrer']
-        r['ad_referrer'] = u.settings['ad_referrer']
-        r['registration_type'] = u.registration_type
-        r['joined'] = u.created_at.iso8601
+    if users
+      # Convert to array if needed (some branches return ActiveRecord::Relation)
+      user_list = users.respond_to?(:to_a) ? users.to_a : users
+      # Apply filter (search by user_name or email)
+      filter_str = (params['filter'] || params['q'] || '').to_s.strip.downcase
+      if filter_str.present?
+        user_list = user_list.select do |u|
+          (u.user_name || '').downcase.include?(filter_str) ||
+            (u.settings['email'] || '').downcase.include?(filter_str)
+        end
       end
-      r 
-    } if users
+      # Apply sort
+      sort_by = (params['sort_by'] || 'user_name').to_s
+      sort_order = (params['sort_order'] || 'asc').to_s
+      sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+      user_list = user_list.sort_by do |u|
+        val = case sort_by
+        when 'joined'
+          u.created_at&.to_i || 0
+        when 'email'
+          (u.settings['email'] || '').downcase
+        else
+          (u.user_name || '').downcase
+        end
+        [val.is_a?(String) ? val : val, u.id]
+      end
+      user_list = user_list.reverse if sort_order == 'desc'
+      # Pagination
+      per_page = params['per_page'] ? [JsonApi::User::MAX_PAGE, params['per_page'].to_i].min : JsonApi::User::DEFAULT_PAGE
+      per_page = JsonApi::User::DEFAULT_PAGE if per_page < 1
+      offset = params['offset'].to_i
+      offset = 0 if offset < 0
+      page_users = user_list.slice(offset, per_page + 1)
+      more = page_users && page_users.length > per_page
+      page_users = page_users ? page_users[0, per_page] : []
+      serialized = page_users.map do |u|
+        r = JsonApi::User.as_json(u, limited_identity: true)
+        r['org_status'] = u.instance_variable_get('@org_status') if u.instance_variable_get('@org_status')
+        r['vocab_name'] = u.instance_variable_get('@vocab_name') if u.instance_variable_get('@vocab_name')
+        r['email'] = u.settings['email']
+        if org.admin?
+          r['referrer'] = u.settings['referrer']
+          r['ad_referrer'] = u.settings['ad_referrer']
+          r['registration_type'] = u.registration_type
+          r['joined'] = u.created_at.iso8601
+        end
+        r
+      end
+      res[:user] = serialized
+      prefix = "#{JsonApi::Json.current_host}/api/v1/organizations/#{org.global_id}/admin_reports"
+      meta = {
+        per_page: per_page,
+        offset: offset,
+        next_offset: offset + per_page,
+        more: more
+      }
+      if more
+        next_params = "report=#{CGI.escape(params['report'])}&offset=#{offset + per_page}&per_page=#{per_page}"
+        next_params += "&sort_by=#{CGI.escape(sort_by)}" if sort_by != 'user_name'
+        next_params += "&sort_order=#{CGI.escape(sort_order)}" if sort_order != 'asc'
+        next_params += "&filter=#{CGI.escape(filter_str)}" if filter_str.present?
+        meta[:next_url] = "#{prefix}?#{next_params}"
+      end
+      res[:meta] = meta
+    end
     res[:stats] = stats if stats
     render json: res.to_json
   end
   
   def logs
     return unless allowed?(@org, 'manage')
-    logs = @org.log_sessions.order(id: :desc)
+    logs = @org.log_sessions
+    if params['user_id'].present?
+      user = User.find_by_path(params['user_id'])
+      logs = logs.where(user_id: user.id) if user
+    end
+    sort_order = (params['sort_order'] || 'desc').to_s
+    sort_order = 'desc' unless ['asc', 'desc'].include?(sort_order)
+    logs = logs.order("started_at #{sort_order == 'asc' ? 'ASC' : 'DESC'}, id #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
     prefix = "/organizations/#{@org.global_id}/logs"
     render json: JsonApi::Log.paginate(params, logs, {:prefix => prefix})
   end
@@ -682,7 +777,9 @@ class Api::OrganizationsController < ApplicationController
   def create
     admin_org = Organization.admin
     return unless allowed?(admin_org, 'manage')
-    org = Organization.process_new(params['organization'], {'updater' => @api_user})
+    org_data = params['organization']
+    org_data = org_data.permit! if org_data.is_a?(ActionController::Parameters)
+    org = Organization.process_new(org_data, {'updater' => @api_user})
     if org.errored?
       api_error(400, {error: "organization creation failed", errors: org && org.processing_errors})
     else
@@ -694,18 +791,20 @@ class Api::OrganizationsController < ApplicationController
     org = Organization.find_by_global_id(params['id'])
     return unless exists?(org, params['id'])
     return unless allowed?(org, 'edit')
-    if params['organization'] && !org.allows?(@api_user, 'update_licenses')
-      params['organization'].delete('allotted_licenses') 
-      params['organization'].delete('licenses_expire') 
-      params['organization'].delete('include_extras')
-      params['organization'].delete('org_access')
-      params['organization'].delete('inactivity_timeout')
-      params['organization'].delete('premium')
+    org_data = params['organization']
+    org_data = org_data.permit! if org_data.is_a?(ActionController::Parameters)
+    if org_data && !org.allows?(@api_user, 'update_licenses')
+      org_data.delete('allotted_licenses')
+      org_data.delete('licenses_expire')
+      org_data.delete('include_extras')
+      org_data.delete('org_access')
+      org_data.delete('inactivity_timeout')
+      org_data.delete('premium')
     end
-    if params['organization'] && !org.allows?(@api_user, 'delete')
-      params['organization'].delete('parent_org') 
+    if org_data && !org.allows?(@api_user, 'delete')
+      org_data.delete('parent_org')
     end
-    if org.process(params['organization'], {'updater' => @api_user})
+    if org.process(org_data, {'updater' => @api_user})
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "organization update failed", errors: org.processing_errors})
@@ -718,5 +817,24 @@ class Api::OrganizationsController < ApplicationController
     return unless allowed?(org, 'delete')
     org.destroy
     render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
+  end
+
+  def update_data_policy
+    return unless allowed?(@org, 'manage')
+    policy_params = params[:data_policy]
+    attrs = case policy_params
+    when ActionController::Parameters
+      policy_params.permit!.to_h
+    when Hash
+      policy_params
+    else
+      {}
+    end
+    @org.update_data_policy(attrs.stringify_keys, @api_user)
+    if @org.save
+      render json: JsonApi::Organization.as_json(@org, :wrapper => true, :permissions => @api_user).to_json
+    else
+      api_error(400, {error: "failed to update data policy"})
+    end
   end
 end

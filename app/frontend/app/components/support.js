@@ -18,10 +18,14 @@ export default Component.extend({
     this._super(...arguments);
     const appState = this.get('appState');
     if (appState.get('sessionUser')) {
-      this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
+      this.set('cookies', this._cookiesEnabled(appState.get('sessionUser.preferences.cookies')));
     } else {
       this.set('cookies', localStorage['enable_cookies'] === 'true');
     }
+  },
+
+  _cookiesEnabled(val) {
+    return val === true || val === 'true';
   },
 
   ios: computed(function() {
@@ -58,10 +62,11 @@ export default Component.extend({
     toggle_cookies() {
       const appState = this.get('appState');
       if (appState.get('sessionUser')) {
-        appState.set('sessionUser.watch_cookies');
-        appState.set('sessionUser.preferences.cookies', !appState.get('sessionUser.preferences.cookies'));
+        appState.set('sessionUser.watch_cookies', true);
+        const currentlyEnabled = this._cookiesEnabled(appState.get('sessionUser.preferences.cookies'));
+        appState.set('sessionUser.preferences.cookies', !currentlyEnabled);
         appState.get('sessionUser').save().then(() => {
-          this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
+          this.set('cookies', this._cookiesEnabled(appState.get('sessionUser.preferences.cookies')));
         }, function() {});
       } else {
         appState.toggle_cookies(localStorage['enable_cookies'] !== 'true');
@@ -70,6 +75,19 @@ export default Component.extend({
     },
     updateAuthorId(id) {
       this.set('author_id', id);
+    },
+    show_speak_mode_intro_again() {
+      const appState = this.get('appState');
+      const user = appState.get('currentUser');
+      if (!user) { return; }
+      const progress = user.get('preferences.progress') || {};
+      delete progress.speak_mode_intro_done;
+      user.set('preferences.progress', progress);
+      appState.set('speak-mode-intro', false);
+      user.save().then(() => {
+        this.get('modal').close();
+        this.get('modal').open('speak-mode-intro');
+      }, function() {});
     },
     submit_message() {
       if (!this.get('email') && !this.get('appState.currentUser')) { return; }

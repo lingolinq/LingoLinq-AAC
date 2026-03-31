@@ -1,7 +1,12 @@
 #!/usr/bin/env ruby
 # Direct OpenSymbols API v2 test (no Rails dependencies)
 # This tests the API directly without loading the Rails application
+#
+# Run from the repository root: bundle exec ruby test_opensymbols_direct.rb
+# Set OPENSYMBOLS_SECRET in the environment or in .env (see .env.example).
 
+require 'bundler/setup'
+require 'dotenv/load'
 require 'typhoeus'
 require 'json'
 
@@ -10,8 +15,14 @@ puts "OpenSymbols API v2 Direct Test"
 puts "=" * 80
 puts
 
-# Configuration
-SECRET = ENV['OPENSYMBOLS_SECRET'] || "4d46c59975a716f3459b061c"
+# Configuration (never commit secrets; use .env or the environment)
+SECRET = ENV['OPENSYMBOLS_SECRET']
+if SECRET.nil? || SECRET.strip.empty?
+  puts "✗ OPENSYMBOLS_SECRET is not set"
+  puts "  Add OPENSYMBOLS_SECRET to your .env file (see .env.example)"
+  puts "  Get a shared secret from: https://www.opensymbols.org/api"
+  exit 1
+end
 
 puts "Using shared secret: #{SECRET[0..10]}..."
 puts

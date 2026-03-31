@@ -229,7 +229,7 @@ describe Converters::LingoLinq do
         'url' => 'http://example.com/pic.png',
         'data_url' => "#{JsonApi::Json.current_host}/api/v1/images/#{i.global_id}",
         'content_type' => 'text/plaintext',
-        'protected' => false,
+        'ext_lingolinq_protected' => false,
         'data' => 'data:text/plaintext;base64,YWJj'
       }
       expect(json['images']).to eq(list)
@@ -241,11 +241,96 @@ describe Converters::LingoLinq do
         'url' => 'http://example.com/sound.mp3',
         'data_url' => "#{JsonApi::Json.current_host}/api/v1/sounds/#{s.global_id}",
         'content_type' => 'text/plaintext',
+        'duration' => 1,
         'data' => 'data:text/plaintext;base64,YWJj'
       }
       expect(json['sounds']).to eq(list)
     end
     
+    it "should export image_url as ext_lingolinq_image_url for OBF spec compliance" do
+      u = User.create
+      b = Board.new(:user => u, :settings => {'name' => 'Board', 'image_url' => 'http://example.com/icon.png'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'test'}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.save
+      file = Tempfile.new("stash")
+      Converters::LingoLinq.to_obf(b, file.path)
+      json = JSON.parse(file.read)
+      file.unlink
+      expect(json['ext_lingolinq_image_url']).to eq('http://example.com/icon.png')
+      expect(json['image_url']).to eq(nil)
+    end
+
+    it "should not output image.protected (use ext_lingolinq_protected for OBF spec)" do
+      u = User.create
+      bi = ButtonImage.create(user: u)
+      bi.settings['protected'] = true
+      bi.settings['protected_source'] = 'pcs'
+      bi.settings['content_type'] = 'image/png'
+      bi.settings['width'] = 100
+      bi.settings['height'] = 100
+      bi.settings['url'] = 'http://example.com/pic.png'
+      bi.save!
+      b = Board.new(:user => u, :settings => {'name' => 'Protected Test'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'btn', 'image_id' => bi.global_id}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.save
+      path = OBF::Utils.temp_path(['obf_protected', '.obf'])
+      Converters::LingoLinq.to_obf(b, path)
+      json = JSON.parse(File.read(path))
+      json['images'].each do |img|
+        expect(img).not_to have_key('protected'), "image should not have 'protected' (use ext_lingolinq_protected)"
+        expect(img).not_to have_key('protected_source'), "image should not have 'protected_source' (use ext_lingolinq_protected_source)"
+        expect(img).to have_key('ext_lingolinq_protected')
+        expect(img).to have_key('ext_lingolinq_protected_source')
+      end
+      File.unlink(path) if File.exist?(path)
+    end
+
+    it "should produce OBF that parses as valid JSON" do
+      u = User.create
+      b = Board.new(:user => u, :settings => {'name' => 'JSON Test'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'test'}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.save
+      path = OBF::Utils.temp_path(['obf_json', '.obf'])
+      Converters::LingoLinq.to_obf(b, path)
+      content = File.read(path, encoding: 'UTF-8')
+      expect { JSON.parse(content) }.not_to raise_error
+      parsed = JSON.parse(content)
+      expect(parsed['format']).to match(/^open-board-/)
+      File.unlink(path) if File.exist?(path)
+    end
+
+    it "should produce OBF compliant with Open Board Format spec" do
+      u = User.create
+      b = Board.new(:user => u, :settings => {'name' => 'Validator Test Board'})
+      b.settings['buttons'] = [
+        {'id' => 'btn1', 'label' => 'test'}
+      ]
+      b.settings['grid'] = {
+        'rows' => 1,
+        'columns' => 1,
+        'order' => [['btn1']]
+      }
+      b.save
+      path = OBF::Utils.temp_path(['obf_validate', '.obf'])
+      Converters::LingoLinq.to_obf(b, path)
+      json = JSON.parse(File.read(path))
+      expect(json['format']).to match(/^open-board-/)
+      expect(json['id']).to be_present
+      expect(json['locale']).to be_present
+      expect(json['buttons']).to be_an(Array)
+      expect(json['images']).to be_an(Array)
+      expect(json['sounds']).to be_an(Array)
+      expect(json['grid']).to be_a(Hash)
+      expect(json['grid']['rows']).to be_a(Integer)
+      expect(json['grid']['columns']).to be_a(Integer)
+      expect(json['grid']['order']).to be_an(Array)
+      expect(json['license']).to be_a(Hash)
+      File.unlink(path) if File.exist?(path)
+    end
+
     it "should export links to external urls" do
       u = User.create
       b = Board.new(:user => u, :settings => {'name' => 'My Board'})
@@ -932,6 +1017,34 @@ describe Converters::LingoLinq do
       expect(File.size(path)).to be > 10
     end
     
+    it "should produce OBZ compliant with Open Board Format spec" do
+      u = User.create
+      b = Board.create(:user => u)
+      b2 = Board.create(:user => u)
+      b.settings['buttons'] = [{
+        'id' => '1', 'label' => 'link', 'load_board' => {'id' => b2.global_id}
+      }]
+      b.settings['grid'] = {
+        'rows' => 1,
+        'columns' => 1,
+        'order' => [['1']]
+      }
+      b.save!
+      path = OBF::Utils.temp_path(['obz_validate', '.obz'])
+      Converters::LingoLinq.to_obz(b, path, {'user' => u})
+      OBF::Utils.load_zip(path) do |zipper|
+        manifest = JSON.parse(zipper.read('manifest.json'))
+        expect(manifest['format']).to match(/^open-board-/)
+        expect(manifest['root']).to be_present
+        expect(manifest['paths']).to be_a(Hash)
+        expect(manifest['paths']['boards']).to be_a(Hash)
+        root_board = JSON.parse(zipper.read(manifest['root']))
+        expect(root_board['format']).to match(/^open-board-/)
+        expect(root_board['id']).to be_present
+      end
+      File.unlink(path) if File.exist?(path)
+    end
+
     it "should include linked boards" do
       u = User.create
       b = Board.create(:user => u)
@@ -1050,7 +1163,7 @@ describe Converters::LingoLinq do
           'url' => 'http://example.com/pic.png',
           'data_url' => "#{JsonApi::Json.current_host}/api/v1/images/#{i.global_id}",
           'content_type' => 'text/plaintext',
-          'protected' => false,
+          'ext_lingolinq_protected' => false,
           'path' => "images/image_#{i.global_id}"
         }
         expect(json['images']).to eq(list)
@@ -1062,6 +1175,7 @@ describe Converters::LingoLinq do
           'url' => 'http://example.com/sound.mp3',
           'data_url' => "#{JsonApi::Json.current_host}/api/v1/sounds/#{s.global_id}",
           'content_type' => 'text/plaintext',
+          'duration' => 1,
           'path' => "sounds/sound_#{s.global_id}"
         }
         expect(json['sounds']).to eq(list)
@@ -1483,8 +1597,8 @@ describe Converters::LingoLinq do
         'id' => i.global_id,
         'height' => 400,
         'width' => 400,
-        'protected' => false,
-        'protected_source' => nil,
+        'ext_lingolinq_protected' => false,
+        'ext_lingolinq_protected_source' => nil,
         'license' => {'type' => 'private'},
         'url' => 'http://example.com/pic.png.raster.png',
         'fallback_url' => 'http://example.com/pic.png',
@@ -1500,9 +1614,9 @@ describe Converters::LingoLinq do
         'url' => 'http://example.com/sound.mp3',
         'data_url' => "#{JsonApi::Json.current_host}/api/v1/sounds/#{s.global_id}",
         'content_type' => 'text/plaintext',
-        'duration' => nil,
-        'protected' => nil,
-        'protected_source' => nil
+        'duration' => 1,
+        'ext_lingolinq_protected' => nil,
+        'ext_lingolinq_protected_source' => nil
       }
       expect(json['sounds']).to eq(list)
     end    

@@ -1,38 +1,49 @@
-<div class='row'>
-  <div class='col-sm-8 col-sm-offset-2 col-md-6 col-md-offset-3'>
-    <h2>{{t "Login Help" key="login_help"}}</h2>
-    <p style="margin-bottom: 30px; display: none;">
-      %app_name% requires a mylingolinq.com account. After signing up on the web site
-      you should have received an email with your user name. Enter that user name along
-      with the password you set while signing up to log in.
-    </p>
+<div class="login-page-bg">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="login-page">
+  <div class="login-card">
+    <div class="la-section-header">
+      <div class="la-hero-title-wrap">
+        <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Login " key="login_help_prefix"}}</span><span class="hero-gradient">{{t "Help" key="login_help_highlight"}}</span></h2>
+      </div>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+    </div>
     <form {{action "submitKey" on="submit"}}>
       {{#if this.response.email_sent}}
-        <div class='form-group'>
-          {{t "Email sent! Be sure to check your spam folder!" key="email_sent"}}
+        <div class="form-group">
+          <p>{{t "Email sent! Be sure to check your spam folder!" key="email_sent"}}</p>
           {{#if this.response.message}}
-            {{t "NOTE:" key="note_colon"}} {{this.response.message}}
+            <p>{{t "NOTE:" key="note_colon"}} {{this.response.message}}</p>
           {{/if}}
         </div>
       {{else}}
-        <div class='form-group'>
+        <div class="form-group">
           <p>
-            {{t "If you're unsure how to log in, please enter your email address and we'll send you instructions for how to access the app on your device." key="password_alternate_prompt"}}
-            <LinkTo @route="login">Back to login</LinkTo>
+            {{t "For login help, enter your email below and we'll send you instructions to get back into your account—usually within a few minutes." key="password_alternate_prompt"}}
           </p>
         </div>
-        <div class='form-group'>
-          <Input @value={{this.name}} class="form-control input-lg" id="name" placeholder="User name or email address" />
+        <div class="form-group">
+          <label for="name">{{t "Username or email" key="username_or_email"}}</label>
+          <Input @value={{this.name}} class="form-control" id="name" placeholder={{t "Username or email address" key="username_or_email_placeholder"}} />
         </div>
-        <div class='form-group'>
+        <div class="form-group">
           {{#if this.response.message}}
-            <p>
+            <div class="login-error">
               {{this.response.message}}
-            </p>
+            </div>
           {{/if}}
-          <button class='btn btn-primary btn-lg' type='submit'>{{t "Submit" key="submit"}}</button>
+          <button class="login-btn" type="submit">{{t "Submit" key="submit"}}</button>
+        </div>
+        <div class="login-links">
+          <LinkTo @route="login">{{t "Back to sign in" key="back_to_sign_in"}}</LinkTo>
         </div>
       {{/if}}
     </form>
   </div>
+</div>
 </div>

@@ -1,11 +1,29 @@
 task "extras:copy_terms" => :environment do
-  ['privacy', 'terms', 'jobs', 'privacy_practices'].each do |type|
+  ['privacy', 'terms', 'jobs'].each do |type|
     str = "<!-- auto-generated app/views/shared/_#{type}.html.erb -->\n"
     str += File.read("./app/views/shared/_#{type}.html.erb")
     File.open("./app/frontend/app/templates/#{type}.hbs", 'w') do |f|
       f.puts str
     end
   end
+end
+
+task "extras:generate_favicon" do
+  logo = './public/images/logo-new.png'
+  raise "Source logo not found: #{logo}" unless File.exist?(logo)
+  # Pastel favicon set
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-pastel-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
+  end
+  # Cool blue favicon set (same source logo)
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-cool-blue-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
+  end
+  puts "Generated favicon-pastel-*.png and favicon-cool-blue-*.png"
 end
 
 task "extras:assert_js" do
@@ -341,7 +359,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
     match = str.match(/window\.app_version\s+=\s+\"([0-9\.]+\w*)\";/)
     version = match && match[1]
     message = "New version deployed to servers (#{version})"
-    message += "\n<https://github.com/swahlquist/LingoLinq-AAC/lingolinq/blob/master/CHANGELOG.md|change notes> | <https://github.com/swahlquist/LingoLinq-AAC/lingolinq/commits/master|detailed log>"
+    message += "\n<https://github.com/lingolinq/LingoLinq-AAC/blob/develop/CHANGELOG.md|change notes> | <https://github.com/lingolinq/LingoLinq-AAC/commits/develop|detailed log>"
   end
   json = {"username": "deploy-bot", "icon_emoji": ":cuttlefish:", "text":message}
   `curl -X POST -H 'Content-type: application/json' --data '#{json.to_json}' #{ENV['SLACK_NOTIFICATION_URL']}`
@@ -419,7 +437,7 @@ task "extras:desktop" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -433,8 +451,8 @@ task "extras:desktop" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else
@@ -527,7 +545,7 @@ task "extras:mobile" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -541,8 +559,8 @@ task "extras:mobile" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else

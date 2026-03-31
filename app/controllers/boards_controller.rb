@@ -1,4 +1,7 @@
 class BoardsController < ApplicationController
+  before_action :load_chart_scripts_for_ember_shell,
+                only: %i[index about board user lesson utterance]
+
   def index
     @meta_record = OpenStruct.new
     @meta_record.title = "LingoLinq - Every voice should be heard"
@@ -19,7 +22,7 @@ class BoardsController < ApplicationController
   def about
     @meta_record = OpenStruct.new
     @meta_record.title = "About LingoLinq"
-    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.summary = "Why \"LingoLinq\"? The name LingoLinq comes from linking language to the people who need it most. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"
@@ -100,11 +103,6 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def cache
-    response.headers.except! 'X-Frame-Options'
-    render :layout => false
-  end
-  
   def video
     response.headers.except! 'X-Frame-Options'
     render :layout => false
@@ -130,5 +128,11 @@ class BoardsController < ApplicationController
     utterance = Utterance.find_by_global_id(params['id'])
     @meta_record = utterance && utterance.meta_record
     render :index
+  end
+
+  private
+
+  def load_chart_scripts_for_ember_shell
+    @load_chart_scripts = true
   end
 end

@@ -1,0 +1,215 @@
+{{#if this.boardsCtrl.board_list}}
+  {{#if this.boardsCtrl.board_list.loading}}
+    <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
+  {{else if this.boardsCtrl.board_list.error}}
+    <p class="ub-boards-page__loading">{{t "Failed to load" key="failed_to_load"}}</p>
+  {{else if this.boardsCtrl.board_list.results}}
+    {{#if this.boardsCtrl.prior_home_selected}}
+      <ul class="list-group" style="max-width: 350px;">
+        {{#each this.boardsCtrl.board_list.filtered_results as |board|}}
+          <li class="list-group-item">
+            <LinkTo @route="board" @model={{board.board.key}}>{{board.board.key}}</LinkTo>
+          </li>
+        {{/each}}
+      </ul>
+      {{#if this.boardsCtrl.board_list.has_more}}
+        <a href="#" {{action "show_more_boards" target=this.boardsCtrl}}>{{t "show more" key="show_more"}}</a>
+      {{else}}
+        {{#unless this.boardsCtrl.show_all_boards}}
+          <a href="#" {{action "show_more_boards" target=this.boardsCtrl}}>{{t "show more" key="show_more"}}</a>
+        {{/unless}}
+      {{/if}}
+    {{else}}
+      {{#if this.boardsCtrl.board_list.sub_result}}
+        <p><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</em></p>
+        <a href="#" class="md-btn" {{action "load_children" target=this.boardsCtrl}}>← {{t "Back to Full List" key="back_to_full_list"}}</a>
+      {{/if}}
+
+      {{#if this.boardsCtrl.mineFoldersEnabled}}
+        {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
+        <div class="ub-boards-page__folders-section">
+          <div class="ub-boards-page__folders-header">
+            <span class="ub-boards-page__folders-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+              {{t "Folders" key="folders"}}
+              <span class="ub-boards-page__folders-subtitle">{{t "Drag boards here to organize" key="mine_folders_multi_tag_hint"}}</span>
+            </span>
+            {{#if this.boardsCtrl.model.permissions.model}}
+            <div class="ub-boards-page__folders-actions">
+              <button type="button" class="ub-boards-page__folders-action-btn" {{action "openNewBoardFolderModal" target=this.boardsCtrl}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                {{t "New folder" key="new_board_folder_title"}}
+              </button>
+              <button type="button" class="ub-boards-page__folders-action-btn" {{action "openTagBoardModal"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                {{t "Tag a board" key="tag_a_board"}}
+              </button>
+            </div>
+            {{/if}}
+          </div>
+          <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}>
+            {{#each this.boardsCtrl.mineTagFolderSummaries as |folder|}}
+              <button
+                type="button"
+                class="ub-boards-page__tag-folder"
+                role="listitem"
+                {{action "enterMineFolderTag" folder.tag target=this.boardsCtrl}}
+                {{on "dragover" (action "folderDragOver" folder.tag)}}
+                {{on "dragenter" (action "folderDragEnter" folder.tag)}}
+                {{on "dragleave" (action "folderDragLeave" folder.tag)}}
+                {{on "drop" (action "folderDrop" folder.tag)}}
+              >
+                <span class="ub-boards-page__tag-folder-back">
+                  <span class="ub-boards-page__tag-folder-tab"></span>
+                </span>
+                <span class="ub-boards-page__tag-folder-card">
+                  <span class="ub-boards-page__tag-folder-name">{{folder.tag}}</span>
+                  <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
+                </span>
+              </button>
+            {{/each}}
+          </div>
+        </div>
+        {{/unless}}
+      {{/if}}
+
+      <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+        <label for={{this.filterInputId}} class="ub-boards-page__filter-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          {{t "Filter" key="filter"}}
+        </label>
+        <input
+          id={{this.filterInputId}}
+          type="text"
+          class="ub-boards-page__filter-input"
+          placeholder={{t "Filter boards..." key="filter_results"}}
+          value={{this.boardsCtrl.filterString}}
+          {{on "input" (action "updateFilterString" target=this.boardsCtrl)}}
+        />
+        {{#if this.boardsCtrl.filterString}}
+          <button type="button" class="ub-boards-page__filter-clear" {{action "clearFilter" target=this.boardsCtrl}} aria-label={{t "Clear filter" key="clear_filter"}}>
+            {{t "Clear" key="clear"}}
+          </button>
+        {{/if}}
+      </form>
+
+      {{#if this.boardsCtrl.mineFoldersEnabled}}
+        {{#if this.boardsCtrl.mineTagFolderDrillIn}}
+        <div class="ub-boards-page__folder-context">
+          <div class="ub-boards-page__folder-context-header">
+            <button type="button" class="ub-boards-page__folder-back-btn" {{action "exitMineFolderTag"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="ub-boards-page__folder-context-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+            </div>
+            <div class="ub-boards-page__folder-context-label">
+              <span class="ub-boards-page__folder-context-subtitle">{{t "Folder" key="folder_label"}}</span>
+              {{#if this.editingFolderName}}
+                <form class="ub-boards-page__folder-rename-form" {{action "saveFolderRename" on="submit"}}>
+                  <Input class="ub-boards-page__folder-rename-input" @type="text" @value={{this.editFolderNameValue}} @enter={{action "saveFolderRename"}} />
+                  <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button type="button" class="ub-boards-page__folder-rename-cancel" {{action "cancelFolderRename"}} aria-label={{t "Cancel" key="cancel"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </form>
+              {{else}}
+                <span class="ub-boards-page__folder-context-title-row">
+                  <span class="ub-boards-page__folder-context-title">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
+                  <button type="button" class="ub-boards-page__folder-edit-btn" {{action "startFolderRename"}} aria-label={{t "Rename folder" key="rename_folder"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button type="button" class="ub-boards-page__folder-delete-btn" {{action "startDeleteFolder"}} aria-label={{t "Delete folder" key="delete_folder"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </span>
+              {{/if}}
+            </div>
+          </div>
+          <hr class="ub-boards-page__folder-context-divider">
+          {{#if this.confirmingFolderDelete}}
+            <div class="la-delete-folder-modal la-delete-folder-modal--inline">
+              <div class="la-modal-header">
+                <span class="la-modal-header-label">{{t "Delete Folder" key="delete_folder"}}</span>
+                <button type="button" class="la-modal-close" {{action "cancelDeleteFolder"}} aria-label={{t "Close" key="close"}}>✕</button>
+              </div>
+              <div class="la-delete-folder-modal-body">
+                <div class="la-delete-folder-modal-icon" aria-hidden="true">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </div>
+                <p class="la-delete-folder-modal-title">{{t "Are you sure you want to delete" key="confirm_delete_folder_pre"}} <strong>"{{this.boardsCtrl.mineTagFolderDrillIn}}"</strong>?</p>
+                <p class="la-delete-folder-modal-desc">{{t "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them." key="delete_folder_explainer"}}</p>
+              </div>
+              <div class="la-delete-folder-modal-actions">
+                <button type="button" class="la-delete-folder-modal-delete" {{action "confirmDeleteFolder"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  {{t "Delete Folder" key="delete_folder"}}
+                </button>
+                <button type="button" class="la-delete-folder-modal-cancel" {{action "cancelDeleteFolder"}}>{{t "Cancel" key="cancel"}}</button>
+              </div>
+            </div>
+          {{/if}}
+        </div>
+        {{/if}}
+      {{/if}}
+
+      <div
+        class="ub-boards-page__board-grid {{if this.boardsCtrl.mineTagFolderDrillIn 'ub-boards-page__board-grid--in-folder'}}"
+        aria-describedby={{this.boardGridAriaDescribedby}}
+      >
+        {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
+          {{#if board.board.key}}
+            {{#unless board.board.removed}}
+              <div
+                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}}"
+                draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) (if board.children false true) false}}
+                {{on "dragstart" (action "boardDragStart" board.board)}}
+              >
+                {{#if board.children}}
+                  {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
+                {{else}}
+                  {{board-icon board=board.board}}
+                {{/if}}
+                {{#if this.boardsCtrl.model.permissions.edit}}
+                  {{#if board.board.id}}
+                    <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
+                      <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>
+                    </button>
+                  {{/if}}
+                {{/if}}
+              </div>
+            {{/unless}}
+          {{else if board.orphan}}
+            {{#if board.children}}
+              <div class="ub-boards-page__board-item board_with_action simple_board_holder">
+                {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
+                {{#if this.boardsCtrl.model.permissions.edit}}
+                  <button type="button" class="board_action" {{action "remove_board" "delete_orphans" board target=this.boardsCtrl}}>
+                    <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>
+                  </button>
+                {{/if}}
+              </div>
+            {{/if}}
+          {{/if}}
+        {{/each}}
+        {{#if this.boardsCtrl.board_list.has_more}}
+          {{#unless this.boardsCtrl.filterString}}
+            <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
+              <a href="#" class="ub-boards-page__show-more-btn" {{action "show_more_boards" target=this.boardsCtrl}}>
+                {{t "More" key="more"}}
+                <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
+                  <span class="glyphicon glyphicon-chevron-down"></span><span class="glyphicon glyphicon-chevron-down"></span>
+                </span>
+              </a>
+            </div>
+          {{/unless}}
+        {{/if}}
+      </div>
+    {{/if}}
+  {{else}}
+    <p class="ub-boards-page__loading">{{t "None found" key="none_found"}}</p>
+  {{/if}}
+{{/if}}
+

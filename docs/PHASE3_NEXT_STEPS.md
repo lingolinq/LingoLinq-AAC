@@ -4,12 +4,12 @@
 
 - **Ember**: 3.20.7 (upgraded)
 - **Ember Data**: 3.20.5
-- **Node**: 18.20.8
+- **Node**: 20.x
 - **Status**: Ready for next upgrade step
 
 ## Node Version Compatibility
 
-### Current: Node 18.20.8
+### Current: Node 20.x
 - ✅ **Compatible with Ember 3.20** (current)
 - ✅ **Compatible with Ember 3.24** (next step)
 - ✅ **Compatible with Ember 3.28** (target)

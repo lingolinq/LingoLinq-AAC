@@ -1,36 +1,63 @@
-  <div class='row' style="touch-action: none;">
+  <div class="login-card">
   {{#if this.prompt}}
     <p>{{t "You may need to log in to access this information" key="login_needed"}}</p>
   {{/if}}
-  <div class={{this.box_class}}>
-    {{#if this.login_followup}}
+    {{#if this.showDeviceStep}}
       {{#if this.login_followup_already_long_token}}
-        <h2>{{t "Approve This Device" key="approve_this_device"}}</h2>
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Approve This Device" key="approve_this_device"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
         <p>{{t "Currently this device is set to log out after a short period of inactivity. Would you like to change this?" key="confirm_device_long_token_with_long_token"}}</p>
       {{else}}
-        <h2>{{t "Activate New Device" key="activate_new_device"}}</h2>
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Activate New Device" key="activate_new_device"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
         <p>{{t "It looks like you haven't logged in before on this device. How would you like to proceed?" key="confirm_device_long_token"}}</p>
       {{/if}}
-      <button {{action "login_followup" true}} class={{if this.browserless "btn btn-primary" "btn btn-default"}} style='width: 100%;'><div style='font-size: 25px;'>{{t "Trust this Device" key="trust_this_device"}}</div>{{t "Keep me logged in" key="keep_me_logged_in"}}</button>
-      <button {{action "login_followup" false}} class='btn btn-default' style='width: 100%; margin-top: 10px;'><div style='font-size: 25px;'>{{t "This is a Shared Device" key="not_trust_this_device"}}</div>{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</button>
+      <div class="login-device-buttons">
+        <button type="button" {{action "login_followup" true}} class={{if this.browserless "login-btn" "login-btn"}}>
+          <span class="login-btn__title">{{t "Trust this Device" key="trust_this_device"}}</span>
+          <span class="login-btn__sub">{{t "Keep me logged in" key="keep_me_logged_in"}}</span>
+        </button>
+        <button type="button" {{action "login_followup" false}} class="login-btn login-btn--outline">
+          <span class="login-btn__title">{{t "This is a Shared Device" key="not_trust_this_device"}}</span>
+          <span class="login-btn__sub">{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</span>
+        </button>
+      </div>
     {{else if this.login_single_assertion}}
-      <h2>{{t "Approve This Device" key="approve_this_device"}}</h2>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Approve This Device" key="approve_this_device"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       <p>{{t "This account is only allowed to log in to one dedicated device at a time. If you log in on this device it will force a log out on your other device. How would you like to proceed?" key="confirm_device_force_logout"}}</p>
-      <button {{action "login_force_logut" true}} class='btn btn-default' style='width: 100%;'><div style='font-size: 25px;'>{{t "Log In on this Device" key="log_in_on_this_device"}}</div>{{t "Any other device will be logged out" key="other_device_logged_out"}}</button>
-      <button {{action "login_force_logut" false}} class='btn btn-default' style='width: 100%; margin-top: 10px;'><div style='font-size: 25px;'>{{t "Never Mind, Don't Log In" key="do_not_log_in"}}</div>{{t "Keep me logged in on the other device" key="keep_logged_in"}}</button>
+      <button {{action "login_force_logut" true}} class='login-btn login-btn--outline' style='width: 100%;'><div style='font-size: 25px;'>{{t "Log In on this Device" key="log_in_on_this_device"}}</div>{{t "Any other device will be logged out" key="other_device_logged_out"}}</button>
+      <button {{action "login_force_logut" false}} class='login-btn login-btn--outline' style='width: 100%; margin-top: 10px;'><div style='font-size: 25px;'>{{t "Never Mind, Don't Log In" key="do_not_log_in"}}</div>{{t "Keep me logged in on the other device" key="keep_logged_in"}}</button>
     {{else if this.prompt_2fa}}
-      <h2>{{t "Confirm Login" key="confirm_login"}}</h2>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Confirm Login" key="confirm_login"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       {{#if this.prompt_2fa.uri}}
         <p>{{t "Your account requires two-factor authentication. Please scan the QR code in your authenticator app and enter the generated code to continue." key="required_code_for_2fa"}}</p>
         {{qr-code text=this.prompt_2fa.uri size=300}}
       {{else}}
         <p>{{t "Please enter the confirmation code provided by your two-factor authentication app:" key="enter_2fa_code"}}</p>
       {{/if}}
-      <div style='margin-bottom: 10px;'>
-        <Input @type="number" class="form-control input-lg" @value={{this.code_2fa}} placeholder="# # # # # #" style="text-align: center;" />
+      <div class="form-group">
+        <Input @type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" style="text-align: center;" />
       </div>
-      <button {{action "confirm_2fa"}} disabled={{this.status_2fa.loading}} class='btn btn-primary' style='width: 100%;'>
-        <div style='font-size: 25px;'>
+      <button {{action "confirm_2fa"}} disabled={{this.status_2fa.loading}} class='login-btn' style='width: 100%;'>
+        <div style='font-size: 20px;'>
           {{#if this.status_2fa.loading}}
             {{t "Checking..." key="checking"}}
           {{else if this.status_2fa.error}}
@@ -43,20 +70,28 @@
         </div>
       </button>
     {{else if this.stashes.enabled}}
-      <form {{action "authenticate" on="submit"}} class="form-horizontal" id="login_form">
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Sign in to " key="sign_in_to_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span></h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
+      <form {{action "authenticate" on="submit"}} autocomplete="off" id="login_form">
           {{#unless this.prompt}}
           {{#unless this.force_logout}}
             {{#if this.app_state.feature_flags.emergency_boards}}
-              <div style='font-size: 18px; text-align: right; margin-bottom: 10px; margin-top: -20px;'>
+              <div style='font-size: 14px; text-align: right; margin-bottom: 10px; margin-top: -10px;'>
                 <LinkTo @route="offline_boards"><span style='color: #3d8053;'>{{t "basic access" key="critical_access_lower"}}</span></LinkTo>
               </div>
             {{/if}}
           {{/unless}}
         {{/unless}}
         <div class="form-group">
+          <label for="identification">{{t "Username" key="username"}}</label>
           {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
         </div>
         <div class="form-group">
+          <label for="password">{{t "Password" key="password"}}</label>
           <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}
@@ -70,16 +105,12 @@
           </div>
         {{/unless}}
         {{#if this.login_error}}
-          <div class="form-group">
-            <p class="text-danger">
-              {{ this.login_error }}
-            </p>
+          <div class="login-error">
+            {{ this.login_error }}
           </div>
-        {{else}}
-          <div style='margin-top:-15px; margin-bottom: 10px;'><em style={{safe-style (if this.first_login "color: #ba4a59;" "color: #888")}}>{{t "Remember: all boards and reports may contain user data, and should be kept private and treated with respect." key="private_data_reminder"}}</em></div>
         {{/if}}
         <div class="form-group">
-          <button type="submit" class='btn btn-primary btn-lg' disabled={{this.noSubmit}}>
+          <button type="submit" class='login-btn' disabled={{this.noSubmit}}>
             {{#if this.noSecret}}
               {{#if this.requesting}}
                 <span class="glyphicon glyphicon-refresh spinning"></span>
@@ -108,24 +139,30 @@
             {{/if}}
           </button>
           {{#if this.force_logout}}
-            <button type='button' class='btn btn-default btn-lg' {{action "logout"}}>{{t "Log Out" key="log_out"}}</button>
+            <button type='button' class='login-btn login-btn--outline' style='margin-top: 10px;' {{action "logout"}}>{{t "Log Out" key="log_out"}}</button>
           {{/if}}
-          <span style="padding-left: 10px;">
+          <div class="login-links">
             {{#if this.force_logout}}<br>{{/if}}
             {{#if this.app_state.no_linky}}
               <LinkTo @route="forgot_login">{{t "need help?" key="forgot_login"}}</LinkTo>
             {{else}}
               <LinkTo @route="forgot_password">{{t "forgot password" key="forgot_password_lower"}}</LinkTo>
               {{#if this.app_state.domain_settings.full_domain}}
-                | 
+                |
+                <span style="color: #000;">{{t "Don't have an account?" key="dont_have_account"}}</span>
                 <LinkTo @route="register">{{t "sign up" key="sign_up_lower"}}</LinkTo>
               {{/if}}
             {{/if}}
-          </span>
+          </div>
         </div>
       </form>
     {{else}}
-      <h2>{{t "Can't Log In" key="cant_login"}}</h2>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Can't Log In" key="cant_login"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       <p>
         <span class="glyphicon glyphicon-exclamation-sign"></span>
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}
@@ -137,4 +174,3 @@
       </p>
     {{/if}}
   </div>
-</div>

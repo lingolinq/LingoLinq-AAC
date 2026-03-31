@@ -35,10 +35,9 @@ LingoLinq::Application.routes.draw do
 
   root ember_handler
   get '/goal_status/:goal_id/:goal_code' => 'boards#log_goal_status'
-  get '/cache' => 'boards#cache'
   get '/videos/:source/:id' => 'boards#video'
   get '/privacy' => 'boards#privacy'
-  get '/privacy_practices' => 'boards#privacy_practices'
+  get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
@@ -65,74 +64,10 @@ LingoLinq::Application.routes.draw do
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
-  # Skip Rack::Offline when assets aren't available (workers, cron jobs, build steps).
-  # ENV guard provides explicit skip; rescue catches any remaining cases.
-  unless ENV['SKIP_OFFLINE_MANIFEST']
-    begin
-      offline = Rack::Offline.configure :cache_interval => 120 do
-        cache ActionController::Base.helpers.asset_path("application.css")
-        cache ActionController::Base.helpers.asset_path("application.js")
-        cache "/fonts/glyphicons-halflings-regular.eot"
-        cache "/fonts/glyphicons-halflings-regular.svg"
-        cache "/fonts/glyphicons-halflings-regular.ttf"
-        cache "/fonts/glyphicons-halflings-regular.woff"
-        cache "/fonts/OpenDyslexicAlta-Regular.otf"
-        cache "/fonts/ArchitectsDaughter.ttf"
-        cache "/images/star.png"
-        cache "/images/logo-small.png"
-        cache "/images/logo-big.png"
-        cache "/images/star_gray.png"
-        cache "/images/folder.png"
-        cache "/images/folder_home.png"
-        cache "/images/folder_integration.png"
-        cache "/images/spinner.gif"
-        cache "/images/talk.png"
-        cache "/images/link.png"
-        cache "/images/video.svg"
-        cache "/images/app.png"
-        cache "/images/orange.png"
-        cache "/images/preview.png"
-        cache "/images/stats.png"
-        cache "/images/microphone.svg"
-        cache "/images/upload.svg"
-        cache "/images/camera.svg"
-        cache "/images/delete.svg"
-        cache "/images/square.svg"
-        cache "/images/modeling_ideas.svg"
-        cache "/images/bar_chart.svg"
-        cache "/images/eye.svg"
-        cache "/images/cursor.png"
-        cache "/images/extras.svg"
-        cache "/images/blank.gif"
-        cache "/images/cc.png"
-        cache "/images/pd.png"
-        cache "/images/unknown_action.png"
-        cache "/images/settings.png"
-        cache "/images/jquery.minicolors.png"
-        cache "/images/web_version.svg"
-        cache "/images/ios_app_store.svg"
-        cache "/images/google_play.png"
-        cache "/images/amazon.png"
-        cache "/images/faces.png"
-        cache "/images/clock.png"
-        cache "/images/error.png"
-        cache "/images/check.png"
-        cache "/images/action.png"
-        cache "/offline"
-        # cache other assets
+  # Rack::Offline (rack-offline gem) removed: gem was abandoned (last release 2012),
+  # HTML5 AppCache was removed from all modern browsers. Offline support is handled
+  # by IndexedDB/SQLite in the Ember frontend.
 
-        fallback({"/" => "/offline"})
-        fallback({"/oauth2/" => "/404"})
-        fallback({"/api/" => "/offline.json"})
-
-        network "*"
-      end
-      get "/application.manifest" => offline
-    rescue Sprockets::Rails::Helper::AssetNotFound
-      Rails.logger.warn 'Skipping offline manifest route: assets not available (expected for workers/cron jobs)'
-    end
-  end
-  
   get 'profile' => ember_handler
   get 'profile/:user_id/:profile_id' => ember_handler
   get 'search/:query' => ember_handler
@@ -157,7 +92,8 @@ LingoLinq::Application.routes.draw do
   get 'api/v1/status' => 'session#status'
   get 'api/v1/token_check' => 'session#token_check'
   get 'api/v1/status/heartbeat' => 'session#heartbeat'
-  
+  get 'api/v1/health' => 'session#health'
+
   scope 'api/v1', module: 'api' do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
@@ -232,6 +168,9 @@ LingoLinq::Application.routes.draw do
       get 'protected_image/:library/:image_id' => 'users#protected_image'
       get 'word_map' => 'users#word_map'
       get 'word_activities' => 'users#word_activities'
+      post 'board_tags/ensure' => 'users#ensure_board_tag'
+      post 'board_tags/rename' => 'users#rename_board_tag'
+      post 'board_tags/delete' => 'users#delete_board_tag'
       post 'evals/transfer' => 'users#transfer_eval'
       post 'evals/reset' => 'users#reset_eval'
       post '2fa' => 'users#update_2fa'
@@ -262,6 +201,16 @@ LingoLinq::Application.routes.draw do
     end
     
     resources :goals
+
+    get "supervisor_relationships/consent_lookup" => "supervisor_relationships#consent_lookup"
+    post "supervisor_relationships/consent_response" => "supervisor_relationships#consent_response"
+    resources :supervisor_relationships, only: [:index, :show, :create, :destroy] do
+      post :consent_response, on: :member
+      member do
+        put :approve
+        put :deny
+      end
+    end
 
     resources :profiles do
       get 'latest', on: :collection
@@ -299,6 +248,7 @@ LingoLinq::Application.routes.draw do
       post 'alias'
       post 'start_code' => 'organizations#start_code'
       post 'status/:user_id' => 'organizations#set_status'
+      put 'data_policy' => 'organizations#update_data_policy'
     end
     
     resources :utterances do

@@ -1435,9 +1435,10 @@ var persistence = Service.extend({
 //         head.appendChild(style);
 //       }
 //     }
-    res.then(function() { 
+    res.then(function() {
+      // Always set primed on success so find_url can resolve (was only set for mobile
+      // localhost here, leaving web/desktop stuck in 500ms retry until the 10s fallback).
       if(!_this.primed && capabilities.mobile && capabilities.installed_app && location.host.match(/^localhost/)) {
-        _this.primed = true; 
         // When being served by a local file server, when you open a board
         // the images cascade into visibility unless you prefetch them,
         // so we try to do this while still letting other requests slip in.
@@ -1490,6 +1491,7 @@ var persistence = Service.extend({
           }
         });
       }
+      _this.primed = true;
       console.log("LINGOLINQ: done priming caches", check_file_system, (new Date()).getTime() - now);
     }, function() { 
       console.log("LINGOLINQ: done priming caches", check_file_system, (new Date()).getTime() - now);
@@ -2655,12 +2657,25 @@ var persistence = Service.extend({
     return new RSVP.Promise(function(resolve, reject) {
       var url = '/api/v1/users/' + user.get('id') + '/alerts';
       var parse_before_resolve = function(object) {
-        (object.clears || []).forEach(function(id) {
-          var ref = object.alert.find(function(a) { return a.id == id; });
+        object = object || {};
+        var alertList = object.alert;
+        if (!alertList || !Array.isArray(alertList)) {
+          alertList = [];
+        }
+        var clears = object.clears;
+        if (!clears || !Array.isArray(clears)) {
+          clears = [];
+        }
+        var alertIds = object.alerts;
+        if (!alertIds || !Array.isArray(alertIds)) {
+          alertIds = [];
+        }
+        clears.forEach(function(id) {
+          var ref = alertList.find(function(a) { return a.id == id; });
           if(ref && !ref.cleared) { emberSet(ref, 'cleared', true); }
         });
-        (object.alerts || []).forEach(function(id) {
-          var ref = object.alert.find(function(a) { return a.id == id; });
+        alertIds.forEach(function(id) {
+          var ref = alertList.find(function(a) { return a.id == id; });
           if(ref && ref.unread) { emberSet(ref, 'unread', false); }
         });
         resolve(object);
@@ -2935,7 +2950,7 @@ var persistence = Service.extend({
           });
           // Try to download in chunks instead of as individual records, if possible
           if(need_fresh_ids.length > 0 && need_fresh_ids.length < 100) {
-            var _this_sync_boards = this;
+            var _this_sync_boards = _this;
             if(_this_sync_boards.get('sync_progress')) {
               _this_sync_boards.set('sync_progress.pre_total', need_fresh_ids.length);
               _this_sync_boards.set('sync_progress.pre_visited', 0);

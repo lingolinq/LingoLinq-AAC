@@ -1,0 +1,160 @@
+{{#if (and this.isActive this.user this.boardsCtrl)}}
+<div class="ub-boards-page md-dashboard-boards-embed">
+  <div class="ub-boards-page__content">
+
+  {{#if this.boardsCtrl.model.permissions.delete}}
+    {{#if this.boardsCtrl.model.pending_org}}
+      <div class='alert alert-info' style="margin-bottom: 16px;">
+        {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org2" org=this.boardsCtrl.model.pending_org.name}}
+        <br><br>
+        <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve" target=this.boardsCtrl}}>{{t "Approve %{org}" org=this.boardsCtrl.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject" target=this.boardsCtrl}}>{{t "Deny Access"}}</button>
+      </div>
+    {{else if this.boardsCtrl.model.pending}}
+      <div class='alert alert-success' style="margin-bottom: 16px;">
+        {{t "Welcome to %app_name%! Watch for an email from us in your inbox." key="welcome_remember_confirm"}}
+      </div>
+    {{else if this.boardsCtrl.model.expired}}
+      {{#if this.appState.feature_flags.subscriptions}}
+        <div class='alert alert-warning' style="margin-bottom: 16px;">
+          <LinkTo @route="user.subscription" @model={{this.boardsCtrl.model.user_name}}>
+            {{t "This user's free preview has ended. Please purchase a premium account." key="this_user_needs_to_subscribe"}}
+          </LinkTo>
+        </div>
+      {{/if}}
+    {{/if}}
+  {{/if}}
+
+  <div class="ub-boards-page__getting-started-wrap {{if this.boardsCtrl.model.preferences.home_board.key "ub-boards-page__getting-started-wrap--hidden"}}" aria-hidden={{if this.boardsCtrl.model.preferences.home_board.key "true"}}>
+    <section class="ub-boards-page__getting-started md-card md-card--getting-started" aria-label={{t "Choose a Home Board" key="ub_boards_choose_home_board"}}>
+      <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
+      <div class="md-card__head md-card__head--getting-started">
+        <div class="md-card__head-left">
+          <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
+            {{ub-boards-home-grid-icon}}
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Choose a Home Board" key="ub_boards_choose_home_board"}}</div>
+            <div class="md-card__sub">{{t "You haven't selected a home board yet." key="no_home_board_yet"}}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ub-boards-page__getting-started-actions">
+        <a href="#" class="ub-boards-page__gs-secondary-btn" {{action "newBoard" target=this.dashboardDelegate}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
+        <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
+      </div>
+    </section>
+  </div>
+
+  {{#if this.boardsCtrl.model.permissions.view_detailed}}
+    <div class="ub-boards-page__stats-row">
+      <div class="ub-boards-page__stat-card">
+        <div class="ub-boards-page__stat-label">{{t "Home Board" key="home_board"}}</div>
+        <div class="ub-boards-page__stat-value">
+          {{#if this.boardsCtrl.model.preferences.home_board.key}}
+            <LinkTo @route="board" @model={{this.boardsCtrl.model.preferences.home_board.key}} class="ub-boards-page__stat-link">{{this.boardsCtrl.model.preferences.home_board.key}}</LinkTo>
+          {{else}}
+            <span class="ub-boards-page__stat-none">{{t "None" key="none_upper"}}</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="ub-boards-page__stat-card">
+        <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
+        <div class="ub-boards-page__stat-value">
+          {{#if this.boardsCtrl.model.my_boards.done}}
+            {{t "board" key="n_boards" count=this.boardsCtrl.model.my_boards.length}}
+          {{else}}
+            <span class="ub-boards-page__stat-loading">—</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="ub-boards-page__stat-card">
+        <div class="ub-boards-page__stat-label">{{t "Liked Boards" key="starred_boards"}}</div>
+        <div class="ub-boards-page__stat-value">{{t "board" key="n_boards" count=this.boardsCtrl.model.stats.starred_boards}}</div>
+      </div>
+      <div class="ub-boards-page__stat-card">
+        <div class="ub-boards-page__stat-label">{{t "Status" key="status"}}</div>
+        <div class="ub-boards-page__stat-value">
+          {{#if this.boardsCtrl.model.public}}
+            <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
+          {{else}}
+            <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  <section class="ub-boards-page__boards-section" aria-labelledby="ub-boards-heading-dash">
+    <div class="ub-boards-page__boards-header">
+      <h2 id="ub-boards-heading-dash" class="ub-boards-page__boards-title">
+        {{#if this.boardsCtrl.model.external_device}}
+          {{t "%app_name% Boards in this Account:" key="boards_in_this_account"}}
+        {{else}}
+          {{t "Available Boards" key="available_boards_colon"}}
+        {{/if}}
+      </h2>
+      <button class="md-btn md-btn--primary ub-boards-page__new-board-btn" type="button" {{action "newBoard" target=this.dashboardDelegate}}>
+        + {{t "New Board" key="create_a_new_board"}}
+      </button>
+    </div>
+
+    <ul class="ub-boards-page__tabs" role="tablist">
+      {{#if this.boardsCtrl.model.permissions.edit}}
+        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "set_selected" "mine" target=this.boardsCtrl}}>{{t "Mine" key="mine"}}</a></li>
+      {{else if this.boardsCtrl.model.permissions.model}}
+        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "set_selected" "mine" target=this.boardsCtrl}}>{{t "Mine" key="mine"}}</a></li>
+      {{/if}}
+      {{#unless this.appState.currentUser.modeling_only}}
+        <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{action "set_selected" "public" target=this.boardsCtrl}}>{{t "Public" key="public"}}</a></li>
+      {{/unless}}
+      {{#if this.boardsCtrl.model.permissions.model}}
+        <li role="presentation" class={{if this.boardsCtrl.root_selected "is-active"}}><a href="#" {{action "set_selected" "root" target=this.boardsCtrl}}>{{t "Root" key="root"}}</a></li>
+      {{/if}}
+      {{#unless this.appState.currentUser.modeling_only}}
+        <li role="presentation" class={{if this.boardsCtrl.starred_selected "is-active"}}><a href="#" {{action "set_selected" "starred" target=this.boardsCtrl}}>{{t "Liked" key="starred"}}</a></li>
+      {{/unless}}
+      {{#unless this.appState.currentUser.modeling_only}}
+        {{#if this.boardsCtrl.model.permissions.model}}
+          <li role="presentation" class="dropdown {{if this.boardsCtrl.other_selected "is-active"}}">
+            <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+              {{this.boardsCtrl.more_label}} <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+              {{#if this.boardsCtrl.model.permissions.edit}}
+                <li><a href="#" {{action "set_selected" "shared" target=this.boardsCtrl}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
+              {{/if}}
+              {{#if this.boardsCtrl.model.prior_home_boards}}
+                <li><a href="#" {{action "set_selected" "prior_home" target=this.boardsCtrl}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
+              {{/if}}
+              {{#if this.boardsCtrl.model.permissions.edit}}
+                <li><a href="#" {{action "set_selected" "private" target=this.boardsCtrl}}>{{t "Private" key="private"}}</a></li>
+              {{/if}}
+              {{#each this.boardsCtrl.model.board_tags as |tag|}}
+                <li><a href="#" {{action "set_tag" tag target=this.boardsCtrl}}>{{tag}}</a></li>
+              {{/each}}
+            </ul>
+          </li>
+        {{/if}}
+      {{/unless}}
+    </ul>
+
+    <div class="ub-boards-page__boards-body">
+      {{available-boards-section boardsCtrl=this.boardsCtrl filterInputId="ub-boards-filter-input-dashboard"}}
+    </div>
+  </section>
+
+  </div>
+
+  {{#if this.boardsCtrl.show_back_to_top}}
+    <div class="ub-boards-page__back-to-top-wrap">
+      <button class="ub-boards-page__back-to-top" type="button" {{action "scroll_to_top" target=this.boardsCtrl}} title={{t "Back to top" key="back_to_top"}}>
+        <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
+        <span class="ub-boards-page__back-to-top-label">{{t "Top" key="top"}}</span>
+      </button>
+    </div>
+  {{/if}}
+
+</div>
+{{/if}}

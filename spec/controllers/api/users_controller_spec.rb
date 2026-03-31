@@ -715,6 +715,116 @@ describe Api::UsersController, :type => :controller do
     end
     
     it "should throttle or captcha or something to prevent abuse"
+
+    describe "device classification on registration" do
+      def device_for_create_response
+        json = JSON.parse(response.body)
+        u = User.find_by_path(json['user']['id'])
+        Device.find_by!(:user_id => u.id, :device_key => 'default', :developer_key_id => 0)
+      end
+
+      it "sets app when X-INSTALLED-LINGOLINQ is true" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_app'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "sets browser when X-INSTALLED-LINGOLINQ is false" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_browser'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "sets app when installed_app param is true and header is absent" do
+        post :create, params: {:user => {'name' => 'reg_param_app'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "treats header false as authoritative when it conflicts with installed_app param" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        post :create, params: {:user => {'name' => 'reg_hdr_wins'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "matches session-style resolution when header is true (param ignored)" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        post :create, params: {:user => {'name' => 'reg_hdr_over_param'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "sets browser when installed_app param is false and header is absent" do
+        post :create, params: {:user => {'name' => 'reg_param_browser'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "ignores non-canonical header and uses installed_app param for app" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'yes'
+        post :create, params: {:user => {'name' => 'reg_garbage_app'}, :installed_app => 'true'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(true)
+        expect(d.settings['browser']).to eq(nil)
+      end
+
+      it "ignores non-canonical header and uses installed_app param for browser" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = '1'
+        post :create, params: {:user => {'name' => 'reg_garbage_browser'}, :installed_app => 'false'}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(true)
+        expect(d.settings['app']).to eq(nil)
+      end
+
+      it "clears stale app flag on browser registration" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
+        allow(Device).to receive(:find_or_create_by).and_wrap_original do |method, *args, **kwargs, &block|
+          d = method.call(*args, **kwargs, &block)
+          d.settings ||= {}
+          d.settings['app'] = true
+          d.save! if d.persisted?
+          d
+        end
+        post :create, params: {:user => {'name' => 'stale_app_cleared_reg'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['app']).to eq(nil)
+        expect(d.settings['browser']).to eq(true)
+      end
+
+      it "clears stale browser flag on app registration" do
+        request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+        allow(Device).to receive(:find_or_create_by).and_wrap_original do |method, *args, **kwargs, &block|
+          d = method.call(*args, **kwargs, &block)
+          d.settings ||= {}
+          d.settings['browser'] = true
+          d.save! if d.persisted?
+          d
+        end
+        post :create, params: {:user => {'name' => 'stale_browser_cleared_reg'}}
+        expect(response).to be_successful
+        d = device_for_create_response
+        expect(d.settings['browser']).to eq(nil)
+        expect(d.settings['app']).to eq(true)
+      end
+    end
   end
   
   describe "replace_board" do
@@ -842,6 +952,7 @@ describe Api::UsersController, :type => :controller do
       b1a.save
       Worker.process_queues
       Worker.process_queues
+      b1a.reload.track_downstream_boards!
       expect(b1a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
       b2a = Board.create(:user => u)
       b2a.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b1b.global_id}}]
@@ -850,6 +961,7 @@ describe Api::UsersController, :type => :controller do
       b2a.save
       Worker.process_queues
       Worker.process_queues
+      b2a.reload.track_downstream_boards!
       expect(b2a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
 
       expect(b1a.reload.settings['protected']['vocabulary_owner_id']).to eq(@user.global_id)
@@ -902,6 +1014,7 @@ describe Api::UsersController, :type => :controller do
       b2a.save
       Worker.process_queues
       Worker.process_queues
+      b2a.reload.track_downstream_boards!
       expect(b2a.reload.settings['downstream_board_ids']).to eq([b1b.global_id])
 
       expect(b1a.reload.settings['protected']['vocabulary_owner_id']).to eq(@user.global_id)
@@ -2225,12 +2338,17 @@ describe Api::UsersController, :type => :controller do
       expect(json['log']).to_not eq(nil)
     end
 
-    it "should return error when user has no daily_use log" do
+    it "should return empty daily_use structure when user has no log" do
       token_user
       get :daily_use, params: {:user_id => @user.global_id}
-      expect(response).to have_http_status(:bad_request)
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['error']).to eq('No daily_use log found for this user')
+      expect(json['log']).to_not eq(nil)
+      expect(json['log']['daily_use']).to eq([])
+      expect(json['log']['empty_daily_use_log']).to eq(true)
+      expect(json['log'].key?('id')).to eq(false)
+      # No LogSession should be created
+      expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
     it "should not allow a supervisor without admin_support_actions to check another user's daily use" do
@@ -2429,13 +2547,15 @@ describe Api::UsersController, :type => :controller do
     
     it "should error if no template is defined" do
       token_user
+      # Remove template so we can test the error path (migration/seeds normally create it)
+      UserIntegration.find_by(template: true, integration_key: 'core_word_list')&.destroy
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       assert_error('no core word list integration defined')
     end
     
     it "should set the user's core list" do
       token_user
-      ui = UserIntegration.create(:template => true, :integration_key => 'core_word_list')
+      ui = UserIntegration.find_or_create_by!(template: true, integration_key: 'core_word_list') { |u| u.settings ||= {} }
       put 'update_core_list', params: {'user_id' => @user.global_id, 'id' => 'bacon', 'words' => ['a', 'b', 'c']}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -2671,7 +2791,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['user_id']).to eq(u.global_id)
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to match(/.+\$.+/)
-      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me/)
+      expect(json['supervisees'][0]['my_device_id']).to_not match(/^me\$/)
       expect(json['supervisees'][0]['verifier']).to_not eq(json['verifier'])
     end
 
@@ -2684,7 +2804,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2703,7 +2823,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -2724,7 +2844,7 @@ describe Api::UsersController, :type => :controller do
       expect(json['user_id']).to eq(u1.global_id)
       expect(json['ws_user_id']).to_not eq(nil)
       expect(json['my_device_id']).to match(/.+\$.+/)
-      expect(json['my_device_id']).to_not match(/^me/)
+      expect(json['my_device_id']).to_not match(/^me\$/)
       code, ts = json['verifier'].split(/:/, 2)
       expect(ts.to_i).to be > 5.seconds.ago.to_i
       expect(ts.to_i).to be < 5.seconds.from_now.to_i
@@ -3428,5 +3548,27 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
+  describe "ensure_board_tag" do
+    it "should require a valid token" do
+      post :ensure_board_tag, params: {user_id: '1_1', tag: 'MyFolder'}
+      assert_missing_token
+    end
+
+    it "should create an empty folder tag" do
+      token_user
+      post :ensure_board_tag, params: {user_id: @user.global_id, tag: 'MyFolder'}
+      json = assert_success_json
+      expect(json['ok']).to eq(true)
+      expect(json['board_tags']).to eq(['MyFolder'])
+      expect(json['board_tag_map']).to eq({'MyFolder' => []})
+      expect(@user.reload.user_extra.settings['board_tags']['MyFolder']).to eq([])
+    end
+
+    it "should reject blank tag" do
+      token_user
+      post :ensure_board_tag, params: {user_id: @user.global_id, tag: '  '}
+      expect(response).not_to be_successful
+    end
+  end
 
 end

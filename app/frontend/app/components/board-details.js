@@ -22,6 +22,7 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options.board || options);
+    this.set('edit_mode', !!options.edit_mode);
   },
 
   didInsertElement() {
@@ -69,6 +70,9 @@ export default Component.extend({
     },
     renameBoard() {
       modal.open('rename-board', { board: this.get('model') });
+    },
+    edit_board_details() {
+      modal.open('edit-board-details', { board: this.get('model') });
     },
     delete(decision) {
       modal.open('confirm-delete-board', { board: this.get('model'), redirect: true });

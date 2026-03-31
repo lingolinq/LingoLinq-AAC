@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import LingoLinq from '../app';
 import BoardHierarchy from '../utils/board_hierarchy';
 import modalUtil from '../utils/modal';
@@ -35,9 +36,17 @@ export default Component.extend({
     return LingoLinq.publicOptions;
   }),
 
+  _return_to_details: function() {
+    var board = this.get('model.board');
+    if(board) {
+      runLater(function() { modalUtil.open('board-details', { board: board }); }, 200);
+    }
+  },
+
   actions: {
     close() {
       this.get('modal').close();
+      this._return_to_details();
     },
     opening() {
       this.get('modal').setComponent(this);
@@ -88,6 +97,7 @@ export default Component.extend({
             _this.get('model.board').reload(true).then(function() {
               app_state.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
               _this.get('modal').close();
+              _this._return_to_details();
             }, function() {});
           }
         });

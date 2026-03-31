@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import Subscription from '../../utils/subscription';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
@@ -7,6 +8,7 @@ import app_state from '../../utils/app_state';
 import progress_tracker from '../../utils/progress_tracker';
 
 export default Controller.extend({
+  router: service('router'),
   queryParams: ['code', 'confirmation'],
   code: null,
   confirmation: null,
@@ -129,6 +131,13 @@ export default Controller.extend({
     },
     show_expiration_notes: function() {
       this.set('show_expiration_notes', true);
+    },
+    goBack: function() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        this.get('router').transitionTo('user.account', this.get('model.user_name'));
+      }
     }
   }
 });

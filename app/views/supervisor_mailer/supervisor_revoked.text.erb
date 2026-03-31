@@ -1,0 +1,16 @@
+Hello <%= @recipient.settings['name'] || @recipient.display_user_name %>,
+
+<% if @revoker_type == 'supervisor' %>
+<%= @revoker.settings['name'] || @revoker.display_user_name %> has removed their own supervisor access to <%= @communicator.settings['name'] || @communicator.display_user_name %>'s <%= app_name %> account.
+
+They previously had <%= @permission_description %> access. This access has now been removed.
+<% else %>
+<%= @revoker.settings['name'] || @revoker.display_user_name %> has removed your supervisor access to their <%= app_name %> account.
+
+You previously had <%= @permission_description %> access. This access has now been removed.
+<% end %>
+
+If you have questions about this change, please contact the other party directly or reach out to us at <%= JsonApi::Json.current_host %>/contact
+
+Thanks!
+<%= email_signature %>

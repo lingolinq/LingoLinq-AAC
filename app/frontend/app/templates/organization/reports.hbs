@@ -22,12 +22,29 @@
       {{/if}}
       <div class="row">
         <div class="col-sm-8">
+          {{#if this.show_list_controls}}
+            <form class="form-inline" style="margin-bottom: 15px;">
+              <div class="form-group">
+                <label for="report_per_page">{{t "Per page:" key="per_page_colon"}}</label>
+                {{bound-select select_class="form-control" select_id="report_per_page" content=this.per_page_options selection=this.per_page action=(action (mut this.per_page)) }}
+              </div>
+              <div class="form-group" style="margin-left: 15px;">
+                <label for="report_sort_by">{{t "Sort:" key="sort_colon"}}</label>
+                {{#if this.show_sort_by}}
+                  {{bound-select select_class="form-control" select_id="report_sort_by" content=this.sort_by_options selection=this.sort_by action=(action (mut this.sort_by)) }}
+                {{/if}}
+                {{bound-select select_class="form-control" select_id="report_sort_order" content=this.sort_order_options selection=this.sort_order action=(action (mut this.sort_order)) }}
+              </div>
+              {{#if this.show_filter}}
+                <div class="form-group" style="margin-left: 15px;">
+                  <label for="report_filter">{{t "Filter:" key="filter_colon"}}</label>
+                  <Input id="report_filter" @type="text" @value={{this.filter}} class="form-control" placeholder={{t "Search..." key="search_ellipsis"}} style="width: 150px; display: inline-block; margin-left: 5px;" />
+                </div>
+              {{/if}}
+            </form>
+          {{/if}}
           <h2>
-            {{#if this.results.more}}
-              <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;
-            {{else}}
-              <span class="glyphicon glyphicon-th-list"></span>&nbsp;
-            {{/if}}
+            <span class="glyphicon glyphicon-th-list"></span>&nbsp;
             {{t "result" key="x_results" count=this.results.count}}
           </h2>
           <div class='list-group'>
@@ -37,7 +54,7 @@
                   <span title={{date item.started_at}}>
                     {{date_ago item.started_at}}
                   </span>
-                  <LinkTo @route="user.log" @models={{array item.user.user_name this.log.id}}>
+                  <LinkTo @route="user.log" @models={{array item.user.user_name item.id}}>
                     {{t "button" count=item.button_count key="button_count"}}
                   </LinkTo>
                   <span> -
@@ -102,6 +119,15 @@
               </a>
             {{/each}}
           </div>
+          {{#if this.has_more}}
+            <div style="margin-top: 10px;">
+              {{#if this.results.loading_more}}
+                <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;{{t "Loading..." key="loading"}}
+              {{else}}
+                <button type="button" class="btn btn-default" {{action "load_more"}}>{{t "Load more" key="load_more"}}</button>
+              {{/if}}
+            </div>
+          {{/if}}
           {{#if this.user_report}}
             <a href="#" {{action "download_list"}}>{{t "Download list as a csv" key="download_as_csv"}}</a>
           {{/if}}

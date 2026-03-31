@@ -1,0 +1,20 @@
+Hello <%= @communicator.settings['name'] || @communicator.display_user_name %>,
+
+<%= @supervisor.settings['name'] || @supervisor.display_user_name %><% if @org %>, at <%= @org.settings['name'] %><% end %>, is requesting <%= @permission_description %> access to your <%= app_name %> account.
+
+This means they would be able to help support your communication by viewing and interacting with your account at the requested level.
+
+You are in control. You can approve or deny this request, and you can remove access at any time from your account settings.
+
+To approve this request, visit:
+<%= @approve_url %>
+
+To deny this request, visit:
+<%= @deny_url %>
+
+This link will expire in 14 days. If you did not expect this request, you can safely ignore this email or deny the request.
+
+If you have questions, contact us at <%= JsonApi::Json.current_host %>/contact
+
+Thanks!
+<%= email_signature %>

@@ -29,24 +29,53 @@ export default Component.extend({
     this.set('model', options);
   },
 
-  didInsertElement() {
+  willDestroy() {
     this._super(...arguments);
+    this.set('_findButtonOpeningSetupDone', false);
+  },
+
+  /**
+   * Tagless component (tagName: '') — didInsertElement never runs. Run setup on
+   * first didRender and/or when modal-dialog invokes opening() (same guard).
+   */
+  ensureFindButtonOpeningOnce() {
+    if (this.get('_findButtonOpeningSetupDone')) {
+      return;
+    }
+    this.set('_findButtonOpeningSetupDone', true);
+    this.runOpeningSetup();
+  },
+
+  didRender() {
+    this._super(...arguments);
+    this.ensureFindButtonOpeningOnce();
+  },
+
+  /**
+   * Resets search state, loads the board button set, and focuses the search field.
+   */
+  runOpeningSetup() {
     this.set('results', null);
     this.set('searchString', '');
     const board = this.get('model.board');
     if (board) {
       board.load_button_set().then((bs) => {
+        if (this.isDestroyed || this.isDestroying) { return; }
         this.set('button_set', bs);
       }, () => {
+        if (this.isDestroyed || this.isDestroying) { return; }
         this.set('button_set', null);
         runLater(() => {
+          if (this.isDestroyed || this.isDestroying) { return; }
           board.load_button_set().then((bs) => {
+            if (this.isDestroyed || this.isDestroying) { return; }
             this.set('button_set', bs);
           }, () => {});
         }, 1000);
       });
     }
     runLater(() => {
+      if (this.isDestroyed || this.isDestroying) { return; }
       const el = document.getElementById('button_search_string');
       if (el) { el.focus(); }
     }, 100);
@@ -105,6 +134,8 @@ export default Component.extend({
                 _this.set('loading', false);
               });
             }
+            // Offline: show full matches immediately, then the promise above narrows to
+            // buttons with local images. Online: same assignments as the branch above.
             _this.set('results', results);
             _this.set('loading', false);
           }, function(err) {
@@ -122,10 +153,12 @@ export default Component.extend({
   }),
 
   actions: {
+    opening() {
+      this.ensureFindButtonOpeningOnce();
+    },
     close() {
       this.get('modal').close();
     },
-    opening() {},
     closing() {},
     pick_result(result) {
       if (!result) {
@@ -134,13 +167,15 @@ export default Component.extend({
       if (!result) { return; }
       const appState = this.get('appState');
       const controller = appState.get('controller');
-      if (result.board_id === editManager.controller.get('model.id')) {
+      const boardController = editManager && editManager.controller;
+      const currentBoard = boardController && boardController.get && boardController.get('model');
+      const onCurrentBoard = currentBoard && result.board_id === currentBoard.get('id');
+      if (onCurrentBoard) {
+        const board = currentBoard;
         const $button = $(".button[data-id='" + result.id + "']");
-        const _this = this;
         modal.highlight($button, { highlight_type: 'button_search' }).then(function() {
-          const button = editManager.find_button(result.id);
-          const board = editManager.controller.get('model');
-          if (controller && controller.activateButton) {
+          const button = editManager && editManager.find_button(result.id);
+          if (controller && controller.activateButton && button && board) {
             controller.activateButton(button, { board: board, trigger_source: 'click' });
           }
         }, function() {});

@@ -63,13 +63,13 @@
       {{#if can_write}}
         {{#unless update_tag_id}}
           <label>
-            <Input type="checkbox" @checked={{write_tag}} />
+            <Input @type="checkbox" @checked={{write_tag}} />
             {{t "Write data to the NFC tag if possible" key="write_data_to_nfc_tag"}}
           </label>
         {{/unless}}
       {{/if}}
       <label>
-        <Input type="checkbox" @checked={{public}} />
+        <Input @type="checkbox" @checked={{public}} />
         {{t "Let others see this data when they tap the tag to their devices" key="share_tag_with_others"}}
       </label>
     {{/unless}}

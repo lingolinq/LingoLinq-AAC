@@ -13,10 +13,12 @@ class Api::UnitsController < ApplicationController
   end
   
   def create
-    org = Organization.find_by_global_id(params['unit']['organization_id'])
-    return unless exists?(org, params['unit']['organization_id'])
+    unit_data = params['unit']
+    unit_data = unit_data.permit! if unit_data.is_a?(ActionController::Parameters)
+    org = Organization.find_by_global_id(unit_data['organization_id'])
+    return unless exists?(org, unit_data['organization_id'])
     return unless allowed?(org, 'edit')
-    @unit = OrganizationUnit.process_new(params['unit'], {:organization => org})
+    @unit = OrganizationUnit.process_new(unit_data, {:organization => org})
     if @unit.errored?
       api_error(400, {error: "unit creation failed", errors: @unit && @unit.processing_errors})
     else
@@ -256,7 +258,9 @@ class Api::UnitsController < ApplicationController
     @unit = OrganizationUnit.find_by_global_id(params['id'])
     return unless exists?(@unit, params['id'])
     return unless allowed?(@unit, 'edit')
-    if @unit.process(params['unit'])
+    unit_update = params['unit']
+    unit_update = unit_update.permit! if unit_update.is_a?(ActionController::Parameters)
+    if @unit.process(unit_update)
       @unit.reload
       render json: JsonApi::Unit.as_json(@unit, :wrapper => true, :permissions => @api_user).to_json
     else

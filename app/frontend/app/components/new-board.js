@@ -18,6 +18,7 @@ import editManager from '../utils/edit_manager';
 export default Component.extend({
   modal: service('modal'),
   router: service('router'),
+  store: service('store'),
   stashes: service('stashes'),
   appState: service('app-state'),
   tagName: '',
@@ -34,8 +35,9 @@ export default Component.extend({
     var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
     this.set('model', LingoLinq.store.createRecord('board', {
       public: false,
+      visibility: 'private',
       license: {type: 'private'},
-      grid: {rows: 2, columns: 4},
+      grid: {rows: 2, columns: 4, labels_order: 'rows'},
       for_user_id: currentUserId ? 'self' : undefined
     }));
     
@@ -48,7 +50,7 @@ export default Component.extend({
       }
     }
     
-    // Restore labels order from stash
+    // Restore labels order from stash (overrides default when present)
     if(this.stashes.get('new_board_labels_order')) {
       this.set('model.grid.labels_order', this.stashes.get('new_board_labels_order'));
     }
@@ -58,8 +60,8 @@ export default Component.extend({
     var pieces = locale.split(/_/);
     if(pieces[0]) { pieces[0] = pieces[0].toLowerCase(); }
     if(pieces[1]) { pieces[1] = pieces[1].toUpperCase(); }
-    locale = pieces[0] + "_" + pieces[1];
-    var locales = i18n.get('locales');
+    locale = pieces[0] + '_' + pieces[1];
+    var locales = (i18n.get && i18n.get('locales')) || {};
     if(locales[locale]) {
       this.set('model.locale', locale);
     } else {
@@ -74,13 +76,17 @@ export default Component.extend({
 
     // Initialize board categories
     var res = [];
-    LingoLinq.board_categories.forEach(function(c) {
+    var categories = LingoLinq.board_categories || [];
+    categories.forEach(function(c) {
       var cat = $.extend({}, c);
       res.push(cat);
     });
     this.set('board_categories', res);
 
-    this.set('has_supervisees', this.appState.get('sessionUser.supervisees.length') > 0 || this.appState.get('sessionUser.managed_orgs.length') > 0);
+    var sessionUser = this.appState.get('sessionUser');
+    var superviseesLen = (sessionUser && sessionUser.supervisees && sessionUser.supervisees.length) || 0;
+    var managedOrgsLen = (sessionUser && sessionUser.managed_orgs && sessionUser.managed_orgs.length) || 0;
+    this.set('has_supervisees', superviseesLen > 0 || managedOrgsLen > 0);
     
     // Initialize preview grid
     this.set('previewRows', this.get('model.grid.rows'));
@@ -125,6 +131,13 @@ export default Component.extend({
 
   license_options: LingoLinq.licenseOptions,
   public_options: LingoLinq.publicOptions,
+
+  createBoardDisabled: computed('model.name', 'model.image_url', 'model.description', 'status.saving', function() {
+    var name = (this.get('model.name') || '').trim();
+    var icon = (this.get('model.image_url') || '').trim();
+    var description = (this.get('model.description') || '').trim();
+    return this.get('status.saving') || name.length === 0 || icon.length === 0 || description.length === 0;
+  }),
 
   attributable_license_type: computed('model.license.type', function() {
     if(this.get('model.license') && this.get('model.license.type') != 'private') {
@@ -206,17 +219,42 @@ export default Component.extend({
 
   actions: {
     close: function() {
-      this.get('modal').close();
+      if(this.get('standalone')) {
+        var onClose = this.get('onClose');
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        } else {
+          var un = this.appState.get('currentUser.user_name');
+          var r = this.get('router');
+          var st = this.get('store');
+          if (un) {
+            r.transitionTo('user.home', un);
+          } else if (st) {
+            st.findRecord('user', 'self').then(function(u) {
+              r.transitionTo('user.home', u.get('user_name'));
+            });
+          } else {
+            r.transitionTo('index');
+          }
+        }
+      } else {
+        this.get('modal').close();
+      }
     },
     importFromHtml: function() {
-      this.get('modal').close();
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
       modalUtil.open('import-from-html');
     },
     generateWithAi: function() {
-      this.get('modal').close();
+      if(!this.get('standalone')) {
+        this.get('modal').close();
+      }
       modalUtil.open('generate-board');
     },
     opening: function() {
+      if (this.get('standalone')) { return; }
       const component = this;
       this.get('modal').setComponent(component);
     },
@@ -238,6 +276,18 @@ export default Component.extend({
     },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
+    },
+    setVisibility: function(value) {
+      this.set('model.visibility', value);
+    },
+    setLicenseType: function(value) {
+      this.set('model.license.type', value);
+    },
+    setLocale: function(value) {
+      this.set('model.locale', value);
+    },
+    setLabelsOrder: function(value) {
+      this.set('model.grid.labels_order', value);
     },
     more_options: function() {
       this.set('more_options', true);
@@ -360,6 +410,13 @@ export default Component.extend({
     },
     saveBoard: function(event) {
       var _this = this;
+      var name = (this.get('model.name') || '').trim();
+      var icon = (this.get('model.image_url') || '').trim();
+      var description = (this.get('model.description') || '').trim();
+      if (!name.length || !icon.length || !description.length) {
+        this.set('status', {error: true});
+        return;
+      }
       this.set('status', {saving: true});
       if(this.get('model.license')) {
         this.set('model.license.copyright_notice_url', LingoLinq.licenseOptions.license_url(this.get('model.license.type')));

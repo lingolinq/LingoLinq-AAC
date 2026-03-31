@@ -57,6 +57,8 @@ LingoLinq.User = DS.Model.extend({
   external_nonce: DS.attr('raw'),
   state_2fa: DS.attr('raw'),
   board_tags: DS.attr('raw'),
+  /** Tag name -> global_id[] for folder UI (same as server user_extra.board_tags). */
+  board_tag_map: DS.attr('raw'),
   focus_words: DS.attr('raw'),
   access_methods: DS.attr('raw'),
   start_codes: DS.attr('raw'),
@@ -105,6 +107,7 @@ LingoLinq.User = DS.Model.extend({
   contacts: DS.attr('raw'),
   goal: DS.attr('raw'),
   pending_board_shares: DS.attr('raw'),
+  pending_supervisor_requests: DS.attr('raw'),
   edit_permission: DS.attr('boolean'),
   cell_phone: DS.attr('string'),
   next_notification_delay: DS.attr('string'),
@@ -907,12 +910,33 @@ LingoLinq.User = DS.Model.extend({
       if(res.tagged) {
         if(res.board_tags) {
           _this.set('board_tags', res.board_tags);
-          _this.reload();
         }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        _this.reload();
         return true;
       } else {
         return RSVP.reject({error: 'tag failed'});
       }
+    });
+  },
+  ensureBoardTag: function(tag) {
+    var _this = this;
+    return this.persistence.ajax('/api/v1/users/' + this.get('id') + '/board_tags/ensure', {
+      type: 'POST',
+      data: { tag: tag }
+    }).then(function(res) {
+      if(res.ok) {
+        if(res.board_tags) {
+          _this.set('board_tags', res.board_tags);
+        }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        return true;
+      }
+      return RSVP.reject({ error: 'ensure tag failed' });
     });
   },
   copy_home_board: function(board, swap_images, home_level) {
@@ -1098,8 +1122,11 @@ LingoLinq.User = DS.Model.extend({
     }
   }),
   toggle_cookies: observer('watch_user_name_and_cookies', 'preferences.cookies', function() {
-    if(this.get('watch_user_name_and_cookies') && this.get('preferences.cookies') != undefined) {
-      this.appState.toggle_cookies(!!this.get('preferences.cookies'));
+    if(this.get('watch_user_name_and_cookies')) {
+      var val = this.get('preferences.cookies');
+      if(val !== undefined && val !== null) {
+        this.appState.toggle_cookies(val === true || val === 'true');
+      }
     }
   }),
   load_word_activities: function() {

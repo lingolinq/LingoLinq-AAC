@@ -1090,7 +1090,7 @@ var capabilities;
             };
             var check_one = function(type) {
               var check_type = (capabilities.sharing.types()[type] || {})[capabilities.system] || type;
-              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-big.png', 'https://www.mylingolinq.com', function() {
+              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-new.png', 'https://www.mylingolinq.com', function() {
                 valids.push(type);
                 all_done();
               }, function() {
@@ -1261,6 +1261,11 @@ var capabilities;
                   dirs.push(e.name);
                 }
               });
+              if(dirs.length === 0) {
+                all_files.size = 0;
+                promise.resolve(all_files);
+                return;
+              }
               var done_dirs = 0;
               dirs.forEach(function(dir) {
                 capabilities.storage.list_files(dir, true).then(function(list) {
@@ -1538,7 +1543,7 @@ var capabilities;
                 writer.onerror = function(err) {
                   promise.reject(err);
                 };
-                if(capabilities.system == 'Android' && capabilities.system.installed_app) {
+                if(capabilities.system == 'Android' && capabilities.installed_app) {
                   var reader = new FileReader();
                   reader.onload = function() {
                     writer.write(this.result);

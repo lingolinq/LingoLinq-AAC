@@ -4105,11 +4105,12 @@ describe LogSession, :type => :model do
       })
       s.reload
       expect(s.data['events'].length).to eq(2)
-      
+
+      dismiss_timestamp = 6.hours.ago.to_i
       LogSession.process_modeling_event({
         'modeling_action' => 'dismiss',
         'modeling_activity_id' => '1f',
-        'timestamp' => 6.hours.ago.to_i,
+        'timestamp' => dismiss_timestamp,
         'modeling_user_ids' => ['1', '2']
       }, {
         user: u, device: d
@@ -4121,7 +4122,7 @@ describe LogSession, :type => :model do
         'modeling_activity_id' => '1f',
         'repeats' => 1,
         'id' => 3,
-        'timestamp' => 6.hours.ago.to_i,
+        'timestamp' => dismiss_timestamp,
         'modeling_user_ids' => ['1', '2'],
         'related_user_ids' => []
       })
@@ -4398,6 +4399,79 @@ describe LogSession, :type => :model do
       end
       expect(LogSession.anonymous_logs([u1.global_id])).to eq({urls: ["http://www.example.com/file.zip"]})
       expect(Permissable.permissions_redis.get('global/anonymous/logs/url')).to eq(["http://www.example.com/file.zip"].to_json)
+    end
+  end
+
+  describe "org data policy enforcement" do
+    it "should strip geo data when org disallows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['geo_logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i, 'geo' => ['1.0', '2.0']}
+        ]
+      }
+      s.save!
+
+      expect(s.data['geo']).to be_nil
+      expect(s.data['ip_address']).to be_nil
+      expect(s.geo_cluster_id).to be_nil
+      expect(s.ip_cluster_id).to be_nil
+    end
+
+    it "should not strip geo data when org allows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['geo_logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i}
+        ]
+      }
+      s.save!
+      expect(s.user.effective_geo_logging_allowed?).to eq(true)
+    end
+
+    it "should set needs_remote_push to false when org disallows logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['logging'] = true
+      u.save
+      d = Device.create(user: u)
+
+      s = LogSession.new(user: u, author: u, device: d)
+      s.data = {
+        'events' => [
+          {'type' => 'button', 'button' => {'label' => 'hello'}, 'timestamp' => Time.now.to_i}
+        ]
+      }
+      s.save!
+
+      expect(s.needs_remote_push).to eq(false)
     end
   end
 end
