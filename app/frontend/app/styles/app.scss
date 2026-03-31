@@ -34390,8 +34390,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   grid-template-areas:
     "boards speak"
     "boards extras"
+    "boards org"
     "boards sup";
-  grid-template-rows: auto 1fr 0;
+  grid-template-rows: auto 1fr auto 0;
   align-items: start;
   max-width: 100%;
   overflow: hidden;
@@ -34402,8 +34403,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     "divider divider"
     "boards speak"
     "boards extras"
+    "boards org"
     "boards sup";
-  grid-template-rows: auto auto auto 1fr 0;
+  grid-template-rows: auto auto auto 1fr auto 0;
 }
 
 .md-grid__divider {
@@ -38543,9 +38545,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-morepill:active { transform: scale(var(--md-tap)); }
 
-/* --- Reports & Extras --- */
+/* --- Reports, Extras & Org --- */
 .md-card--reports { grid-area: reports; }
 .md-card--extras  { grid-area: extras; align-self: end; margin-top: 1rem; }
+.md-card--org     { grid-area: org; }
+.md-card--org .md-card__org-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.md-card--org .md-card__org-list .md-btn {
+  text-align: left;
+}
 .md-card--extras .md-card__extras-wave {
   position: absolute;
   inset: 0;
@@ -40203,8 +40215,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-areas:
       "boards"
       "speak"
-      "extras";
-    grid-template-rows: auto auto auto;
+      "extras"
+      "org";
+    grid-template-rows: auto auto auto auto;
     grid-auto-rows: auto;
   }
   .md-grid .md-card {
@@ -40217,16 +40230,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       "boards"
       "speak"
       "extras"
+      "org"
       "sup";
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "boards"
       "speak"
-      "extras";
-    grid-template-rows: auto auto auto auto;
+      "extras"
+      "org";
+    grid-template-rows: auto auto auto auto auto;
   }
   .md-grid--with-getting-started:has(.md-supervisors-page) {
     grid-template-areas:
@@ -40234,8 +40249,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       "boards"
       "speak"
       "extras"
+      "org"
       "sup";
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";
@@ -40288,16 +40304,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-areas:
       "boards"
       "speak"
-      "extras";
-    grid-template-rows: auto auto auto;
+      "extras"
+      "org";
+    grid-template-rows: auto auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "boards"
       "speak"
-      "extras";
-    grid-template-rows: auto auto auto auto;
+      "extras"
+      "org";
+    grid-template-rows: auto auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";

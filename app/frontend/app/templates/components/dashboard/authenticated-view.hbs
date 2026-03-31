@@ -122,6 +122,27 @@
         <img src={{path "images/extras-wave.png"}} class="md-card__extras-wave" alt="" aria-hidden="true">
       </article>
 
+      {{#if this.has_management_responsibility}}
+      <article class="md-card md-card--org" aria-label={{t "Organization Management" key="org_management"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Organization Management" key="org_management"}}</div>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+          </div>
+        </div>
+        <div class="md-card__org-list">
+          {{#each this.managed_orgs as |org|}}
+            <LinkTo @route="organization" @model={{org.id}} class="md-btn md-btn--primary md-btn--wide">
+              {{org.name}} →
+            </LinkTo>
+          {{/each}}
+        </div>
+      </article>
+      {{/if}}
+
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
