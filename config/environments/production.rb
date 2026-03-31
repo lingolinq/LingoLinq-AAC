@@ -25,8 +25,9 @@ Rails.application.configure do
   # (they don't have nginx in front like traditional deployments)
   config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || ENV['RENDER'].present?
 
-  # Compress JavaScripts and CSS.
-  # uglifier is deprecated, JavaScript compression handled by ember-cli-terser in frontend
+  # CSS compression disabled: SassC cannot handle modern CSS functions
+  # (clamp, calc with mixed units like px + vw). Ember frontend already
+  # outputs minified CSS, so no additional compression is needed.
   config.assets.css_compressor = nil
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.
