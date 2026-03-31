@@ -33,3 +33,21 @@ Single-unit math (e.g. `24px + 8px`) does **not** need `calc()` because SassC ca
 - Setting the compressor to `:sass` forces all CSS through SassC a second time, which **re-triggers the mixed-unit compilation errors** described above, even if the source files are valid browser CSS.
 
 **Do not re-enable `:sass` compression.** If CSS minification is ever needed on the Rails side, use a compressor that does not re-parse Sass (e.g. a simple whitespace/comment stripper).
+
+## Dual Sass Compilers — Know Which One You're Using
+
+The project has **two separate Sass compilers**:
+
+| Compiler | Used by | Files it touches |
+|----------|---------|------------------|
+| **Dart Sass** (modern, maintained) | Ember via `ember-cli-sass` | `app/frontend/app/styles/app.scss` |
+| **SassC / LibSass** (deprecated) | Rails/Sprockets via `sassc-rails` | `app/assets/stylesheets/*.scss` (currently only `header_sizing.scss`) |
+
+**Rule:** Do NOT use modern Sass features in any `.scss` file under `app/assets/stylesheets/`. SassC/LibSass is deprecated and does not support:
+
+- `@use` / `@forward` (use `@import` instead)
+- `color.adjust()`, `color.scale()`, `math.div()` (use the legacy function equivalents)
+- Mixed-unit `calc()` expressions inside Sass arithmetic
+- Other features added after LibSass was deprecated (August 2020)
+
+Modern Sass features are fine in `app/frontend/app/styles/app.scss` — that file is compiled by Dart Sass.
