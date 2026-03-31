@@ -21,11 +21,11 @@
         <p>{{t "It looks like you haven't logged in before on this device. How would you like to proceed?" key="confirm_device_long_token"}}</p>
       {{/if}}
       <div class="login-device-buttons">
-        <button type="button" {{action "login_followup" true}} class={{if this.browserless "login-btn" "login-btn"}}>
+        <button type="button" {{action "login_followup" true}} class="login-btn login-btn--device">
           <span class="login-btn__title">{{t "Trust this Device" key="trust_this_device"}}</span>
           <span class="login-btn__sub">{{t "Keep me logged in" key="keep_me_logged_in"}}</span>
         </button>
-        <button type="button" {{action "login_followup" false}} class="login-btn login-btn--outline">
+        <button type="button" {{action "login_followup" false}} class="login-btn login-btn--outline login-btn--device">
           <span class="login-btn__title">{{t "This is a Shared Device" key="not_trust_this_device"}}</span>
           <span class="login-btn__sub">{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</span>
         </button>

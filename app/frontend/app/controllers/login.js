@@ -6,5 +6,6 @@ import stashes from '../utils/_stashes';
 
 export default Controller.extend({
   router: service('router'),
+  appState: service('app-state'),
   title: "Login"
 });

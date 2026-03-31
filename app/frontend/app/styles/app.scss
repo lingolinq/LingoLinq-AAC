@@ -33517,9 +33517,16 @@ a.la-footer-bottom-a11y-wcag {
   }
 }
 
-/* Device activation step (login/device): same button styles as main login card */
-.login-device-buttons .login-btn + .login-btn {
-  margin-top: 10px;
+/* Device activation step (login/device): full-width centered buttons */
+.login-device-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.login-btn--device {
+  width: 100%;
+  max-width: 400px;
 }
 
 .login-error {
@@ -34390,8 +34397,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   grid-template-areas:
     "boards speak"
     "boards extras"
-    "boards org"
-    "boards sup";
+    ". org"
+    ". sup";
   grid-template-rows: auto 1fr auto 0;
   align-items: start;
   max-width: 100%;
@@ -34403,8 +34410,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     "divider divider"
     "boards speak"
     "boards extras"
-    "boards org"
-    "boards sup";
+    ". org"
+    ". sup";
   grid-template-rows: auto auto auto 1fr auto 0;
 }
 
@@ -37059,7 +37066,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Boards card: same height as left column (top of speak to bottom of extras), shortened by 2rem */
 .md-card--boards {
   align-self: stretch;
-  height: calc(100% - 2.75rem);
+  height: 100%;
   padding-right: calc(18px + 0.25rem);
   display: flex;
   flex-direction: column;
@@ -37330,9 +37337,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* --- Speak Card --- */
 .md-card--speak { grid-area: speak; padding-bottom: 20px; overflow: visible; position: relative; }
 .md-card--speak .md-card__head,
-.md-card--speak .md-card__row {
+.md-card--speak .md-card__row,
+.md-card--speak .md-card__org-list {
   position: relative;
   z-index: 1;
+}
+.md-card--speak:has(.md-card__org-list) {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(18px + 1rem);
+}
+.md-card--speak .md-card__org-list {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 2rem;
 }
 .md-card__icon {
   width: 46px;
@@ -38547,7 +38566,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* --- Reports, Extras & Org --- */
 .md-card--reports { grid-area: reports; }
-.md-card--extras  { grid-area: extras; align-self: end; margin-top: 1rem; }
+.md-card--extras  { grid-area: extras; align-self: end; }
 .md-card--org     { grid-area: org; }
 .md-card--org .md-card__org-list {
   display: flex;
@@ -40215,9 +40234,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-areas:
       "boards"
       "speak"
+
       "extras"
       "org";
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     grid-auto-rows: auto;
   }
   .md-grid .md-card {
@@ -40229,29 +40249,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-areas:
       "boards"
       "speak"
+
       "extras"
       "org"
       "sup";
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "boards"
       "speak"
+
       "extras"
       "org";
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto auto;
   }
   .md-grid--with-getting-started:has(.md-supervisors-page) {
     grid-template-areas:
       "getting_started"
       "boards"
       "speak"
+
       "extras"
       "org"
       "sup";
-    grid-template-rows: auto auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";
@@ -40304,18 +40327,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-areas:
       "boards"
       "speak"
+
       "extras"
       "org";
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
   }
   .md-grid--with-getting-started {
     grid-template-areas:
       "getting_started"
       "boards"
       "speak"
+
       "extras"
       "org";
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto auto;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards";
@@ -43945,6 +43970,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-header__sub--collapsed {
   display: -webkit-box;
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -45179,9 +45205,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 // Custom user-picked color (inline style applied via save)
-.md-board-detail-symbol-card--custom {
-  // Colors set via inline style from save_button_color
-}
+// .md-board-detail-symbol-card--custom { Colors set via inline style from save_button_color }
 
 .md-board-detail-grid__cell {
   position: relative;
