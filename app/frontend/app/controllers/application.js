@@ -36,8 +36,8 @@ export default Controller.extend({
   board: inject('board.index'),
   session: session,
 
-  isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', function() {
-    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser');
+  isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', 'appState.current_route', function() {
+    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser') || this.appState.get('current_route') === 'login.device';
   }),
 
   landingNavOpen: false,
@@ -1828,7 +1828,8 @@ export default Controller.extend({
       route === 'faq' ||
       route === 'beta-feedback' ||
       route === 'contact' ||
-      route === 'troubleshooting') {
+      route === 'troubleshooting' ||
+      route === 'login.device') {
       return true;
     }
     // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure

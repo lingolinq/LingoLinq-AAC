@@ -30,6 +30,11 @@ export default Component.extend({
     return app && !!app.get('isSessionAuthenticated');
   }),
 
+  /** True on login.device route — hide search, upgrade, and user controls. */
+  isDevicePage: computed('appState.current_route', function() {
+    return this.appState.get('current_route') === 'login.device';
+  }),
+
   /** Hide "Modern Dashboard" nav link when already on dashboard home (/username/home). */
   isOnUserHomeDashboard: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.home';

@@ -1,9 +1,9 @@
 <div class="app-navbar__inner">
   {{#if (has-block)}}
     {{yield}}
-  {{else if this.isAuthenticated}}
-    {{!-- Single baseline: reusable authenticated inner (index + modern-dashboard). Modern Dashboard link only on authenticated view (index). --}}
-    <AppNavbarAuthenticatedInner @onSupport={{this.onSupport}} @showModernDashboardLink={{this.showModernDashboardLink}} />
+  {{else if (or this.isAuthenticated this.isDevicePage)}}
+    {{!-- Single baseline: reusable authenticated inner (index + modern-dashboard + device page). --}}
+    <AppNavbarAuthenticatedInner @onSupport={{this.onSupport}} @showModernDashboardLink={{this.showModernDashboardLink}} @isDevicePage={{this.isDevicePage}} />
   {{else}}
     {{!-- Unauthenticated: brand (logo + app name) + landing-alt style (Features, Pricing, About, Try Free). Reuses LaMobileDrawer for collapse. --}}
     {{#unless this.appState.installed_app}}
