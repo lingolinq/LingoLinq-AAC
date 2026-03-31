@@ -28574,7 +28574,7 @@ $la-mockup-blue-bg:    $cat-actions-bg;
 
 // ── Footer (modern) ───────────────────────────────────────────────────────────
 .la-footer {
-  padding: $aac-spacing-48 clamp($aac-spacing-16, 4vw + $aac-spacing-12, $aac-spacing-32) $aac-spacing-40;
+  padding: $aac-spacing-48 clamp(#{$aac-spacing-16}, calc(4vw + #{$aac-spacing-12}), #{$aac-spacing-32}) $aac-spacing-40;
   margin-top: 0;
   background: rgba($la-navy, 0.03);
   border-top: none;
@@ -32464,7 +32464,7 @@ a.la-footer-bottom-a11y-wcag {
     gap: $aac-spacing-16 $aac-spacing-20;
   }
   .la-stat-cell {
-    flex: 1 1 calc(50% - $aac-spacing-20);
+    flex: 1 1 calc(50% - #{$aac-spacing-20});
     max-width: none;
   }
 
