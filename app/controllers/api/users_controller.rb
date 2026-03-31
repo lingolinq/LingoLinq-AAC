@@ -431,6 +431,34 @@ class Api::UsersController < ApplicationController
     end
   end
 
+  def rename_board_tag
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'model')
+    extra = UserExtra.find_or_create_by(user: user)
+    res = extra.rename_board_tag(params['old_tag'], params['new_tag'])
+    if res
+      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
+    else
+      api_error 400, {error: 'invalid rename'}
+    end
+  end
+
+  def delete_board_tag
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'model')
+    extra = UserExtra.find_or_create_by(user: user)
+    res = extra.delete_board_tag_folder(params['tag'])
+    if res
+      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
+    else
+      api_error 400, {error: 'invalid tag'}
+    end
+  end
+
   def history
     user_id = nil
     user = User.find_by_path(params['user_id'])

@@ -12,10 +12,15 @@ export default Component.extend({
 
   appState: service('app-state'),
   modal: service('modal'),
+  persistence: service('persistence'),
   store: service('store'),
 
   /** @type {string} id attribute for filter input (avoid duplicate ids on dashboard embed). */
   filterInputId: 'ub-boards-filter-input',
+
+  editingFolderName: false,
+  editFolderNameValue: '',
+  confirmingFolderDelete: false,
 
   /** id for drag hint when the grid should reference it (omit when drilled into a folder). */
   boardGridAriaDescribedby: computed(
@@ -59,7 +64,9 @@ export default Component.extend({
     folderDrop(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       var el = event && event.currentTarget;
-      if (el && el.classList) { el.classList.remove('ub-boards-page__tag-folder--dropping'); }
+      if (el && el.classList) {
+        el.classList.remove('ub-boards-page__tag-folder--dropping');
+      }
       var raw = event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '';
       var parts = (raw || '').split('|');
       var boardId = parts[0];
@@ -77,11 +84,48 @@ export default Component.extend({
           });
         }
         return user.tag_board(board, tag, false, false);
+      }).then(function() {
+        // Force board list to recompute and update filtered results
+        if (ctrl) {
+          ctrl.notifyPropertyChange('model.board_tag_map');
+          ctrl.notifyPropertyChange('board_list');
+          var bl = ctrl.get('board_list');
+          if (bl) {
+            ctrl.set('last_filtered_results_key', bl.filtered_results_key);
+            ctrl.set('filtered_results', bl.filtered_results);
+          }
+        }
+        // Ember re-renders the folder list after the API call updates the model.
+        // Wait for the next render cycle, then find the fresh DOM element and animate it.
+        setTimeout(function() {
+          var folders = document.querySelectorAll('.ub-boards-page__tag-folder');
+          var freshEl = null;
+          folders.forEach(function(f) {
+            var nameEl = f.querySelector('.ub-boards-page__tag-folder-name');
+            if (nameEl && nameEl.textContent.trim() === tag) {
+              freshEl = f;
+            }
+          });
+          if (freshEl) {
+            freshEl.classList.add('ub-boards-page__tag-folder--animating');
+            setTimeout(function() {
+              freshEl.classList.remove('ub-boards-page__tag-folder--animating');
+            }, 1500);
+          }
+          // Keep hover disabled for 5 seconds after drop animation
+          var strip = document.querySelector('.ub-boards-page__folder-strip');
+          if (strip) { strip.classList.add('ub-boards-page__folder-strip--no-hover'); }
+          setTimeout(function() {
+            if (strip) { strip.classList.remove('ub-boards-page__folder-strip--no-hover'); }
+          }, 5000);
+        }, 100);
       }).catch(function() {
         modalSvc.error(i18n.t('folder_tag_failed', "Could not update folder for this board."));
       });
     },
     boardDragStart(board, event) {
+      var strip = document.querySelector('.ub-boards-page__folder-strip');
+      if (strip) { strip.classList.add('ub-boards-page__folder-strip--no-hover'); }
       var ctrl = this.get('boardsCtrl');
       var tag = ctrl && ctrl.get('mineTagFolderDrillIn');
       var gid = board && board.get ? board.get('id') : '';
@@ -98,6 +142,111 @@ export default Component.extend({
         board: null,
         boardChoices: ctrl.get('model.my_boards')
       });
+    },
+    startFolderRename() {
+      var ctrl = this.get('boardsCtrl');
+      var currentName = ctrl && ctrl.get('mineTagFolderDrillIn');
+      this.set('editFolderNameValue', currentName || '');
+      this.set('editingFolderName', true);
+      setTimeout(function() {
+        var input = document.querySelector('.ub-boards-page__folder-rename-input');
+        if (input) { input.focus(); input.select(); }
+      }, 50);
+    },
+    cancelFolderRename() {
+      this.set('editingFolderName', false);
+      this.set('editFolderNameValue', '');
+    },
+    saveFolderRename() {
+      var _this = this;
+      var ctrl = this.get('boardsCtrl');
+      var user = ctrl && ctrl.get('model');
+      var oldName = ctrl && ctrl.get('mineTagFolderDrillIn');
+      var newName = (this.get('editFolderNameValue') || '').trim();
+      if (!newName || !user || !oldName || newName === oldName) {
+        this.set('editingFolderName', false);
+        return;
+      }
+
+      // Single API call to rename the folder key on the server
+      this.get('persistence').ajax('/api/v1/users/' + user.get('id') + '/board_tags/rename', {
+        type: 'POST',
+        data: { old_tag: oldName, new_tag: newName }
+      }).then(function(res) {
+        if (res && res.board_tag_map) {
+          user.set('board_tag_map', res.board_tag_map);
+        }
+        if (res && res.board_tags) {
+          user.set('board_tags', res.board_tags);
+        }
+        _this.set('editingFolderName', false);
+        _this.set('editFolderNameValue', '');
+        ctrl.set('mineTagFolderDrillIn', newName);
+
+        ctrl.notifyPropertyChange('model.board_tag_map');
+        ctrl.notifyPropertyChange('model.board_tags');
+        ctrl.notifyPropertyChange('board_list');
+        var bl = ctrl.get('board_list');
+        if (bl) {
+          ctrl.set('last_filtered_results_key', bl.filtered_results_key);
+          ctrl.set('filtered_results', bl.filtered_results);
+        }
+      }, function(err) {
+        console.error('Folder rename failed:', err);
+        _this.set('editingFolderName', false);
+      });
+    },
+    startDeleteFolder() {
+      this.set('confirmingFolderDelete', true);
+    },
+    cancelDeleteFolder() {
+      this.set('confirmingFolderDelete', false);
+    },
+    confirmDeleteFolder() {
+      var _this = this;
+      var ctrl = this.get('boardsCtrl');
+      var user = ctrl && ctrl.get('model');
+      var tag = ctrl && ctrl.get('mineTagFolderDrillIn');
+      if (!user || !tag) { return; }
+
+      this.get('persistence').ajax('/api/v1/users/' + user.get('id') + '/board_tags/delete', {
+        type: 'POST',
+        data: { tag: tag }
+      }).then(function(res) {
+        if (res && res.board_tag_map) {
+          user.set('board_tag_map', res.board_tag_map);
+        }
+        if (res && res.board_tags) {
+          user.set('board_tags', res.board_tags);
+        }
+        _this.set('confirmingFolderDelete', false);
+        ctrl.set('mineTagFolderDrillIn', null);
+        ctrl.set('show_all_boards', false);
+        ctrl.set('boards_display_limit', null);
+        ctrl.notifyPropertyChange('model.board_tag_map');
+        ctrl.notifyPropertyChange('model.board_tags');
+        ctrl.notifyPropertyChange('board_list');
+        var bl = ctrl.get('board_list');
+        if (bl) {
+          ctrl.set('last_filtered_results_key', bl.filtered_results_key);
+          ctrl.set('filtered_results', bl.filtered_results);
+        }
+      }, function(err) {
+        console.error('Folder delete failed:', err);
+        _this.set('confirmingFolderDelete', false);
+      });
+    },
+    exitMineFolderTag() {
+      var ctrl = this.get('boardsCtrl');
+      if (!ctrl) { return; }
+      ctrl.set('mineTagFolderDrillIn', null);
+      ctrl.set('show_all_boards', false);
+      ctrl.set('boards_display_limit', null);
+      var bl = ctrl.get('board_list');
+      if (bl) {
+        ctrl.set('last_filtered_results_key', bl.filtered_results_key);
+        ctrl.set('filtered_results', bl.filtered_results);
+      }
     }
   }
 });

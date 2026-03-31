@@ -462,15 +462,40 @@ export default Controller.extend({
               if (gid) { idsInDrill[gid] = true; }
             });
           }
+          var isTagged = function(board) {
+            if (!board || !board.get) { return false; }
+            var gid = board.get('global_id');
+            if (gid && taggedSet[gid]) { return true; }
+            var bid = board.get('id');
+            if (bid && bid !== gid && taggedSet[bid]) { return true; }
+            return false;
+          };
+          var isInDrill = function(board) {
+            if (!board || !board.get) { return false; }
+            var gid = board.get('global_id');
+            if (gid && idsInDrill[gid]) { return true; }
+            var bid = board.get('id');
+            if (bid && bid !== gid && idsInDrill[bid]) { return true; }
+            return false;
+          };
           new_list = new_list.filter(function(row) {
             if (row.orphan) { return !drill; }
-            var gid = row.board && row.board.get && row.board.get('global_id');
-            if (!gid) { return true; }
+            if (!row.board || !row.board.get) { return true; }
             if (drill) {
-              return !!idsInDrill[gid];
+              return isInDrill(row.board);
             }
-            return !taggedSet[gid];
+            return !isTagged(row.board);
           });
+          // Also filter tagged children out of grouped rows
+          if (!drill) {
+            new_list.forEach(function(row) {
+              if (row.children && row.children.length) {
+                row.children = row.children.filter(function(child) {
+                  return !isTagged(child.board);
+                });
+              }
+            });
+          }
         }
       }
       /* if(this.get('filterString')) {
@@ -822,6 +847,13 @@ export default Controller.extend({
     },
     exitMineFolderTag: function() {
       this.set('mineTagFolderDrillIn', null);
+      this.set('show_all_boards', false);
+      this.set('boards_display_limit', null);
+      var bl = this.get('board_list');
+      if (bl) {
+        this.set('last_filtered_results_key', bl.filtered_results_key);
+        this.set('filtered_results', bl.filtered_results);
+      }
     },
     openNewBoardFolderModal: function() {
       modal.open('new-board-folder', { user: this.get('model') });

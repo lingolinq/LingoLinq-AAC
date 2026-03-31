@@ -1,21 +1,21 @@
 {{#modal-dialog action=(action "close") opening=(action "opening")}}
   <div class="la-new-board-folder-wrap">
-    <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
-      <h3>{{t "New folder" key="new_board_folder_title"}}</h3>
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "New Folder" key="new_board_folder_title"}}</span>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
     </div>
-    <div class="modal-body">
+    <form class="la-new-board-folder-body" {{action "submit" on="submit"}}>
       <label class="la-new-board-folder-label" for="new-board-folder-name">{{t "Folder name" key="new_board_folder_name_label"}}</label>
       <Input id="new-board-folder-name" class="la-new-board-folder-input" @type="text" @value={{this.folderName}} placeholder={{t "Enter folder name" key="new_board_folder_placeholder"}} />
       {{#if this.status.error}}
         <p class="la-new-board-folder-error">{{t "Please enter a valid folder name." key="new_board_folder_error"}}</p>
       {{/if}}
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="md-btn md-btn--primary" disabled={{this.status.loading}} {{action "submit"}}>
-        {{#if this.status.loading}}{{t "Creating..." key="creating"}}{{else}}{{t "Create" key="create"}}{{/if}}
-      </button>
-      <a href="#" class="la-new-board-folder-cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
-    </div>
+      <div class="la-new-board-folder-actions">
+        <button type="submit" class="la-btn la-btn--primary" disabled={{this.submitDisabled}}>
+          {{#if this.status.loading}}{{t "Creating..." key="creating"}}{{else}}{{t "Create" key="create"}}{{/if}}
+        </button>
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </div>
+    </form>
   </div>
 {{/modal-dialog}}

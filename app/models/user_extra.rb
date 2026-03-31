@@ -133,6 +133,18 @@ class UserExtra < ApplicationRecord
     self.settings['board_tags'].keys.sort
   end
 
+  # Rename a tag key, preserving its board list.
+  def rename_board_tag(old_tag, new_tag)
+    old_tag = old_tag.to_s.strip
+    new_tag = new_tag.to_s.strip
+    return nil if old_tag.blank? || new_tag.blank? || old_tag == new_tag
+    self.settings['board_tags'] ||= {}
+    return nil unless self.settings['board_tags'].key?(old_tag)
+    self.settings['board_tags'][new_tag] = self.settings['board_tags'].delete(old_tag)
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
   # Remove a tag key entirely (delete folder).
   def delete_board_tag_folder(tag)
     tag = tag.to_s.strip

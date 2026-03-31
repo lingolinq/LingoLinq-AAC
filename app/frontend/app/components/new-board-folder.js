@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import modal from '../utils/modal';
@@ -8,6 +9,10 @@ export default Component.extend({
   tagName: '',
   folderName: '',
   status: null,
+
+  submitDisabled: computed('folderName', 'status.loading', function() {
+    return !(this.get('folderName') || '').trim() || this.get('status.loading');
+  }),
 
   init() {
     this._super(...arguments);
@@ -26,6 +31,10 @@ export default Component.extend({
     opening() {
       this.set('folderName', '');
       this.set('status', null);
+      setTimeout(function() {
+        var input = document.getElementById('new-board-folder-name');
+        if (input) { input.focus(); input.select(); }
+      }, 150);
     },
     submit() {
       var name = (this.get('folderName') || '').trim();
