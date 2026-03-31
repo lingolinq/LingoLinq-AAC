@@ -48,9 +48,13 @@ fi
 npx ember build --environment production
 cd ../..
 
-echo "=== Copying Ember CSS into Rails asset path ==="
+echo "=== Copying Ember build output into Rails asset paths ==="
+cp -f app/frontend/dist/assets/frontend.js  app/assets/javascripts/frontend.js
+cp -f app/frontend/dist/assets/vendor.js    app/assets/javascripts/vendor.js
 cp -f app/frontend/dist/assets/frontend.css app/assets/stylesheets/frontend.css
 cp -f app/frontend/dist/assets/vendor.css   app/assets/stylesheets/vendor.css
+echo "frontend.js:  $(wc -c < app/assets/javascripts/frontend.js) bytes"
+echo "vendor.js:    $(wc -c < app/assets/javascripts/vendor.js) bytes"
 echo "frontend.css: $(wc -c < app/assets/stylesheets/frontend.css) bytes"
 echo "vendor.css:   $(wc -c < app/assets/stylesheets/vendor.css) bytes"
 

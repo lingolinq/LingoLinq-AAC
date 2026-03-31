@@ -30,16 +30,20 @@ task "extras:assert_js" do
   `mkdir -p ./app/frontend/dist/assets`
   `cp -n ./app/frontend/frontend-placeholder.js ./app/frontend/dist/assets/frontend.js`
   `touch ./app/frontend/dist/assets/vendor.js`
-  `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/frontend.js frontend.js`
-  `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/vendor.js vendor.js`
-  # Copy Ember CSS into Rails asset path (symlinks break on WSL/Windows)
   `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
   `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
-  # Remove any existing files/symlinks before copying to avoid "same file" errors
-  ['vendor.css', 'frontend.css'].each do |f|
+  # Copy Ember JS and CSS into Rails asset paths (symlinks break on WSL/Windows and
+  # can be checked out as text files by git when core.symlinks=false)
+  %w[frontend.js vendor.js].each do |f|
+    dest = "./app/assets/javascripts/#{f}"
+    File.delete(dest) if File.exist?(dest) || File.symlink?(dest)
+  end
+  %w[vendor.css frontend.css].each do |f|
     dest = "./app/assets/stylesheets/#{f}"
     File.delete(dest) if File.exist?(dest) || File.symlink?(dest)
   end
+  `cp ./app/frontend/dist/assets/frontend.js ./app/assets/javascripts/frontend.js`
+  `cp ./app/frontend/dist/assets/vendor.js   ./app/assets/javascripts/vendor.js`
   `cp ./app/frontend/dist/assets/vendor.css  ./app/assets/stylesheets/vendor.css`
   `cp ./app/frontend/dist/assets/frontend.css ./app/assets/stylesheets/frontend.css`
 end
