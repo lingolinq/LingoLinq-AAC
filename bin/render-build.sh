@@ -59,7 +59,11 @@ echo "frontend.css: $(wc -c < app/assets/stylesheets/frontend.css) bytes"
 echo "vendor.css:   $(wc -c < app/assets/stylesheets/vendor.css) bytes"
 
 echo "=== Compiling Rails Assets ==="
+# Clobber stale Sprockets cache and precompiled assets to force a clean build.
+# Without this, Sprockets may serve cached output from a previous build even
+# though the Ember-compiled frontend.js/frontend.css have changed.
+rm -rf tmp/cache/assets
+bundle exec rake assets:clobber
 bundle exec rake assets:precompile
-bundle exec rake assets:clean
 
 echo "=== Build Complete ==="
