@@ -46,6 +46,7 @@ export default Controller.extend({
   panels_collapsed: false,
   edit_mode: false,
   board_collapsed: true,
+  inlineSidebarOpen: false,
   color_picker_button: null,
   custom_color_value: null,
   show_paint_color_picker: false,
@@ -1446,6 +1447,22 @@ export default Controller.extend({
       } else if(item_id === 'goal-tracking') {
         this.get('router').transitionTo('user.goals', un);
       }
+    },
+
+    toggleInlineSidebar: function() {
+      this.toggleProperty('inlineSidebarOpen');
+    },
+    sidebar_jump: function(key, board) {
+      var user = this.get('user');
+      if (!user || !key) { return; }
+      var un = user.get('user_name');
+      var boardname = key.split('/').slice(1).join('/');
+      if (boardname) {
+        this.get('router').transitionTo('user.board-detail', un, boardname);
+      }
+    },
+    sidebar_alert: function() {
+      // placeholder for sidebar alert action
     },
 
     // ── Edit Toolbar Actions ──

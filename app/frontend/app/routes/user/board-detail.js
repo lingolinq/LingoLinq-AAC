@@ -142,6 +142,12 @@ export default Route.extend({
     if(model.prefetch_linked_boards) {
       model.prefetch_linked_boards();
     }
+
+    // Board-detail operates as speak mode — activate it if not already active
+    if(_this.stashes.get('current_mode') !== 'speak') {
+      controller.set('_was_not_speak_mode', true);
+      _this.stashes.persist('current_mode', 'speak');
+    }
   },
 
   resetController: function(controller, isExiting) {
@@ -154,6 +160,11 @@ export default Route.extend({
       controller.set('color_picker_button', null);
       if(editManager.controller === controller) {
         editManager.controller = null;
+      }
+      // Restore previous mode if we activated speak mode on entry
+      if(controller.get('_was_not_speak_mode')) {
+        controller.set('_was_not_speak_mode', false);
+        this.stashes.persist('current_mode', 'default');
       }
     }
   }

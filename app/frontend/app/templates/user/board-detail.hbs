@@ -271,6 +271,35 @@
         {{/if}}
       </div>
       </div>
+      {{#unless this.edit_mode}}
+        <div class="md-board-detail-tease-row">
+          <button type="button"
+            class="md-board-detail-collapse-btn"
+            title={{if this.board_collapsed (t "Show header" key="board_detail_show_header") (t "Hide header" key="board_detail_hide_header")}}
+            {{action "toggle_board_collapsed"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              {{#if this.board_collapsed}}
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              {{else}}
+                <polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+              {{/if}}
+            </svg>
+          </button>
+          <button type="button" class="md-board-detail-sidebar-toggle {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} {{action "toggleInlineSidebar"}}>
+            {{#if this.inlineSidebarOpen}}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="18 15 12 9 6 15"></polyline>
+                <polyline points="18 20 12 14 6 20"></polyline>
+              </svg>
+            {{else}}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+                <polyline points="6 14 12 20 18 14"></polyline>
+              </svg>
+            {{/if}}
+          </button>
+        </div>
+      {{/unless}}
 
       {{!-- Word Suggestions --}}
       {{#if this.show_word_suggestions}}
@@ -794,22 +823,7 @@
 
       </div>
 
-      <div class="md-board-detail-divider">
-        {{#unless this.edit_mode}}
-          <button type="button"
-            class="md-board-detail-collapse-btn"
-            title={{if this.board_collapsed (t "Show header" key="board_detail_show_header") (t "Hide header" key="board_detail_hide_header")}}
-            {{action "toggle_board_collapsed"}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              {{#if this.board_collapsed}}
-                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-              {{else}}
-                <polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
-              {{/if}}
-            </svg>
-          </button>
-        {{/unless}}
-      </div>
+      <div class="md-board-detail-divider"></div>
 
       {{!-- Loading indicator --}}
       {{#if this.board_saving}}
@@ -818,6 +832,9 @@
           <span class="md-board-detail-loading__text">{{t "Saving..." key="board_detail_saving"}}</span>
         </div>
       {{/if}}
+
+      {{!-- Grid + Sidebar wrapper --}}
+      <div class="md-board-detail-grid-sidebar-wrap">
 
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
@@ -991,6 +1008,29 @@
         {{/unless}}
       </div>
       {{/button-listener}}
+
+      {{!-- Inline Sidebar Boards (speak mode navigation) --}}
+      {{#unless this.edit_mode}}
+        {{#if this.inlineSidebarOpen}}
+          <div class="md-board-detail-inline-sidebar">
+            {{#each this.app_state.sidebar_boards as |board|}}
+              {{#if board.alert}}
+                <a href="#" {{action "sidebar_alert"}} class="md-board-detail-inline-sidebar__item">
+                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                </a>
+              {{else}}
+                <a href="#" class="md-board-detail-inline-sidebar__item" {{action "sidebar_jump" board.key board}}>
+                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                </a>
+              {{/if}}
+            {{/each}}
+          </div>
+        {{/if}}
+      {{/unless}}
+
+      </div>{{!-- /.md-board-detail-grid-sidebar-wrap --}}
 
     </main>
 
