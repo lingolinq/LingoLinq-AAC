@@ -3,7 +3,7 @@ services:
     name: LingoLinq-AAC
     runtime: ruby
     plan: starter
-    branch: main
+    branch: staging
     healthCheckPath: /api/v1/health
     previews:
       generation: automatic
@@ -48,7 +48,7 @@ services:
     name: LingoLinq-AAC-Worker
     runtime: ruby
     plan: starter
-    branch: main
+    branch: staging
     previews:
       generation: automatic
       expireAfterDays: 7

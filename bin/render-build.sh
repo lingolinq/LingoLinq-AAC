@@ -48,6 +48,12 @@ fi
 npx ember build --environment production
 cd ../..
 
+echo "=== Copying Ember CSS into Rails asset path ==="
+cp -f app/frontend/dist/assets/frontend.css app/assets/stylesheets/frontend.css
+cp -f app/frontend/dist/assets/vendor.css   app/assets/stylesheets/vendor.css
+echo "frontend.css: $(wc -c < app/assets/stylesheets/frontend.css) bytes"
+echo "vendor.css:   $(wc -c < app/assets/stylesheets/vendor.css) bytes"
+
 echo "=== Compiling Rails Assets ==="
 bundle exec rake assets:precompile
 bundle exec rake assets:clean
