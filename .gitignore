@@ -25,6 +25,10 @@
 /app/frontend/tmp/
 /app/assets/javascripts/frontend/bower_components/
 
+# Ember CSS — copied (not symlinked) into Rails asset path during build
+/app/assets/stylesheets/frontend.css
+/app/assets/stylesheets/vendor.css
+
 /coverage
 
 .DS_Store
