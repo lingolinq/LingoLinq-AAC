@@ -1781,8 +1781,15 @@ export default Controller.extend({
   /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
   showBentoPageWithFooter: computed('footer', 'appState.index_or_landing_view', 'appState.current_route', function() {
     var route = this.appState.get('current_route');
+    var userSubRoutes = [
+      'home-boards', 'user.index', 'user.preferences', 'user.account',
+      'user.subscription', 'user.edit', 'user.stats', 'user.boards',
+      'user.goals', 'user.goal', 'user.logs', 'user.log', 'user.badges',
+      'user.device', 'user.history', 'user.recordings', 'user.lessons',
+      'user.focus', 'user.board-detail'
+    ];
     return this.get('footer') &&
-      (this.appState.get('index_or_landing_view') || route === 'home-boards') &&
+      (this.appState.get('index_or_landing_view') || userSubRoutes.indexOf(route) !== -1) &&
       route !== 'landing';
   }),
   /** True when the top navbar should use bento styling and contents (index/landing or user.stats with currentUser). */
