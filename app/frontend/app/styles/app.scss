@@ -454,14 +454,26 @@ body:has(#within_ember.bento-page-with-footer) {
   min-height: 0;
   min-width: 0;
 }
+/* Collapse only truly empty ember-view wrappers (route transition placeholders).
+   Non-empty views are visible by default so new pages don't need an allowlist entry. */
 #within_ember.bento-page-with-footer #content > .ember-view:empty,
-#within_ember.bento-page-with-footer #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)):not(:has(.login-page-bg)):not(:has(.search-page)),
-#within_ember:has(.page-footer) #content > .ember-view:empty,
-#within_ember:has(.page-footer) #content > .ember-view:not(:has(#index_view)):not(:has(.md-shell)):not(:has(.la-wrapper)):not(:has(.login-page-bg)):not(:has(.search-page)) {
+#within_ember:has(.page-footer) #content > .ember-view:empty {
   flex: 0 0 0;
   min-height: 0;
   height: 0;
   overflow: hidden;
+}
+/* General fallback: any non-empty ember-view outlet sizes to its content so #content can scroll.
+   Specific page rules below can override if needed. */
+#within_ember.bento-page-with-footer #content > .ember-view:not(:empty),
+#within_ember:has(.page-footer) #content > .ember-view:not(:empty) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 /* Login, register, forgot password/username: same as .la-wrapper so content is visible and #content scrolls */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.login-page-bg),
@@ -507,6 +519,25 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
+/* User settings pages (preferences, billing, edit profile, account index):
+   outlet grows with content; #content scrolls (same pattern as stats/search) */
+#within_ember.bento-page-with-footer #content > .ember-view:has(.md-preferences),
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-preferences),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.md-billing),
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-billing),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.md-edit-profile),
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-edit-profile),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.md-hero),
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-hero) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
 /* #index_view as direct child of #content (outlet may render with or without .ember-view wrapper). */
 #within_ember.bento-page-with-footer #content > #index_view,
 #within_ember:has(.page-footer) #content > #index_view {
