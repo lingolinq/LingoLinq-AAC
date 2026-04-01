@@ -37072,6 +37072,35 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column;
   padding-bottom: 18px; /* same as extras card */
 }
+.md-card__empty {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  gap: 1rem;
+}
+.md-card__empty-icon {
+  width: 73px;
+  height: 73px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(70, 80, 95, 0.05);
+  border: 1px solid rgba(70, 80, 95, 0.07);
+  margin-bottom: 0.5rem;
+}
+.md-card__empty-text {
+  font-size: 1.69rem;
+  color: rgba(70, 80, 95, 0.45);
+  margin: 0;
+  font-weight: 400;
+}
+.md-card__empty .md-btn {
+  margin-top: 0.75rem;
+}
 .md-card--boards .md-strip {
   flex: 1 1 0;
   min-height: 0;

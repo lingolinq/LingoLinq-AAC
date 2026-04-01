@@ -469,11 +469,21 @@ export default Component.extend({
       return o.type == 'manager' && o.restricted != true; 
     });
   }),
-  has_management_responsibility: computed('managed_orgs', function() {
-    return (this.get('managed_orgs') || []).length > 0;
+  has_management_responsibility: computed('managed_orgs', 'appState.currentUser.supporter_role', function() {
+    return (this.get('managed_orgs') || []).length > 0 || this.appState.get('currentUser.supporter_role');
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
+  }),
+  all_orgs: computed('managed_orgs', 'appState.currentUser.managing_supervision_orgs', function() {
+    var manager = this.get('managed_orgs') || [];
+    var supervisor = this.appState.get('currentUser.managing_supervision_orgs') || [];
+    var seen = {};
+    return manager.concat(supervisor).filter(function(o) {
+      if(seen[o.id]) { return false; }
+      seen[o.id] = true;
+      return true;
+    });
   }),
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
@@ -669,6 +679,12 @@ export default Component.extend({
   }),
 
   actions: {
+    addOrganization: function() {
+      var user_name = this.appState.get('currentUser.user_name');
+      if(user_name) {
+        this.get('router').transitionTo('user.subscription', user_name);
+      }
+    },
     goToBoard: function(boardKey) {
       if (boardKey) {
         var parts = boardKey.split('/');
@@ -824,11 +840,11 @@ export default Component.extend({
       if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
-      var uo = this.appState.get('currentUser.user_name');
-      if (uo) {
-        this.get('router').transitionTo('user.boards', uo);
+      if (this.appState.check_for_needing_purchase) {
+        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+      } else {
+        modal.open('new-board');
       }
-      this.set('showNewBoardForm', false);
     },
     openSupervisorsModal: function() {
       modal.open('dashboard-supervisors-modal');
