@@ -403,7 +403,8 @@ body:has(#within_ember.bento-page-with-footer) {
   padding-bottom: 0;
   display: flex !important;
   flex-direction: column !important;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 /* Ember outlet wrapper: when it wraps #index_view or .md-shell (modern dashboard), keep it in the flex chain. When empty or a ghost sibling (no #index_view or .md-shell inside), collapse it so it doesn't split space with #index_view. */
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view,
@@ -33659,9 +33660,9 @@ a.la-footer-bottom-a11y-wcag {
   width: 100%;
   box-sizing: border-box;
   margin: 40px auto;
-  padding: 40px 40px calc(40px - 9rem) 40px;
+  padding: 40px 40px 40px 40px;
   border-radius: 48px;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
   background: rgba(255, 255, 255, 0.28);
   backdrop-filter: blur(12px);
