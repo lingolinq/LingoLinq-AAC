@@ -19,7 +19,7 @@
         {{t "What Is %app_name%?" key="what_is_app"}}
       </button>
       <div style='margin-top: 20px;'>
-        {{#link-to "landing" class="intro-landing-link"}}<span class='glyphicon glyphicon-pencil'></span> {{t "Scot's Design" key="landing"}}{{/link-to}}
+        <LinkTo @route="landing" class="intro-landing-link"><span class='glyphicon glyphicon-pencil'></span> {{t "Scot's Design" key="landing"}}</LinkTo>
       </div>
     {{/unless}}
   </h2>
