@@ -53,7 +53,6 @@
     <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
-        <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
         <div class="md-card__head md-card__head--getting-started">
           <div class="md-card__head-left">
             <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
@@ -145,7 +144,7 @@
             {{t "Explore Extras" key="explore_extras"}}
           </button>
         </div>
-        <img src={{path "images/extras-wave.png"}} class="md-card__extras-wave" alt="" aria-hidden="true">
+        <div class="md-card__extras-wave" aria-hidden="true"></div>
       </article>
 
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
@@ -184,6 +183,10 @@
             </button>
           {{/each}}
         </div>
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
+          {{t "View All Boards →" key="view_all_boards"}}
+        </button>
+        {{else if this.boardCount}}
         <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
           {{t "View All Boards →" key="view_all_boards"}}
         </button>

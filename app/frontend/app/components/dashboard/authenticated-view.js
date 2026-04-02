@@ -631,6 +631,9 @@ export default Component.extend({
       } else {
         _this.set('_fetchedBoardCount', results.length);
       }
+    }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      _this.set('_fetchedPreviewBoards', []);
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
