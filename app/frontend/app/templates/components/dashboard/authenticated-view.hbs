@@ -50,7 +50,7 @@
       {{/if}}
     </header>
 
-    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
         <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
@@ -79,7 +79,7 @@
       <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
       {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--speak" aria-label={{t "Organization Management" key="org_management"}}>
+      <article class="md-card md-card--org-management" aria-label={{t "Organization Management" key="org_management"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--org" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
@@ -102,7 +102,8 @@
           {{/unless}}
         </div>
       </article>
-      {{else}}
+      {{/if}}
+
       <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
@@ -128,7 +129,6 @@
         </div>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </article>
-      {{/if}}
 
       <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
         <div class="md-card__head md-card__head--between">
@@ -156,14 +156,24 @@
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
           <div class="md-stat">
-            <div class="md-stat__num">{{this.boardCount}}</div>
+            <div class="md-stat__num">{{this.displayBoardCount}}</div>
             <div class="md-stat__meta">
               <div>{{t "Total" key="total"}}</div>
               <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
             </div>
           </div>
         </div>
-        {{#if this.previewBoards.length}}
+        {{#if this.boardsLoading}}
+        <div class="md-card__loading">
+          <div class="md-spinner" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+              <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <p class="md-card__loading-text">{{t "Loading boards..." key="loading_boards"}}</p>
+        </div>
+        {{else if this.previewBoards.length}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards as |preview|}}
             <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>

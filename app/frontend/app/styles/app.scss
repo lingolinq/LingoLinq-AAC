@@ -15316,6 +15316,25 @@ header.header--unauthenticated ~ #content .la-topbar {
   border: none;
   outline: none;
 }
+/* Broken avatar fallback: tinted circle with user silhouette */
+#identity #identity_button img.user.broken_image,
+#identity.identity-with-dark-toggle #identity_button img.user.broken_image {
+  opacity: 0 !important;
+}
+#identity #identity_button .user_holder:has(img.broken_image),
+#identity.identity-with-dark-toggle #identity_button .user_holder:has(img.broken_image) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background: rgba(76, 134, 216, 0.15) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234C86D8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E") !important;
+  background-size: 14px 14px !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
 
 #identity.identity-with-dark-toggle #identity_button .caret,
 #identity.identity-with-dark-toggle #identity_button .user_name {
@@ -35776,7 +35795,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     "boards extras"
     ". org"
     ". sup" !important;
-  grid-template-rows: auto 1fr auto 0 !important;
+  grid-template-rows: auto auto auto 0 !important;
 
   align-items: start !important;
 
@@ -35795,6 +35814,53 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     ". sup" !important;
   grid-template-rows: auto auto auto 1fr auto 0 !important;
 
+}
+/* Grid variant when org management card is shown (full-width row above boards/speak) */
+.md-grid--with-org-mgmt {
+  grid-template-areas:
+    "org_mgmt org_mgmt"
+    "boards speak"
+    "boards extras"
+    ". org"
+    ". sup" !important;
+  grid-template-rows: auto auto 1fr auto 0 !important;
+}
+/* Both getting-started and org management */
+.md-grid--with-getting-started.md-grid--with-org-mgmt {
+  grid-template-areas:
+    "getting_started getting_started"
+    "divider divider"
+    "org_mgmt org_mgmt"
+    "boards speak"
+    "boards extras"
+    ". org"
+    ". sup" !important;
+  grid-template-rows: auto auto auto auto 1fr auto 0 !important;
+}
+/* Org management card: full-width like getting-started */
+.md-card--org-management {
+  grid-area: org_mgmt !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+  padding: 20px 24px !important;
+  border-radius: var(--md-r-lg) !important;
+  background: linear-gradient(135deg, rgba(76, 134, 216, 0.08) 0%, rgba(42, 157, 143, 0.06) 100%) !important;
+  border: 1px solid rgba(76, 134, 216, 0.12) !important;
+}
+.md-card--org-management .md-card__head {
+  flex: 1 1 auto !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+.md-card--org-management .md-card__org-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: center !important;
 }
 
 .md-grid__divider {
@@ -38535,6 +38601,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-card__empty .md-btn {
   margin-top: 0.75rem !important;
 
+}
+/* Loading state for cards (boards, reports, etc.) */
+.md-card__loading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2.5rem 1rem !important;
+  gap: 14px !important;
+}
+.md-card__loading-text {
+  font-size: 15px !important;
+  color: rgba(70, 80, 95, 0.55) !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+}
+.md-spinner svg {
+  animation: md-spin 0.8s linear infinite !important;
+}
+@keyframes md-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.md-card__loading--reports {
+  padding: 4rem 1rem !important;
 }
 .md-card--boards .md-strip {
   flex: 1 1 0 !important;
@@ -42618,6 +42710,38 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       "sup" !important;
     grid-template-rows: auto auto auto auto auto auto auto !important;
 
+  }
+  .md-grid--with-org-mgmt {
+    grid-template-areas:
+      "org_mgmt"
+      "boards"
+      "speak"
+
+      "extras"
+      "org" !important;
+    grid-template-rows: auto auto auto auto auto auto !important;
+  }
+  .md-grid--with-org-mgmt:has(.md-supervisors-page) {
+    grid-template-areas:
+      "org_mgmt"
+      "boards"
+      "speak"
+
+      "extras"
+      "org"
+      "sup" !important;
+    grid-template-rows: auto auto auto auto auto auto auto !important;
+  }
+  .md-grid--with-getting-started.md-grid--with-org-mgmt {
+    grid-template-areas:
+      "getting_started"
+      "org_mgmt"
+      "boards"
+      "speak"
+
+      "extras"
+      "org" !important;
+    grid-template-rows: auto auto auto auto auto auto auto !important;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards" !important;

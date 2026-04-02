@@ -598,6 +598,9 @@ export default Component.extend({
     }
     return 5;
   }),
+  boardsLoading: computed('_previewBoardsLoaded', '_fetchedPreviewBoards', function() {
+    return this.get('_previewBoardsLoaded') && !this.get('_fetchedPreviewBoards');
+  }),
   previewBoards: computed('_fetchedPreviewBoards.[]', function() {
     var boards = this.get('_fetchedPreviewBoards') || [];
     var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
@@ -656,6 +659,35 @@ export default Component.extend({
     var fetched = this.get('_fetchedBoardCount');
     if (fetched !== undefined && fetched !== null) { return fetched; }
     return 0;
+  }),
+  _animateBoardCount: observer('boardCount', function() {
+    var _this = this;
+    var target = _this.get('boardCount') || 0;
+    var current = _this.get('_displayBoardCount') || 0;
+    if (current === target) { return; }
+    if (_this._boardCountFrame) { cancelAnimationFrame(_this._boardCountFrame); }
+    var start = current;
+    var diff = target - start;
+    var duration = Math.min(400, Math.max(150, Math.abs(diff) * 15));
+    var startTime = null;
+    function step(timestamp) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      if (!startTime) { startTime = timestamp; }
+      var elapsed = timestamp - startTime;
+      var progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      _this.set('_displayBoardCount', Math.round(start + diff * eased));
+      if (progress < 1) {
+        _this._boardCountFrame = requestAnimationFrame(step);
+      }
+    }
+    _this._boardCountFrame = requestAnimationFrame(step);
+  }),
+  displayBoardCount: computed('_displayBoardCount', 'boardCount', function() {
+    var display = this.get('_displayBoardCount');
+    if (display !== undefined && display !== null) { return display; }
+    return this.get('boardCount') || 0;
   }),
   extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
