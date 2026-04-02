@@ -287,10 +287,10 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background: radial-gradient(ellipse 100% 80% at 10% 15%, rgba(27, 54, 93, 0.06) 0%, transparent 55%),
-              radial-gradient(ellipse 90% 70% at 92% 88%, rgba(255, 107, 71, 0.05) 0%, transparent 50%),
-              radial-gradient(ellipse 70% 60% at 50% 95%, rgba(78, 205, 196, 0.06) 0%, transparent 55%),
-              linear-gradient(160deg, #F2F4F6 0%, #F5F7FA 35%, #F8F9FA 70%, #F5F7FA 100%);
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%) !important;
 }
 /* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user) */
 #within_ember:has(.page-footer) #content:has(.login-page-bg) {
@@ -12631,9 +12631,12 @@ body:-ms-fullscreen {
     padding-bottom: 2px;
   }
   #content.index.with_user .main_columns {
-    background-size: 50%;
-    background-position: right;
-    background-repeat: repeat-y;
+    background-size: 50% !important;
+
+    background-position: right !important;
+
+    background-repeat: repeat-y !important;
+
   }
   footer .skinny_links {
     display: block;
@@ -12728,17 +12731,24 @@ body:-ms-fullscreen {
     padding-left: 20px;
   }
   #content.index.no_user, body.pretty_loader #loading_box {
-    background-position: 0 top; 
-    background-size: auto 700px;
+    background-position: 0 top !important; 
+
+    background-size: auto 700px !important;
+
   }
 
   #content.index.with_user .main_columns {
-    background-size: 100%;
-    background-position: center;
-    background-repeat: repeat;
+    background-size: 100% !important;
+
+    background-position: center !important;
+
+    background-repeat: repeat !important;
+
     .col:first-child {
-      background: #fff;
-      border-bottom: 15px solid #e86060;
+      background: #fff !important;
+
+      border-bottom: 15px solid #e86060 !important;
+
     }
     .middle_column {
       background: rgba(255, 255, 255, 0.8);
@@ -12748,7 +12758,8 @@ body:-ms-fullscreen {
   }
   #content.index.with_user.new_index .main_columns {
     .col:first-child {
-      border-bottom-width: 20px;
+      border-bottom-width: 20px !important;
+
     }
     .new_pills {
       li a {
@@ -12760,16 +12771,24 @@ body:-ms-fullscreen {
     }
   }
   #content.index .main_columns .col:first-child {
-    margin: -11px -5px 10px;
+    margin: -11px -5px 10px !important;
+
     .wrapper {
-      margin-left: -5px;
-      margin-right: -5px;
-      padding-top: 0;
-      padding-left: 10px;
-      padding-right: 10px;
+      margin-left: -5px !important;
+
+      margin-right: -5px !important;
+
+      padding-top: 0 !important;
+
+      padding-left: 10px !important;
+
+      padding-right: 10px !important;
+
       h2 {
-        position: absolute;
-        left: -1000px;
+        position: absolute !important;
+
+        left: -1000px !important;
+
       }
       .left_links {
         margin-left: -10px;
@@ -13799,6 +13818,7 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
 
   width: 100% !important;
 
+  white-space: normal !important; /* override header { white-space: nowrap } from header_sizing.scss */
 }
 .header--unauthenticated .app-navbar,
 .header--unauthenticated .app-navbar__inner {
@@ -33207,8 +33227,10 @@ a.la-footer-bottom-a11y-wcag {
     padding-right: calc(#{$aac-spacing-20} + 5rem);
   }
   .md-workspace {
-    margin-left: $aac-spacing-20;
-    margin-right: $aac-spacing-20;
+    margin-left: $aac-spacing-20 !important;
+
+    margin-right: $aac-spacing-20 !important;
+
   }
 }
 
@@ -35395,7 +35417,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 
-.md-hero { padding: 28px 2px 10px; }
+.md-hero {
+  padding: 28px 2px 10px !important;
+  /* Override header_sizing.scss `header { ... }` which matches <header class="md-hero"> */
+  border-bottom: none !important;
+  white-space: normal !important;
+  height: auto !important;
+  position: static !important;
+  width: auto !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  background: transparent !important;
+}
 .md-hero--setup { padding-top: 0; }
 .md-hero--home-boards { padding-top: 0; }
 .md-hero__title {
@@ -38141,30 +38175,42 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     padding-right: 1rem;
   }
   .md-hero--user {
-    padding: 20px 18px;
-    gap: 16px;
-    border-radius: 16px;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    padding: 20px 18px !important;
+
+    gap: 16px !important;
+
+    border-radius: 16px !important;
+
+    flex-direction: column !important;
+
+    align-items: center !important;
+
+    text-align: center !important;
+
   }
   .md-hero--user__avatar {
-    width: 72px;
-    height: 72px;
-    border-radius: 18px;
+    width: 72px !important;
+
+    height: 72px !important;
+
+    border-radius: 18px !important;
+
   }
   .md-hero--user__details {
-    justify-content: center;
+    justify-content: center !important;
+
   }
   .md-hero--user__name {
-    font-size: 1.25rem;
+    font-size: 1.25rem !important;
+
   }
   .md-hero--user__username,
   .md-hero--user__meta {
     font-size: 15.6px; /* 13px * 1.2 */
   }
   .md-hero--user__url {
-    font-size: 13.2px;
+    font-size: 13.2px !important;
+
   }
   .md-user-summary .row.big_buttons {
     margin-left: -4px;
@@ -38201,8 +38247,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     font-size: 14px;
   }
   .md-user-summary .md-grid--actions {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+
+    gap: 10px !important;
+
   }
   .md-user-summary__available-boards-title {
     font-size: 1.35rem !important;
@@ -38252,7 +38300,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     margin-bottom: 10px;
   }
   .md-user-summary .md-grid--actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+
   }
   .md-user-summary .row.big_buttons > [style*="float: right"] {
     float: none !important;
@@ -40980,10 +41029,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 @media (max-width: 768px) {
   .md-stats-hero-card {
-    padding: 1.75rem 1.25rem 0;
+    padding: 1.75rem 1.25rem 0 !important;
+
   }
   .md-stats-hero__title {
-    font-size: 19.5px;
+    font-size: 19.5px !important;
+
   }
 }
 .md-stats-text {
@@ -42452,8 +42503,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     padding-bottom: 0 !important;
   }
   .md-workspace {
-    margin-top: 0;
-    border-radius: 0;
+    margin-top: 0 !important;
+    border-radius: 0 !important;
   }
   .md-shell {
     background:
@@ -42468,6 +42519,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 @media (max-width: 945px) {
   /* Modern dashboard: single-column layout under 945px; workspace expands to content, #content scrolls vertically */
+  .md-pillnav {
+    margin-top: 2rem !important;
+  }
   #index_view {
     padding-bottom: 0 !important;
   }
@@ -42484,24 +42538,36 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-shell,
   #content .ember-view > .md-shell,
   #content > .md-shell {
-    min-height: auto;
-    flex: 0 0 auto;
+    min-height: auto !important;
+
+    flex: 0 0 auto !important;
+
   }
   .md-shell > .md-workspace {
-    flex: 0 0 auto;
-    min-height: min-content;
+    flex: 0 0 auto !important;
+
+    min-height: min-content !important;
+
   }
   .md-workspace > .md-main {
-    flex: 0 0 auto;
-    min-height: min-content;
+    flex: 0 0 auto !important;
+
+    min-height: min-content !important;
+
   }
   .md-workspace {
-    margin: 0;
-    padding: 24px 16px calc(24px - 9rem) 16px;
-    border-radius: 24px;
-    max-width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
+    margin: 0 !important;
+
+    padding: calc(24px + 2rem) 16px calc(24px - 9rem) 16px !important;
+
+    border-radius: 24px !important;
+
+    max-width: 100% !important;
+
+    box-sizing: border-box !important;
+
+    overflow: hidden !important;
+
   }
   .md-grid {
     grid-template-columns: 1fr !important;
@@ -42599,6 +42665,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 @media (max-width: 820px) {
+  .md-pillnav {
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+    border-radius: 24px !important;
+    gap: 4px !important;
+    max-width: 100% !important;
+  }
+  .md-pillnav__pill {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    white-space: nowrap !important;
+  }
   .nav-header__brand {
     margin-left: -12px !important;
 
@@ -42607,7 +42685,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-workspace {
     margin: 0 !important;
 
-    padding: 20px 12px calc(20px - 9rem) 12px !important;
+    padding: calc(20px + 2rem) 12px calc(20px - 9rem) 12px !important;
 
     border-radius: 20px !important;
 
@@ -42615,17 +42693,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
     box-sizing: border-box !important;
 
-    overflow: hidden;
+    overflow: hidden !important;
+
   }
   .md-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+
     grid-template-areas:
       "boards"
       "speak"
 
       "extras"
       "org" !important;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto !important;
+
   }
   .md-grid--with-getting-started {
     grid-template-areas:
@@ -42639,8 +42720,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   }
   .md-shell--board-view .md-grid {
-    grid-template-areas: "boards";
-    grid-template-rows: minmax(60vh, auto);
+    grid-template-areas: "boards" !important;
+
+    grid-template-rows: minmax(60vh, auto) !important;
+
   }
   .md-shell--board-view .md-boards-page .md-strip {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -45705,8 +45788,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-stats-filter__period-stack {
     flex-direction: column !important;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: 0.5rem !important;
+
+    padding-right: 0.5rem !important;
+
   }
   .md-hero--reports-dashboard {
     height: auto !important;
@@ -45737,12 +45822,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-shell--user > .md-workspace,
   .md-user-layout > .md-shell > .md-workspace {
-    border-radius: 0;
-    margin: 0;
+    border-radius: 0 !important;
+
+    margin: 0 !important;
+
     margin-left: 0 !important;
     margin-right: 0 !important;
-    max-width: 100%;
-    overflow-x: hidden;
+    max-width: 100% !important;
+
+    overflow-x: hidden !important;
+
   }
 }
 @media (max-width: 767px) {
@@ -48905,8 +48994,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Tablets: single column, sidebars as overlays */
 @media (max-width: 820px) {
   .md-shell--board-detail {
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow-y: auto !important;
+
+    overflow-x: hidden !important;
+
   }
   .md-board-detail-layout {
     grid-template-columns: 1fr;
