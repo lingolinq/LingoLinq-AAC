@@ -45,6 +45,17 @@
       </div>
     </section>
     <hr class="la-about-hero-separator" aria-hidden="true">
+    {{#unless this.usage_stats}}
+      <div class="md-card__loading md-card__loading--reports">
+        <div class="md-spinner" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+            <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="md-card__loading-text">{{t "Loading reports..." key="loading_reports"}}</p>
+      </div>
+    {{/unless}}
     {{#if this.usage_stats}}
       <div class="md-stats-compare-filter-group{{if this.usage_stats2 " md-stats-compare-filter-group--active" ""}}">
         {{#if this.usage_stats2}}
