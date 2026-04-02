@@ -624,6 +624,7 @@ body:has(#within_ember.bento-page-with-footer) {
   display: none;
 }
 #within_ember #content {
+  margin-top: 0; /* override header + #content { margin-top: 70px } from legacy header_sizing.scss (Rails asset) */
   padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px)); /* content below fixed header; extra grows when speak bar wraps */
 }
 
