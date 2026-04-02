@@ -1,0 +1,297 @@
+@use "sass:color";
+@use "sass:list";
+
+// =============================================================================
+// VARIABLES
+// All SCSS variables consolidated from app.scss
+// =============================================================================
+
+// ── Brand Colors ─────────────────────────────────────────────────────────────
+$brand-honey-bronze:  #F2B95A;
+$brand-soft-fawn:     #C9AD7A;
+$brand-blue-grey:     #7693B9;
+$brand-dusty-denim:   #4C86D8;
+$brand-verdigris:     #2A9D8F;
+$brand-stormy-teal:   #316F70;
+$brand-charcoal-blue: #46505F;
+$brand-charcoal:      #374151;
+
+// Gold (brand accent)
+$color-gold: #f5c23b;
+
+// ── Modified Fitzgerald Colors ───────────────────────────────────────────────
+$fitzgerald-pronouns-yellow:     #FAFAAA;
+$fitzgerald-verbs-green:         #C0E8C8;
+$fitzgerald-adjectives-blue:     #B9D0F6;
+$fitzgerald-nouns-orange:        #FDCF98;
+$fitzgerald-social-pink:         #E8B5DC;
+$fitzgerald-negations-red:       #F5A0A0;
+$fitzgerald-questions-purple:    #D0B8E8;
+$fitzgerald-prepositions-rose:   #F5DCEA;
+$fitzgerald-adverbs-brown:       #D4B896;
+$fitzgerald-determiners-gray:    #DCDCDC;
+$fitzgerald-conjunctions-white:  #FFFFFF;
+$fitzgerald-other-bluish:        #73CCFF;
+$fitzgerald-contrast-black:      #000000;
+
+// ── Landing Page CTA & Hero Variables ────────────────────────────────────────
+$la-cta-coral:       #e87a6f;
+$la-cta-peach:       #f0a078;
+$la-cta-cream:       #fef3c7;
+/* CTA gradient (coral → soft yellow) used by landing-alt; slightly higher saturation so hero feels less pale */
+$la-cta-gradient: linear-gradient(135deg, #{color.adjust($la-cta-coral, $saturation: 12%)} 0%, #{color.adjust($la-cta-peach, $saturation: 12%)} 40%, $la-cta-cream 100%);
+/* Medium color from CTA gradient — solid background for other CTAs */
+$la-cta-solid: color.adjust($la-cta-peach, $saturation: 12%);
+/* Hero "Try LingoLinq" / "Try Free" button when wave is not showing */
+$la-hero-cta-bg: $brand-honey-bronze;
+/* Lightest color in hero background gradient (top of gradient) */
+$la-hero-bg-lightest: color.adjust(#f4f3f0, $lightness: 10%);
+/* "every student" and matching em gradients — teal to blue */
+$la-highlight-gradient: linear-gradient(90deg, $brand-verdigris, $brand-dusty-denim);
+
+// ── Page Footer Breakpoints ──────────────────────────────────────────────────
+$page-footer-breakpoint-md: 768px;
+$page-footer-breakpoint-sm: 640px;
+$page-footer-breakpoint-xs: 480px;
+
+// ── Nav Colors ───────────────────────────────────────────────────────────────
+$nav_primary: #337ab7;
+$nav_secondary: #fffbbc;
+$nav_secondary_bottom_row: #ffd7a8;
+$nav_secondary_middle_row: #eac8ff;
+$nav_secondary_emergency: #90ff7a;
+$nav_tertiary: #d1efbc;
+$nav_extras: #eee;
+
+// ── Smart Blue (used across sage, slate, and bento help button) ─────────────
+$color-smart-blue: #3A6BC7;
+
+// ── Bento Help Button ────────────────────────────────────────────────────────
+/* Help me… buttons: 20% lighter (used by Getting Started + Home board card) */
+$ll-bento-help-btn-blue: color.adjust($color-smart-blue, $lightness: 20%);
+
+// =============================================================================
+// AAC Design System Tokens
+// =============================================================================
+
+// ── Base Palette ─────────────────────────────────────────────────────────────
+
+// Sage (primary green — calming, nature-forward)
+$color-sage:           $color-smart-blue;
+$color-sage-light:     $color-smart-blue;
+$color-sage-pale:      #E8F2EB;
+$color-sage-dark:      #4E8060;
+
+// Slate (secondary blue-grey — clinical, trustworthy)
+$color-slate:          $color-smart-blue;
+$color-slate-light:    #8FAAB8;
+$color-slate-pale:     #E6EFF3;
+$color-slate-dark:     #3A5565;
+
+// Sand (accent — warm, welcoming)
+$color-sand:           $brand-honey-bronze;
+$color-sand-light:     $brand-honey-bronze;
+$color-sand-pale:      #FAF5EE;
+$color-sand-dark:      #A07850;
+
+// Neutrals
+$color-warm-white:     #FAFAF7;
+$color-cream:          #F4F1EB;
+$color-linen:          #EDE9E0;
+$color-linen-dark:     #D8D2C5;
+
+// Ink scale
+$color-ink:            #1b2a4a;
+$color-ink-mid:        $color-ink;
+$color-ink-soft:       #7A8E84;
+$color-ink-ghost:      #B4C2BB;
+
+// ── Semantic Aliases ─────────────────────────────────────────────────────────
+$color-primary:        $color-sage;
+$color-primary-light:  $color-sage-light;
+$color-primary-pale:   $color-sage-pale;
+$color-primary-dark:   $color-sage-dark;
+
+$color-secondary:      $color-slate;
+$color-secondary-light:$color-slate-light;
+$color-secondary-pale: $color-slate-pale;
+$color-secondary-dark: $color-slate-dark;
+
+$color-accent:         $color-sand;
+$color-accent-light:   $color-sand-light;
+$color-accent-pale:    $color-sand-pale;
+$color-accent-dark:    $color-sand-dark;
+
+$color-background:     $color-warm-white;
+$color-surface:        $color-cream;
+$color-border:         $color-linen;
+$color-border-strong:  $color-linen-dark;
+
+$color-text:           $color-ink;
+$color-text-mid:       $color-ink-mid;
+$color-text-muted:     $color-ink-soft;
+$color-text-ghost:     $color-ink-ghost;
+
+// ── AAC Symbol Category Colors ───────────────────────────────────────────────
+$cat-people-base:      #7BAE8C;
+$cat-people-bg:        $color-sage-pale;
+$cat-people-text:      #4A8C60;
+
+$cat-actions-base:     #6B95B8;
+$cat-actions-bg:       #E3EEF6;
+$cat-actions-text:     #3A6A8A;
+
+$cat-feelings-base:    #C98B8B;
+$cat-feelings-bg:      #F5E8E8;
+$cat-feelings-text:    #9A5050;
+
+$cat-food-base:        #C9A858;
+$cat-food-bg:          #F6F0DC;
+$cat-food-text:        #8A6A20;
+
+$cat-places-base:      #8B95C9;
+$cat-places-bg:        #ECEEF8;
+$cat-places-text:      #5060A0;
+
+$cat-objects-base:     #95B8C9;
+$cat-objects-bg:       #E5EFF3;
+$cat-objects-text:     #386A80;
+
+$cat-descriptors-base: #B89BC9;
+$cat-descriptors-bg:   #F3EEF8;
+$cat-descriptors-text: #7050A0;
+
+$cat-social-base:      #C9B88B;
+$cat-social-bg:        #F5F0E3;
+$cat-social-text:      #806830;
+
+// Map for iteration
+$categories: (
+  'people':      ($cat-people-base,      $cat-people-bg,      $cat-people-text),
+  'actions':     ($cat-actions-base,     $cat-actions-bg,     $cat-actions-text),
+  'feelings':    ($cat-feelings-base,    $cat-feelings-bg,    $cat-feelings-text),
+  'food':        ($cat-food-base,        $cat-food-bg,        $cat-food-text),
+  'places':      ($cat-places-base,      $cat-places-bg,      $cat-places-text),
+  'objects':     ($cat-objects-base,     $cat-objects-bg,     $cat-objects-text),
+  'descriptors': ($cat-descriptors-base, $cat-descriptors-bg, $cat-descriptors-text),
+  'social':      ($cat-social-base,      $cat-social-bg,      $cat-social-text),
+);
+
+// ── Typography ───────────────────────────────────────────────────────────────
+$aac-font-display:   'Maitree', serif;
+$aac-font-body:      'Nunito', 'Segoe UI', sans-serif;
+
+$aac-font-size-xs:   11px;
+$aac-font-size-sm:   13px;
+$aac-font-size-base: 15px;
+$aac-font-size-md:   18px;
+$aac-font-size-lg:   22px;
+$aac-font-size-xl:   26px;
+$aac-font-size-2xl:  32px;
+
+// LA panel font sizes (left + right panels) — 8% larger than base scale
+$la-panel-font-size-xs:   12px;
+$la-panel-font-size-sm:   14px;
+$la-panel-font-size-base: 16px;
+
+$aac-font-weight-light:   300;
+$aac-font-weight-regular: 400;
+$aac-font-weight-medium:  500;
+$aac-font-weight-semi:    600;
+$aac-font-weight-bold:    700;
+$aac-font-weight-black:   800;
+
+$aac-line-height-tight: 1.2;
+$aac-line-height-base:  1.5;
+$aac-line-height-loose: 1.7;
+
+$aac-letter-spacing-tight:  -0.01em;
+$aac-letter-spacing-base:    0.01em;
+$aac-letter-spacing-wide:    0.06em;
+$aac-letter-spacing-wider:   0.12em;
+
+// ── Spacing ──────────────────────────────────────────────────────────────────
+$aac-spacing-2:  2px;
+$aac-spacing-4:  4px;
+$aac-spacing-6:  6px;
+$aac-spacing-8:  8px;
+$aac-spacing-10: 10px;
+$aac-spacing-12: 12px;
+$aac-spacing-14: 14px;
+$aac-spacing-16: 16px;
+$aac-spacing-20: 20px;
+$aac-spacing-24: 24px;
+$aac-spacing-28: 28px;
+$aac-spacing-32: 32px;
+$aac-spacing-40: 40px;
+$aac-spacing-48: 48px;
+$aac-spacing-64: 64px;
+
+// ── Border Radius ────────────────────────────────────────────────────────────
+$aac-radius-sm:     6px;
+$aac-radius-md:     10px;
+$aac-radius-lg:     14px;
+$aac-radius-xl:     16px;
+$aac-radius-2xl:    20px;
+$aac-radius-pill:   999px;
+$aac-radius-circle: 50%;
+
+// ── Shadows ──────────────────────────────────────────────────────────────────
+$aac-shadow-sm:    0 1px 4px rgba($color-ink, 0.06);
+$aac-shadow-md:    0 4px 12px rgba($color-ink, 0.08);
+$aac-shadow-lg:    0 8px 24px rgba($color-ink, 0.10);
+$aac-shadow-xl:    0 16px 40px rgba($color-ink, 0.12);
+$aac-shadow-focus: 0 0 0 3px rgba($color-sage, 0.35);
+
+// ── Layout ───────────────────────────────────────────────────────────────────
+$aac-topbar-height: 64px;
+$aac-sidebar-width: 220px;
+$aac-panel-width:   300px;
+
+$aac-breakpoint-xs: 375px;
+$aac-breakpoint-sm: 640px;
+$aac-breakpoint-md: 768px;
+$aac-breakpoint-lg: 1024px;
+$aac-breakpoint-xl: 1280px;
+
+// ── Transitions ──────────────────────────────────────────────────────────────
+$aac-transition-fast: 0.12s ease;
+$aac-transition-base: 0.18s ease;
+$aac-transition-slow: 0.30s ease;
+
+// ── Z-index Scale ────────────────────────────────────────────────────────────
+$aac-z-base:     1;
+$aac-z-dropdown: 100;
+$aac-z-modal:    200;
+$aac-z-toast:    300;
+$aac-z-topbar:   400;
+
+// ── Landing-Alt Color Tokens ─────────────────────────────────────────────────
+$la-navy:      #1B365D;
+$la-coral:     #f2c94c; /* warm gold (landing-alt), AA with navy and hero blue */
+$la-teal:      #4ECDC4;
+$la-dark-teal: $brand-verdigris;
+$la-white:     $fitzgerald-conjunctions-white;
+/* Warmer, AA-compliant hero blue and grays for landing-alt */
+$la-hero-blue:     #3d5266; /* warmer slate blue (was #415a75), white text passes AA */
+$la-gray-muted:    #4d5c54; /* warm gray for stat-label, section-subtitle (4.5:1 on white) */
+$la-gray-bar:      #c9c4b8; /* warm gray for mockup bar, ghost btn (was #dce1e9) */
+$la-gray-bar-border: #b5afa2; /* border for mockup bar / ghost */
+/* Two-tone logo: left = hero 20% darker, right = same as Ready to start CTA */
+$la-logo-left: color.adjust($la-hero-blue, $lightness: -20%);
+$la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
+
+/* Unified elevation: shadow-sm (hero), shadow-md (cards), shadow-lg (modal) — tighter = more modern */
+$la-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+$la-shadow-md: 0 10px 25px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.04);
+$la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+
+/* Cloud-based / 90% Lower Cost / Real Classrooms badge icon bg (one source of truth) */
+$la-hero-badge-icon-bg: color.adjust($la-cta-cream, $lightness: 6%, $saturation: -70%);
+
+// Mockup category colors (switched for landing): actions→teal, objects→orange, people→purple, questions→red, descriptors→blue
+$la-mockup-teal-bg:    color.adjust(#3F7F7B, $lightness: 50%);
+$la-mockup-orange-bg:  #F5E8DC;
+$la-mockup-purple-bg:  #EDE8F5;
+$la-mockup-red-bg:     $cat-feelings-bg;
+$la-mockup-blue-bg:    $cat-actions-bg;
