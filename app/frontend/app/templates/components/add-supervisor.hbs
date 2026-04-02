@@ -38,7 +38,7 @@
         {{else if this.start_code}}
           <div class="md-add-supervisor__field">
             <label for="add_start_code_key" class="md-add-supervisor__label">{{t "Start Code" key="start_code"}}</label>
-            <Input @value={{this.start_code_key}} class="md-add-supervisor__input" id="add_start_code_key" placeholder="start code" />
+            <Input @value={{this.start_code_key}} class="md-add-supervisor__input" id="add_start_code" placeholder="start code" />
             <p class="md-add-supervisor__hint md-muted">{{t "In addition to adding supervision access, start codes may update some of your preferences based on the pre-set configuration by the supervisor, so make sure to check with them before entering a start code." key="start_code_warning"}}</p>
           </div>
         {{else}}

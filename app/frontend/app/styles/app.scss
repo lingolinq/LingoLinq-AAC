@@ -1,6 +1,25 @@
 @use "sass:color";
 @use "sass:list";
-@use "partials/variables" as *;
+
+// LingoLinq brand colors
+$brand-navy: #120380;
+$brand-teal: #4DB8C4;
+$brand-coral: #FF6B4A;
+
+// Gold (brand accent)
+$color-gold: #f5c23b;
+
+/* CTA gradient (coral → soft yellow) used by landing-alt; slightly higher saturation so hero feels less pale */
+$la-cta-gradient: linear-gradient(135deg, #{color.adjust(#e87a6f, $saturation: 12%)} 0%, #{color.adjust(#f0a078, $saturation: 12%)} 40%, #fef3c7 100%);
+/* Medium color from CTA gradient — solid background for other CTAs */
+$la-cta-solid: color.adjust(#f0a078, $saturation: 12%);
+/* Hero "Try LingoLinq" / "Try Free" button when wave is not showing */
+$la-hero-cta-bg: #F2B95A;
+/* Lightest color in hero background gradient (top of gradient) */
+$la-hero-bg-lightest: color.adjust(#f4f3f0, $lightness: 10%);
+/* "every student" and matching em gradients — teal to blue */
+$la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -394,11 +413,9 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
-/* Modern dashboard outlet: size to content so .md-shell/.av-shell bg extends to bottom of page; min-width 0 so it shrinks with viewport */
+/* Modern dashboard outlet: size to content so .md-shell bg extends to bottom of page; min-width 0 so it shrinks with viewport */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-shell),
-#within_ember:has(.page-footer) #content > .ember-view:has(.md-shell),
-#within_ember.bento-page-with-footer #content > .ember-view:has(.av-shell),
-#within_ember:has(.page-footer) #content > .ember-view:has(.av-shell) {
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) {
   flex: 0 0 auto;
   min-height: auto;
   min-width: 0;
@@ -409,11 +426,9 @@ body:has(#within_ember.bento-page-with-footer) {
 }
 
 /* #content.index.with_user > .ember-view beats specificity above; without this the outlet stays
-   viewport-height while .md-workspace/.av-workspace grows, so shell bg ends mid-page and content “spills”. */
+   viewport-height while .md-workspace grows, so shell bg ends mid-page and content “spills”. */
 #within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.md-shell),
-#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.md-shell),
-#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.av-shell),
-#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.av-shell) {
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.md-shell) {
   flex: 0 0 auto;
   min-height: auto;
   height: auto;
@@ -424,11 +439,7 @@ body:has(#within_ember.bento-page-with-footer) {
 #within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.md-shell) > .md-shell,
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.md-shell) > .md-shell,
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-shell) > .md-shell,
-#within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) > .md-shell,
-#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.av-shell) > .av-shell,
-#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.av-shell) > .av-shell,
-#within_ember.bento-page-with-footer #content > .ember-view:has(.av-shell) > .av-shell,
-#within_ember:has(.page-footer) #content > .ember-view:has(.av-shell) > .av-shell {
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) > .md-shell {
   flex: 0 0 auto;
   min-height: 100vh;
   height: auto;
@@ -437,9 +448,7 @@ body:has(#within_ember.bento-page-with-footer) {
 
 /* When zoomed or viewport short: allow vertical scroll of modern dashboard content */
 #within_ember.bento-page-with-footer #content:has(.md-shell),
-#within_ember:has(.page-footer) #content:has(.md-shell),
-#within_ember.bento-page-with-footer #content:has(.av-shell),
-#within_ember:has(.page-footer) #content:has(.av-shell) {
+#within_ember:has(.page-footer) #content:has(.md-shell) {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
@@ -519,9 +528,7 @@ body:has(#within_ember.bento-page-with-footer) {
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-edit-profile),
 #within_ember:has(.page-footer) #content > .ember-view:has(.md-edit-profile),
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-hero),
-#within_ember:has(.page-footer) #content > .ember-view:has(.md-hero),
-#within_ember.bento-page-with-footer #content > .ember-view:has(.av-hero),
-#within_ember:has(.page-footer) #content > .ember-view:has(.av-hero) {
+#within_ember:has(.page-footer) #content > .ember-view:has(.md-hero) {
   flex: 0 0 auto;
   min-height: auto;
   height: auto;
@@ -546,22 +553,18 @@ body:has(#within_ember.bento-page-with-footer) {
   flex-direction: column !important;
 }
 
-/* Dashboard: .md-shell/.av-shell lives under #index_view (AuthenticatedView tagName ‘’), not under
+/* Dashboard: .md-shell lives under #index_view (AuthenticatedView tagName ‘’), not under
    .ember-view. #index_view’s flex:1 + min-height:0 caps height to viewport so shell bg stops early.
-   Apply to ANY .md-shell/.av-shell (home, boards, extras tabs), not just boards-full. */
+   Apply to ANY .md-shell (home, boards, extras tabs), not just boards-full. */
 #within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell),
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell),
-#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.av-shell),
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.av-shell) {
+#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell) {
   flex: 0 0 auto !important;
   min-height: auto !important;
   height: auto !important;
   overflow: visible !important;
 }
 #within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.md-shell) > .md-shell,
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell) > .md-shell,
-#within_ember.bento-page-with-footer #content.index.with_user #index_view:has(.av-shell) > .av-shell,
-#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.av-shell) > .av-shell {
+#within_ember:has(.page-footer) #content.index.with_user #index_view:has(.md-shell) > .md-shell {
   flex: 0 0 auto;
   min-height: 100vh;
   height: auto;
@@ -2475,6 +2478,9 @@ footer a:hover,
   }
 }
 /* ── Page-footer responsive (industry collapsing: row → stacked, safe-area) ── */
+$page-footer-breakpoint-md: 768px;
+$page-footer-breakpoint-sm: 640px;
+$page-footer-breakpoint-xs: 480px;
 
 /* When About/Support/Contact are visible in the footer (≥768px), hide them from the More Resources dropdown */
 @media (min-width: (#{$page-footer-breakpoint-md + 1})) {
@@ -2595,7 +2601,7 @@ footer a:hover,
     border-radius: 0;
     border-bottom: 1px solid #ccc;
     font-size: 25px;
-    background-color: $brand-verdigris;
+    background-color: $brand-teal;
     color: #fff;
     .text-muted {
       color: #eee;
@@ -6830,6 +6836,13 @@ body.pretty_loader #loading_box {
 }
 
 
+$nav_primary: #337ab7;
+$nav_secondary: #fffbbc;
+$nav_secondary_bottom_row: #ffd7a8;
+$nav_secondary_middle_row: #eac8ff;
+$nav_secondary_emergency: #90ff7a;
+$nav_tertiary: #d1efbc;
+$nav_extras: #eee;
 /* Nav button styles - Applied in: dashboard/authenticated-view.hbs big_buttons, various modals */
 .secondary_button {
   border-color: #9b962e !important; 
@@ -6896,15 +6909,15 @@ body.pretty_loader #loading_box {
     margin-top: 50px;
   }
   #nav_primary {
-    border-left-color: $brand-charcoal;
+    border-left-color: $brand-navy;
     background: #fff;
-    color: $brand-charcoal;
+    color: $brand-navy;
     border-color: #e2e5ea;
-    border-left: 4px solid $brand-charcoal;
+    border-left: 4px solid $brand-navy;
   }
   #nav_secondary {
     border-color: #e2e5ea;
-    border-left: 4px solid $brand-verdigris;
+    border-left: 4px solid $brand-teal;
     background: #fff;
   }
   #nav_tertiary {
@@ -6912,7 +6925,7 @@ body.pretty_loader #loading_box {
     border-color: #e2e5ea;
     border-left: 4px solid #8b5cf6;
     &.bottom_row {
-      border-left-color: $brand-honey-bronze;
+      border-left-color: $brand-coral;
       background: #fff;
     }
     &.middle_row {
@@ -7104,7 +7117,7 @@ body.pretty_loader #loading_box {
     width: 100%;
     border-radius: 6px;
     border: 1px solid #e2e5ea;
-    border-left: 4px solid $brand-charcoal;
+    border-left: 4px solid $brand-navy;
     font-size: 22px;
     overflow: hidden;
     padding: 20px 0;
@@ -7116,7 +7129,7 @@ body.pretty_loader #loading_box {
     color: #2d3748;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     &:hover {
-      border-left-color: $brand-verdigris;
+      border-left-color: $brand-teal;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     }
     img {
@@ -7133,7 +7146,7 @@ body.pretty_loader #loading_box {
       display: block;
       font-size: 100px;
       margin-bottom: 20px;
-      color: $brand-charcoal;
+      color: $brand-navy;
       opacity: 0.7;
     }
     &.middle_row {
@@ -7141,7 +7154,7 @@ body.pretty_loader #loading_box {
       background: #fff;
     }
     &.bottom_row {
-      border-left-color: $brand-honey-bronze;
+      border-left-color: $brand-coral;
       background: #fff;
     }
   }
@@ -32185,8 +32198,7 @@ a.la-footer-bottom-a11y-wcag {
     padding-left: calc(#{$aac-spacing-20} + 5rem);
     padding-right: calc(#{$aac-spacing-20} + 5rem);
   }
-  .md-workspace,
-  .av-workspace {
+  .md-workspace {
     margin-left: $aac-spacing-20;
     margin-right: $aac-spacing-20;
   }
@@ -47586,5 +47598,3 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba(42, 157, 143, 0.08);
   color: #2a9d8f;
 }
-
-@import "partials/authenticated-view";

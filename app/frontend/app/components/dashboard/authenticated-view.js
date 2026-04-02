@@ -600,7 +600,7 @@ export default Component.extend({
   }),
   previewBoards: computed('_fetchedPreviewBoards.[]', function() {
     var boards = this.get('_fetchedPreviewBoards') || [];
-    var thumbClasses = ['av-thumb--a', 'av-thumb--b', 'av-thumb--c', 'av-thumb--d', 'av-thumb--e', 'av-thumb--f'];
+    var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
     return boards.slice(0, 5).map(function(board, idx) {
       return {
         board: board,
