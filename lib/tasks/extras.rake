@@ -440,7 +440,7 @@ task "extras:desktop" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/LL_Logo_Line_Bright.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -548,7 +548,7 @@ task "extras:mobile" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/LL_Logo_Line_Bright.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)

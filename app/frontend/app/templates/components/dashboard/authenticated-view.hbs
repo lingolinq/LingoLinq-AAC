@@ -1,189 +1,189 @@
-<div class="av-shell {{if (is-equal this.activeTab "boards") "av-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "av-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "av-shell--extras-view"}}">
-  <div class="av-workspace {{if (is-equal this.activeTab "boards") "av-workspace--boards-full"}}">
+<div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
+  <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
-  <nav class="av-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-    <button type="button" class="av-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
+  <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
       {{t "Home" key="home"}}
     </button>
-    <button type="button" class="av-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "goTab" "boards"}}>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "goTab" "boards"}}>
       {{t "Boards" key="boards"}}
     </button>
-    <button type="button" class="av-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
       {{t "Reports" key="reports"}}
     </button>
-    <button type="button" class="av-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "goTab" "extras"}}>
+    <button type="button" class="md-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "goTab" "extras"}}>
       {{t "Extras" key="extras"}}
     </button>
   </nav>
-  <div class="av-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
-    <button type="button" class="av-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <span class="av-pillnav-dropdown__label">
-        {{#if (is-equal this.activeTab "home")}}<svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "boards")}}<svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "reports")}}<svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
-        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
+  <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
+    <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <span class="md-pillnav-dropdown__label">
+        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
+        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
         {{this.activeTabLabel}}
       </span>
-      <span class="av-pillnav-dropdown__chevron" aria-hidden="true"></span>
+      <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
-    <ul class="av-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li><button type="button" role="option" class="av-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
-      <li><button type="button" role="option" class="av-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
-      <li><button type="button" role="option" class="av-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
-      <li><button type="button" role="option" class="av-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="av-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+    <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
     </ul>
   </div>
 
   {{#if (is-equal this.activeTab "boards")}}
-  <main class="av-main av-main--dashboard-boards-embed" aria-label={{t "Boards" key="boards"}}>
+  <main class="md-main md-main--dashboard-boards-embed" aria-label={{t "Boards" key="boards"}}>
     {{dashboard-user-boards user=this.boardsEmbedUser isActive=true dashboardDelegate=this}}
   </main>
   {{else}}
-  <main class="av-main">
-    <header class="av-hero av-hero--dashboard">
+  <main class="md-main">
+    <header class="md-hero md-hero--dashboard">
       {{#if (is-equal this.activeTab "extras")}}
-        <h1 class="av-hero__title"><span class="av-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
-        <p class="av-hero__sub"><span class="av-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="av-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
+        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
       {{else}}
-        <h1 class="av-hero__title"><span class="av-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
-        <p class="av-hero__sub"><span class="av-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="av-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
 
-    <section class="av-grid av-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "av-grid--with-getting-started"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}}" aria-label={{t "Dashboard" key="dashboard"}}>
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
-      <article class="av-card av-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
-        <img src={{path "images/getting-started-journey-wave.svg"}} class="av-card__getting-started-wave" alt="" aria-hidden="true">
-        <div class="av-card__head av-card__head--getting-started">
-          <div class="av-card__head-left">
-            <div class="av-card__icon av-card__icon--getting-started" aria-hidden="true">
+      <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
+        <img src={{path "images/getting-started-journey-wave.svg"}} class="md-card__getting-started-wave" alt="" aria-hidden="true">
+        <div class="md-card__head md-card__head--getting-started">
+          <div class="md-card__head-left">
+            <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="#2A9D8F"/><path d="M22 4L12 14.01l-3-3" stroke="#46505F"/></svg>
             </div>
-            <div class="av-card__titles">
-              <div class="av-card__title">{{t "Getting Started" key="getting_started"}}</div>
-              <div class="av-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
+            <div class="md-card__titles">
+              <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+              <div class="md-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
             </div>
           </div>
-          <div class="av-card__getting-started-status">
-            <div class="av-card__progress" role="progressbar" aria-valuenow={{this.gettingStartedPercent}} aria-valuemin="0" aria-valuemax="100">
-              <div class="av-card__progress-fill" style={{this.gettingStartedPercentStyle}}></div>
+          <div class="md-card__getting-started-status">
+            <div class="md-card__progress" role="progressbar" aria-valuenow={{this.gettingStartedPercent}} aria-valuemin="0" aria-valuemax="100">
+              <div class="md-card__progress-fill" style={{this.gettingStartedPercentStyle}}></div>
               <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.gettingStartedPercent}}</span>
             </div>
-            <span class="av-card__getting-started-step">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.gettingStartedStep total=5}}</span>
+            <span class="md-card__getting-started-step">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.gettingStartedStep total=5}}</span>
           </div>
         </div>
-        <button type="button" class="av-btn av-card__getting-started-btn" {{action "getting_started"}}>
+        <button type="button" class="md-btn md-card__getting-started-btn" {{action "getting_started"}}>
           {{t "Help me Setup my Account" key="help_me_setup_account"}}
         </button>
       </article>
-      <div class="av-grid__divider" aria-hidden="true"></div>
+      <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
       {{#if this.has_management_responsibility}}
-      <article class="av-card av-card--speak" aria-label={{t "Organization Management" key="org_management"}}>
-        <div class="av-card__head">
-          <div class="av-card__icon av-card__icon--org" aria-hidden="true">
+      <article class="md-card md-card--speak" aria-label={{t "Organization Management" key="org_management"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
-          <div class="av-card__titles">
-            <div class="av-card__title">{{t "Organization Management" key="org_management"}}</div>
-            <div class="av-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Organization Management" key="org_management"}}</div>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
           </div>
         </div>
-        <div class="av-card__org-list">
+        <div class="md-card__org-list">
           {{#each this.all_orgs as |org|}}
-            <LinkTo @route="organization" @model={{org.id}} class="av-btn av-btn--primary">
+            <LinkTo @route="organization" @model={{org.id}} class="md-btn md-btn--primary">
               {{t "Manage Organizations" key="manage_organizations"}}
             </LinkTo>
           {{/each}}
           {{#unless this.all_orgs.length}}
-            <button type="button" class="av-btn av-btn--primary" {{action "addOrganization"}}>
+            <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
               {{t "Add Organization" key="add_organization"}}
             </button>
           {{/unless}}
         </div>
       </article>
       {{else}}
-      <article class="av-card av-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
-        <div class="av-card__head">
-          <div class="av-card__icon av-card__icon--speak" aria-hidden="true">
+      <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
           </div>
-          <div class="av-card__titles">
-            <div class="av-card__title">{{t "Speak Mode" key="speak_mode"}}</div>
-            <div class="av-card__sub">{{t "Start communication" key="start_communication"}}</div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</div>
+            <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
-        <div class="av-card__row">
-          <div class="av-chip av-chip--soft">
-            <span class="av-chip__dot" aria-hidden="true"></span>
+        <div class="md-card__row">
+          <div class="md-chip md-chip--soft">
+            <span class="md-chip__dot" aria-hidden="true"></span>
             {{#if this.last_board_name}}
               {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
             {{else}}
               {{t "Last board: None" key="md_last_board_none"}}
             {{/if}}
           </div>
-          <button type="button" class="av-btn av-btn--primary" {{action "go" "speak"}}>
+          <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
             {{t "Continue Speaking" key="continue_speaking"}}
           </button>
         </div>
-        <div class="av-card__bg av-card__bg--wave" aria-hidden="true"></div>
+        <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </article>
       {{/if}}
 
-      <article class="av-card av-card--extras" aria-label={{t "Extras" key="extras"}}>
-        <div class="av-card__head av-card__head--between">
+      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-card__head md-card__head--between">
           <div>
-            <div class="av-card__title">{{t "Extras" key="extras"}}</div>
-            <div class="av-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
+            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
+            <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
-        <div class="av-extrasRow">
-          <div class="av-extrasIcon" aria-hidden="true">
+        <div class="md-extrasRow">
+          <div class="md-extrasIcon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
           </div>
-          <button type="button" class="av-btn av-btn--primary" {{action "goTab" "extras"}}>
+          <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
             {{t "Explore Extras" key="explore_extras"}}
           </button>
         </div>
-        <img src={{path "images/extras-wave.png"}} class="av-card__extras-wave" alt="" aria-hidden="true">
+        <img src={{path "images/extras-wave.png"}} class="md-card__extras-wave" alt="" aria-hidden="true">
       </article>
 
-      <article class="av-card av-card--boards" aria-label={{t "Boards" key="boards"}}>
-        <div class="av-card__head av-card__head--between">
-          <div class="av-card__left">
-            <div class="av-card__title">{{t "Boards" key="boards"}}</div>
-            <div class="av-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
+      <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
+        <div class="md-card__head md-card__head--between">
+          <div class="md-card__left">
+            <div class="md-card__title">{{t "Boards" key="boards"}}</div>
+            <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
-          <button type="button" class="av-btn av-btn--primary av-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
-          <div class="av-stat">
-            <div class="av-stat__num">{{this.boardCount}}</div>
-            <div class="av-stat__meta">
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
+          <div class="md-stat">
+            <div class="md-stat__num">{{this.boardCount}}</div>
+            <div class="md-stat__meta">
               <div>{{t "Total" key="total"}}</div>
               <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
             </div>
           </div>
         </div>
         {{#if this.previewBoards.length}}
-        <div class="av-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
+        <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards as |preview|}}
-            <button type="button" class="av-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
-              <div class="av-thumb {{preview.thumbClass}}" aria-hidden="true">
-                <img src={{preview.imageUrl}} class="av-thumb__board-img" alt="">
+            <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
+              <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
+                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
-              <div class="av-strip__label">{{preview.name}}</div>
+              <div class="md-strip__label">{{preview.name}}</div>
             </button>
           {{/each}}
         </div>
-        <button type="button" class="av-btn av-btn--primary av-btn--wide" {{action "goTab" "boards"}}>
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
           {{t "View All Boards →" key="view_all_boards"}}
         </button>
         {{else}}
-        <div class="av-card__empty">
-          <div class="av-card__empty-icon" aria-hidden="true">
+        <div class="md-card__empty">
+          <div class="md-card__empty-icon" aria-hidden="true">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" stroke="rgba(70,80,95,0.35)"/><line x1="3" y1="9" x2="21" y2="9" stroke="rgba(70,80,95,0.35)"/><line x1="9" y1="21" x2="9" y2="9" stroke="rgba(70,80,95,0.35)"/></svg>
           </div>
-          <p class="av-card__empty-text">{{t "You don't have any boards yet" key="no_boards_yet"}}</p>
-          <button type="button" class="av-btn av-btn--primary" {{action "openNewBoardOnBoards"}}>
+          <p class="md-card__empty-text">{{t "You don't have any boards yet" key="no_boards_yet"}}</p>
+          <button type="button" class="md-btn md-btn--primary" {{action "openNewBoardOnBoards"}}>
             {{t "Create Your First Board" key="create_first_board"}}
           </button>
         </div>
@@ -191,34 +191,34 @@
       </article>
 
       {{#if (is-equal this.activeTab "supervisors")}}
-      <section class="av-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
+      <section class="md-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
         {{#if this.appState.currentUser.supporter_role}}
-          <article class="av-card av-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
-            <div class="av-card__head av-card__head--between">
+          <article class="md-card md-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
+            <div class="md-card__head md-card__head--between">
               <div>
-                <div class="av-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
-                <div class="av-card__sub">{{t "People you support" key="people_you_support"}}</div>
+                <div class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
+                <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
               </div>
             </div>
-            <div class="av-people">
+            <div class="md-people">
               {{#if this.appState.currentUser.known_supervisees}}
                 {{#each this.appState.currentUser.known_supervisees as |supervisee|}}
-                  <div class="av-person av-person--linked">
-                    <LinkTo @route="user" @model={{supervisee.user_name}} class="av-person__main">
-                      <img src={{supervisee.avatar_url}} class="av-avatar av-avatar--img" alt="" aria-hidden="true">
-                      <div class="av-person__meta">
-                        <div class="av-person__name">{{supervisee.user_name}}</div>
+                  <div class="md-person md-person--linked">
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="md-person__main">
+                      <img src={{supervisee.avatar_url}} class="md-avatar md-avatar--img" alt="" aria-hidden="true">
+                      <div class="md-person__meta">
+                        <div class="md-person__name">{{supervisee.user_name}}</div>
                         {{#if supervisee.goal}}
-                          <div class="av-person__role av-muted">{{supervisee.goal.summary}}</div>
+                          <div class="md-person__role md-muted">{{supervisee.goal.summary}}</div>
                         {{else}}
-                          <div class="av-person__role av-muted">{{t "no goal set" key="no_goal_set"}}</div>
+                          <div class="md-person__role md-muted">{{t "no goal set" key="no_goal_set"}}</div>
                         {{/if}}
                         {{#if supervisee.unread_messages}}
-                          <span class="av-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
+                          <span class="md-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
                         {{/if}}
                       </div>
                     </LinkTo>
-                    <ul class="av-person__links" role="list">
+                    <ul class="md-person__links" role="list">
                       <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
                       {{#if supervisee.home_board_key}}
                         <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
@@ -232,41 +232,41 @@
                   </div>
                 {{/each}}
                 {{#if this.appState.currentUser.all_connections.loading}}
-                  <div class="av-person av-muted">{{t "Loading more..." key="loading_more"}}</div>
+                  <div class="md-person md-muted">{{t "Loading more..." key="loading_more"}}</div>
                 {{else if this.appState.currentUser.all_connections.error}}
-                  <div class="av-person av-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
+                  <div class="md-person md-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
                 {{/if}}
               {{else}}
-                <div class="av-person av-muted">{{t "None found" key="none_found"}}</div>
+                <div class="md-person md-muted">{{t "None found" key="none_found"}}</div>
               {{/if}}
             </div>
           </article>
         {{else}}
-          <article class="av-card av-card--sup av-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
-            <div class="av-card__head av-card__head--between">
+          <article class="md-card md-card--sup md-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
+            <div class="md-card__head md-card__head--between">
               <div>
-                <div class="av-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
-                <div class="av-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
+                <div class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
+                <div class="md-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
                 {{#unless this.appState.currentUser.supervisors_or_managing_org}}
-                  <span class="av-info-badge av-info-badge--below-sub" role="status">
-                    <span class="av-info-badge__dot" aria-hidden="true"></span>
+                  <span class="md-info-badge md-info-badge--below-sub" role="status">
+                    <span class="md-info-badge__dot" aria-hidden="true"></span>
                     {{t "None found" key="none_found"}}
                   </span>
                 {{/unless}}
               </div>
             </div>
-            <div class="av-card__sup-inline">
+            <div class="md-card__sup-inline">
               {{supervision-settings inline=true model=this.appState.currentUser compactInline=true}}
             </div>
           </article>
           {{#if this.appState.currentUser.supervised_units}}
-            <article class="av-card av-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
-              <div class="av-card__head">
-                <div class="av-card__title">{{t "rooms:" key="rooms_colon"}}</div>
+            <article class="md-card md-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
+              <div class="md-card__head">
+                <div class="md-card__title">{{t "rooms:" key="rooms_colon"}}</div>
               </div>
-              <div class="av-rooms-list">
+              <div class="md-rooms-list">
                 {{#each this.appState.currentUser.supervised_units as |unit|}}
-                  <span class="av-rooms-list__item">
+                  <span class="md-rooms-list__item">
                     <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>{{unit.name}}</LinkTo>
                   </span>
                 {{/each}}
@@ -278,47 +278,47 @@
       {{/if}}
 
       {{#if (is-equal this.activeTab "extras")}}
-      <section class="av-extras-page" aria-label={{t "Extras" key="extras"}}>
-        <div class="av-extras-page__grid" role="list">
+      <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-extras-page__grid" role="list">
           {{#each this.extrasItems as |item|}}
             {{#if item.show}}
-              <article class="av-extras-card" role="listitem">
-                <div class="av-extras-card__head">
-                  <div class="av-extras-card__icon-wrap av-extras-card__icon-wrap--{{item.action}}">
+              <article class="md-extras-card" role="listitem">
+                <div class="md-extras-card__head">
+                  <div class="md-extras-card__icon-wrap md-extras-card__icon-wrap--{{item.action}}">
                     {{#if (is-equal item.action "intro")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><path d="M12 16v-4" stroke="#46505F"/><path d="M12 8h.01" stroke="#46505F"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><path d="M12 16v-4" stroke="#46505F"/><path d="M12 8h.01" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "sync_details")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "goals")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#316F70"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#316F70"/></svg>
                     {{else if (is-equal item.action "record_note")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#7693B9"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#7693B9"/></svg>
                     {{else if (is-equal item.action "run_eval")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4" stroke="#46505F"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#F2B95A"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4" stroke="#46505F"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#F2B95A"/></svg>
                     {{else if (is-equal item.action "account")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     {{else if (is-equal item.action "supervisors")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "lessons")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke="#2A9D8F"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="#46505F"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke="#2A9D8F"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "offline_boards")}}
-                      <svg class="av-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9AD7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9AD7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                     {{else}}
-                      <img src={{path item.image}} class="av-extras-card__img" alt="" aria-hidden="true">
+                      <img src={{path item.image}} class="md-extras-card__img" alt="" aria-hidden="true">
                     {{/if}}
                   </div>
-                  <div class="av-extras-card__body">
-                    <h3 class="av-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
-                    <p class="av-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
+                  <div class="md-extras-card__body">
+                    <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
+                    <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
                   </div>
                 </div>
-                <div class="av-extras-card__btn-wrap">
+                <div class="md-extras-card__btn-wrap">
                 {{#if (is-equal item.action "supervisors")}}
-                  <button type="button" class="av-btn av-btn--primary av-extras-card__btn" {{action "openSupervisorsModal"}}>
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "openSupervisorsModal"}}>
                     {{t "View" key="view"}} →
                   </button>
                 {{else}}
-                  <button type="button" class="av-btn av-btn--primary av-extras-card__btn" {{action "extraAction" item.action}}>
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
                     {{t item.btn_default key=item.btn_key}} →
                   </button>
                 {{/if}}
@@ -333,28 +333,28 @@
   </main>
   {{/if}}
 
-  </div>{{!-- .av-workspace --}}
+  </div>{{!-- .md-workspace --}}
 
   {{#if this.isSearchOpen}}
-    <section class="av-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
-      <div class="av-searchOverlay__top">
+    <section class="md-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
+      <div class="md-searchOverlay__top">
         <input
-          class="av-searchOverlay__input"
+          class="md-searchOverlay__input"
           placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
           autofocus
           {{action "onSearchKeydown" on="keyDown"}}
         />
-        <button type="button" class="av-btn av-btn--ghost" {{action "closeSearch"}}>
+        <button type="button" class="md-btn md-btn--ghost" {{action "closeSearch"}}>
           {{t "Close" key="close"}}
         </button>
       </div>
-      <div class="av-searchOverlay__body">
-        <div class="av-muted">{{t "Hook this to your Rails endpoint later." key="md_search_hook"}}</div>
-        <div class="av-quickActions">
-          <button type="button" class="av-row" {{action "goAndCloseSearch" "speak"}}>{{t "Continue Speaking" key="continue_speaking"}}</button>
-          <button type="button" class="av-row" {{action "goAndCloseSearch" "boards"}}>{{t "Open Boards" key="open_boards"}}</button>
-          <button type="button" class="av-row" {{action "goAndCloseSearch" "reports"}}>{{t "View Reports" key="view_reports"}}</button>
-          <button type="button" class="av-row" {{action "openExtrasTab"}}>{{t "Explore Extras" key="explore_extras"}}</button>
+      <div class="md-searchOverlay__body">
+        <div class="md-muted">{{t "Hook this to your Rails endpoint later." key="md_search_hook"}}</div>
+        <div class="md-quickActions">
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "speak"}}>{{t "Continue Speaking" key="continue_speaking"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "boards"}}>{{t "Open Boards" key="open_boards"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "reports"}}>{{t "View Reports" key="view_reports"}}</button>
+          <button type="button" class="md-row" {{action "openExtrasTab"}}>{{t "Explore Extras" key="explore_extras"}}</button>
         </div>
       </div>
     </section>
