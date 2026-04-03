@@ -52,6 +52,18 @@
       {{!-- Sentence Bar --}}
       <div class="md-board-detail-sentence-row">
       {{#unless this.edit_mode}}
+      <button type="button"
+        class="md-board-detail-collapse-btn md-board-detail-collapse-btn--sentence-row"
+        title={{if this.board_collapsed (t "Show header" key="board_detail_show_header") (t "Hide header" key="board_detail_hide_header")}}
+        {{action "toggle_board_collapsed"}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          {{#if this.board_collapsed}}
+            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+          {{else}}
+            <polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+          {{/if}}
+        </svg>
+      </button>
       <div class="md-board-detail-sentence-nav">
         <button type="button"
           class="md-board-detail-sentence-nav__btn"
@@ -111,7 +123,7 @@
         </div>
       </div>
       <div class="md-board-detail-sentence-bar__divider"></div>
-      <div class="md-board-detail-sentence-bar__actions-wrap">
+      <div class="md-board-detail-sentence-bar__actions-wrap md-board-detail-sentence-bar__actions-wrap--stacked">
         <button type="button"
           class="md-board-detail-actions-toggle"
           title={{t "Options" key="board_detail_options"}}
@@ -120,6 +132,21 @@
             <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
           </svg>
         </button>
+        {{#unless this.edit_mode}}
+          <button type="button" class="md-board-detail-sidebar-toggle md-board-detail-sidebar-toggle--stacked {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} {{action "toggleInlineSidebar"}}>
+            {{#if this.inlineSidebarOpen}}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="18 15 12 9 6 15"></polyline>
+                <polyline points="18 20 12 14 6 20"></polyline>
+              </svg>
+            {{else}}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+                <polyline points="6 14 12 20 18 14"></polyline>
+              </svg>
+            {{/if}}
+          </button>
+        {{/unless}}
         {{#if this.show_options_menu}}
           <div class="md-board-detail-actions-backdrop" {{action "toggle_options_menu"}}></div>
           <div class="md-board-detail-actions-menu">
@@ -271,35 +298,7 @@
         {{/if}}
       </div>
       </div>
-      {{#unless this.edit_mode}}
-        <div class="md-board-detail-tease-row">
-          <button type="button"
-            class="md-board-detail-collapse-btn"
-            title={{if this.board_collapsed (t "Show header" key="board_detail_show_header") (t "Hide header" key="board_detail_hide_header")}}
-            {{action "toggle_board_collapsed"}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              {{#if this.board_collapsed}}
-                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-              {{else}}
-                <polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
-              {{/if}}
-            </svg>
-          </button>
-          <button type="button" class="md-board-detail-sidebar-toggle {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} {{action "toggleInlineSidebar"}}>
-            {{#if this.inlineSidebarOpen}}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="18 15 12 9 6 15"></polyline>
-                <polyline points="18 20 12 14 6 20"></polyline>
-              </svg>
-            {{else}}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="6 9 12 15 18 9"></polyline>
-                <polyline points="6 14 12 20 18 14"></polyline>
-              </svg>
-            {{/if}}
-          </button>
-        </div>
-      {{/unless}}
+      {{!-- tease-row removed: collapse btn moved to sentence row, sidebar toggle moved to actions-wrap --}}
 
       {{!-- Word Suggestions --}}
       {{#if this.show_word_suggestions}}
