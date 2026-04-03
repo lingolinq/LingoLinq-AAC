@@ -46636,7 +46636,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   white-space: nowrap;
 }
 .md-board-detail-board-actions__btn span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -46644,6 +46644,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
   color: #6b7280;
   transition: color 0.12s ease;
+  width: 20px;
+  height: 20px;
 }
 .md-board-detail-board-actions__btn:hover {
   background: rgba(42, 157, 143, 0.10);
@@ -46651,14 +46653,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 @media (min-width: 1025px) {
   .md-board-detail-board-actions__btn span {
-    font-size: 14px;
+    font-size: 13px;
   }
   .md-board-detail-board-actions__btn svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
   .md-board-detail-board-actions__btn {
-    padding: 10px 16px;
+    padding: 9px 14px;
     gap: 4px;
   }
 }
