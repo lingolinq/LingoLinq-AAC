@@ -5123,17 +5123,21 @@ tr.accuracy_non_mastered {
   padding-top: 32px;
   padding-bottom: 32px;
 }
-.md-card--setup-intro .md-card__getting-started-wave {
+.md-card--setup-intro::before {
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   width: 100%;
-  height: 140%;
-  object-fit: cover;
-  object-position: top center;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 220' width='400' height='220'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0%25' y1='100%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' style='stop-color:%237DD3CF;stop-opacity:0.5'/%3E%3Cstop offset='100%25' style='stop-color:%23B8E6E3;stop-opacity:0.25'/%3E%3C/linearGradient%3E%3ClinearGradient id='b' x1='0%25' y1='80%25' x2='100%25' y2='20%25'%3E%3Cstop offset='0%25' style='stop-color:%23B8E6E3;stop-opacity:0.45'/%3E%3Cstop offset='100%25' style='stop-color:%23E9F9F8;stop-opacity:0.2'/%3E%3C/linearGradient%3E%3ClinearGradient id='c' x1='0%25' y1='60%25' x2='100%25' y2='40%25'%3E%3Cstop offset='0%25' style='stop-color:%232CB7B0;stop-opacity:0.2'/%3E%3Cstop offset='100%25' style='stop-color:%237DD3CF;stop-opacity:0.4'/%3E%3C/linearGradient%3E%3ClinearGradient id='d' x1='0%25' y1='100%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' style='stop-color:%23A8D4F0;stop-opacity:0.35'/%3E%3Cstop offset='100%25' style='stop-color:%23C5E4F7;stop-opacity:0.2'/%3E%3C/linearGradient%3E%3ClinearGradient id='e' x1='0%25' y1='70%25' x2='100%25' y2='30%25'%3E%3Cstop offset='0%25' style='stop-color:%237EB8E8;stop-opacity:0.25'/%3E%3Cstop offset='100%25' style='stop-color:%23A8D4F0;stop-opacity:0.15'/%3E%3C/linearGradient%3E%3ClinearGradient id='f' x1='0%25' y1='90%25' x2='100%25' y2='10%25'%3E%3Cstop offset='0%25' style='stop-color:%23FBF0C3;stop-opacity:0.4'/%3E%3Cstop offset='100%25' style='stop-color:%23F5E6A3;stop-opacity:0.25'/%3E%3C/linearGradient%3E%3ClinearGradient id='g' x1='0%25' y1='50%25' x2='100%25' y2='50%25'%3E%3Cstop offset='0%25' style='stop-color:%23F5E6A3;stop-opacity:0.2'/%3E%3Cstop offset='100%25' style='stop-color:%23FBF0C3;stop-opacity:0.35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 100Q50 60 100 75T200 55T300 70T400 50L400 220H0Z' fill='url(%23c)'/%3E%3Cpath d='M0 95Q80 50 160 70T320 45T400 65L400 220H0Z' fill='url(%23a)'/%3E%3Cpath d='M0 85Q60 45 120 60T240 40T360 55T400 45L400 220H0Z' fill='url(%23d)'/%3E%3Cpath d='M0 90Q100 55 200 65T400 55L400 220H0Z' fill='url(%23f)'/%3E%3Cpath d='M0 75Q70 35 140 50T280 30T400 48L400 220H0Z' fill='url(%23b)'/%3E%3Cpath d='M0 70Q90 40 180 52T360 38T400 42L400 220H0Z' fill='url(%23e)'/%3E%3Cpath d='M0 65Q80 30 160 45T320 28T400 40L400 220H0Z' fill='url(%23g)'/%3E%3Cpath d='M0 58Q100 25 200 38T400 32L400 220H0Z' fill='url(%23a)'/%3E%3Cpath d='M0 120Q80 160 160 145T320 165T400 150L400 220H0Z' fill='url(%23c)'/%3E%3Cpath d='M0 130Q100 170 200 155T400 175L400 220H0Z' fill='url(%23a)'/%3E%3Cpath d='M0 140Q60 180 140 165T300 185T400 170L400 220H0Z' fill='url(%23d)'/%3E%3Cpath d='M0 150Q90 190 180 175T360 195T400 185L400 220H0Z' fill='url(%23f)'/%3E%3Cpath d='M0 165Q70 205 150 190T350 210T400 200L400 220H0Z' fill='url(%23b)'/%3E%3C/svg%3E");
+  background-size: cover;
+  background-position: top center;
   pointer-events: none;
   z-index: 0;
+  border-radius: inherit;
+  filter: saturate(1.15);
 }
 .md-card--setup-intro .md-card--setup__content {
   position: relative;
