@@ -91,6 +91,7 @@ Router.map(function() {
   this.route('admin', { path: '/admin' });
   this.route('lesson', { path: '/lessons/:lesson_id/:lesson_code/:user_token'});
   this.route('organization', { path: '/organizations/:id' }, function() {
+    this.route('people');
     this.route('reports');
     this.route('subscription');
     this.route('extras');

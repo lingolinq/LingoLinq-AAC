@@ -1,143 +1,157 @@
 {{#if this.model.permissions.edit}}
   {{#if this.available_reports}}
-    <form class="form-horizontal">
-      <div class="form-group">
-        <label for="report_type" class="col-sm-1 control-label">{{t "Report:" key="report_colon"}}</label>
-        <div class="col-sm-6">
-          {{bound-select select_class="form-control" select_id="report_type" content=this.available_reports selection=this.current_report action=(action (mut this.current_report)) }}
-          {{#if this.custom_report}}
-            <em>{{this.custom_report}}</em>
-          {{/if}}
-        </div>
+    <div class="md-org-report-controls">
+      <div class="md-org-report-field">
+        {{bound-select select_class="md-org-report-select" select_id="report_type" content=this.available_reports selection=this.current_report action=(action (mut this.current_report)) }}
       </div>
-    </form>
+      {{#if this.custom_report}}
+        <span class="md-org-report-custom-label">{{this.custom_report}}</span>
+      {{/if}}
+    </div>
+
+    <hr class="md-org-report-divider">
+
     {{#if this.results.loading}}
-      <h2>
-        <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;&nbsp;
-        {{t "Loading..." key="loading"}}
-      </h2>
+      <div class="md-card__loading">
+        <div class="md-spinner" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+            <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="md-card__loading-text">{{t "Loading..." key="loading"}}</p>
+      </div>
     {{else if this.results}}
       {{#if this.results.error}}
-        <p class='text-danger'>{{this.results.error}}</p>
+        <p class="md-org-error">{{this.results.error}}</p>
       {{/if}}
-      <div class="row">
-        <div class="col-sm-8">
-          {{#if this.show_list_controls}}
-            <form class="form-inline" style="margin-bottom: 15px;">
-              <div class="form-group">
-                <label for="report_per_page">{{t "Per page:" key="per_page_colon"}}</label>
-                {{bound-select select_class="form-control" select_id="report_per_page" content=this.per_page_options selection=this.per_page action=(action (mut this.per_page)) }}
-              </div>
-              <div class="form-group" style="margin-left: 15px;">
-                <label for="report_sort_by">{{t "Sort:" key="sort_colon"}}</label>
-                {{#if this.show_sort_by}}
-                  {{bound-select select_class="form-control" select_id="report_sort_by" content=this.sort_by_options selection=this.sort_by action=(action (mut this.sort_by)) }}
-                {{/if}}
-                {{bound-select select_class="form-control" select_id="report_sort_order" content=this.sort_order_options selection=this.sort_order action=(action (mut this.sort_order)) }}
-              </div>
-              {{#if this.show_filter}}
-                <div class="form-group" style="margin-left: 15px;">
-                  <label for="report_filter">{{t "Filter:" key="filter_colon"}}</label>
-                  <Input id="report_filter" @type="text" @value={{this.filter}} class="form-control" placeholder={{t "Search..." key="search_ellipsis"}} style="width: 150px; display: inline-block; margin-left: 5px;" />
-                </div>
-              {{/if}}
-            </form>
+
+      {{#if this.show_list_controls}}
+        <div class="md-org-report-filters">
+          <div class="md-org-report-field md-org-report-field--inline">
+            <label for="report_per_page" class="md-org-report-field__label">{{t "Per page:" key="per_page_colon"}}</label>
+            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_per_page" content=this.per_page_options selection=this.per_page action=(action (mut this.per_page)) }}
+          </div>
+          <div class="md-org-report-field md-org-report-field--inline">
+            <label for="report_sort_by" class="md-org-report-field__label">{{t "Sort:" key="sort_colon"}}</label>
+            {{#if this.show_sort_by}}
+              {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_sort_by" content=this.sort_by_options selection=this.sort_by action=(action (mut this.sort_by)) }}
+            {{/if}}
+            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_sort_order" content=this.sort_order_options selection=this.sort_order action=(action (mut this.sort_order)) }}
+          </div>
+          {{#if this.show_filter}}
+            <div class="md-org-report-field md-org-report-field--inline">
+              <label for="report_filter" class="md-org-report-field__label">{{t "Filter:" key="filter_colon"}}</label>
+              <Input id="report_filter" @type="text" @value={{this.filter}} class="md-org-report-input" placeholder={{t "Search..." key="search_ellipsis"}} />
+            </div>
           {{/if}}
-          <h2>
-            <span class="glyphicon glyphicon-th-list"></span>&nbsp;
-            {{t "result" key="x_results" count=this.results.count}}
-          </h2>
-          <div class='list-group'>
-            {{#each this.results.list as |item|}}
-              {{#if item.started_at}}
-                <span class='list-group-item'>
-                  <span title={{date item.started_at}}>
-                    {{date_ago item.started_at}}
-                  </span>
-                  <LinkTo @route="user.log" @models={{array item.user.user_name item.id}}>
-                    {{t "button" count=item.button_count key="button_count"}}
-                  </LinkTo>
-                  <span> -
-                    <LinkTo @route="user" @model={{item.user.user_name}}>
-                      {{item.user.user_name}}
-                    </LinkTo>
-                  </span>
-                  <br>
-                  <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{item.summary}}</span>
-                </span>
-              {{else}}
-                {{#if this.removable_report}}
-                  <a href="#" {{action "remove_report_user" item}} style="position: absolute; z-index: 2; right: 20px; padding: 10px;">
-                    <span class="glyphicon glyphicon-remove"></span>
-                  </a>
+        </div>
+      {{/if}}
+
+      <div class="md-org-report-results-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>{{t "result" key="x_results" count=this.results.count}}</span>
+      </div>
+
+      <div class="md-org-report-list">
+        {{#each this.results.list as |item|}}
+          {{#if item.started_at}}
+            <div class="md-org-report-row">
+              <div class="md-org-report-row__main">
+                <LinkTo @route="user.log" @models={{array item.user.user_name item.id}} class="md-org-report-row__link">
+                  {{t "button" count=item.button_count key="button_count"}}
+                </LinkTo>
+                <span class="md-org-report-row__sep">&mdash;</span>
+                <LinkTo @route="user" @model={{item.user.user_name}} class="md-org-report-row__user">
+                  {{item.user.user_name}}
+                </LinkTo>
+              </div>
+              <span class="md-org-report-row__time" title={{date item.started_at}}>{{date_ago item.started_at}}</span>
+              <div class="md-org-report-row__summary">{{item.summary}}</div>
+            </div>
+          {{else}}
+            <div class="md-org-report-row md-org-report-row--user">
+              {{#if this.removable_report}}
+                <button type="button" class="md-org-report-row__remove" {{action "remove_report_user" item}} aria-label={{t "Remove user" key="remove_user"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              {{/if}}
+              {{#if this.model.premium}}
+                {{#if item.org_status_class}}
+                  <button type="button" class="md-org-report-row__status" {{action "set_status" item}}>
+                    <span class={{item.org_status_class}} style="font-size: 18px;"></span>
+                  </button>
                 {{/if}}
-                {{#if this.model.premium}}
-                  {{#if item.org_status_class}}
-                    <button {{action "set_status" item}} class='btn btn-default' style="position: absolute; z-index: 2; right: 60px; margin-top: 5px;">
-                      <span class={{item.org_status_class}} style='font-size: 20px;'></span>
-                    </button>
-                  {{/if}}
-                {{/if}}
-                <LinkTo @route="user" @model={{item.user_name}} class="list-group-item">
-                  <img src={{item.avatar_url}} style='height: 40px; width: 40px; object-fit: contain; margin-right: 5px; margin-top: -5px; float: left;'>
-                  <span style="font-size: 16px;">
-                    {{item.user_name}}
-                  </span>
+              {{/if}}
+              <LinkTo @route="user" @model={{item.user_name}} class="md-org-report-row__user-card">
+                <img src={{item.avatar_url}} class="md-org-report-row__avatar" alt="">
+                <div class="md-org-report-row__user-info">
+                  <span class="md-org-report-row__username">{{item.user_name}}</span>
                   {{#if item.email}}
-                    ({{item.email}})
+                    <span class="md-org-report-row__email">({{item.email}})</span>
                   {{/if}}
-                  <span style='font-size: 10px; display: block; margin-top: -3px;' class="comma_item_list">
+                  <span class="md-org-report-row__tags comma_item_list">
                     {{#if this.custom_report_all}}
                       {{#if item.vocab_name}}
-                        <span class="comma_item">{{item.vocab_name}}</span>
+                        <span class="comma_item md-org-report-tag">{{item.vocab_name}}</span>
                       {{/if}}
                     {{/if}}
                     {{#if item.org_pending}}
-                      <span class="comma_item">{{t "pending" key="pending"}}</span>
+                      <span class="comma_item md-org-report-tag md-org-report-tag--pending">{{t "pending" key="pending"}}</span>
                     {{/if}}
                     {{#if item.org_supervision_pending}}
-                      <span class="comma_item">{{t "pending" key="pending"}}</span>
+                      <span class="comma_item md-org-report-tag md-org-report-tag--pending">{{t "pending" key="pending"}}</span>
                     {{/if}}
                     {{#if item.org_sponsored}}
-                      <span class="comma_item">{{t "sponsored" key="sponsored_lower"}}</span>
+                      <span class="comma_item md-org-report-tag">{{t "sponsored" key="sponsored_lower"}}</span>
                     {{/if}}
                     {{#if item.goal}}
-                      <span class="comma_item">goal set</span>
+                      <span class="comma_item md-org-report-tag">goal set</span>
                     {{/if}}
                     {{#if item.goal.recently_tracked}}
-                      <span class="comma_item">goal recently tracked</span>
+                      <span class="comma_item md-org-report-tag md-org-report-tag--active">goal recently tracked</span>
                     {{/if}}
-                    &nbsp;
                   </span>
-                  <span style='clear: both;'></span>
-                </LinkTo>
-              {{/if}}
-            {{/each}}
-            {{#each this.results.stats as |stat|}}
-              <a href="#" class='list-group-item' style='font-size: 18px;'>
-                <span style='display: inline-block; width: 90%;'>{{stat.key}}</span> <span class={{stat.label_class}}>{{stat.value}}</span>
-              </a>
-            {{/each}}
-          </div>
-          {{#if this.has_more}}
-            <div style="margin-top: 10px;">
-              {{#if this.results.loading_more}}
-                <span class="glyphicon glyphicon-refresh spinning"></span>&nbsp;{{t "Loading..." key="loading"}}
-              {{else}}
-                <button type="button" class="btn btn-default" {{action "load_more"}}>{{t "Load more" key="load_more"}}</button>
-              {{/if}}
+                </div>
+              </LinkTo>
             </div>
           {{/if}}
-          {{#if this.user_report}}
-            <a href="#" {{action "download_list"}}>{{t "Download list as a csv" key="download_as_csv"}}</a>
+        {{/each}}
+        {{#each this.results.stats as |stat|}}
+          <div class="md-org-report-row md-org-report-row--stat">
+            <span class="md-org-report-row__stat-key">{{stat.key}}</span>
+            <span class={{stat.label_class}}>{{stat.value}}</span>
+          </div>
+        {{/each}}
+      </div>
+
+      {{#if this.has_more}}
+        <div class="md-org-report-load-more">
+          {{#if this.results.loading_more}}
+            <div class="md-spinner md-spinner--sm" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+                <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span>{{t "Loading..." key="loading"}}</span>
+          {{else}}
+            <button type="button" class="md-org-btn md-org-btn--outline" {{action "load_more"}}>{{t "Load more" key="load_more"}}</button>
           {{/if}}
         </div>
-      </div>
-    {{else}}
+      {{/if}}
+      {{#if this.user_report}}
+        <div class="md-org-report-download">
+          <a href="#" {{action "download_list"}} class="md-org-report-download__link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {{t "Download list as a csv" key="download_as_csv"}}
+          </a>
+        </div>
+      {{/if}}
     {{/if}}
   {{else}}
-    <p>{{t "No reports available yet" key="no_reports_available"}}</p>
+    <p class="md-muted">{{t "No reports available yet" key="no_reports_available"}}</p>
   {{/if}}
 {{else}}
-  <p>{{t "Not authorized" key="not_authorized"}}</p>
+  <p class="md-muted">{{t "Not authorized" key="not_authorized"}}</p>
 {{/if}}

@@ -485,6 +485,10 @@ export default Component.extend({
       return true;
     });
   }),
+  multipleOrgs: computed('all_orgs.length', function() {
+    return (this.get('all_orgs.length') || 0) > 1;
+  }),
+  orgDropdownOpen: false,
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
       return this.appState.get('currentUser.preferences.auto_open_speak_mode');
@@ -631,6 +635,9 @@ export default Component.extend({
       } else {
         _this.set('_fetchedBoardCount', results.length);
       }
+    }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      _this.set('_fetchedPreviewBoards', []);
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -800,6 +807,9 @@ export default Component.extend({
     },
     togglePillnavDropdown: function() {
       this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
+    },
+    toggleOrgDropdown: function() {
+      this.toggleProperty('orgDropdownOpen');
     },
     selectTab: function(tab) {
       this.send('goTab', tab);

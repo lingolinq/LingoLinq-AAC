@@ -1311,14 +1311,14 @@ var editManager = EmberObject.extend({
       if(trans_button && !emberGet(res, 'user_modified')) {
         // TODO: code smell, nobody is ever going
         // to remember that this code exists
-        res.set('label', trans_button.label);
-        res.set('original_label', res.get('label'));
-        res.set('vocalization', trans_button.vocalization);
-        res.set('tweaked', true);
+        emberSet(res, 'label', trans_button.label);
+        emberSet(res, 'original_label', emberGet(res, 'label'));
+        emberSet(res, 'vocalization', trans_button.vocalization);
+        emberSet(res, 'tweaked', true);
       }
       if(trans_button && trans_button.condense_items) {
-        res.set('condense_items', trans_button.condense_items);
-        res.set('tweaked', true);
+        emberSet(res, 'condense_items', trans_button.condense_items);
+        emberSet(res, 'tweaked', true);
       }
       return res;
     }
