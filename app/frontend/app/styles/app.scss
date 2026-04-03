@@ -46170,6 +46170,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: #fff;
   box-shadow: 0 2px 8px rgba(27, 54, 93, 0.12);
 }
+.md-board-detail-collapse-btn--sentence-row {
+  position: static !important;
+  flex-shrink: 0;
+  align-self: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+}
 
 .md-board-detail-sidebar__section {
   margin-bottom: 28px;
@@ -47083,9 +47091,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 0.7;
   cursor: pointer;
   padding: 8px 0;
-  &:hover {
-    opacity: 1;
-  }
+}
+.md-board-detail-sidebar-toggle--stacked {
+  width: 40px !important;
+  height: auto !important;
+  padding: 4px 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(70, 80, 95, 0.2) !important;
+  background: rgba(118, 147, 185, 0.15) !important;
+  color: #46505F !important;
+  opacity: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.12s ease !important;
+}
+.md-board-detail-sidebar-toggle--stacked:hover {
+  background: rgba(118, 147, 185, 0.3) !important;
 }
 // Hide the application-level sidebar on board-detail (we render it inline instead)
 #content:has(.md-shell--board-detail) ~ #sidebar {
@@ -47349,6 +47371,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
+}
+.md-board-detail-sentence-bar__actions-wrap--stacked {
+  flex-direction: column;
+  gap: 2px;
+  align-items: stretch;
+}
+.md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-actions-toggle {
+  flex: 1;
+  align-self: auto;
 }
 .md-board-detail-actions-toggle {
   width: 40px;
