@@ -33,9 +33,25 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def terms; end
-  
-  def privacy; end
+  def terms
+    @meta_record = OpenStruct.new
+    @meta_record.title = "Terms of Service - LingoLinq"
+    @meta_record.summary = "LingoLinq Terms of Service"
+    @meta_record.link = "#{request.protocol}#{request.host_with_port}/terms"
+    @meta_record.created = Time.parse("Jan 1 2014").iso8601
+    @meta_record.updated = Time.now.iso8601
+    render :index
+  end
+
+  def privacy
+    @meta_record = OpenStruct.new
+    @meta_record.title = "Privacy Policy - LingoLinq"
+    @meta_record.summary = "LingoLinq Privacy Policy"
+    @meta_record.link = "#{request.protocol}#{request.host_with_port}/privacy"
+    @meta_record.created = Time.parse("Jan 1 2014").iso8601
+    @meta_record.updated = Time.now.iso8601
+    render :index
+  end
   
   def utterance_redirect
     match = params['reply_code'].match(/^([0-9a-f]+)([A-Z]+)?$/)

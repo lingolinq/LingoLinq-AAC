@@ -50,7 +50,7 @@
       {{/if}}
     </header>
 
-    <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
         <div class="md-card__head md-card__head--getting-started">
