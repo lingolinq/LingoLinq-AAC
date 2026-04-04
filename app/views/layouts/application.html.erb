@@ -55,13 +55,17 @@
 
  
   <%= stylesheet_link_tag "application", media: "all" %>
-  <link href="<%= @domain_overrides.to_json %>" />
+  <%# Client reads window.domain_settings (script below), not a link tag. %>
   <% if @domain_overrides && @domain_overrides['css'] %>
     <%= stylesheet_link_tag @domain_overrides['css'] %>
   <% end %>
   <!-- Tab icon - app logo (?v=5 forces cache refresh when changing favicon) -->
   <link rel="icon" href="/images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
-  <link rel="apple-touch-icon" href="/images/LL_Logo_Light_Muted.png?v=5" />
+  <!-- rumor has it android needs absolute paths for these to work -->
+  <link href="https://www.lingolinq.com/icons/logo-60.png" rel="apple-touch-icon" />
+  <link href="https://www.lingolinq.com/icons/logo-76.png" rel="apple-touch-icon" sizes="76x76" />
+  <link href="https://www.lingolinq.com/icons/logo-120.png" rel="apple-touch-icon" sizes="120x120" />
+  <link href="https://www.lingolinq.com/icons/logo-152.png" rel="apple-touch-icon" sizes="152x152" />
   <%= javascript_include_tag "globals" %>
   <% if @load_chart_scripts %>
     <%# Chart.js + Sankey: before application.js; only Ember shell (boards/* that render index). See app/frontend/app/index.html for ember serve. %>
