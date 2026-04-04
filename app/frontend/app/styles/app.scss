@@ -429,7 +429,8 @@ body:has(#within_ember.bento-page-with-footer) {
   padding-bottom: 0;
   display: flex !important;
   flex-direction: column !important;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 /* Ember outlet wrapper: when it wraps #index_view or .md-shell (modern dashboard), keep it in the flex chain. When empty or a ghost sibling (no #index_view or .md-shell inside), collapse it so it doesn't split space with #index_view. */
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view,
