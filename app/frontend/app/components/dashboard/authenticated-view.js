@@ -469,12 +469,26 @@ export default Component.extend({
       return o.type == 'manager' && o.restricted != true; 
     });
   }),
-  has_management_responsibility: computed('managed_orgs', function() {
-    return (this.get('managed_orgs') || []).length > 0;
+  has_management_responsibility: computed('managed_orgs', 'appState.currentUser.supporter_role', function() {
+    return (this.get('managed_orgs') || []).length > 0 || this.appState.get('currentUser.supporter_role');
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
   }),
+  all_orgs: computed('managed_orgs', 'appState.currentUser.managing_supervision_orgs', function() {
+    var manager = this.get('managed_orgs') || [];
+    var supervisor = this.appState.get('currentUser.managing_supervision_orgs') || [];
+    var seen = {};
+    return manager.concat(supervisor).filter(function(o) {
+      if(seen[o.id]) { return false; }
+      seen[o.id] = true;
+      return true;
+    });
+  }),
+  multipleOrgs: computed('all_orgs.length', function() {
+    return (this.get('all_orgs.length') || 0) > 1;
+  }),
+  orgDropdownOpen: false,
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
       return this.appState.get('currentUser.preferences.auto_open_speak_mode');
@@ -588,6 +602,9 @@ export default Component.extend({
     }
     return 5;
   }),
+  boardsLoading: computed('_previewBoardsLoaded', '_fetchedPreviewBoards', function() {
+    return this.get('_previewBoardsLoaded') && !this.get('_fetchedPreviewBoards');
+  }),
   previewBoards: computed('_fetchedPreviewBoards.[]', function() {
     var boards = this.get('_fetchedPreviewBoards') || [];
     var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
@@ -618,6 +635,9 @@ export default Component.extend({
       } else {
         _this.set('_fetchedBoardCount', results.length);
       }
+    }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      _this.set('_fetchedPreviewBoards', []);
     });
   }),
   _fetchRemainingForCount: function(userId, offset, accumulated) {
@@ -647,6 +667,35 @@ export default Component.extend({
     if (fetched !== undefined && fetched !== null) { return fetched; }
     return 0;
   }),
+  _animateBoardCount: observer('boardCount', function() {
+    var _this = this;
+    var target = _this.get('boardCount') || 0;
+    var current = _this.get('_displayBoardCount') || 0;
+    if (current === target) { return; }
+    if (_this._boardCountFrame) { cancelAnimationFrame(_this._boardCountFrame); }
+    var start = current;
+    var diff = target - start;
+    var duration = Math.min(400, Math.max(150, Math.abs(diff) * 15));
+    var startTime = null;
+    function step(timestamp) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      if (!startTime) { startTime = timestamp; }
+      var elapsed = timestamp - startTime;
+      var progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      _this.set('_displayBoardCount', Math.round(start + diff * eased));
+      if (progress < 1) {
+        _this._boardCountFrame = requestAnimationFrame(step);
+      }
+    }
+    _this._boardCountFrame = requestAnimationFrame(step);
+  }),
+  displayBoardCount: computed('_displayBoardCount', 'boardCount', function() {
+    var display = this.get('_displayBoardCount');
+    if (display !== undefined && display !== null) { return display; }
+    return this.get('boardCount') || 0;
+  }),
   extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
     var appState = this.appState;
     var user = appState.get('currentUser');
@@ -669,6 +718,12 @@ export default Component.extend({
   }),
 
   actions: {
+    addOrganization: function() {
+      var user_name = this.appState.get('currentUser.user_name');
+      if(user_name) {
+        this.get('router').transitionTo('user.subscription', user_name);
+      }
+    },
     goToBoard: function(boardKey) {
       if (boardKey) {
         var parts = boardKey.split('/');
@@ -753,6 +808,9 @@ export default Component.extend({
     togglePillnavDropdown: function() {
       this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
     },
+    toggleOrgDropdown: function() {
+      this.toggleProperty('orgDropdownOpen');
+    },
     selectTab: function(tab) {
       this.send('goTab', tab);
       this.set('pillnavDropdownOpen', false);
@@ -824,11 +882,11 @@ export default Component.extend({
       if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
-      var uo = this.appState.get('currentUser.user_name');
-      if (uo) {
-        this.get('router').transitionTo('user.boards', uo);
+      if (this.appState.check_for_needing_purchase) {
+        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+      } else {
+        modal.open('new-board');
       }
-      this.set('showNewBoardForm', false);
     },
     openSupervisorsModal: function() {
       modal.open('dashboard-supervisors-modal');
