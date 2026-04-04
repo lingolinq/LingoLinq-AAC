@@ -1,5 +1,8 @@
 task "extras:copy_terms" => :environment do
-  ['privacy', 'terms', 'jobs'].each do |type|
+  # privacy and terms are now styled Ember templates maintained in
+  # app/frontend/app/templates/ — do NOT overwrite them from the Rails partials.
+  # Only 'jobs' still uses the auto-copy pattern.
+  ['jobs'].each do |type|
     str = "<!-- auto-generated app/views/shared/_#{type}.html.erb -->\n"
     str += File.read("./app/views/shared/_#{type}.html.erb")
     File.open("./app/frontend/app/templates/#{type}.hbs", 'w') do |f|
