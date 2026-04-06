@@ -1,17 +1,19 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
+  <div class="md-modal-header">
+    <button type="button" class="close" {{action "close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">
       {{t "Find a Button" key="find_a_button"}}
     </h3>
   </div>
-  <div class="modal-body">
-    {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="form-control" select="pick_result" placeholder="Word or phrase you're looking for"}}
+  <div class="md-modal-body">
+    {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="md-modal-input" select="pick_result" placeholder="Word or phrase you're looking for"}}
     {{#if this.searchString}}
-      <div class="row" id="button_results">
+      <div id="button_results" style="margin-top: 12px;">
         {{#if this.results}}
           {{#each this.results as |result|}}
-            <div {{action "pick_result" result}} class="result col-sm-12">
+            <div {{action "pick_result" result}} class="result" style="padding: 8px 0; border-bottom: 1px solid rgba(27, 54, 93, 0.08); cursor: pointer;">
               {{#if result.sequence}}
                 <div class='img_holder'>
                   {{#each result.steps as |step|}}
@@ -75,7 +77,7 @@
             </div>
           {{/each}}
         {{else}}
-          <div class="col-sm-12">
+          <div style="padding: 16px 0; color: var(--md-muted, #6b7280);">
             {{#if this.loading}}
               {{t "Loading..." key="loading"}}
             {{else}}
@@ -101,7 +103,7 @@
       </div>
     {{/if}}
   </div>
-  <div class="modal-footer">
-    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  <div class="md-modal-footer">
+    <button class="md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

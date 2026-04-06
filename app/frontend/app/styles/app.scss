@@ -1,7 +1,7 @@
 @use "sass:color";
 @use "sass:list";
 
-@import "header_sizing";
+@use "header_sizing";
 
 // LingoLinq brand colors
 $brand-navy: #120380;
@@ -6885,7 +6885,13 @@ body.pretty_loader #loading_box {
   font-family: serif;
   font-size: 18px;
   vertical-align: top;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: hidden;
+  display: block;
+  max-width: 100%;
+  line-height: 1.1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 .board.text_huge .button {
   .button-label-holder.top {
@@ -46832,7 +46838,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 14px;
-  width: 48%;
+  width: 65%;
   flex-shrink: 0;
   min-width: 0;
 }
@@ -46879,12 +46885,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Board actions panel (edit mode, right of title) */
 .md-board-detail-board-actions-wrap {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-end;
+  justify-content: flex-end;
+  align-self: flex-end;
+  width: 35%;
+  overflow: visible;
+}
+.md-board-detail-board-actions-wrap > .md-board-detail-board-actions {
   background: linear-gradient(135deg, #374151, #4b5563);
   border-radius: 18px;
-  overflow: hidden;
   box-shadow: 0 2px 8px rgba(55, 65, 81, 0.25);
 }
 .md-board-detail-board-actions {
@@ -46896,7 +46907,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: none;
   border-radius: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: none;
   padding: 2px 0;
 }
@@ -46930,11 +46941,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   width: 16px;
   height: 16px;
 }
-.md-board-detail-board-actions__btn:hover {
+.md-board-detail-board-actions__btn:hover,
+.md-board-detail-board-actions__btn--active {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
-.md-board-detail-board-actions__btn:hover svg {
+.md-board-detail-board-actions__btn:hover svg,
+.md-board-detail-board-actions__btn--active svg {
   color: rgba(255, 255, 255, 0.9);
 }
 .md-board-detail-board-actions__divider {
@@ -46957,7 +46970,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: transparent;
   border: none;
   border-radius: 0;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: none;
 }
 .md-board-detail-board-actions__group-pill {
@@ -46995,6 +47008,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: 1px solid rgba(27, 54, 93, 0.10);
   border-radius: 999px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.md-board-detail-board-actions__group-pill--active {
+  background: rgba(255, 255, 255, 0.15);
+}
+/* Share dropdown */
+.md-board-detail-share-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(27, 42, 65, 0.18);
+  padding: 4px;
+  min-width: 160px;
+  margin-top: 4px;
+}
+.md-board-detail-share-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #46505f;
+  cursor: pointer;
+  white-space: nowrap;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+}
+.md-board-detail-share-dropdown__item:hover {
+  background: rgba(27, 54, 93, 0.06);
+}
+.md-board-detail-share-dropdown__item svg {
+  color: rgba(70, 80, 95, 0.5);
+  flex-shrink: 0;
+}
+.md-board-detail-share-dropdown__divider {
+  height: 1px;
+  background: rgba(27, 54, 93, 0.08);
+  margin: 4px 8px;
 }
 
 .md-board-detail-header__actions {
@@ -47204,6 +47262,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 1px 4px rgba(27, 54, 93, 0.06);
+}
+.md-board-detail-quick-toggle--categories {
+  position: relative;
+  top: 2px;
 }
 .md-board-detail-quick-toggle:hover {
   background: rgba(255, 255, 255, 1);
@@ -48042,7 +48104,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 16px;
+  padding: 4px;
   border-radius: 16px;
   min-width: 0;
   min-height: 0;
@@ -48152,14 +48214,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   line-height: 1.3;
 }
 .md-board-detail-symbol-card__label {
-  font-size: clamp(8px, 1.5vw, var(--bd-button-text-size, 14px));
+  font-size: clamp(7px, 12cqw, var(--bd-button-text-size, 14px));
   font-weight: 600;
   color: #1b365d;
   text-align: center;
   line-height: 1.15;
   overflow: hidden;
-  text-overflow: ellipsis;
   word-break: break-word;
+  overflow-wrap: break-word;
   min-width: 0;
   width: 100%;
   flex-shrink: 0;
@@ -48925,6 +48987,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-symbol-card__edit-actions--inline {
   display: flex;
 }
+/* When card is too narrow, hide folder badge */
+@container symbol-card (max-width: 59px) {
+  .md-board-detail-symbol-card__folder-badge {
+    display: none !important;
+  }
+}
 /* When card is too short for inline icons, swap to dropdown */
 @container symbol-card (max-height: 149px) {
   .md-board-detail-symbol-card__edit-actions--inline {
@@ -49290,6 +49358,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: #46505f;
   border-radius: 14px 14px 20px 20px;
   z-index: 0;
+  pointer-events: none;
   box-shadow:
     0 4px 16px rgba(27, 42, 65, 0.20),
     0 8px 32px rgba(27, 42, 65, 0.10),
@@ -49305,11 +49374,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 6px;
   background: #525d6e;
   border-radius: 5px 5px 0 0;
+  pointer-events: none;
   box-shadow:
     0 -2px 8px rgba(27, 42, 65, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.10);
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
+}
+.md-board-detail-grid--folder-tab-labels .md-folder-tab {
+  pointer-events: auto;
 }
 /* Tab label — hidden by default */
 .md-folder-tab__label {
@@ -49391,6 +49464,70 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label-input {
   display: none;
 }
+/* Colored corner tab variant — small colored triangle in top-right corner */
+.md-board-detail-grid--folder-colored-corner .md-folder-back {
+  display: none;
+}
+.md-board-detail-grid--folder-colored-corner .md-board-detail-grid__cell--folder {
+  padding-top: 0;
+}
+.md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder {
+  position: relative;
+  overflow: hidden;
+}
+.md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  background: var(--btn-bg, currentColor);
+  filter: brightness(0.75);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  z-index: 3;
+  pointer-events: none;
+}
+.md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
+  display: none;
+}
+/* Folder display style dropdown */
+.md-board-detail-folder-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(27, 42, 65, 0.18);
+  padding: 4px;
+  min-width: 200px;
+}
+.md-board-detail-folder-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #46505f;
+  cursor: pointer;
+  white-space: nowrap;
+  width: 100%;
+  text-align: left;
+  border-radius: 6px;
+}
+.md-board-detail-folder-dropdown__item:hover {
+  background: rgba(27, 54, 93, 0.06);
+}
+.md-board-detail-folder-dropdown__item--active {
+  background: rgba(27, 54, 93, 0.10);
+  color: #1b365d;
+  font-weight: 600;
+}
 /* Card sits on top — elevated above folder */
 .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
   position: relative;
@@ -49407,7 +49544,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Hover: card lifts dramatically, folder shadow deepens */
 .md-board-detail-grid__cell--folder:hover > .md-board-detail-symbol-card {
-  transform: translateY(-7px);
+  transform: translateY(-3.5px);
   box-shadow:
     0 12px 32px rgba(27, 54, 93, 0.18),
     0 16px 48px rgba(27, 42, 65, 0.12),
@@ -49536,12 +49673,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 1200px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(11px, 2.2vw, 16px) !important;
+    font-size: clamp(9px, 14cqw, 13px) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(11px, 2.2vw, 16px) !important;
+    font-size: clamp(9px, 14cqw, 13px) !important;
+  }
+  .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
+    font-size: clamp(10px, 17cqw, 17px) !important;
+  }
+}
+@media (max-width: 800px) {
+  .md-board-detail-symbol-card__label {
+    font-size: clamp(8px, 13cqw, 12px) !important;
+  }
+  .md-board-detail-symbol-card__label-input {
+    font-size: clamp(8px, 13cqw, 12px) !important;
   }
   .md-folder-tab__label {
     font-size: clamp(10px, 2vw, 14px) !important;
@@ -49553,7 +49701,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     font-size: clamp(10px, 2vw, 13px) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(13px, 2.8vw, 20px) !important;
+    font-size: clamp(8px, 16cqw, 16px) !important;
   }
 }
 
@@ -49830,6 +49978,49 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-board-detail-color-picker {
     width: 320px;
+  }
+}
+
+/* ── Board-Detail: Folder responsive adjustments ── */
+/* Medium screens — narrower folder back, shorter tab */
+@media (max-width: 1024px) {
+  .md-folder-back {
+    left: calc(-2px + 7.5%);
+    right: calc(-2px + 7.5%);
+  }
+  .md-folder-tab {
+    width: 34%;
+    height: 4px;
+    top: -4px;
+  }
+  .md-board-detail-grid--folder-tab-labels .md-folder-tab {
+    width: calc(100% - 20px - 15%);
+  }
+  .md-board-detail-grid__cell--folder {
+    padding-top: 10px;
+  }
+  .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+    width: 90%;
+    align-self: center;
+    border-radius: 12px;
+  }
+  .md-folder-back {
+    border-radius: 11px 11px 15px 15px;
+  }
+  .md-folder-tab {
+    border-radius: 4px 4px 0 0;
+  }
+}
+/* Below 900px — hide folder badge icon, taller folder cards */
+@media (max-width: 900px) {
+  .md-board-detail-symbol-card__folder-badge {
+    display: none !important;
+  }
+  .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+    margin-top: -2px;
+  }
+  .md-folder-tab {
+    width: 34%;
   }
 }
 
@@ -50370,6 +50561,71 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: none;
   border-color: #2a9d8f;
   box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.12);
+}
+
+/* ── Share Board Modal: shared users list ── */
+.md-modal-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1b365d;
+  margin: 16px 0 10px;
+}
+.md-modal-shared-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.md-modal-shared-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(27, 54, 93, 0.03);
+  border: 1px solid rgba(27, 54, 93, 0.08);
+  border-radius: 12px;
+  transition: background 0.15s ease;
+}
+.md-modal-shared-user:hover {
+  background: rgba(27, 54, 93, 0.06);
+}
+.md-modal-shared-user__info {
+  flex: 1;
+  min-width: 0;
+}
+.md-modal-shared-user__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1b365d;
+}
+.md-modal-shared-user__detail {
+  font-size: 13px;
+  color: #6b7280;
+}
+.md-modal-shared-user__detail a {
+  color: #2a9d8f;
+}
+.md-modal-shared-user__badge {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+.md-modal-shared-user__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.md-modal-shared-user__remove:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
 }
 
 /* ── Swap or Drop Modal ── */

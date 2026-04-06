@@ -63,7 +63,8 @@ export default Route.extend({
     controller.set('_saved_recolor', null);
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
-    controller.set('folder_labels_on_tab', false);
+    controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
+    controller.set('folder_dropdown_open', false);
 
     // Default panels to collapsed (unexpanded)
     controller.set('panels_collapsed', true);

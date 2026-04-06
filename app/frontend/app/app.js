@@ -856,8 +856,8 @@ LingoLinq.Visualizations = {
   }
 };
 
-LingoLinq.boxPad = 17;
-LingoLinq.borderPad = 5;
+LingoLinq.boxPad = 8;
+LingoLinq.borderPad = 4;
 LingoLinq.labelHeight = 15;
 LingoLinq.customEvents = customEvents;
 LingoLinq.expired = function() {
