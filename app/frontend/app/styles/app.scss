@@ -1,7 +1,7 @@
 @use "sass:color";
 @use "sass:list";
 
-@import "header_sizing";
+//@import "header_sizing";
 
 // LingoLinq brand colors
 $brand-navy: #120380;
@@ -6380,6 +6380,16 @@ body > .popover.bottom {
 }
 .board .button.dim_button {
   opacity: 0.5;
+}
+/* Focus words: matched buttons — outline + glow in addition to dimming non-matches */
+.board .button.focus_word_button {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid rgba(42, 157, 143, 0.92);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 5px rgba(42, 157, 143, 0.18),
+    0 4px 14px rgba(27, 54, 93, 0.14);
 }
 .color_black {
   .board.hint_hidden_buttons:not(.edit):not(.show_all_buttons) .button.hidden_button {
@@ -43528,6 +43538,31 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     color: #1b2a4a !important;
   }
 
+  // Focus words (dim_button): strengthen dimming on board-alt grid (same intent as board-view block above).
+  .board .button.dim_button {
+    opacity: 0.4 !important;
+    filter: saturate(45%) brightness(0.88) !important;
+  }
+  &.mid_dim .board .button.dim_button {
+    opacity: 0.32 !important;
+    filter: saturate(38%) brightness(0.84) !important;
+  }
+  &.extra_dim .board .button.dim_button {
+    opacity: 0.22 !important;
+    filter: saturate(30%) brightness(0.78) !important;
+  }
+
+  .board .button.focus_word_button {
+    opacity: 1 !important;
+    filter: saturate(100%) brightness(1) !important;
+    outline: 3px solid rgba(42, 157, 143, 0.95) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 5px rgba(42, 157, 143, 0.22),
+      0 4px 16px rgba(27, 54, 93, 0.12) !important;
+    z-index: 2;
+  }
+
   .board .button:hover {
     border-color: var(--btn-bg, #b3cfc9) !important;
     box-shadow: 0 4px 12px rgba(27, 42, 74, 0.1) !important;
@@ -44340,6 +44375,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
     color: #1b2a4a !important;
     filter: saturate(70%);
+  }
+
+  // Focus words: `dim_button` is set on non-focus buttons (bound_classes + board contextualized_buttons).
+  // This shell applies `filter: saturate(70%)` to every `.board .button`, which stacks with the global
+  // `.board .button.dim_button { opacity: … }` rules and makes dimming look too subtle. Override filter +
+  // opacity for dim buttons only so focus words stand out clearly.
+  .board .button.dim_button {
+    opacity: 0.38 !important;
+    filter: saturate(38%) brightness(0.9) !important;
+  }
+  &.mid_dim .board .button.dim_button {
+    opacity: 0.3 !important;
+    filter: saturate(32%) brightness(0.85) !important;
+  }
+  &.extra_dim .board .button.dim_button {
+    opacity: 0.2 !important;
+    filter: saturate(26%) brightness(0.78) !important;
+  }
+
+  .board .button.focus_word_button {
+    opacity: 1 !important;
+    filter: saturate(100%) brightness(1) !important;
+    outline: 3px solid rgba(42, 157, 143, 0.95) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 5px rgba(42, 157, 143, 0.22),
+      0 4px 16px rgba(27, 54, 93, 0.12) !important;
+    z-index: 2;
   }
 
   // === Modern speak header (light theme) ===
@@ -48031,6 +48094,33 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 #within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card {
   margin: 0;
+}
+
+/* Focus words (board-detail): non-focus cells get `dim_button` from board-detail controller */
+#within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.38;
+  filter: saturate(38%) brightness(0.9);
+}
+#within_ember.board-detail-view.mid_dim .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.3;
+  filter: saturate(32%) brightness(0.85);
+}
+#within_ember.board-detail-view.extra_dim .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.2;
+  filter: saturate(26%) brightness(0.78);
+}
+
+/* Focus words: matched cells — outline + glow (paired with dim_button on non-matches).
+   Cards set inline outline-color from border_color; use !important so the focus ring stays visible. */
+#within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card.focus_word_button {
+  opacity: 1 !important;
+  filter: saturate(100%) brightness(1) !important;
+  outline: 3px solid var(--md-teal, #2cb7b0) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 5px rgba(44, 183, 176, 0.28),
+    0 4px 16px rgba(27, 54, 93, 0.14) !important;
+  z-index: 2;
 }
 
 /* Layer 3: Controls — elevated cards matching header icon style */

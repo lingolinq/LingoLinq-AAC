@@ -1715,6 +1715,12 @@ var editManager = EmberObject.extend({
       if (this.controller === controller) { this.controller = null; }
       return;
     }
+    var applyBoardDetailFocusDim = function() {
+      if(!controller || !controller.get) { return; }
+      if(controller.get('is_board_detail') && typeof controller._apply_focus_dim_to_ordered_buttons === 'function') {
+        controller._apply_focus_dim_to_ordered_buttons();
+      }
+    };
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
     if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons'); }
@@ -1794,6 +1800,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('already have fast render');
         if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)'); }
         resume_scanning();
+        applyBoardDetailFocusDim();
         return;
       } else {
         board.set('fast_html', null);
@@ -1823,6 +1830,7 @@ var editManager = EmberObject.extend({
           // TODO: this repeats too many times
           if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)'); }
           resume_scanning();
+          applyBoardDetailFocusDim();
           return;
         }
       }
@@ -1898,6 +1906,7 @@ var editManager = EmberObject.extend({
               LingoLinq.log.track('redrawing if needed');
               controller.redraw_if_needed();
               LingoLinq.log.track('done redrawing if needed');
+              applyBoardDetailFocusDim();
               resume_scanning();  
             }
           }
@@ -1909,6 +1918,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('redrawing if needed');
         controller.redraw_if_needed();
         LingoLinq.log.track('done redrawing if needed');
+        applyBoardDetailFocusDim();
         resume_scanning();
         for(var idx = 0; idx < result.length; idx++) {
           for(var jdx = 0; jdx < result[idx].length; jdx++) {
