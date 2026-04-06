@@ -10,6 +10,5 @@
  *
  *= require_self
  *= require vendor.css
- *= require header_sizing
  *= require frontend.css
  */

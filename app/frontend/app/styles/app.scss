@@ -1,6 +1,8 @@
 @use "sass:color";
 @use "sass:list";
 
+@import "header_sizing";
+
 // LingoLinq brand colors
 $brand-navy: #120380;
 $brand-teal: #4DB8C4;
