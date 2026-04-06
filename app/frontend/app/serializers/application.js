@@ -81,6 +81,22 @@ export default DS.RESTSerializer.extend({
       }
     }
 
+    // When the server deduplicates an image or sound on createRecord, it may return an ID
+    // that already exists in the store (e.g. the board was loaded with that image reference).
+    // Unload the stale record so Ember Data can assign the ID to the newly-created record
+    // without triggering "has already been used with another record" assertions.
+    if (requestType === 'createRecord' &&
+      (primaryModelClass.modelName === 'image' || primaryModelClass.modelName === 'sound')) {
+      var mediaKey = primaryModelClass.modelName;
+      var mediaData = payload[mediaKey];
+      if (mediaData && mediaData.id) {
+        var existingRecord = store.peekRecord(mediaKey, mediaData.id);
+        if (existingRecord) {
+          store.unloadRecord(existingRecord);
+        }
+      }
+    }
+
     // Call the parent normalizeResponse (pass payload in case we replaced it for user 'self')
     return this._super(store, primaryModelClass, payload, id, requestType);
   }

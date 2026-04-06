@@ -296,10 +296,10 @@ LingoLinq.User = DS.Model.extend({
     }
   ),
   stats: DS.attr('raw'),
-  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', function() {
+  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', 'fallback_avatar_url', function() {
     var url = this.get('avatar_data_uri') || this.get('avatar_url');
     if(!url) {
-      url = templateHelpers.path('images/action.png');
+      url = this.get('fallback_avatar_url') || templateHelpers.path('avatars/avatar-0.png');
     }
     return url;
   }),

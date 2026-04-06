@@ -5,7 +5,7 @@
 <div class="md-user-summary">
   <header class="md-hero md-hero--user">
     <div class="md-hero--user__avatar-wrap">
-      <img src={{this.model.avatar_url_with_fallback}} alt="" class="md-hero--user__avatar">
+      <img src={{this.model.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} onerror="this.src=this.getAttribute('rel');" alt="" class="md-hero--user__avatar">
       {{#if this.model.online}}
         <div title={{t "currently online" key="currently_online"}} class="online_marker"></div>
       {{/if}}

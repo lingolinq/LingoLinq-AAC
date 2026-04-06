@@ -1656,7 +1656,7 @@ export default Controller.extend({
       if(text_position == 'text_only' || show_always || flipped) {
         res = res + "text_only ";
       }
-      if(userPrefs && userPrefs.high_contrast) {
+      if(userPrefs && userPrefs.high_contrast === true) {
         res = res + 'high_contrast ';
       }
 

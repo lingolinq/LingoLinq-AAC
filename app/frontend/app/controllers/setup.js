@@ -25,7 +25,8 @@ export default Controller.extend({
   title: computed(function() {
     return i18n.t('account_setup', "Account Setup");
   }),
-  queryParams: [{ page: { defaultValue: 'intro' } }, 'finish', 'user_id'],
+  queryParams: [{ page: { defaultValue: 'intro' } }, 'finish', 'user_id', 'mode'],
+  mode: null,
   order: order,
   extra_order: extra_order,
   setup_index: computed('page', 'appState.controller.setup_index', function() {
@@ -703,62 +704,30 @@ export default Controller.extend({
   },
   _do_user_save: function(user) {
     var _this = this;
-    var pendingUtterance = this._pending_utterance_text_only;
-    var pendingSymbolBg = this._pending_symbol_background;
-    var pendingAccess = this._pending_access;
-    var pendingHomeReturn = this._pending_home_return;
     if(!user || !user.save) { return; }
+    // Snapshot preferences before save so we can restore after server response
+    var prefsSnapshot = JSON.parse(JSON.stringify(user.get('preferences') || {}));
     if(this.appState && this.appState.controller) {
       this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
     }
     user.save().then(function() {
-      if(pendingUtterance !== null && pendingUtterance !== undefined &&
-         user.get('preferences.device.utterance_text_only') !== pendingUtterance) {
-        var prefs = user.get('preferences') || {};
-        var prefsClone = Object.assign({}, prefs);
-        prefsClone.device = Object.assign({}, prefs.device || {});
-        prefsClone.device.utterance_text_only = pendingUtterance;
-        user.set('preferences', prefsClone);
+      // Server response may have overwritten in-memory changes made while
+      // the save was in flight. Re-apply the snapshot to preserve them.
+      var serverPrefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
+      var merged = JSON.parse(JSON.stringify(serverPrefs));
+      // Merge device preferences from snapshot over server response
+      merged.device = Object.assign({}, serverPrefs.device || {}, prefsSnapshot.device || {});
+      // Merge top-level preferences from snapshot
+      var topKeys = ['preferred_symbols', 'high_contrast', 'auto_home_return', 'skin'];
+      topKeys.forEach(function(key) {
+        if(prefsSnapshot[key] !== undefined) {
+          merged[key] = prefsSnapshot[key];
+        }
+      });
+      var changed = JSON.stringify(merged) !== JSON.stringify(serverPrefs);
+      if(changed) {
+        user.set('preferences', merged);
         user.notifyPropertyChange('preferences');
-      }
-      if(pendingSymbolBg === 'black_with_high_contrast') {
-        var bg = user.get('preferences.device.symbol_background');
-        var hc = user.get('preferences.high_contrast');
-        if(bg !== 'black' || hc !== true) {
-          var prefs = user.get('preferences') || {};
-          var prefsClone = Object.assign({}, prefs);
-          prefsClone.device = Object.assign({}, prefs.device || {});
-          prefsClone.device.symbol_background = 'black';
-          prefsClone.high_contrast = true;
-          user.set('preferences', prefsClone);
-          user.notifyPropertyChange('preferences');
-        }
-      }
-      if(pendingAccess === 'touch' || pendingAccess === 'dwell' || pendingAccess === 'scanning') {
-        var wantDwell = pendingAccess === 'dwell';
-        var wantScanning = pendingAccess === 'scanning';
-        var currentDwell = user.get('preferences.device.dwell');
-        var currentScanning = user.get('preferences.device.scanning');
-        if(currentDwell !== wantDwell || currentScanning !== wantScanning) {
-          var prefs = user.get('preferences') || {};
-          var prefsClone = Object.assign({}, prefs);
-          prefsClone.device = Object.assign({}, prefs.device || {});
-          prefsClone.device.dwell = wantDwell;
-          prefsClone.device.scanning = wantScanning;
-          user.set('preferences', prefsClone);
-          user.notifyPropertyChange('preferences');
-        }
-      }
-      if(pendingHomeReturn === 'auto_return' || pendingHomeReturn === 'stay') {
-        var wantAutoReturn = pendingHomeReturn === 'auto_return';
-        var currentAutoReturn = user.get('preferences.auto_home_return');
-        if(currentAutoReturn !== wantAutoReturn) {
-          var prefs = user.get('preferences') || {};
-          var prefsClone = Object.assign({}, prefs);
-          prefsClone.auto_home_return = wantAutoReturn;
-          user.set('preferences', prefsClone);
-          user.notifyPropertyChange('preferences');
-        }
       }
       _this.set('_pending_utterance_text_only', null);
       _this.set('_pending_symbol_background', null);
@@ -770,6 +739,9 @@ export default Controller.extend({
         }
       }, 150);
     }, function(err) {
+      // On error, restore snapshot so UI stays consistent
+      user.set('preferences', prefsSnapshot);
+      user.notifyPropertyChange('preferences');
       _this.set('_pending_utterance_text_only', null);
       _this.set('_pending_symbol_background', null);
       _this.set('_pending_access', null);
@@ -794,6 +766,24 @@ export default Controller.extend({
     noop: function() {
 
     },
+    close_board_layout: function() {
+      var _this = this;
+      var board_key = this.appState.get('board_layout_mode');
+      if (board_key) {
+        var parts = board_key.split('/');
+        if (parts.length === 2) {
+          this.router.transitionTo('user.board-detail.edit', parts[0], parts[1]).then(function() {
+            _this.appState.set('board_layout_mode', null);
+          });
+        } else {
+          this.appState.set('board_layout_mode', null);
+          this.router.transitionTo('index');
+        }
+      } else {
+        this.appState.set('board_layout_mode', null);
+        this.router.transitionTo('index');
+      }
+    },
     setup_go: function(direction) {
       var ctrl = this.appState && this.appState.get('controller');
       if(ctrl && typeof ctrl.send === 'function') {
@@ -805,80 +795,66 @@ export default Controller.extend({
     },
     set_preference: function(preference, value) {
       var user = this.get('setup_user') || this.get('fake_user');
-      if(preference !== 'device.utterance_text_only') {
-        this.set('_pending_utterance_text_only', null);
-      }
-      if(preference !== 'device.symbol_background') {
-        this.set('_pending_symbol_background', null);
-      }
-      if(preference !== 'access') {
-        this.set('_pending_access', null);
-      }
-      if(preference !== 'home_return') {
-        this.set('_pending_home_return', null);
-      }
       if(preference == 'access') {
         this.set('_pending_access', value);
-        var prefs = user.get('preferences') || {};
-        var prefsClone = Object.assign({}, prefs);
-        prefsClone.device = Object.assign({}, prefs.device || {});
+        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
+        prefs.device = prefs.device || {};
         if(value == 'touch') {
-          prefsClone.device.dwell = false;
-          prefsClone.device.scanning = false;
+          prefs.device.dwell = false;
+          prefs.device.scanning = false;
         } else if(value == 'dwell') {
-          prefsClone.device.dwell = true;
-          prefsClone.device.scanning = false;
+          prefs.device.dwell = true;
+          prefs.device.scanning = false;
         } else if(value == 'scanning') {
-          prefsClone.device.dwell = false;
-          prefsClone.device.scanning = true;
+          prefs.device.dwell = false;
+          prefs.device.scanning = true;
         }
-        user.set('preferences', prefsClone);
+        user.set('preferences', prefs);
         user.notifyPropertyChange('preferences');
       } else if(preference == 'home_return') {
         this.set('_pending_home_return', value);
         var wantAutoReturn = value === 'auto_return';
-        var prefs = user.get('preferences') || {};
-        var prefsClone = Object.assign({}, prefs);
-        prefsClone.auto_home_return = wantAutoReturn;
-        user.set('preferences', prefsClone);
+        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
+        prefs.auto_home_return = wantAutoReturn;
+        user.set('preferences', prefs);
         user.notifyPropertyChange('preferences');
       } else if(preference == 'preferred_symbols') {
         if(!user.get('original_preferred_symbols')) {
           user.set('original_preferred_symbols', user.get('preferences.preferred_symbols') || 'original')
         }
         user.set('preferences.' + preference, value);
+        user.notifyPropertyChange('preferences');
         user.set('preferred_symbols_changed', user.get('preferred_symbols') != user.get('original_preferred_symbols'));
         this.appState.set('setup_user', user);
       } else if(preference == 'device.symbol_background') {
         this.set('_pending_symbol_background', value === 'black_with_high_contrast' ? 'black_with_high_contrast' : null);
-        var prefs = user.get('preferences') || {};
-        var prefsClone = Object.assign({}, prefs);
-        prefsClone.device = Object.assign({}, prefs.device || {});
-        prefsClone.device.symbol_background = value === 'black_with_high_contrast' ? 'black' : value;
-        prefsClone.high_contrast = value === 'black_with_high_contrast';
-        user.set('preferences', prefsClone);
+        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
+        prefs.device = prefs.device || {};
+        prefs.device.symbol_background = value === 'black_with_high_contrast' ? 'black' : value;
+        prefs.high_contrast = value === 'black_with_high_contrast';
+        user.set('preferences', prefs);
+        user.notifyPropertyChange('preferences');
       } else if(preference == 'device.utterance_text_only') {
         this.set('_pending_utterance_text_only', value);
-        var prefs = user.get('preferences') || {};
-        var prefsClone = Object.assign({}, prefs);
-        prefsClone.device = Object.assign({}, prefs.device || {});
-        prefsClone.device.utterance_text_only = value;
-        prefsClone.device.updated = true;
-        user.set('preferences', prefsClone);
+        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
+        prefs.device = prefs.device || {};
+        prefs.device.utterance_text_only = value;
+        prefs.device.updated = true;
+        user.set('preferences', prefs);
         user.notifyPropertyChange('preferences');
       } else {
         if(preference.indexOf('.') !== -1) {
-          var prefs = user.get('preferences') || {};
+          var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
           var parts = preference.split('.');
-          var clone = Object.assign({}, prefs);
-          var target = clone;
+          var target = prefs;
           for(var i = 0; i < parts.length - 1; i++) {
             var key = parts[i];
-            target[key] = Object.assign({}, target[key] || {});
+            target[key] = target[key] || {};
             target = target[key];
           }
           target[parts[parts.length - 1]] = value;
-          user.set('preferences', clone);
+          user.set('preferences', prefs);
+          user.notifyPropertyChange('preferences');
         } else {
           user.set('preferences.' + preference, value);
           user.notifyPropertyChange('preferences');

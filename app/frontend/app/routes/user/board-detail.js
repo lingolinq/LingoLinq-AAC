@@ -52,7 +52,9 @@ export default Route.extend({
     controller.set('preview_level', null);
     controller.set('show_options_menu', false);
     controller.set('show_color_legend', false);
-    controller.set('edit_mode', false);
+    if (!this.appState.get('board_layout_mode')) {
+      controller.set('edit_mode', false);
+    }
     controller.set('paint_mode', null);
     controller.set('color_picker_button', null);
     controller.set('button_menu_id', null);
@@ -138,6 +140,11 @@ export default Route.extend({
       });
     }
 
+    // Scroll to top on entry — #content is the actual scroll container, not window
+    window.scrollTo(0, 0);
+    var content = document.getElementById('content');
+    if (content) { content.scrollTop = 0; }
+
     // Prefetch linked boards
     if(model.prefetch_linked_boards) {
       model.prefetch_linked_boards();
@@ -152,14 +159,17 @@ export default Route.extend({
 
   resetController: function(controller, isExiting) {
     if(isExiting) {
+      var board_layout = this.appState.get('board_layout_mode');
       controller.set('ordered_buttons', null);
       controller.set('active_category', 'all');
       controller.set('sentence_parts', []);
-      controller.set('edit_mode', false);
-      controller.set('paint_mode', null);
-      controller.set('color_picker_button', null);
-      if(editManager.controller === controller) {
-        editManager.controller = null;
+      if (!board_layout) {
+        controller.set('edit_mode', false);
+        controller.set('paint_mode', null);
+        controller.set('color_picker_button', null);
+        if(editManager.controller === controller) {
+          editManager.controller = null;
+        }
       }
       // Restore previous mode if we activated speak mode on entry
       if(controller.get('_was_not_speak_mode')) {

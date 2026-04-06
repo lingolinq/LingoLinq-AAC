@@ -1,5 +1,16 @@
 import Route from '@ember/routing/route';
+import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+
+function scrollAllToTop() {
+  window.scrollTo(0, 0);
+  var content = document.getElementById('content');
+  if (content) { content.scrollTop = 0; }
+  var main = document.querySelector('.md-board-detail-main');
+  if (main) { main.scrollTop = 0; }
+  var shell = document.querySelector('.md-shell--board-detail');
+  if (shell) { shell.scrollTop = 0; }
+}
 
 export default Route.extend({
   appState: service('app-state'),
@@ -14,19 +25,19 @@ export default Route.extend({
     var _this = this;
     var boardDetailController = this.controllerFor('user.board-detail');
 
-    // Check if the user needs to purchase before entering edit mode
-    // Uses the appState service's check_for_needing_purchase which returns a promise
     if(!model) {
-      // Model not loaded yet — redirect to parent route
       _this.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
+    scrollAllToTop();
     _this.appState.check_for_needing_purchase().then(function() {
       boardDetailController.set('edit_mode', true);
       boardDetailController.set('board_collapsed', false);
       _this.stashes.persist('current_mode', 'edit');
+      runLater(scrollAllToTop, 50);
+      runLater(scrollAllToTop, 200);
     }, function() {
-      // Purchase required but not completed — stay in view mode
+      // Purchase required but not completed
     });
   },
 
