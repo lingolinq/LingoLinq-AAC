@@ -612,8 +612,12 @@ export default Controller.extend({
       this.set('model.text_size', 'normal');
       if(starting_height < 35) {
         this.set('model.text_size', 'really_small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.25), 8));
       } else if(starting_height < 75) {
         this.set('model.text_size', 'small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.3), 10));
       }
 
       var $canvas = $("#board_canvas");
@@ -982,7 +986,7 @@ export default Controller.extend({
       } else if(spacing == "huge") {
         return 45;
       } else {
-        return 5;
+        return 4;
       }
     }
   ),

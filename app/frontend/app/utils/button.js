@@ -380,6 +380,17 @@ var Button = EmberObject.extend({
           text_style = "style='font-size: " + fit.size + "px;'";
           holder_style = "style='position: absolute;'";
         }
+      } else if(txt && this.get('positioning.width')) {
+        var pos = this.get('positioning');
+        var baseFontSize = pos.base_text_height || 18;
+        var estCharWidth = baseFontSize * 0.6;
+        var maxChars = Math.floor(pos.width / estCharWidth);
+        if(txt.length > maxChars && maxChars > 0) {
+          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
+          if(scaledSize < baseFontSize) {
+            text_style = "style='font-size: " + scaledSize + "px;'";
+          }
+        }
       }
       res = res + "<div class='" + button_class + "' " + holder_style + ">";
       res = res + "<span " + text_style + " class='" + (this.get('hide_label') ? "button-label hide-label" : "button-label") + "'>" + txt + "</span>";
@@ -892,11 +903,11 @@ Button.action_styling = function(action, button) {
 };
 Button.image_holder_style = function(pos, text_only) {
   if(!pos || !pos.image_height) { return ""; }
-  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_square + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
+  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_width + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
 };
 Button.image_style = function(pos) {
   if(!pos || !pos.image_height) { return ""; }
-  return "width: 100%; vertical-align: middle; max-height: " + pos.image_square + "px;";
+  return "width: 100%; height: 100%; object-fit: contain; vertical-align: middle;";
 };
 Button.clean_url = function(str) { return clean_url(str); };
 
