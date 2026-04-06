@@ -5,6 +5,11 @@ set -x # Enable debug logging
 
 echo "=== Starting Render Build ==="
 
+echo "=== Installing jemalloc ==="
+apt-get update -qq && apt-get install -y -qq libjemalloc-dev > /dev/null
+JEMALLOC_PATH=$(find /usr/lib -name 'libjemalloc.so*' -type f | head -1)
+echo "jemalloc installed at: $JEMALLOC_PATH"
+
 # Try all known NVM locations, otherwise install it
 # Note: We disable errexit (set +e) during sourcing because nvm.sh 
 # often returns non-zero codes during initialization which kills the script.
