@@ -331,6 +331,22 @@ export default Controller.extend({
         }
       }
       if(!will_render) {
+        // Stale queue from find-a-button can run after re-render (e.g. focus words) while
+        // board.model is briefly unset — avoid sending the action into a bad state.
+        var hl = _this.get('button_highlights');
+        if (hl && hl.length) {
+          var h0 = hl[0];
+          if (h0 && !h0.pre && h0.board_id && !_this.get('board.model')) {
+            _this.set('button_highlights', null);
+            _this.set('button_highlights_button_set', null);
+            _this.set('last_highlight_options', null);
+            var lostDefer = _this.get('highlight_button_defer');
+            if (lostDefer && lostDefer.resolve) {
+              lostDefer.resolve();
+            }
+            return;
+          }
+        }
         _this.send('highlight_button', options);
       }
     });
@@ -1104,7 +1120,7 @@ export default Controller.extend({
 
       var _this = this;
       var picture_prompt = function($button) {
-        if(utterance.get('hint_button')) {
+        if(utterance && utterance.get && utterance.get('hint_button')) {
           utterance.set('hint_button.label', $button.find(".button-label").eq(0).text());
           utterance.set('hint_button.image_url', $button.find(".symbol").attr('src'));
         }
@@ -1112,6 +1128,7 @@ export default Controller.extend({
 
       if(buttons && buttons.length > 0) {
         var button = buttons[0];
+        var boardModel = this.get('board.model');
         if(button.pre == 'home' || button.pre == 'true_home' || button.pre == 'home' || button.pre == 'sidebar') {
           // handle pre-buttons if there are any
           this.set('button_highlights', buttons);
@@ -1159,10 +1176,11 @@ export default Controller.extend({
               defer.reject(err || {canceled: true});
             }
           });
-        } else if(button && button.board_id == this.get('board.model').get('id')) {
+        } else if(button && boardModel && button.board_id == boardModel.get('id')) {
           // otherwise if you're currently on the correct board
           var findButtonElem = function() {
-            if(button.board_id == _this.get('board.model').get('id')) {
+            var bm = _this.get('board.model');
+            if(bm && button.board_id == bm.get('id')) {
               var $button = $(".button[data-id='" + button.id + "']");
               if($button[0] && $button.width()) {
                 // Find the (visible) button in the UI
@@ -1183,12 +1201,12 @@ export default Controller.extend({
                   var board = _this.get('board.model');
                   _this.activateButton(found_button, {board: board, skip_highlight_check: true});
                   var next_button = buttons[0];
-                  if(next_button && (next_button.board_id == board.id || next_button.pre)) {
+                  if(next_button && board && (next_button.board_id == board.id || next_button.pre)) {
                     // If there is more to the sequence, and the 
                     // user selection isn't going to involve loading
                     // a different board, then call highlight_button again
                     _this.highlight_button('resume'); 
-                  } else if(next_button && (next_button.board_id != board.id)) {
+                  } else if(next_button && board && (next_button.board_id != board.id)) {
                     // If there is more to the sequence but we're
                     // in the process of navigating, do nothing, the
                     // load board process should highlight the next
@@ -1228,11 +1246,20 @@ export default Controller.extend({
           if(button && _this.get('button_highlights_button_set')) {
             // try to find the sequence to get from here to there
             var bs = _this.get('button_highlights_button_set');
+            var stashesSvc = _this.get('stashes');
+            if (!stashesSvc) {
+              defer.reject({error: 'no stashes for highlight path'});
+              return;
+            }
             var current = _this.get('board.model.id');
-            var home = this.stashes.get('root_board_state.id');
-            var tmp_home = this.stashes.get('temporary_root_board_state.id');
+            var home = stashesSvc.get('root_board_state.id');
+            var tmp_home = stashesSvc.get('temporary_root_board_state.id');
             var map = bs.board_map([bs]).map;
             var sequence = bs.button_steps(current, button.board_id, map, home, tmp_home);
+            if (!sequence || !sequence.buttons) {
+              defer.reject({error: 'no path to highlighted button'});
+              return;
+            }
             var new_buttons = [];
             if(sequence.pre == 'true_home') {
               new_buttons.push({pre: 'true_home'});

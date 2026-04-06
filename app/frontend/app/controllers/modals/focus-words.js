@@ -172,7 +172,10 @@ export default modal.ModalController.extend({
     return this.get('search') || this.get('browse');
   }),
   words_list: computed('words', function() {
-    return (this.get('words') || '').replace(/[^\s\n\w]/g, '').split(/[\n\s]+/).filter(function(s) { return s.length > 0; });
+    return (this.get('words') || '')
+      .split(/[\n\s]+/)
+      .map(function(s) { return s.replace(/[^\p{L}\p{N}_]/gu, ''); })
+      .filter(function(s) { return s.length > 0; });
   }),
   browse_categories: computed('model', function() {
     var res = [];
@@ -316,10 +319,11 @@ export default modal.ModalController.extend({
         }).then(function(data) { }, function(err) { });  
       }
 
-      app_state.set('focus_words', {list: words, focus_id: Math.random()});
+      var focusRevision = Math.random();
+      app_state.set('focus_words', {list: words, focus_id: focusRevision});
       var boardController = editManager.controller;
       if (boardController && boardController.get && boardController.get('model')) {
-        boardController.get('model').set('focus_id', 'force_refresh');
+        boardController.get('model').set('focus_id', focusRevision);
       }
       modal.close();
       editManager.process_for_displaying();

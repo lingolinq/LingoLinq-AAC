@@ -90,6 +90,9 @@ var boundClasses = {};
       if(button.dim) {
         classes = classes + " dim_button";
       }
+      if(button.focus_word_match) {
+        classes = classes + " focus_word_button";
+      }
       emberSet(button, 'display_class', classes);
     }
   });
