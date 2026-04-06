@@ -1290,6 +1290,7 @@ var editManager = EmberObject.extend({
     if(!this.controller || !this.controller.get) { return []; }
     var ob = this.controller.get('ordered_buttons') || [];
     var res = null;
+    var board = this.controller.get('model');
     for(var idx = 0; idx < ob.length; idx++) {
       for(var jdx = 0; jdx < ob[idx].length; jdx++) {
         if(!res) {
@@ -1298,10 +1299,14 @@ var editManager = EmberObject.extend({
           } else if(id == 'empty' && ob[idx][jdx].empty) {
             res = ob[idx][jdx];
           }
+          // board-detail (and similar) may use plain objects for display; Button methods are required
+          if(res && typeof res.load_image !== 'function') {
+            res = editManager.Button.create(Object.assign({}, res), {board: board});
+            ob[idx][jdx] = res;
+          }
         }
       }
     }
-    var board = this.controller.get('model');
     var buttons = board.contextualized_buttons(editManager.get_app_state().get('label_locale'), editManager.get_app_state().get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, editManager.get_app_state().get('inflection_shift'));
     if(res) {
       var trans_button = buttons.find(function(b) { return b.id == id; });

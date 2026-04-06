@@ -30,8 +30,13 @@ task "extras:generate_favicon" do
 end
 
 task "extras:assert_js" do
-  `mkdir -p ./app/frontend/dist/assets`
-  `cp -n ./app/frontend/frontend-placeholder.js ./app/frontend/dist/assets/frontend.js`
+  require 'fileutils'
+  FileUtils.mkdir_p('./app/frontend/dist/assets')
+  # Copy placeholder only if dist has no frontend.js yet (do not clobber ember build output).
+  # Avoid `cp -n`: GNU coreutils warns it is non-portable; use Ruby for portability.
+  placeholder = './app/frontend/frontend-placeholder.js'
+  dest_front = './app/frontend/dist/assets/frontend.js'
+  FileUtils.cp(placeholder, dest_front) if File.exist?(placeholder) && !File.exist?(dest_front)
   `touch ./app/frontend/dist/assets/vendor.js`
   `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
   `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
