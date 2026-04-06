@@ -76,6 +76,8 @@ LingoLinq::Application.routes.draw do
   get 'u/:reply_code' => 'boards#utterance_redirect'
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
+  get ':id/board-detail/:boardname' => ember_handler, :constraints => {:id => user_id_regex}
+  get ':id/board-detail/:boardname/edit' => ember_handler, :constraints => {:id => user_id_regex}
   
   get 'utterances/:id' => 'boards#utterance'  
   get ':id' => 'boards#user', :constraints => {:id => user_id_regex}

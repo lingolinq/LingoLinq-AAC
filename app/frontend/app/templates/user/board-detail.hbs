@@ -85,9 +85,25 @@
       </div>
       {{/unless}}
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
-        <div class="md-board-detail-sentence-bar__text" aria-live="polite">
+        <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite">
           {{#if this.has_sentence}}
-            {{this.sentence_text}}
+            {{#if this.utterance_show_symbols}}
+              {{#each this.sentence_parts as |part|}}
+                <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
+                  {{#if this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/if}}
+                  {{#if part.image_url}}
+                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img">
+                  {{/if}}
+                  {{#unless this.utterance_text_on_top}}
+                    <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                  {{/unless}}
+                </span>
+              {{/each}}
+            {{else}}
+              {{this.sentence_text}}
+            {{/if}}
           {{else}}
             <span class="md-board-detail-sentence-bar__placeholder">{{t "Tap symbols to build your message" key="board_detail_tap_symbols"}}</span>
           {{/if}}
@@ -135,14 +151,14 @@
         {{#unless this.edit_mode}}
           <button type="button" class="md-board-detail-sidebar-toggle md-board-detail-sidebar-toggle--stacked {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} {{action "toggleInlineSidebar"}}>
             {{#if this.inlineSidebarOpen}}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="18 15 12 9 6 15"></polyline>
-                <polyline points="18 20 12 14 6 20"></polyline>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="18 14 12 8 6 14" stroke="#46505F"/>
+                <polyline points="18 22 12 16 6 22" stroke="#7693B9"/>
               </svg>
             {{else}}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="6 9 12 15 18 9"></polyline>
-                <polyline points="6 14 12 20 18 14"></polyline>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 14 12 20 18 14" stroke="#46505F"/>
+                <polyline points="6 6 12 12 18 6" stroke="#7693B9"/>
               </svg>
             {{/if}}
           </button>
@@ -369,13 +385,6 @@
                 <span>{{t "Details" key="board_details"}}</span>
               </button>
               <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Make a Copy" key="make_copy"}} {{action "make_a_copy"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <span>{{t "Copy" key="make_copy"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
               <button type="button" class="md-board-detail-board-actions__btn" title={{t "Set as Home Board" key="set_as_home_board"}} {{action "set_as_home"}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
                   <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
@@ -390,34 +399,6 @@
                 <span>{{t "Sidebar" key="add_to_sidebar"}}</span>
               </button>
               <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Print Board" key="print_board"}} {{action "print_board"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
-                </svg>
-                <span>{{t "Print" key="print_board"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Download Board" key="download_board"}} {{action "download_board"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                <span>{{t "Download" key="download_board"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Share Board" key="share_board"}} {{action "share_board"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                </svg>
-                <span>{{t "Share" key="share"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
-                </svg>
-                <span>{{t "Other Actions" key="other_actions"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
               <button type="button" class="md-board-detail-board-actions__btn" title={{t "Favorite" key="star"}} {{action "toggle_favorite"}}>
                 {{#if this.model.starred}}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -430,6 +411,40 @@
                 {{/if}}
                 <span>{{t "Favorite" key="star"}}</span>
               </button>
+              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                </svg>
+                <span>{{t "Other Actions" key="other_actions"}}</span>
+              </button>
+            </div>
+            <div class="md-board-detail-board-actions__row">
+              <div class="md-board-detail-board-actions__group">
+                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Make a Copy" key="make_copy"}} {{action "make_a_copy"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <span>{{t "Copy" key="make_copy"}}</span>
+                </button>
+                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Print Board" key="print_board"}} {{action "print_board"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                  </svg>
+                  <span>{{t "Print" key="print_board"}}</span>
+                </button>
+                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Download Board" key="download_board"}} {{action "download_board"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>{{t "Download" key="download_board"}}</span>
+                </button>
+                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Share Board" key="share_board"}} {{action "share_board"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                  <span>{{t "Share" key="share"}}</span>
+                </button>
+              </div>
             </div>
             </div>
           {{/if}}
@@ -838,7 +853,7 @@
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
       {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{this.button_text_size_class}} {{this.button_text_position_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{this.button_text_size_class}} {{this.button_text_position_class}} {{this.symbol_background_class}} {{this.high_contrast_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
         data-id={{this.model.id}}
         data-filter={{this.active_category}}
         style={{safe-style (concat this.grid_style ";--bd-button-text-size:" this.button_text_size_px "px" (if this.button_font_style.family (concat ";--bd-button-font:" this.button_font_style.family)) (if this.button_font_style.transform (concat ";--bd-button-text-transform:" this.button_font_style.transform)))}}>
@@ -935,23 +950,21 @@
               {{#if btn.image_url}}
                 <div class="md-board-detail-symbol-card__image">
                   <img class="symbol" src={{btn.image_url}} alt={{btn.label}} loading="lazy" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');">
-                  <span class="md-board-detail-symbol-card__alt-text" style="display:none;">{{btn.label}}</span>
+                  <img class="md-board-detail-symbol-card__fallback-img" src="/images/square.svg" alt="" draggable="false" style="display:none; max-width: 70%; max-height: 70%;">
                 </div>
               {{else}}
                 <div class="md-board-detail-symbol-card__image md-board-detail-symbol-card__image--placeholder">
                   {{#if btn.load_board}}
-                    <span class="md-board-detail-symbol-card__placeholder-icon" aria-hidden="true">&#x1F4C1;</span>
+                    <img class="symbol" src="/images/folder_home.png" alt="" draggable="false" style="opacity: 0.35; max-width: 60%; max-height: 60%;">
                   {{else if btn.label}}
-                    <span class="md-board-detail-symbol-card__alt-text">{{btn.label}}</span>
-                  {{else}}
-                    <span class="md-board-detail-symbol-card__placeholder-icon" aria-hidden="true">&#x1F4AC;</span>
+                    <img class="symbol" src="/images/square.svg" alt="" draggable="false" style="max-width: 70%; max-height: 70%;">
                   {{/if}}
                 </div>
               {{/if}}
               {{#if this.edit_mode}}
                 {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label=(concat (t "Button label" key="board_detail_button_label_aria") " " btn.id)}}
               {{else}}
-                <span class="md-board-detail-symbol-card__label">{{btn.label}}</span>
+                <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
               {{/if}}
               {{#if btn.load_board}}
                 <span class="md-board-detail-symbol-card__folder-badge" aria-label={{t "Folder" key="folder"}}>

@@ -13,6 +13,7 @@ import editManager from '../utils/edit_manager';
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
+  router: service('router'),
   tagName: '',
 
   init() {
@@ -93,6 +94,15 @@ export default Component.extend({
           }
         });
       });
+    },
+    board_layout() {
+      var user = this.get('appState.currentUser');
+      if (!user) { return; }
+      var user_id = user.get('id');
+      var board_key = this.get('model.board.key') || this.get('model.board.id');
+      this.get('modal').close();
+      this.get('appState').set('board_layout_mode', board_key);
+      this.get('router').transitionTo('setup', { queryParams: { page: 'symbols', user_id: user_id, mode: 'layout' } });
     },
     delete() {
       const model = this.get('model');

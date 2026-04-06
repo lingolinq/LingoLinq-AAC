@@ -80,6 +80,10 @@ export default Component.extend({
     }
     return this.get('board_record.name');
   }),
+  long_username: computed('board_record.user_name', function() {
+    var name = this.get('board_record.user_name') || '';
+    return name.length > 25;
+  }),
   display_class: computed('children', function() {
     var e = this.element;
     var bounds = e.getBoundingClientRect();

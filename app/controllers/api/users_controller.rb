@@ -216,7 +216,15 @@ class Api::UsersController < ApplicationController
     device_updated = (params['user'] && params['user']['preferences'] && params['user']['preferences']['device'] && params['user']['preferences']['device']['updated'])
     device_updated ||= (params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated'])
     device_updated ||= (user_data && user_data['preference'] && user_data['preference']['device'] && user_data['preference']['device']['updated'])
-    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if device_updated
+    if device_updated && !user_device
+      if @api_user && @api_user.global_id == user.global_id
+        user_device = Device.where(user: @api_user).find_by_global_id(@api_device_id)
+      else
+        # Supervisor editing another user: use the target user's most recent device
+        # so preferences are stored under a key the target user will actually read
+        user_device = Device.where(user: user, user_integration_id: nil).order('updated_at DESC').first
+      end
+    end
     options['device'] = user_device
     options['updater'] = @api_user
 

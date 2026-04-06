@@ -115,6 +115,15 @@ export default Controller.extend({
     return (this.get('sentence_parts') || []).length > 0;
   }),
 
+  utterance_show_symbols: computed('app_state.referenced_user.preferences.device.utterance_text_only', function() {
+    return !this.get('app_state.referenced_user.preferences.device.utterance_text_only');
+  }),
+
+  utterance_text_on_top: computed('app_state.referenced_user.preferences.device.button_text_position', function() {
+    var pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || 'top';
+    return pos === 'top';
+  }),
+
   quick_buttons: computed(function() {
     return [
       { id: 'yes', label: i18n.t('quick_yes', "Yes"), icon: '\u2705' },
@@ -253,11 +262,24 @@ export default Controller.extend({
     (raw.images || []).forEach(function(img) {
       if(img && img.id && img.url) { image_map[img.id] = img.url; }
     });
+    // Cache raw data for preference-triggered rebuilds
+    _this._last_raw = raw;
+    // Apply preferred_symbols variant URLs
+    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
+    if(preferred_symbols && preferred_symbols !== 'original') {
+      _this._preferred_symbols = preferred_symbols;
+    } else {
+      _this._preferred_symbols = null;
+    }
+    _this._image_map = image_map;
 
+    var board = _this.get('model');
     var grid = raw.grid;
+    var use_ember = _this.get('edit_mode');
+
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
-        return _this._make_btn(btn, image_map);
+        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map);
       });
       _this.set('ordered_buttons', [buttons]);
       return;
@@ -275,9 +297,15 @@ export default Controller.extend({
         var btn_id = (grid.order[ri] || [])[ci];
         var raw_btn = btn_id !== null && btn_id !== undefined ? button_map[String(btn_id)] : null;
         if(raw_btn) {
-          row.push(_this._make_btn(raw_btn, image_map));
+          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map));
         } else {
-          row.push({ id: btn_id || ('fake_' + ri + '_' + ci), label: '', empty: true, pos_class: 'default' });
+          if(use_ember) {
+            var fake = editManager.Button.create({ empty: true, label: '', id: btn_id || ('fake_' + ri + '_' + ci) });
+            fake.set('board', board);
+            row.push(fake);
+          } else {
+            row.push({ id: btn_id || ('fake_' + ri + '_' + ci), label: '', empty: true, pos_class: 'default' });
+          }
         }
       }
       result.push(row);
@@ -285,13 +313,19 @@ export default Controller.extend({
     _this.set('ordered_buttons', result);
 
     // Resolve POS for untyped buttons
-    _this.resolve_unknown_buttons(_this.get('flat_ordered_buttons') || []);
+    if(!use_ember) {
+      _this.resolve_unknown_buttons(_this.get('flat_ordered_buttons') || []);
+    }
   },
 
   _make_btn: function(btn, image_map) {
     var img_url = null;
-    if(btn.image_id && image_map[btn.image_id]) {
-      img_url = image_map[btn.image_id];
+    if(btn.image_id && image_map) {
+      if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
+        img_url = image_map[btn.image_id + '-' + this._preferred_symbols];
+      } else if(image_map[btn.image_id]) {
+        img_url = image_map[btn.image_id];
+      }
     }
     return {
       id: btn.id,
@@ -304,17 +338,33 @@ export default Controller.extend({
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
       border_color: btn.border_color || null,
+      text_color: (function() {
+        if(!btn.background_color || !window.tinycolor) { return null; }
+        return window.tinycolor.mostReadable(btn.background_color, ['#fff', '#000']).toRgbString();
+      })(),
       level_modifications: btn.level_modifications,
       empty: !(btn.label || btn.image_id)
     };
   },
 
-  // Called by editManager — on board-detail we use plain objects for display,
-  // so we only rebuild from raw data, not from editManager
+  _make_ember_btn: function(btn, image_map, board) {
+    var img_url = null;
+    if(btn.image_id && image_map) {
+      if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
+        img_url = image_map[btn.image_id + '-' + this._preferred_symbols];
+      } else if(image_map[btn.image_id]) {
+        img_url = image_map[btn.image_id];
+      }
+    }
+    var more_args = { board: board };
+    if(img_url) { more_args.image_url = img_url; }
+    return editManager.Button.create(btn, more_args);
+  },
+
   processButtons: function() {
-    // No-op: board-detail uses _build_from_raw for display.
-    // editManager.process_for_displaying overwrites ordered_buttons
-    // with async Button objects that may not resolve, so we skip it.
+    if(this._last_raw) {
+      this._build_from_raw(this._last_raw);
+    }
   },
 
   update_button_symbol_class: function() {
@@ -323,6 +373,18 @@ export default Controller.extend({
       boundClasses.add_rules(buttons);
     }
   },
+
+  // Re-build buttons when display preferences change
+  _rebuild_on_pref_change: observer(
+    'app_state.referenced_user.preferences.preferred_symbols',
+    'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.device.button_text_position',
+    function() {
+      if(this._last_raw) {
+        this._build_from_raw(this._last_raw);
+      }
+    }
+  ),
 
   // No-ops: board-detail uses CSS grid, not computed height or canvas
   computeHeight: function() { },
@@ -388,6 +450,17 @@ export default Controller.extend({
   button_text_position_class: computed('app_state.referenced_user.preferences.device.button_text_position', function() {
     var pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || 'top';
     return 'md-board-detail-grid--text-pos-' + pos;
+  }),
+
+  symbol_background_class: computed('app_state.referenced_user.preferences.device.symbol_background', function() {
+    var bg = this.get('app_state.referenced_user.preferences.device.symbol_background') || '';
+    if (!bg) { return ''; }
+    return 'symbol_background_' + bg;
+  }),
+
+  high_contrast_class: computed('app_state.referenced_user.preferences.high_contrast', function() {
+    var hc = this.get('app_state.referenced_user.preferences.high_contrast');
+    return hc === true ? 'high_contrast' : '';
   }),
 
   button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
@@ -1715,12 +1788,34 @@ export default Controller.extend({
                 bg: btn.get ? btn.get('background_color') : btn.background_color,
                 border: btn.get ? btn.get('border_color') : btn.border_color
               };
-              // Clear existing colors so check_for_parts_of_speech will assign new ones
+              // Clear existing colors and look up part of speech to assign new ones
               editManager.change_button(btn_id, {
                 background_color: null,
                 border_color: null
               });
-              btn.check_for_parts_of_speech(colors);
+              var text = (btn.get ? btn.get('vocalization') : btn.vocalization) || label;
+              (function(b, bid) {
+                persistence.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+                  if(res && res.types) {
+                    var found = false;
+                    res.types.forEach(function(type) {
+                      if(!found && colors) {
+                        colors.forEach(function(color) {
+                          if(!found && color.types && color.types.indexOf(type) >= 0) {
+                            editManager.change_button(bid, {
+                              background_color: color.fill,
+                              border_color: color.border,
+                              part_of_speech: type,
+                              suggested_part_of_speech: type
+                            });
+                            found = true;
+                          }
+                        });
+                      }
+                    });
+                  }
+                }, function() { });
+              })(btn, btn_id);
             }
           }
           _this.set('_saved_recolor', savedColors);
@@ -1755,18 +1850,25 @@ export default Controller.extend({
 
     match_borders_to_fill: function() {
       var ob = this.get('ordered_buttons') || [];
-      var saved = this.get('_saved_border_colors');
+      var matched = this.get('borders_matched');
 
-      if(saved) {
-        // Revert to saved border colors
-        for(var id in saved) {
-          editManager.change_button(id, { border_color: saved[id] });
+      if(matched) {
+        // Revert to darkened borders (20% darker than bg)
+        for(var ri = 0; ri < ob.length; ri++) {
+          var row = ob[ri] || [];
+          for(var ci = 0; ci < row.length; ci++) {
+            var btn = row[ci];
+            if(!btn) { continue; }
+            var bg = (btn.get && btn.get('background_color')) || btn.background_color;
+            if(!bg) { continue; }
+            var btn_id = (btn.get && btn.get('id')) || btn.id;
+            var darkened = window.tinycolor ? window.tinycolor(bg).darken(20).toRgbString() : bg;
+            editManager.change_button(btn_id, { border_color: darkened });
+          }
         }
-        this.set('_saved_border_colors', null);
         this.set('borders_matched', false);
       } else {
-        // Save current borders and match to fill
-        var savedColors = {};
+        // Match borders to fill color
         for(var ri = 0; ri < ob.length; ri++) {
           var row = ob[ri] || [];
           for(var ci = 0; ci < row.length; ci++) {
@@ -1777,12 +1879,9 @@ export default Controller.extend({
             var bg = (btn.get && btn.get('background_color')) || btn.background_color;
             if(is_empty || is_folder || !bg) { continue; }
             var btn_id = (btn.get && btn.get('id')) || btn.id;
-            var current_border = (btn.get && btn.get('border_color')) || btn.border_color;
-            savedColors[btn_id] = current_border || null;
             editManager.change_button(btn_id, { border_color: bg });
           }
         }
-        this.set('_saved_border_colors', savedColors);
         this.set('borders_matched', true);
       }
       // Force Ember to re-render the grid by creating a new array reference

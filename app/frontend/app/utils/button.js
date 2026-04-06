@@ -964,7 +964,10 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    LingoLinq.track_error("bad image url: " + bad_src);
+    var has_fallback = !!original_fallback;
+    if(!has_fallback) {
+      LingoLinq.track_error("bad image url: " + bad_src);
+    }
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -981,9 +984,13 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       };
     } else {
-      LingoLinq.track_error("bad data uri or fallback: " + bad_src);
+      if(!has_fallback) {
+        LingoLinq.track_error("bad data uri or fallback: " + bad_src);
+      }
       original_error = function() {
-        LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        if(!has_fallback) {
+          LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        }
       };
     }
     error_listen(image, original_error);

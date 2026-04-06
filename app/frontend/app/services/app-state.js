@@ -1224,6 +1224,7 @@ export default Service.extend({
     }
   },
   toggle_edit_mode: function(decision) {
+    if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
     this.assert_source().then(function() {
@@ -1382,6 +1383,9 @@ export default Service.extend({
         this.stashes.persist('current_mode', this.stashes.get('last_mode'));
       } else {
         this.stashes.persist('current_mode', 'default');
+      }
+      if(mode == 'edit') {
+        this.set('board_layout_mode', null);
       }
       if(mode == 'speak' && this.get('currentBoardState')) {
         this.set('currentBoardState.reload_token', Math.random());
