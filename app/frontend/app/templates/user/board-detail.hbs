@@ -378,72 +378,79 @@
           {{#if this.edit_mode}}
             <div class="md-board-detail-board-actions-wrap">
             <div class="md-board-detail-board-actions">
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Board Details" key="board_details"}} {{action "board_details"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                </svg>
-                <span>{{t "Details" key="board_details"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Set as Home Board" key="set_as_home_board"}} {{action "set_as_home"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                  <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
-                </svg>
-                <span>{{t "Home" key="set_as_home_board"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Add to Sidebar" key="add_to_sidebar"}} {{action "add_to_sidebar"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-                </svg>
-                <span>{{t "Sidebar" key="add_to_sidebar"}}</span>
-              </button>
-              <div class="md-board-detail-board-actions__divider"></div>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Favorite" key="star"}} {{action "toggle_favorite"}}>
-                {{#if this.model.starred}}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                  </svg>
-                {{else}}
+              <div class="md-board-detail-details-dropdown-wrap" style="position: relative;">
+                <button type="button" class="md-board-detail-board-actions__btn {{if this.details_dropdown_open 'md-board-detail-board-actions__btn--active'}}" title={{t "Details & Actions" key="details_and_actions"}} {{action "toggle_details_dropdown"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                   </svg>
+                  <span>{{t "Details & Actions" key="details_and_actions"}}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-left: 2px;"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {{#if this.details_dropdown_open}}
+                  <div class="md-board-detail-share-dropdown">
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "board_details"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      <span>{{t "Details" key="board_details"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "set_as_home"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+                      </svg>
+                      <span>{{t "Home" key="set_as_home_board"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "add_to_sidebar"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                      </svg>
+                      <span>{{t "Sidebar" key="add_to_sidebar"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "toggle_favorite"}}>
+                      {{#if this.model.starred}}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                      {{else}}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                      {{/if}}
+                      <span>{{t "Favorite" key="star"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "other_board_actions"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                      </svg>
+                      <span>{{t "Other Actions" key="other_actions"}}</span>
+                    </button>
+                    <div class="md-board-detail-share-dropdown__divider"></div>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "share_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                      </svg>
+                      <span>{{t "Share" key="share"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "make_a_copy"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                      <span>{{t "Copy" key="make_copy"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "print_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      <span>{{t "Print" key="print_board"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-share-dropdown__item" {{action "download_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      <span>{{t "Download" key="download_board"}}</span>
+                    </button>
+                  </div>
                 {{/if}}
-                <span>{{t "Favorite" key="star"}}</span>
-              </button>
-              <button type="button" class="md-board-detail-board-actions__btn" title={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
-                </svg>
-                <span>{{t "Other Actions" key="other_actions"}}</span>
-              </button>
-            </div>
-            <div class="md-board-detail-board-actions__row">
-              <div class="md-board-detail-board-actions__group">
-                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Make a Copy" key="make_copy"}} {{action "make_a_copy"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                  <span>{{t "Copy" key="make_copy"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Print Board" key="print_board"}} {{action "print_board"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
-                  </svg>
-                  <span>{{t "Print" key="print_board"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Download Board" key="download_board"}} {{action "download_board"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span>{{t "Download" key="download_board"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-board-actions__group-pill" title={{t "Share Board" key="share_board"}} {{action "share_board"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                  </svg>
-                  <span>{{t "Share" key="share"}}</span>
-                </button>
               </div>
             </div>
             </div>
@@ -616,13 +623,37 @@
               {{action "recolor_board"}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="14" width="7" height="7" rx="1.5"/><rect x="15" y="3" width="7" height="7" rx="1.5"/><path d="M13 6.5H9.5a2 2 0 0 0-2 2V13"/><polyline points="10 11 7.5 13.5 5 11"/><path d="M11 17.5h3.5a2 2 0 0 0 2-2V11"/><polyline points="14 13 16.5 10.5 19 13"/></svg>
             </button>
-            {{!-- Folder Label Position Toggle --}}
-            <button type="button"
-              class="md-board-detail-edit-toolbar__btn {{if this.folder_labels_on_tab 'md-board-detail-edit-toolbar__btn--active'}}"
-              title={{if this.folder_labels_on_tab (t "Show folder labels on card face" key="board_detail_folder_labels_face") (t "Show folder labels on tab" key="board_detail_folder_labels_tab")}}
-              {{action "toggle_folder_label_position"}}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-            </button>
+            {{!-- Folder Display Style Dropdown --}}
+            <div class="md-board-detail-edit-toolbar__dropdown-wrap" style="position: relative;">
+              <button type="button"
+                class="md-board-detail-edit-toolbar__btn {{unless (is-equal this.folder_display_style 'default') 'md-board-detail-edit-toolbar__btn--active'}}"
+                title={{t "Folder display style" key="board_detail_folder_style"}}
+                {{action "toggle_folder_dropdown"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              </button>
+              {{#if this.folder_dropdown_open}}
+                <div class="md-board-detail-folder-dropdown">
+                  <button type="button"
+                    class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'default') 'md-board-detail-folder-dropdown__item--active'}}"
+                    {{action "set_folder_style" "default"}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+                    <span>{{t "Default" key="board_detail_folder_default"}}</span>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'tab_labels') 'md-board-detail-folder-dropdown__item--active'}}"
+                    {{action "set_folder_style" "tab_labels"}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    <span>{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'colored_corner') 'md-board-detail-folder-dropdown__item--active'}}"
+                    {{action "set_folder_style" "colored_corner"}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
+                    <span>{{t "Colored Corner Tab" key="board_detail_folder_colored_corner"}}</span>
+                  </button>
+                </div>
+              {{/if}}
+            </div>
           </div>
 
           <div class="md-board-detail-edit-toolbar__divider"></div>
@@ -767,7 +798,7 @@
             </button>
           {{/if}}
           <button type="button"
-            class="md-board-detail-quick-toggle {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
+            class="md-board-detail-quick-toggle md-board-detail-quick-toggle--categories {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
             {{action "toggle_categories"}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -853,7 +884,7 @@
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
       {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{this.button_text_size_class}} {{this.button_text_position_class}} {{this.symbol_background_class}} {{this.high_contrast_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folder_colored_corner 'md-board-detail-grid--folder-colored-corner'}} {{this.button_text_size_class}} {{this.button_text_position_class}} {{this.symbol_background_class}} {{this.high_contrast_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
         data-id={{this.model.id}}
         data-filter={{this.active_category}}
         style={{safe-style (concat this.grid_style ";--bd-button-text-size:" this.button_text_size_px "px" (if this.button_font_style.family (concat ";--bd-button-font:" this.button_font_style.family)) (if this.button_font_style.transform (concat ";--bd-button-text-transform:" this.button_font_style.transform)))}}>
@@ -877,7 +908,7 @@
               class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
               role="gridcell"
               data-id={{btn.id}}
-              style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";")))}}
+              style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";")))}}
               {{action "select_button" btn}}>
               {{#if this.edit_mode}}
                 {{!-- Inline edit actions (shown when card is tall enough) --}}

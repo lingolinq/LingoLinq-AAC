@@ -23,7 +23,8 @@ export default Controller.extend({
   router: service('router'),
 
   is_board_detail: true,
-  folder_labels_on_tab: false,
+  folder_display_style: 'default',
+  folder_dropdown_open: false,
   boardname: null,
   active_category: 'all',
 
@@ -55,6 +56,8 @@ export default Controller.extend({
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
+  share_dropdown_open: false,
+  details_dropdown_open: false,
   dark_mode: false,
   board_saving: false,
   ordered_buttons: null,
@@ -74,6 +77,26 @@ export default Controller.extend({
     }
     this.set('weekly_goals', []);
     this.set('todays_schedule', []);
+    var _this = this;
+    this._closeDropdownsHandler = function(e) {
+      if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
+        _this.set('details_dropdown_open', false);
+      }
+      if(_this.get('share_dropdown_open') && !e.target.closest('.md-board-detail-share-dropdown-wrap')) {
+        _this.set('share_dropdown_open', false);
+      }
+      if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap')) {
+        _this.set('folder_dropdown_open', false);
+      }
+    };
+    document.addEventListener('click', _this._closeDropdownsHandler, true);
+  },
+
+  willDestroy: function() {
+    this._super(...arguments);
+    if(this._closeDropdownsHandler) {
+      document.removeEventListener('click', this._closeDropdownsHandler, true);
+    }
   },
 
   title: computed('model.name', 'boardname', function() {
@@ -628,8 +651,16 @@ export default Controller.extend({
     return !!(this.get('ordered_buttons'));
   }),
 
-  undo_redo_disabled: computed('borders_matched', 'board_recolored', 'folder_labels_on_tab', function() {
-    return this.get('borders_matched') || this.get('board_recolored') || this.get('folder_labels_on_tab');
+  folder_labels_on_tab: computed('folder_display_style', function() {
+    return this.get('folder_display_style') === 'tab_labels';
+  }),
+
+  folder_colored_corner: computed('folder_display_style', function() {
+    return this.get('folder_display_style') === 'colored_corner';
+  }),
+
+  undo_redo_disabled: computed('borders_matched', 'board_recolored', function() {
+    return this.get('borders_matched') || this.get('board_recolored');
   }),
 
   // Button text preferences from user device settings
@@ -1395,7 +1426,12 @@ export default Controller.extend({
       this.toggleProperty('dark_mode');
     },
 
+    toggle_details_dropdown: function() {
+      this.toggleProperty('details_dropdown_open');
+    },
+
     toggle_favorite: function() {
+      this.set('details_dropdown_open', false);
       var board = this.get('model');
       if(board.get('starred')) {
         board.unstar();
@@ -1405,6 +1441,7 @@ export default Controller.extend({
     },
 
     make_a_copy: function() {
+      this.set('share_dropdown_open', false);
       var _this = this;
       var board = _this.get('model');
       if(!persistence.get('online')) {
@@ -1422,11 +1459,13 @@ export default Controller.extend({
     },
 
     set_as_home: function() {
+      this.set('details_dropdown_open', false);
       var board = this.get('model');
       modal.open('set-as-home', {board: board});
     },
 
     add_to_sidebar: function() {
+      this.set('details_dropdown_open', false);
       var _this = this;
       var board = _this.get('model');
       modal.open('add-to-sidebar', {board: {
@@ -1439,6 +1478,7 @@ export default Controller.extend({
     },
 
     download_board: function() {
+      this.set('share_dropdown_open', false);
       var _this = this;
       this.get('app_state').assert_source().then(function() {
         var board = _this.get('model');
@@ -1451,6 +1491,7 @@ export default Controller.extend({
     },
 
     print_board: function() {
+      this.set('share_dropdown_open', false);
       var _this = this;
       this.get('app_state').assert_source().then(function() {
         var board = _this.get('model');
@@ -1464,12 +1505,18 @@ export default Controller.extend({
 
     share_board: function() {
       var _this = this;
+      _this.set('share_dropdown_open', false);
       this.get('app_state').assert_source().then(function() {
         modal.open('share-board', { board: _this.get('model') });
       }, function() {});
     },
 
+    toggle_share_dropdown: function() {
+      this.toggleProperty('share_dropdown_open');
+    },
+
     other_board_actions: function() {
+      this.set('details_dropdown_open', false);
       modal.open('modals/board-actions', { board: this.get('model') });
     },
 
@@ -1937,6 +1984,7 @@ export default Controller.extend({
     },
 
     board_details: function() {
+      this.set('details_dropdown_open', false);
       var board = this.get('model');
       if(!board) { return; }
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
@@ -2041,8 +2089,19 @@ export default Controller.extend({
       });
     },
 
-    toggle_folder_label_position: function() {
-      this.toggleProperty('folder_labels_on_tab');
+    set_folder_style: function(style) {
+      var _this = this;
+      _this.set('folder_display_style', style);
+      _this.set('folder_dropdown_open', false);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.folder_display_style', style);
+        user.save();
+      }
+    },
+
+    toggle_folder_dropdown: function() {
+      this.toggleProperty('folder_dropdown_open');
     },
 
     match_borders_to_fill: function() {

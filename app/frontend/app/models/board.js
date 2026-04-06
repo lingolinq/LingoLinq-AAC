@@ -1488,8 +1488,12 @@ LingoLinq.Board = DS.Model.extend({
     this.set('text_size', 'normal');
     if(starting_height < 35) {
       this.set('text_size', 'really_small_text');
+      // Scale label down so images stay visible on dense grids
+      currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.25), 8));
     } else if(starting_height < 75) {
       this.set('text_size', 'small_text');
+      // Scale label down so images stay visible on dense grids
+      currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.3), 10));
     }
 
     var _this = this;
@@ -1554,6 +1558,17 @@ LingoLinq.Board = DS.Model.extend({
         if(fit.any_fit) {
           text_style = "style='font-size: " + fit.size + "px;'";
           holder_style = "style='position: absolute;'";
+        }
+      } else if(txt && pos.width) {
+        // Scale down label font when text is too wide for the button
+        var baseFontSize = size.base_text_height || 18;
+        var estCharWidth = baseFontSize * 0.6;
+        var maxChars = Math.floor(pos.width / estCharWidth);
+        if(txt.length > maxChars && maxChars > 0) {
+          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
+          if(scaledSize < baseFontSize) {
+            text_style = "style='font-size: " + scaledSize + "px;'";
+          }
         }
       }
 
