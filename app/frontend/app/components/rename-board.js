@@ -4,7 +4,6 @@ import { inject as service } from '@ember/service';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
-import modal from '../utils/modal';
 import { computed } from '@ember/object';
 
 export default Component.extend({
@@ -36,19 +35,9 @@ export default Component.extend({
     return this.get('old_key') !== this.get('old_key_value') || !this.get('new_key_value');
   }),
 
-  _return_to_details: function() {
-    var board = this.get('model.board');
-    if(board) {
-      runLater(function() {
-        modal.open('board-details', { board: board });
-      }, 200);
-    }
-  },
-
   actions: {
     close() {
       this.get('modal').close();
-      this._return_to_details();
     },
     opening() {},
     closing() {},
@@ -67,17 +56,10 @@ export default Component.extend({
         }).then(function(res) {
           var modalSvc = _this.get('modal');
           modalSvc.close();
-          // Reload the board model so Board Details shows updated key
-          var board = _this.get('model.board');
-          if(board && board.reload) {
-            board.reload().then(function() {
-              _this._return_to_details();
-            }, function() {
-              _this._return_to_details();
-            });
-          } else {
-            _this._return_to_details();
-          }
+          _this.get('router').transitionTo('board.index', res.key);
+          runLater(function() {
+            modalSvc.success(i18n.t('board_successfully_renamed', "Board successfully renamed to %{n}", { n: res.key }));
+          }, 200);
         }, function() {
           _this.set('status', { error: true });
         });

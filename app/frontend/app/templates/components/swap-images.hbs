@@ -1,45 +1,50 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-swap-images-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Swap Board Images" key="swap_board_images"}}</h3>
   </div>
   <div class="modal-body">
     {{#if this.model.confirmation}}
-      <p class="la-swap-images-desc">{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
+      <p>{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
     {{else}}
-      <p class="la-swap-images-desc">{{t "Select the boards you would like modified and an image library to use for image replacements. If no results are found in that library, the image will not be changed." key="swap_instructions"}}</p>
+      <p>{{t "Select the boards you would like modified and an image library to use for image replacements. If no results are found in that library, the image will not be changed." key="swap_instructions"}}</p>
     {{/if}}
-
-    <div class="la-swap-images-section">
-      <label class="la-swap-images-label">{{t "Boards" key="boards"}}</label>
-      <div class="la-swap-images-boards">
-        {{#if this.hierarchy.loading}}
-          <span class="la-swap-images-loading">{{t "Loading linked boards..." key="loading_linked_boards"}}</span>
-        {{else if this.hierarchy.error}}
-          <span class="la-swap-images-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
-        {{else if this.hierarchy}}
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
-        {{else}}
-          <span class="la-swap-images-empty">{{t "No linked boards" key="no_linked_boards"}}</span>
-        {{/if}}
+    <form class="form-horizontal" {{action "nothing" on="submit" preventDefault=true}}>
+      <div class="form-group">
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
+        <div class="col-sm-9">
+          {{#if this.hierarchy.loading}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
+          {{else if this.hierarchy.error}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
+          {{else if this.hierarchy}}
+            <div style='margin-top: 5px;'>
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            </div>
+          {{else}}
+            {{t "No linked boards" key="no_linked_boards"}}
+          {{/if}}
+        </div>
       </div>
-    </div>
-
-    <div class="la-swap-images-section">
-      <label class="la-swap-images-label" for="libraries">{{t "Library" key="library"}}</label>
-      {{bound-select select_class="la-swap-images-select" select_id="libraries" content=this.libraries selection=this.library action=(action "updateLibrary") }}
-      {{#if this.premium_symbol_library}}
-        {{#if this.appState.currentUser.subscription.grace_trial_period}}
-          <div class="la-swap-images-warning">
-            {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}
-          </div>
-        {{/if}}
-      {{/if}}
-    </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="library">
+          {{t "Library" key="library"}}
+        </label>
+        <div class="col-sm-9">
+          {{bound-select select_class="form-control" select_id="libraries" content=this.libraries selection=this.library action=(action "updateLibrary") }}
+          {{#if this.premium_symbol_library}}
+            {{#if this.appState.currentUser.subscription.grace_trial_period}}
+              <div class='text-danger'>
+                {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}
+              </div>
+            {{/if}}
+          {{/if}}
+        </div>
+      </div>
+    </form>
   </div>
   <div class="modal-footer">
-    <button class='la-swap-images-submit' {{action "swap"}} disabled={{this.status.loading}}>
+    <button class='btn btn-primary' {{action "swap"}} disabled={{this.status.loading}}>
       {{#if this.status.loading}}
         {{t "Swapping Images..." key="swapping_images"}}
       {{else if this.status.error}}
@@ -48,7 +53,6 @@
         {{t "Swap Images" key="swap_images"}}
       {{/if}}
     </button>
-    <a href="#" class="la-swap-images-cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
-  </div>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

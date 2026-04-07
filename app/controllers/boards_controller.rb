@@ -22,7 +22,7 @@ class BoardsController < ApplicationController
   def about
     @meta_record = OpenStruct.new
     @meta_record.title = "About LingoLinq"
-    @meta_record.summary = "Why \"LingoLinq\"? The name LingoLinq comes from linking language to the people who need it most. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"
@@ -33,25 +33,9 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def terms
-    @meta_record = OpenStruct.new
-    @meta_record.title = "Terms of Service - LingoLinq"
-    @meta_record.summary = "LingoLinq Terms of Service"
-    @meta_record.link = "#{request.protocol}#{request.host_with_port}/terms"
-    @meta_record.created = Time.parse("Jan 1 2014").iso8601
-    @meta_record.updated = Time.now.iso8601
-    render :index
-  end
-
-  def privacy
-    @meta_record = OpenStruct.new
-    @meta_record.title = "Privacy Policy - LingoLinq"
-    @meta_record.summary = "LingoLinq Privacy Policy"
-    @meta_record.link = "#{request.protocol}#{request.host_with_port}/privacy"
-    @meta_record.created = Time.parse("Jan 1 2014").iso8601
-    @meta_record.updated = Time.now.iso8601
-    render :index
-  end
+  def terms; end
+  
+  def privacy; end
   
   def utterance_redirect
     match = params['reply_code'].match(/^([0-9a-f]+)([A-Z]+)?$/)

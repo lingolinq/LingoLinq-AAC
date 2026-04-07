@@ -23,12 +23,6 @@ LingoLinq.Buttonset = DS.Model.extend({
   persistence: service('persistence'),
   stashes: service('stashes'),
   appState: service('app-state'),
-  /** When loaded by board key, API id is global_id; serializer stores it here (see application serializer). */
-  _actual_id: DS.attr('string'),
-  /** Global board id for comparisons with button.board_id and app state (see Board#global_id). */
-  global_id: computed('id', '_actual_id', function() {
-    return this.get('_actual_id') || this.get('id');
-  }),
   key: DS.attr('string'),
   root_url: DS.attr('string'),
   buttons: DS.attr('raw'),
@@ -90,7 +84,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     // and retrieves the button list for that set. Will
     // error if the button set needs to be generated first.
     var bs = this;
-    var board_id = bs.get('global_id');
+    var board_id = bs.get('id');
     return new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -276,7 +270,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     button_sets.forEach(function(bs, idx) {
       var button_set_buttons = bs.get('buttons');
       if(bs == _this) {
-        button_set_buttons = _this.redepth(bs.get('global_id'));
+        button_set_buttons = _this.redepth(bs.get('id'));
       }
       (button_set_buttons || []).forEach(function(button) {
         if(button && locale && button.locale && button.locale.split(/-|_/)[0] != locale.split(/-|_/)[0]) {
@@ -621,7 +615,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     var buttons = res.all_buttons || [];
     var map = res.map;
     var full = (words || []).join(' ').toLowerCase();
-    if(from_board_id && from_board_id != _this.get('global_id')) {
+    if(from_board_id && from_board_id != _this.get('id')) {
       // re-depthify all the buttons based on the starting board
       buttons = _this.redepth(from_board_id);
     }
@@ -814,7 +808,7 @@ LingoLinq.Buttonset = DS.Model.extend({
       var re = new RegExp("\\b" + str, 'i');
       var all_buttons_enabled = _this.stashes.get('all_buttons_enabled');
       var buttons = _this.get('buttons') || [];
-      if(from_board_id && from_board_id != _this.get('global_id')) {
+      if(from_board_id && from_board_id != _this.get('id')) {
         // re-depthify all the buttons based on the starting board
         buttons = _this.redepth(from_board_id);
       }
@@ -926,7 +920,7 @@ LingoLinq.Buttonset = DS.Model.extend({
                     'pre': is_home ? 'home' : 'sidebar',
                     'board_id': is_home ? 'home' : 'sidebar',
                     'board_key': is_home ? 'home' : 'sidebar',
-                    'linked_board_id': button_set.get('global_id'),
+                    'linked_board_id': button_set.get('id'),
                     'linked_board_key': button_set.get('key'),
                     'home_lock': button_set.get('home_lock_set'),
                     'label': is_home ? i18n.t('home', "Home") : i18n.t('sidebar_board', "Sidebar, %{board_name}", {hash: {board_name: button_set.get('name')}})

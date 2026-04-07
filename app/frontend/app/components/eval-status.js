@@ -59,8 +59,8 @@ export default Component.extend({
   symbol_libraries: computed('user', function() {
     const u = this.get('user');
     const list = [
-      { name: i18n.t('original_symbols', "Default symbols"), id: 'original' },
-      { name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' }
+      { name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original' },
+      { name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols' }
     ];
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
       list.push({ name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix' });
@@ -68,9 +68,9 @@ export default Component.extend({
       list.push({ name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs' });
     }
     list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project' });
     list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol' });
     return list;
   }),
 

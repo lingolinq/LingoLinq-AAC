@@ -13,7 +13,6 @@ import editManager from '../utils/edit_manager';
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
-  router: service('router'),
   tagName: '',
 
   init() {
@@ -75,10 +74,8 @@ export default Component.extend({
       this.appState.assert_source().then(function() {
         if (!_this.get('model') || !_this.get('model.board')) { return; }
         const board = _this.get('model.board');
-        const linked = board.get && board.get('linked_boards');
-        const has_links = !!(linked && linked.length > 0);
-        const board_id = (board.get && (board.get('key') || board.get('id'))) || board.id;
-        modalUtil.open('download-board', { type: 'obf', has_links: has_links, id: board_id });
+        const has_links = board && board.linked_boards && board.linked_boards.length > 0;
+        modalUtil.open('download-board', { type: 'obf', has_links: has_links, id: _this.get('model.board.id') });
       }, function() {});
     },
     batch_recording() {
@@ -94,15 +91,6 @@ export default Component.extend({
           }
         });
       });
-    },
-    board_layout() {
-      var user = this.get('appState.currentUser');
-      if (!user) { return; }
-      var user_id = user.get('id');
-      var board_key = this.get('model.board.key') || this.get('model.board.id');
-      this.get('modal').close();
-      this.get('appState').set('board_layout_mode', board_key);
-      this.get('router').transitionTo('setup', { queryParams: { page: 'symbols', user_id: user_id, mode: 'layout' } });
     },
     delete() {
       const model = this.get('model');

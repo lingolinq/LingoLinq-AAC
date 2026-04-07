@@ -16,24 +16,13 @@ export default Component.extend({
     this._super(...arguments);
   },
   didInsertElement: function() {
-    const selectEl = this.element && this.element.querySelector('select');
-    if (!selectEl) {
-      return;
-    }
-    const sel = this.get('selection');
-    // Include '' so placeholder options (id '') stay in sync; `if (sel)` wrongly skipped them.
-    if (sel !== undefined && sel !== null) {
-      selectEl.value = sel;
+    if(this.get('selection') && this.element.querySelector('select')) {
+      this.element.querySelector('select').value = this.get('selection');
     }
   },
   update_selection: observer('selection', function() {
-    const selectEl = this.element && this.element.querySelector('select');
-    if (!selectEl) {
-      return;
-    }
-    const sel = this.get('selection');
-    if (sel !== undefined && sel !== null) {
-      selectEl.value = sel;
+    if(this.get('selection') && this.element.querySelector('select')) {
+      this.element.querySelector('select').value = this.get('selection');
     }
   }),
   select_style: computed('short', function() {
@@ -45,11 +34,14 @@ export default Component.extend({
   }),
   raw_content: computed('content', function() {
     // Ember got super slow at long lists for some reason..
-    // Selection sync is handled by didInsertElement and update_selection observer.
     var elem = document.createElement('select');
+    var sel = this.get('selection');
     (this.get('content') || []).forEach(function(c) {
       var opt = document.createElement('option');
       opt.value = c.id;
+      if(sel && sel == opt.value) {
+        opt.setAttribute('selected', true);
+      }
       opt.innerText = c.name;
       opt.disabled = !!c.disabled;
       elem.appendChild(opt);

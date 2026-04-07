@@ -38,7 +38,7 @@ module JsonApi::BoardVersion
       elsif version.whodunnit.match(/^admin:/)
         json['modifier'] = {
           'description' => 'LingoLinq Admin',
-          'image' => "https://www.mylingolinq.com/images/logo-new.png"
+          'image' => "https://www.mylingolinq.com/images/logo-big.png"
         }
       end
       later_object = version.instance_variable_get('@later_object')

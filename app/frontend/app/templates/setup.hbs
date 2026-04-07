@@ -1,72 +1,24 @@
-<div class="md-shell md-shell--setup">
-  <div class="md-workspace">
-    <main class="md-main md-main--setup">
-      {{#if this.other_user.loading}}
-        <div class="md-setup-loading">
-          <p>{{t "Loading User..." key="loading_user"}}</p>
-        </div>
-      {{else if this.other_user.error}}
-        <div class="md-setup-error">
-          <p class="text-danger">{{t "Error loading user, please make sure you have permission to support this user" key="error_loading_user_check_permission"}}</p>
-        </div>
+<div class='row' id="setup_container" style={{if this.no_scroll "margin-bottom: 0;"}}>
+  {{#if this.other_user.loading}}
+    <div style='margin: 30px auto; width: 500px;'>
+      <p>{{t "Loading User..." key="loading_user"}}</p>
+    </div>
+  {{else if this.other_user.error}}
+    <div style='margin: 30px auto; width: 500px;'>
+      <p class='text-danger'>{{t "Error loading user, please make sure you have permission to support this user" key="error_loading_user_check_permission"}}</p>
+    </div>
+  {{else}}
+    <a class={{if this.reading "btn btn-lg btn-success throb" "btn btn-lg btn-default"}} {{action "toggle_speaking"}} href="#" style='position: absolute; top: 5px; right: 5px; width: 100px;'>
+      {{#if this.reading}}
+        <span class='glyphicon glyphicon-volume-off'></span>
+        <span class='sr-only'>{{t "Stop Reading This Step" key="stop_reading_this_step"}}</span>
       {{else}}
-        {{#unless (is-equal this.mode "layout")}}
-        <header class="md-hero md-hero--setup">
-          <div class="md-hero--setup__head">
-            <h1 class="md-hero__title">{{t "Account Setup" key="account_setup"}}</h1>
-            <div class="md-hero--setup__status" aria-label={{t "Setup progress" key="setup_progress"}}>
-              <div class="md-hero--setup__progress" role="progressbar" aria-valuenow={{this.setupProgressPercent}} aria-valuemin="0" aria-valuemax="100">
-                <div class="md-hero--setup__progress-fill" style={{this.setupProgressStyle}}></div>
-                <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.setupProgressPercent}}</span>
-              </div>
-              <span class="md-hero--setup__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.setup_index total=this.setup_order_length}}</span>
-            </div>
-            <div class="md-hero--setup__nav">
-              <button type="button" class="setup-voice-toggle setup-voice-toggle--in-nav {{if this.reading "setup-voice-toggle--active"}}" {{action "toggle_speaking" preventDefault=true bubbles=false}} aria-label={{if this.reading (t "Stop Reading This Step" key="stop_reading_this_step") (t "Read This Step" key="read_this_step")}} title={{if this.reading (t "Stop Reading This Step" key="stop_reading_this_step") (t "Read This Step" key="read_this_step")}}>
-                {{#if this.reading}}
-                  <span class="setup-voice-toggle__icon" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                  </span>
-                  <span class="sr-only">{{t "Stop Reading This Step" key="stop_reading_this_step"}}</span>
-                {{else}}
-                  <span class="setup-voice-toggle__icon" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                  </span>
-                  <span class="sr-only">{{t "Read This Step" key="read_this_step"}}</span>
-                {{/if}}
-              </button>
-            </div>
-          </div>
-          <div class="md-hero--setup__back">
-            <LinkTo @route="index" class="md-pillnav__pill md-hero--setup__back-pill">{{t "Back to the Dashboard" key="back_to_dashboard"}}</LinkTo>
-            {{#if (is-equal this.setupComponent "setup/intro")}}
-              {{#if this.for_self}}
-                {{#unless this.appState.auto_start}}
-                  <button type="button" class="md-btn md-btn--ghost md-card__getting-started-btn--secondary md-hero--setup__skip-pill" {{action "choose_board"}}>{{t "Skip Setup - I'd like to Choose a Board" key="skip_to_board_choice"}}</button>
-                {{/unless}}
-              {{/if}}
-            {{/if}}
-          </div>
-        </header>
-        {{/unless}}
-        <article class="md-card md-card--setup {{if (is-equal this.setupComponent "setup/intro") "md-card--setup-intro"}} {{if (is-equal this.mode "layout") "md-card--setup-standalone"}}" id="setup_container" style={{if this.no_scroll "margin-bottom: 0;"}}>
-          <div class="md-card--setup__content">
-            {{component this.setupComponent setup=this}}
-          </div>
-          {{#if (is-equal this.mode "layout")}}
-            <div class="md-card--setup__nav md-card--setup__nav--centered">
-              <button type="button" class="md-btn md-btn--primary" {{action "close_board_layout"}}>{{t "Close" key="close"}}</button>
-            </div>
-          {{else}}
-            <div class="md-card--setup__nav">
-              <button type="button" class="md-btn md-btn--ghost" {{action "setup_go" "backward"}} style={{safe-style (unless this.setup_previous "visibility: hidden; pointer-events: none;" "")}}>{{t "Previous" key="previous"}}</button>
-              <button type="button" class="md-btn md-btn--primary" {{action "setup_go" "forward"}} style={{safe-style (unless this.setup_next "visibility: hidden; pointer-events: none;" "")}}>{{t "Next" key="next"}}</button>
-            </div>
-          {{/if}}
-        </article>
+        <span class='glyphicon glyphicon-volume-up'></span>
+        <span class='sr-only'>{{t "Read This Step" key="read_this_step"}}</span>
       {{/if}}
-    </main>
-  </div>
+    </a>
+    {{component this.setupComponent setup=this}}
+  {{/if}}
 </div>
 <div style='white-space: pre-wrap; display: none;'>
   additional preferences:

@@ -70,7 +70,7 @@ export default Controller.extend({
     var parts = (this.get('current_report') || '').split(/-/);
     parts.shift();
     var str = parts.join('-');
-    if(!rep) { return null; }
+    if(!rep) { return "N/A"; }
     if(rep.match(/^status-/)) {
       var code = rep.replace(/^status-/, '');
       var status = LingoLinq.user_statuses.find(function(r) { return r.id == code; });

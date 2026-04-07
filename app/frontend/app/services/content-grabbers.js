@@ -2613,13 +2613,7 @@ var boardGrabber = EmberObject.extend({
     progress.then(function(boards) {
       if(boards[0] && boards[0].key) {
         if(modal.is_open('importing-boards')) {
-          var importKey = boards[0].key;
-          var importParts = importKey ? importKey.split('/') : [];
-          if(importParts.length === 2) {
-            boardGrabber.transitioner.transitionTo('user.board-detail', importParts[0], importParts[1]);
-          } else {
-            boardGrabber.transitioner.transitionTo('board', importKey);
-          }
+          boardGrabber.transitioner.transitionTo('board', boards[0].key);
         } else {
           modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
         }

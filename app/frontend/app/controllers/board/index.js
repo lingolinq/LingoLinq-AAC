@@ -43,7 +43,6 @@ export default Controller.extend({
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
-    if (this.appState.get('speak_mode')) { runLater(() => { this._setupSpeakBarObserver(); }, 200); }
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying'); }
     editManager.process_for_displaying(ignore_fast_html);
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() done'); }
@@ -380,14 +379,14 @@ export default Controller.extend({
       }
       var width = inner_width;
       var sidebar_width = window.innerWidth <= 767 ? 75 : 100;
-      if(this.appState.get('sidebar_visible')) {
+      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width; // TODO: make sidebar size configurable, or have it match top bar
       }
       this.set('window_inner_width', inner_width);
       this.appState.set('window_inner_width', inner_width);
       this.appState.set('window_inner_height', height);
       var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
-      var topHeight = this.appState.get('header_height') + 5 + (this.appState.get('extra_header_height') || 0);
+      var topHeight = this.appState.get('header_height') + 5;
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
@@ -455,54 +454,6 @@ export default Controller.extend({
       }
     }
   ),
-  _speakBarObserver: null,
-  _watchSpeakMode: observer('appState.speak_mode', function() {
-    var _this = this;
-    if (_this.appState.get('speak_mode')) {
-      runLater(function() { _this._setupSpeakBarObserver(); }, 100);
-    } else {
-      _this._teardownSpeakBarObserver();
-      _this.appState.set('extra_header_height', 0);
-      document.documentElement.style.removeProperty('--speak-bar-extra');
-    }
-  }),
-  _setupSpeakBarObserver() {
-    if (this._speakBarObserver) { return; }
-    var _this = this;
-    var innerHeader = document.getElementById('inner_header');
-    if (!innerHeader) { return; }
-    this._speakBarObserver = new ResizeObserver(function() {
-      _this._updateFromSpeakBarResize();
-    });
-    this._speakBarObserver.observe(innerHeader);
-    this._updateFromSpeakBarResize();
-  },
-  _teardownSpeakBarObserver() {
-    if (this._speakBarObserver) {
-      this._speakBarObserver.disconnect();
-      this._speakBarObserver = null;
-    }
-  },
-  _updateFromSpeakBarResize() {
-    var innerHeader = document.getElementById('inner_header');
-    if (!innerHeader || !this.appState.get('speak_mode')) { return; }
-    var actualHeight = innerHeader.offsetHeight;
-    var topbarHeight = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')
-    ) || this.appState.get('header_height') || 0;
-    var extra = Math.max(0, actualHeight - topbarHeight);
-    var prevExtra = this.appState.get('extra_header_height') || 0;
-    if (prevExtra === extra) { return; }
-    this.appState.set('extra_header_height', extra);
-    document.documentElement.style.setProperty('--speak-bar-extra', extra + 'px');
-    this.computeHeight();
-  },
-  willDestroy() {
-    this._super(...arguments);
-    this._teardownSpeakBarObserver();
-    this.appState.set('extra_header_height', 0);
-    document.documentElement.style.removeProperty('--speak-bar-extra');
-  },
   board_style: computed('height', 'model.background.color', function() {
     var str = "position: relative; height: " + (this.get('height') + 5) + "px;";
     if(this.get('model.background.color') && window.tinycolor) {
@@ -612,12 +563,8 @@ export default Controller.extend({
       this.set('model.text_size', 'normal');
       if(starting_height < 35) {
         this.set('model.text_size', 'really_small_text');
-        // Scale label down so images stay visible on dense grids
-        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.25), 8));
       } else if(starting_height < 75) {
         this.set('model.text_size', 'small_text');
-        // Scale label down so images stay visible on dense grids
-        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.3), 10));
       }
 
       var $canvas = $("#board_canvas");
@@ -986,7 +933,7 @@ export default Controller.extend({
       } else if(spacing == "huge") {
         return 45;
       } else {
-        return 4;
+        return 5;
       }
     }
   ),
@@ -1251,26 +1198,8 @@ export default Controller.extend({
     return { id: id, event: event };
   },
 
-  boardMenuOpen: false,
-
   actions: {
-    toggleBoardMenu: function() {
-      this.toggleProperty('boardMenuOpen');
-      if(this.get('boardMenuOpen')) {
-        var _this = this;
-        var handler = function(e) {
-          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
-            _this.set('boardMenuOpen', false);
-            document.removeEventListener('click', handler, true);
-          }
-        };
-        setTimeout(function() {
-          document.addEventListener('click', handler, true);
-        }, 10);
-      }
-    },
     boardDetails: function() {
-      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('model')});
     },
     buttonSelect: function(id, event) {

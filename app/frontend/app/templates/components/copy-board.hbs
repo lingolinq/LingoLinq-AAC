@@ -1,163 +1,180 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header md-modal-header">
-    <button type="button" class="close" {{action "close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
     {{#if this.model.for_editing}}
-      <h3 class="md-modal-title">{{t "Edit a Copy of this Board" key="edit_a_copy_of_board"}}</h3>
+      <h3>{{t "Edit a Copy of this Board" key="edit_a_copy_of_board"}}</h3>
     {{else}}
-      <h3 class="md-modal-title">{{t "Make a Copy of this Board" key="make_a_copy_of_board"}}</h3>
+      <h3>{{t "Make a Copy of this Board" key="make_a_copy_of_board"}}</h3>
     {{/if}}
   </div>
-  <div class="modal-body md-modal-body" style="text-align: left;">
-    <div class="md-modal-icon-row">
-      <div class="md-modal-icon-circle">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="#46505f"/>
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="#2a9d8f"/>
-        </svg>
-      </div>
+  <div class="modal-body">
+    <h4>{{t "Copy of " key="copy_of"}} {{ this.model.board.name }}</h4>
+    <div>
+      <label class='form-control-static' style='display: inline-block;' for='board_name'>{{t "Name:" key="name_colon"}}</label>
+      <span style='width: 200px; display: inline-block;'>
+        <Input @type="text" class="form-control" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
+      </span>
     </div>
-    <p class="md-modal-board-name">{{t "Copy of " key="copy_of"}}{{this.model.board.name}}</p>
-
-    <div class="md-modal-field">
-      <label class="md-modal-label" for="board_name">{{t "Name:" key="name_colon"}}</label>
-      <Input @type="text" class="md-modal-input" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
-    </div>
-
-    <div class="md-modal-field">
-      <label class="md-modal-checkbox-label">
-        <Input @type="checkbox" @checked={{this.set_as_home}} class="md-modal-checkbox" />
-        <span>
-          {{#if this.has_supervisees}}
-            {{t "Set as the User's Home Board (required for offline syncing)" key="set_as_new_home_board_offline"}}
-          {{else}}
-            {{t "Set as My Home Board (required for offline syncing)" key="set_as_new_home_board"}}
-          {{/if}}
+    <div>
+      <span style='width: 100%; display: inline-block;'>
+        <span class='checkbox big_checkbox' style='margin-top: -5px;'>
+          <label>
+            {{#if this.has_supervisees}}
+              {{t "Set as the User's Home Board (required for offline syncing)" key="set_as_new_home_board_offline"}}
+            {{else}}
+              {{t "Set as My Home Board (required for offline syncing)" key="set_as_new_home_board"}}
+            {{/if}}
+            <Input @type="checkbox" @checked={{this.set_as_home}} />
+          </label>
         </span>
-      </label>
+      </span>
     </div>
-
     {{#if this.has_supervisees}}
-      <div class="md-modal-field">
-        <p class="md-modal-hint">{{t "For which user would you like to make a copy of this board? If you are planning to use this board for multiple communicators, you should probably copy it for yourself and manually add it for each communicator." key="which-user"}}</p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
-      </div>
+      <p>{{t "For which user would you like to make a copy of this board? If you are planning to use this board for multiple communicators, you should probably copy it for yourself and manually add it for each communicator." key="which-user"}}</p>
+      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
     {{/if}}
-
-    {{#if this.loading}}
-      <p class="md-modal-status md-modal-status--info">{{t "Checking user..." key="checking_user"}}</p>
-    {{else if this.error}}
-      <p class="md-modal-status md-modal-status--error">{{t "User lookup failed, please try again" key="user_lookup_failed"}}</p>
-    {{else if this.set_as_home}}
-    {{else if this.home_board}}
-      <p class="md-modal-hint">{{t "This board is currently the user's home board. Do you want to use the new copy as the user's new home board?" key="copy_home_board"}}</p>
-    {{else if this.in_board_set}}
-      <p class="md-modal-hint">{{t "This board is part of the user's communication set. Do you want to use the new copy in the communication set instead of the original?" key="copy_upstream_board_links"}} {{t "This action could make copies of other boards in the communication set as well." key="more_copies_warning"}}</p>
-    {{else if this.sidebar_board}}
-      <p class="md-modal-hint">{{t "This board is currently on the user's sidebar. Do you want to update the sidebar with the new copy?" key="copy_sidebar_board"}}</p>
-    {{else if this.in_sidebar_set}}
-      <p class="md-modal-hint">{{t "This board is part of the user's sidebar set. Do you want to use the new copy in the sidebar instead of the original?" key="copy_upstream_sidebar_links"}} {{t "This action could make copies of other boards in the sidebar set as well." key="more_sidebar_copies_warning"}}</p>
-    {{else if this.linked}}
-      <p class="md-modal-hint">{{t "This board is linked to other boards. Do you want to make a copy of these linked boards as well, or just copy this board without changing any of the links?" key="copy_downstream_board_links"}}</p>
-    {{/if}}
-
+    <p>
+      {{#if this.loading}}
+        {{t "Checking user..." key="checking_user"}}
+      {{else if this.error}}
+        {{t "User lookup failed, please try again" key="user_lookup_failed"}}
+      {{else if this.set_as_home }}
+      {{else if this.home_board}}
+        {{t "This board is currently the user's home board. Do you want to use the new copy as the user's new home board?" key="copy_home_board"}}
+      {{else if this.in_board_set}}
+        {{t "This board is part of the user's communication set. Do you want to use the new copy in the communication set instead of the original?" key="copy_upstream_board_links"}}
+        {{t "This action could make copies of other boards in the communication set as well." key="more_copies_warning"}}
+      {{else if this.sidebar_board}}
+        {{t "This board is currently on the user's sidebar. Do you want to update the sidebar with the new copy?" key="copy_sidebar_board"}}
+      {{else if this.in_sidebar_set}}
+        {{t "This board is part of the user's sidebar set. Do you want to use the new copy in the sidebar instead of the original?" key="copy_upstream_sidebar_links"}}
+        {{t "This action could make copies of other boards in the sidebar set as well." key="more_sidebar_copies_warning"}}
+      {{else if this.linked}}
+        {{t "This board is linked to other boards. Do you want to make a copy of these linked boards as well, or just copy this board without changing any of the links?" key="copy_downstream_board_links"}}
+      {{/if}}
+    </p>
     {{#if this.self_currently_selected}}
       {{#if this.model.known_supervisees}}
-        <div class="md-modal-field">
-          <p class="md-modal-hint">{{t "Select any users to share this board and any links with them." key="select_sharing_supervisees"}}</p>
-          <div class="md-modal-supervisee-list">
+        <p>
+          {{t "Select any users to share this board and any links with them." key="select_sharing_supervisees"}}
+          <ul class='list-unstyled' style='margin-top: 10px; margin-left: 30px;'>
             {{#each this.model.known_supervisees as |supervisee|}}
-              <label class="md-modal-checkbox-label">
-                <Input @type="checkbox" @checked={{supervisee.share}} class="md-modal-checkbox" />
-                <img src={{supervisee.avatar_url}} class="md-modal-avatar">
-                <span>{{supervisee.user_name}}</span>
-              </label>
+              <li>
+                <div class="checkbox big_checkbox" style='margin: 0;'>
+                <label style={{if supervisee.share "font-weight: bold; margin-top: -5px;" "font-weight: normal;; margin-top: -5px;"}}>
+                  <Input @type="checkbox" @checked={{supervisee.share}} />
+                  <img src={{supervisee.avatar_url}} style="height: 30px; max-width: 30px;">
+                  {{supervisee.user_name}}
+                </label>
+                </div>
+              </li>
             {{/each}}
-          </div>
-        </div>
+          </ul>
+        </p>
       {{/if}}
     {{/if}}
 
     {{#if this.currently_selected_id}}
-      <div class="md-modal-field">
-        <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
-        {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action "updateSymbolLibrary") }}
+      <div>
+        <label for="symbol_library" style='display: inline-block; padding-right: 5px;' ><strong>{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</strong></label>
+        <div style='display: inline-block; width: 250px;'>
+          {{bound-select select_class="form-control" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(action "updateSymbolLibrary") }}
+        </div>
       </div>
     {{/if}}
 
     {{#if this.show_more_options}}
-      <div class="md-modal-field">
-        <label class="md-modal-label" for="board_prefix">{{t "Prefix:" key="prefix"}}</label>
-        <Input @type="text" class="md-modal-input" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
-        <p class="md-modal-hint" style="margin-top: 4px;">{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</p>
+      <div style='margin-top: 5px;'>
+        <label class='form-control-static' style='display: inline-block;' for='board_prefix'>{{t "Prefix:" key="prefix"}}</label>
+        <span style='width: 100px; display: inline-block;'>
+          <Input @type="text" class="form-control" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
+        </span>
+        <span style='font-style: italic;'>{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</span>
       </div>
-      <div class="md-modal-field">
-        <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.public}} class="md-modal-checkbox" />
-          <span>{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}</span>
-        </label>
+      <div class="row">
+        <div class='col-sm-12'><div class="checkbox big_checkbox">
+          <label style='font-weight: normal;'>
+            <Input @type="checkbox" @checked={{this.public}} />
+            &nbsp;&nbsp;{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}
+          </label>
+        </div></div>
       </div>
-      <div class="md-modal-field">
-        <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.translate}} class="md-modal-checkbox" />
-          <span>{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}</span>
-        </label>
+      <div class="row">
+        <div class='col-sm-12'><div class="checkbox big_checkbox">
+          <label style='font-weight: normal;'>
+            <Input @type="checkbox" @checked={{this.translate}} />
+            &nbsp;&nbsp;{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}
+          </label>
+        </div></div>
       </div>
       {{#if this.allow_new_user}}
         {{#if this.model.board.permissions.edit}}
-          <div class="md-modal-field">
-            <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-              <Input @type="checkbox" @checked={{this.new_owner}} class="md-modal-checkbox" />
-              <span>{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}</span>
-            </label>
+          <div class="row">
+            <div class='col-sm-12'><div class="checkbox big_checkbox">
+              <label style='font-weight: normal; color: #888;'>
+                <Input @type="checkbox" @checked={{this.new_owner}} />
+                &nbsp;&nbsp;{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}
+              </label>
+            </div></div>
           </div>
         {{/if}}
       {{/if}}
       {{#if this.model.board.permissions.edit}}
-        <div class="md-modal-field">
-          <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-            <Input @type="checkbox" @checked={{this.disconnect}} class="md-modal-checkbox" />
-            <span>{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}</span>
-          </label>
+        <div class="row">
+          <div class='col-sm-12'><div class="checkbox big_checkbox">
+            <label style='font-weight: normal; color: #888;'>
+              <Input @type="checkbox" @checked={{this.disconnect}} />
+              &nbsp;&nbsp;{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}
+            </label>
+          </div></div>
         </div>
       {{/if}}
       {{#if this.translate}}
-        <div class="md-modal-field">
-          <label class="md-modal-label" for="translate_locale">{{t "Language:" key="language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action "updateTranslateLocale") }}
+        <div class="row" style='margin-top: 30px;'>
+          <label class="col-sm-4 control-label" for="translate_locale">
+            {{t "Language:" key="language_colon"}}
+          </label>
+          <div class="col-sm-4">
+            {{bound-select select_class="form-control" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(action "updateTranslateLocale") }}
+          </div>
         </div>
       {{else if this.model.board.multiple_locales}}
-        <div class="md-modal-field">
-          <label class="md-modal-label" for="default_locale">{{t "Default Language:" key="default_language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(action "updateDefaultLocale") }}
+        <div class="row" style='margin-top: 30px;'>
+          <label class="col-sm-4 control-label" for="default_locale">
+            {{t "Default Language:" key="default_language_colon"}}
+          </label>
+          <div class="col-sm-4">
+            {{bound-select select_class="form-control" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(action "updateDefaultLocale") }}
+          </div>
         </div>
       {{/if}}
     {{else}}
-      <div class="md-modal-field">
-        <a href="#" class="md-modal-link" {{action "more_options"}}>{{t "more options" key="more_options"}}</a>
+      <div class="row" style='margin-top: 20px;'>
+        <label style='font-weight: normal; color: #888;' class="col-sm-12">
+          <a href="#" {{action "more_options"}}>{{t "more options" key="more_options"}}</a>
+        </label>
       </div>
     {{/if}}
-
     {{#if this.model.board.protected_material}}
-      <p class="md-modal-status md-modal-status--warning">{{t "NOTE: This board has premium content, any users who access it without the same premium access will see free alternatives instead." key="premium_content_reminder"}}</p>
+      <p class='text-warning'>{{t "NOTE: This board has premium content, any users who access it without the same premium access will see free alternatives instead." key="premium_content_reminder"}}</p>
     {{/if}}
   </div>
-  <div class="modal-footer md-modal-footer">
+  <div class="modal-footer">
     {{#if this.set_as_home}}
-      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_home"}}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        {{t "Copy as Full Board Set" key="copy_linked_boards_as"}}
-      </button>
+      <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as Full Board Set" key="copy_linked_boards_as"}}</button>
     {{else if this.home_board}}
-      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as New Home Board" key="copy_linked_boards_as_home"}}</button>
+      <div class="btn-group dropup">
+        <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as New Home Board" key="copy_linked_boards_as_home"}}</button>
+      </div>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.sidebar_board}}
-      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key="copy_linked_boards_to_sidebar"}}</button>
+      <div class="btn-group dropup">
+        <button class='btn btn-primary' {{action "tweakBoard" "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key="copy_linked_boards_to_sidebar"}}</button>
+      </div>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_board_set}}
       <div class="btn-group dropup">
-        <button class="btn md-modal-btn md-modal-btn--primary dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+        <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
           {{t "Copy Into the Communication Set" key="use_new_copy"}} <span class="caret"></span>
         </button>
         <ul class="dropdown-menu" role="menu">
@@ -168,7 +185,7 @@
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_sidebar_set}}
       <div class="btn-group dropup">
-        <button class="btn md-modal-btn md-modal-btn--primary dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+        <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
           {{t "Copy Into the Sidebar Set" key="use_new_sidebar_copy"}} <span class="caret"></span>
         </button>
         <ul class="dropdown-menu" role="menu">
@@ -178,14 +195,11 @@
       </div>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.linked}}
-      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        {{t "Copy the Full Board Set" key="copy_linked_boards"}}
-      </button>
+      <button class='btn btn-primary' {{action "tweakBoard" "links_copy"}}>{{t "Copy the Full Board Set" key="copy_linked_boards"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{else}}
       <CopyJustThisBoard @parent={{this}} />
     {{/if}}
-    <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

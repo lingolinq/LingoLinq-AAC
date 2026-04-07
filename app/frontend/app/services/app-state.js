@@ -53,10 +53,6 @@ export default Service.extend({
   router: service('router'),
   session: service('session'),
   contentGrabbers: service('content-grabbers'),
-
-  /** Set true to show GitHub links in footers (Developers, API Docs, Open Source). */
-  showFooterGithubLinks: false,
-
   init() {
     LingoLinq.appState = this;
     // Expose globally for utilities
@@ -203,28 +199,6 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
-    // Bento dashboard theme: light | midDay | dark | default - persisted in localStorage (gold palette renamed to default)
-    var theme = 'light';
-    try {
-      var storedTheme = localStorage.getItem('ll_bento_theme_mode');
-      if (storedTheme === 'flat' || storedTheme === 'pastel') {
-        theme = 'light';
-        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'gold') {
-        theme = 'default';
-        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'coolBlue') {
-        theme = 'light';
-        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
-      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default') {
-        theme = storedTheme;
-      } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
-        theme = 'dark';
-      }
-      // else: light (first visit or invalid stored value)
-    } catch (e) { /* ignore */ }
-    this.set('themeMode', theme);
-    this.updateFaviconForTheme(theme);
     // Ensure window.user_preferences.any_user exists to prevent TypeError
     window.user_preferences = window.user_preferences || {};
     window.user_preferences.any_user = window.user_preferences.any_user || {};
@@ -604,7 +578,7 @@ export default Service.extend({
     }
     this.set('from_url', from_url);
     var from = [transition.from_route].concat(transition.from_params);
-    if(from[0] && from[0] != 'board.index' && from[0] != 'user.board-alt.index') {
+    if(from[0] && from[0] != 'board.index') {
       this.set('from_route', from);
     }
     this.set('latest_board_id', null);
@@ -620,7 +594,7 @@ export default Service.extend({
     if(capabilities.mobile) {
       this.set('index_view', transition.to_route == 'index');
     }
-    if(transition.to_route == 'board.index' || transition.to_route == 'user.board-alt.index') {
+    if(transition.to_route == 'board.index') {
       boundClasses.setup();
       var delay = this.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
       LingoLinq.log.track('global transition handled');
@@ -640,14 +614,13 @@ export default Service.extend({
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
-    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index') {
+    if(transition.to_route != 'board.index') {
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
       this.refresh_session_user();
     }
     this.set('current_route', transition.to_route);
-    this.updateFavicon();
   },
   finish_global_transition: function() {
     var _this = this;
@@ -655,16 +628,20 @@ export default Service.extend({
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
-      // footer is now a computed on application controller (from currentBoardState)
-      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
-        try {
-          _this.controller.set('setup_footer', false);
-          _this.controller.set('simple_board_header', false);
-          _this.set('setup_user', null);
-          _this.controller.set('setup_user_id', null);
-        } catch(e) { }
-      }
     });
+    // footer was showing up too quickly and looking weird when the rest of the page hadn't
+    // re-rendered yet.
+    if(!this.get('currentBoardState')) {
+      try {
+        this.controller.set('footer', true);
+        if(this.get('to_target') && this.get('to_target') != 'setup' && this.get('to_target') != 'home-boards') {
+          this.controller.set('setup_footer', false);
+          this.controller.set('simple_board_header', false);
+          this.set('setup_user', null);
+          this.controller.set('setup_user_id', null);
+        }
+      } catch(e) { }
+    }
     if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
         window.top.location.replace(window.location);
@@ -678,15 +655,6 @@ export default Service.extend({
     }
     LingoLinq.protected_user = protect_user;
     this.stashes.persist('protected_user', protect_user);
-  }),
-  _persist_last_board_for_user: observer('stashes.root_board_state', function() {
-    var state = this.stashes.get('root_board_state');
-    var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
-    if(state && state.name && userName) {
-      try {
-        localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
-      } catch(e) { }
-    }
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
@@ -711,31 +679,19 @@ export default Service.extend({
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
     return this.get('domain_settings.board_user_name') || 'example';
   }),
-  darkMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'dark';
-  }),
-  midDayMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'midDay';
-  }),
-  defaultMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'default';
-  }),
-  lightMode: computed('themeMode', function() {
-    return this.get('themeMode') === 'light';
-  }),
-  h1_class: computed('currentBoardState.id', 'edit_mode', function() {
+  h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
     var res = "";
     if(this.get('currentBoardState.id')) {
       res = res + "with_board " ;
-      if(!this.get('edit_mode')) {
+      if(this.get('from_route') && !this.get('edit_mode')) {
         res = res + "sr-only ";
       }
     }
     return htmlSafe(res);
   }),
-  nav_header_class: computed('currentBoardState.id', 'edit_mode', function() {
+  nav_header_class: computed('currentBoardState.id', 'from_route', function() {
     var res = "no_beta ";
-    if(this.get('currentBoardState.id') && !this.get('edit_mode')) {
+    if(this.get('currentBoardState.id') && this.get('from_route') && !this.get('edit_mode')) {
       res = res + "board_done ";
     }
     return htmlSafe(res);
@@ -783,12 +739,7 @@ export default Service.extend({
   return_to_index: function() {
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      var cu = this.get('currentUser');
-      if (cu && cu.get('user_name')) {
-        router.transitionTo('user.home', cu.get('user_name'));
-      } else {
-        router.transitionTo('index');
-      }
+      router.transitionTo('index');
     } else {
       console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
@@ -1143,54 +1094,12 @@ export default Service.extend({
       this.controller.send('pickWhichHome');
     }
   },
-  /**
-   * Board model for the current screen.
-   * `setup_controller` always passes the application controller, not child routes.
-   * Classic board UI uses application.board.model; board-detail keeps the board on
-   * controller:user.board-detail only.
-   */
-  resolve_board_from_controller: function() {
-    var c = this.controller;
-    if(!c || typeof c.get !== 'function') { return null; }
-    var board = c.get('board.model');
-    if(board) { return board; }
-    var routeName = this.get('router.currentRouteName') || '';
-    if(routeName.indexOf('board-detail') !== -1) {
-      var owner = getOwner(this);
-      if(owner) {
-        var detailCtrl = owner.lookup('controller:user.board-detail') ||
-          owner.lookup('controller:user/board-detail');
-        if(detailCtrl) {
-          var m = detailCtrl.get('model');
-          if(m && m.get && !m.get('error') && (m.get('key') || m.get('id'))) {
-            return m;
-          }
-        }
-      }
-    }
-    return null;
-  },
-  /**
-   * True when the board-detail symbol grid should get speak-mode-style long-press scheduling
-   * (inflections overlay) even if global speak_mode is off. Board-detail uses Ember actions
-   * for taps, so it must not use the .advanced_selection click trap on the grid.
-   */
-  board_detail_inflections_active: function() {
-    var routeName = this.get('current_route') || '';
-    if(routeName.indexOf('board-detail') === -1) { return false; }
-    var owner = getOwner(this);
-    if(!owner) { return false; }
-    var detailCtrl = owner.lookup('controller:user.board-detail') ||
-      owner.lookup('controller:user/board-detail');
-    if(!detailCtrl || typeof detailCtrl.get !== 'function') { return false; }
-    return !detailCtrl.get('edit_mode');
-  },
   assert_source: function() {
     var _this = this;
     if(!_this.controller || typeof _this.controller.get !== 'function') {
       return RSVP.reject({error: 'no board controller'});
     }
-    var board = _this.resolve_board_from_controller();
+    var board = _this.controller.get('board.model');
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
       if(board.get('locale') && !this.get('speak_mode')) {
@@ -1224,7 +1133,6 @@ export default Service.extend({
     }
   },
   toggle_edit_mode: function(decision) {
-    if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
     this.assert_source().then(function() {
@@ -1383,9 +1291,6 @@ export default Service.extend({
         this.stashes.persist('current_mode', this.stashes.get('last_mode'));
       } else {
         this.stashes.persist('current_mode', 'default');
-      }
-      if(mode == 'edit') {
-        this.set('board_layout_mode', null);
       }
       if(mode == 'speak' && this.get('currentBoardState')) {
         this.set('currentBoardState.reload_token', Math.random());
@@ -1563,8 +1468,8 @@ export default Service.extend({
         user_preferred = speak_mode_user.get('preferences.home_board');
       }
     }
-    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
-    if(preferred && preferred.locale) {
+    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || {key: 'example/yesno'};
+    if(preferred.locale) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }
@@ -2048,7 +1953,9 @@ export default Service.extend({
       $('html,body').css('overflow', '');
     } else if(!this.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
-      // footer is now a computed on application controller (from currentBoardState)
+      try {
+        this.controller.set('footer', false);
+      } catch(e) { }
     }
   }),
   update_button_tracker: observer(
@@ -2174,10 +2081,6 @@ export default Service.extend({
     });
     return res;
   }),
-  index_or_landing_view: computed('index_view', 'current_route', function() {
-    var route = this.get('current_route');
-    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing' || route === 'landing-alt' || route === 'bento';
-  }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
   }),
@@ -2219,7 +2122,6 @@ export default Service.extend({
       return size;
     }
   ),
-  extra_header_height: 0,
   header_height: computed('header_size', 'speak_mode', function() {
     if(this.get('speak_mode')) {
       var size = this.get('header_size');
@@ -3239,7 +3141,7 @@ export default Service.extend({
     var skip_auto_return = false;
     // check if the button is part of a board that has a custom handler,
     // and skip the other actions if handled
-    if(button.board && button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
+    if(button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
       var button_handled = button.board.get('button_handler')(button, obj);
       if(button_handled) { 
         if(button_handled.highlight === false) { skip_highlight = true; }
@@ -3293,10 +3195,7 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
-            var speakDone = false;
             var doSpeak = function() {
-              if(speakDone) { return; }
-              speakDone = true;
               if (typeof console !== 'undefined' && console.log) {
                 console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
               }
@@ -3443,53 +3342,6 @@ export default Service.extend({
       }, 100);
     } else if(!skip_auto_return) {
       this.possible_auto_home(obj);
-    }
-    // Board-detail sentence bar uses sentence_parts; overlay inflections only update utterance
-    // via add_button. Mirror the chosen label into the last matching token (or append if none).
-    if(obj.source === 'overlay' && this.board_detail_inflections_active() && obj.label) {
-      var owner = getOwner(this);
-      var detailCtrl = owner && (owner.lookup('controller:user.board-detail') ||
-        owner.lookup('controller:user/board-detail'));
-      if(detailCtrl && typeof detailCtrl.get === 'function') {
-        var bid = button.get ? button.get('id') : button.id;
-        var sparts = (detailCtrl.get('sentence_parts') || []).slice();
-        var replaced = false;
-        for(var spi = sparts.length - 1; spi >= 0; spi--) {
-          if(String((sparts[spi] || {}).id) === String(bid)) {
-            sparts[spi] = Object.assign({}, sparts[spi], { label: obj.label });
-            replaced = true;
-            break;
-          }
-        }
-        if(!replaced && bid != null) {
-          var imgUrl = button.get && (button.get('local_image_url') || button.get('image_url'));
-          if(!imgUrl) {
-            imgUrl = button.local_image_url || button.image_url;
-          }
-          sparts.push({ id: bid, label: obj.label, image_url: imgUrl });
-        }
-        detailCtrl.set('sentence_parts', sparts);
-      }
-    }
-    // Speak menu punctuation (.,?! etc.) updates utterance; board-detail bar uses sentence_parts.
-    if(obj.source === 'speak_menu' && this.board_detail_inflections_active() && obj.label) {
-      var ownerSm = getOwner(this);
-      var detailSm = ownerSm && (ownerSm.lookup('controller:user.board-detail') ||
-        ownerSm.lookup('controller:user/board-detail'));
-      if(detailSm && typeof detailSm.get === 'function') {
-        var smParts = (detailSm.get('sentence_parts') || []).slice();
-        var punct = String(obj.label);
-        var gluePunct = /^[.!?,;:]$/.test(punct);
-        if(smParts.length > 0 && gluePunct) {
-          var lastPart = smParts[smParts.length - 1];
-          smParts[smParts.length - 1] = Object.assign({}, lastPart, {
-            label: (lastPart.label || '') + punct
-          });
-        } else {
-          smParts.push({ id: 'punct_' + Date.now(), label: punct, image_url: null });
-        }
-        detailSm.set('sentence_parts', smParts);
-      }
     }
     frame_listener.notify_of_button(button, obj);
     return true;
@@ -4004,49 +3856,6 @@ export default Service.extend({
         }
       }, 500);
     }
-  },
-
-  toggleDarkMode: function() {
-    var modes = ['light', 'midDay', 'dark', 'default'];
-    var current = this.get('themeMode') || 'light';
-    var idx = modes.indexOf(current);
-    var next = modes[(idx + 1) % modes.length];
-    this.setThemeMode(next);
-  },
-
-  setThemeMode: function(mode) {
-    // Pastel removed: treat as 'light'. Gold renamed to default: treat legacy 'gold' as 'default'
-    if (mode === 'pastel') {
-      mode = 'light';
-    } else if (mode === 'gold') {
-      mode = 'default';
-    }
-    this.set('themeMode', mode);
-    try {
-      localStorage.setItem('ll_bento_theme_mode', mode);
-      localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
-    } catch (e) { /* ignore */ }
-    this.updateFavicon();
-  },
-
-  updateFavicon: function() {
-    try {
-      var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
-      var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
-      if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
-      var base = rootURL + 'images/';
-      var faviconHref = base + 'logo-new.png?v=3';
-      for (var i = 0; i < links.length; i++) {
-        var href = links[i].getAttribute('href') || '';
-        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('logo-big') !== -1) {
-          links[i].setAttribute('href', faviconHref);
-        }
-      }
-    } catch (e) { /* ignore */ }
-  },
-
-  updateFaviconForTheme: function(mode) {
-    this.updateFavicon();
   }
 });
 

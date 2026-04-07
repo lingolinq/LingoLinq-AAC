@@ -6,7 +6,7 @@
     </h3>
   </div>
   <div class="modal-body">
-    <span style="float: left;">{{app-logo size="65px"}}</span>
+    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} style="width: 65px; float: left;" >
     {{#if this.app_state.currentUser}}
       <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, so it's limited to speak mode only, but if you visit the web site you should be able to access your account as usual." key="thanks_app"}}</p>
     {{else}}

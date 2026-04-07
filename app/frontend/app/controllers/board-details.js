@@ -4,12 +4,9 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import editManager from '../utils/edit_manager';
 import { computed } from '@ember/object';
-import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
-  app_state: service('app-state'),
   opening: function() {
-    this.set('edit_mode', !!this.get('model.edit_mode'));
     this.set('model', this.get('model.board'));
     var _this = this;
     _this.set('hierarchy', {loading: true});
@@ -46,9 +43,6 @@ export default modal.ModalController.extend({
     },
     renameBoard: function() {
       modal.open('rename-board', {board: this.get('model')});
-    },
-    edit_board_details: function() {
-      modal.open('edit-board-details', {board: this.get('model')});
     },
     delete: function(decision) {
       modal.open('confirm-delete-board', {board: this.get('model'), redirect: true});

@@ -1,9 +1,7 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header md-modal-header">
-    <button type="button" class="close" {{action "close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <h3 class="md-modal-title">
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
       {{#if this.delete_action}}
         {{t "Delete this Board" key="delete_this_board"}}
       {{else if this.unstar_action}}
@@ -17,57 +15,37 @@
       {{/if}}
     </h3>
   </div>
-  <div class="modal-body md-modal-body">
-    <div class="md-modal-icon-row">
-      <div class="md-modal-icon-circle {{if this.delete_action 'md-modal-icon-circle--danger'}}">
-        {{#if this.delete_action}}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-        {{else if this.unstar_action}}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-        {{else}}
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        {{/if}}
-      </div>
-    </div>
-
+  <div class="modal-body">
     {{#if this.loading}}
-      <p class="md-modal-status md-modal-status--info">{{t "Removing board..." key="removing board"}}</p>
+      <p>{{t "Removing board..." key="removing board"}}</p>
     {{else if this.error}}
-      <p class="md-modal-status md-modal-status--error">{{t "There was an unexpected error trying to remove this board, please try again" key="error_removing_board"}}</p>
+      <p class='text-danger'>{{t "There was an unexpected error trying to remove this board, please try again" key="error_removing_board"}}</p>
     {{else}}
-      <p class="md-modal-message">
+      <p>
         {{#if this.delete_action}}
+          <span class="glyphicon glyphicon-trash"></span>
           {{t "Are you sure you want to delete this board?" key="confirm_delete_board"}}
         {{else if this.unstar_action}}
+          <span class="glyphicon glyphicon-star-empty"></span>
           {{t "Are you sure you want to unlike this board?" key="confirm_unstar_board"}}
         {{else if this.unlink_action}}
+          <span class="glyphicon glyphicon-remove"></span>
           {{t "Are you sure you want to unlink this board?" key="confirm_unlink_board"}}
         {{else if this.untag_action}}
+          <span class="glyphicon glyphicon-remove"></span>
           {{t "Are you sure you want to remove this board from the category \"%{cat}\"?" cat=this.model.tag key="confirm_untag_board"}}
         {{else}}
+          <span class="glyphicon glyphicon-remove"></span>
           {{t "Are you sure you want to remove this board?" key="confirm_remove_board"}}
         {{/if}}
       </p>
     {{/if}}
-
-    <div class="md-modal-board-preview">
-      {{#if this.model.board.icon_url_with_fallback}}
-        <img src={{this.model.board.icon_url_with_fallback}} class="md-modal-board-preview__icon" alt="">
-      {{/if}}
-      <div class="md-modal-board-preview__info">
-        <span class="md-modal-board-preview__name">{{this.model.board.name}}</span>
-        <span class="md-modal-board-preview__size">{{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}</span>
-      </div>
-    </div>
+    <img src={{this.model.board.icon_url_with_fallback}} style="width: 40px; float: left; margin-right: 10px;">
+    <strong>{{this.model.board.name}}</strong><br>
+    {{this.model.board.grid.rows}} x {{this.model.board.grid.columns}}
   </div>
-  <div class="modal-footer md-modal-footer">
-    <button class="btn md-modal-btn {{if this.delete_action 'md-modal-btn--danger' 'md-modal-btn--primary'}}" {{action "remove"}}>
+  <div class='modal-footer'>
+    <button class='btn btn-primary' {{action "remove"}}>
       {{#if this.delete_action}}
         {{t "Delete Board" key="delete_board"}}
       {{else if this.unstar_action}}
@@ -80,6 +58,6 @@
         {{t "Remove Board" key="remove_board"}}
       {{/if}}
     </button>
-    <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

@@ -96,7 +96,7 @@ describe UserExtra, type: :model do
       expect(e.tag_board(b, 'broccoli', false, false)).to eq(['bacon', 'broccoli', 'cheddar'])
     end
 
-    it "should keep empty tag keys when last board is removed from a tag" do
+    it "should remove any empty tag names" do
       u = User.create
       e = UserExtra.create(user: u)
       b = Board.create(user: u)
@@ -112,8 +112,8 @@ describe UserExtra, type: :model do
       expect(e.settings['board_tags']['bacon']).to eq(['a', 'b', 'c', b.global_id, 'd'])
       expect(e.settings['board_tags']['cheddar']).to eq(['aa', b.global_id])
       expect(e.tag_board(b, 'broccoli', false, false)).to eq(['bacon', 'broccoli', 'cheddar'])
-      expect(e.tag_board(b, 'broccoli', true, false)).to eq(['bacon', 'broccoli', 'cheddar'])
-      expect(e.settings['board_tags']['broccoli']).to eq([])
+      expect(e.tag_board(b, 'broccoli', true, false)).to eq(['bacon', 'cheddar'])
+      expect(e.settings['board_tags']['broccoli']).to eq(nil)
     end
   end
 

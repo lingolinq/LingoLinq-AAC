@@ -1,6 +1,4 @@
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
-import { alias } from '@ember/object/computed';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import app_state from '../utils/app_state';
@@ -9,8 +7,6 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
-  appState: service('app-state'),
-  app_state: alias('appState'),
   queryParams: ['to'],
   to: null,
   recipient_list: [

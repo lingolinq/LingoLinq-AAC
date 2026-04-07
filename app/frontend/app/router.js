@@ -46,7 +46,6 @@ Router.reopen({
 Router.map(function() {
   this.route('jasmine');
   this.route('index', { path: '/' });
-  this.route('bento', { path: '/bento' });
   this.route('modern-dashboard', { path: '/modern-dashboard' }, function() {
     this.route('index', { path: '/' });
     this.route('boards', { path: '/boards' });
@@ -64,7 +63,6 @@ Router.map(function() {
   this.route('privacy-practices', { path: '/privacy_practices' });
   this.route('jobs', { path: '/jobs' });
   this.route('pricing', { path: '/pricing' });
-  this.route('features', { path: '/features' });
   this.route('contact', { path: '/contact' });
   this.route('home-boards', { path: '/search/home' });
   this.route('emergency', { path: '/search/emergency' });
@@ -74,9 +72,7 @@ Router.map(function() {
   this.route('old_search', { path: '/search/:q' });
   this.route('utterance-reply', { path: '/u/:reply_code'})
   this.route('consent-response', { path: '/consent/:token' });
-  this.route('login', function() {
-    this.route('device');
-  });
+  this.route('login');
   this.route('register');
   this.route('intro');
   this.route('trends');
@@ -91,7 +87,6 @@ Router.map(function() {
   this.route('admin', { path: '/admin' });
   this.route('lesson', { path: '/lessons/:lesson_id/:lesson_code/:user_token'});
   this.route('organization', { path: '/organizations/:id' }, function() {
-    this.route('people');
     this.route('reports');
     this.route('subscription');
     this.route('extras');
@@ -107,19 +102,12 @@ Router.map(function() {
   this.route('redeem_with_code', { path: '/redeem/:code' });
   this.route('gift_purchase', { path: '/gift' });
   this.route('bulk_purchase', { path: '/purchase/:id'});
-  this.route('support', { path: '/support' });
-  this.route('beta-feedback', { path: '/beta-feedback' });
-  this.route('faq', { path: '/faq' });
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
-    this.route('home', { path: '/home' });
-    this.route('extras', { path: '/extras' });
-    this.route('boards', { path: '/boards' });
-    this.route('account');
     this.route('edit');
     this.route('preferences');
     this.route('subscription');
@@ -134,12 +122,6 @@ Router.map(function() {
     this.route('history');
     this.route('lessons');
     this.route('focus');
-    this.route('board-detail', { path: 'board-detail/:boardname' }, function() {
-      this.route('edit');
-    });
-    this.route('board-alt', { path: 'board/:boardname' }, function() {
-      this.route('index', { path: '/' });
-    });
     this.route('confirm_registration', { path: '/confirm_registration/:code' });
     this.route('password_reset', { path: '/password_reset/:code' });
   });

@@ -49,11 +49,6 @@ var obs_func = function() {
   });
 };
 
-// Non-deprecated observer for subscription.* properties (replaces .observes() prototype extension)
-var update_classes_observer = observer(...obs_properties, function() {
-  obs_func.call(this);
-});
-
 var Subscription = EmberObject.extend({
   init: function() {
     this.reset();
@@ -709,7 +704,7 @@ Subscription.reopenClass({
       if(window.StripeCheckout && window.stripe_public_key) {
         Subscription.handler = window.StripeCheckout.configure({
           key: window.stripe_public_key,
-          image: '/images/logo-new.png',
+          image: '/images/logo-big.png',
           opened: function() {
           },
           closed: function() {

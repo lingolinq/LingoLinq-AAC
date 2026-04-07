@@ -245,7 +245,7 @@ export default Route.extend({
       if (this.get('board')) {
         this.get('board').prompt('clear');
       }
-      if (this.appState.get('edit_mode') && !this.appState.get('board_layout_mode')) {
+      if (this.appState.get('edit_mode')) {
         modal.warning(i18n.t('save_or_cancel_changes_first', "Save or cancel your changes before leaving this board!"));
         transition.abort();
       }

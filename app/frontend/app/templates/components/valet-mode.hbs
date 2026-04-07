@@ -1,29 +1,27 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-valet-modal-wrap">
-    <div class="la-modal-header">
-      <div class="la-modal-header-icon la-modal-header-icon--valet" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#46505F"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#2A9D8F"/></svg>
-      </div>
-      <h3 class="la-modal-header-label">{{t "Valet Mode Login" key="valet_mode_login"}}</h3>
-      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
-    </div>
-    <div class="la-valet-modal-body">
-      <p class="la-valet-modal-desc">{{t "You can copy or download this QR code to add to your support materials for easier access to your valet login. NOTE: After you change your valet password, you will need to re-generate this QR code." key="qr_code_details"}}</p>
+  <div class="modal-header" style='padding: 10px 20px 0;'>
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Valet Mode Login" key="valet_mode_login"}}
+    </h3>
+  </div>
+  <div class="modal-body" style='padding-top: 5px; padding-bottom: 5px;'>
+    <div style='text-align: center;'>
+      <p>{{t "You can copy or download this QR code to add to your support materials for easier access to your valet login. NOTE: After you change your valet password, you will need to re-generate this QR code." key="qr_code_details"}}</p>
       {{#if this.code.generating}}
-        <p class="la-valet-modal-status">{{t "Loading QR Code parameters..." key="loading_qr_code"}}</p>
+        {{t "Loading QR Code parameters..." key="loading_qr_code"}}
       {{else if this.code.error}}
-        <p class="la-valet-modal-status la-valet-modal-status--error">{{t "Error loading QR Code parameters" key="error_loading_qr_code"}}</p>
+        {{t "Error loading QR Code parameters" key="error_loading_qr_code"}}
       {{else}}
-        <div id='qr_code' class="la-valet-modal-qr"></div>
+        <div id='qr_code' style='width: 400px; margin: 10px auto 20px;'></div>
       {{/if}}
-      <div class="la-valet-modal-actions">
-        <button class="la-valet-modal-btn" {{action "download_code"}}>{{t "Download QR Code" key="download_qr_code"}}</button>
-        <button class="la-valet-modal-btn" {{action "copy_code"}}>{{t "Copy QR Code" key="copy_qr_code_clipboard"}}</button>
-        <button class="la-valet-modal-btn" {{action "copy_link"}}>{{t "Copy URL" key="copy_link_to_clipboard"}}</button>
+      <div>
+        <button class='btn btn-default' {{action "download_code"}}>{{t "Download QR Code" key="download_qr_code"}}</button>
+        <button class='btn btn-default' {{action "copy_code"}}>{{t "Copy QR Code" key="copy_qr_code_clipboard"}}</button>
+        <button class='btn btn-default' {{action "copy_link"}}>{{t "Copy URL" key="copy_link_to_clipboard"}}</button>
       </div>
     </div>
-    <div class="la-valet-modal-footer">
-      <button type="button" class="la-valet-modal-close-btn" {{action "close"}}>{{t "Close" key="close"}}</button>
-    </div>
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

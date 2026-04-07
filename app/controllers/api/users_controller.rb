@@ -213,18 +213,7 @@ class Api::UsersController < ApplicationController
       return unless allowed?(user, 'edit')
     end
     # we don't want to set device preferences unless the user actually changed device settings
-    device_updated = (params['user'] && params['user']['preferences'] && params['user']['preferences']['device'] && params['user']['preferences']['device']['updated'])
-    device_updated ||= (params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated'])
-    device_updated ||= (user_data && user_data['preference'] && user_data['preference']['device'] && user_data['preference']['device']['updated'])
-    if device_updated && !user_device
-      if @api_user && @api_user.global_id == user.global_id
-        user_device = Device.where(user: @api_user).find_by_global_id(@api_device_id)
-      else
-        # Supervisor editing another user: use the target user's most recent device
-        # so preferences are stored under a key the target user will actually read
-        user_device = Device.where(user: user, user_integration_id: nil).order('updated_at DESC').first
-      end
-    end
+    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if user_data && user_data['preference'] && user_data['preference']['device'] && user_data['preference']['device']['updated']
     options['device'] = user_device
     options['updater'] = @api_user
 
@@ -422,48 +411,6 @@ class Api::UsersController < ApplicationController
     else
       progress = Progress.schedule(WordData, :update_activities_for, user.global_id, true)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true)
-    end
-  end
-
-  def ensure_board_tag
-    user = User.find_by_path(params['user_id'])
-    return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'model')
-    extra = UserExtra.find_or_create_by(user: user)
-    res = extra.ensure_board_tag(params['tag'])
-    if res
-      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
-      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
-    else
-      api_error 400, {error: 'invalid tag'}
-    end
-  end
-
-  def rename_board_tag
-    user = User.find_by_path(params['user_id'])
-    return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'model')
-    extra = UserExtra.find_or_create_by(user: user)
-    res = extra.rename_board_tag(params['old_tag'], params['new_tag'])
-    if res
-      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
-      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
-    else
-      api_error 400, {error: 'invalid rename'}
-    end
-  end
-
-  def delete_board_tag
-    user = User.find_by_path(params['user_id'])
-    return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'model')
-    extra = UserExtra.find_or_create_by(user: user)
-    res = extra.delete_board_tag_folder(params['tag'])
-    if res
-      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
-      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
-    else
-      api_error 400, {error: 'invalid tag'}
     end
   end
 

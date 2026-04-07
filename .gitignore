@@ -20,17 +20,10 @@
 /.env
 /.env.*
 !.env.example
-!.env.op.template
 
 /app/frontend/dist/
 /app/frontend/tmp/
 /app/assets/javascripts/frontend/bower_components/
-
-# Ember build output — copied (not symlinked) into Rails asset paths during build
-/app/assets/javascripts/frontend.js
-/app/assets/javascripts/vendor.js
-/app/assets/stylesheets/frontend.css
-/app/assets/stylesheets/vendor.css
 
 /coverage
 
@@ -39,9 +32,6 @@
 /lib/domains.json
 # Ignore master key for decrypting credentials and more.
 /config/master.key
-
-# Cursor IDE debug session logs (NDJSON)
-.cursor/debug*.log
 
 # Ignore local settings for claude
 /.claude

@@ -1,65 +1,97 @@
 {{#if this.model.permissions.edit}}
-  {{#if this.model.parent_org}}
-    <div class="md-org-parent-badge">
-      {{t "Parent Organization: " key="parent_org_colon"}}
-      {{#if this.model.parent_org.permissions.view}}
-        <LinkTo @route="organization" @model={{this.model.parent_org.id}}>{{this.model.parent_org.name}}</LinkTo>
-      {{else}}
-        {{this.model.parent_org.name}}
-      {{/if}}
-    </div>
-  {{/if}}
-
-  {{!-- ═══════════════ Dashboard Stats (visible to managing users) ═══════════════ --}}
   {{#if this.model.permissions.manage}}
-    <section class="md-org-stats" aria-label={{t "Organization Statistics" key="org_statistics"}}>
-      <div class="md-org-stats__grid">
-        <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Last logged session" key="last_logged_session"}}</div>
-          <div class="md-org-stat-card__value">
-            {{#if this.first_log}}{{date_ago this.first_log.started_at}}{{else}}{{t "..." key="ellipsis"}}{{/if}}
+    <div class="row">
+      <div class="col-sm-3 col-xs-6">
+        <div class="panel panel-default summary smaller">
+          <div class="panel-heading">
+            {{t "Last logged session" key="last_logged_session"}}
+          </div>
+          <div class="panel-body">
+            {{#if this.first_log}}
+              {{date_ago this.first_log.started_at}}
+            {{else}}
+              {{t "..." key="ellipsis"}}
+            {{/if}}
           </div>
         </div>
-        <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recent Sessions" key="recent_sessions"}}</div>
-          <div class="md-org-stat-card__value">{{t "session" key="n_sessions" count=this.user_counts.recent_session_count}}</div>
-        </div>
-        <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recently-logged users" key="recently_logged_users"}}</div>
-          <div class="md-org-stat-card__value">
-            {{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}} {{t "users" key="users_lower"}}
+      </div>
+      <div class="col-sm-3 col-xs-6">
+        <div class="panel panel-default summary smaller">
+          <div class="panel-heading">
+            {{t "Recent Sessions" key="recent_sessions"}}
+          </div>
+          <div class="panel-body">
+            {{t "session" key="n_sessions" count=this.user_counts.recent_session_count}}
           </div>
         </div>
-        <div class="md-org-stat-card">
-          <div class="md-org-stat-card__label">{{t "Recently-logged hours" key="recently_logged_hours"}}</div>
-          <div class="md-org-stat-card__value">
-            {{#if this.user_counts}}{{t "hour" key="n_hours" count=this.user_counts.recent_session_hours}}{{else}}{{t "..." key="ellipsis"}}{{/if}}
+      </div>
+      <div class="col-sm-3 col-xs-6">
+        <div class="panel panel-default summary smaller">
+          <div class="panel-heading">
+            {{t "Recently-logged users" key="recently_logged_users"}}
+          </div>
+          <div class="panel-body">
+            {{this.user_counts.recent_session_user_count}}{{#if this.model.total_users}} / {{this.model.total_users}}{{/if}}
+            {{t "users" key="users_lower"}}
           </div>
         </div>
-        {{#if this.model.site}}
-          <div class="md-org-stat-card">
-            <div class="md-org-stat-card__label">{{t "Cache Memory" key="cache_memory"}}</div>
-            <div class="md-org-stat-card__value"><span class={{this.redis_state}}>{{this.model.site.mem_redis}} / {{this.model.site.max_redis}}</span></div>
+      </div>
+      <div class="col-sm-3 col-xs-6">
+        <div class="panel panel-default summary smaller">
+          <div class="panel-heading">
+            {{t "Recently-logged hours" key="recently_logged_hours"}}
           </div>
-          <div class="md-org-stat-card md-org-stat-card--wide">
-            <div class="md-org-stat-card__label">{{t "Background Queues" key="background_queues"}}</div>
-            <div class="md-org-stat-card__value">
-              <span class={{this.queue_state.default}}>{{delimit this.model.site.default_queue}} {{t "Default" key="default"}}</span>,
-              <span class={{this.queue_state.priority}}>{{delimit this.model.site.priority_queue}} {{t "Priority" key="priority"}}</span>,
-              <span class={{this.queue_state.slow}}>{{delimit this.model.site.slow_queue}} {{t "Slow" key="slow"}}</span>
+          <div class="panel-body">
+            {{#if this.user_counts}}
+              {{t "hour" key="n_hours" count=this.user_counts.recent_session_hours}}
+            {{else}}
+              {{t "..." key="ellipsis"}}
+            {{/if}}
+          </div>
+        </div>
+      </div>
+      {{#if this.model.site}}
+        <div class="col-sm-3 col-xs-6">
+          <div class="panel panel-default summary smaller">
+            <div class="panel-heading">
+              {{t "Cache Memory" key="cache_memory"}}
+            </div>
+            <div class="panel-body">
+              <span class={{this.redis_state}}>
+                {{this.model.site.mem_redis}} / {{this.model.site.max_redis}}
+              </span>
             </div>
           </div>
+        </div>
+        <div class="col-sm-6 col-xs-6">
+          <div class="panel panel-default summary smaller">
+            <div class="panel-heading">
+              {{t "Background Queues" key="background_queues"}}
+            </div>
+            <div class="panel-body">
+              <span class={{this.queue_state.default}}>
+                {{delimit this.model.site.default_queue}} {{t "Default" key="default"}},
+              </span>
+              <span class={{this.queue_state.priority}}>
+                {{delimit this.model.site.priority_queue}} {{t "Priority" key="priority"}},
+              </span>
+              <span class={{this.queue_state.slow}}>
+                {{delimit this.model.site.slow_queue}} {{t "Slow" key="slow"}}
+              </span>
+            </div>
+          </div>
+        </div>
+      {{/if}}
+      <div class='col-sm-12' style='margin-top: -10px; margin-bottom: 10px;'>
+        {{#if this.model.permissions.edit}}
+          <div style='float: right;'>
+            <button class='btn btn-default' {{action "edit_org"}}>{{t "Settings" key="settings"}}</button>
+          </div>
         {{/if}}
-      </div>
-
-      {{!-- Home board info --}}
-      <div class="md-org-home-board">
         {{#if this.multi_home_boards}}
-          <div class="md-org-dropdown">
-            <button type="button" class="md-org-dropdown__trigger" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span class="md-org-dropdown__label">{{t "Default Home Boards" key="default_home_boards"}}</span>
-              <span class="md-org-dropdown__count">{{this.model.home_board_keys.length}}</span>
-              <span class="md-org-dropdown__chevron" aria-hidden="true"></span>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              {{t "Default Home Boards" key="default_home_boards"}} ({{this.model.home_board_keys.length}}) <span class="caret"></span>
             </button>
             <ul class="dropdown-menu">
               {{#each this.model.home_board_keys as |key|}}
@@ -68,130 +100,515 @@
             </ul>
           </div>
         {{else if this.model.default_home_board}}
-          <div class="md-org-home-board__card">
-            <svg class="md-org-home-board__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <div class="md-org-home-board__text">
-              <span class="md-org-home-board__label">{{t "Default Home Board" key="default_home_board"}}</span>
-              <LinkTo @route="user.board-detail" @models={{array this.default_home_board_user this.default_home_board_name}} class="md-org-home-board__link">{{this.model.default_home_board.key}}</LinkTo>
-            </div>
-            <LinkTo @route="user.board-detail" @models={{array this.default_home_board_user this.default_home_board_name}} class="md-org-home-board__arrow" aria-label={{t "View board" key="view_board"}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </LinkTo>
+          <div class='text-muted'>
+            {{t "default home board:" key="default_home_board"}}
+            <LinkTo @route="board" @model={{this.model.default_home_board.key}}>{{this.model.default_home_board.key}}</LinkTo>
           </div>
         {{/if}}
+        <div style='clear: right;'></div>
       </div>
-
-      {{!-- Charts row --}}
-      <div class="md-org-charts">
-        <div class="md-org-charts__item md-org-charts__item--wide">
-          {{#if this.weekly_stats.error}}
-            <p class="md-muted">{{t "There was a problem loading this report" key="problem_loading_report"}}</p>
-          {{else}}
-            {{stats/sessions-per-week weekly_stats=this.weekly_stats}}
-          {{/if}}
-        </div>
-        <div class="md-org-charts__item">
-          {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
-        </div>
-        {{#if this.user_counts}}
-          <div class="md-org-charts__item">
-            {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
-          </div>
+      <div class="col-sm-6" style="padding: 0;">
+        {{#if this.weekly_stats.error}}
+          {{t "There was a problem loading this report" key="problem_loading_report"}}
+        {{else}}
+          {{stats/sessions-per-week weekly_stats=this.weekly_stats}}
         {{/if}}
       </div>
-
-      {{!-- Word clouds row --}}
-      <div class="md-org-charts md-org-charts--words-row">
-        <div class="md-org-charts__item">
-          <h3 class="md-org-section-title">{{t "Recently-Modeled Words" key="recently_modeled_words"}}</h3>
-          {{#if this.combined_models.words_by_frequency.length}}
-            {{stats/word-cloud stats=this.combined_models tiny=true zoom=1}}
-          {{else}}
-            <p class="md-muted">{{t "No modeled words to report" key="no_modeled_words_to_report"}}</p>
-          {{/if}}
+      <div class="col-sm-3" style="padding: 0;">
+        {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
+      </div>
+      {{#if this.user_counts}}
+        <div class="col-sm-3" style="padding: 0;">
+          {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
         </div>
-        <div class="md-org-charts__item">
-          <h3 class="md-org-section-title">{{t "Recent Words" key="recent_words"}}</h3>
-          {{#if this.user_counts.word_counts.length}}
-            {{stats/word-cloud stats=this.words short=true zoom=1}}
-          {{else}}
-            <p class="md-muted">{{t "No recent words to report" key="no_recent_words_to_report"}}</p>
-          {{/if}}
-        </div>
+      {{/if}}
+      <div style='clear: both;'>
+      <div class='col-sm-6'>
+        <strong>{{t "Recently-Modeled Words" key="recently_modeled_words"}}</strong>
+        {{#if this.combined_models.words_by_frequency.length}}
+          {{stats/word-cloud stats=this.combined_models tiny=true zoom=1}}
+        {{else}}
+          <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
+        {{/if}}
       </div>
       {{#if this.app_state.feature_flags.profiles}}
-        <div class="md-org-charts">
-          <div class="md-org-charts__item">
-            {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
-          </div>
-          <div class="md-org-charts__item">
-            {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
-          </div>
+        <div class="col-sm-3" style="padding: 0;">
+          {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
+        </div>
+        <div class="col-sm-3" style="padding: 0;">
+          {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
         </div>
       {{/if}}
-    </section>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.model.parent_org}}
+    {{#if this.model.parent_org.permissions.view}}
+      {{t "Parent Organization: " key="parent_org_colon"}}
+      <LinkTo @route="organization" @model={{this.model.parent_org.id}}>
+        {{this.model.parent_org.name}}
+      </LinkTo>
+    {{else}}
+      {{t "Parent Organization: " key="parent_org_colon"}}
+      {{this.model.parent_org.name}}
+    {{/if}}
+  {{/if}}
+  <ul class='nav nav-pills' style="margin-bottom: 15px; margin-top: 20px;">
+    {{#if this.model.admin}}
+      <li class={{if this.show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
+    {{else if this.model.children_orgs}}
+      <li class={{if this.show_organizations "active"}}><a href="#" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</a></li>
+    {{/if}}
+    <li class={{if this.show_managers "active"}}><a href="#" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</a></li>
+    <li class={{if this.show_supervisors "active"}}><a href="#" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</a></li>
+    <li class={{if this.show_communicators "active"}}><a href="#" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</a></li>
+    <li class={{if this.show_evals "active"}}><a href="#" {{action "pick" "evals"}}>{{t "Evals" key="evals"}}</a></li>
+    <li class={{if this.show_extras "active"}}><a href="#" {{action "pick" "extras"}}>{{t "Symbols" key="symbols"}}</a></li>
+  </ul>
+  {{#if this.show_managers}}
+    {{#if this.managers.data}}
+      <p>
+        {{t "manager" key="n_managers" count=this.model.total_managers}}
+      </p>
+      <table class="table table-hover" style="width: 400px;">
+        <tbody>
+          {{#each this.managers.data as |manager|}}
+            <tr>
+              <td style='font-size: 20px;'>
+                <LinkTo @route="user" @model={{manager.user_name}}>
+                  <img src={{manager.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
+                  {{manager.user_name}}
+                </LinkTo>
+              </td>
+              <td>
+                {{#if manager.org_manager}}
+                  {{t "manager" key="manager"}}
+                {{else if manager.org_assistant}}
+                  {{t "assistant" key="assistant"}}
+                {{/if}}
+              </td>
+              <td>
+                <a href='#' {{action "management_action" "remove_manager" manager.id}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{else if this.managers.loading}}
+      <p style="margin-bottom: 30px;">{{t "Loading managers..." key="loading_managers"}}</p>
+    {{else}}
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+    {{/if}}
+    <div style='margin-top: -15px;'>
+      <Input @value={{this.manager_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_manager"}}>{{t "Add Manager" key="add_manager"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_assistant"}}>{{t "Add Assistant" key="add_assistant"}}</button>
+      <a href="#" {{action "new_user" "add_manager"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
+      {{#if this.suggest_creating_manager}}
+        <p class='text-danger'>
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.manager_user_name}}
+        </p>
+      {{/if}}
+    </div>
   {{/if}}
 
-  {{!-- ═══════════════ Premium Statistics & Activity ═══════════════ --}}
-  {{#if this.model.permissions.manage}}
-    {{#if this.model.premium}}
-      <section class="md-org-section" aria-label={{t "Statistics" key="statistics"}}>
-        <h3 class="md-org-section-title">{{t "Communicator & Eval Statistics" key="general_stats"}}</h3>
-        {{#if this.report.loading}}
-          <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading..." key="loading"}}</p></div>
-        {{else if this.report.error}}
-          <p class="md-org-error">{{t "Error Loading Statistics" key="error_loading_statistic"}}</p>
-        {{else if this.report.stats}}
-          <div class="md-org-charts md-org-charts--stats">
-            <div class="md-org-charts__item">
-              <h4 class="md-org-chart-label">{{t "Access Methods" key="access_methods"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.access_methods org_id=this.model.id order="access"}}
-            </div>
-            <div class="md-org-charts__item">
-              <h4 class="md-org-chart-label">{{t "Communicator Status" key="communicator_status"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.statuses org_id=this.model.id order="status"}}
-            </div>
-            <div class="md-org-charts__item">
-              <h4 class="md-org-chart-label">{{t "Devices" key="devices"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.devices org_id=this.model.id order="device"}}
-            </div>
-            <div class="md-org-charts__item">
-              <h4 class="md-org-chart-label">{{t "Vocabularies" key="vocabularies"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.vocabs org_id=this.model.id order="vocab"}}
-            </div>
-            <div class="md-org-charts__item">
-              <h4 class="md-org-chart-label">{{t "Grid Sizes" key="grid_sizes"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.sizes org_id=this.model.id order="size"}}
-            </div>
-          </div>
-        {{else}}
-          <p class="md-muted">{{t "No statistics available for this organization" key="no_stats_available"}}</p>
+  {{#if this.show_supervisors}}
+    {{#if this.supervisors.data}}
+      <p>
+        {{t "supervisor" key="n_supervisors_lower" count=this.model.total_supervisors}}
+        {{#if this.model.allotted_supervisor_licenses}}
+          ({{this.model.used_supervisors}} / {{this.model.allotted_supervisor_licenses}} {{t "premium sponsorships used" key="premium_sponsorships_used"}})
         {{/if}}
-      </section>
-    {{/if}}
-
-    <section class="md-org-section" aria-label={{t "Recent Activity" key="recent_activity"}}>
-      <h3 class="md-org-section-title" style="margin-top: 2rem;">{{t "Recent Sessions" key="recent_sessions"}}</h3>
-      {{#if this.logs.data}}
-        <div class="md-org-session-list">
-          {{#each this.logs.data as |log|}}
-            <div class="md-org-session-row">
-              <LinkTo @route="user" @model={{log.user.user_name}} class="md-org-session-row__user">{{log.user.user_name}}</LinkTo>
-              <span class="md-org-session-row__time" title={{date log.started_at}}>{{date_ago log.started_at}}</span>
-              <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="md-org-session-row__count">{{t "button" count=log.button_count key="button_count"}}</LinkTo>
-              <span class="md-org-session-row__summary">{{log.summary}}</span>
-            </div>
+      </p>
+      <table class="table table-hover" style="width: 600px;">
+        <tbody>
+          {{#each this.supervisors.data as |user|}}
+            <tr>
+              <td style='font-size: 20px;'>
+                <LinkTo @route="user" @model={{user.user_name}}>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
+                  {{user.user_name}}
+                </LinkTo>
+                {{#if user.org_supervision_pending}}
+                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
+                {{else if user.org_premium_supervisor}}
+                  <span style="vertical-align: middle; white-space: nowrap;" class="text-muted">{{t "(premium)" key="premium_paren"}}</span>
+                {{/if}}
+                {{#if user.recent_org_profile}}
+                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key="has_profile"}}>
+                    <span class='glyphicon glyphicon-lamp'></span>
+                  </div>
+                {{/if}}
+              </td>
+              <td style='font-size: 14px;'>
+                {{#each user.org_supervisees as |sup|}}
+                  <LinkTo @route="user" @model={{sup.user_name}}>{{sup.user_name}}</LinkTo><br>
+                {{/each}}
+              </td>
+              <td>
+                <a href='#' {{action "management_action" "remove_supervisor" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+              </td>
+            </tr>
           {{/each}}
-        </div>
-      {{else if this.logs.loading}}
-        <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading sessions..." key="loading_sessions"}}</p></div>
-      {{else}}
-        <p class="md-muted">{{t "None found" key="none_found"}}</p>
+        </tbody>
+      </table>
+      {{#if this.more_supervisors}}
+        <p style="margin-bottom: 30px;">
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_supervisors"}}>
+            {{t "See all supervisors" key="see_all_supervisors"}}
+          </LinkTo>
+        </p>
       {{/if}}
-    </section>
+    {{else if this.supervisors.loading}}
+      <p style="margin-bottom: 30px;">{{t "Loading supervisors..." key="loading_supervisors"}}</p>
+    {{else}}
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+    {{/if}}
+    <div style='margin-top: -15px;'>
+      <Input @value={{this.supervisor_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
+      <button disabled={{this.no_supervisor_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_premium_supervisor"}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+      <a href="#" {{action "new_user" "add_supervisor"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
+      {{#if this.suggest_creating_supervisor}}
+        <p class='text-danger'>
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.supervisor_user_name}}
+        </p>
+      {{/if}}
+    </div>
+  {{/if}}
+
+  {{#if this.show_communicators}}
+    {{#if this.model.permissions}}
+      <p>
+        {{this.model.used_licenses}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_licenses}} {{t "sponsorships used, " key="sponsored_comma" }}
+        {{t "user" key="n_users" count=this.model.total_users}} {{t "total" key="total"}}
+      </p>
+    {{/if}}
+    {{#if this.users.data}}
+      <table class="table table-hover" style="width: 400px;">
+        <tbody>
+          {{#each this.users.data as |user|}}
+            <tr>
+              <td>
+                <LinkTo @route="user" @model={{user.user_name}}>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
+                  {{user.user_name}}
+                </LinkTo>
+                {{#if this.model.permissions.manage}}
+                  <em>{{user.name}}</em>
+                {{/if}}
+                {{#if user.org_pending}}
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
+                {{/if}}
+                {{#if user.org_sponsored}}
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(sponsored)" key="sponsored_paren"}}</span>
+                {{/if}}
+                {{#if user.recent_org_profile}}
+                  <div style='float: right; font-size: 14px; color: #888;' title={{t "Has a recently-completed profile" key="has_profile"}}>
+                    <span class='glyphicon glyphicon-lamp'></span>
+                  </div>
+                {{/if}}
+              </td>
+              <td>
+                <a href='#' {{action "management_action" "remove_user" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{#if this.more_users}}
+        <p style="margin-bottom: 30px;">
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_users"}}>
+            {{t "See all users" key="see_all_users"}}
+          </LinkTo>
+        </p>
+      {{/if}}
+    {{else if this.users.loading}}
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
+    {{else}}
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+    {{/if}}
+    <div style='margin-top: -15px;'>
+      <Input @value={{this.user_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
+      <button disabled={{this.no_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_user"}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
+      <button class="btn btn-default btn-sm" {{action "management_action" "add_unsponsored_user"}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
+      <a href="#" {{action "new_user" "add_user"}} style='padding-left: 10px;'>{{t "New User" key="new_user"}}</a>
+      {{#if this.suggest_creating_communicator}}
+        <p class='text-danger'>
+          {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.user_user_name}}
+        </p>
+      {{/if}}
+    </div>
+  {{/if}}
+
+  {{#if this.show_evals}}
+    {{#if this.model.permissions}}
+      <p>
+        {{this.model.used_evals}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_eval_licenses}} {{t "eval accounts used" key="evals_used" }}
+      </p>
+    {{/if}}
+    {{#if this.evals.data}}
+      <table class="table table-hover" style="width: 400px;">
+        <tbody>
+          {{#each this.evals.data as |user|}}
+            <tr>
+              <td>
+                <LinkTo @route="user" @model={{user.user_name}}>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
+                  {{user.user_name}}
+                </LinkTo>
+                {{#if user.org_pending}}
+                  <span style="vertical-align: middle;" class="text-muted">{{t "(pending)" key="pending_paren"}}</span>
+                {{/if}}
+              </td>
+              <td>
+                <a href='#' {{action "management_action" "remove_user" user.user_name}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{#if this.more_evals}}
+        <p style="margin-bottom: 30px;">
+          <LinkTo @route="organization.reports" @query={{hash current_report="all_evals"}}>
+            {{t "See all eval accounts" key="see_all_evals"}}
+          </LinkTo>
+        </p>
+      {{/if}}
+    {{else if this.evals.loading}}
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
+    {{else}}
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+    {{/if}}
+    <div style='margin-top: -15px;'>
+      <Input @value={{this.eval_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
+      <button disabled={{this.no_eval_licenses}} class="btn btn-default btn-sm" {{action "management_action" "add_eval"}}>{{t "Add Eval Account" key="add_eval"}}</button>
+      {{#unless this.no_eval_licenses}}
+        <a href="#" {{action "new_user" "add_eval"}} style='padding-left: 10px;'>{{t "New Eval Account" key="new_eval"}}</a>
+        {{#if this.suggest_creating_eval}}
+          <p class='text-danger'>
+            {{t "The user name %{user_name} doesn't exist." key="no_user_suggest_create" user_name=this.eval_user_name}}
+          </p>
+        {{/if}}
+      {{/unless}}
+    </div>
+  {{/if}}
+
+  {{#if this.show_extras}}
+    {{#if this.model.permissions}}
+      <p>
+        {{this.model.used_extras}} {{t "out of" key="out_of" }}
+        {{this.model.allotted_extras}} {{t "premium symbol accounts used" key="extras_used" }}
+      </p>
+    {{/if}}
+    {{#if this.org_extras.data}}
+      <table class="table table-hover" style="width: 400px;">
+        <tbody>
+          {{#each this.org_extras.data as |user|}}
+            <tr>
+              <td>
+                <LinkTo @route="user" @model={{user.user_name}}>
+                  <img src={{user.avatar_url}} style="height: 30px; width: 30px;" class='fit_image'>
+                  {{user.user_name}}
+                </LinkTo>
+              </td>
+              <td>
+                <a href='#' {{action "management_action" "remove_extras" user.user_name true}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{else if this.org_extras.loading}}
+      <p style="margin-bottom: 30px;">{{t "Loading Users..." key="loading_users"}}</p>
+    {{else}}
+      <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+    {{/if}}
+    <div style='margin-top: -15px;'>
+      <Input @value={{this.extras_user_name}} placeholder="user name" class="form-control inline inline-masquerade input-sm" />
+      <button disabled={{this.no_extras}} class="btn btn-default btn-sm" {{action "management_action" "add_extras" this.extras_user_name}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
+    </div>
+  {{/if}}
+
+  {{#if this.show_organizations}}
+    {{#if this.model.children_orgs}}
+      <p>
+        {{t "sub-organization" key="n_sub_organizations" count=this.model.children_orgs.length}}
+      </p>
+      <table class="table table-hover" style="width: 400px;">
+        <tbody>
+          {{#each this.model.children_orgs as |org|}}
+            <tr>
+              <td style='font-size: 20px;'>
+                <LinkTo @route="organization" @model={{org.id}}>
+                  <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
+                  {{org.name}}
+                </LinkTo>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{else if this.model.admin}}
+      {{#if this.model.permissions.manage}}
+        {{#if this.orgs.data}}
+          <p>
+            {{t "organization" key="n_organizations" count=this.orgs.data.length}}
+          </p>
+          <span style='display: block; width: 200px;'>
+            <Input type="text" @value={{this.org_filter}} class="form-control" placeholder="search orgs" />
+          </span>
+          <table class="table table-hover" style="width: 400px;">
+            <tbody>
+              {{#if this.filtered_orgs}}
+                {{#each this.filtered_orgs as |org|}}
+                    <tr>
+                      <td style='font-size: 20px;'>
+                        <LinkTo @route="organization" @model={{org.id}}>
+                          <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
+                          {{#if org.premium}}
+                            <b>{{org.name}}</b>
+                          {{else}}
+                            {{org.name}}
+                          {{/if}}
+                        </LinkTo>
+                      </td>
+                      <td>
+                        {{#unless org.admin}}
+                          <a href='#' {{action "remove_org" org}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                        {{/unless}}
+                      </td>
+                    </tr>
+                {{/each}}
+              {{else}}
+                {{#each this.alphabetized_orgs as |letter|}}
+                  <tr>
+                    <td colspan="2">
+                      <a href="#" {{action "toggle_letter" letter}}>
+                        <span  style='font-size: 20px;'>
+                         {{letter.letter}} - 
+                        </span> 
+                        {{t "org" count=letter.orgs.length key="n_orgs"}}
+                        {{#if letter.expanded}}
+                          <span class='caret'></span>
+                        {{else}}
+                          <span class='caret-right'></span>
+                        {{/if}}
+                      </a>
+                    </td>
+                  </tr>
+                  {{#if letter.expanded}}
+                    {{#each letter.orgs as |org|}}
+                      <tr>
+                        <td style='font-size: 20px;'>
+                          <LinkTo @route="organization" @model={{org.id}}>
+                            <span class='glyphicon glyphicon-paperclip' style="font-size: 25px; vertical-align: middle;"></span>
+                            {{#if org.premium}}
+                              <b>{{org.name}}</b>
+                            {{else}}
+                              {{org.name}}
+                            {{/if}}
+                          </LinkTo>
+                        </td>
+                        <td>
+                          {{#unless org.admin}}
+                            <a href='#' {{action "remove_org" org}} class="glyphicon glyphicon-remove"><span class='text-hide'>remove</span></a>
+                          {{/unless}}
+                        </td>
+                      </tr>
+                    {{/each}}
+                  {{/if}}
+                {{/each}}
+              {{/if}}
+            </tbody>
+          </table>
+        {{else if this.orgs.loading}}
+          <p style="margin-bottom: 30px;">{{t "Loading organizations..." key="loading_orgs"}}</p>
+        {{else}}
+          <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
+        {{/if}}
+        <div style='margin-top: -15px;'>
+          <Input @value={{this.org_org_name}} placeholder="org name" class="form-control inline inline-masquerade input-sm" />
+          <Input @value={{this.org_user_name}} placeholder="admin user name" class="form-control inline inline-masquerade input-sm" />
+          <button class="btn btn-default btn-sm" {{action "add_org"}}>{{t "Add Organization" key="add_org"}}</button>
+        </div>
+      {{/if}}
+    {{/if}}
+  {{/if}}
+  {{#if this.model.permissions.manage}}
+    <div style='margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;'></div>
+    {{#if this.model.premium}}
+      <h3>{{t "Communicator & Eval Statistics" key="general_stats"}}</h3>
+      {{#if this.report.loading}}
+        {{t "Loading..." key="loading"}}
+      {{else if this.report.error}}
+        {{t "Error Loading Statistics" key="error_loading_statistic"}}
+      {{else if this.report.stats}}
+        <div class='row'>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Access Methods" key="access_methods"}}</strong>
+            {{stats/bar-breakdown hash=this.report.stats.access_methods org_id=this.model.id order="access"}}
+          </div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Communicator Status" key="communicator_status"}}</strong>
+            {{stats/bar-breakdown hash=this.report.stats.statuses org_id=this.model.id order="status"}}
+          </div>
+          <div style='clear: both;'></div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Devices" key="devices"}}</strong>
+            {{stats/bar-breakdown hash=this.report.stats.devices org_id=this.model.id order="device"}}
+          </div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Vocabularies" key="vocabularies"}}</strong>
+            {{stats/bar-breakdown hash=this.report.stats.vocabs org_id=this.model.id order="vocab"}}
+          </div>
+          <div style='clear: both;'></div>
+          <div class='col-sm-6' style='margin-bottom: 15px;'>
+            <strong>{{t "Grid Sizes" key="grid_sizes"}}</strong>
+            {{stats/bar-breakdown hash=this.report.stats.sizes org_id=this.model.id order="size"}}
+          </div>
+        </div>
+      {{else}}
+        <p><em>{{t "No statistics available for this organization" key="no_stats_available"}}</em></p>
+      {{/if}}
+    {{/if}}
+    <div>
+      <h3>{{t "Recent Words" key="recent_words"}}</h3>
+      {{#if this.user_counts.word_counts.length}}
+        {{stats/word-cloud stats=this.words short=true zoom=1}}
+      {{else}}
+        <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
+      {{/if}}
+    </div>
+    <h3>{{t "Recent Sessions" key="recent_sessions"}}</h3>
+    {{#if this.logs.data}}
+      <ul class="list-unstyled">
+      {{#each this.logs.data as |log|}}
+        <li>
+          <p>
+            <LinkTo @route="user" @model={{log.user.user_name}}>{{log.user.user_name}}</LinkTo> -
+            <span title={{date log.started_at}}>
+              {{date_ago log.started_at}}
+            </span>
+            <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
+              {{t "button" count=log.button_count key="button_count"}}
+            </LinkTo>
+            <br>
+            <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
+          </p>
+        </li>
+      {{/each}}
+      </ul>
+    {{else if this.logs.loading}}
+      <p>{{t "Loading sessions..." key="loading_sessions"}}</p>
+    {{else}}
+      <p>{{t "None found" key="none_found"}}</p>
+    {{/if}}
   {{/if}}
 {{else if this.loading_org}}
-  <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading..." key="loading"}}</p></div>
+  {{t "Loading..." key="loading"}}
 {{else}}
-  <p class="md-muted">{{t "No information available" key="no_information_available"}}</p>
+  {{t "No information available" key="no_information_available"}}
 {{/if}}

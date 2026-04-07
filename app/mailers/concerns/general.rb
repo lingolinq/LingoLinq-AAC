@@ -30,7 +30,7 @@ module General
         method = self.send(method_name, *args)
         method.respond_to?(:deliver_now) ? method.deliver_now : method.deliver
       rescue Aws::SES::Errors::InvalidParameterValue => e
-        Rails.logger.error("Mailer #{name}.#{method_name} SES delivery failed: #{e.message}")
+        # TODO: ...
       end
     end
   end

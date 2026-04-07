@@ -16,34 +16,27 @@ export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   tagName: '',
-  compactInline: false,
-  /** When true, hide "Make me a Supervisor" / supervisee CTA (e.g. dashboard supervisors modal). */
-  hideMakeSupervisorButton: false,
-
+  
   init() {
     this._super(...arguments);
+    // Get options from service or passed model
+    const modal = this.get('modal');
+    const template = 'supervision-settings';
+    const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) || 
+                    (modal && modal.settingsFor && modal.settingsFor[template]) ||
+                    this.get('model') || {};
+    
+    // Initialize add_supervisee_hit property
     this.set('add_supervisee_hit', false);
-
-    if (this.get('inline')) {
-      const model = this.get('model');
-      if (model && model.reload) {
-        model.reload();
-        this.set('model.load_all_connections', true);
-      }
+    
+    // Set model from options.user (as per original controller)
+    if (options.user) {
+      this.set('model', options.user);
+      this.get('model').reload();
+      this.set('model.load_all_connections', true);
     } else {
-      const modal = this.get('modal');
-      const template = 'supervision-settings';
-      const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
-                      (modal && modal.settingsFor && modal.settingsFor[template]) ||
-                      this.get('model') || {};
-      if (options.user) {
-        this.set('model', options.user);
-        this.get('model').reload();
-        this.set('model.load_all_connections', true);
-      } else {
-        // No user passed - use EmberObject so .get() works; plain {} would break model.get(), model.reload(), etc.
-        this.set('model', EmberObject.create(options));
-      }
+      // No user passed - use EmberObject so .get() works; plain {} would break model.get(), model.reload(), etc.
+      this.set('model', EmberObject.create(options));
     }
   },
   

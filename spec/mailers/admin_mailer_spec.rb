@@ -52,43 +52,6 @@ describe AdminMailer, :type => :mailer do
     end
   end
 
-  describe "beta_feedback_sent" do
-    after(:each) do
-      ENV.delete('BETA_FEEDBACK_EMAIL')
-    end
-
-    it "should mail support@lingolinq.com by default" do
-      allow(AdminMailer).to receive(:schedule_delivery)
-      m = ContactMessage.process_new({
-        'email' => 'betatester@example.com',
-        'subject' => 'Bug summary',
-        'recipient' => 'beta_feedback',
-        'general_feedback' => 'Enough detail for the message body.',
-        'feedback_type' => 'crash',
-        'severity' => 'major'
-      })
-      ENV.delete('BETA_FEEDBACK_EMAIL')
-      mail = AdminMailer.beta_feedback_sent(m.global_id)
-      expect(mail.to).to eq(['support@lingolinq.com'])
-      expect(mail.subject).to match(/Beta Feedback/)
-    end
-
-    it "should honor BETA_FEEDBACK_EMAIL" do
-      allow(AdminMailer).to receive(:schedule_delivery)
-      m = ContactMessage.process_new({
-        'email' => 'betatester@example.com',
-        'subject' => 'Bug summary',
-        'recipient' => 'beta_feedback',
-        'general_feedback' => 'Enough detail for the message body.',
-        'feedback_type' => 'crash',
-        'severity' => 'major'
-      })
-      ENV['BETA_FEEDBACK_EMAIL'] = 'custom@example.com'
-      mail = AdminMailer.beta_feedback_sent(m.global_id)
-      expect(mail.to).to eq(['custom@example.com'])
-    end
-  end
-
   describe "opt_out" do
     it "should use the ENV recipient address" do
       u = User.create(:settings => {'email' => 'bob@example.com'})

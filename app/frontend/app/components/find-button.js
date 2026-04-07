@@ -169,8 +169,7 @@ export default Component.extend({
       const controller = appState.get('controller');
       const boardController = editManager && editManager.controller;
       const currentBoard = boardController && boardController.get && boardController.get('model');
-      // Match search semantics (buttonset uses == for ids); strict === breaks when types differ.
-      const onCurrentBoard = currentBoard && result.board_id == currentBoard.get('id');
+      const onCurrentBoard = currentBoard && result.board_id === currentBoard.get('id');
       if (onCurrentBoard) {
         const board = currentBoard;
         const $button = $(".button[data-id='" + result.id + "']");

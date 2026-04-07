@@ -17,26 +17,19 @@ export default Component.extend({
         var data = new window.google.visualization.DataTable();
         data.addColumn('date', 'Week Of');
         data.addColumn('number', 'Sessions');
-        data.addColumn({type: 'string', role: 'tooltip', 'p': {'html': true}});
+        data.addColumn({type: 'string', role: 'tooltip'}); //, 'p': {'html': true}});
 
         var rows = [];
         stats.forEach(function(s, index) {
           var m = window.moment(new Date(s.timestamp * 1000));
-          var hours = Math.round((s.session_seconds || 0) * 100 / 3600) / 100;
-          var tip = '<div style="padding:8px 12px;font-size:13px;line-height:1.5;white-space:nowrap;pointer-events:none;">' +
-            '<strong>week of ' + m.format('MMM Do') + '</strong><br>' +
-            'Sessions: ' + s.sessions + '<br>' +
-            'Hours: ' + hours + '</div>';
-          rows.push([{v: m._d, f: m.format('MMM DD, YYYY')}, s.sessions, tip]);
+          rows.push([{v: m._d, f: m.format('MMM DD, YYYY')}, s.sessions, "week of " + m.format('MMM Do') + "\nSessions: " + s.sessions + "\nHours: " + (Math.round((s.session_seconds || 0) * 100 / 3600) / 100)]);
         });
         data.addRows(rows);
 
         var options = {
           colors: ['#f2b367', '#f00000'],
           title: 'Logged User Sessions for the Week',
-          chartArea: {width: '80%', height: '70%'},
-          height: 200,
-          tooltip: {isHtml: true, trigger: 'both'},
+//         tooltip: {isHtml: true},
           legend: {
             position: 'none'
           },

@@ -248,17 +248,9 @@ export default Component.extend({
     }
   },
 
-  _return_to_details: function() {
-    var board = this.get('model.board');
-    if(board) {
-      runLater(function() { modal.open('board-details', { board: board }); }, 200);
-    }
-  },
-
   actions: {
     close() {
       this.get('modal').close();
-      this._return_to_details();
     },
     opening() {},
     closing() {},

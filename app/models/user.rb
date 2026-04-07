@@ -841,7 +841,7 @@ class User < ActiveRecord::Base
       'canvas_render', 'blank_status', 'share_notifications', 'notification_frequency',
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
       'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
-      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
+      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'allow_log_reports', 'allow_log_publishing', 
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
       'new_index', 'debounce', 'cookies', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
@@ -973,14 +973,7 @@ class User < ActiveRecord::Base
     inflections_were_set = self.settings['preferences']['activation_location'] == 'swipe' || self.settings['preferences']['inflections_overlay']
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
     PREFERENCE_PARAMS.each do |attr|
-      if params['preferences'] && params['preferences'][attr] != nil
-        val = params['preferences'][attr]
-        # Form-encoded requests send booleans as strings ("true"/"false").
-        # Convert them back to actual booleans.
-        val = true if val == 'true'
-        val = false if val == 'false'
-        self.settings['preferences'][attr] = val
-      end
+      self.settings['preferences'][attr] = params['preferences'][attr] if params['preferences'] && params['preferences'][attr] != nil
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?
       self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
@@ -1376,27 +1369,12 @@ class User < ActiveRecord::Base
       end
 
       self.settings['preferences']['devices'][device_key] ||= {}
-      # Form-encoded requests send booleans as strings ("true"/"false").
-      # Convert them back to actual booleans so the frontend (where "false"
-      # is truthy in JavaScript) reads the correct value.
       device.each do |key, val|
-          val = true if val == 'true'
-          val = false if val == 'false'
+#         if self.settings['preferences']['devices']['default'][key] == device[key]
+#           self.settings['preferences']['devices'][device_key].delete(key)
+#         else
           self.settings['preferences']['devices'][device_key][key] = val
-      end
-      # When no specific device was provided (supervisor editing another user),
-      # propagate device preferences to all existing device keys so the value
-      # is found regardless of which device the user reads from
-      if !non_user_params['device']
-        self.settings['preferences']['devices'].each do |existing_key, hash|
-          next if existing_key == device_key
-          device.each do |key, val|
-            next if key == 'name' || key == 'id' || key == 'long_token'
-            val = true if val == 'true'
-            val = false if val == 'false'
-            self.settings['preferences']['devices'][existing_key][key] = val
-          end
-        end
+#         end
       end
     end
   end

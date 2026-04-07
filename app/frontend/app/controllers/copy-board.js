@@ -64,8 +64,8 @@ export default modal.ModalController.extend({
   symbol_libraries: computed('current_user', function() {
     var u = this.get('current_user');
     var list = [];
-    list.push({name: i18n.t('original_symbols', "Default symbols"), id: 'original'});
-    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'});
+    list.push({name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'});
+    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'});
 
     if(u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
       list.push({name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'});
@@ -74,9 +74,9 @@ export default modal.ModalController.extend({
     }
 
     list.push({name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'});
-    list.push({name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project'});
+    list.push({name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'});
     list.push({name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'});
-    list.push({name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'});
+    list.push({name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'});
     return list;
   }),
   user_board: observer('currently_selected_id', 'model.known_supervisees', function() {

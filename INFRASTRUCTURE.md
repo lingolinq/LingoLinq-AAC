@@ -6,13 +6,13 @@ infrastructure changes.
 
 ## Owner
 - **User:** Scot Wahlquist (swahlquist), scot@lingolinq.com
-- **GitHub:** lingolinq/LingoLinq-AAC
+- **GitHub:** swahlquist/LingoLinq-AAC
 - **License:** AGPLv3
 
 ## Architecture Overview
 
 ```
-                    GitHub (lingolinq/LingoLinq-AAC)
+                    GitHub (swahlquist/LingoLinq-AAC)
                     |           |              |
                     main     develop      clean-release
                     |           |              |

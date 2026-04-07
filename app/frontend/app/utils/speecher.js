@@ -701,7 +701,6 @@ var speecher = EmberObject.extend({
           }
         }
         var handle_callback = function() {
-          if(utterance.handled) { return; }
           utterance.handled = true;
           if(callback) { callback(); }
         };
@@ -712,10 +711,6 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
-            if(utterance._cancelled) {
-              handle_callback();
-              return;
-            }
             if(!utterance._fallback_retried && utterance.voice) {
               utterance._fallback_retried = true;
               utterance.voice = null;
@@ -753,10 +748,6 @@ var speecher = EmberObject.extend({
         } else {
           utterance.onend = handle_callback;
           utterance.onerror = function() {
-            if(utterance._cancelled) {
-              handle_callback();
-              return;
-            }
             if(!utterance._fallback_retried && utterance.voice) {
               utterance._fallback_retried = true;
               utterance.voice = null;
@@ -813,7 +804,6 @@ var speecher = EmberObject.extend({
         // 4 times the estimated duration, go ahead and assume there was a problem and mark completion
         runLater(function() {
           if(!utterance.handled) {
-            utterance._cancelled = true;
             speecher.scope.speechSynthesis.cancel();
             if(window.cloud_speak) { window.cloud_speak.stop(); }
             handle_callback();
@@ -1219,11 +1209,6 @@ var speecher = EmberObject.extend({
   speak_audio: function(url, type, collection_id, opts) {
     opts = opts || {};
     var _this = this;
-    // Deduplicate rapid repeat of the same sound (mirrors speak_text guard)
-    var now = Date.now();
-    if(url && this.last_spoken_audio_url === url && (now - (this.last_spoken_audio_time || 0)) < 1000) {
-      return;
-    }
     var already_in_collection = collection_id && this.speaking_from_collection == collection_id;
     if(this.speaking_from_collection && !collection_id) {
       // lets the user start building their next sentence without interrupting the current one
@@ -1235,9 +1220,6 @@ var speecher = EmberObject.extend({
     } else if(this.speaking_from_collection && opts.prevent_repeat && opts.prevent_any) {
       return;
     }
-    // Only record the dedup state once we know the call will proceed with playback
-    this.last_spoken_audio_url = url;
-    this.last_spoken_audio_time = now;
     if(opts.interrupt !== false && type != 'background') {
       this.speaking = true;
       this.speaking_from_collection = collection_id;
@@ -1316,11 +1298,6 @@ var speecher = EmberObject.extend({
       }
       this.speaking_from_collection = false;
       if(type === 'all') { this.speaks = []; }
-      // cancel() fires 'error' on the interrupted utterance; without this, the error
-      // handler retries speak() and the user hears the old word again (double speak).
-      if(speecher.last_utterance) {
-        speecher.last_utterance._cancelled = true;
-      }
       speecher.scope.speechSynthesis.cancel();
       if(window.cloud_speak) { window.cloud_speak.stop(); }
       if(capabilities.system == 'iOS' && window.TTS && window.TTS.stop) {
