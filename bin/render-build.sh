@@ -36,6 +36,7 @@ bundle exec rake extras:assert_js
 # SKIP_OFFLINE_MANIFEST: routes.rb loads Rack::Offline which calls asset_path;
 # assets don't exist until after precompile, so skip it during build tasks.
 export SKIP_OFFLINE_MANIFEST=1
+echo "DEBUG: SECRET_KEY_BASE length=${#SECRET_KEY_BASE} | LEADER_POSTGRES_URL set=${LEADER_POSTGRES_URL:+yes} | RAILS_ENV=${RAILS_ENV} | COOKIE_KEY length=${#COOKIE_KEY}"
 bundle exec rake extras:copy_terms
 
 echo "=== Building Frontend (Ember) ==="
