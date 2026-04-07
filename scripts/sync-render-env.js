@@ -118,7 +118,7 @@ const KEY_MANIFEST = {
   // -- Performance (shared, hardcoded) --
   LD_PRELOAD:            { defaultValue: '/usr/lib/x86_64-linux-gnu/libjemalloc.so.2' },
   MALLOC_CONF:           { defaultValue: 'background_thread:true,narenas:2,dirty_decay_ms:1000' },
-  RAILS_SERVE_STATIC_FILES: { defaultValue: 'enabled' },
+  RAILS_SERVE_STATIC_FILES: { defaultValue: 'true' },
 
   // -- Auto-managed by Render (DO NOT sync) --
   // DATABASE_URL:  set by Render
