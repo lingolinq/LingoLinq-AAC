@@ -10,7 +10,7 @@
   <div class='setup_setting'>
     <label>{{t "What happens when the communicator selects a button?" key="access_selection_action"}}</label>
     <p class='prompt'>
-      {{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Preferences." key="home_return_1"}}
+      {{t "When a button is selected %app_name% will automatically return to the home board. This helps develop a consistent sequence for each button (called a motor plan), so we recommend it as the default but you can change it if needed." key="home_return_1"}}
     </p>
     <div class="btn-group-vertical" style="width: 100%;">
       <a href="#" class={{if home_return.auto_return "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "home_return" "auto_return"}}>{{t "Return to the Home Board" key="return_to_the_home_board"}}</a>
@@ -25,9 +25,9 @@
     </div>
     <p>
       <span class='glyphicon glyphicon-hand-up' style='font-size: 40px; float: left; margin-right: 15px; margin-bottom: 5px;'></span>
-      {{t "In %app_name%, touch or tap is the standard way to use boards: move between boards and select words or phrases for the app to speak." key="touch_1"}}
+      {{t "Touching or clicking buttons is the most common access method for communication boards like those in LingoLinq. By tapping or clicking on buttons, communicators can navigate between boards and select words or phrases to have the system speak for them." key="touch_1"}}
     </p>
-    <p>{{t "You can customize the experience in Preferences—selection on finger lift, larger text, and spacing between buttons are all available." key="touch_2"}}</p>
+    <p>{{t "Some communicators need additional accommodations, like selecting based on where they lift their finger, bigger text, or larger gaps between buttons. These are all configurable from a user's \"Preferences\" view inside of LingoLinq." key="touch_2"}}</p>
   {{else if access.scanning}}
     <div style='text-align: center;'>
       <img src={{path "walkthrough/scanning.gif"}} alt={{t "scanning access in %app_name%" key="scanning_access"}} style='width: 70%; margin: 10px auto;'>
@@ -43,8 +43,8 @@
     </div>
     <p>
       <span class='glyphicon glyphicon-eye-open' style='font-size: 40px; float: left; margin-right: 15px; margin-bottom: 5px;'></span>
-      {{t "When motor control is limited, eye or dwell tracking can help—the system selects when your gaze or cursor lingers on a button. It can be faster than switch access but often needs careful calibration." key="dwell_1"}}
+      {{t "For communicators without consistent motor control, eye trackers can sometimes be an effective access method. An eye tracker is a special camera that tracks eye movements. When a communicator's gaze lingers on a button for a period of time, the system can select that button on behalf of the communicator. Alternatively, some systems can track hear or body movement using cameras or sensors to treat the mouse cursor like a joystick, and when the cursor \"dwells\" over a button, it is selected. Eye or dwell tracking can be faster than switch access, but is more difficult to calibrate correctly." key="dwell_1"}}
     </p>
-    <p>{{t "%app_name% works with any eye tracker or system that supports cursor control. Disable \"click\" events so the app handles selection. You can fine-tune tracking in Preferences; some devices need extra setup there as well." key="dwell_2"}}</p>
+    <p>{{t "%app_name% can work with any eye tracker or system that supports cursor control (we have tested Tobii, MyGaze, eyetech and LC Technologies, and EagleEyes hardware). Just disable \"click\" events since %app_name% handles these on its own. You can fine-tune the tracking settings on the user's \"Preferences\" view. Some systems, like EyeTribe and EyeX, will require additional configuration in \"Preferences\" as well." key="dwell_2"}}</p>
   {{/if}}
 </div>

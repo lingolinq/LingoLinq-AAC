@@ -13,14 +13,12 @@
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/unless}}
-      <div class="speak-bar__button-list-wrap">
-        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-          {{#let this.app_state.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
-          {{/let}}
-        </a>
-        <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
-      </div>
+      <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
+        {{#let this.app_state.button_list as |button_list|}}
+          {{button-list buttonList=button_list}}
+        {{/let}}
+      </a>
+      <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
       <button class="btn btn-default access skinnier" {{action "backspace"}}>
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
@@ -34,7 +32,7 @@
     <span id="nav_header">
     <h1 class={{if this.app_state.currentBoardState "with_board"}}>
       <a href="#" {{action "index"}}>
-        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt="LingoLinq">
+        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
@@ -209,12 +207,12 @@
             {{/if}}
             {{#if this.app_state.currentUser}}
               <a class='btn btn-default' href="#" {{action "star"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
                 <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </a>
             {{else}}
               <span class='btn btn-default' href="#">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
                 <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </span>
             {{/if}}
@@ -410,7 +408,13 @@
     {{/if}}
   </div>
 {{else}}
-  {{sidebar-tease}}
+  {{#if this.app_state.speak_mode}}
+    {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
+      <div id="sidebar_tease" class="advanced_selection" {{action "toggleSidebar"}}>
+        {{t "sidebar" key="sidebar"}}
+      </div>
+    {{/unless}}
+  {{/if}}
 {{/if}}
 
 {{outlet "flash-message"}}
@@ -426,7 +430,7 @@
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                {{!-- <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span> --}}
+                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
               {{/if}}
             {{/if}}
           {{/unless}}
@@ -439,11 +443,9 @@
           {{/unless}}
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
-          {{#if this.app_state.showFooterGithubLinks}}
-            {{#unless this.app_state.installed_app}}
-              <a href="https://github.com/lingolinq/LingoLinq-AAC" target="_blank" rel="noopener" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
-            {{/unless}}
-          {{/if}}
+          {{#unless this.app_state.installed_app}}
+            <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+          {{/unless}}
           <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
           <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
         </div>

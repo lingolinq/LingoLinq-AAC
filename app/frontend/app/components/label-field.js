@@ -6,26 +6,12 @@ import { observer } from '@ember/object';
 export default Component.extend({
   tagName: 'input',
   type: 'text',
-  attributeBindings: ['placeholder', 'value', 'aria-label'],
-
-  // Find the button ID from the closest parent with data-id
-  _getButtonId: function() {
-    var $el = $(this.get('element'));
-    var $parent = $el.closest('.button[data-id]');
-    if(!$parent.length) {
-      $parent = $el.closest('.md-board-detail-symbol-card[data-id]');
-    }
-    if(!$parent.length) {
-      $parent = $el.closest('[data-id]');
-    }
-    return $parent.attr('data-id');
-  },
-
+  attributeBindings: ['placeholder', 'value'],
   change: function() {
     this.set('changed_value', this.get('element').value);
   },
   valueChange: observer('changed_value', function() {
-    var id = this._getButtonId();
+    var id = $(this.get('element')).closest('.button').attr('data-id');
     var button = editManager.find_button(id);
     if(button && this.get('changed_value') != button.label) {
       editManager.change_button(id, {
@@ -34,18 +20,19 @@ export default Component.extend({
     }
   }),
   focusIn: function(event) {
+    var id = $(this.get('element')).closest('.button').attr('data-id');
     editManager.clear_text_edit();
   },
   keyDown: function(event) {
     if(event.keyCode == 13 || event.code == 'Enter') {
       this.change.call(this);
-      var id = this._getButtonId();
+      var id = $(this.get('element')).closest('.button').attr('data-id');
       editManager.lucky_symbol(id);
-      this.get('element').blur();
     }
   },
   focusOut: function() {
-    var id = this._getButtonId();
+    var id = $(this.get('element')).closest('.button').attr('data-id');
     editManager.lucky_symbol(id);
   }
+
 });

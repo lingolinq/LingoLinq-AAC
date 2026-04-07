@@ -314,13 +314,7 @@ export default modal.ModalController.extend({
         modal.close(true);
         editManager.auto_edit(board.get('id'));
         app_state.set('referenced_board', {id: board.get('id'), key: board.get('key')});
-        var key = board.get('key');
-        var parts = key ? key.split('/') : [];
-        if(parts.length === 2) {
-          _this.transitionToRoute('user.board-detail', parts[0], parts[1]);
-        } else {
-          _this.transitionToRoute('board', key);
-        }
+        _this.transitionToRoute('board', board.get('key'));
       }, function() {
         _this.set('status', {error: true});
       });

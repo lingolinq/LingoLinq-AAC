@@ -71,9 +71,6 @@ export default Component.extend({
     show_alternative_pricing: function() {
       this.set('show_alternative_pricing', !this.get('show_alternative_pricing'));
     },
-    openCloudExtras: function() {
-      modal.open('cloud-extras');
-    },
     skip_subscription: function() {
       var role = this.get('subscription.user_type');
       var user = this.get('user');

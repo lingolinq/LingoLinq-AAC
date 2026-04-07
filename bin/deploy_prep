@@ -1,6 +1,8 @@
 #!/bin/sh
 # nvm use 14.15
 rake extras:copy_terms
+git add app/frontend/app/templates/terms.hbs
+git add app/frontend/app/templates/privacy.hbs
 git add app/frontend/app/templates/jobs.hbs
 
 version_id=`rake extras:version`

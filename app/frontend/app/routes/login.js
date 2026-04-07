@@ -6,10 +6,6 @@ export default Route.extend({
   router: service('router'),
   title: "Login",
   beforeModel: function(transition) {
-    // Allow staying on login.device to complete device activation (Trust / Shared device)
-    if(transition && transition.to && transition.to.name === 'login.device') {
-      return;
-    }
     // If user is authenticated and has a valid token, redirect away from login
     // If token is invalid, allow them to stay on login to re-authenticate
     if(session.get('isAuthenticated') && session.get('access_token')) {

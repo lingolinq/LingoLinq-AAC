@@ -9,6 +9,9 @@
  * compiled file, but it's generally better to create a new file per style scope.
  *
  *= require_self
+ *= require jquery.minicolors.css
+ *= require bootstrap.min.css
  *= require vendor.css
+ *= require header_sizing
  *= require frontend.css
  */

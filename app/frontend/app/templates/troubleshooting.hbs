@@ -1,240 +1,205 @@
-<div class="la-wrapper la-wrapper--pricing la-wrapper--troubleshooting">
-  <div class="app-shell">
-    <main class="la-main" role="main">
-      <div class="md-workspace md-workspace--troubleshooting">
-
-      {{!-- Hero (same structure as Support page) --}}
-      <section class="la-section">
-        <div class="la-section-header" style="display: block; text-align: center;">
-          <span class="la-section-eyebrow-badge">
-            <span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "SUPPORT" key="support_eyebrow"}}
-          </span>
-          <div class="la-hero-title-wrap">
-            <h1 class="la-hero-title">
-              {{t "App " key="app_prefix"}}<span class="hero-gradient">{{t "Troubleshooting" key="troubleshooting"}}</span>
-            </h1>
-          </div>
-          <hr class="la-about-hero-separator" aria-hidden="true">
-          <p class="la-pricing-hero-subtitle la-troubleshooting-intro">
-            {{t "The checks below verify that your browser and device support the features %app_name% needs. Most run automatically; a few may ask you to do something quick (for example, play a sound). If anything looks wrong or you have questions, use the Support link at the bottom of the page—we read every message and are here to help." key="troubleshooting_intro"}}
-          </p>
-        </div>
-
-        {{!-- Initial state: run tests CTA --}}
-        {{#unless this.testing}}
-          {{#unless this.errors}}
-            <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex; gap: 12px;">
-              <button type="button" class="la-btn la-btn--primary" {{action "run_default_tests"}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
-              {{#if this.error_count}}
-                <button type="button" class="la-btn la-btn--ghost" {{action "show_errors"}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
-              {{/if}}
-            </div>
-          {{/unless}}
-        {{/unless}}
-      </section>
-
-      {{!-- Content: test results, app details, or errors --}}
-      {{#if this.testing}}
-        <section class="la-section la-troubleshooting-section">
-          <article class="la-about-glass-card la-support-page-card la-troubleshooting-card" aria-label={{t "Test Results" key="results"}}>
-            <div class="la-support-page-card__body la-troubleshooting-content">
-              <table class="table table-striped table-hover la-troubleshooting-table">
-                <thead>
-                  <tr>
-                    <th>{{t "Component" key="component"}}</th>
-                    <th>{{t "Description" key="description"}}</th>
-                    <th style="width: 220px;">{{t "Results" key="results"}}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {{#each this.tests as |test|}}
-                    <tr>
-                      <td>{{test.name}}</td>
-                      <td>{{test.description}}</td>
-                      <td>
-                        {{test.bacon}}
-                        {{#if test.results}}
-                          {{#if test.results.passed}}
-                            <span class="la-troubleshooting-pass">{{t "Supported" key="supported"}}</span>
-                            {{#if test.results.content}}
-                              <div class="la-troubleshooting-pre">{{test.results.content}}</div>
-                            {{/if}}
-                          {{else if test.results.partially_passed}}
-                            <span class="la-troubleshooting-partial">
-                              {{t "Partially Supported" key="partially_supported"}}{{#if test.results.reason}}. {{test.results.reason}}{{/if}}
-                            </span>
-                          {{else}}
-                            <span class="la-troubleshooting-fail">
-                              {{t "Not Supported" key="not_supported"}}{{#if test.results.reason}}. {{test.results.reason}}{{/if}}
-                            </span>
-                          {{/if}}
-                          {{#if test.tests}}
-                            <br>
-                            {{#each test.tests as |num|}}
-                              <button type="button" class="la-btn la-btn--ghost" {{action "test_feature" test.key num}}>{{t "Test %{num}" key="test_num" num=num}}</button>
-                            {{/each}}
-                          {{/if}}
-                        {{else}}
-                          <span class="la-troubleshooting-pending">{{t "Testing..." key="testing"}}</span>
-                        {{/if}}
-                      </td>
-                    </tr>
-                  {{/each}}
-                  <tr>
-                    <td>{{t "CSS Alpha" key="css_alpha"}}</td>
-                    <td>{{t "%app_name% supports transparent colors for more flexible rendering of boards and board buttons." key="css_alpha_info"}}</td>
-                    <td>
-                      <div class="la-troubleshooting-alpha-demo">
-                        <div class="la-troubleshooting-alpha-box la-troubleshooting-alpha-box--blue">
-                          <div class="la-troubleshooting-alpha-box la-troubleshooting-alpha-box--red"></div>
-                          <div class="la-troubleshooting-alpha-box la-troubleshooting-alpha-box--green"></div>
-                        </div>
-                        {{t "This text should appear next to a half-green, half-purple box." key="alpha_test"}}
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>{{t "CSS Animations" key="css_animation"}}</td>
-                    <td>{{t "Progress bars and spinners use animation to make %app_name% feel more responsive." key="animation_info"}}</td>
-                    <td>
-                      <span class="glyphicon glyphicon-refresh spinning"></span>
-                      {{t "The icon next to this text should appear to be spinning." key="spinning_test"}}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div class="la-support-page-card__divider" aria-hidden="true"></div>
-
-              <h4 class="la-troubleshooting-subtitle">{{t "App Details" key="app_details"}}</h4>
-              <table class="table table-striped table-hover la-troubleshooting-table la-troubleshooting-table--details">
-                <tbody>
-                  {{#if this.should_reload}}
-                    <tr>
-                      <td colspan="3" class="la-troubleshooting-fail">
-                        {{t "After clearing, you should really reload" key="should_reload"}}<br>
-                        <button type="button" class="la-btn la-btn--primary" {{action "reload"}}>{{t "Reload Now" key="reload_now"}}</button>
-                      </td>
-                    </tr>
+<div class="row">
+  <div class="col-sm-10 col-sm-offset-1">
+    <h2 style="text-align: center;">{{t "Support and FAQ's" key="support_and_faqs"}}</h2>
+    <div style="margin-bottom: 30px;">
+      <p><strong>{{t "How do I get help if something isn't working?" key="faq_help"}}</strong></p>
+      <p>{{t "Use the Support link in the menu to report problems. You can also run the compatibility tests below to check if your device supports the features %app_name% needs." key="faq_help_answer"}}</p>
+      <p><strong>{{t "How can I fix storage or sync issues?" key="faq_storage"}}</strong></p>
+      <p>{{t "Use the App Details section below to clear file storage, databases, or local storage. After clearing, you may need to reload the page or re-sync your boards." key="faq_storage_answer"}}</p>
+    </div>
+    <h4>{{t "App Troubleshooting" key="app_troubleshooting"}}</h4>
+    <p>
+      {{t "This tool can help test for functionality that is expected or required in order for %app_name% to function correctly. Some tests will run automatically, while others may require manual testing. If you come across anything unexpected please hit the 'Support' link at the bottom of the page and report the problem." key="troubleshooting_intro"}}
+    </p>
+    {{#if this.testing}}
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>{{t "Component" key="component"}}</th>
+            <th>{{t "Description" key="description"}}</th>
+            <th style="width: 220px;">{{t "Results" key="results"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each this.tests as |test|}}
+            <tr>
+              <td>{{test.name}}</td>
+              <td>{{test.description}}</td>
+              <td>
+                {{test.bacon}}
+                {{#if test.results}}
+                  {{#if test.results.passed}}
+                    <span class='text-success'>{{t "Supported" key="supported"}}</span>
+                    {{#if test.results.content}}
+                      <div style='white-space: pre-line; max-height: 100px; overflow: auto;'>{{test.results.content}}</div>
+                    {{/if}}
+                  {{else if test.results.partially_passed}}
+                    <span class='text-warning'>
+                      {{t "Partially Supported" key="partially_supported"}}{{#if test.results.reason}}. {{test.results.reason}}{{/if}}
+                    </span>
+                  {{else}}
+                    <span class='text-danger'>
+                      {{t "Not Supported" key="not_supported"}}{{#if test.results.reason}}. {{test.results.reason}}{{/if}}
+                    </span>
                   {{/if}}
-                  {{#if this.storage}}
-                    <tr>
-                      <td class="la-troubleshooting-cell">{{t "File Storage" key="file_storage"}}</td>
-                      <td class="la-troubleshooting-cell">
-                        {{#if this.storage.pending}}
-                          {{t "Checking..." key="checking"}}
-                        {{else if (is-equal this.storage.size -1)}}
-                          {{t "unavailable" key="unavailable"}}
-                        {{else}}
-                          {{t "%{size}Mb" size=this.storage.size key="megabytes"}}
-                        {{/if}}
-                      </td>
-                      <td class="la-troubleshooting-cell">
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_file_storage"}}>{{t "Clear" key="clear"}}</button>
-                      </td>
-                    </tr>
+                  {{#if test.tests}}
+                    <br>
+                    {{#each test.tests as |num|}}
+                      <button class="btn btn-default" {{action "test_feature" test.key num}}>{{t "Test %{num}" key="test_num" num=num}}</button>
+                    {{/each}}
                   {{/if}}
-                  <tr>
-                    <td class="la-troubleshooting-cell">{{t "Databases" key="databases"}}</td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.db.pending}}
-                        {{t "Checking..." key="checking"}}
-                      {{else if this.db}}
-                        {{this.db.type}}
-                      {{else}}
-                        {{t "None" key="none_upper"}}
-                      {{/if}}
-                    </td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.db}}
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_databases"}}>{{t "Clear" key="clear"}}</button>
-                      {{/if}}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="la-troubleshooting-cell">{{t "Local Storage" key="local_storage_name"}}</td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.local_storage}}
-                        {{t "available" key="available"}}
-                      {{else}}
-                        {{t "not available" key="not_available_lower"}}
-                      {{/if}}
-                    </td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.local_storage}}
-                        <button type="button" class="la-btn la-btn--ghost" {{action "clear_local_storage"}}>{{t "Clear" key="clear"}}</button>
-                      {{/if}}
-                    </td>
-                  </tr>
-                  <tr class="la-troubleshooting-muted">
-                    <td>{{t "App Version" key="version"}}</td>
-                    <td colspan="2">{{this.app_state.version}}</td>
-                  </tr>
-                  <tr class="la-troubleshooting-muted">
-                    <td>{{t "Recognized Device" key="recognized_device"}}</td>
-                    <td colspan="2">{{this.app_state.device_name}}</td>
-                  </tr>
-                  {{#if this.has_debugging}}
-                    <tr class="la-troubleshooting-muted">
-                      <td>{{t "Debugging" key="debugging"}}</td>
-                      <td colspan="2"><a href="#" {{action "show_debugging"}}>{{t "Available" key="available_cap"}}</a></td>
-                    </tr>
-                  {{/if}}
-                  <tr>
-                    <td class="la-troubleshooting-cell">{{t "Local Boards" key="local_boards"}}</td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.local_boards}}
-                        {{this.local_boards}}
-                      {{else}}
-                        {{t "not available" key="not_available_lower"}}
-                      {{/if}}
-                    </td>
-                    <td class="la-troubleshooting-cell">
-                      {{#if this.local_boards}}
-                        {{#if (persistence-online)}}
-                          <button type="button" class="la-btn la-btn--ghost" {{action "push_to_cloud"}}>{{t "Push to Cloud" key="push_to_cloud"}}</button>
-                        {{/if}}
-                      {{/if}}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-      {{else if this.errors}}
-        <section class="la-section la-troubleshooting-section">
-          <article class="la-about-glass-card la-support-page-card la-troubleshooting-card" aria-label={{t "Errors" key="error_upper"}}>
-            <div class="la-support-page-card__body la-troubleshooting-content">
-              <table class="table table-striped table-hover la-troubleshooting-table">
-                <thead>
-                  <tr>
-                    <th>{{t "Error" key="error_upper"}}</th>
-                    <th>{{t "Time" key="time"}}</th>
-                    <th style="width: 220px;">{{t "Results" key="results"}}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {{#each this.errors as |error|}}
-                    <tr>
-                      <td class="la-troubleshooting-cell la-troubleshooting-cell--narrow"><div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{error.message}}</div></td>
-                      <td>{{date error.date}}</td>
-                      <td>
-                        <div class="la-troubleshooting-pre la-troubleshooting-pre--small">{{#if error.stack}}{{error.stack}}{{else}}{{error.message}}{{/if}}</div>
-                      </td>
-                    </tr>
-                  {{/each}}
-                </tbody>
-              </table>
-              <div class="la-troubleshooting-actions" style="justify-content: center; margin-top: 1.5rem; display: flex;">
-                <button type="button" class="la-btn la-btn--primary" {{action "show_errors"}}>{{t "Done With Errors" key="done_with_errors"}}</button>
+                {{else}}
+                  <span class='text-info'>{{t "Testing..." key="testing"}}</span>
+                {{/if}}
+              </td>
+            </tr>
+          {{/each}}
+          <tr>
+            <td>{{t "CSS Alpha" key="css_alpha"}}</td>
+            <td>{{t "%app_name% supports transparent colors for more flexible rendering of boards and board buttons." key="css_alpha_info"}}</td>
+            <td>
+              <div style="position: relative; float: left; margin-right: 5px; background: rgba(0, 0, 255, 1.0);">
+                <div style="width: 20px; height: 20px; background: rgba(255, 0, 0, 0.5);">
+                </div>
+                <div style="position: absolute; top: 0; left: 0; width: 10px; height: 20px; background: rgba(0, 255, 0, 0.5);">
+                </div>
               </div>
-            </div>
-          </article>
-        </section>
-      {{/if}}
+              {{t "This text should appear next to a half-green, half-purple box." key="alpha_test"}}
+            </td>
+          </tr>
+          <tr>
+            <td>{{t "CSS Animations" key="css_animation"}}</td>
+            <td>{{t "Progress bars and spinners use animation to make %app_name% feel more responsive." key="animation_info"}}</td>
+            <td>
+              <span class="glyphicon glyphicon-refresh spinning"></span>
+              {{t "The icon next to this text should appear to be spinning." key="spinning_test"}}
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
+      <h4 style="margin-top: 50px;">{{t "App Details" key="app_details"}}</h4>
+      <table class='table table-striped table-hover' style='max-width: 500px'>
+        <tbody>
+          {{#if this.should_reload}}
+            <tr>
+              <td colspan='3' class='text-danger'>
+                {{t "After clearing, you should really reload" key="should_reload"}}<br>
+                <button class='btn btn-primary' {{action "reload"}}>{{t "Reload Now" key="reload_now"}}</button>
+              </td>
+            </tr>
+          {{/if}}
+          {{#if this.storage}}
+            <tr>
+              <td style='vertical-align: middle;'>{{t "File Storage" key="file_storage"}}</td>
+              <td style='vertical-align: middle;'>
+                {{#if this.storage.pending}}
+                  {{t "Checking..." key="checking"}}
+                {{else if (is-equal this.storage.size -1)}}
+                  {{t "unavailable" key="unavailable"}}
+                {{else}}
+                  {{t "%{size}Mb" size=this.storage.size key="megabytes"}}
+                {{/if}}
+              </td>
+              <td style='vertical-align: middle;'>
+                <button class='btn btn-default' {{action "clear_file_storage"}} style='width: 150px;'>{{t "Clear" key="clear"}}</button>
+              </td>
+            </tr>
+          {{/if}}
+          <tr>
+            <td style='vertical-align: middle;'>{{t "Databases" key="databases"}}</td>
+            <td style='vertical-align: middle;'>
+              {{#if this.db.pending}}
+                {{t "Checking..." key="checking"}}
+              {{else if this.db}}
+                {{this.db.type}}
+              {{else}}
+                {{t "None" key="none_upper"}}
+              {{/if}}
+            </td>
+            <td style='vertical-align: middle;'>
+              {{#if this.db}}
+                <button class='btn btn-default' {{action "clear_databases"}} style='width: 150px;'>{{t "Clear" key="clear"}}</button>
+              {{/if}}
+            </td>
+          </tr>
+          <tr>
+            <td style='vertical-align: middle;'>{{t "Local Storage" key="local_storage_name"}}</td>
+            <td style='vertical-align: middle;'>
+              {{#if this.local_storage}}
+                {{t "available" key="available"}}
+              {{else}}
+                {{t "not available" key="not_available_lower"}}
+              {{/if}}
+            </td>
+            <td style='vertical-align: middle;'>
+              {{#if this.local_storage}}
+                <button class='btn btn-default' {{action "clear_local_storage"}} style='width: 150px;'>{{t "Clear" key="clear"}}</button>
+              {{/if}}
+            </td>
+          </tr>
+          <tr class='text-muted'>
+            <td>{{t "App Version" key="version"}}</td>
+            <td colspan='2'>{{this.app_state.version}}</td>
+          </tr>
+          <tr class='text-muted'>
+            <td>{{t "Recognized Device" key="recognized_device"}}</td>
+            <td colspan='2'>{{this.app_state.device_name}}</td>
+          </tr>
+          {{#if this.has_debugging}}
+            <tr class='text-muted'>
+              <td>{{t "Debugging" key="debugging"}}</td>
+              <td colspan='2'><a href="#" {{action "show_debugging"}}>{{t "Available" key="available_cap"}}</a></td>
+            </tr>
+          {{/if}}
+          <tr>
+            <td style='vertical-align: middle;'>{{t "Local Boards" key="local_boards"}}</td>
+            <td style='vertical-align: middle;'>
+              {{#if this.local_boards}}
+                {{this.local_boards}}
+              {{else}}
+                {{t "not available" key="not_available_lower"}}
+              {{/if}}
+            </td>
+            <td style='vertical-align: middle;'>
+              {{#if this.local_boards}}
+                {{#if (persistence-online)}}
+                  <button class='btn btn-default' {{action "push_to_cloud"}} style='width: 150px;'>{{t "Push to Cloud" key="push_to_cloud"}}</button>
+                {{/if}}
+              {{/if}}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    {{else if this.errors}}
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>{{t "Error" key="error_upper"}}</th>
+            <th>{{t "Time" key="time"}}</th>
+            <th style="width: 220px;">{{t "Results" key="results"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each this.errors as |error|}}
+            <tr>
+              <td style='width: 210px;'><div style='max-width: 200px; overflow: auto; max-height: 100px; white-space: pre-line;'>{{error.message}}</div></td>
+              <td>{{date error.date}}</td>
+              <td>
+                <div style='max-height: 100px; overflow: auto; white-space: pre-wrap;'>{{#if error.stack}}{{error.stack}}{{else}}{{error.message}}{{/if}}</div>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      <button class='btn btn-lg btn-default' {{action "show_errors"}}>{{t "Done With Errors" key="done_with_errors"}}</button>
+    {{else}}
+      <div style="margin: 50px; text-align: center;">
+        <button class='btn btn-lg btn-primary' {{action "run_default_tests"}}>{{t "Check For Supported Functionality" key="run_tests"}}</button>
+        {{#if this.error_count}}
+          <button class='btn btn-lg btn-default' {{action "show_errors"}}>{{t "Error" count=this.error_count key="n_errors"}}</button>
+        {{/if}}
       </div>
-    </main>
+    {{/if}}
   </div>
 </div>

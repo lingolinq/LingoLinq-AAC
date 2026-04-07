@@ -1,84 +1,53 @@
-import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import app_state from '../utils/app_state';
 import modal from '../utils/modal';
+import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
+import { computed } from '@ember/object';
 
-export default Controller.extend({
-  appState: service('app-state'),
-  persistence: service('persistence'),
-  router: service('router'),
-
-  init() {
-    this._super(...arguments);
-    const appState = this.get('appState');
-    if (appState.get('sessionUser')) {
-      this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
+export default modal.ModalController.extend({
+  _cookiesEnabled: function(val) {
+    return val === true || val === 'true';
+  },
+  opening: function() {
+    if(app_state.get('sessionUser')) {
+      this.set('cookies', this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies')));
     } else {
-      this.set('cookies', localStorage['enable_cookies'] === 'true');
+      this.set('cookies', localStorage['enable_cookies'] == 'true');
     }
   },
-
   ios: computed(function() {
-    return window.navigator.userAgent && window.navigator.userAgent.match(/ipad|ipod|iphone/i);
+    return window.navigator.userAgent.match(/ipad|ipod|iphone/i);
   }),
-
-  author_ids: computed('appState.sessionUser.supervisors', 'appState.sessionUser.id', function() {
-    const appState = this.get('appState');
-    const list = [];
-    const sessionUser = appState.get('sessionUser');
-    if (sessionUser) {
-      list.push({
-        id: sessionUser.id,
-        name: sessionUser.get('name') + ' <' + sessionUser.get('email') + '>'
-      });
-      (sessionUser.get('supervisors') || []).forEach(function(sup) {
-        list.push({ id: sup.id, name: sup.name + ' (' + sup.user_name + ')' });
-      });
-    }
-    list.push({ id: 'custom', name: i18n.t('other_account', 'Other Account') });
+  author_ids: computed('sessionUser.supervisors', function() {
+    var list = [];
+    list.push({id: app_state.get('sessionUser.id'), name: app_state.get('sessionUser.name') + " <" + app_state.get('sessionUser.email') + ">"});
+    app_state.get('sessionUser.supervisors').forEach(function(sup) {
+      list.push({id: sup.id, name: sup.name + " (" + sup.user_name + ")"});
+    });
+    list.push({id: 'custom', name: i18n.t('other_account', "Other Account")});
     return list;
   }),
-
-  prompt_user: computed('appState.sessionUser', 'author_id', function() {
-    return !this.get('appState.sessionUser') || this.get('author_id') === 'custom';
+  prompt_user: computed('app_state.sessionUser', 'author_id', function() {
+    return !app_state.get('sessionUser') || this.get('author_id') == 'custom';
   }),
-
   actions: {
-    toggle_cookies() {
-      const appState = this.get('appState');
-      if (appState.get('sessionUser')) {
-        appState.set('sessionUser.watch_cookies');
-        appState.set('sessionUser.preferences.cookies', !appState.get('sessionUser.preferences.cookies'));
-        appState.get('sessionUser').save().then(() => {
-          this.set('cookies', !!appState.get('sessionUser.preferences.cookies'));
-        }, function() {});
+    toggle_cookies: function() {
+      var _this = this;
+      if(app_state.get('sessionUser')) {
+        app_state.set('sessionUser.watch_cookies', true);
+        var currentlyEnabled = _this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies'));
+        app_state.set('sessionUser.preferences.cookies', !currentlyEnabled);
+        app_state.get('sessionUser').save().then(function() {
+          _this.set('cookies', _this._cookiesEnabled(app_state.get('sessionUser.preferences.cookies')));
+        }, function() { });
       } else {
-        appState.toggle_cookies(localStorage['enable_cookies'] !== 'true');
-        this.set('cookies', localStorage['enable_cookies'] === 'true');
+        app_state.toggle_cookies(localStorage['enable_cookies'] != 'true');
+        this.set('cookies', localStorage['enable_cookies'] == 'true');
       }
     },
-    updateAuthorId(id) {
-      this.set('author_id', id);
-    },
-    show_speak_mode_intro_again() {
-      const appState = this.get('appState');
-      const user = appState.get('currentUser');
-      if (!user) { return; }
-      const progress = user.get('preferences.progress') || {};
-      delete progress.speak_mode_intro_done;
-      user.set('preferences.progress', progress);
-      appState.set('speak-mode-intro', false);
-      const router = this.get('router');
-      user.save().then(() => {
-        router.transitionTo('index').then(() => {
-          modal.open('speak-mode-intro');
-        });
-      }, function() {});
-    },
-    submit_message() {
-      if (!this.get('email') && !this.get('appState.currentUser')) { return; }
-      const message = {
+    submit_message: function() {
+      if(!this.get('email') && !app_state.get('currentUser')) { return; }
+      var message = {
         name: this.get('name'),
         email: this.get('email'),
         author_id: this.get('author_id'),
@@ -87,20 +56,23 @@ export default Controller.extend({
         locale: i18n.langs.preferred,
         message: this.get('message')
       };
-      const _this = this;
+      var _this = this;
       this.set('disabled', true);
       this.set('error', false);
-      this.get('persistence').ajax('/api/v1/messages', {
+      persistence.ajax('/api/v1/messages', {
         type: 'POST',
-        data: { message: message }
-      }).then(function() {
+        data: {
+          message: message
+        }
+      }).then(function(res) {
         _this.set('disabled', false);
-        modal.success(i18n.t('message_delivered', 'Message sent! Thank you for reaching out!'));
-        _this.get('router').transitionTo('index');
+        modal.success(i18n.t('message_delivered', "Message sent! Thank you for reaching out!"));
+        modal.close();
       }, function() {
         _this.set('error', true);
         _this.set('disabled', false);
       });
+
     }
   }
 });

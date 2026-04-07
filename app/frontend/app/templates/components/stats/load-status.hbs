@@ -1,15 +1,13 @@
 {{#if this.status}}
-  <div class="md-stats-load-status {{this.elem_class}}" style={{this.elem_style}}>
+  <div class={{this.elem_class}} style={{this.elem_style}}>
     {{#if this.status.loading}}
-      <span class="md-stats-load-status__message">{{t "Loading..." key="loading"}}</span>
+      {{t "Loading..." key="loading"}}
     {{else if this.status.error}}
-      <span class="md-stats-load-status__message md-stats-load-status__message--error">{{t "Reports failed to load" key="reports_failed_to_load"}}</span>
+      {{t "Reports failed to load" key="reports_failed_to_load"}}
     {{else if this.status.no_data}}
-      {{#unless this.side_by_side}}
-        <p class="md-stats-load-status__no-data">{{t "No data available" key="no_data_available"}}</p>
-      {{/unless}}
+      {{t "No data available" key="no_data_available"}}
     {{else}}
-      <span class="md-stats-load-status__message">{{t "Unknown status" key="unknown_status"}}</span>
+      {{t "Unknown status" key="unknown_status"}}
     {{/if}}
   </div>
 {{else if this.ref_status}}

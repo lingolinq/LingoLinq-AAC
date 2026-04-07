@@ -58,7 +58,7 @@
               <span class='text-danger'>{{t "This word is NOT in the board set for <em>%{user_name}</em>" user_name=this.model.user.user_name key="not_in_user_board_set"}}</span>
             {{/if}}
           {{else if this.reachability.not_core}}
-            {{t "This word is not a core word for <em>%{user_name}</em>" user_name=this.model.user.user_name key="not_in_core"}}
+            {{t "This word is not a core word for <em>%{user_name}</e>" user_name=this.model.user.user_name key="not_in_core"}}
           {{else}}
             <span class='text-muted'>{{t "Information not currently available" key="information_not_currently_available"}}</span>
           {{/if}}

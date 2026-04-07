@@ -76,8 +76,6 @@ LingoLinq::Application.routes.draw do
   get 'u/:reply_code' => 'boards#utterance_redirect'
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
-  get ':id/board-detail/:boardname' => ember_handler, :constraints => {:id => user_id_regex}
-  get ':id/board-detail/:boardname/edit' => ember_handler, :constraints => {:id => user_id_regex}
   
   get 'utterances/:id' => 'boards#utterance'  
   get ':id' => 'boards#user', :constraints => {:id => user_id_regex}
@@ -86,7 +84,6 @@ LingoLinq::Application.routes.draw do
   get ':id/history' => 'boards#board', :constraints => {:id => board_id_regex}
     
   get 'login' => ember_handler
-  get 'organizations/:org_id' => ember_handler
   get 'organizations/:org_id/:path' => ember_handler
   get 'organizations/:org_id/rooms/:room_id' => ember_handler
   get ':id/confirm_registration/:key' => ember_handler, :constraints => {:id => user_id_regex}
@@ -171,9 +168,6 @@ LingoLinq::Application.routes.draw do
       get 'protected_image/:library/:image_id' => 'users#protected_image'
       get 'word_map' => 'users#word_map'
       get 'word_activities' => 'users#word_activities'
-      post 'board_tags/ensure' => 'users#ensure_board_tag'
-      post 'board_tags/rename' => 'users#rename_board_tag'
-      post 'board_tags/delete' => 'users#delete_board_tag'
       post 'evals/transfer' => 'users#transfer_eval'
       post 'evals/reset' => 'users#reset_eval'
       post '2fa' => 'users#update_2fa'

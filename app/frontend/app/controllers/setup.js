@@ -25,36 +25,9 @@ export default Controller.extend({
   title: computed(function() {
     return i18n.t('account_setup', "Account Setup");
   }),
-  queryParams: [{ page: { defaultValue: 'intro' } }, 'finish', 'user_id', 'mode'],
-  mode: null,
+  queryParams: ['page', 'finish', 'user_id'],
   order: order,
   extra_order: extra_order,
-  setup_index: computed('page', 'appState.controller.setup_index', function() {
-    var ctrl = this.appState && this.appState.get('controller');
-    return ctrl ? ctrl.get('setup_index') : 1;
-  }),
-  setup_order_length: computed('page', 'appState.controller.setup_order', function() {
-    var ctrl = this.appState && this.appState.get('controller');
-    var o = ctrl && ctrl.get('setup_order');
-    return o && o.length ? o.length : order.length;
-  }),
-  setup_previous: computed('page', 'appState.controller.setup_previous', function() {
-    var ctrl = this.appState && this.appState.get('controller');
-    return ctrl ? ctrl.get('setup_previous') : false;
-  }),
-  setup_next: computed('page', 'appState.controller.setup_next', function() {
-    var ctrl = this.appState && this.appState.get('controller');
-    return ctrl ? ctrl.get('setup_next') : false;
-  }),
-  setupProgressPercent: computed('setup_index', 'setup_order_length', function() {
-    var len = this.get('setup_order_length');
-    if(!len) { return 0; }
-    return Math.round((this.get('setup_index') / len) * 100);
-  }),
-  setupProgressStyle: computed('setupProgressPercent', function() {
-    var pct = this.get('setupProgressPercent');
-    return (pct !== undefined && pct !== null) ? ('width: ' + pct + '%') : 'width: 0%';
-  }),
   setupComponent: computed('page', function() {
     var page = this.get('page');
     var pages = order.concat(extra_order);
@@ -99,12 +72,6 @@ export default Controller.extend({
       return res;
     }
   ),
-  text_position_label: computed('text_position', function() {
-    if(this.get('text_position.text_on_top')) { return i18n.t('text_above_pictures', 'Pictures with text above'); }
-    if(this.get('text_position.text_only')) { return i18n.t('no_pictures', 'Text only (no pictures)'); }
-    if(this.get('text_position.text_on_bottom')) { return i18n.t('text_below_pictures', 'Pictures with text below'); }
-    return i18n.t('text_above_pictures', 'Pictures with text above');
-  }),
   skin: computed(
     'fake_user.preferences.skin',
     'setup_user.preferences.skin',
@@ -119,12 +86,12 @@ export default Controller.extend({
           var parts = user.get('preferences.skin').split(/::/);
           if(parts[0] == 'mix_only' || parts[0] == 'mix_prefer') {
             res.options = [
-              {label: i18n.t('default_skin_tones', "Pale"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
-              {label: i18n.t('dark_skin_tone', "Dark"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
-              {label: i18n.t('medium_dark_skin_tone', "Medium-Dark"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
-              {label: i18n.t('medium_skin_tone', "Medium"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
-              {label: i18n.t('medium_light_skin_tone', "Medium-Light"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
-              {label: i18n.t('light_skin_tone', "Light"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
+              {label: i18n.t('default_skin_tones', "Original Skin Tone"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-varxxxUNI.svg'},
+              {label: i18n.t('dark_skin_tone', "Dark Skin Tone"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
+              {label: i18n.t('medium_dark_skin_tone', "Medium-Dark Skin Tone"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
+              {label: i18n.t('medium_skin_tone', "Medium Skin Tone"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
+              {label: i18n.t('medium_light_skin_tone', "Medium-Light Skin Tone"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
+              {label: i18n.t('light_skin_tone', "Light Skin Tone"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
             ];
             if(parts[2]) {
               var rules = parts[2].split(/-/).pop();
@@ -150,9 +117,10 @@ export default Controller.extend({
           }
         }
       } else {
-        res.mix = true;
-        res.value = 'mix';
+        res.default = true;
+        res.value = 'default';
       }
+      console.log("SKIN", res);
       return res;
     }
   ),
@@ -226,17 +194,17 @@ export default Controller.extend({
   ),
   image_preview_class: computed(
     'fake_user.preferences.high_contrast',
-    'setup_user.preferences.high_contrast',
+    'setup_user.high_contrast',
     'background',
     function() {
       var res = 'symbol_preview ';
-      var bg = this.get('background');
-      if(bg && bg.black_with_high_contrast) {
+      var user = this.get('setup_user') || this.get('fake_user');
+      if(user.get('preferences.high_contrast')) {
         res = res + 'high_contrast ';
       }
-      if(bg && bg.white) {
+      if(this.get('background.white')) {
         res = res + 'white ';
-      } else if(bg && (bg.black || bg.black_with_high_contrast)) {
+      } else if(this.get('background.black') || this.get('background.black_with_high_contrast')) {
         res = res + 'black ';
       }
       return res;
@@ -246,7 +214,7 @@ export default Controller.extend({
     'fake_user.preferences.device.symbol_background',
     'setup_user.preferences.device.symbol_background',
     'fake_user.preferences.high_contrast',
-    'setup_user.preferences.high_contrast',
+    'setup_user.high_contrast',
     function() {
       var res = {};
       var user = this.get('setup_user') || this.get('fake_user');
@@ -255,7 +223,7 @@ export default Controller.extend({
       } else if(user.get('preferences.device.symbol_background') == 'white') {
         res.white = true;
       } else if(user.get('preferences.device.symbol_background') == 'black') {
-        if(user.get('preferences.high_contrast') === true) {
+        if(user.get('preferences.high_contrast')) {
           res.black_with_high_contrast = true;
         } else {
           res.black = true;
@@ -314,90 +282,6 @@ export default Controller.extend({
       return res;
     }
   ),
-  current_symbol_value: computed('setup_user.preferences.preferred_symbols', 'fake_user.preferences.preferred_symbols', function() {
-    var user = this.get('setup_user') || this.get('fake_user');
-    return (user.get('preferences.preferred_symbols') || 'original');
-  }),
-  symbol_library_label: computed('symbols', function() {
-    var labels = {
-      original: i18n.t('use_original_symbols', "Default symbols"),
-      opensymbols: i18n.t('opensymbols', 'Opensymbols.org'),
-      twemoji: i18n.t('twemoji', 'Emoji icons (authored by Twitter)'),
-      noun_project: i18n.t('noun_project', 'Noun Project black outlines'),
-      arasaac: i18n.t('arasaac', 'ARASAAC free symbols'),
-      tawasol: i18n.t('tawasol_library', 'Tawasol'),
-      lessonpix: i18n.t('lessonpix_library', 'LessonPix symbol library'),
-      symbolstix: i18n.t('symbolstix_images', 'SymbolStix Symbols'),
-      pcs: i18n.t('pcs', 'PCS Symbols by Tobii Dynavox')
-    };
-    if(this.get('symbols.original')) { return labels.original; }
-    if(this.get('symbols.opensymbols')) { return labels.opensymbols; }
-    if(this.get('symbols.twemoji')) { return labels.twemoji; }
-    if(this.get('symbols.noun_project')) { return labels.noun_project; }
-    if(this.get('symbols.arasaac')) { return labels.arasaac; }
-    if(this.get('symbols.tawasol')) { return labels.tawasol; }
-    if(this.get('symbols.lessonpix')) { return labels.lessonpix; }
-    if(this.get('symbols.symbolstix')) { return labels.symbolstix; }
-    if(this.get('symbols.pcs')) { return labels.pcs; }
-    return labels.original;
-  }),
-  symbol_library_options: computed('symbols', 'showing_more_symbols', 'setup_user.subscription.extras_enabled', 'setup_user', function() {
-    var opts = [];
-    opts.push({ value: 'original', label: i18n.t('use_original_symbols', "Default symbols") });
-    opts.push({ value: 'opensymbols', label: i18n.t('opensymbols', 'Opensymbols.org') });
-    if(this.get('setup_user') && this.get('setup_user.subscription.extras_enabled')) {
-      opts.push({ value: 'lessonpix', label: i18n.t('lessonpix_library', 'LessonPix symbol library'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-      opts.push({ value: 'symbolstix', label: i18n.t('symbolstix_images', 'SymbolStix Symbols'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-      opts.push({ value: 'pcs', label: i18n.t('pcs', 'PCS Symbols by Tobii Dynavox'), subNote: this.get('setup_user.subscription.grace_trial_period') ? i18n.t('extra_fee_at_purchase', '(requires extra fee after trial period)') : null });
-    }
-    if(this.get('showing_more_symbols')) {
-      opts.push({ value: 'twemoji', label: i18n.t('twemoji', 'Emoji icons (authored by Twitter)') });
-      opts.push({ value: 'noun-project', label: i18n.t('noun_project', 'Noun Project black outlines') });
-      opts.push({ value: 'arasaac', label: i18n.t('arasaac', 'ARASAAC free symbols') });
-      opts.push({ value: 'tawasol', label: i18n.t('tawasol_library', 'Tawasol') });
-    } else {
-      opts.push({ expand: true, label: i18n.t('show_more_libraries', 'Show more libraries...') });
-    }
-    return opts;
-  }),
-  utterance_layout_label: computed('utterance_layout', function() {
-    return this.get('utterance_layout.text_only')
-      ? i18n.t('show_words', 'Words only')
-      : i18n.t('show_symbols', 'Symbol buttons');
-  }),
-  background_label: computed('background', function() {
-    if(this.get('background.clear')) { return i18n.t('clear_background', 'Color background'); }
-    if(this.get('background.white')) { return i18n.t('always_white_background', 'White background'); }
-    if(this.get('background.black')) { return i18n.t('always_black_background', 'Black background'); }
-    if(this.get('background.black_with_high_contrast')) { return i18n.t('high_contrast_black_background', 'High contrast'); }
-    return i18n.t('clear_background', 'Color background');
-  }),
-  skin_option_list: computed(function() {
-    return [
-      { value: 'mix', label: i18n.t('mix_of_skin_tones', 'Mix of Tones'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f308.svg' },
-      { value: 'dark', label: i18n.t('dark_skin_tone', 'Dark'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3ff-200d-1f9b2.svg' },
-      { value: 'medium-dark', label: i18n.t('medium_dark_skin_tone', 'Medium-Dark'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fe-200d-1f9b2.svg' },
-      { value: 'medium', label: i18n.t('medium_skin_tone', 'Medium'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fd-200d-1f9b2.svg' },
-      { value: 'medium-light', label: i18n.t('medium_light_skin_tone', 'Medium-Light'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fc-200d-1f9b2.svg' },
-      { value: 'light', label: i18n.t('light_skin_tone', 'Light'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg' },
-      { value: 'default', label: i18n.t('default_skin_tones', 'Pale'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg', image_class: 'setup-symbols-pill__img--pale' },
-      { value: 'limit', label: i18n.t('limit_tones_to', 'Limit Tones To...'), image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg' }
-    ];
-  }),
-  skin_label: computed('skin', function() {
-    var s = this.get('skin');
-    if(!s) { return i18n.t('default_skin_tones', 'Pale'); }
-    if(s.default) { return i18n.t('default_skin_tones', 'Pale'); }
-    if(s.mix) { return i18n.t('mix_of_skin_tones', 'Mix of Tones'); }
-    if(s.dark) { return i18n.t('dark_skin_tone', 'Dark'); }
-    if(s['medium-dark']) { return i18n.t('medium_dark_skin_tone', 'Medium-Dark'); }
-    if(s.medium) { return i18n.t('medium_skin_tone', 'Medium'); }
-    if(s['medium-light']) { return i18n.t('medium_light_skin_tone', 'Medium-Light'); }
-    if(s.light) { return i18n.t('light_skin_tone', 'Light'); }
-    if(s.limit) { return i18n.t('limit_tones_to', 'Limit Tones To...'); }
-    if(s.prefer) { return i18n.t('show_tones_preference_for', 'Show Preference For...'); }
-    return i18n.t('default_skin_tones', 'Pale');
-  }),
   premium_but_not_allowed: computed(
     'setup_user.subscription.extras_enabled',
     'symbols.pcs',
@@ -462,7 +346,7 @@ export default Controller.extend({
         this.set('cell', user.get('cell_phone'));
       } else if(change == 'setup_user.cell_phone') {
         this.set('cell', user.get('cell_phone'));
-      } else if(this.get('cell') && user.get('cell_phone') !== this.get('cell')) {
+      } else if(this.get('cell')) {
         user.set('cell_phone', this.get('cell'));
         this.send('set_preference', 'cell_phone', this.get('cell'));
       }
@@ -479,7 +363,7 @@ export default Controller.extend({
       var user = this.get('setup_user') || this.get('fake_user');
       if(!this.get('pin') && user.get('preferences.speak_mode_pin') && user.get('preferences.require_speak_mode_pin')) {
         this.set('pin', user.get('preferences.speak_mode_pin') || "");
-      } else if(change == 'setup_user.preferences.speak_mode_pin' || change == 'setup_user.preferences.require_speak_mode_pin') {
+      } else if(change == 'setup_user.preferences.speak_mode_pin') {
         this.set('pin', user.get('preferences.speak_mode_pin') || "");
       } else {
         var pin = (parseInt(this.get('pin'), 10) || "").toString().substring(0, 4);
@@ -489,12 +373,10 @@ export default Controller.extend({
             _this.set('pin', pin);
           }
         }, 10);
-        var pinChanged = pin.length == 4 && (!user.get('preferences.require_speak_mode_pin') || pin != user.get('preferences.speak_mode_pin'));
-        var requireOff = pin.length != 4 && user.get('preferences.require_speak_mode_pin');
-        if(pinChanged) {
+        if(pin.length == 4 && (!user.get('preferences.require_speak_mode_pin') || pin != user.get('preferences.speak_mode_pin'))) {
           user.set('preferences.require_speak_mode_pin', true);
           this.send('set_preference', 'speak_mode_pin', this.get('pin'));
-        } else if(requireOff) {
+        } else if(pin.length != 4 && user.get('preferences.require_speak_mode_pin')) {
           this.send('set_preference', 'require_speak_mode_pin', false);
         }
       }
@@ -587,7 +469,7 @@ export default Controller.extend({
       _this.set('fake_user', EmberObject.create({
         preferences:
         {
-          device: {voice: {}, dwell: false, scanning: false},
+          device: {voice: {}},
           vocalize_buttons: true,
           auto_home_return: true
         }
@@ -691,7 +573,6 @@ export default Controller.extend({
     return this.get('setup_user.preferences.home_board') && !this.get('do_find_board');
   }),
   _save_user_timer: null,
-  _pending_utterance_text_only: null,
   _schedule_user_save: function(user) {
     var _this = this;
     if(this._save_user_timer) {
@@ -705,47 +586,14 @@ export default Controller.extend({
   _do_user_save: function(user) {
     var _this = this;
     if(!user || !user.save) { return; }
-    // Snapshot preferences before save so we can restore after server response
-    var prefsSnapshot = JSON.parse(JSON.stringify(user.get('preferences') || {}));
     if(this.appState && this.appState.controller) {
       this.appState.controller.set('footer_status', {message: i18n.t('updating_user', "Updating User...")});
     }
     user.save().then(function() {
-      // Server response may have overwritten in-memory changes made while
-      // the save was in flight. Re-apply the snapshot to preserve them.
-      var serverPrefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-      var merged = JSON.parse(JSON.stringify(serverPrefs));
-      // Merge device preferences from snapshot over server response
-      merged.device = Object.assign({}, serverPrefs.device || {}, prefsSnapshot.device || {});
-      // Merge top-level preferences from snapshot
-      var topKeys = ['preferred_symbols', 'high_contrast', 'auto_home_return', 'skin'];
-      topKeys.forEach(function(key) {
-        if(prefsSnapshot[key] !== undefined) {
-          merged[key] = prefsSnapshot[key];
-        }
-      });
-      var changed = JSON.stringify(merged) !== JSON.stringify(serverPrefs);
-      if(changed) {
-        user.set('preferences', merged);
-        user.notifyPropertyChange('preferences');
+      if(_this.appState && _this.appState.controller) {
+        _this.appState.controller.set('footer_status', null);
       }
-      _this.set('_pending_utterance_text_only', null);
-      _this.set('_pending_symbol_background', null);
-      _this.set('_pending_access', null);
-      _this.set('_pending_home_return', null);
-      runLater(function() {
-        if(_this.appState && _this.appState.controller && !_this._save_user_timer) {
-          _this.appState.controller.set('footer_status', null);
-        }
-      }, 150);
     }, function(err) {
-      // On error, restore snapshot so UI stays consistent
-      user.set('preferences', prefsSnapshot);
-      user.notifyPropertyChange('preferences');
-      _this.set('_pending_utterance_text_only', null);
-      _this.set('_pending_symbol_background', null);
-      _this.set('_pending_access', null);
-      _this.set('_pending_home_return', null);
       if(_this.appState && _this.appState.controller) {
         _this.appState.controller.set('footer_status', {error: i18n.t('error_updating_user', "Error Updating User")});
       }
@@ -766,99 +614,47 @@ export default Controller.extend({
     noop: function() {
 
     },
-    close_board_layout: function() {
-      var _this = this;
-      var board_key = this.appState.get('board_layout_mode');
-      if (board_key) {
-        var parts = board_key.split('/');
-        if (parts.length === 2) {
-          this.router.transitionTo('user.board-detail.edit', parts[0], parts[1]).then(function() {
-            _this.appState.set('board_layout_mode', null);
-          });
-        } else {
-          this.appState.set('board_layout_mode', null);
-          this.router.transitionTo('index');
-        }
-      } else {
-        this.appState.set('board_layout_mode', null);
-        this.router.transitionTo('index');
-      }
-    },
-    setup_go: function(direction) {
-      var ctrl = this.appState && this.appState.get('controller');
-      if(ctrl && typeof ctrl.send === 'function') {
-        ctrl.send('setup_go', direction);
-      }
-    },
     find_new_board: function() {
       this.set('do_find_board', true);
     },
     set_preference: function(preference, value) {
       var user = this.get('setup_user') || this.get('fake_user');
       if(preference == 'access') {
-        this.set('_pending_access', value);
-        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-        prefs.device = prefs.device || {};
         if(value == 'touch') {
-          prefs.device.dwell = false;
-          prefs.device.scanning = false;
+          user.set('preferences.device.dwell', false);
+          user.set('preferences.device.scanning', false);
         } else if(value == 'dwell') {
-          prefs.device.dwell = true;
-          prefs.device.scanning = false;
+          user.set('preferences.device.dwell', true);
+          user.set('preferences.device.scanning', false);
         } else if(value == 'scanning') {
-          prefs.device.dwell = false;
-          prefs.device.scanning = true;
+          user.set('preferences.device.dwell', false);
+          user.set('preferences.device.scanning', true);
         }
-        user.set('preferences', prefs);
-        user.notifyPropertyChange('preferences');
       } else if(preference == 'home_return') {
-        this.set('_pending_home_return', value);
-        var wantAutoReturn = value === 'auto_return';
-        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-        prefs.auto_home_return = wantAutoReturn;
-        user.set('preferences', prefs);
-        user.notifyPropertyChange('preferences');
+        if(value == 'auto_return') {
+          this.set('auto_home_return', true);
+          return;
+        } else {
+          this.set('auto_home_return', false);
+          return;
+        }
       } else if(preference == 'preferred_symbols') {
         if(!user.get('original_preferred_symbols')) {
           user.set('original_preferred_symbols', user.get('preferences.preferred_symbols') || 'original')
         }
         user.set('preferences.' + preference, value);
-        user.notifyPropertyChange('preferences');
         user.set('preferred_symbols_changed', user.get('preferred_symbols') != user.get('original_preferred_symbols'));
         this.appState.set('setup_user', user);
       } else if(preference == 'device.symbol_background') {
-        this.set('_pending_symbol_background', value === 'black_with_high_contrast' ? 'black_with_high_contrast' : null);
-        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-        prefs.device = prefs.device || {};
-        prefs.device.symbol_background = value === 'black_with_high_contrast' ? 'black' : value;
-        prefs.high_contrast = value === 'black_with_high_contrast';
-        user.set('preferences', prefs);
-        user.notifyPropertyChange('preferences');
-      } else if(preference == 'device.utterance_text_only') {
-        this.set('_pending_utterance_text_only', value);
-        var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-        prefs.device = prefs.device || {};
-        prefs.device.utterance_text_only = value;
-        prefs.device.updated = true;
-        user.set('preferences', prefs);
-        user.notifyPropertyChange('preferences');
-      } else {
-        if(preference.indexOf('.') !== -1) {
-          var prefs = JSON.parse(JSON.stringify(user.get('preferences') || {}));
-          var parts = preference.split('.');
-          var target = prefs;
-          for(var i = 0; i < parts.length - 1; i++) {
-            var key = parts[i];
-            target[key] = target[key] || {};
-            target = target[key];
-          }
-          target[parts[parts.length - 1]] = value;
-          user.set('preferences', prefs);
-          user.notifyPropertyChange('preferences');
+        if(value == 'black_with_high_contrast') {
+          user.set('preferences.device.symbol_background', 'black');
+          user.set('preferences.high_contrast', true);
         } else {
-          user.set('preferences.' + preference, value);
-          user.notifyPropertyChange('preferences');
+          user.set('preferences.device.symbol_background', value);
+          user.set('preferences.high_contrast', false);
         }
+      } else {
+        user.set('preferences.' + preference, value);
       }
       var _this = this;
       if(preference == 'logging' && value === true && _this.get('setup_user')) {

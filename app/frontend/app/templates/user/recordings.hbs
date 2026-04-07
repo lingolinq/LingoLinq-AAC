@@ -1,16 +1,11 @@
 {{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if this.model.permissions.supervise}}
-<div class="md-recordings">
-  <div class="md-recordings__header">
-    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#2A9D8F"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="23" stroke="#46505F"/><line x1="8" y1="23" x2="16" y2="23" stroke="#46505F"/></svg>
-    <h2 class="md-recordings__title">{{t "User Recordings" key="user_recordings"}}</h2>
-  </div>
-  <div class="md-recordings__card">
+  <h2>{{t "User Recordings" key="user_recordings"}}</h2>
   {{#if this.recordings.loading}}
-    <p class="md-recordings__loading">{{t "Loading Recordings..." key="loading_recordings"}}</p>
+    <p>{{t "Loading Recordings..." key="loading_recordings"}}</p>
   {{else if this.recordings.error}}
-    <p class="md-recordings__loading">{{t "Error loading recordings" key="error_loading_recordings"}}</p>
+    <p>{{t "Error loading recordings" key="error_loading_recordings"}}</p>
   {{else if this.recordings}}
     <div class="table-responsive">
       <table class="table table-hover table-bordered">
@@ -84,7 +79,7 @@
     <p>{{t "No recordings available" key="no_recordings_available"}}</p>
   {{/if}}
 
-  <div class="md-recordings__actions">
+  <div>
     <button class='btn btn-default' {{action "record_sound"}}>{{t "Record Message" key="record_message"}}</button>
     <button class='btn btn-default' {{action "batch_recording"}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
     <span class="file_select_holder">
@@ -103,11 +98,6 @@
       <button class='btn btn-default' {{action "download_recordings"}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
     {{/if}}
   </div>
-  </div>
-  <div class="md-recordings__back-row">
-    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
-  </div>
-</div>
 {{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key="not_authorized_for_access"}}</p>
 {{else}}

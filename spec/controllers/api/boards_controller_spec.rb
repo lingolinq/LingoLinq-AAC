@@ -2161,14 +2161,12 @@ describe Api::BoardsController, :type => :controller do
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'bacon'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
-        'bacon' => [],
         'cheddar' => ['a', 'b', b.global_id, 'c']
       })
 
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'cheddar'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
-        'bacon' => [],
         'cheddar' => ['a', 'b', 'c']
       })
 
@@ -2602,7 +2600,6 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
-      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
     end
 
@@ -2635,15 +2632,13 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
-      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
 
       post :tag, params: {board_id: b.global_id, tag: 'bacon', remove: true}
       json = assert_success_json
       expect(json['tagged']).to eq(true)
-      expect(json['board_tags']).to eq(['bacon'])
-      expect(json['board_tag_map']).to eq({'bacon' => []})
-      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([])
+      expect(json['board_tags']).to eq([])
+      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq(nil)
     end
 
     it "should return a list of tags on success" do

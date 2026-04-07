@@ -380,17 +380,6 @@ var Button = EmberObject.extend({
           text_style = "style='font-size: " + fit.size + "px;'";
           holder_style = "style='position: absolute;'";
         }
-      } else if(txt && this.get('positioning.width')) {
-        var pos = this.get('positioning');
-        var baseFontSize = pos.base_text_height || 18;
-        var estCharWidth = baseFontSize * 0.6;
-        var maxChars = Math.floor(pos.width / estCharWidth);
-        if(txt.length > maxChars && maxChars > 0) {
-          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
-          if(scaledSize < baseFontSize) {
-            text_style = "style='font-size: " + scaledSize + "px;'";
-          }
-        }
       }
       res = res + "<div class='" + button_class + "' " + holder_style + ">";
       res = res + "<span " + text_style + " class='" + (this.get('hide_label') ? "button-label hide-label" : "button-label") + "'>" + txt + "</span>";
@@ -695,10 +684,9 @@ var Button = EmberObject.extend({
       promises.forEach(function(p) { p.then(null, function() { }); });
     });
   }),
-  check_for_parts_of_speech: function(keyed_colors) {
+  check_for_parts_of_speech: function() {
     var appState = this.appState || app_state;
     var persistenceService = this.persistence || persistence;
-    var colors = keyed_colors || LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
     if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
       var text = this.get('vocalization') || this.get('label');
       var _this = this;
@@ -708,7 +696,7 @@ var Button = EmberObject.extend({
           _this.set('parts_of_speech_matching_word', res.word);
           res.types.forEach(function(type) {
             if(!found) {
-              colors.forEach(function(color) {
+              LingoLinq.keyed_colors.forEach(function(color) {
                 if(!found && color.types && color.types.indexOf(type) >= 0) {
                   _this.set('background_color', color.fill);
                   _this.set('border_color', color.border);
@@ -903,11 +891,11 @@ Button.action_styling = function(action, button) {
 };
 Button.image_holder_style = function(pos, text_only) {
   if(!pos || !pos.image_height) { return ""; }
-  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_width + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
+  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_square + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
 };
 Button.image_style = function(pos) {
   if(!pos || !pos.image_height) { return ""; }
-  return "width: 100%; height: 100%; object-fit: contain; vertical-align: middle;";
+  return "width: 100%; vertical-align: middle; max-height: " + pos.image_square + "px;";
 };
 Button.clean_url = function(str) { return clean_url(str); };
 
@@ -975,10 +963,7 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    var has_fallback = !!original_fallback;
-    if(!has_fallback) {
-      LingoLinq.track_error("bad image url: " + bad_src);
-    }
+    LingoLinq.track_error("bad image url: " + bad_src);
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -995,13 +980,9 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       };
     } else {
-      if(!has_fallback) {
-        LingoLinq.track_error("bad data uri or fallback: " + bad_src);
-      }
+      LingoLinq.track_error("bad data uri or fallback: " + bad_src);
       original_error = function() {
-        if(!has_fallback) {
-          LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
-        }
+        LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
       };
     }
     error_listen(image, original_error);
@@ -1496,7 +1477,7 @@ Button.load_actions = function() {
     },
     {
       action: ':click',
-      description: i18n.t('make_click_sound', "Make a Click Sound"),
+      description: i18n.t('toggle_shift', "Make a Click Sound"),
       trigger: function() {
       }
     },

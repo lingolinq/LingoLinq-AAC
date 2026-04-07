@@ -134,4 +134,4 @@ The API is currently undocumented as noted in the README, but this documentation
 
 ### Additional Resources
 
-- [LingoLinq AAC Overview](https://github.com/lingolinq/LingoLinq-AAC/wiki)
+- [LingoLinq AAC Overview](https://github.com/swahlquist/LingoLinq-AAC/wiki)

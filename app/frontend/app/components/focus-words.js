@@ -180,13 +180,8 @@ export default Component.extend({
     return this.get('search') || this.get('browse');
   }),
 
-  // Split on whitespace, strip punctuation per token. Use \p{L}\p{N} so non-ASCII words count
-  // (ASCII-only \w left "Set Focus Words" permanently disabled for many locales).
   words_list: computed('words', function() {
-    return (this.get('words') || '')
-      .split(/[\n\s]+/)
-      .map(function(s) { return s.replace(/[^\p{L}\p{N}_]/gu, ''); })
-      .filter(function(s) { return s.length > 0; });
+    return (this.get('words') || '').replace(/[^\s\n\w]/g, '').split(/[\n\s]+/).filter(function(s) { return s.length > 0; });
   }),
 
   browse_categories: computed('model', function() {
@@ -345,14 +340,10 @@ export default Component.extend({
       if (_this.get('focus_id') && app_state.get('currentUser')) {
         persistence.ajax('/api/v1/focus/usage', { type: 'POST', data: { focus_id: _this.get('focus_id') } }).then(function() {}, function() {});
       }
-      // Same focus_id on app_state and board so contextualized_buttons / fast_html caches invalidate.
-      // A constant 'force_refresh' on the board matched fast_html.focus_id and caused process_for_displaying
-      // to return early without refreshing board-detail's ordered_buttons or focus dim/highlight.
-      const focusRevision = Math.random();
-      app_state.set('focus_words', { list: words, focus_id: focusRevision });
+      app_state.set('focus_words', { list: words, focus_id: Math.random() });
       const boardController = editManager.controller;
       if (boardController && boardController.get && boardController.get('model')) {
-        boardController.get('model').set('focus_id', focusRevision);
+        boardController.get('model').set('focus_id', 'force_refresh');
       }
       this.get('modal').close();
       editManager.process_for_displaying();

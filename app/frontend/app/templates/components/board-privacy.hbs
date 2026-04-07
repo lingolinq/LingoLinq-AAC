@@ -1,38 +1,43 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-board-privacy-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Adjust Board Privacy" key="adjust_board_privacy"}}</h3>
   </div>
   <div class="modal-body">
     {{#if this.model.confirmation}}
-      <p class="la-board-privacy-desc">{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
+      <p>{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
     {{else}}
-      <p class="la-board-privacy-desc">{{t "Select the boards you would like modified and the new level of privacy you would like set for those boards." key="privacy_instructions"}}</p>
+      <p>{{t "Select the boards you would like modified and the new level of privacy you would like set for those boards." key="privacy_instructions"}}</p>
     {{/if}}
-
-    <div class="la-board-privacy-section">
-      <label class="la-board-privacy-label">{{t "Boards" key="boards"}}</label>
-      <div class="la-board-privacy-boards">
-        {{#if this.hierarchy.loading}}
-          <span class="la-board-privacy-loading">{{t "Loading linked boards..." key="loading_linked_boards"}}</span>
-        {{else if this.hierarchy.error}}
-          <span class="la-board-privacy-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
-        {{else if this.hierarchy}}
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
-        {{else}}
-          <span class="la-board-privacy-loading">{{t "No linked boards" key="no_linked_boards"}}</span>
-        {{/if}}
+    <form class="form-horizontal" {{action "nothing" on="submit"}}>
+      <div class="form-group">
+        <label for="boards" class="col-sm-3 control-label">{{t "Boards" key="boards"}}</label>
+        <div class="col-sm-9">
+          {{#if this.hierarchy.loading}}
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
+          {{else if this.hierarchy.error}}
+            {{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}
+          {{else if this.hierarchy}}
+            <div style='margin-top: 5px;'>
+              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            </div>
+          {{else}}
+            {{t "No linked boards" key="no_linked_boards"}}
+          {{/if}}
+        </div>
       </div>
-    </div>
-
-    <div class="la-board-privacy-section">
-      <label class="la-board-privacy-label" for="privacy_level">{{t "Privacy" key="privacy"}}</label>
-      {{bound-select select_class="la-board-privacy-select" select_id="privacy_level" content=this.privacy_levels selection=this.privacy action=(action (mut this.privacy)) }}
-    </div>
+      <div class="form-group">
+        <label class="col-sm-3 control-label" for="privacy_level">
+          {{t "Privacy" key="privacy"}}
+        </label>
+        <div class="col-sm-9">
+          {{bound-select select_class="form-control" select_id="privacy_level" content=this.privacy_levels selection=this.privacy action=(action (mut this.privacy)) }}
+        </div>
+      </div>
+    </form>
   </div>
   <div class="modal-footer">
-    <button class='la-board-privacy-submit' {{action "update"}} disabled={{this.status.loading}}>
+    <button class='btn btn-primary' {{action "update"}} disabled={{this.status.loading}}>
       {{#if this.status.loading}}
         {{t "Updating Boards..." key="updating_boards"}}
       {{else if this.status.error}}
@@ -41,7 +46,6 @@
         {{t "Update Board(s)" key="update_boards"}}
       {{/if}}
     </button>
-    <a href="#" class="la-board-privacy-cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
-  </div>
+    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

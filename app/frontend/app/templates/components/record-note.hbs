@@ -1,160 +1,163 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-record-note-modal-wrap">
-    <div class="la-modal-header">
-      <div class="la-modal-header-icon la-modal-header-icon--note" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#2A9D8F"/></svg>
-      </div>
-      <h3 class="la-modal-header-label">{{t "New Note for %{user_name}" key="new_note_for" user_name=this.model.user_name}}</h3>
-      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
-    </div>
-    <div class="la-record-note-modal-body">
-      <form class="form-horizontal">
-        {{#if this.goal_options}}
-          <div class="form-group">
-            <label for="goal_options" class="col-sm-2 control-label">{{t "Topic" key="topic"}}</label>
-            <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="goal_options" content=this.goal_options selection=this.goal_id action=(action "updateGoalId") }}
-            </div>
-          </div>
-          {{#if this.goal_id}}
-            <div class="form-group">
-              <span class="col-sm-2 control-label">&nbsp;</span>
-              <div class="col-sm-10">
-                <div class="la-record-note-statuses">
-                  {{#each this.goal_statuses as |status|}}
-                    <button type="button" class={{status.button_display_class}} {{action "set_status" status.id}}>
-                      <span class={{status.display_class}}></span>
-                      {{status.text}}
-                    </button>
-                  {{/each}}
-                </div>
-              </div>
-            </div>
-          {{/if}}
-        {{/if}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      {{t "New Note for %{user_name}" key="new_note_for" user_name=this.model.user_name}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-horizontal">
+      {{#if this.goal_options}}
         <div class="form-group">
-          <span id="note_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</span>
-          <div class="col-sm-6">
-            <div class="la-record-note-type-toggle" role="group" aria-labelledby="note_type">
-              <button type="button" class="la-record-note-type-btn {{if this.text_note 'la-record-note-type-btn--active'}}" {{action "set_type" "text"}}>{{t "Text" key="text"}}</button>
-              <button type="button" class="la-record-note-type-btn {{unless this.text_note 'la-record-note-type-btn--active'}}" {{action "set_type" "video"}}>{{t "Video" key="video"}}</button>
+          <label for="goal_options" class="col-sm-2 control-label">{{t "Topic" key="topic"}}</label>
+          <div class="col-sm-10">
+            {{bound-select select_class="form-control" select_id="goal_options" content=this.goal_options selection=this.goal_id action=(action "updateGoalId") }}
+          </div>
+        </div>
+        {{#if this.goal_id}}
+          <div class="form-group">
+            <label for="goal_options" class="col-sm-2 control-label">&nbsp;</label>
+            <div class="col-sm-10">
+              {{#each this.goal_statuses as |status|}}
+              <div style='width: 25%; float: left; padding: 5px;'>
+                <button class={{status.button_display_class}} {{action "set_status" status.id}}>
+                  <span class={{status.display_class}}></span>
+                  {{status.text}}
+                </button>
+              </div>
+              {{/each}}
+              <div style='clear: left;'></div>
             </div>
           </div>
-          {{#if this.text_note}}
-            {{#if this.all_note_templates}}
-              <div class='col-sm-4' style='text-align: right;'>
-                <div class="btn-group dropdown">
-                  <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
-                    {{t "From Template" key="from_template"}} <span class="caret"></span>
-                  </button>
-                  <ul class="dropdown-menu pull_right" role="menu">
-                    {{#each this.all_note_templates as |template|}}
-                      <li><a href="#" {{action "pick_template" template}}>{{ template.title }}</a></li>
-                    {{/each}}
-                  </ul>
-                </div>
-              </div>
-            {{/if}}
-          {{/if}}
+        {{/if}}
+      {{/if}}
+      <div class="form-group">
+        <label id="note_type" class="col-sm-2 control-label">{{t "Type" key="type"}}</label>
+        <div class="col-sm-6">
+          <div class="btn-group" role="group" aria-labelledby="note_type">
+            <button type="button" class={{this.text_class}} {{action "set_type" "text"}}>{{t "Text" key="text"}}</button>
+            <button type="button" class={{this.video_class}} {{action "set_type" "video"}}>{{t "Video" key="video"}}</button>
+          </div>
         </div>
         {{#if this.text_note}}
-          <div class="form-group">
-            <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
-            <div class="col-sm-10">
-              <Textarea @value={{this.note}} class="form-control" id="note" rows={{this.note_rows}} />
+          {{#if this.all_note_templates}}
+          <div class='col-sm-4' style='text-align: right;'>
+            <div class="btn-group dropdown">
+              <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
+                {{t "From Template" key="from_template"}} <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu pull_right" role="menu">
+                {{#each this.all_note_templates as |template|}}
+                  <li><a href="#" {{action "pick_template" template}}>{{ template.title }} </a></li>
+                {{/each}}
+              </ul>
             </div>
           </div>
-          {{#if this.prior.note.text}}
-            <div class="form-group">
-              <span class="col-sm-2 control-label">{{t "Previous" key="previous"}}</span>
-              <div class="col-sm-10">
-                <div class="la-record-note-prior">
-                  {{this.prior.note.text}}
-                </div>
-              </div>
-            </div>
           {{/if}}
-          {{#if this.model.external_device}}
-            <div class="form-group">
-              <label for="log" class="col-sm-2 control-label">{{t "Log Events" key="log_events"}}</label>
-              <div class="col-sm-10">
-                <Textarea @value={{this.log}} class="form-control" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" />
-              </div>
-            </div>
-          {{/if}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify}} @type="checkbox" />
-                  {{t "Notify others of this message" key="notify_others"}}
-                </label>
-              </div>
-            </div>
+        {{/if}}
+      </div>
+      {{#if this.text_note}}
+        <div class="form-group">
+          <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
+          <div class="col-sm-10">
+            <Textarea @value={{this.note}} class="form-control" id="note" rows={{this.note_rows}} />
           </div>
+        </div>
+        {{#if this.prior.note.text}}
           <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify_user}} @type="checkbox" />
-                  {{t "Send an alert to the communicator about this message" key="alert_user"}}
-                </label>
-              </div>
-            </div>
-          </div>
-        {{else}}
-          <div class="form-group">
-            <label for="video" class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
+            <label for="prior_note" class="col-sm-2 control-label">{{t "Previous" key="previous"}}</label>
             <div class="col-sm-10">
-              {{video-recorder user=this.model video_ready="video_ready" video_pending="video_pending" video_not_ready="video_not_ready"}}
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
-            <div class="col-sm-10">
-              <Textarea @value={{this.note}} class="form-control" id="note" rows="1" />
-            </div>
-          </div>
-          {{#if this.prior.note.text}}
-            <div class="form-group">
-              <span class="col-sm-2 control-label">{{t "Previous" key="previous"}}</span>
-              <div class="col-sm-10">
-                <div class="la-record-note-prior">
-                  {{this.prior.note.text}}
-                </div>
-              </div>
-            </div>
-          {{/if}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify}} @type="checkbox" />
-                  {{t "Notify others of this message" key="notify_others"}}
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify_user}} @type="checkbox" />
-                  {{t "Send an alert to the communicator about this message" key="alert_user"}}
-                </label>
+              <div style='border-left: 2px solid #ddd; font-style: italic; padding: 5px 0 5px 10px;'>
+                {{this.prior.note.text}}
               </div>
             </div>
           </div>
         {{/if}}
-      </form>
-    </div>
-    <div class="la-record-note-modal-footer">
-      {{#if this.text_note}}
-        <button type="button" class="la-record-note-save-btn" {{action "saveNote"}}>{{t "Save Note" key="save_note"}}</button>
+        {{#if this.model.external_device}}
+          <div class="form-group">
+            <label for="log" class="col-sm-2 control-label">{{t "Log Events" key="log_events"}}</label>
+            <div class="col-sm-10">
+              <Textarea @value={{this.log}} class="form-control" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" />
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @checked={{this.notify}} @type="checkbox" />
+                {{t "Notify others of this message" key="notify_others"}}
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @checked={{this.notify_user}} @type="checkbox" />
+                {{t "Send an alert to the communicator about this message" key="alert_user"}}
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <button type="button" class="btn btn-primary" {{action "saveNote"}}>{{t "Save Note" key="save_note"}}</button>
+            <button type="button" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+          </div>
+        </div>
       {{else}}
-        <button type="button" class="la-record-note-save-btn" disabled={{this.no_video_ready}} {{action "saveNote" "video"}}>{{t "Save Note" key="save_note"}}</button>
+        <div class="form-group">
+          <label for="video" class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
+          <div class="col-sm-10">
+            {{video-recorder user=this.model video_ready="video_ready" video_pending="video_pending" video_not_ready="video_not_ready"}}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
+          <div class="col-sm-10">
+            <Textarea @value={{this.note}} class="form-control" id="note" rows="1" />
+          </div>
+        </div>
+        {{#if this.prior.note.text}}
+          <div class="form-group">
+            <label for="prior_note" class="col-sm-2 control-label">{{t "Previous" key="previous"}}</label>
+            <div class="col-sm-10">
+              <div style='border-left: 2px solid #ddd; font-style: italic; padding: 5px 0 5px 10px;'>
+                {{this.prior.note.text}}
+              </div>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @checked={{this.notify}} @type="checkbox" />
+                {{t "Notify others of this message" key="notify_others"}}
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @checked={{this.notify_user}} @type="checkbox" />
+                {{t "Send an alert to the communicator about this message" key="alert_user"}}
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+            <button type="button" class="btn btn-primary" disabled={{this.no_video_ready}} {{action "saveNote" "video"}}>{{t "Save Note" key="save_note"}}</button>
+            <button type="button" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+          </div>
+        </div>
       {{/if}}
-      <button type="button" class="la-record-note-cancel-btn" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-    </div>
+    </form>
+    <div style="clear: left;"></div>
   </div>
 {{/modal-dialog}}

@@ -1,6 +1,0 @@
-{{#opening-observer opening=(action "opening_index") closing=(action "closing_index")}}{{/opening-observer}}
-{{#if this.app_state}}
-  <div id="index_view" class="row main_columns" style="touch-action: manipulation;">
-    <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} @initialActiveTab="extras" />
-  </div>
-{{/if}}

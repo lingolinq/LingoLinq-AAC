@@ -1,147 +1,100 @@
-<div class="search-page ub-boards-page ub-search-page">
-  {{!-- Page header: title + search form ──────────────────────── --}}
-  <div class="la-section-header ub-boards-page__page-header ub-search-page__header">
-    <span class="la-section-eyebrow-badge">{{t "Find Boards" key="find_board"}}</span>
-    <div class="la-hero-title-wrap">
-      <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span></h1>
-    </div>
-    <hr class="la-about-hero-separator" aria-hidden="true">
-    <div class="ub-search-page__form-wrap">
-      <form class="ub-search-page__form" {{action "searchBoards" on="submit"}}>
-        <div class="ub-search-page__form-row">
-          <label for="search-page-query" class="ub-search-page__label">{{t "Search Boards" key="search_boards"}}</label>
-          <Input
-            id="search-page-query"
-            @type="text"
-            @value={{this.searchString}}
-            @enter={{action "searchBoards"}}
-            class="ub-search-page__input form-control"
-            placeholder={{t "Search Boards" key="search_boards"}}
-          />
-          <div class="ub-search-page__locale-wrap thin_select">
-            {{bound-select select_class="form-control ub-search-page__locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
-          </div>
-          <button type="submit" class="md-btn md-btn--primary ub-search-page__go">{{t "Go" key="go"}}</button>
-        </div>
-        {{#if this.app_state.currentUser}}
-          <div class="ub-search-page__actions">
-            <a href="#" class="ub-search-page__link" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
-            <span class="ub-search-page__sep" aria-hidden="true">·</span>
-            <LinkTo @route="home-boards" class="ub-search-page__link">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
-          </div>
-        {{/if}}
-      </form>
-    </div>
-  </div>
-
-  <div class="ub-boards-page__content">
-    {{!-- Online Results section (same card/grid as boards page) ── --}}
-    <section class="ub-boards-page__boards-section" aria-labelledby="search-online-heading">
-      <div class="ub-boards-page__boards-header">
-        <h2 id="search-online-heading" class="ub-boards-page__boards-title">{{t "Online Results" key="online_results"}}</h2>
+<div class="row">
+  <div class="col-sm-12">
+    <form class="form-inline">
+      <div class="form-group">
+      <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
       </div>
-      {{#if this.online_results}}
-        {{#if this.online_results.loading}}
-          <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-        {{else if this.online_results.results}}
-          <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-            {{#each this.online_results.results as |board|}}
-              {{#if board.key}}
-                <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                  {{board-icon board=board}}
-                </div>
-              {{/if}}
-            {{/each}}
-          </div>
+      <div class="form-group thin_select" style='width: 80px;'>
+        {{bound-select select_class="form-control" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
+      </div>
+      <div class="form-group">
+        <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
+      </div>
+      <div class="form-group" style="padding-left: 20px;">
+        {{#if this.app_state.currentUser}}
+          <button class="btn btn-default" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
+          <LinkTo @route="home-boards" class="btn btn-default">
+              {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
+          </LinkTo>
+        {{/if}}
+      </div>
+    </form>
+  </div>
+</div>
+<div class="row" style="margin-top: 15px;">
+  <div class={{if this.app_state.currentUser "col-sm-8" "col-sm-12"}}>
+    <h2>{{t "Online Results" key="online_results"}}</h2>
+    {{#if this.online_results}}
+      {{#if this.online_results.loading}}
+        <p>{{t "Loading..." key="loading"}}</p>
+      {{else if this.online_results.results}}
+        <div class="row">
+          {{#each this.online_results.results as |board|}}
+            {{#if board.key}}
+              <div class={{if this.app_state.currentUser "col-md-3 col-sm-4 col-xs-4 simple_board_holder" "col-sm-2 col-xs-4 simple_board_holder"}}>
+                {{board-icon board=board localized=true flag_home=true}}
+              </div>
+            {{/if}}
+          {{/each}}
+        </div>
+      {{else}}
+        {{#if (persistence-online)}}
+          <p>{{t "None found" key="none_found"}}</p>
         {{else}}
-          {{#if (persistence-online)}}
-            <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-          {{else}}
-            <p class="ub-boards-page__loading">{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
-          {{/if}}
+          <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
         {{/if}}
       {{/if}}
-    </section>
-
-    {{!-- My Boards section (when logged in and online) ────────── --}}
-    {{#if this.app_state.currentUser}}
-      {{#if (persistence-online)}}
-        <section class="ub-boards-page__boards-section" aria-labelledby="search-my-boards-heading">
-          <div class="ub-boards-page__boards-header">
-            <h2 id="search-my-boards-heading" class="ub-boards-page__boards-title">{{t "My Boards" key="my_boards"}}</h2>
-            <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}} class="md-btn ub-search-page__see-all">{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
-          </div>
-          {{#if this.personal_results}}
-            {{#if this.personal_results.loading}}
-              <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-            {{else if this.personal_results.results}}
-              <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-                {{#each this.personal_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        </section>
-      {{else}}
-        {{!-- Local Results (when logged in but offline) ────────── --}}
-        {{#unless this.local_results.impossible}}
-          <section class="ub-boards-page__boards-section" aria-labelledby="search-local-heading">
-            <div class="ub-boards-page__boards-header">
-              <h2 id="search-local-heading" class="ub-boards-page__boards-title">{{t "Local Results" key="local_results"}}</h2>
-            </div>
-            {{#if this.local_results}}
-              {{#if this.local_results.loading}}
-                <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-              {{else if this.local_results.results}}
-                <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-                {{#each this.local_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        </section>
-        {{/unless}}
-      {{/if}}
-    {{else}}
-      {{!-- Local Results (when not logged in) ─────────────────── --}}
-      {{#unless this.local_results.impossible}}
-        <section class="ub-boards-page__boards-section" aria-labelledby="search-local-heading">
-          <div class="ub-boards-page__boards-header">
-            <h2 id="search-local-heading" class="ub-boards-page__boards-title">{{t "Local Results" key="local_results"}}</h2>
-          </div>
-          {{#if this.local_results}}
-            {{#if this.local_results.loading}}
-              <p class="ub-boards-page__loading">{{t "Loading..." key="loading"}}</p>
-            {{else if this.local_results.results}}
-              <div class="ub-boards-page__board-grid ub-search-page__board-grid">
-                {{#each this.local_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p class="ub-search-page__none-found">{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        </section>
-      {{/unless}}
     {{/if}}
   </div>
+  {{#if this.app_state.currentUser}}
+    <div class="col-sm-4">
+      {{#if (persistence-online)}}
+        <h2>{{t "My Boards" key="my_boards"}}</h2>
+        {{#if this.personal_results}}
+          {{#if this.personal_results.loading}}
+            <p>{{t "Loading..." key="loading"}}</p>
+          {{else if this.personal_results.results}}
+            <div class="row">
+              {{#each this.personal_results.results as |board|}}
+                {{#if board.key}}
+                  <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
+                    {{board-icon board=board localized=true flag_home=true}}
+                  </div>
+                {{/if}}
+              {{/each}}
+            </div>
+            <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
+          {{else}}
+            {{#if (persistence-online)}}
+              <p>{{t "None found" key="none_found"}}</p>
+              <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
+            {{else}}
+              <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{else}}
+        {{#unless this.local_results.impossible}}
+          <h2>{{t "Local Results" key="local_results"}}</h2>
+          {{#if this.local_results}}
+            {{#if this.local_results.loading}}
+              <p>{{t "Loading..." key="loading"}}</p>
+            {{else if this.local_results.results}}
+              <div class="row">
+                {{#each this.local_results.results as |board|}}
+                  {{#if board.key}}
+                    <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
+                      {{board-icon board=board}}
+                    </div>
+                  {{/if}}
+                {{/each}}
+              </div>
+            {{else}}
+              <p>{{t "None found" key="none_found"}}</p>
+            {{/if}}
+          {{/if}}
+        {{/unless}}
+      {{/if}}
+    </div>
+  {{/if}}
 </div>

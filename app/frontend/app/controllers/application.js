@@ -35,64 +35,19 @@ export default Controller.extend({
   app_state: alias('appState'),
   board: inject('board.index'),
   session: session,
-
-  isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', 'appState.current_route', function() {
-    return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser') || this.appState.get('current_route') === 'login.device';
-  }),
-
-  landingNavOpen: false,
-  useAltLanding: true, // default unauthenticated view is landing-alt
-  useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
-
-  /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
-  footer: computed('appState.currentBoardState', 'appState.current_route', function() {
-    if (this.isSetupRoute) {
-      return true;
-    }
-    return !this.appState.get('currentBoardState');
-  }),
-
-  /** Username segment for Board Alt route (user_id in URL). */
-  board_alt_username: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/')[0];
-  }),
-  /** Boardname segment for Board Alt route (boardname in URL). */
-  board_alt_boardname: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/').slice(1).join('/');
-  }),
-  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
-  on_board_alt: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'user.board-alt.index';
-  }),
-  on_board_detail: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route') || '';
-    return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
-  }),
-  /** True when the current page is the regular board view (not board-alt). */
-  on_board: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'board.index';
-  }),
-  /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
-  on_board_or_alt: computed('on_board', 'on_board_alt', function() {
-    return this.get('on_board') || this.get('on_board_alt');
-  }),
-
-  boardPickerVisible: false,
-  boardMenuOpen: false,
-  boardPickerLoading: false,
-  boardPickerBoards: null,
-
+  
   init() {
     this._super(...arguments);
     // Explicit lookup of session service (implicit injection disabled to avoid deprecation)
     var owner = getOwner(this);
     var sessionService = owner.lookup('service:session') || owner.lookup('lingolinq:session');
     if(sessionService) {
-      this.set('session', sessionService);
+      // Use defineProperty to set it without triggering read-only error
+      Object.defineProperty(this, 'session', {
+        value: sessionService,
+        writable: false,
+        configurable: true
+      });
     }
     // Explicit lookup of extras (fixing implicit injection deprecation)
     var extras = owner.lookup('lingolinq:extras');
@@ -331,22 +286,6 @@ export default Controller.extend({
         }
       }
       if(!will_render) {
-        // Stale queue from find-a-button can run after re-render (e.g. focus words) while
-        // board.model is briefly unset — avoid sending the action into a bad state.
-        var hl = _this.get('button_highlights');
-        if (hl && hl.length) {
-          var h0 = hl[0];
-          if (h0 && !h0.pre && h0.board_id && !_this.get('board.model')) {
-            _this.set('button_highlights', null);
-            _this.set('button_highlights_button_set', null);
-            _this.set('last_highlight_options', null);
-            var lostDefer = _this.get('highlight_button_defer');
-            if (lostDefer && lostDefer.resolve) {
-              lostDefer.resolve();
-            }
-            return;
-          }
-        }
         _this.send('highlight_button', options);
       }
     });
@@ -413,43 +352,7 @@ export default Controller.extend({
       this.appState.return_to_index();
     },
     support: function() {
-      this.get('router').transitionTo('support');
-    },
-    getting_started: function() {
-      this.get('modalService').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
-    },
-    toggleHeroColors: function() {
-      this.set('useAltHeroColors', !this.get('useAltHeroColors'));
-    },
-    goUpgrade: function() {
-      var user = this.appState.get('currentUser');
-      if (user) {
-        this.get('router').transitionTo('user.subscription', user.get('user_name'));
-      } else {
-        modal.open('premium-required', { remind_to_upgrade: true });
-      }
-    },
-    toggleDarkMode: function() {
-      this.appState.toggleDarkMode();
-    },
-    toggleThemePicker: function() {
-      this.set('showThemePicker', !this.get('showThemePicker'));
-    },
-    selectThemeMode: function(mode) {
-      this.appState.setThemeMode(mode);
-      this.set('showThemePicker', false);
-    },
-    closeThemePicker: function() {
-      this.set('showThemePicker', false);
-    },
-    toggleLandingNav: function() {
-      this.set('landingNavOpen', !this.get('landingNavOpen'));
-    },
-    closeLandingNav: function() {
-      this.set('landingNavOpen', false);
-    },
-    toggleAltLanding: function() {
-      this.toggleProperty('useAltLanding');
+      modal.open('support');
     },
     language: function() {
       modal.open('modals/choose-locale');
@@ -558,40 +461,6 @@ export default Controller.extend({
       runLater(function() {
         model.prompt();
       }, 100);
-    },
-    openBoardPicker: function() {
-      var _this = this;
-      _this.set('boardPickerVisible', true);
-      _this.set('boardPickerLoading', true);
-      _this.set('boardPickerBoards', null);
-      var userId = _this.appState.get('referenced_user.id');
-      LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
-        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        var arr = boards.toArray().sort(function(a, b) {
-          if(a.get('key') === homeKey) { return -1; }
-          if(b.get('key') === homeKey) { return 1; }
-          return (a.get('name') || '').localeCompare(b.get('name') || '');
-        });
-        _this.set('boardPickerBoards', arr);
-        _this.set('boardPickerLoading', false);
-      }, function() {
-        _this.set('boardPickerLoading', false);
-      });
-    },
-    closeBoardPicker: function() {
-      this.set('boardPickerVisible', false);
-    },
-    pickBoard: function(key) {
-      this.set('boardPickerVisible', false);
-      // If on board-detail page, navigate to the new board-detail instead of the board page
-      if(this.get('on_board_detail') && key) {
-        var parts = key.split('/');
-        if(parts.length === 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts[1]);
-          return;
-        }
-      }
-      this.jumpToBoard({ key: key });
     },
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
@@ -1037,27 +906,7 @@ export default Controller.extend({
         this.appState.check_scanning();
       }
     },
-    exitBoards: function() {
-      this.set('boardMenuOpen', false);
-      this.appState.return_to_index();
-    },
-    toggleBoardMenu: function() {
-      this.toggleProperty('boardMenuOpen');
-      if(this.get('boardMenuOpen')) {
-        var _this = this;
-        var handler = function(e) {
-          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
-            _this.set('boardMenuOpen', false);
-            document.removeEventListener('click', handler, true);
-          }
-        };
-        setTimeout(function() {
-          document.addEventListener('click', handler, true);
-        }, 10);
-      }
-    },
     boardDetails: function() {
-      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
     set_locale: function(loc) {
@@ -1120,7 +969,7 @@ export default Controller.extend({
 
       var _this = this;
       var picture_prompt = function($button) {
-        if(utterance && utterance.get && utterance.get('hint_button')) {
+        if(utterance.get('hint_button')) {
           utterance.set('hint_button.label', $button.find(".button-label").eq(0).text());
           utterance.set('hint_button.image_url', $button.find(".symbol").attr('src'));
         }
@@ -1128,7 +977,6 @@ export default Controller.extend({
 
       if(buttons && buttons.length > 0) {
         var button = buttons[0];
-        var boardModel = this.get('board.model');
         if(button.pre == 'home' || button.pre == 'true_home' || button.pre == 'home' || button.pre == 'sidebar') {
           // handle pre-buttons if there are any
           this.set('button_highlights', buttons);
@@ -1176,11 +1024,10 @@ export default Controller.extend({
               defer.reject(err || {canceled: true});
             }
           });
-        } else if(button && boardModel && button.board_id == boardModel.get('id')) {
+        } else if(button && button.board_id == this.get('board.model').get('id')) {
           // otherwise if you're currently on the correct board
           var findButtonElem = function() {
-            var bm = _this.get('board.model');
-            if(bm && button.board_id == bm.get('id')) {
+            if(button.board_id == _this.get('board.model').get('id')) {
               var $button = $(".button[data-id='" + button.id + "']");
               if($button[0] && $button.width()) {
                 // Find the (visible) button in the UI
@@ -1201,12 +1048,12 @@ export default Controller.extend({
                   var board = _this.get('board.model');
                   _this.activateButton(found_button, {board: board, skip_highlight_check: true});
                   var next_button = buttons[0];
-                  if(next_button && board && (next_button.board_id == board.id || next_button.pre)) {
+                  if(next_button && (next_button.board_id == board.id || next_button.pre)) {
                     // If there is more to the sequence, and the 
                     // user selection isn't going to involve loading
                     // a different board, then call highlight_button again
                     _this.highlight_button('resume'); 
-                  } else if(next_button && board && (next_button.board_id != board.id)) {
+                  } else if(next_button && (next_button.board_id != board.id)) {
                     // If there is more to the sequence but we're
                     // in the process of navigating, do nothing, the
                     // load board process should highlight the next
@@ -1246,20 +1093,11 @@ export default Controller.extend({
           if(button && _this.get('button_highlights_button_set')) {
             // try to find the sequence to get from here to there
             var bs = _this.get('button_highlights_button_set');
-            var stashesSvc = _this.get('stashes');
-            if (!stashesSvc) {
-              defer.reject({error: 'no stashes for highlight path'});
-              return;
-            }
             var current = _this.get('board.model.id');
-            var home = stashesSvc.get('root_board_state.id');
-            var tmp_home = stashesSvc.get('temporary_root_board_state.id');
+            var home = this.stashes.get('root_board_state.id');
+            var tmp_home = this.stashes.get('temporary_root_board_state.id');
             var map = bs.board_map([bs]).map;
             var sequence = bs.button_steps(current, button.board_id, map, home, tmp_home);
-            if (!sequence || !sequence.buttons) {
-              defer.reject({error: 'no path to highlighted button'});
-              return;
-            }
             var new_buttons = [];
             if(sequence.pre == 'true_home') {
               new_buttons.push({pre: 'true_home'});
@@ -1315,13 +1153,13 @@ export default Controller.extend({
       });
     },
     back_to_from_route: function() {
-      this.set('boardMenuOpen', false);
-      this.appState.return_to_index();
-      setTimeout(function() {
-        window.scrollTo(0, 0);
-        var content = document.getElementById('content');
-        if(content) { content.scrollTop = 0; }
-      }, 100);
+      var from = this.appState.get('from_route');
+      if(from && from.length && this.router) {
+        // from is [routeName, ...paramValues] from the previous transition; pass directly.
+        this.router.transitionTo.apply(this.router, from);
+      } else {
+        this.appState.return_to_index();
+      }
     },
     suggestions: function() {
       modal.open('button-suggestions', {board: this.get('board.model'), user: this.appState.get('currentUser')});
@@ -1367,19 +1205,7 @@ export default Controller.extend({
         if(user_id) {
           params.user_id = user_id;
         }
-        var transition = _this.router.transitionTo('setup', {queryParams: params});
-        transition.then(function() {
-          runLater(function() {
-            var container = document.getElementById('setup_container');
-            if (container && typeof container.scrollIntoView === 'function') {
-              container.scrollIntoView({ behavior: 'instant', block: 'start' });
-            }
-            if (document.scrollingElement) {
-              document.scrollingElement.scrollTop = 0;
-            }
-            window.scrollTo(0, 0);
-          }, 0);
-        }, function() { });
+        _this.router.transitionTo('setup', {queryParams: params});
       }, function() { });
     },
     speak_mode_notification: function() {
@@ -1683,7 +1509,7 @@ export default Controller.extend({
       if(text_position == 'text_only' || show_always || flipped) {
         res = res + "text_only ";
       }
-      if(userPrefs && userPrefs.high_contrast === true) {
+      if(userPrefs && userPrefs.high_contrast) {
         res = res + 'high_contrast ';
       }
 
@@ -1752,25 +1578,15 @@ export default Controller.extend({
   content_class: computed(
     'appState.sidebar_visible',
     'appState.index_view',
-    'appState.current_route',
-    'appState.index_or_landing_view',
     'session.isAuthenticated',
     'appState.currentUser.preferences.new_index',
-    'isModernDashboardRoute',
     function() {
       var res = "";
       if(this.appState.get('sidebar_visible')) {
         res = res + "with_sidebar ";
       }
-      var route = this.appState.get('current_route');
-      if(this.appState.get('index_or_landing_view')) {
+      if(this.appState.get('index_view')) {
         res = res + "index ";
-      }
-      if(this.get('isModernDashboardRoute')) {
-        res = res + "modern-dashboard ";
-      }
-      if(route === 'user.stats') {
-        res = res + "stats-page ";
       }
       if(this.get('session.isAuthenticated')) {
         res = res + "with_user ";
@@ -1783,9 +1599,6 @@ export default Controller.extend({
         res = res + "low_for_high_contrast ";
       }
       res = res + "new_index ";
-      if(route === 'landing') {
-        res = res + "landing ";
-      }
       return res;
     }
   ),
@@ -1804,77 +1617,5 @@ export default Controller.extend({
       }
       return res;
     }
-  ),
-  /** True when bento dashboard is shown with page footer so layout uses full-height flex chain (footer at bottom). */
-  showBentoPageWithFooter: computed('footer', 'appState.index_or_landing_view', 'appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    var userSubRoutes = [
-      'home-boards', 'user.index', 'user.preferences', 'user.account',
-      'user.subscription', 'user.edit', 'user.stats', 'user.boards',
-      'user.goals', 'user.goal', 'user.logs', 'user.log', 'user.badges',
-      'user.device', 'user.history', 'user.recordings', 'user.lessons',
-      'user.focus', 'user.board-detail'
-    ];
-    return this.get('footer') &&
-      (this.appState.get('index_or_landing_view') || userSubRoutes.indexOf(route) !== -1) &&
-      route !== 'landing';
-  }),
-  /** True when the top navbar should use bento styling and contents (index/landing or user.stats with currentUser). */
-  showBentoStyleHeader: computed('appState.index_or_landing_view', 'appState.current_route', 'appState.currentUser', function() {
-    var route = this.appState.get('current_route');
-    var cu = this.appState.get('currentUser');
-    return (this.appState.get('index_or_landing_view') && cu) ||
-      (route === 'user.home' && cu) ||
-      (route === 'user.extras' && cu) ||
-      (route === 'user.stats' && cu) ||
-      (route === 'user.boards' && cu);
-  }),
-  /** user.extras: full-bleed dashboard body (CSS class name is historical). */
-  isModernDashboardRoute: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'user.extras';
-  }),
-  /** True when current route is setup or any nested route (e.g. setup.intro, setup.voice). */
-  isSetupRoute: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    return route === 'setup' || (route && route.indexOf('setup.') === 0);
-  }),
-  /** True when current route is user or any nested route (e.g. user.index, user.edit, user.preferences). */
-  isUserRoute: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    return route === 'user' || (route && route.indexOf('user.') === 0);
-  }),
-  /** True when current route is organization or any nested route (e.g. organization.index, organization.people). */
-  isOrganizationRoute: computed('appState.current_route', function() {
-    var route = this.appState.get('current_route');
-    return route === 'organization' || (route && route.indexOf('organization.') === 0);
-  }),
-  /** Use AppNavbar in #inner_header for both authenticated dashboard-like pages and unauthenticated landing/info pages. */
-  useAppNavbarInHeader: computed('showBentoStyleHeader', 'isModernDashboardRoute', 'isSetupRoute', 'isUserRoute', 'isOrganizationRoute', 'appState.current_route', 'appState.currentUser', 'appState.currentBoardState.id', function() {
-    var route = this.appState.get('current_route');
-    var cu = this.appState.get('currentUser');
-    if (route === 'user.board-alt.index') { return false; }
-    // Authenticated pages
-    if (this.get('showBentoStyleHeader') || this.get('isModernDashboardRoute') || this.get('isSetupRoute') || (this.get('isUserRoute') && cu) || (this.get('isOrganizationRoute') && cu) ||
-      (route === 'about' && cu) ||
-      (route === 'features' && cu) ||
-      (route === 'pricing' && cu) ||
-      (route === 'privacy' && cu) ||
-      (route === 'terms' && cu) ||
-      (route === 'home-boards' && cu) ||
-      (route === 'search' && cu) ||
-      (route === 'offline_boards' && cu) ||
-      route === 'support' ||
-      route === 'faq' ||
-      route === 'beta-feedback' ||
-      route === 'contact' ||
-      route === 'troubleshooting' ||
-      route === 'login.device') {
-      return true;
-    }
-    // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure
-    if (!cu && !this.appState.get('currentBoardState.id')) {
-      return true;
-    }
-    return false;
-  })
+  )
 });

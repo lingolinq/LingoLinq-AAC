@@ -3548,27 +3548,5 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
-  describe "ensure_board_tag" do
-    it "should require a valid token" do
-      post :ensure_board_tag, params: {user_id: '1_1', tag: 'MyFolder'}
-      assert_missing_token
-    end
-
-    it "should create an empty folder tag" do
-      token_user
-      post :ensure_board_tag, params: {user_id: @user.global_id, tag: 'MyFolder'}
-      json = assert_success_json
-      expect(json['ok']).to eq(true)
-      expect(json['board_tags']).to eq(['MyFolder'])
-      expect(json['board_tag_map']).to eq({'MyFolder' => []})
-      expect(@user.reload.user_extra.settings['board_tags']['MyFolder']).to eq([])
-    end
-
-    it "should reject blank tag" do
-      token_user
-      post :ensure_board_tag, params: {user_id: @user.global_id, tag: '  '}
-      expect(response).not_to be_successful
-    end
-  end
 
 end

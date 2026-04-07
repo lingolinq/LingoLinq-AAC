@@ -1,26 +1,20 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-confirm-edit-wrap">
   <div class="modal-header">
     <button type="button" class="close" {{action "close"}}>&times;</button>
     <h3>{{t "Edit this Board" key="edit_this_board"}}</h3>
   </div>
   <div class="modal-body">
-    <div class="la-confirm-edit__notice">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <p>
-        {{t "You don't have permission to edit this board directly, but if you'd like you can make changes and then save a copy when you're finished." key="confirm_copy_later"}}
-      </p>
-    </div>
+    <p>
+      {{t "You don't have permission to edit this board directly, but if you'd like you can make changes and then save a copy when you're finished." key="confirm_copy_later"}}
+    </p>
   </div>
-  <div class="modal-footer">
-    <button type="button" class="la-confirm-edit__btn la-confirm-edit__btn--secondary" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  <div class="modal-header">
     {{#if this.model.copying_state.none}}
-      <em class="la-confirm-edit__cant-copy">{{t "This board contains purchased content which can't be copied." key="cant_copy_protected_boards"}}</em>
+      <em>{{t "This board contains purchased content which can't be copied." key="cant_copy_protected_boards"}}</em>
+      <br><br>
     {{else}}
-      <button type="button" class="la-confirm-edit__btn la-confirm-edit__btn--primary" {{action "confirm"}}>{{t "Edit a Copy" key="edit_a_copy"}}</button>
+      <button class='btn btn-primary' {{action "confirm"}}>{{t "Edit a Copy" key="edit_a_copy"}}</button>
     {{/if}}
-  </div>
+    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

@@ -32,14 +32,8 @@ export default Route.extend({
       return RSVP.resolve(null);
     }
   },
-  afterModel: function(model) {
-    if (model && model.get('user_name') && session.get('access_token')) {
-      this.router.replaceWith('user.home', model.get('user_name'));
-    }
-  },
   setupController: function(controller, model) {
     var _this = this;
-
     controller.set('user', this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer}));
     controller.set('user.watch_user_name_and_cookies', true);
     LingoLinq.sale = LingoLinq.sale || parseInt(window.sale, 10) || null;
@@ -153,12 +147,7 @@ export default Route.extend({
       LingoLinq.Log.manual_log(this.appState.get('currentUser.id'), !!this.appState.get('currentUser.external_device'))
     },
     home_board: function(key) {
-      var parts = key ? key.split('/') : [];
-      if(parts.length === 2) {
-        this.router.transitionTo('user.board-detail', parts[0], parts[1]);
-      } else {
-        this.router.transitionTo('board', key);
-      }
+      this.router.transitionTo('board', key);
     },
     saveProfile: function() {
       var controller = this.get('controller');

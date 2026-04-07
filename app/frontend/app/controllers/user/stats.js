@@ -16,7 +16,7 @@ import { computed } from '@ember/object';
 export default Controller.extend({
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {
-      return this.get('model.user_name') + "'s Activity";
+      return "Usage Reports for " + this.get('model.user_name');
     }
   }),
   queryParams: ['start', 'end', 'location_id', 'device_id', 'snapshot_id', 'split', 'start2', 'end2', 'location_id2', 'device_id2', 'snapshot_id2'],
@@ -317,19 +317,6 @@ export default Controller.extend({
     });
   },
   actions: {
-    reset_to_default: function() {
-      var _this = this;
-      _this.set('usage_stats', null);
-      _this.set('usage_stats2', null);
-      _this.set('left_pending', null);
-      _this.set('right_pending', null);
-      _this.set('status', null);
-      _this.set('status2', null);
-      this.get('queryParams').forEach(function(param) {
-        _this.set(param, null);
-      });
-      this.load_left_charts();
-    },
     compare_to: function() {
       this.set('split', 1);
     },

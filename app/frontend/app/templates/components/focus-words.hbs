@@ -1,14 +1,14 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-focus-words-modal-wrap">
   <div class="modal-header">
-    <span class="la-modal-header-label">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
       {{t "Focus Words" key="focus_words"}}
       {{#if this.model.user}}
-        <img src={{this.model.user.avatar_url_with_fallback}} style='width: 28px; height: 28px; border-radius: 50%; vertical-align: middle; margin-left: 6px;'>
-        <span style='font-size: 14px; font-weight: 500; opacity: 0.75;'>{{this.model.user.user_name}}</span>
+        -
+        <img src={{this.model.user.avatar_url_with_fallback}} style='width: 50px;'>
+        {{this.model.user.user_name}}
       {{/if}}
-    </span>
-    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+    </h3>
   </div>
   <div class="modal-body">
     <div class='row'>
@@ -83,7 +83,7 @@
         </div>
       {{else}}
         {{#unless this.navigated}}
-          <div class='col-sm-12' style='margin-bottom: 0;'>
+          <div class='col-sm-12' style='margin-bottom: 30px;'>
             <div class="form-group">
               {{#if this.recent_list}}
                 <div class="list-group">
@@ -97,25 +97,15 @@
                   {{/each}}
                 </div>
               {{else}}
-                <div style='display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px;'>
-                  <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' width='48' height='48' style='flex-shrink: 0; opacity: 0.7;' aria-hidden='true'>
-                    <circle cx='12' cy='12' r='10'/>
-                    <circle cx='12' cy='12' r='4'/>
-                    <line x1='12' y1='2' x2='12' y2='8'/>
-                    <line x1='12' y1='16' x2='12' y2='22'/>
-                    <line x1='2' y1='12' x2='8' y2='12'/>
-                    <line x1='16' y1='12' x2='22' y2='12'/>
-                  </svg>
-                  <p style='margin: 0;'>{{t "Focus identifies words that are relevant to a specific topic. Communicators and supporters learn where the words are located in the vocabulary they use." key="focus_words_explainer"}}</p>
-                </div>
-                <p style='margin-bottom: 0;'>{{t "Get started by pasting text, or browse and save sets from the community for quick access." key="focus_words_explainer2"}}</p>
-                <hr style='margin: 10px 15% 0;'>
+                <span class='glyphicon glyphicon-blackboard' style='float: left; margin-right: 5px; font-size: 50px;'></span>
+                <p>{{t "Focus Words is a tool for prividing easier access to the subset of words that have to do with a specific topic or activity. Rather than creating a separate context-specific copy of the vocabulary, Focus Words allows communicators and supporters to learn the location of relevant words in the communicator's default vocabulary." key="focus_words_explainer"}}</p>
+                <p>{{t "You can use Focus Words by entering the text of a shared reading book, words related to a specific activity, etc. You can also browse the community's collection of Focus Word sets or save your own for quick access." key="focus_words_explainer2"}}</p>
               {{/if}}
             </div>
           </div>
         {{/unless}}
-        <div class='col-sm-12' style='margin-bottom: 12px;'>
-          <div class="form-group" style='margin-top: 0; margin-bottom: 0;'>
+        <div class='col-sm-12'>
+          <div class="form-group">
             {{#if this.reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
@@ -225,17 +215,22 @@
             {{/unless}}
           </div>
         {{else}}
-          <div class='col-sm-12' style='margin-top: 8px;'>
+          <div class='col-sm-12' style='margin-top: -10px;'>
             <div class="form-group">
               <Textarea @value={{this.words}} class="form-control" placeholder="Enter a custom list of focus words" />
             </div>
           </div>
           {{#if this.model.user}}
-            <div class="col-sm-12" style='margin-top: 4px;'>
-              <label style='display: flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 20px; padding: 6px 14px; cursor: pointer; width: fit-content; font-weight: normal; margin-bottom: 0;'>
-                <Input type="checkbox" @checked={{this.reuse}} style='margin: 0; width: 16px; height: 16px; cursor: pointer;' />
-                <span>{{t "Save for Re-Use" key="save_for_reuse"}}{{#if this.model.user.user_name}} {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}{{/if}}</span>
-              </label>
+            <div class="col-sm-12" style='margin-top: -30px;'>
+              <div class="checkbox big_checkbox">
+                <label>
+                  <Input @type="checkbox" @checked={{this.reuse}} />
+                  {{t "Save for Re-Use" key="save_for_reuse"}}
+                  {{#if this.model.user.user_name}}
+                    {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}
+                  {{/if}}
+                </label>
+              </div>
             </div>
           {{/if}}
         {{/if}}
@@ -243,13 +238,12 @@
     </div>
   </div>
   <div class="modal-footer">
-    <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
+    <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
     {{#if this.analysis}}
       <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Open a printable view of this analysis." key='printable_analysis_tooltip')}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>
     {{else}}
-      <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Look up where each word appears on the home board and list words that are not found." key='analyze_focus_words_tooltip')}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
+      <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Look up where each word appears on the home board and list words that are not found." key='analyze_focus_words_tooltip')}} {{action "analyze_focus_words"}}>{{t "Analyze Focus Words" key="analyze_focus_words"}}</button>
     {{/if}}
     <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{action "close"}}>{{t "Close" key="close"}}</a>
-  </div>
   </div>
 {{/modal-dialog}}

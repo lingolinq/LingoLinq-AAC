@@ -1136,21 +1136,6 @@ export default Component.extend({
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
       }
-      // Sync color values from DOM inputs (minicolors jQuery plugin may bypass Ember bindings)
-      var fillEl = document.getElementById('fill');
-      var borderEl = document.getElementById('border');
-      if(fillEl && fillEl.value) {
-        this.set('model.background_color', fillEl.value);
-      }
-      if(borderEl && borderEl.value) {
-        this.set('model.border_color', borderEl.value);
-      }
-      if(this.get('model.id')) {
-        editManager.change_button(this.get('model.id'), {
-          background_color: this.get('model.background_color'),
-          border_color: this.get('model.border_color')
-        });
-      }
       this.get('contentGrabbers').save_pending().then(function() {
         if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }
       }, function() {

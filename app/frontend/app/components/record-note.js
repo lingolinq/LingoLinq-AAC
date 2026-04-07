@@ -87,10 +87,10 @@ export default Component.extend({
     const goal_status = this.get('goal_status');
     const status = goal_id === 'status';
     const base = [
-      { id: '1', text: htmlSafe(status ? i18n.t('status_going_poorly', "Going<br/>Poorly") : i18n.t('we_didnt_do_it', "We didn't<br/>do it")), display_class: 'face sad' },
-      { id: '2', text: htmlSafe(status ? i18n.t('status_just_ok', "Just<br/>OK") : i18n.t('we_did_it', "We barely<br/>did it")), display_class: 'face neutral' },
-      { id: '3', text: htmlSafe(status ? i18n.t('status_no_complaints', "No<br/>Complaints") : i18n.t('we_did_good', "We did<br/>good!")), display_class: 'face happy' },
-      { id: '4', text: htmlSafe(status ? i18n.t('status_great_progress', "Great<br/>Progress!") : i18n.t('we_did_awesome', "We did<br/>awesome!")), display_class: 'face laugh' }
+      { id: '1', text: htmlSafe(status ? i18n.t('status_going_poorly', 'Going<br/>Poorly') : i18n.t('we_didnt_do_it', "We didn't<br/>do it")), display_class: 'face sad' },
+      { id: '2', text: htmlSafe(status ? i18n.t('status_just_ok', 'Just<br/>OK') : i18n.t('we_did_it', 'We barely<br/>did it')), display_class: 'face neutral' },
+      { id: '3', text: htmlSafe(status ? i18n.t('status_no_complaints', 'No<br/>Complaints') : i18n.t('we_did_good', 'We did<br/>good!')), display_class: 'face happy' },
+      { id: '4', text: htmlSafe(status ? i18n.t('status_great_progress', 'Great<br/>Progress!') : i18n.t('we_did_awesome', 'We did<br/>awesome!')), display_class: 'face laugh' }
     ];
     return base.map(function(s) {
       return {

@@ -1,81 +1,79 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="la-phrases-modal-wrap">
-    <div class="la-modal-header">
-      <div class="la-modal-header-icon la-modal-header-icon--phrases" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#2A9D8F"/><line x1="8" y1="9" x2="16" y2="9" stroke="#46505F"/><line x1="8" y1="13" x2="13" y2="13" stroke="#46505F"/></svg>
-      </div>
-      <h3 class="la-modal-header-label">{{t "Saved Phrases" key="saved_phrases"}}</h3>
-      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
-    </div>
-    <div class="la-phrases-modal-body">
-      {{#if this.categories}}
-        <div class="la-phrases-categories">
-          {{#each this.categories as |cat|}}
-            <button {{action "set_category" cat}} class="la-phrases-cat-btn {{if cat.active 'la-phrases-cat-btn--active'}}">
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Saved Phrases" key="saved_phrases"}}
+    </h3>
+  </div>
+  <div class="modal-body">
+    {{#if this.categories}}
+      <div class='row' style='margin-bottom: 5px;'>
+        {{#each this.categories as |cat|}}
+          <div class='col-sm-3 col-xs-4' style='margin-bottom: 5px;'>
+            <button {{action "set_category" cat}} class={{if cat.active "btn btn-primary" "btn btn-default"}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
               {{cat.name}}
             </button>
-          {{/each}}
-          {{#if this.user.preferences.recent_cleared_phrases}}
-            <button {{action "set_recent"}} class="la-phrases-cat-btn {{if this.recent_category 'la-phrases-cat-btn--active'}}">
+          </div>
+        {{/each}}
+        {{#if this.user.preferences.recent_cleared_phrases}}
+          <div class='col-sm-3 col-xs-4' style='float: right;'>
+            <button {{action "set_recent"}} class={{if this.recent_category "btn btn-primary" "btn btn-default"}} style='width: 100%; height: 40px; white-space: nowrap; overflow: hidden;'>
               <em>{{t "Recent" key="recent"}}</em>
             </button>
-          {{/if}}
-        </div>
-      {{/if}}
-      {{#if this.category_phrases}}
-        <ul class="la-phrases-list">
-          {{#each this.category_phrases as |phrase|}}
-            <li class="la-phrases-item">
-              <button class="la-phrases-item__text" {{action "select" phrase}}>
-                {{#if this.journaling}}
-                  <span class="la-phrases-item__date">{{date phrase.date}}</span>
-                {{/if}}
-                {{#if phrase.stash}}
-                  {{#unless this.recent_category}}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><line x1="12" y1="17" x2="12" y2="3"/><path d="M5 10l7-7 7 7"/><line x1="5" y1="21" x2="19" y2="21"/></svg>
-                  {{/unless}}
-                {{/if}}
-                "{{phrase.sentence}}"
-                {{#if this.recent_category}}
-                  <span class="la-phrases-item__date">{{date_ago phrase.date}}</span>
-                {{/if}}
-              </button>
-              <div class="la-phrases-item__actions">
-                {{#unless phrase.stash}}
-                  {{#if this.recent_category}}
-                  {{else}}
-                    <button class="la-phrases-action-btn" {{action "shift" phrase "up"}} aria-label="Move up">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                    </button>
-                    <button class="la-phrases-action-btn" {{action "shift" phrase "down"}} aria-label="Move down">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  {{/if}}
+          </div>
+        {{/if}}
+      </div>
+    {{/if}}
+    {{#if this.category_phrases}}
+      {{#each this.category_phrases as |phrase|}}
+        <div class='row' style='margin-bottom: 5px;'>
+          <div class='col-sm-8'>
+            <button class='btn btn-lg btn-default' {{action "select" phrase}} style='width: 100%; text-align: left; white-space: normal; max-height: 70px; overflow: hidden;'>
+              {{#if this.journaling}}
+                <div class='text-muted' style='font-size: 12px; font-style: italic; margin-top: -7px;'>{{date phrase.date}}</div>
+              {{/if}}
+              {{#if phrase.stash}}
+                {{#unless this.recent_category}}
+                  <span class='glyphicon glyphicon-pushpin'></span>
                 {{/unless}}
-                <button class="la-phrases-action-btn la-phrases-action-btn--remove" {{action "remove" phrase}} aria-label="Remove">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </div>
-            </li>
-          {{/each}}
-        </ul>
-      {{else}}
-        <div class="la-phrases-empty">
-          {{#if this.journaling}}
-            {{#if this.user.permissions.delete}}
-              <p>{{t "No recent journal entries available. Journal entries are private for the user. The most recent are shown here, and more are available in the user's Logs view." key="journal_empty"}}</p>
-            {{else}}
-              <p>{{t "Journal entries remain private for the user and are not accessible to supervisors" key="journal_for_students_only"}}</p>
-            {{/if}}
-          {{else}}
-            <p>{{t "No phrases have been saved. You can save phrases by hitting \"Remember This\" in the sentence box dropdown." key="no_phrases"}}</p>
-          {{/if}}
+              {{/if}}
+              "{{phrase.sentence}}"
+              {{#if this.recent_category}}
+                <div class='text-muted' style='font-size: 12px; font-style: italic; margin-top: -7px;'>{{date_ago phrase.date}}</div>
+              {{/if}}
+            </button>
+          </div>
+          <div class='col-sm-4' style='text-align: right;'>
+            {{#unless phrase.stash}}
+              {{#if this.recent_category}}
+              {{else}}
+                <button class='btn btn-lg btn-default' {{action "shift" phrase "up"}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                <button class='btn btn-lg btn-default' {{action "shift" phrase "down"}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+              {{/if}}
+            {{/unless}}
+            <button class='btn btn-lg btn-default' {{action "remove" phrase}}><span class='glyphicon glyphicon-remove'></span></button>
+          </div>
         </div>
-      {{/if}}
-      {{#unless this.recent_category}}
-        <div class="la-phrases-add-row">
-          <Input type="text" @value={{this.sentence}} class="la-phrases-input" placeholder="Enter a new phrase to add to the list" />
-          <button class="la-phrases-add-btn" {{action "add"}}>
+      {{/each}}
+    {{else}}
+      <div style='margin: 15px 0;'>
+        {{#if this.journaling}}
+          {{#if this.user.permissions.delete}}
+            <p>{{t "No recent journal entries available. Journal entries are private for the user. The most recent are shown here, and more are available in the user's Logs view." key="journal_empty"}}</p>
+          {{else}}
+            <p>{{t "Journal entries remain private for the user and are not accessible to supervisors" key="journal_for_students_only"}}</p>
+          {{/if}}
+        {{else}}
+          <p>{{t "No phrases have been saved. You can save phrases by hitting \"Remember This\" in the sentence box dropdown." key="no_phrases"}}</p>
+        {{/if}}
+      </div>
+    {{/if}}
+    {{#unless this.recent_category}}
+      <div class='row' style='margin-top: 15px;'>
+        <div class='col-sm-6'>
+          <Input type="text" @value={{this.sentence}} class="input-lg form-control" placeholder="Enter a new phrase to add to the list" />
+        </div>
+        <div class='col-sm-4'>
+          <button class='btn btn-lg btn-default' {{action "add"}}>
             {{#if this.journaling}}
               {{t "Save Entry" key="save_entry"}}
             {{else}}
@@ -83,10 +81,10 @@
             {{/if}}
           </button>
         </div>
-      {{/unless}}
-    </div>
-    <div class="la-phrases-modal-footer">
-      <button type="button" class="la-phrases-close-btn" {{action "close"}}>{{t "Close" key="close"}}</button>
-    </div>
+      </div>
+    {{/unless}}
+  </div>
+  <div class="modal-footer">
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

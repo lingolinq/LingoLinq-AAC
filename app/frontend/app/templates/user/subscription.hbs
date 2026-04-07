@@ -1,12 +1,7 @@
 {{#if this.model.subscription}}
-<div class="md-billing">
-  <div class="md-billing__header">
-    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" stroke="#4C86D8"/><line x1="1" y1="10" x2="23" y2="10" stroke="#46505F"/></svg>
-    <h2 class="md-billing__title">{{t "Subscription Information" key="billing_details"}}</h2>
-  </div>
-  <p class="md-billing__subheader">{{t "Please contact LingoLinq to change subscription details" key="billing_contact_note"}}</p>
-  <div class="md-billing__card">
-  <div class='md-billing__status'>
+  <h2>{{t "Billing Details" key="billing_details"}}</h2>
+  <div class="row">
+  <div class='col-sm-9'>
     {{#if this.subscription.user.subscription.never_expires}}
       <span class='glyphicon glyphicon-heart' style="float: left; font-size: 30px; margin-right: 10px;"></span>
       {{t "You are lucky! Somehow you get set up with a plan that never expires! Like, never, ever! If you for some reason you want to change that you're welcome to." key="never_expires_explanation"}}
@@ -80,7 +75,7 @@
         </p>
         {{#if this.show_expiration_notes}}
           <p class="explanation" style="margin-top: 10px;">
-            {{t "If your subscription expires, %app_name% will continue working for communication — only premium features like reporting and video notes will be disabled." key="expiration_notes_pre2"}}
+            {{t "We don't want to shut off anyone's voice, even if funding unexpectedly becomes an issue down the line. If a user's subscription expires %app_name% will still work as a communication system but premium features like reporting and video notes will be disabled." key="expiration_notes_pre2"}}
             {{#if this.app_state.domain_settings.support_url}}
               {{t "If you need help with funding please" key="expiration_notes_support"}}
               <a href={{this.app_state.domain_settings.support_url}}>{{t "contact our support team" key="contact_support_team"}}</a> {{t "for more information." key="expiration_notes"}}
@@ -91,9 +86,10 @@
       {{/unless}}
     {{/if}}
   </div>
+  </div>
   {{#if this.subscription.no_purchasing}}
     <p style="margin: 50px 0; font-size: 18px;">
-      {{t "To modify your billing settings, please update your account by <b>visiting lingolinq.com</b> in your web browser. Make sure to sync this device after you purchase to update your changes." key="go_to_web_site"}}
+      {{t "To modify your billing settings, please update your account by <b>visiting mylingolinq.com</b> in your web browser. Make sure to sync this device after you purchase to update your changes." key="go_to_web_site"}}
     </p>
     {{#unless this.subscription.show_options}}
       {{#unless this.subscription.user.is_sponsored}}
@@ -240,13 +236,8 @@
       {{/unless}}
     {{/if}}
   {{/if}}
-  </div>
-  <div class="md-billing__back-row">
-    <button type="button" class="md-billing__back-btn" {{action "goBack"}}>{{t "Back" key="back"}}</button>
-  </div>
-</div>
 {{else if this.subscription.loading}}
-  <p class="md-billing__loading">{{t "Loading billing details..." key="loading_subscription_details"}}</p>
+  <p>{{t "Loading billing details..." key="loading_subscription_details"}}</p>
 {{else if session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key="not_authorized_for_access"}}</p>
 {{else}}

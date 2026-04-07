@@ -5,11 +5,6 @@ set -x # Enable debug logging
 
 echo "=== Starting Render Build ==="
 
-echo "=== Installing jemalloc ==="
-apt-get update -qq && apt-get install -y -qq libjemalloc-dev > /dev/null
-JEMALLOC_PATH=$(find /usr/lib -name 'libjemalloc.so*' -type f | head -1)
-echo "jemalloc installed at: $JEMALLOC_PATH"
-
 # Try all known NVM locations, otherwise install it
 # Note: We disable errexit (set +e) during sourcing because nvm.sh 
 # often returns non-zero codes during initialization which kills the script.
@@ -43,25 +38,18 @@ bundle exec rake extras:copy_terms
 echo "=== Building Frontend (Ember) ==="
 cd app/frontend
 npm install
+# Only run bower install if bower.json exists (migrating away from bower)
+if [ -f "bower.json" ]; then
+  echo "Installing Bower dependencies..."
+  npx bower install --allow-root
+else
+  echo "No bower.json found, skipping bower install"
+fi
 npx ember build --environment production
 cd ../..
 
-echo "=== Copying Ember build output into Rails asset paths ==="
-cp -f app/frontend/dist/assets/frontend.js  app/assets/javascripts/frontend.js
-cp -f app/frontend/dist/assets/vendor.js    app/assets/javascripts/vendor.js
-cp -f app/frontend/dist/assets/frontend.css app/assets/stylesheets/frontend.css
-cp -f app/frontend/dist/assets/vendor.css   app/assets/stylesheets/vendor.css
-echo "frontend.js:  $(wc -c < app/assets/javascripts/frontend.js) bytes"
-echo "vendor.js:    $(wc -c < app/assets/javascripts/vendor.js) bytes"
-echo "frontend.css: $(wc -c < app/assets/stylesheets/frontend.css) bytes"
-echo "vendor.css:   $(wc -c < app/assets/stylesheets/vendor.css) bytes"
-
 echo "=== Compiling Rails Assets ==="
-# Clobber stale Sprockets cache and precompiled assets to force a clean build.
-# Without this, Sprockets may serve cached output from a previous build even
-# though the Ember-compiled frontend.js/frontend.css have changed.
-rm -rf tmp/cache/assets
-bundle exec rake assets:clobber
 bundle exec rake assets:precompile
+bundle exec rake assets:clean
 
 echo "=== Build Complete ==="

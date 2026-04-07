@@ -3,7 +3,7 @@ services:
     name: LingoLinq-AAC
     runtime: ruby
     plan: starter
-    branch: staging
+    branch: main
     healthCheckPath: /api/v1/health
     previews:
       generation: automatic
@@ -44,15 +44,11 @@ services:
         generateValue: true
       - key: RAILS_LOG_TO_STDOUT
         value: "true"
-      - key: LD_PRELOAD
-        value: /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
-      - key: MALLOC_CONF
-        value: "background_thread:true,narenas:2,dirty_decay_ms:1000"
   - type: worker
     name: LingoLinq-AAC-Worker
     runtime: ruby
     plan: starter
-    branch: staging
+    branch: main
     previews:
       generation: automatic
       expireAfterDays: 7
