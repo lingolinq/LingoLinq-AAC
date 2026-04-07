@@ -24,6 +24,19 @@ $la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
 
+/*
+  Keyboard focus indicator (Tab / switch / voice access):
+  When someone moves through the app without a mouse, the focused control gets a clear
+  navy ring so they always know which button, link, or field is active. Older styles
+  used "outline: none", which hid that ring; this rule brings it back for keyboard-style
+  focus only (not for every mouse click). Matches WCAG 2.4.7 (Focus Visible).
+  Scoped to #within_ember; !important wins over legacy outline resets.
+*/
+#within_ember *:focus-visible {
+  outline: 2px solid #1B365D !important;
+  outline-offset: 2px !important;
+}
+
 /* Standard app layout (bento page with bottom navbar) – used for padding and fixed bars */
 :root {
   --topbar-height: 68px;
@@ -2478,12 +2491,6 @@ h1 a:hover {
   text-decoration: none !important;
 
   color: inherit !important;
-
-}
-/* Remove browser focus outline that can appear as white squiggly ring around the logo */
-.nav-header__logo-link:focus,
-.nav-header__logo-link:focus-visible {
-  outline: none !important;
 
 }
 .nav-header__logo {
@@ -14676,11 +14683,6 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   color: #ffffff !important;
 
 }
-.app-navbar .nav-header__logo-link:focus,
-.app-navbar .nav-header__logo-link:focus-visible {
-  outline: none !important;
-
-}
 .app-navbar .nav-header__logo {
   display: inline-flex !important;
 
@@ -15514,7 +15516,6 @@ header.header--unauthenticated ~ #content .la-topbar {
   background: rgba(255, 255, 255, 0.18) !important;
   background-image: none !important;
   border-color: rgba(255, 255, 255, 0.25);
-  outline: none;
   box-shadow: none;
   color: #fff;
   transform: none;
@@ -18715,8 +18716,6 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
@@ -18728,8 +18727,6 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
   border: none !important;
 
   box-shadow: none !important;
-
-  outline: none !important;
 
   color: #e8ecf2 !important;
 
@@ -19002,8 +18999,6 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
@@ -19015,8 +19010,6 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
   border: none !important;
 
   box-shadow: none !important;
-
-  outline: none !important;
 
   color: #e8ecf2 !important;
 
@@ -22602,7 +22595,7 @@ $aac-z-topbar:   400;
 
 @mixin aac-focus-ring($color: $color-sage) {
   &:focus-visible {
-    outline: none;
+    /* Keyboard ring: app-wide #within_ember *:focus-visible; optional accent glow */
     box-shadow: 0 0 0 3px rgba($color, 0.4);
   }
 }
