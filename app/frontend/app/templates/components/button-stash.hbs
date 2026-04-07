@@ -1,10 +1,16 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-button-stash-wrap">
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>{{t "Button Stash" key="button_stash"}}</h3>
+  </div>
   <div class="modal-body">
     {{#if this.button_stashes}}
-      <p>
-      {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
+      <p class="la-button-stash-desc">
+        {{t "Select a stashed button from the list, then select the location on the board where you'd like it applied." key="select_stashed_button"}}
       </p>
-      {{#each this.button_stashes as |button|}}
+      <div class="la-button-stash-grid">
+        {{#each this.button_stashes as |button|}}
           <span class="stash_button_container" {{action "pickButton" button}}>
             <a href='#' style={{button.computed_style}} class={{button.computed_class}} data-id={{button.id}} tabindex="0">
               {{#if button.pending}}
@@ -46,14 +52,16 @@
             </a>
           </span>
         {{/each}}
+      </div>
       <div style="clear: left;"></div>
     {{else}}
-      <p>
-      {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
+      <p class="la-button-stash-desc">
+        {{t "The button stash makes it easier to reuse or move buttons across multiple boards. Buttons that you copy to your stash will appear here once there are any. To copy a button to the stash either drag it to the stash button or click the copy button in the General settings area for the button." key="stash_explanation"}}
       </p>
     {{/if}}
   </div>
   <div class="modal-footer">
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <a href="#" class="la-button-stash-close" {{action "close"}}>{{t "Close" key="close"}}</a>
+  </div>
   </div>
 {{/modal-dialog}}

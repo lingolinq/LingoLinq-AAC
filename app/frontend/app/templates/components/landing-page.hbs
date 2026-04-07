@@ -1,0 +1,206 @@
+<div class="landing-page landing-page--scot-palette {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
+  {{! Hero }}
+  <section class="landing-hero">
+    <div class="landing-hero-inner">
+      <div class="landing-hero-content">
+        <div class="landing-hero-header">
+          <h1 class="landing-hero-title">
+            {{t "Communication access" key="communication_access"}}<br>
+            {{t "for" key="for_lower"}} <span class="landing-hero-highlight">{{t "every student" key="landing_hero_highlight"}}</span>
+          </h1>
+        </div>
+        <p class="landing-hero-subtitle">{{t "LingoLinq is the AI-powered AAC platform that gives students a voice, saves therapists hours each week, and gives districts the management tools they've been asking for. Cloud-based. Open source. Built for real classrooms." key="landing_hero_subtitle"}}</p>
+        <div class="landing-hero-buttons">
+          <LinkTo @route="register" class="landing-btn landing-btn-coral">{{t "Try LingoLinq Free" key="landing_try_free"}} →</LinkTo>
+          <a href="#" class="landing-btn landing-btn-outline">{{t "Watch Demo" key="landing_watch_demo"}}</a>
+        </div>
+      </div>
+      <div class="landing-hero-visual">
+        <div class="landing-floating-badge landing-floating-badge-top-right">
+          <div class="landing-badge-icon landing-badge-icon-teal">🌐</div>
+          <div>
+            <div class="landing-badge-title">{{t "AI Language Support" key="landing_ai_language_support"}}</div>
+            <div class="landing-badge-subtitle">{{t "10+ languages" key="landing_10_plus_languages"}}</div>
+          </div>
+        </div>
+        <div class="landing-floating-badge landing-floating-badge-bottom-left">
+          <div class="landing-badge-icon landing-badge-icon-coral">⚡</div>
+          <div>
+            <div class="landing-badge-title">{{t "Setup in Minutes" key="landing_setup_minutes"}}</div>
+            <div class="landing-badge-subtitle">{{t "No hardware needed" key="landing_no_hardware"}}</div>
+          </div>
+        </div>
+        <div class="landing-mockup">
+          <div class="landing-mockup-toolbar">
+            <div class="landing-mockup-dot landing-mockup-dot-r"></div>
+            <div class="landing-mockup-dot landing-mockup-dot-y"></div>
+            <div class="landing-mockup-dot landing-mockup-dot-g"></div>
+            <div class="landing-mockup-url">app.lingolinq.org</div>
+          </div>
+          <div class="landing-mockup-screen">
+            <div class="landing-mockup-grid">
+              <div class="landing-aac-btn landing-aac-btn-c1"><span class="landing-aac-icon">😊</span>feel</div>
+              <div class="landing-aac-btn landing-aac-btn-c2"><span class="landing-aac-icon">🍎</span>eat</div>
+              <div class="landing-aac-btn landing-aac-btn-c3"><span class="landing-aac-icon">🏠</span>go</div>
+              <div class="landing-aac-btn landing-aac-btn-c4"><span class="landing-aac-icon">👋</span>hi</div>
+              <div class="landing-aac-btn landing-aac-btn-c5"><span class="landing-aac-icon">❓</span>want</div>
+              <div class="landing-aac-btn landing-aac-btn-c6"><span class="landing-aac-icon">🎮</span>play</div>
+              <div class="landing-aac-btn landing-aac-btn-c7"><span class="landing-aac-icon">📚</span>read</div>
+              <div class="landing-aac-btn landing-aac-btn-c8"><span class="landing-aac-icon">💬</span>more</div>
+            </div>
+            <div class="landing-mockup-bar">
+              <span class="landing-mockup-bar-text">{{t "I want to play" key="landing_mockup_sentence"}}</span>
+              <span class="landing-mockup-bar-speak">{{t "Speak" key="landing_mockup_speak"}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {{! Stats }}
+  <section class="landing-stats-bar">
+    <div class="landing-stats-inner">
+      <div>
+        <div class="landing-stat-number">{{t "100M+" key="landing_stat_100m"}}</div>
+        <div class="landing-stat-label">{{t "People who could benefit from AAC" key="landing_stat_100m_label"}}</div>
+      </div>
+      <div>
+        <div class="landing-stat-number">{{t "~4M" key="landing_stat_4m"}}</div>
+        <div class="landing-stat-label">{{t "Currently using AAC tools" key="landing_stat_4m_label"}}</div>
+      </div>
+      <div>
+        <div class="landing-stat-number">{{t "5-10 hrs" key="landing_stat_hours"}}</div>
+        <div class="landing-stat-label">{{t "Saved per SLP per week" key="landing_stat_hours_label"}}</div>
+      </div>
+      <div>
+        <div class="landing-stat-number">{{t "90%" key="landing_stat_90"}}</div>
+        <div class="landing-stat-label">{{t "Cost reduction vs. dedicated devices" key="landing_stat_90_label"}}</div>
+      </div>
+    </div>
+  </section>
+
+  {{! Features }}
+  <section id="features" class="landing-features">
+    <div class="landing-features-inner">
+      <div class="landing-section-label">{{t "Why LingoLinq" key="landing_why_label"}}</div>
+      <h2 class="landing-section-title">{{t "Built for how schools actually work" key="landing_features_title"}}</h2>
+      <p class="landing-section-subtitle">{{t "Traditional AAC tools weren't designed for modern classrooms. We built LingoLinq from the ground up for the cloud era." key="landing_features_subtitle"}}</p>
+    </div>
+    <div class="landing-features-grid-wrap">
+      <div class="landing-features-grid">
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-coral">🤖</div>
+            <h3>{{t "AI-Powered Board Generation" key="landing_feature_ai_title"}}</h3>
+          </div>
+          <p>{{t "Describe a topic and LingoLinq builds communication boards automatically. What used to take hours now takes minutes." key="landing_feature_ai_desc"}}</p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-teal">🌍</div>
+            <h3>{{t "Multilingual from Day One" key="landing_feature_multilingual_title"}}</h3>
+          </div>
+          <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar inflection, not just word-for-word translation." key="landing_feature_multilingual_desc"}}</p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-navy">🏫</div>
+            <h3>{{t "District-Wide Management" key="landing_feature_district_title"}}</h3>
+          </div>
+          <p>{{t "Google Classroom-style dashboard for managing students, therapists, and devices across your entire district from one screen." key="landing_feature_district_desc"}}</p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-teal">☁️</div>
+            <h3>{{t "Cloud-Native, Any Device" key="landing_feature_cloud_title"}}</h3>
+          </div>
+          <p>{{t "Works on tablets, phones, laptops, and smartboards. Edit boards from your desk. Students access them from anywhere." key="landing_feature_cloud_desc"}}</p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-coral">📊</div>
+            <h3>{{t "Real Analytics for IEPs" key="landing_feature_analytics_title"}}</h3>
+          </div>
+          <p>{{t "Track vocabulary growth, usage patterns, and communication attempts. Generate reports that map directly to IEP goals." key="landing_feature_analytics_desc"}}</p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-header-row">
+            <div class="landing-feature-icon landing-feature-icon-navy">👨‍👩‍👧</div>
+            <h3>{{t "Family Access Built In" key="landing_feature_family_title"}}</h3>
+          </div>
+          <p>{{t "Parents and caregivers get free companion access. Same boards, same vocabulary, school to home. No extra cost." key="landing_feature_family_desc"}}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {{! Testimonial }}
+  <section class="landing-testimonial">
+    <div class="landing-testimonial-inner">
+      <div class="landing-testimonial-quote">
+        {{t "LingoLinq changed how our entire district approaches AAC. The AI board generation alone saved our team dozens of hours in the first month, and the families love being able to access boards at home without buying expensive apps." key="landing_testimonial"}}
+      </div>
+      <div class="landing-testimonial-author">{{t "Sarah Chen, M.S., CCC-SLP" key="landing_testimonial_author"}}</div>
+      <div class="landing-testimonial-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key="landing_testimonial_role"}}</div>
+    </div>
+  </section>
+
+  {{! CTA }}
+  <section class="landing-cta">
+    <div class="landing-cta-inner">
+      <h2>{{t "Ready to give every student a voice?" key="landing_cta_title"}}</h2>
+      <p>{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key="landing_cta_subtitle"}}</p>
+      <div class="landing-cta-buttons">
+        <LinkTo @route="register" class="landing-btn landing-btn-coral">{{t "Start Free Today" key="landing_cta_start"}}</LinkTo>
+        <LinkTo @route="contact" class="landing-btn landing-btn-white">{{t "Schedule a District Demo" key="landing_cta_demo"}}</LinkTo>
+      </div>
+    </div>
+  </section>
+
+  {{! Accessibility note }}
+  <div class="landing-a11y-wrapper">
+    <div class="landing-a11y-note">
+      <div class="landing-a11y-icon" aria-hidden="true">♿</div>
+      <p><strong>{{t "Accessibility-first design." key="accessibility_first"}}</strong> {{t "This site meets WCAG 2.1 AA standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website. Need accommodations?" key="landing_a11y_note"}} <LinkTo @route="contact">{{t "Let us know." key="landing_a11y_let_us_know"}}</LinkTo></p>
+    </div>
+  </div>
+
+  {{! Footer }}
+  <footer class="landing-footer">
+    <div class="landing-footer-inner">
+      <div class="landing-footer-brand">
+        {{app-logo linkRoute="index" class="landing-footer-logo" imgClass="landing-footer-logo-img" showName=true imgAlt="" ariaHiddenImg=true}}
+        <p>{{t "Open-source, AI-powered communication tools for everyone. Built by people who live this work every day." key="landing_footer_tagline"}}</p>
+      </div>
+      <div class="landing-footer-col">
+        <h4>{{t "Product" key="landing_footer_product"}}</h4>
+        <a href="#" {{action "showFeatures"}}>{{t "Features" key="landing_footer_features"}}</a>
+        {{!-- <LinkTo @route="pricing">{{t "Pricing" key="landing_footer_pricing"}}</LinkTo> --}}
+      </div>
+      <div class="landing-footer-col">
+        <h4>{{t "Resources" key="landing_footer_resources"}}</h4>
+        <LinkTo @route="intro">{{t "Getting Started" key="landing_footer_getting_started"}}</LinkTo>
+        <a href="#" {{action "support"}}>{{t "Help Center" key="landing_footer_help"}}</a>
+        {{#if this.appState.showFooterGithubLinks}}
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "API Docs" key="landing_footer_api"}}</a>
+          <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer">{{t "Open Source" key="landing_footer_oss"}}</a>
+        {{/if}}
+      </div>
+      <div class="landing-footer-col">
+        <h4>{{t "Company" key="landing_footer_company"}}</h4>
+        <LinkTo @route="about">{{t "About Us" key="landing_footer_about"}}</LinkTo>
+        <a href="https://blog.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Blog" key="landing_footer_blog"}}</a>
+        <LinkTo @route="contact">{{t "Contact" key="landing_footer_contact"}}</LinkTo>
+        <a href="#" {{action "support"}}>{{t "Accessibility" key="landing_footer_accessibility"}}</a>
+      </div>
+    </div>
+    <div class="landing-footer-bottom">
+      <span>{{t "© 2026 LingoLinq AAC. All rights reserved." key="landing_copyright"}}</span>
+      <div class="landing-footer-badges">
+        <span class="landing-a11y-badge">{{t "WCAG 2.1 AA" key="landing_wcag_badge"}}</span>
+        <span class="landing-oss-badge">{{t "Open Source" key="landing_oss_badge"}}</span>
+      </div>
+    </div>
+  </footer>
+</div>

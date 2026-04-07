@@ -13,6 +13,30 @@
 
     {{content-for "head"}}
 
+    <script>
+      // Patch addEventListener before ANY library loads so touch events are
+      // never passive. Chrome defaults touch listeners to passive which
+      // prevents preventDefault() and causes console warnings during drag.
+      (function() {
+        var orig = EventTarget.prototype.addEventListener;
+        var touch = {touchstart:1,touchmove:1,touchend:1,touchcancel:1};
+        EventTarget.prototype.addEventListener = function(t, fn, opts) {
+          if(touch[t]) {
+            if(typeof opts === 'boolean') opts = {capture:opts, passive:false};
+            else opts = Object.assign({}, opts||{}, {passive:false});
+          }
+          return orig.call(this, t, fn, opts);
+        };
+      })();
+    </script>
+
+    <link rel="icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
+    <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&family=Maitree:wght@400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
     <!-- Chart.js + Sankey plugin: load before vendor to avoid concatenation conflicts (Identifier 's' / define).
          SRI omitted: jsDelivr on-demand minification for Chart.js 4.x produces variable output, making integrity hashes unreliable. -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
@@ -41,7 +65,7 @@
         window.domain_settings = {
           app_name: 'LingoLinq',
           company_name: 'Someone',
-          logo_url: '/images/logo-big.png',
+          logo_url: '/images/LL_Logo_Line_Bright.png',
           full_domain: true,
           support_url: 'https://lingolinq.zendesk.com',
           domain: window.location.host || 'localhost'

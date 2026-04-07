@@ -73,7 +73,8 @@ module JsonApi::User
       json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
       json['preferences']['home_board'] = user.settings['preferences']['home_board']
       json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
-      json['preferences']['skin'] = user.settings['preferences']['skin'] || 'default'
+      # Omit default so setup shows "Mix of Tones" until user picks a skin; image code uses skin || 'default'
+json['preferences']['skin'] = user.settings['preferences']['skin']
       json['preferences']['progress'] = user.settings['preferences']['progress']
       json['preferences']['protected_usage'] = !user.external_email_allowed?
       if json['preferences']['cookies'] == nil
@@ -175,8 +176,12 @@ module JsonApi::User
         if extra
           json['lesson_ids'] = (extra.settings['lessons'] || []).map{|l| l['id'] }
           user_topics += extra.settings['topics'] || []
-          tags = (extra.settings['board_tags'] || {}).to_a.map(&:first).sort
+          board_tags_hash = (extra.settings['board_tags'] || {})
+          tags = board_tags_hash.to_a.map(&:first).sort
           json['board_tags'] = tags if !tags.blank?
+          if !board_tags_hash.blank?
+            json['board_tag_map'] = board_tags_hash.transform_values { |v| v || [] }
+          end
           json['focus_words'] = extra.active_focus_words
           if json['permissions']['supervise']
             soonest = nil

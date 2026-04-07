@@ -1,0 +1,28 @@
+import Component from '@ember/component';
+import { inject as service } from '@ember/service';
+
+export default Component.extend({
+  modal: service('modal'),
+  tagName: '',
+
+  init() {
+    this._super(...arguments);
+    const modal = this.get('modal');
+    const template = 'cloud-extras';
+    const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
+                  (modal && modal.settingsFor && modal.settingsFor[template]) ||
+                  this.get('model') || {};
+    this.set('model', options);
+  },
+
+  actions: {
+    close() {
+      this.get('modal').close();
+    },
+    opening() {
+      this.get('modal').setComponent(this);
+    },
+    closing() {
+    }
+  }
+});

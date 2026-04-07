@@ -1,41 +1,55 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Editing Color Sets" key="editing_color_sets"}}
-    </h3>
-  </div>
-  <div class="modal-body">
-    <p>{{t "When editing boards, there is a default set of colors that can be used to help visually organize the layout, and to indicate different parts of speech. If you would prefer to use a custom color set for this purpose, you may program these settings here." key="editing_colors_explainer"}}</p>
-    <div class='row'>
-      <div class='col-sm-3'><b>{{t "Label" key="label"}}</b></div>
-      <div class='col-sm-1'></div>
-      <div class='col-sm-4'><b>{{t "Border" key="border"}}</b></div>
-      <div class='col-sm-4'><b>{{t "Fill" key="fill"}}</b></div>
-      <div class='col-sm-1'></div>
-    </div>
-    {{#unless this.styled_colors}}
-      <p>{{t "No color sets defined" key="no_color_sets"}}</p>
-    {{/unless}}
-    {{#each this.styled_colors as |row|}}
-      <div class='row' style='margin-bottom: 5px;'>
-        <div class='col-sm-3'><Input type="text" class="form-control" @value={{row.label}} placeholder="Brief Label" /></div>
-        <div class='col-sm-1'><div class='extra_color_preview' style={{row.style}}></div></div>
-        <div class='col-sm-3'>
-          <Input type="text" class="form-control" @value={{row.border}} placeholder="#ABC123" />
-        </div>
-        <div class='col-sm-3'>
-          <Input type="text" class="form-control" @value={{row.fill}} placeholder="#FED987" />
-        </div>
-        <div class='col-sm-1'><a href='#' {{action "remove" row}}><span class='glyphicon glyphicon-remove'></span></a></div>
+  <div class="la-colors-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--colors" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2" stroke="#2A9D8F" fill="rgba(42,157,143,0.15)"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="#4C86D8" fill="rgba(76,134,216,0.15)"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="#F2B95A" fill="rgba(242,185,90,0.15)"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="#46505F" fill="rgba(70,80,95,0.12)"/></svg>
       </div>
-    {{/each}}
-    <div class='row'>
-      <div class='col-sm-3'><button class='btn btn-default' {{action "add_row"}}>{{t "Add Color Set" key="add_color_set"}}</button></div>
+      <h3 class="la-modal-header-label">{{t "Editing Color Sets" key="editing_color_sets"}}</h3>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
-  </div>
-  <div class="modal-footer">
-    <button class='btn btn-default btn-lg' {{action "confirm"}}>{{t "Update" key="update"}}</button>
-    <a href="#" class="btn btn-default btn-lg" {{action "close"}}>{{t "Close" key="close"}}</a>
+    <div class="la-colors-modal-body">
+      <p class="la-colors-modal-desc">{{t "Customize the colors used to organize your boards and indicate parts of speech." key="editing_colors_explainer"}}</p>
+
+      <div class="la-colors-modal-table">
+        <div class="la-colors-modal-row la-colors-modal-row--header">
+          <div class="la-colors-modal-col la-colors-modal-col--label"><b>{{t "Label" key="label"}}</b></div>
+          <div class="la-colors-modal-col la-colors-modal-col--preview"></div>
+          <div class="la-colors-modal-col la-colors-modal-col--color"><b>{{t "Border" key="border"}}</b></div>
+          <div class="la-colors-modal-col la-colors-modal-col--color"><b>{{t "Fill" key="fill"}}</b></div>
+          <div class="la-colors-modal-col la-colors-modal-col--action"></div>
+        </div>
+        {{#unless this.styled_colors}}
+          <p class="la-colors-modal-empty">{{t "No color sets defined" key="no_color_sets"}}</p>
+        {{/unless}}
+        {{#each this.styled_colors as |row|}}
+          <div class="la-colors-modal-row">
+            <div class="la-colors-modal-col la-colors-modal-col--label">
+              <Input type="text" class="la-colors-input" @value={{row.label}} placeholder="Brief Label" />
+            </div>
+            <div class="la-colors-modal-col la-colors-modal-col--preview">
+              <div class="la-colors-preview" style={{row.style}}></div>
+            </div>
+            <div class="la-colors-modal-col la-colors-modal-col--color">
+              <Input type="text" class="la-colors-input" @value={{row.border}} placeholder="#ABC123" />
+            </div>
+            <div class="la-colors-modal-col la-colors-modal-col--color">
+              <Input type="text" class="la-colors-input" @value={{row.fill}} placeholder="#FED987" />
+            </div>
+            <div class="la-colors-modal-col la-colors-modal-col--action">
+              <button type="button" class="la-colors-remove" {{action "remove" row}} aria-label={{t "Remove" key="remove"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        {{/each}}
+        <div class="la-colors-modal-add">
+          <button class="la-colors-add-btn" {{action "add_row"}}>{{t "Add Color Set" key="add_color_set"}}</button>
+        </div>
+      </div>
+    </div>
+    <div class="la-colors-modal-footer">
+      <button class="la-colors-update-btn" {{action "confirm"}}>{{t "Update" key="update"}}</button>
+      <button type="button" class="la-colors-close-btn" {{action "close"}}>{{t "Close" key="close"}}</button>
+    </div>
   </div>
 {{/modal-dialog}}

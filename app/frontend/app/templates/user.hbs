@@ -1,107 +1,21 @@
-<div class="row">
-  <div class="dropdown skinny_bio hide_print" style="margin-bottom: 10px;">
-    <a class='btn btn-default' href="#" data-toggle="dropdown">
-      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 30px;">
-      {{ this.model.name }}
-      {{#if this.model.subroute_name}}
-        <span class="text-muted">- {{this.model.subroute_name}}</span>
-      {{/if}}
-      <span class="caret"></span>
-    </a>
-    <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="width: 100%;">
-      <li role="presentation">
-        <LinkTo @route="user.index" @model={{this.model.user_name}}>{{t "summary" key="summary_lower"}}</LinkTo>
-      </li>
-      <li role="presentation">
-        <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "reports" key="reports_lower"}}</LinkTo>
-      </li>
-      <li role="presentation">
-        <LinkTo @route="user.goals" @model={{this.model.user_name}}>{{t "goals" key="goals_lower"}}</LinkTo>
-      </li>
-      {{#if this.app_state.feature_flags.lessons}}
-        {{#if this.model.organizations.length}}
-          <li role="presentation">
-            <LinkTo @route="user.lessons" @model={{this.model.user_name}}>{{t "trainings" key="trainings_lower"}}</LinkTo>
-          </li>
-        {{/if}}
-      {{/if}}
-      <li role="presentation">
-        <LinkTo @route="user.recordings" @model={{this.model.user_name}}>{{t "recordings" key="recordings_lower"}}</LinkTo>
-      </li>
-      {{#if this.model.permissions.edit}}
-        <li role="presentation">
-          <LinkTo @route="user.edit" @model={{this.model.user_name}}>{{t "profile" key="profile_lower"}}</LinkTo>
-        </li>
-        <li role="presentation">
-          <LinkTo @route="user.preferences" @model={{this.model.user_name}}>{{t "preferences" key="preferences_lower"}}</LinkTo>
-        </li>
-        {{#if this.app_state.feature_flags.subscriptions}}
-          <li role="presentation">
-            <LinkTo @route="user.subscription" @model={{this.model.user_name}}>{{t "billing" key="billing_lower"}}</LinkTo>
-          </li>
-        {{/if}}
-      {{/if}}
-      <li role="presentation">
-        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=null}}>
-          {{t "logs &amp; messages" key="logs_messages"}}
-          {{#if this.app_state.currentUser.unread_messages}}
-            <span class="label label-danger">{{this.app_state.currentUser.unread_messages}}</span>
-          {{/if}}
-        </LinkTo>
-      </li>
-    </ul>
-  </div>
-  <div class="col-md-3 col-sm-12 wide_bio hide_print">
-    <div class="well" style="text-align: center;">
-    <div style='position: relative;'>
-      <img src={{this.model.avatar_url_with_fallback}} style="max-height: 100px;">
-      {{#if this.model.online}}
-        <div title='currently online' class='online_marker'></div>
-      {{/if}}
-    </div>
-    <h2 style="margin-bottom: 0;">{{ this.model.name }}</h2>
-    <div style="margin-bottom: 10px;">{{ this.model.user_name }}</div>
-    <div>{{ this.model.description }}</div>
-    {{#if this.model.details_url}}
-    <div><a href={{this.model.details_url}} target="_blank" rel="noopener">{{ this.model.details_url }}</a></div>
-    {{/if}}
-    <div>{{ this.model.location }}</div>
-    {{#if this.model.joined}}
-      <div title={{date this.model.joined}}>{{t "joined" key="joined"}} {{date_ago this.model.joined}}</div>
-    {{/if}}
-    {{#if this.model.last_access}}
-      <div class="text-muted" title={{date this.model.last_access}}>{{t "used" key="used"}} {{date_ago this.model.last_access "day"}}</div>
-    {{/if}}
-  </div>
-    {{#if this.model.permissions.supervise}}
-      <div class="btn-group-vertical" style="width: 100%;">
-        <!-- TODO: since we're not using ids these won't add 'active' class until clicked. need workaround -->
-        <LinkTo @route="user.index" @model={{this.model.user_name}} class="btn btn-default">{{t "summary" key="summary_lower"}}</LinkTo>
-        <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="btn btn-default">{{t "reports" key="reports_lower"}}</LinkTo>
-        <LinkTo @route="user.goals" @model={{this.model.user_name}} class="btn btn-default">{{t "goals" key="goals_lower"}}</LinkTo>
-        {{#if this.app_state.feature_flags.lessons}}
-          {{#if this.model.organizations.length}}
-            <LinkTo @route="user.lessons" @model={{this.model.user_name}} class="btn btn-default">{{t "trainings" key="trainings_lower"}}</LinkTo>
-          {{/if}}
-        {{/if}}
-        <LinkTo @route="user.recordings" @model={{this.model.user_name}} class="btn btn-default">{{t "recordings" key="recordings_lower"}}</LinkTo>
+{{#if this.bareUserOutletLayout}}
+  {{outlet}}
+{{else}}
+<div class="md-user-layout hide_print">
+  <div class="md-shell md-shell--user">
+    <div class="md-workspace">
+      <nav class="md-pillnav md-pillnav--user" aria-label={{t "User menu" key="user_menu"}}>
+        <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "Account" key="account_lower"}}</LinkTo>
         {{#if this.model.permissions.edit}}
-          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="btn btn-default">{{t "profile" key="profile_lower"}}</LinkTo>
-          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="btn btn-default">{{t "preferences" key="preferences_lower"}}</LinkTo>
-          {{#if this.app_state.feature_flags.subscriptions}}
-            <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="btn btn-default">{{t "billing" key="billing_lower"}}</LinkTo>
-          {{/if}}
+          <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "Profile" key="profile_lower"}}</LinkTo>
+          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Preferences" key="preferences_lower"}}</LinkTo>
         {{/if}}
-        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=null}} class="btn btn-default">
-          {{t "logs &amp; messages" key="logs_messages"}}
-          {{#if this.app_state.currentUser.unread_messages}}
-            <span class="label label-danger">{{this.app_state.currentUser.unread_messages}}</span>
-          {{/if}}
-        </LinkTo>
-      </div>
-    {{/if}}
-  </div>
-  <div class="col-md-9 col-sm-12">
-    {{outlet}}
+        <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">{{t "Logs" key="logs"}}</LinkTo>
+      </nav>
+      <main class="md-main md-main--user">
+        {{outlet}}
+      </main>
+    </div>
   </div>
 </div>
+{{/if}}

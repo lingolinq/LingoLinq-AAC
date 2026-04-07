@@ -1,0 +1,86 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="la-support-modal-wrap md-dashboard-supervisors-modal-wrap" role="document">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Supervisors" key="supervisors"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    <div class="md-dashboard-supervisors-modal__scroll" tabindex="-1">
+      <div class="md-supervisors-page md-supervisors-page--modal" aria-label={{t "Supervisors" key="supervisors"}}>
+        {{#if this.appState.currentUser.supporter_role}}
+          <div class="md-dashboard-supervisors-modal__section">
+            <h2 class="md-dashboard-supervisors-modal__heading">{{t "supervisees:" key="supervisees_colon"}}</h2>
+            <p class="md-dashboard-supervisors-modal__lead">{{t "People you support" key="people_you_support"}}</p>
+            <div class="md-people">
+              {{#if this.appState.currentUser.known_supervisees}}
+                {{#each this.appState.currentUser.known_supervisees as |supervisee|}}
+                  <div class="md-person md-person--linked">
+                    <button type="button" class="md-person__main md-person__main--btn" {{action "visitUser" supervisee.user_name}}>
+                      <img src={{supervisee.avatar_url}} class="md-avatar md-avatar--img" alt="" aria-hidden="true">
+                      <div class="md-person__meta">
+                        <div class="md-person__name">{{supervisee.user_name}}</div>
+                        {{#if supervisee.goal}}
+                          <div class="md-person__role md-muted">{{supervisee.goal.summary}}</div>
+                        {{else}}
+                          <div class="md-person__role md-muted">{{t "no goal set" key="no_goal_set"}}</div>
+                        {{/if}}
+                        {{#if supervisee.unread_messages}}
+                          <span class="md-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
+                        {{/if}}
+                      </div>
+                    </button>
+                    <ul class="md-person__links" role="list">
+                      <li><button type="button" class="md-person__link-btn" {{action "visitUser" supervisee.user_name}}>{{t "Account" key="account"}}</button></li>
+                      {{#if supervisee.home_board_key}}
+                        <li><button type="button" class="md-person__link-btn" {{action "visitBoard" supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</button></li>
+                      {{/if}}
+                      <li><button type="button" class="md-person__link-btn" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</button></li>
+                      <li><button type="button" class="md-person__link-btn" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</button></li>
+                      <li><button type="button" class="md-person__link-btn" {{action "visitSuperviseeStats" supervisee.user_name}}>{{t "Reports" key="reports"}}</button></li>
+                      <li><button type="button" class="md-person__link-btn" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</button></li>
+                      <li><button type="button" class="md-person__link-btn" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
+                    </ul>
+                  </div>
+                {{/each}}
+                {{#if this.appState.currentUser.all_connections.loading}}
+                  <div class="md-person md-muted">{{t "Loading more..." key="loading_more"}}</div>
+                {{else if this.appState.currentUser.all_connections.error}}
+                  <div class="md-person md-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
+                {{/if}}
+              {{else}}
+                <div class="md-person md-muted">{{t "None found" key="none_found"}}</div>
+              {{/if}}
+            </div>
+          </div>
+        {{else}}
+          <div class="md-dashboard-supervisors-modal__section">
+            <h2 class="md-dashboard-supervisors-modal__heading">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</h2>
+            <p class="md-dashboard-supervisors-modal__lead">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</p>
+            {{#unless this.appState.currentUser.supervisors_or_managing_org}}
+              <span class="md-info-badge md-info-badge--below-sub md-dashboard-supervisors-modal__badge" role="status">
+                <span class="md-info-badge__dot" aria-hidden="true"></span>
+                {{t "None found" key="none_found"}}
+              </span>
+            {{/unless}}
+            <div class="md-dashboard-supervisors-modal__settings">
+              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true hideMakeSupervisorButton=true}}
+            </div>
+          </div>
+          {{#if this.appState.currentUser.supervised_units}}
+            <div class="md-dashboard-supervisors-modal__section md-dashboard-supervisors-modal__section--rooms">
+              <h2 class="md-dashboard-supervisors-modal__heading">{{t "rooms:" key="rooms_colon"}}</h2>
+              <div class="md-rooms-list">
+                {{#each this.appState.currentUser.supervised_units as |unit|}}
+                  <span class="md-rooms-list__item">
+                    <button type="button" class="md-person__link-btn md-rooms-list__btn" {{action "visitOrgRoom" unit.organization_id unit.id}}>{{unit.name}}</button>
+                  </span>
+                {{/each}}
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}

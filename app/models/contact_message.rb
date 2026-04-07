@@ -5,6 +5,18 @@ class ContactMessage < ActiveRecord::Base
   include Async
   secure_serialize :settings
   include Replicate
+
+  BETA_FEEDBACK_ALLOWED_TYPES = %w[crash speak_mode boards sync account performance accessibility feature other].freeze
+  BETA_FEEDBACK_ALLOWED_SEVERITIES = %w[blocker major minor suggestion].freeze
+  BETA_FIELD_MAX_LENGTHS = {
+    'subject' => 500,
+    'name' => 255,
+    'steps_to_reproduce' => 10_000,
+    'expected_result' => 10_000,
+    'actual_result' => 10_000,
+    'general_feedback' => 20_000,
+    'device_context' => 2_000
+  }.freeze
   
   after_create :deliver_message
   
@@ -12,6 +24,8 @@ class ContactMessage < ActiveRecord::Base
     if @deliver_remotely
       @deliver_remotely = false
       self.schedule(:deliver_remotely)
+    elsif self.settings['recipient'].to_s == 'beta_feedback'
+      AdminMailer.schedule_delivery(:beta_feedback_sent, self.global_id)
     else
       AdminMailer.schedule_delivery(:message_sent, self.global_id)
     end
@@ -51,8 +65,71 @@ class ContactMessage < ActiveRecord::Base
       end
       @deliver_remotely = true
     end
+    if params['recipient'].to_s == 'beta_feedback'
+      ['feedback_type', 'severity', 'steps_to_reproduce', 'expected_result', 'actual_result', 'general_feedback', 'device_context'].each do |key|
+        self.settings[key] = process_string(params[key]) if params[key].present?
+      end
+      unless process_beta_feedback_screenshot(params['screenshot_data'])
+        return false
+      end
+      if self.settings['subject'].blank?
+        add_processing_error("Summary is required for beta feedback")
+        return false
+      end
+      if self.settings['email'].present?
+        email = self.settings['email'].to_s.strip
+        if email.length > 254 || !email.match?(URI::MailTo::EMAIL_REGEXP)
+          add_processing_error("Invalid email address")
+          return false
+        end
+      end
+      ft = self.settings['feedback_type'].to_s
+      unless BETA_FEEDBACK_ALLOWED_TYPES.include?(ft)
+        add_processing_error("Invalid feedback type")
+        return false
+      end
+      sev = self.settings['severity'].to_s
+      unless BETA_FEEDBACK_ALLOWED_SEVERITIES.include?(sev)
+        add_processing_error("Invalid severity")
+        return false
+      end
+      BETA_FIELD_MAX_LENGTHS.each do |key, max|
+        next if self.settings[key].blank?
+        if self.settings[key].length > max
+          add_processing_error("One or more fields are too long")
+          return false
+        end
+      end
+    end
     true
   end
+
+  def process_beta_feedback_screenshot(data)
+    return true if data.blank?
+    s = data.to_s.strip
+    m = s.match(/\Adata:(image\/(?:png|jpeg|jpg|gif|webp));base64,([\sA-Za-z0-9+\/]+=*)\z/i)
+    unless m
+      add_processing_error("Invalid screenshot format")
+      return false
+    end
+    raw_b64 = m[2].gsub(/\s/, '')
+    max_b64 = 2_200_000
+    if raw_b64.length > max_b64
+      add_processing_error("Screenshot too large (max about 1.5 MB)")
+      return false
+    end
+    ext = case m[1].downcase
+          when 'image/jpeg', 'image/jpg' then 'jpg'
+          when 'image/png' then 'png'
+          when 'image/gif' then 'gif'
+          when 'image/webp' then 'webp'
+          else 'png'
+          end
+    self.settings['screenshot_filename'] = "screenshot.#{ext}"
+    self.settings['screenshot_base64'] = raw_b64
+    true
+  end
+  private :process_beta_feedback_screenshot
   
   def deliver_remotely
     body = "<i>Source App: #{(JsonApi::Json.current_domain['settings'] || {})['app_name'] || "CoughDroop"}</i><br/>"

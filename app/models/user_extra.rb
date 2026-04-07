@@ -119,9 +119,38 @@ class UserExtra < ApplicationRecord
       end
       self.settings['board_tags'][tag].uniq!
     end
-    self.settings['board_tags'].each do |k, list|
-      self.settings['board_tags'].delete(k) if !list || list.empty?  
-    end
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
+  # Create a tag entry with no boards (empty folder). Idempotent.
+  def ensure_board_tag(tag)
+    tag = tag.to_s.strip
+    return nil if tag.blank?
+    self.settings['board_tags'] ||= {}
+    self.settings['board_tags'][tag] ||= []
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
+  # Rename a tag key, preserving its board list.
+  def rename_board_tag(old_tag, new_tag)
+    old_tag = old_tag.to_s.strip
+    new_tag = new_tag.to_s.strip
+    return nil if old_tag.blank? || new_tag.blank? || old_tag == new_tag
+    self.settings['board_tags'] ||= {}
+    return nil unless self.settings['board_tags'].key?(old_tag)
+    self.settings['board_tags'][new_tag] = self.settings['board_tags'].delete(old_tag)
+    self.save!
+    self.settings['board_tags'].keys.sort
+  end
+
+  # Remove a tag key entirely (delete folder).
+  def delete_board_tag_folder(tag)
+    tag = tag.to_s.strip
+    return nil if tag.blank?
+    self.settings['board_tags'] ||= {}
+    self.settings['board_tags'].delete(tag)
     self.save!
     self.settings['board_tags'].keys.sort
   end

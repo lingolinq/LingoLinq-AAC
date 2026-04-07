@@ -1,924 +1,398 @@
-<div class={{if this.left_nav_expanded "col col-sm-4 col-md-3 expanded" "col col-sm-4 col-md-3"}} id='new_left' >
-  <div class="">
-    <button class='expand btn btn-default' style='float: right; margin-right: 5px;' {{action "expand_left_nav"}}><span class={{if this.left_nav_expanded "caret" "caret-right"}}></span></button>
-  <h2 style='padding-left: 5px;'>
-    {{#if this.app_state.currentUser.permissions.delete}}
-      <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="hidden_link">
-        <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
-        <span style='vertical-align: middle'>{{this.app_state.currentUser.user_name}}</span>
-      </LinkTo>
-    {{else}}
-      <span>
-        <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='fit_image' style="height: 45px; width: 45px; margin-bottom: -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;">
-        <span style='vertical-align: middle'>{{this.app_state.currentUser.user_name}}</span>
+<div class="md-shell {{if (is-equal this.activeTab "boards") "md-shell--dashboard-boards-full"}} {{if (is-equal this.activeTab "reports") "md-shell--reports-view"}} {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "md-shell--extras-view"}}">
+  <div class="md-workspace {{if (is-equal this.activeTab "boards") "md-workspace--boards-full"}}">
+  {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
+  <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{action "goTab" "home"}}>
+      {{t "Home" key="home"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "goTab" "boards"}}>
+      {{t "Boards" key="boards"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "goTab" "reports"}}>
+      {{t "Reports" key="reports"}}
+    </button>
+    <button type="button" class="md-pillnav__pill {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "goTab" "extras"}}>
+      {{t "Extras" key="extras"}}
+    </button>
+  </nav>
+  <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
+    <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <span class="md-pillnav-dropdown__label">
+        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
+        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
+        {{this.activeTabLabel}}
       </span>
-    {{/if}}
-  </h2>
-  <div class="left_links list-group no_curve">
-    {{#if this.blank_slate}}
-      <a class="list-group-item" href="#" style="height: 80px;" {{action "getting_started"}}>
-        <span class="glyphicon glyphicon-user"></span>
-        <strong>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</strong>
-        <div class="progress" style="margin-bottom: 0; width: 75%;">
-          <div class="progress-bar" role="progressbar" aria-valuenow={{this.blank_slate_percent}} aria-valuemin="0" aria-valuemax="100" style={{this.blank_slate_percent_style}}>
-            <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.blank_slate_percent}}</span>
+      <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
+    </button>
+    <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+    </ul>
+  </div>
+
+  {{#if (is-equal this.activeTab "boards")}}
+  <main class="md-main md-main--dashboard-boards-embed" aria-label={{t "Boards" key="boards"}}>
+    {{dashboard-user-boards user=this.boardsEmbedUser isActive=true dashboardDelegate=this}}
+  </main>
+  {{else}}
+  <main class="md-main">
+    <header class="md-hero md-hero--dashboard">
+      {{#if (is-equal this.activeTab "extras")}}
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
+        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
+      {{else}}
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
+      {{/if}}
+    </header>
+
+<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+      {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
+      <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
+        <div class="md-card__head md-card__head--getting-started">
+          <div class="md-card__head-left">
+            <div class="md-card__icon md-card__icon--getting-started" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="#2A9D8F"/><path d="M22 4L12 14.01l-3-3" stroke="#46505F"/></svg>
+            </div>
+            <div class="md-card__titles">
+              <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+              <div class="md-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
+            </div>
+          </div>
+          <div class="md-card__getting-started-status">
+            <div class="md-card__progress" role="progressbar" aria-valuenow={{this.gettingStartedPercent}} aria-valuemin="0" aria-valuemax="100">
+              <div class="md-card__progress-fill" style={{this.gettingStartedPercentStyle}}></div>
+              <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.gettingStartedPercent}}</span>
+            </div>
+            <span class="md-card__getting-started-step">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.gettingStartedStep total=5}}</span>
           </div>
         </div>
-        {{t "Finish setting up your account" key="on_your_way"}}
-      </a>
-    {{else if this.app_state.feature_flags.subscriptions}}
-      {{#if this.app_state.currentUser.modeling_only}}
-        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="list-group-item half_size">
-          <span class="glyphicon glyphicon-info-sign"></span>
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <strong>{{t "This is a modeling-only account" key="modeling_only_account"}}</strong>
-          {{else}}
-            <strong>{{t "This is a modeling-only session" key="modeling_only_session"}}</strong>
-          {{/if}}
-        </LinkTo>
-      {{else if this.app_state.currentUser.expired_or_grace_period}}
-        <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="list-group-item">
-          <span class={{if this.app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
-          {{#if this.app_state.currentUser.expired}}
-            <strong class='text-danger'>{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</strong><br>
-            {{t "your free preview has ended" key="preview_expired"}}
-          {{else}}
-            <strong>{{t "Please update your license" key="update_license"}}</strong>
-            <div style='font-size: 12px; line-height: 13px;'>{{t "your free preview ends" key="preview_expires"}}<br>{{date this.app_state.currentUser.subscription.expires "day"}}</div>
-          {{/if}}
-        </LinkTo>
-      {{/if}}
-    {{/if}}
-    {{#if this.app_state.currentUser.home_board_pending}}
-      <div class="list-group-item collapsible">
-        <span class="glyphicon glyphicon-home"></span>
-        {{t "current home board:" key="current_home_board"}}<br>
-        <strong>{{t "copying %{brd}..." key="copying_board" brd=this.app_state.currentUser.home_board_pending}}</strong>
-      </div>
-    {{else if this.home_board_or_supporter}}
-      {{#if this.app_state.currentUser.supporter_view}}
-        {{#unless this.app_state.currentUser.modeling_only}}
-          {{#if this.app_state.currentUser.preferences.home_board.key}}
-            <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item half_size collapsible">
-              <span class="glyphicon glyphicon-home"></span>
-              {{t "home:" key="home_colon"}}
-              <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-            </LinkTo>
-          {{/if}}
-        {{/unless}}
-        {{#if this.sync_able}}
-          <a href="#" class={{this.small_needs_sync_class}} {{action "sync"}}>
-            <span>
-            <span class={{this.refreshing_class}}></span>
-            {{#if (persistence-value 'sync_succeeded')}}
-              {{#if this.session.invalid_token}}
-                {{t "Please re-login and sync again" key="please_resync"}}
-              {{else}}
-                {{t "Sync Done!" key="sync_done"}}
-              {{/if}}
-            {{else if (persistence-value 'sync_finished')}}
-              {{t "Done with " key="done_with"}}
-              {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
-              {{t "(see log)" key="see_log"}}
-            {{else}}
-              {{#if (persistence-value 'sync_failed')}}
-                {{t "Sync Failed, see details below" key="sync_failed"}}
-                {{#if (persistence-value 'sync_status_error')}}
-                  <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
-                {{/if}}
-              {{else}}
-                {{#if (persistence-value 'syncing')}}
-                  {{t "Syncing..." key="syncing_ellipsis"}}
-                  {{#if (persistence-value 'sync_progress')}}
-                    {{#if (persistence-value 'sync_progress.total')}}
-                      {{persistence-value 'sync_progress.visited'}} /
-                      {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-                    {{else if (persistence-value 'sync_progress.pre_total')}}
-                      {{t "checking" key="checking_lower"}}
-                      {{persistence-value 'sync_progress.pre_visited'}} /
-                      {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.pre_total')}}
-                    {{else}}
-                      {{t "initializing..." key="initializing_lower"}}
-                    {{/if}}
-                  {{/if}}
-                {{else}}
-                  {{#if this.needs_sync}}
-                    {{#if this.app_state.installed_app}}
-                      {{t "Sync before going offline!" key="needs_update"}}
-                    {{else}}
-                      {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
-                    {{/if}}
-                  {{else}}
-                    {{t "Synced and ready for offline" key="up_to_date"}}
-                  {{/if}}
-                {{/if}}
-              {{/if}}
-            {{/if}}
-            </span>
-          </a>
-        {{/if}}
-      {{else}}
-        <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}} class="list-group-item collapsible">
-          <span class="glyphicon glyphicon-home"></span>
-          {{t "current home board:" key="current_home_board"}}<br>
-          <strong>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-        </LinkTo>
-        {{#unless this.app_state.currentUser.any_limited_supervisor}}
-          {{#if this.app_state.currentUser.currently_premium}}
-            <div class="list-group-item" style={{if this.app_state.currentUser.currently_premium "height: 85px;" "height: 60px;"}}>
-              <span class="glyphicon glyphicon-volume-up"></span>
-              <span class="btn btn-primary" {{action "homeInSpeakMode"}} style="padding-top: 13px; padding-bottom: 13px; margin-top: -5px;">
-              {{t "Open In Speak Mode" key="open_in_speak_mode"}}
-              </span>
-              {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
-                <div style="margin: 5px 0 5px 60px;">
-                  <label style="font-weight: normal;">
-                    <Input @type="checkbox" @checked={{this.autoOpenSpeakMode}} />
-                    {{t "always start in Speak Mode" key="auto_open_speak_mode"}}
-                  </label>
-                </div>
-              {{/if}}
-            </div>
-          {{/if}}
-        {{/unless}}
-        {{#if this.sync_able}}
-          <a href="#" class={{this.needs_sync_class}} {{action "sync"}}>
-            <span>
-            <span class={{this.refreshing_class}}></span>
-            {{#if (persistence-value 'sync_succeeded')}}
-              {{t "Sync Done!" key="sync_done"}}
-            {{else}}
-              {{#if (persistence-value 'sync_failed')}}
-                {{t "Sync Failed, see details below" key="sync_failed"}}
-              {{else}}
-                {{#if (persistence-value 'syncing')}}
-                  {{t "Syncing..." key="syncing_ellipsis"}}
-                {{else}}
-                  {{#if this.needs_sync}}
-                    {{#if this.app_state.installed_app}}
-                      {{t "Sync before going offline!" key="needs_update"}}
-                    {{else}}
-                      {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
-                    {{/if}}
-                  {{else}}
-                    {{t "Synced and ready for offline" key="up_to_date"}}
-                  {{/if}}
-                {{/if}}
-              {{/if}}
-            {{/if}}
-            {{#if this.app_state.currentUser.stats.board_set_ids}}
-              <br>
-              {{#if (persistence-value 'sync_progress')}}
-                {{persistence-value 'sync_progress.visited'}} /
-                {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-              {{else if (persistence-value 'sync_status_error')}}
-                {{persistence-value 'sync_status_error'}}
-              {{else}}
-                {{t "board" key="communication_set_board" count=this.app_state.currentUser.stats.board_set_ids}}
-              {{/if}}
-            {{/if}}
-            </span>
-          </a>
-        {{/if}}
-      {{/if}}
-    {{else}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <LinkTo @route="home-boards" class="list-group-item collapsible">
-          <span class="glyphicon glyphicon-home"></span>
-          <strong>{{t "You haven't set a home board yet" key="choose_home_board"}}</strong><br>
-          {{t "Let us help you choose one." key="let_us_help_choose_home"}}
-        </LinkTo>
-      {{/unless}}
-    {{/if}}
-
-    {{#unless this.app_state.currentUser.supporter_role}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <a href="#" class="list-group-item collapsible" {{action "manage_supervisors"}}>
-          <span>
-          <span class="glyphicon glyphicon-user"></span>
-          {{#if this.supervisors_count}}
-            {{t "Supervisor" key="n_supervisors" count=this.supervisors_count}}
-          {{else}}
-            {{t "No Supervisors" key="no_supervisors"}}
-          {{/if}}
-          </span>
-        </a>
-      {{/unless}}
-    {{/unless}}
-    {{#unless this.app_state.currentUser.modeling_only}}
-      {{#if this.app_state.currentUser.supervised_units}}
-        <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
-          <span style='white-space: normal;'>
-            <span class='glyphicon glyphicon-tower'></span>
-            {{t "rooms:" key="rooms_colon"}}
-            {{#each this.app_state.currentUser.supervised_units as |unit|}}
-              <span style='margin-right: 10px; white-space: nowrap;'>
-                <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>
-                  {{unit.name}}
-                </LinkTo>
-              </span>
-            {{/each}}
-          </span>
-        </div>
+        <button type="button" class="md-btn md-card__getting-started-btn" {{action "getting_started"}}>
+          {{t "Help me Setup my Account" key="help_me_setup_account"}}
+        </button>
+      </article>
+      <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
       {{#if this.has_management_responsibility}}
-        {{#if this.manages_multiple_orgs}}
-          <div class="list-group-item half_size" style='height: auto; line-height: 18px; padding-bottom: 3px;'>
-            <span class="glyphicon glyphicon-paperclip"></span>
-            <span style='white-space: normal;'>
-              {{#each this.managed_orgs as |org|}}
-                <span style="margin-right: 10px; white-space: nowrap;">
-                  <LinkTo @route="organization" @model={{org.id}}>
-                    {{org.name}}
-                  </LinkTo>
-                </span>
-              {{/each}}
-            </span>
+      <article class="md-card md-card--org-management" aria-label={{t "Organization Management" key="org_management"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
-        {{else}}
-          {{#each this.managed_orgs as |org|}}
-            <LinkTo @route="organization" @model={{org.id}} class="list-group-item half_size">
-              <span class="glyphicon glyphicon-paperclip"></span>
-              <span style="margin-right: 10px;">
-                {{t "Organization Management" key="org_management"}}
-              </span>
-            </LinkTo>
-          {{/each}}
-        {{/if}}
-      {{/if}}
-    {{/unless}}
-
-    {{#if this.app_state.currentUser.modeling_only}}
-    {{else if this.app_state.currentUser}}
-      <a href="#" class={{if this.app_state.currentUser.supporter_role "list-group-item collapsible half_size" "list-group-item collapsible"}} {{action "session_select"}} style='height: auto;'>
-        <span>
-        <span class="glyphicon glyphicon-list-alt"></span>
-        {{#unless this.app_state.currentUser.supporter_role}}
-          {{t "Logging is " key="logging_is"}}
-          {{#if this.app_state.currentUser.preferences.logging}}
-            {{#if this.app_state.currentUser.preferences.geo_logging}}
-              {{t "fully enabled" key="fully_enabled"}}
-            {{else}}
-              {{t "enabled (no geo)" key="logging_no_geo_is_enabled"}}
-            {{/if}}
-          {{else}}
-            {{t "disabled" key="logging_is_disabled"}}
-          {{/if}}<br>
-        {{/unless}}
-
-        {{#if this.allow_logs}}
-          <span class='text-muted' style='font-size: 12px; margin-top: 10px;'>
-            {{t "Last Log" key="latest_session"}}
-            {{#if this.logs.[0]}}
-              <span title={{date this.logs.[0].started_at}}>
-                {{date_ago this.logs.[0].started_at}}
-              </span>
-            {{/if}}
-          </span>
-          <br>
-          {{#if this.logs.loading}}
-            {{t "Loading..." key="loading"}}
-          {{else if this.logs.error}}
-            {{t "Failed to load" key="failed_to_load"}}
-          {{else if this.logs.[0]}}
-            <div style='padding-right: 10px; white-space: normal; max-height: 40px; overflow: hidden;'>
-            {{#if this.app_state.currentUser.supporter_role}}
-              {{this.logs.[0].user.user_name}}:
-            {{/if}}
-            {{this.logs.[0].summary}}
-            </div>
-          {{else}}
-            {{t "No recent sessions" key="no_recent_sessions"}}
-          {{/if}}
-        {{else if this.app_state.currentUser.supporter_role}}
-            {{t "No session data" key="no_session_data"}}
-        {{/if}}
-        </span>
-      </a>
-    {{/if}}
-
-  </div>
-  <div style='padding: 0 10px;' class='collapsible'>
-    <div class="left_reload_holder">
-      <a href="#" class="left_reload_link" {{action "reload"}}><span class="glyphicon glyphicon-refresh"></span></a>
-    </div>
-    {{#if (persistence-value 'sync_log')}}
-      <br><a href="#" {{action "sync_details"}}>{{t "recent sync details log" key="recent_sync_details"}}</a>
-    {{/if}}
-  </div>
-  <div style="clear: both;"></div>
-  </div>
-</div>
-<div class='col col-sm-8 col-md-9' id="new_right">
-  <div class='row big_buttons' style='padding-right: 10px;'>
-    <div class='col-xs-12 new_pills_wrapper'>
-      <ul class="nav nav-pills new_pills">
-        <li role="presentation" class={{if this.index_nav.main "active"}}><a href="#" {{action "set_index_nav" "main"}}>{{t "Actions" key="actions"}}</a></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          {{#if this.show_communicators_tab}}
-            <li role="presentation" class={{if this.index_nav.supervisees "active"}}><a href="#" {{action "set_index_nav" "supervisees"}}>{{t "Communicators" key="communicators"}}</a></li>
-          {{/if}}
-        {{/unless}}
-        <li role="presentation" class={{if this.index_nav.boards "active"}}><a href="#" {{action "set_index_nav" "boards"}}>{{t "Boards" key="boards"}}</a></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          <li role="presentation" id='nav_updates' class={{if this.index_nav.updates "active"}} style='position: relative;'><a href="#" {{action "set_index_nav" "updates"}}>
-            {{t "Updates" key="updates"}}
-            {{#if this.pending_updates}}
-              <span class="label label-danger unread hidden-xs" style='position: absolute; right: -25px; top: 9px;'>
-                {{#if this.pending_updates.count}}
-                  {{this.pending_updates.count}}
-                {{else}}
-                  {{t "!" key="exclaim"}}
-                {{/if}}
-              </span>
-            {{/if}}
-          </a></li>
-        {{/unless}}
-      </ul>
-    </div>
-    {{#if this.index_nav.supervisees}}
-      {{#unless this.app_state.currentUser.modeling_only}}
-      <div class='col-xs-12'>
-        <h4>{{t "People I Supervise" key="people_i_supervise"}}</h4>
-      </div><div style='clear: left;'></div>
-      {{#unless this.supervisees_with_badges}}
-        <div style='margin: 0 20px; max-width: 600px;'>{{t "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicators account. Once you have helped your communicators add you to their account as a supervisor, you will see them appear here." key="no_supervisors_explainer"}}</div>
-      {{/unless}}
-      {{#each this.supervisees_with_badges as |supervisee|}}
-        <div class='col-lg-6 col-md-12' style='padding: 0 5px;'>
-          <div style='border: 5px solid #ccc; border-radius: 10px; margin-bottom: 10px; padding: 10px 15px;'>
-            <div style='float: left; position: relative;'>
-              <LinkTo @route="user" @model={{supervisee.user_name}}>
-                {{#if supervisee.local_avatar_url}}
-                  <img src={{supervisee.local_avatar_url}} rel-url={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
-                {{else}}
-                  <img src={{supervisee.avatar_url}} onerror="button_broken_image(this);" class='fit_image' style="height: 80px; width: 80px; margin: 25px 10px 0 -10px;">
-                {{/if}}
-              </LinkTo>
-              {{#if supervisee.online}}
-                <div title='currently online' class='online_marker'></div>
-              {{/if}}
-              {{#if supervisee.earned_badge}}
-                {{badge-earned badge=supervisee.earned_badge}}
-              {{/if}}
-            </div>
-            <div style='overflow: hidden; white-space: nowrap; margin-top: -10px;'>
-              <span style='font-size: 30px;'>{{supervisee.user_name}}</span>
-              <div class='text-muted' style='margin: -10px 0 5px;'>
-                {{#if supervisee.goal}}
-                  {{supervisee.goal.summary}}
-                {{else}}
-                  <span style='color: #ccc;'>{{t "no goal set" key="no_goal_set"}}</span>
-                  {{#if (persistence-online)}}
-                    {{#unless this.app_state.currentUser.modeling_only}}
-                      - <a {{action "set_goal" supervisee}} href="#">{{t "set a goal" key="set_a_goal"}}</a>
-                    {{/unless}}
-                  {{/if}}
-                {{/if}}
-              </div>
-            </div>
-            {{#if supervisee.home_board_key}}
-              <button class='btn btn-primary' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id true}}>
-                <span class='glyphicon glyphicon-hand-up' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Model for" key="model_for"}}<br>{{supervisee.user_name}}
-                </div>
-              </button>
-              <button class='btn btn-default modeling_button less_important' style='overflow: hidden; margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "homeInSpeakMode" supervisee.id}}>
-                <span class='glyphicon glyphicon-volume-up' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Speak as" key="speak_as"}}<br>{{supervisee.user_name}}
-                </div>
-              </button>
-            {{else if supervisee.external_device}}
-              <button class='btn btn-default button_row_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <span class='glyphicon glyphicon-user' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "User" key="user"}}<br>{{t "Profile" key="profile"}}
-                </div>
-              </button>
-            {{else}}
-              <button class='btn btn-default button_row_wrap attention_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "intro" supervisee.id}}>
-                <img src={{path "images/learn.png"}}>
-                <div style='line-height: 14px;'>
-                  {{t "Setup" key="setup"}}<br>{{t "User" key="user"}}
-                </div>
-              </button>
-            {{/if}}
-            {{#if this.app_state.currentUser.modeling_only}}
-              <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "home_board" supervisee.home_board_key}}>
-                <span class='glyphicon glyphicon-th' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Home" key="home"}}<br>{{t "Board" key="board"}}
-                </div>
-              </button>
-            {{else}}
-              <button class='btn btn-default button_row_mini_wrap secondary_button less_important' style='margin-bottom: 5px; width: 88px; border-width: 2px;' {{action "stats" supervisee.user_name}}>
-                <span class='glyphicon glyphicon-stats' style='font-size: 30px;'></span><br>
-                <div style='line-height: 14px;'>
-                  {{t "Usage" key="usage"}}<br>{{t "Reports" key="reports"}}
-                </div>
-              </button>
-              <button class='btn btn-default button_row_wrap alternate_button less_important' style='opacity: 0.8; margin-bottom: 5px; border-width: 2px; color: #444;' {{action "modeling_ideas" supervisee.user_name}}>
-                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
-                <div style='line-height: 14px;'>
-                  {{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}
-                </div>
-              </button>
-              <div class="btn-group">
-                <button class='btn btn-default dropdown-toggle button_row_extras' style='margin-bottom: 5px; border-width: 2px; border-color: #ddd; color: #888;'data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class='text'>{{t "Extras" key="extras"}} </span><span class="caret"></span></button>
-                <ul class="dropdown-menu" style='left: auto; right: 0;'>
-                  <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
-                  <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
-                  <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
-                  <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
-                  <li><a href="#" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
-                  {{#if supervisee.remote_modeling}}
-                    <li><a href="#" {{action "remote_model" supervisee}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
-                  {{/if}}
-                </ul>
-              </div>
-            {{/if}}
-            <div style='clear: left;'></div>
-            {{#if supervisee.current_badge}}
-              {{#if supervisee.premium}}
-                {{badge-progress badge=supervisee.current_badge}}
-              {{else}}
-                <div style='height: 35px;'></div>
-              {{/if}}
-            {{else}}
-              <div style='height: 35px;'></div>
-            {{/if}}
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Organization Management" key="org_management"}}</div>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
           </div>
         </div>
-      {{/each}}
-      {{/unless}}
-    {{else if this.index_nav.main}}
-      <div class={{if this.show_main_extras "main" "main short_list"}}>
-        {{#if this.app_state.currentUser.eval_ended}}
-          <div class='alert alert-danger'>
-            {{t "Your evaluation has ended" key="eval_ended"}}
-            {{#if this.app_state.currentUser.can_reset_eval}}
-              <br>
-              <button {{action "update_evaluation" "reset"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Reset Evaluation" key="reset_evaluation"}}
-                </span>
-              </button>
-            {{else if this.app_state.currentUser.subscription.eval_extendable}}
-              <br>
-              <button {{action "update_evaluation" "extend"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Request an Extension" key="request_extension"}}
-                </span>
-              </button>
-            {{/if}}
-          </div>
-        {{else if this.app_state.currentUser.eval_ending_soon}}
-          <div class='alert alert-danger'>
-            {{t "Your evaluation is set to finish soon. This evaluation period will end" key="eval_ending_soon"}}
-            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
-            {{#if this.app_state.currentUser.can_reset_eval}}
-              <br>
-              <button {{action "update_evaluation"}} class='purchase_link' style='font-size: 20px;'>
-                <span style='color: #fff;'>
-                  <span class="glyphicon glyphicon-info-sign"></span>
-                  {{t "Review Evaluation Status" key="review_evaluation"}}
-                </span>
-              </button>
-            {{/if}}
-          </div>
-        {{else if this.session.modeling_session}}
-        {{else if this.app_state.currentUser.expired_or_grace_period}}
-          <div>
-            <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="purchase_link">
-              <span style='color: #fff;'>
-                <span class={{if this.app_state.currentUser.expired "glyphicon glyphicon-info-sign expired" "glyphicon glyphicon-info-sign"}}></span>
-                {{t "Purchase %app_name%" key="purchase_app"}}
-              </span>
-            </LinkTo>
-          </div>
-        {{else if this.app_state.limited_free_space}}
-          <div class='alert alert-danger'>
-            {{t "Your device is almost out of free space! You only have %{mb}Mb of storage available. You may need to delete some data from other apps for %app_name% to work properly offline." mb=this.app_state.limited_free_space.mb key="need_memory_for_offline"}}
-          </div>
-        {{else if this.model.earned_badge}}
-          <div>
-            {{badge-earned badge=this.model.earned_badge big=true}}
-          </div>
-        {{else if this.model.first_incomplete_lesson}}
-          {{#if this.app_state.feature_flags.lessons}}
-          <div style='margin-left: 10px; margin-bottom: 10px;'>
-            <button class='btn btn-lg btn-default' {{action "next_lesson"}}>
-            <span class='glyphicon glyphicon-education'></span>
-            {{t "Next Lesson: " key="next_lesson"}}
-            {{this.model.first_incomplete_lesson.title}}
-            {{#if this.model.first_incomplete_lesson.due_at}}
-              <div style='font-size: 14px;'>due {{date this.model.first_incomplete_lesson.due_at}}</div>
-            {{/if}}
-            </button>
-          </div>
-          {{/if}}
-        {{else if this.rating_allowed}}
-          <div>
-            <button {{action "launch_rating"}} class='purchase_link' style='font-size: 20px;'>
-              <span style='color: #fff;'>
-                <span class="glyphicon glyphicon-info-sign"></span>
-                {{t "Rate the %app_name% App" key="rate_the_app"}}
-              </span>
-            </button>
-          </div>
-        {{else if this.app_state.currentUser.subscription.eval_expires}}
-          <div class='alert alert-info'>
-            {{t "This is an evaluation account, and will run through " key="eval_ending_date"}}
-            {{date this.app_state.currentUser.subscription.eval_expires "day"}}.
-          </div>
-        {{/if}}
-        {{#if this.app_state.currentUser.external_device}}
-          <div class='col-md-3 col-xs-4 big_button_holder'>
-            <button id='nav_primary' class='btn big_button btn-default middle_row' {{action "manual_session"}}>
-              <span class='glyphicon glyphicon-pencil'></span>
-              {{t "Manual Log<br>Session" key="manual_log_session"}}
-            </button>
-          </div>
-        {{else}}
-          <div class='col-md-3 col-xs-4 big_button_holder'>
-            <button id='nav_primary' class='btn big_button btn-primary' {{action "homeInSpeakMode"}}>
-              <img src={{path "images/Sound.png"}} class="sound_icon">
-              {{t "Speak Mode" key="speak_mode"}}
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.app_state.currentUser.modeling_only}}
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} id="nav_secondary" class="btn big_button btn-default">
-                <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
-                {{t "My Account" key="my_account"}}
-              </LinkTo>
-            </div>
-          {{/if}}
-        {{else}}
-          <div class='col-md-3 col-xs-4 big_button_holder'>
-            <button id='nav_secondary' class='btn big_button btn-default' {{action "stats"}}>
-              <img src={{path "images/chart.png"}}>
-              {{t "Reports" key="reports"}}
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
-          {{#if this.modeling_ideas_available}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button id='nav_tertiary' class='btn big_button btn-default bottom_row' {{action "modeling_ideas"}}>
-                <img src={{path "images/modeling.png"}} class="modeling_ideas_icon">
-                {{t "Modeling<br>Ideas" key="modeling_ideas_two_lines"}}
-              </button>
-            </div>
-          {{else}}
-            {{#unless this.app_state.currentUser.modeling_only}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button id='nav_tertiary' class='btn big_button btn-default' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} >
-                  {{t "New Board" key="new_board"}}
+        <div class="md-card__org-list">
+          {{#if this.all_orgs.length}}
+            {{#if this.multipleOrgs}}
+              <div class="md-org-dropdown {{if this.orgDropdownOpen "is-open"}}">
+                <button type="button" class="md-org-dropdown__trigger" {{action "toggleOrgDropdown"}} aria-expanded={{this.orgDropdownOpen}} aria-haspopup="listbox">
+                  <span class="md-org-dropdown__label">{{t "Organizations" key="organizations"}}</span>
+                  <span class="md-org-dropdown__count">{{this.all_orgs.length}}</span>
+                  <span class="md-org-dropdown__chevron" aria-hidden="true"></span>
                 </button>
+                {{#if this.orgDropdownOpen}}
+                  <ul class="md-org-dropdown__list" role="listbox" aria-label={{t "Organizations" key="organizations"}}>
+                    {{#each this.all_orgs as |org|}}
+                      <li role="option">
+                        <LinkTo @route="organization" @model={{org.id}} class="md-org-dropdown__option">
+                          <span class="md-org-dropdown__org-icon" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                          </span>
+                          <span class="md-org-dropdown__org-name">{{org.name}}</span>
+                        </LinkTo>
+                      </li>
+                    {{/each}}
+                  </ul>
+                {{/if}}
               </div>
-            {{/unless}}
+            {{else}}
+              <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">
+                {{this.all_orgs.firstObject.name}}
+              </LinkTo>
+            {{/if}}
+          {{else}}
+            <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
+              {{t "Add Organization" key="add_organization"}}
+            </button>
           {{/if}}
-        {{else}}
-          {{#unless this.app_state.currentUser.modeling_only}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button id='nav_tertiary' class='btn big_button btn-default middle_row' {{action "intro"}}>
-                <img src={{path "images/learn.png"}} >
-                {{t "Learn<br>and Setup" key="learn_and_setup"}}
-              </button>
-            </div>
-          {{/unless}}
-        {{/if}}
-        <div class='col-md-3 col-xs-4 big_button_holder'>
-          <button id='nav_extras' class='btn big_button btn-default' {{action "toggle_extras"}} style='touch-action: manipulation;'>
-            <img src={{path "images/Extras.png"}}>
-            {{t "Extras" key="extras"}} <span class={{if this.show_main_extras "caret" "caret-right"}}></span>
+        </div>
+      </article>
+      {{/if}}
+
+      <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</div>
+            <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
+          </div>
+        </div>
+        <div class="md-card__row">
+          <div class="md-chip md-chip--soft">
+            <span class="md-chip__dot" aria-hidden="true"></span>
+            {{#if this.last_board_name}}
+              {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
+            {{else}}
+              {{t "Last board: None" key="md_last_board_none"}}
+            {{/if}}
+          </div>
+          <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
+            {{t "Continue Speaking" key="continue_speaking"}}
           </button>
         </div>
-        {{#if this.show_main_extras}}
-          {{#unless this.app_state.currentUser.modeling_only}}
-            {{#if this.app_state.currentUser.preferences.progress.intro_watched}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button class='btn big_button btn-default middle_row' {{action "intro"}}>
-                  <img src={{path "images/learn.png"}} >
-                  {{t "Learn<br>and Setup" key="learn_and_setup"}}
-                </button>
+        <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
+      </article>
+
+      <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-card__head md-card__head--between">
+          <div>
+            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
+            <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
+          </div>
+        </div>
+        <div class="md-extrasRow">
+          <div class="md-extrasIcon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
+          </div>
+          <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
+            {{t "Explore Extras" key="explore_extras"}}
+          </button>
+        </div>
+        <div class="md-card__extras-wave" aria-hidden="true"></div>
+      </article>
+
+      <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
+        <div class="md-card__head md-card__head--between">
+          <div class="md-card__left">
+            <div class="md-card__title">{{t "Boards" key="boards"}}</div>
+            <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
+          </div>
+          <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
+          <div class="md-stat">
+            <div class="md-stat__num">{{this.displayBoardCount}}</div>
+            <div class="md-stat__meta">
+              <div>{{t "Total" key="total"}}</div>
+              <div>{{if (is-equal this.boardCount 1) (t "Board" key="board_singular") (t "Boards" key="boards")}}</div>
+            </div>
+          </div>
+        </div>
+        {{#if this.boardsLoading}}
+        <div class="md-card__loading">
+          <div class="md-spinner" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+              <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <p class="md-card__loading-text">{{t "Loading boards..." key="loading_boards"}}</p>
+        </div>
+        {{else if this.previewBoards.length}}
+        <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
+          {{#each this.previewBoards as |preview|}}
+            <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
+              <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
+                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button class='btn big_button btn-default middle_row' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} >
-                  {{t "New Board" key="new_board"}}
-                </button>
+              <div class="md-strip__label">{{preview.name}}</div>
+            </button>
+          {{/each}}
+        </div>
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
+          {{t "View All Boards →" key="view_all_boards"}}
+        </button>
+        {{else if this.boardCount}}
+        <button type="button" class="md-btn md-btn--primary md-btn--wide" {{action "goTab" "boards"}}>
+          {{t "View All Boards →" key="view_all_boards"}}
+        </button>
+        {{else}}
+        <div class="md-card__empty">
+          <div class="md-card__empty-icon" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" stroke="rgba(70,80,95,0.35)"/><line x1="3" y1="9" x2="21" y2="9" stroke="rgba(70,80,95,0.35)"/><line x1="9" y1="21" x2="9" y2="9" stroke="rgba(70,80,95,0.35)"/></svg>
+          </div>
+          <p class="md-card__empty-text">{{t "You don't have any boards yet" key="no_boards_yet"}}</p>
+          <button type="button" class="md-btn md-btn--primary" {{action "openNewBoardOnBoards"}}>
+            {{t "Create Your First Board" key="create_first_board"}}
+          </button>
+        </div>
+        {{/if}}
+      </article>
+
+      {{#if (is-equal this.activeTab "supervisors")}}
+      <section class="md-supervisors-page" aria-label={{t "Supervisors" key="supervisors"}}>
+        {{#if this.appState.currentUser.supporter_role}}
+          <article class="md-card md-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
+                <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
               </div>
-            {{else}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button class='btn big_button btn-default middle_row' {{action "newBoard"}}>
-                  <img src={{path "images/new.svg"}} >
-                  {{t "New Board" key="new_board"}}
-                </button>
+            </div>
+            <div class="md-people">
+              {{#if this.appState.currentUser.known_supervisees}}
+                {{#each this.appState.currentUser.known_supervisees as |supervisee|}}
+                  <div class="md-person md-person--linked">
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="md-person__main">
+                      <img src={{supervisee.avatar_url}} class="md-avatar md-avatar--img" alt="" aria-hidden="true">
+                      <div class="md-person__meta">
+                        <div class="md-person__name">{{supervisee.user_name}}</div>
+                        {{#if supervisee.goal}}
+                          <div class="md-person__role md-muted">{{supervisee.goal.summary}}</div>
+                        {{else}}
+                          <div class="md-person__role md-muted">{{t "no goal set" key="no_goal_set"}}</div>
+                        {{/if}}
+                        {{#if supervisee.unread_messages}}
+                          <span class="md-person__badge" title={{t "unread messages" key="unread_messages"}}>{{supervisee.unread_messages}}</span>
+                        {{/if}}
+                      </div>
+                    </LinkTo>
+                    <ul class="md-person__links" role="list">
+                      <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
+                      {{#if supervisee.home_board_key}}
+                        <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
+                      {{/if}}
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</a></li>
+                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</a></li>
+                      <li><LinkTo @route="user.stats" @model={{supervisee.user_name}} @query={{hash highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "Reports" key="reports"}}</LinkTo></li>
+                      <li><a href="#" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
+                      <li><a href="#" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                    </ul>
+                  </div>
+                {{/each}}
+                {{#if this.appState.currentUser.all_connections.loading}}
+                  <div class="md-person md-muted">{{t "Loading more..." key="loading_more"}}</div>
+                {{else if this.appState.currentUser.all_connections.error}}
+                  <div class="md-person md-muted text-danger">{{t "There was an error loading supervision users" key="error_loading_connections"}}</div>
+                {{/if}}
+              {{else}}
+                <div class="md-person md-muted">{{t "None found" key="none_found"}}</div>
+              {{/if}}
+            </div>
+          </article>
+        {{else}}
+          <article class="md-card md-card--sup md-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
+            <div class="md-card__head md-card__head--between">
+              <div>
+                <div class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
+                <div class="md-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
+                {{#unless this.appState.currentUser.supervisors_or_managing_org}}
+                  <span class="md-info-badge md-info-badge--below-sub" role="status">
+                    <span class="md-info-badge__dot" aria-hidden="true"></span>
+                    {{t "None found" key="none_found"}}
+                  </span>
+                {{/unless}}
               </div>
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button class='btn big_button btn-default middle_row' {{action "searchBoards"}}>
-                <span class='glyphicon glyphicon-search'></span>
-                  {{t "Search Boards" key="search_boards"}}
-                </button>
+            </div>
+            <div class="md-card__sup-inline">
+              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true}}
+            </div>
+          </article>
+          {{#if this.appState.currentUser.supervised_units}}
+            <article class="md-card md-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
+              <div class="md-card__head">
+                <div class="md-card__title">{{t "rooms:" key="rooms_colon"}}</div>
               </div>
-            {{/if}}
-          {{/unless}}
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button class='btn big_button btn-default middle_row' {{action "manage_supervisors"}}>
-                <span class='glyphicon glyphicon-user'></span>
-                {{t "Supervisors" key="supervisors"}}
-              </button>
-            </div>
-          {{/if}}
-          {{#if this.sync_able}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button class='btn big_button btn-default middle_row' {{action "sync_details"}}>
-                <span class='glyphicon glyphicon-refresh'></span>
-                {{t "Sync" key="sync"}}
-              </button>
-            </div>
-          {{/if}}
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button class='btn big_button btn-default bottom_row' {{action "goals"}}>
-                <span class='glyphicon glyphicon-flag'></span>
-                {{t "Goals" key="goals"}}
-              </button>
-            </div>
-          {{/if}}
-          {{#unless this.app_state.currentUser.modeling_only}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button class='btn big_button btn-default bottom_row' {{action "record_note"}}>
-                <span class='glyphicon glyphicon-file'></span>
-                {{t "New Note" key="new_note"}}
-              </button>
-            </div>
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <button class='btn big_button btn-default bottom_row' {{action "run_eval" "pick"}}>
-                <span class='glyphicon glyphicon-list-alt'></span>
-                {{t "Run Evaluation" key="run_eval"}}
-              </button>
-            </div>
-          {{/unless}}
-          {{#if this.app_state.currentUser.permissions.delete}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn big_button btn-default bottom_row">
-                <img src={{this.app_state.currentUser.avatar_url_with_fallback}} onerror='button_broken_image(this);' >
-                {{t "My Account" key="my_account"}}
-              </LinkTo>
-            </div>
-          {{/if}}
-          {{#if this.app_state.feature_flags.emergency_boards}}
-            <div class='col-md-3 col-xs-4 big_button_holder'>
-              <LinkTo @route="offline_boards" class="btn big_button btn-default emergency_button">
-                <span class='glyphicon glyphicon-exclamation-sign'></span>
-                {{t "Basic Access" key="critical_access"}}
-              </LinkTo>
-            </div>
-          {{/if}}
-          {{#if this.app_state.feature_flags.lessons}}
-            {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                <button class='btn big_button btn-default bottom_row' {{action "lessons"  "pick"}}>
-                  <span class='glyphicon glyphicon-education'></span>
-                  {{t "Trainings" key="trainings"}}
-                </button>
+              <div class="md-rooms-list">
+                {{#each this.appState.currentUser.supervised_units as |unit|}}
+                  <span class="md-rooms-list__item">
+                    <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>{{unit.name}}</LinkTo>
+                  </span>
+                {{/each}}
               </div>
-            {{/if}}
-          {{/if}}
-        {{else if (persistence-online)}}
-          {{#if this.app_state.currentUser.current_badge}}
-            {{badge-progress badge=this.app_state.currentUser.current_badge big=true}}
+            </article>
           {{/if}}
         {{/if}}
-      </div>
-    {{else if this.index_nav.boards}}
-      {{#if this.showOffline}}
-        <h4>{{t "Recent boards" key="available_boards"}}</h4>
-        {{#if this.recentOfflineBoards}}
-          {{#each this.recentOfflineBoards as |board|}}
-            {{#if board.key}}
-              <div class="col-md-2 col-xs-4 big_button_holder">
-                <button class='btn big_button btn-default'>
+      </section>
+      {{/if}}
 
-                  {{board.key}}
-                </button>
-              </div>
+      {{#if (is-equal this.activeTab "extras")}}
+      <section class="md-extras-page" aria-label={{t "Extras" key="extras"}}>
+        <div class="md-extras-page__grid" role="list">
+          {{#each this.extrasItems as |item|}}
+            {{#if item.show}}
+              <article class="md-extras-card" role="listitem">
+                <div class="md-extras-card__head">
+                  <div class="md-extras-card__icon-wrap md-extras-card__icon-wrap--{{item.action}}">
+                    {{#if (is-equal item.action "intro")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><path d="M12 16v-4" stroke="#46505F"/><path d="M12 8h.01" stroke="#46505F"/></svg>
+                    {{else if (is-equal item.action "sync_details")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
+                    {{else if (is-equal item.action "goals")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#316F70"/></svg>
+                    {{else if (is-equal item.action "record_note")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#7693B9"/></svg>
+                    {{else if (is-equal item.action "run_eval")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4" stroke="#46505F"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#F2B95A"/></svg>
+                    {{else if (is-equal item.action "account")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {{else if (is-equal item.action "supervisors")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+                    {{else if (is-equal item.action "lessons")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke="#2A9D8F"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="#46505F"/></svg>
+                    {{else if (is-equal item.action "offline_boards")}}
+                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C9AD7A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    {{else}}
+                      <img src={{path item.image}} class="md-extras-card__img" alt="" aria-hidden="true">
+                    {{/if}}
+                  </div>
+                  <div class="md-extras-card__body">
+                    <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
+                    <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
+                  </div>
+                </div>
+                <div class="md-extras-card__btn-wrap">
+                {{#if (is-equal item.action "supervisors")}}
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "openSupervisorsModal"}}>
+                    {{t "View" key="view"}} →
+                  </button>
+                {{else}}
+                  <button type="button" class="md-btn md-btn--primary md-extras-card__btn" {{action "extraAction" item.action}}>
+                    {{t item.btn_default key=item.btn_key}} →
+                  </button>
+                {{/if}}
+                </div>
+              </article>
             {{/if}}
           {{/each}}
-        {{else}}
-          <div class="col-sm-4">
-            {{t "None found" key="none_found"}}
-          </div>
-        {{/if}}
-      {{else}}
-        <div class='col-xs-8 col-sm-6'>
-          <h4>{{t "Browse Boards" key="browse_boards"}}</h4>
-          <ul class="nav nav-pills" style="margin-top: -5px; margin-bottom: 5px; margin-right: -20px;">
-            <li role="presentation" class={{if this.suggested_selected "active"}}><a href="#" {{action "set_selected" "suggested"}}>{{t "Suggested" key="suggested"}}</a></li>
-            <li role="presentation" class={{if this.personal_selected "active"}}><a href="#" {{action "set_selected" "personal"}}>{{t "Mine" key="mine"}}</a></li>
-            <li role="presentation" class={{if this.popular_selected "active"}}><a href="#" {{action "set_selected" "popular"}}>{{t "Community" key="community"}}</a></li>
-            <li role="presentation" class={{if this.recent_selected "active"}}><a href="#" {{action "set_selected" "recent"}}>{{t "Recent" key="recent"}}</a></li>
-          </ul>
         </div>
-        <div class='col-xs-4 col-sm-6'>
-          <div style='margin: 10px 0 20px -10px;'>
-            <span class="glyphicon glyphicon-home" style='float: left; font-size: 50px; padding-right: 15px;'></span>
-            {{t "current home board:" key="current_home_board"}}<br>
-            {{#if this.app_state.currentUser.preferences.home_board}}
-              <LinkTo @route="board" @model={{this.app_state.currentUser.preferences.home_board.key}}>
-                <strong style='font-size: 20px;'>{{this.app_state.currentUser.preferences.home_board.key}}</strong>
-              </LinkTo>
-            {{else}}
-              <LinkTo @route="home-boards">
-                <span style='font-size: 20px;'>
-                  {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
-              </LinkTo>
-            {{/if}}
-            <div style='clear: left;'></div>
-          </div>
-        </div>
-        <div style='clear: left;'></div>
-        {{#if this.suggested_selected}}
-          {{#unless this.app_state.currentUser.supporter_role}}
-            <div class="col-xs-12" style="margin-bottom: 10px;">
-              <LinkTo @route="home-boards">
-                <span>
-                <span class="glyphicon glyphicon-search"></span>
-                {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-                </span>
-              </LinkTo>
-            </div>
-          {{/unless}}
-        {{/if}}
-        {{#if this.current_boards}}
-          {{#if this.current_boards.loading}}
-            <div class='col-sm-4'>{{t "Loading..." key="loading"}}</div>
-          {{else if this.current_boards.error}}
-            <div class='col-sm-4'>{{t "Failed to load" key="failed_to_load"}}</div>
-          {{else}}
-            {{#each this.current_boards as |board|}}
-              <div class='col-md-3 col-xs-4 big_button_holder'>
-                {{board-icon board=board localized=true allow_style=this.suggested_selected}}
-              </div>
-            {{/each}}
-            {{#if this.personal_selected}}
-              <div class='col-xs-12'>
-                <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="btn btn-default btn-lg thick_border">
-                  {{t "See All My Boards" key="see_all_my_boards"}}
-                </LinkTo>
-              </div>
-            {{/if}}
-          {{/if}}
-        {{else}}
-          <div class="col-sm-4">
-            {{t "None found" key="none_found"}}
-          </div>
-        {{/if}}
+      </section>
       {{/if}}
-    {{else if this.index_nav.updates}}
-      <div class='col-md-8 col-md-offset-2 col-xs-12'>
-        {{#if this.device.needs_install_reminder}}
-          <div style="margin-bottom: 20px; text-align: center;">
-            <h2>
-              <span class="glyphicon glyphicon-phone"></span>
-              {{t "Try the App" key="use_cough_drop_app"}}
-            </h2>
-            <div style='text-align: left;'>
-              {{t "%app_name% works in any web browser, but you can also install the free app in the following stores:" key="app_stores"}}
-            </div>
-            <div>
-              {{#if this.app_state.domain_settings.ios_store_url}}
-                <a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
-                </a>
-              {{/if}}
-              {{#if this.app_state.domain_settings.play_store_url}}
-                <a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
-                </a><br>
-              {{/if}}
-              {{#if this.app_state.domain_settings.kindle_store_url}}
-                <a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
-                  <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
-                </a>
-              {{/if}}
-              <LinkTo @route="download">
-                <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
-              </LinkTo>
-            </div>
-          </div>
-        {{/if}}
-        <h4>{{t "Notifications" key="notifications"}}</h4>
-        <div style="margin-left: 20px;">
-          {{#if this.app_state.currentUser.pending_org}}
-            <p>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}</LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.pending_supervision_org}}
-            <p>
-              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}><span class="glyphicon glyphicon-paperclip"></span> {{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}</LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.pending_board_shares}}
-            {{#each this.app_state.currentUser.pending_board_shares as |share|}}
-              <p>
-                <span class="glyphicon glyphicon-share"></span>
-                <LinkTo @route="board" @model={{share.board_key}}>{{share.board_key}}</LinkTo>
-                {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}
-              </p>
-            {{/each}}
-          {{/if}}
-          {{#if this.app_state.currentUser.unread_messages}}
-            <p>
-            <LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
-              <span class="glyphicon glyphicon-envelope"></span>
-              {{t "You have " key="you_have"}}
-              {{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}
-            </LinkTo>
-            </p>
-          {{/if}}
-          {{#if this.app_state.currentUser.parsed_notifications}}
-            {{#each this.app_state.currentUser.parsed_notifications as |notif|}}
-              <UserNotification @notification={{notif}} />
-            {{/each}}
-          {{/if}}
-          {{#unless this.app_state.currentUser.unread_messages}}
-            {{#unless this.app_state.currentUser.parsed_notifications}}
-              {{#unless this.app_state.currentUser.pending_board_shares}}
-                {{#if this.show_notifications_explanation}}
-                  <em style="font-size: 11px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
-                {{else}}
-                  {{t "You have no new messages" key="no_new_messages"}}
-                  <a href="#" {{action "show_explanation" "notifications"}}>
-                    <span class='glyphicon glyphicon-info-sign'></span>
-                  </a>
-                {{/if}}
-              {{/unless}}
-            {{/unless}}
-          {{/unless}}
-        </div>
+    </section>
+  </main>
+  {{/if}}
 
-        {{#if this.app_state.currentUser.supporter_role}}
-          <h4>{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h4>
-        {{else}}
-          <h4>{{t "Recent Sessions" key="recent_sessions"}}</h4>
-        {{/if}}
-        <div style="margin-left: 20px;">
-          {{#if this.logs.loading}}
-            <p>{{t "Loading..." key="loading"}}</p>
-          {{else if this.logs.error}}
-            <p>{{t "Failed to load" key="failed_to_load"}}</p>
-          {{else if this.logs}}
-            {{#each this.logs as |log|}}
-              <p>
-                <span title={{date log.started_at}}>
-                  {{date_ago log.started_at}}
-                </span>
-                <LinkTo @route="user.log" @models={{array log.user.user_name log.id}}>
-                  {{#if log.assessment}}
-                    {{t "assessment" key="assessment"}}
-                  {{else}}
-                    {{t "button" count=log.button_count key="button_count"}}
-                  {{/if}}
-                </LinkTo>
-                {{#if this.app_state.currentUser.supporter_role}}
-                  <span> -
-                    <LinkTo @route="user" @model={{log.user.user_name}}>
-                      {{log.user.user_name}}
-                    </LinkTo>
-                  </span>
-                {{/if}}
-                <br>
-                <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
-              </p>
-            {{/each}}
-          {{else}}
-            {{#if this.show_sessions_explanation}}
-              <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
-            {{else}}
-              <p>
-                {{t "No sessions currently available" key="no_sessions_found"}}
-                <a href="#" {{action "show_explanation" "sessions"}}>
-                  <span class='glyphicon glyphicon-info-sign'></span>
-                </a>
-              </p>
-            {{/if}}
-          {{/if}}
+  </div>{{!-- .md-workspace --}}
+
+  {{#if this.isSearchOpen}}
+    <section class="md-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
+      <div class="md-searchOverlay__top">
+        <input
+          class="md-searchOverlay__input"
+          placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
+          autofocus
+          {{action "onSearchKeydown" on="keyDown"}}
+        />
+        <button type="button" class="md-btn md-btn--ghost" {{action "closeSearch"}}>
+          {{t "Close" key="close"}}
+        </button>
+      </div>
+      <div class="md-searchOverlay__body">
+        <div class="md-muted">{{t "Hook this to your Rails endpoint later." key="md_search_hook"}}</div>
+        <div class="md-quickActions">
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "speak"}}>{{t "Continue Speaking" key="continue_speaking"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "boards"}}>{{t "Open Boards" key="open_boards"}}</button>
+          <button type="button" class="md-row" {{action "goAndCloseSearch" "reports"}}>{{t "View Reports" key="view_reports"}}</button>
+          <button type="button" class="md-row" {{action "openExtrasTab"}}>{{t "Explore Extras" key="explore_extras"}}</button>
         </div>
       </div>
-    {{/if}}
-  </div>
+    </section>
+  {{/if}}
 </div>

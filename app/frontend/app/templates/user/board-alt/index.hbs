@@ -1,0 +1,185 @@
+{{#button-listener computeHeight=(action "compute_height") buttonEvent=(action "button_event")}}
+{{#if this.model.integration}}
+  {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
+    <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
+    <p class='text-danger'>{{t "Installed tools will only work correctly for currently-active premium accounts" key="premium_required_for_tools"}}</p>
+  {{else}}
+    {{#if this.teaser_description}}
+      <div id="board_description">
+        <span>{{this.model.integration_name}}</span>
+      </div>
+    {{/if}}
+    {{#if this.model.embed_url}}
+      {{embed-frame board_style=this.board_style code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+    {{else}}
+      <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
+    {{/if}}
+  {{/unless}}
+{{else if this.model.id}}
+  {{#if this.teaser_description}}
+    <div id="board_description">
+      <span {{action "boardDetails"}}>
+        {{#unless this.model.public}}
+          {{#if this.model.protected_material}}
+            <span class="glyphicon glyphicon-lock"></span>
+          {{else}}
+            <span class='glyphicon glyphicon-sunglasses'></span>
+          {{/if}}
+        {{/unless}}
+        {{#if this.cc_license}}
+          <img src={{path "images/cc.png"}} alt="cc license" style="opacity: 0.5;">
+        {{else if this.pd_license}}
+            <img src={{path "images/pd.png"}} alt="public domain" style="opacity: 0.5;">
+        {{/if}}
+        {{this.teaser_description}}
+      </span>
+    </div>
+  {{/if}}
+  <div id="stash_hover" style="position: absolute;">
+    <div {{action "stash_button"}} class='option'>
+      <span class="glyphicon glyphicon-copy"></span>
+      {{t "Button<br>Stash" key="copy_to_button_stash"}}
+      <span style="clear: left;"></span>
+    </div>
+    <div {{action "word_data"}} class='option'>
+      <span class="glyphicon glyphicon-book"></span>
+      {{t "Word<br>Data" key="view_word_data"}}
+      <span style="clear: left;"></span>
+    </div>
+  </div>
+  {{#if this.show_word_suggestions}}
+    <div id="word_suggestions" class={{this.suggestion_class}}>
+      {{#if this.suggestions.pending}}
+      {{else if this.suggestions.ready}}
+        {{#each this.suggestions.list as |suggestion|}}
+          <a href="#" class="suggestion" {{action "complete_word" suggestion}}>
+            {{#if this.show_word_suggestion_images}}
+              <span class='image_holder'>
+                {{#if suggestion.image}}
+                  <img src={{suggestion.image}} class={{if suggestion.hc_image "hc"}} data-fallback={{suggestion.fallback_image}} onerror='button_broken_image(this);' >
+                {{/if}}
+              </span>
+            {{/if}}
+            {{suggestion.word}}
+          </a>
+        {{/each}}
+      {{else if this.suggestions.error}}
+        {{t "Word suggestions failed to load" key="word_suggestions_failed"}}
+      {{else}}
+        {{t "Loading word suggestions..." key="loading_word_suggestions"}}
+      {{/if}}
+    </div>
+  {{/if}}
+  {{#let this.model as |board|}}
+  <div style={{this.board_style}} class={{this.display_class}} data-id={{board.id}} lang={{this.app_state.board_lang}}>
+    {{#if board.has_background}}
+      <div style={{this.bg_style}} id='board_bg' class={{this.bg_class}}>
+        {{#if board.background.text}}
+          <div class='text'><span>{{board.background.text}}</span></div>
+        {{/if}}
+        {{#if board.background.image}}
+          {{#if board.background.image_exclusion}}
+            <div class='exclude'></div>
+          {{/if}}
+          <img src={{board.background_image_url_with_fallback}} style={{this.bg_img_style}}>
+        {{/if}}
+      </div>
+    {{/if}}
+    {{#if this.nothing_visible_not_edit}}
+      <div class="board_status">
+        <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key="no_visible_buttons"}}</p>
+        {{#if board.permissions.edit}}
+          {{#unless this.app_state.speak_mode}}
+            <button class='btn btn-default btn-lg' {{action "toggleEditMode" }}>{{t "Edit this Board" key="edit_this_board"}}</button>
+          {{/unless}}
+        {{/if}}
+      </div>
+    {{else}}
+      {{#if board.grid}}
+        {{#if board.fast_html.html}}
+          {{board.fast_html.html}}
+        {{else if this.ordered_buttons}}
+          {{#if this.app_state.edit_mode}}
+            {{#each this.ordered_buttons as |row|}}
+              <div class="button_row">
+                {{#each row as |button|}}
+                  <!-- NOTE: this is noticeably slow on Chrome, only when debugger is open... -->
+                  <!-- TODO: I think this is only used in Edit Mode -->
+                  <a href='#' style={{button.computed_style}} class="button {{button.computed_class}}" data-id={{button.id}} tabindex="0">
+                    {{#if button.pending}}
+                      <div class="pending">
+                        <img src={{path "images/spinner.gif"}} draggable='false' >
+                      </div>
+                    {{/if}}
+                    <div class={{button.action_class}}>
+                      <span class="action">
+                        <img src={{button.action_image}} alt={{button.action_alt}} draggable='false' >
+                      </span>
+                    </div>
+                    <span class='img_holder' style={{button.image_holder_style}}>
+                      {{#unless this.app_state.currentUser.hide_symbols}}
+                        {{#unless button.board.text_only}}
+                          {{#unless button.text_only}}
+                            <img src={{button.local_image_url}} rel={{button.original_image_url}} draggable='false' onerror="button_broken_image(this);" style={{button.image_style}} class={{if button.hc_image "symbol hc" "symbol"}}>
+                          {{/unless}}
+                        {{/unless}}
+                      {{/unless}}
+                    </span>
+                    <div class={{if button.text_only this.text_only_button_symbol_class this.button_symbol_class}}>
+                      {{#if this.editModeNormalText}}
+                        {{#if button.sound}}
+                          <div class="sound_container">
+                            <span class="glyphicon glyphicon-volume-up"></span>
+                          </div>
+                        {{/if}}
+                        {{label-field value=button.label class="button-label" placeholder="enter label"}}
+                        {{#if button.levels_list}}
+                          <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
+                        {{/if}}
+                      {{else}}
+                        {{#unless button.hide_label}}
+                          <span class="button-label">{{button.label}}</span>
+                        {{/unless}}
+                      {{/if}}
+                    </div>
+                  </a>
+                {{/each}}
+              </div>
+            {{/each}}
+          {{else}}
+            {{#if this.app_state.currentUser.preferences.device.canvas_render}}
+              {{board-canvas id="board_canvas" onInsert=(action "redraw") tabindex="0"}}
+            {{else}}
+              {{#each this.ordered_buttons as |row|}}
+                <div class="button_row">
+                  {{#each row as |button|}}
+                    {{button.fast_html}}
+                  {{/each}}
+                </div>
+              {{/each}}
+              {{fast-html-grabber}}
+            {{/if}}
+          {{/if}}
+        {{else}}
+          <span class="board_status">
+            {{t "Loading..." key="loading"}}
+          </span>
+        {{/if}}
+      {{else}}
+        <span class="board_status">
+          {{t "Grid not defined!" key="grid_not_defined"}}
+        </span>
+      {{/if}}
+    {{/if}}
+    <div style="clear: left;"></div>
+  </div>
+  {{/let}}
+{{else}}
+  <p>{{this.error_message}}</p>
+  {{#if this.model.retrying}}
+    {{t "Trying again..." key="trying_again"}}
+  {{else}}
+    <a href="#" {{action "re_transition"}}>{{t "Try Again" key="try_again"}}</a>
+  {{/if}}
+{{/if}}
+{{/button-listener}}

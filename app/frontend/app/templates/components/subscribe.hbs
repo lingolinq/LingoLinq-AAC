@@ -1,11 +1,16 @@
-{{#modal-dialog opening=(action "opening") closing=(action "closing") desired_width=645 uncloseable="true"}}
-  <div class="modal-header">
-    <button class='btn btn-default btn-sm' {{action "really_subscription_skip"}} style='float: right;'>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
-    {{#if this.model.user.really_expired}}
-      <h3>{{t "Purchase Update" key="subscription_update"}}</h3>
-    {{else}}
-      <h3>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</h3>
-    {{/if}}
+{{#modal-dialog opening=(action "opening") closing=(action "closing") uncloseable="true"}}
+  <div class="modal-header subscribe-modal-header">
+    <button type="button" class="subscribe-trial-btn" {{action "really_subscription_skip"}}>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
+    <div class="subscribe-modal-header__title-wrap">
+      {{#unless this.model.user.really_expired}}
+        {{app-logo size="auto" imgClass="subscribe-modal-header__logo" imgAlt=""}}
+      {{/unless}}
+      {{#if this.model.user.really_expired}}
+        <h3>{{t "Purchase Update" key="subscription_update"}}</h3>
+      {{else}}
+        <h3>{{t "Welcome to %app_name%!" key="welcome_to_app"}}</h3>
+      {{/if}}
+    </div>
   </div>
   <div class="modal-body" id="button_settings">
     {{#if this.model.user.really_expired}}
@@ -13,7 +18,6 @@
         {{t "Your %app_name% trial period has expired. Please update your billing settings to continue using LingoLinq." key="welcome_fill_out_subscription"}}
       </p>
     {{else}}
-      <img src={{if this.appState.domain_settings.logo_url this.appState.domain_settings.logo_url (path "images/logo-big.png")}} style='float: left; height: 50px; margin: 0 10px 5px 0;'>
       <p>
         {{t "We're excited you're here! Every user account starts with 2 months of free access to our cloud extras so you can try %app_name% out and see if it's going to work before making a commitment, or you're welcome to sign up for one of our purchase plans right away." key="welcome_fill_out_subscription2"}}
       </p>

@@ -1,102 +1,103 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "%app_name% Support" key="app_support"}}
-    </h3>
-    <div class='text-muted' style='text-align: right; margin-right: 50px; margin-bottom: -25px;'>v{{this.appState.version}}</div>
-  </div>
-  <div class="modal-body">
-    <p>
-      {{t "Stumped? Something not working like you think it should? We're always on the lookout for ways to make %app_name% better! Please tell us what you think, what's broken, or what you'd like to see made easier." key="support_intro"}}
-      {{#unless this.appState.no_linky}}
-        {{t "Here's some resources that might help:" key="support_resources"}}
-      {{/unless}}
-    </p>
-    {{#if this.appState.no_linky}}
-      {{#if this.ios}}
-        <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
-          <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-          <li><LinkTo @route="troubleshooting" @click={{action "close"}}><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</LinkTo></li>
+  <div class="la-support-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Support" key="support"}}</span>
+      <div class="la-support-modal-header-meta">
+        {{#if this.appState.version}}
+          {{#unless (is-equal this.appState.version "unknown")}}
+            <span class="la-support-version">v{{this.appState.version}}</span>
+          {{/unless}}
+        {{/if}}
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+      </div>
+    </div>
+    <div class="la-support-modal-body">
+      <p class="la-support-intro">
+        {{t "Running into an issue or have an idea to share? We want to hear from you." key="support_intro"}}
+        {{#unless this.appState.no_linky}}
+          {{t "Below are some resources that might help:" key="support_resources"}}
+        {{/unless}}
+      </p>
+
+      {{#if this.appState.no_linky}}
+        {{#if this.ios}}
+          <ul class="la-support-list">
+            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+            {{#if this.appState.domain_settings.support_url}}
+              <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+            {{/if}}
+            {{#if this.appState.currentUser}}
+              <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+            {{/if}}
+          </ul>
+        {{/if}}
+      {{else}}
+        <ul class="la-support-list">
+          {{#if this.ios}}
+            <li><a href="https://lingolinq.zendesk.com/hc/en-us/articles/115000379246" target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
+          {{/if}}
+          {{#if this.appState.domain_settings.support_url}}
+            <li><a href={{this.appState.domain_settings.support_url}} target="_blank" rel="noopener" class="la-support-list__btn la-btn la-btn--ghost"><span class="la-support-list__icon la-support-list__icon--question" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</a></li>
+          {{/if}}
+          {{#if this.appState.domain_settings.youtube_url}}
+            <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener" class="la-support-list__link"><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2" ry="2"/></svg></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
+          {{/if}}
+          {{#if this.appState.currentUser}}
+            <li><button type="button" class="la-support-list__btn la-btn la-btn--ghost" {{action "show_speak_mode_intro_again"}}><span class="la-support-list__icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> {{t "Show Speak Mode intro again" key="show_speak_mode_intro_again"}}</button></li>
+          {{/if}}
         </ul>
       {{/if}}
-    {{else}}
-      <ul style='font-size: 18px; margin-top: 10px; list-style-type: none; line-height: 30px;'>
-        {{#if this.ios}}
-          <li><a href='https://lingolinq.zendesk.com/hc/en-us/articles/115000379246' target="_blank" rel="noopener"><span class="glyphicon glyphicon-volume-up"></span> {{t "Not Hearing Anything in Speak Mode?" key="not_hearing_speech"}}</a></li>
-        {{/if}}
-        <li><LinkTo @route="troubleshooting" @click={{action "close"}}><span class="glyphicon glyphicon-question-sign"></span> {{t "Support and Helpful How-To Articles" key="how_to_link"}}</LinkTo></li>
-        {{#if this.appState.domain_settings.youtube_url}}
-          <li><a href={{this.appState.domain_settings.youtube_url}} target="_blank" rel="noopener"><span class='glyphicon glyphicon-film'></span> {{t "YouTube Walkthrough Videos" key="how_to_videos"}}</a></li>
-        {{/if}}
-      </ul>
-    {{/if}}
 
-    <form class="form-horizontal" {{action "submit_message" on="submit"}}>
-      <div class="form-group">
-        <div class="col-sm-7 col-sm-offset-3">
-          <h3 style="margin-bottom: -5px; font-size: 18px;">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</h3>
-        </div>
-      </div>
-      {{#if this.appState.sessionUser}}
-        {{#if this.appState.sessionUser.supervisors}}
-          <div class="form-group">
-            <label for="author_id" class="col-sm-3 control-label">{{t "Send Reply To" key="send_reply_to"}}</label>
-            <div class="col-sm-7">
-              {{bound-select select_class="form-control" select_id="supervisor_type" content=this.author_ids selection=this.author_id action=(action "updateAuthorId") }}
+      <div class="la-support-form-section">
+        <h3 class="la-support-form-title">{{t "Report a Problem/Share Feedback" key="problem_or_feedback"}}</h3>
+        <form class="la-contact-form" {{action "submit_message" on="submit"}}>
+          {{#if this.appState.sessionUser}}
+            {{#if this.appState.sessionUser.supervisors}}
+              <div class="la-contact-form__row">
+                <label for="author_id" class="la-contact-form__label">{{t "Send Reply To" key="send_reply_to"}}</label>
+                {{bound-select select_class="la-contact-input" select_id="author_id" content=this.author_ids selection=this.author_id action=(action "updateAuthorId") }}
+              </div>
+            {{/if}}
+          {{/if}}
+          {{#if this.prompt_user}}
+            <div class="la-contact-form__row">
+              <label for="name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
+              <Input @value={{this.name}} class="la-contact-input" id="name" placeholder={{t "Your Name" key="your_name"}} />
             </div>
+            <div class="la-contact-form__row">
+              <label for="email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
+              <Input @value={{this.email}} class="la-contact-input" id="email" placeholder="you@example.com" />
+            </div>
+          {{/if}}
+          <div class="la-contact-form__row">
+            <label for="subject" class="la-contact-form__label">{{t "Subject" key="subject"}}</label>
+            <Input @value={{this.subject}} class="la-contact-input" id="subject" placeholder="" />
           </div>
-        {{/if}}
-      {{/if}}
-      {{#if this.prompt_user}}
-        <div class="form-group">
-          <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
-          <div class="col-sm-7">
-            <Input @value={{this.name}} class="form-control" id="name" placeholder="Your Name" />
+          <div class="la-contact-form__row">
+            <label for="message" class="la-contact-form__label">{{t "Message" key="message"}}</label>
+            <Textarea @value={{this.message}} class="la-contact-input la-contact-input--textarea" id="message" placeholder="" rows={{3}} />
           </div>
-        </div>
-        <div class="form-group">
-          <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
-          <div class="col-sm-7">
-            <Input @value={{this.email}} class="form-control" id="email" placeholder="you@example.com" />
+          {{#if this.error}}
+            <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
+          {{/if}}
+          <div class="la-contact-form__actions">
+            <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
+            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn" style="display: none;">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
+            <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
-        </div>
-      {{/if}}
-      <div class="form-group">
-        <label for="subject" class="col-sm-3 control-label">{{t "Subject" key="subject"}}</label>
-        <div class="col-sm-7">
-          <Input @value={{this.subject}} class="form-control" id="subject" placeholder="" />
-        </div>
+        </form>
       </div>
-      <div class="form-group">
-        <label for="message" class="col-sm-3 control-label">{{t "Message" key="message"}}</label>
-        <div class="col-sm-7">
-          <Textarea @value={{this.message}} class="form-control" id="message" placeholder="" rows={{3}} />
-        </div>
-      </div>
-      <div class="form-group">
-        <div class="col-sm-offset-3 col-sm-7">
-          <button disabled={{this.disabled}} type="submit" class="btn btn-primary">{{t "Send Message" key="send_message"}}</button>
-          <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
-          <span style="padding-left: 5px;"><LinkTo @route="troubleshooting">{{t "troubleshooting" key="troubleshooting"}}</LinkTo></span>
-        </div>
-      </div>
-      {{#if this.error}}
-        <div class="form-group">
-          <div class="col-sm-offset-3 col-sm-7">
-            <p class="text-danger">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
-          </div>
-        </div>
-      {{/if}}
-    </form>
-    <div style='margin-top: 20px'>
-      <a href="#" {{action "toggle_cookies"}}>
-        {{#if this.cookies}}
-          {{t "disable cookies" key="disable_cookies"}}
-        {{else}}
-          {{t "enable cookies" key="enable_cookies"}}
-        {{/if}}
-      </a>
+
+      <p class="la-support-cookies">
+        <button type="button" class="la-support-cookies__btn" {{action "toggle_cookies"}} aria-pressed={{if this.cookies "true" "false"}}>
+          <span class="la-support-cookies__icon {{unless this.cookies "la-support-cookies__icon--off"}}" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg></span>
+          {{#if this.cookies}}
+            {{t "disable cookies" key="disable_cookies"}}
+          {{else}}
+            {{t "enable cookies" key="enable_cookies"}}
+          {{/if}}
+        </button>
+      </p>
     </div>
   </div>
 {{/modal-dialog}}

@@ -1,22 +1,25 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Choose Language" key="choose_language"}}
-    </h3>
-  </div>
-  <div class="modal-body">
-    <p>{{t "Choose from the list of supported languages" key="select_language"}}</p>
-    <form class="form-horizontal" {{action "nothing" on="submit"}}>
-      <div class="form-group">
-        <label for="lang" class="col-sm-3 control-label">{{t "Language" key="language"}}</label>
-        <div class="col-sm-9">
-          {{bound-select select_class="form-control" select_id="lang" content=this.locales selection=this.lang action=(action (mut this.lang)) }}
-        </div>
+  <div class="la-support-modal-wrap la-choose-locale-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Select a Language" key="choose_language"}}</span>
+      <div class="la-support-modal-header-meta">
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
       </div>
-    </form>
-  </div>
-  <div class="modal-footer">
-    <a href="#" class="btn btn-primary" {{action "update"}}>{{t "Update & Reload" key="update_and_reload"}}</a>
-    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+    </div>
+    <div class="la-support-modal-body">
+      <p class="la-support-intro">
+        {{t "Choose from the list of supported languages" key="select_language"}}
+      </p>
+      <form class="la-contact-form" {{action "nothing" on="submit"}}>
+        <div class="la-contact-form__row">
+          <label for="lang" class="la-contact-form__label">{{t "Language" key="language"}}</label>
+          {{bound-select select_class="la-contact-input" select_id="lang" content=this.locales selection=this.lang action=(action (mut this.lang)) }}
+        </div>
+        <div class="la-contact-form__actions">
+          <button type="button" class="login-btn" {{action "update"}}>{{t "Update & Reload" key="update_and_reload"}}</button>
+          <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+        </div>
+      </form>
+    </div>
   </div>
 {{/modal-dialog}}

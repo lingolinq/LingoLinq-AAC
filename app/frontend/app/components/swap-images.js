@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
@@ -82,10 +83,18 @@ export default Component.extend({
     return ['lessonpix', 'pcs', 'symbolstix'].indexOf(this.get('library')) !== -1;
   }),
 
+  _return_to_details: function() {
+    var board = this.get('model.board');
+    if(board) {
+      runLater(function() { modal.open('board-details', { board: board }); }, 200);
+    }
+  },
+
   actions: {
     nothing() {},
     close() {
       this.get('modal').close();
+      this._return_to_details();
     },
     opening() {},
     closing() {},
@@ -114,6 +123,7 @@ export default Component.extend({
             _this.get('model.board').reload(true).then(function() {
               app_state.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
               modal.close('swap-images');
+              _this._return_to_details();
             }, function() {});
           }
         });

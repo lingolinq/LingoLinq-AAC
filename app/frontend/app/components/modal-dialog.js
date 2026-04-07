@@ -9,6 +9,14 @@ import { observer } from '@ember/object';
 export default Component.extend({
   didRender: function() {
     if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
+    if (this.get('standalone')) {
+      var el = this.get('element');
+      if (el && !this.isDestroyed && !this.isDestroying) {
+        var height = $(window).height() - 50;
+        $(el).find('.modal-content--standalone').css('maxHeight', height).css('overflow', 'auto');
+      }
+      return;
+    }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
@@ -138,7 +146,7 @@ export default Component.extend({
     }
     if(this.last_started_on_modal) {
       this.last_started_on_modal = false;
-      if(!ignore) {
+      if(!ignore && !this.get('uncloseable')) {
         this.send('close', event);
       }
     }
@@ -150,8 +158,9 @@ export default Component.extend({
     close: function(event) {
       if(!this || typeof this.get !== 'function') { return; }
       var isBackdropClick = event && event.target && $(event.target).hasClass('modal');
+      if (this.get('uncloseable') && isBackdropClick) { return; }
       var isExplicitButtonCall = event && (event.type === 'click' || event.type === 'keydown') && !isBackdropClick;
-      
+
       if(isBackdropClick) {
         try {
           event.preventDefault();

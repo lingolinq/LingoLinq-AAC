@@ -97,12 +97,20 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
+      var toRoute = transition.to;
+      var fromRoute = transition.from;
+      var leafRouteName = function(routeInfo) {
+        if (!routeInfo || !routeInfo.name) { return (routeInfo && routeInfo.name) || null; }
+        var leaf = routeInfo;
+        while (leaf && leaf.child) { leaf = leaf.child; }
+        return leaf ? leaf.name : routeInfo.name;
+      };
       _this.appState.global_transition({
         aborted: transition.isAborted,
         source: transition,
-        from_route: (transition.from || {}).name,
+        from_route: leafRouteName(fromRoute) || (fromRoute && fromRoute.name),
         from_params: params_list(transition.from),
-        to_route: (transition.to || {}).name,
+        to_route: leafRouteName(toRoute) || (toRoute && toRoute.name),
         to_params: params_list(transition.to),
       });
       // let { to: toRouteInfo, from: fromRouteInfo } = transition;
@@ -116,17 +124,6 @@ export default Route.extend({
       // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
     });
 
-    this.router.on('routeDidChange', transition => {
-      // let { to: toRouteInfo, from: fromRouteInfo } = transition;
-      // console.log(`Transitioned from -> ${fromRouteInfo.name}`);
-      // console.log(`From QPs: ${JSON.stringify(fromRouteInfo.queryParams)}`);
-      // console.log(`From Params: ${JSON.stringify(fromRouteInfo.params)}`);
-      // console.log(`From ParamNames: ${fromRouteInfo.paramNames.join(', ')}`);
-      // console.log(`to -> ${toRouteInfo.name}`);
-      // console.log(`To QPs: ${JSON.stringify(toRouteInfo.queryParams)}`);
-      // console.log(`To Params: ${JSON.stringify(toRouteInfo.params)}`);
-      // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
-    });    
   },
   actions: {
     willTransition: function(transition) {

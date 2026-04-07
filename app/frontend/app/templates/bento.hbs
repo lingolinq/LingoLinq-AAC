@@ -1,0 +1,16 @@
+{{#if this.app_state}}
+  <div id="index_view" class="{{if this.hasCurrentUser "row main_columns" "row"}}" style="touch-action: manipulation;">
+    {{#if this.hasCurrentUser}}
+      <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
+    {{else}}
+      <div class="row" style="padding: 2rem; text-align: center;">
+        <p>{{t "Please sign in to view this page." key="please_sign_in_bento"}}</p>
+        <LinkTo @route="index" class="btn btn-primary">{{t "Go to Home" key="go_to_home"}}</LinkTo>
+      </div>
+    {{/if}}
+  </div>
+{{else}}
+  <div id="index_view" class="row" style="touch-action: manipulation;">
+    <div style="text-align: center; padding: 2rem;">{{t "Loading..." key="loading"}}</div>
+  </div>
+{{/if}}

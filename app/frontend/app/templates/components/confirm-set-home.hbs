@@ -1,0 +1,30 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3 class="md-modal-title">{{t "Set as Home Board" key="set_as_home_board"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+          <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+        </svg>
+      </div>
+    </div>
+    <p class="md-modal-message">
+      {{t "Set this board as the home board? This will be the first board shown when communicating." key="confirm_set_home_message"}}
+    </p>
+    {{#if this.model.board_name}}
+      <p class="md-modal-board-name">{{this.model.board_name}}</p>
+    {{/if}}
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "confirm"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+        <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+      </svg>
+      {{t "Set as Home" key="set_as_home_board"}}
+    </button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}

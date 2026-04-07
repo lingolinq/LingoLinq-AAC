@@ -2,40 +2,28 @@
   <div class="wide_links">
     <div class="row">
       <div class='col-sm-6'>
-        <span style="color: #888; padding-right: 10px;">{{t "%app_name%" key="app_name"}}</span>
+        <span class="page-footer__app-name"><span class="nav-header__app-name-lingo">{{t "Lingo" key="app_name_lingo"}}</span><span class="nav-header__app-name-linq">{{t "Linq" key="app_name_linq"}}</span></span>
         {{#unless this.app_state.no_linky}}
           {{#if this.app_state.installed_app}}
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Web Site" key="web_site"}}</a> <span class='text-muted'>|</span>
           {{/if}}
-          <LinkTo @route="about">{{t "About" key="about"}}</LinkTo> <span class='text-muted'>|</span>
+          <span class="page-footer__hide-at-sm"><LinkTo @route="about">{{t "About" key="about"}}</LinkTo> <span class='text-muted'>|</span></span>
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
+                {{!-- <span class="page-footer__hide-at-sm"><LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span></span> --}}
               {{/if}}
             {{/if}}
           {{/unless}}
         {{/unless}}
-        <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
+        <span class="page-footer__hide-at-sm"><a href="#" {{action "support"}}>{{t "Support" key="support"}}</a> <span class='text-muted'>|</span></span>
         {{#unless this.app_state.installed_app}}
-          <span class='text-muted'>|</span>
-          <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
+          <span class="page-footer__hide-at-sm"><LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo></span>
         {{/unless}}
-        <a href='#' {{action "language"}} style='margin-left: 10px;'>
-          <img src={{path "images/language-icon.svg"}} style='height: 30px; margin: -20px 0 -10px;' alt="Language">
-          {{this.app_state.current_locale_string}}
-        </a>
-      </div>
-      <div class='col-sm-4' style="text-align: right;">
-        {{#unless this.app_state.installed_app}}
-          <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener noreferrer">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
-        {{/unless}}
-        <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
-        <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
       </div>
       {{#if (persistence-online)}}
         {{#unless this.app_state.no_linky}}
-          <div class='col-sm-2'>
+          <div class='col-sm-2 page-footer__right-icons'>
             <!-- icons found here: https://www.iconfinder.com/icons/104443/feed_rss_subscribe_icon#size=24 -->
             <span class="icons">
               {{#if this.app_state.domain_settings.blog_url}}
@@ -51,31 +39,50 @@
           </div>
         {{/unless}}
       {{/if}}
+      <div class='col-sm-4 page-footer__right-links' style="text-align: right;">
+        <a href='#' {{action "language"}} style='margin-right: 10px;'>
+          <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon" alt="Language">
+          {{this.app_state.current_locale_string}}
+        </a>
+        {{#if this.app_state.showFooterGithubLinks}}
+          {{#unless this.app_state.installed_app}}
+            <a href="https://github.com/LingoLinq" target="_blank" rel="noopener noreferrer" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+          {{/unless}}
+        {{/if}}
+        <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
+        <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
+      </div>
     </div>
   </div>
-  {{#if this.app_state.index_view}}
+  {{#if this.app_state.index_or_landing_view}}
   <div class="skinny_links">
     <span class="dropdown">
       <span class="dropup">
       <a data-toggle="dropdown" href="#">{{t "More Resources" key="more_resources"}} <span class='caret'></span></a>
       <ul class="dropdown-menu dropdown-menu-top top" role="menu" aria-labelledby="dLabel">
+        <li class="page-footer__menu-top-at-sm">
+          <LinkTo @route="about">{{t "About" key="about"}}</LinkTo>
+        </li>
+        <li class="page-footer__menu-top-at-sm">
+          <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
+        </li>
+        {{#unless this.app_state.installed_app}}
+          {{#if this.app_state.feature_flags.subscriptions}}
+            {{#if this.app_state.domain_settings.full_domain}}
+              <li class="page-footer__menu-top-at-sm">
+                {{!-- <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> --}}
+              </li>
+            {{/if}}
+          {{/if}}
+          <li class="page-footer__menu-top-at-sm">
+            <LinkTo @route="contact">{{t "Contact Us" key="contact"}}</LinkTo>
+          </li>
+        {{/unless}}
         {{#unless this.app_state.no_linky}}
           <li>
             <a href="https://www.mylingolinq.com" target="_blank" rel="noopener noreferrer">{{t "Web Site" key="web_site"}}</a>
           </li>
-          <li>
-            <LinkTo @route="about">{{t "About" key="about"}}</LinkTo>
-          </li>
         {{/unless}}
-        <li>
-          <a href="#" {{action "support"}}>{{t "Support" key="support"}}</a>
-        </li>
-        <li>
-          <a href='#' {{action "language"}}>
-            <img src={{path "images/language-icon.svg"}} style='height: 20px; margin: -10px 0 -5px;' alt="Language">
-            {{this.app_state.current_locale_string}}
-          </a>
-        </li>
         <li>
           <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo>
         </li>
@@ -100,6 +107,13 @@
             </li>
           {{/if}}
         {{/unless}}
+        <li class="divider" role="separator"></li>
+        <li class="page-footer__menu-lang-at-bottom">
+          <a href='#' {{action "language"}}>
+            <img src={{path "images/icon-language-new2.png"}} class="page-footer__language-icon page-footer__language-icon--dropdown" alt="Language">
+            {{this.app_state.current_locale_string}}
+          </a>
+        </li>
       </ul>
       </span>
     </span>

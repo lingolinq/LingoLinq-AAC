@@ -286,7 +286,7 @@ LingoLinq.board_categories = [
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
 LingoLinq.registrationTypes = [
-  {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
   {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
   {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},
@@ -373,6 +373,22 @@ LingoLinq.keyed_colors = [
   {fill: "#fac", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['preposition', 'social']},
   {fill: "#ca8", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
   {fill: "#ccc", color: i18n.t('gray', "Gray"), hint: i18n.t('determiners', "determiners"), types: ['article', 'determiner']},
+  {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
+  {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
+];
+// Board-detail page uses its own color palette (more muted/pastel, split preposition/social)
+LingoLinq.board_detail_keyed_colors = [
+  {fill: "#FAFAAA", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
+  {fill: "#C0E8C8", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
+  {fill: "#B9D0F6", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
+  {fill: "#FDCF98", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
+  {fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},
+  {fill: "#F5A0A0", color: i18n.t('red', "Red"), hint: i18n.t('negations', "negations"), types: ['negation', 'expletive', 'interjection']},
+  {fill: "#D0B8E8", color: i18n.t('purple', "Purple"), hint: i18n.t('questions', "questions"), types: ['question']},
+  {fill: "#F5DCEA", color: i18n.t('rose', "Rose"), hint: i18n.t('prepositions', "prepositions"), types: ['preposition']},
+  {fill: "#D4B896", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
+  {fill: "#DCDCDC", color: i18n.t('gray', "Gray"), hint: i18n.t('determiners', "determiners"), types: ['article', 'determiner']},
+  {fill: "#fff", border: "#ccc", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
@@ -840,8 +856,8 @@ LingoLinq.Visualizations = {
   }
 };
 
-LingoLinq.boxPad = 17;
-LingoLinq.borderPad = 5;
+LingoLinq.boxPad = 8;
+LingoLinq.borderPad = 4;
 LingoLinq.labelHeight = 15;
 LingoLinq.customEvents = customEvents;
 LingoLinq.expired = function() {

@@ -14,9 +14,9 @@ export default Controller.extend({
   router: service('router'),
   registration_types: LingoLinq.registrationTypes,
   allow_shares_options: [
-    {name: i18n.t('email_shares', "Email Me When People I Supervise Share a Message with Me"), id: 'email'},
-    {name: i18n.t('text_shares', "Text Me When People I Supervise Share a Message with Me"), id: 'text'},
-    {name: i18n.t('app_shares', "Show In the App When People I Supervise Share a Message with Me"), id: 'app'}
+    {name: i18n.t('email_shares', "Email"), id: 'email'},
+    {name: i18n.t('text_shares', "Text Message"), id: 'text'},
+    {name: i18n.t('app_shares', "In-App Notification"), id: 'app'}
   ],
   notification_frequency_options: [
     {name: i18n.t('no_notifications', "Don't Email Me Communicator Reports"), id: ''},

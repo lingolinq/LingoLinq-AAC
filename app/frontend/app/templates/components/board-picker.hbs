@@ -1,59 +1,69 @@
-<div class='col-sm-5 col-sm-offset-1'>
-  <div class='setup_setting'>
-    <label>{{t "Select a Category to Browse" key="browse_categories"}}</label>
-    <div class="btn-group-vertical" style="width: 100%;">
-      {{#each this.categories as |category|}}
-        <a href="#" class={{if category.selected "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_category" category.id}}>{{category.name}}</a>
-      {{/each}}
+<div class="md-home-boards-picker__layout">
+  <aside class="md-home-boards-picker__nav" aria-label={{t "Browse by category" key="browse_by_category"}}>
+    <div class="md-home-boards-picker__nav-inner setup_setting">
+      <label class="md-home-boards-picker__nav-label">{{t "Select a Category to Browse" key="browse_categories"}}</label>
+      <nav class="md-home-boards-picker__categories" role="navigation">
+        {{#each this.categories as |category|}}
+          <button
+            type="button"
+            class="md-home-boards-picker__category {{if category.selected "is-active"}}"
+            {{action "set_category" category.id}}
+          >
+            {{category.name}}
+          </button>
+        {{/each}}
+      </nav>
     </div>
-  </div>
-</div>
-<div class='col-sm-5' style='padding-top: 50px;'>
-  <div class={{if this.show_category_explainer "category_explainer full" "category_explainer"}}>
+  </aside>
+  <div class="md-home-boards-picker__content">
+    <div class={{if this.show_category_explainer "category_explainer full" "category_explainer"}}>
     {{#if this.category.robust}}
-      <p>{{t "Robust vocabularies may seem a little intimidating at first, but they can be powerful language sets that the communicator can grow into over time. Try to focus more on how many buttons the communicator can successfully access rather than how busy the screen is, because you can always hide buttons and plan to re-enable them later. These board sets can have an emphasis on motor planning or pragmatic communication, but all have a good collection of core and specialized words, and room for personalized vocabulary as well." key="robust_1"}}</p>
+      <p>{{t "Rich vocabularies can feel like a lot at first—many communicators grow into them. Focus on what they can access; you can hide buttons and bring them back later. These sets offer core words, motor planning, or conversation, with room for personalization." key="robust_1"}}</p>
     {{else if this.category.cause_effect}}
-      <p>{{t "For communicators that are brand-new to AAC, sometimes it's beneficial to start with a non-communication board, just to help them learn that they can hit buttons and things will happen. These cause-and-effect boards can help train communicators how to use their access method in a fun way." key="cause_effect_1"}}</p>
+      <p>{{t "New to AAC? Cause-and-effect boards teach that tapping buttons makes things happen. A fun way to build the access skills that lead to communication." key="cause_effect_1"}}</p>
     {{else if this.category.simple_starts}}
-      <p>{{t "For some communicators starting with a small set of simple buttons can help them get comfortable using AAC. It can be trickier to move from a simple board set to something more robust or long-term, but each communicator is different." key="simple_starts_1"}}</p>
+      <p>{{t "A small set of simple buttons can help some people get comfortable first. You can move to larger sets when it fits—everyone's path is different." key="simple_starts_1"}}</p>
     {{else if this.category.functional}}
-      <p>{{t "Sometimes an emphasis on more functional communication can be of value for communicators. Depending on a communicator's developmental level when starting to use AAC, functional boards can be more intuitive." key="functional_1"}}</p>
+      <p>{{t "Functional boards focus on everyday messages and can feel more intuitive, especially when just starting out." key="functional_1"}}</p>
     {{else if this.category.phrases}}
-      <p>{{t "For communicators that can speak, recording their own voice for playback can be helpful in stressful situations, or for degenerative conditions like ALS. Phrase-based boards can be a useful template for these communicators, and work well with %app_name%'s built-in recording tools to easily create message banks for the communicator." key="phrases_1"}}</p>
+      <p>{{t "Phrase-based boards and your own recorded voice work well for high-stress moments or conditions like ALS. Use %app_name%'s recording tools to build a message bank." key="phrases_1"}}</p>
     {{else if this.category.keyboards}}
-      <p>{{t "%app_name% supports custom keyboards that include word prediction, so communicators that can spell proficiently may benefit from keyboard-based board sets. Some keyboards come with quick phrases or common words to help speed up communication." key="keyboards_1"}}</p>
+      <p>{{t "If spelling works well for them, keyboard boards with word prediction can speed things up. Many include quick phrases too." key="keyboards_1"}}</p>
     {{else if this.category.mine}}
-      <p>{{t "Browse from the home boards you have created, copied, or had shared with your own account." key="browse_mine"}}</p>
+      <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
     {{/if}}
     {{#if this.category}}
-      <div class='more_link'>
-        <a href="#" {{action "show_explainer"}}>{{t "more" key="more_lower"}}</a>
+      {{#if this.category_explainer_overflows}}
+        <div class='more_link'>
+          <a href="#" {{action "show_explainer"}}>{{t "more" key="more_lower"}}</a>
+        </div>
+      {{/if}}
+    {{/if}}
+    </div>
+    {{#if this.category}}
+      <div class="md-home-boards-picker__grid">
+        {{#if this.category_boards.loading}}
+          <div class="md-home-boards-picker__grid-message">
+            {{t "Loading boards..." key="loading_boards"}}
+          </div>
+        {{else if this.category_boards.error}}
+          <div class="md-home-boards-picker__grid-message md-home-boards-picker__grid-message--error">
+            {{t "Error loading boards" key="error_loading_boards"}}
+          </div>
+        {{else if this.category_boards.length}}
+          {{#each this.category_boards as |board|}}
+            {{#if board.key}}
+              <div class="md-home-boards-picker__board simple_board_holder">
+                {{board-icon board=board}}
+              </div>
+            {{/if}}
+          {{/each}}
+        {{else}}
+          <div class="md-home-boards-picker__grid-message">
+            {{t "None found" key="none_found"}}
+          </div>
+        {{/if}}
       </div>
     {{/if}}
   </div>
-  {{#if this.category}}
-    <div class="row">
-      {{#if this.category_boards.loading}}
-        <div class="col-xs-12">
-          {{t "Loading boards..." key="loading_boards"}}
-        </div>
-      {{else if this.category_boards.error}}
-        <div class="col-xs-12">
-          {{t "Error loading boards" key="error_loading_boards"}}
-        </div>
-      {{else if this.category_boards.length}}
-        {{#each this.category_boards as |board|}}
-          {{#if board.key}}
-            <div class="col-xs-4 simple_board_holder">
-              {{board-icon board=board}}
-            </div>
-          {{/if}}
-        {{/each}}
-      {{else}}
-        <div class="col-xs-12">
-          {{t "None found" key="none_found"}}
-        </div>
-      {{/if}}
-    </div>
-  {{/if}}
 </div>

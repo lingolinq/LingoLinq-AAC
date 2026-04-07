@@ -48,7 +48,7 @@ export default Controller.extend({
   },
   actions: {
     allow_start_code: function() {
-      this.set('start_code', true);
+      this.set('start_code', !this.get('start_code'));
     }
   }
 });

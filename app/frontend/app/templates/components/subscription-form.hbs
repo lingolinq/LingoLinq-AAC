@@ -4,7 +4,7 @@
     <button class='btn btn-primary btn-lg' {{action "check_pricing"}} style='height: 75px; width: calc(50% - 7px);'>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
-  <form {{action "purchase" on="submit"}} class="row" style='max-width: 600px;'>
+  <form {{action "purchase" on="submit"}} class="row subscription-form-with-cards">
     <div class="form-group"><div class="col-sm-12">
     {{#unless this.see_pricing}}
       {{#if this.trial_option}}
@@ -16,334 +16,171 @@
         {{/if}}
       {{/if}}
     {{/unless}}
-    <table class='subscription_table'>
-      <tbody>
-        <tr>
-          <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}} style='font-size: 20px; font-weight: bold; color: #fff; background-color: #286090;'>{{t "Communicator" key="communicator"}}</td>
-          <td colspan='1' style='font-size: 16px; font-weight: bold; color: #fff; background-color: #666;' class='separator'>{{t "Supporter" key="supporter"}}</td>
-          <td colspan='1' style='font-size: 16px; font-weight: bold; color: #fff; background-color: #666;' class=''>{{t "Eval" key="eval"}}</td>
-        </tr>
-        <tr>
-          <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}} style='vertical-align: top;'>
-            {{#if this.subscription.app_pricing_override}}
-              {{t "Add premium communicator access using this login across all devices." key="premium_communicator_across_devices"}}
-            {{/if}}
-            {{t "Works as a general communication app for one user on multiple devices, and can be linked to many free supporters" key="general_communication"}}
-          </td>
-          <td colspan='1' style='vertical-align: top; font-size: ' class='separator semi_dim'>
-            {{#if this.subscription.app_pricing_override}}
-              {{t "Add premium supporter access using this login across all devices." key="premium_supporter_across_devices"}}
-            {{/if}}
-            {{t "Used for supporting communicators." key="supporting_communicators"}}
-          </td>
-          <td colspan='1' style='vertical-align: top; font-size: ' class='semi_dim'>
-            {{#if this.subscription.app_pricing_override}}
-              {{t "Add premium evaluator access using this login across all devices." key="premium_eval_across_devices"}}
-            {{/if}}
-            {{t "Used for loaner/ evaluation devices." key="eval_descriptor"}}
-          </td>
-        </tr>
-        <tr>
+    <div class="subscription-form-cards la-pricing-preview-grid">
+      {{!-- Communicator card (columns 1 + 2) --}}
+      <div class="la-about-glass-card la-pricing-card subscription-form-card subscription-form-card--communicator">
+        <div class="la-about-glass-card__header">
+          <span class="la-about-glass-card__icon la-about-glass-card__icon--communicator" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <h3 class="la-about-glass-card__title">{{t "Communicator" key="communicator"}}</h3>
+        </div>
+        <p class="la-about-glass-card__text">
+          {{#if this.subscription.app_pricing_override}}
+            {{t "Add premium communicator access using this login across all devices." key="premium_communicator_across_devices"}}
+          {{/if}}
+          {{t "Works as a general communication app for one user on multiple devices, and can be linked to many free supporters" key="general_communication"}}
+        </p>
+        <div class="la-pricing-card__prices">
           {{#unless this.subscription.app_pricing_override_no_monthly}}
-          <td style='width: 25%; vertical-align: top; padding-top: 40px; color: #888; position: relative;'>
-            {{#if this.subscription.app_pricing_override}}
-              <span style='font-size: 25px; display: block; vertical-align: middle; color: #000; padding-left: 3px;'>{{this.subscription.monthly_app_price}}</span>
-              {{this.subscription.app_currency}}
-            {{else}}
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>9</span>
-            {{/if}}
-            <div class='middle'>{{t "- or -" key="dash_or_dash"}}</div>
-            <div style='margin-top: -5px; line-height: 17px;'>{{t "per month" key="per_month_lower"}}</div>
-          </td>
+            <div class="la-pricing-card__price-row">
+              <span class="la-pricing-card__amount">
+                {{#if this.subscription.app_pricing_override}}
+                  {{this.subscription.monthly_app_price}} {{this.subscription.app_currency}}
+                {{else}}
+                  <span class="la-pricing-card__currency">US$</span>9
+                {{/if}}
+              </span>
+              <span class="la-pricing-card__term">{{t "per month" key="per_month_lower"}}</span>
+            </div>
+            <span class="la-pricing-card__or">{{t "- or -" key="dash_or_dash"}}</span>
           {{/unless}}
-          <td style='width: 25%; vertical-align: top; padding-top: 40px; color: #888; position: relative;'>
-            {{#if this.subscription.app_pricing_override}}
-              <span style='font-size: 25px; display: block; vertical-align: middle; color: #000; padding-left: 3px;'>{{this.subscription.long_term_app_price}}</span>
-              {{this.subscription.app_currency}}
-            {{else if this.subscription.user.lapsed}}
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>50</span>
-            {{else if this.subscription.much_cheaper_offer}}
-              <div class='sale'>
-                {{t "sale! 50% off" key="save_50_percent"}}
-              </div>
-              <span style='text-decoration: line-through; display: block; margin-bottom: -10px;'>&nbsp;$295&nbsp;</span>
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>145</span>
-            {{else if this.subscription.cheaper_offer}}
-              <div class='sale'>
-                {{t "save 25%" key="save_25_percent"}}
-              </div>
-              <span style='text-decoration: line-through; display: block; margin-bottom: -10px;'>&nbsp;$295&nbsp;</span>
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>150</span>
-            {{else}}
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>295</span>
-            {{/if}}
-            <div style='margin-top: -5px; line-height: 17px;'>
+          <div class="la-pricing-card__price-row">
+            <span class="la-pricing-card__amount">
+              {{#if this.subscription.app_pricing_override}}
+                {{this.subscription.long_term_app_price}} {{this.subscription.app_currency}}
+              {{else if this.subscription.user.lapsed}}
+                <span class="la-pricing-card__currency">US$</span>50
+              {{else if this.subscription.much_cheaper_offer}}
+                <span class="sale">{{t "sale! 50% off" key="save_50_percent"}}</span>
+                <span style="text-decoration: line-through;">$295</span>
+                <span class="la-pricing-card__currency">US$</span>145
+              {{else if this.subscription.cheaper_offer}}
+                <span class="sale">{{t "save 25%" key="save_25_percent"}}</span>
+                <span style="text-decoration: line-through;">$295</span>
+                <span class="la-pricing-card__currency">US$</span>150
+              {{else}}
+                <span class="la-pricing-card__currency">US$</span>295
+              {{/if}}
+            </span>
+            <span class="la-pricing-card__term">
               {{#if this.subscription.user.lapsed}}
                 {{t "cloud re-purchase" key="cloud_re_purchase"}}
               {{else}}
                 {{t "lifetime purchase" key="lifetime_purchase"}}
               {{/if}}
-            </div>
-          </td>
-          <td class='separator semi_dim' style='opacity: 1.0; position: relative; width: 25%; vertical-align: top; padding-top: 40px; color: #888;'>
-            {{#if this.subscription.app_pricing_override}}
-              <span style='font-size: 25px; display: block; vertical-align: middle; color: #000; padding-left: 3px;'>{{this.subscription.supporter_app_price}}</span>
-              {{this.subscription.app_currency}}
-            {{else}}
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>25</span>
-            {{/if}}
-            <div style='margin-top: -5px; line-height: 17px;'>{{t "one-time purchase" key="one_time_purchase"}}</div>
-          </td>
-          <td class='' style='width: 25%; vertical-align: top; padding-top: 40px; color: #888;'>
-            {{#if this.subscription.app_pricing_override}}
-              <span style='font-size: 25px; display: block; vertical-align: middle; color: #000; padding-left: 3px;'>{{this.subscription.eval_app_price}}</span>
-              {{this.subscription.app_currency}}
-            {{else}}
-              US$<span style='font-size: 40px; vertical-align: middle; color: #000; padding-left: 3px;'>25</span>
-            {{/if}}
-            <div style='margin-top: -5px; line-height: 17px;'>{{t "one-time purchase" key="one_time_purchase"}}</div>
-          </td>
-        </tr>
-        <tr>
-          <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "run on multiple devices" key="run_on_multiple_devices"}}</td>
-          <td colspan='1' class='separator semi_dim'>{{t "run on multiple devices" key="run_on_multiple_devices"}}</td>
-          <td colspan='1' class='semi_dim'>{{t "run on one device" key="run_on_one_device"}}</td>
-        </tr>
-        <tr>
-          <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "full communication system" key="full_communication_system"}}</td>
-          <td colspan='1' class='separator semi_dim'>{{t "support, edit & model" key="works_for_communicators"}}</td>
-          <td colspan='1' class='semi_dim'>{{t "full communication system for evals" key="full_communication_system_for_evals"}}</td>
-        </tr>
-        <tr>
-          <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-            {{#if this.subscription.user.lapsed}}
-              {{t "premium voices, reports, modeling ideas, etc." key="premium_features_for_upgrade"}}
-            {{else}}
-              {{t "premium voices, reports, modeling ideas, etc." key="premium_features_for_upgrade"}}
-            {{/if}}
-          </td>
-          <td colspan='1' class='separator semi_dim'>{{t "track usage, get alerts & modify boards" key="track_for_communicators"}}</td>
-          <td colspan='1' class='semi_dim'>{{t "premium voices on request" key="premium_voices_on_request"}}</td>
-        </tr>
-        {{#if this.pricing_only}}
-          <tr>
-            {{#if this.subscription.user.subscription.extras_enabled}}
-              <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "premium symbols already added" key="premium_symbols_added"}}</td>
-              <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>{{t "premium symbols already added" key="premium_symbols_added"}}</td>
-            {{else if this.subscription.app_pricing_override}}
-              <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "premium symbols included" key="premium_symbols_included"}}</td>
-              <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'></td>
-            {{else}}
-              <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' >
-                {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}
-              </td>
-              <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="float: left; width: 70px; margin-top: 15px; margin-left: 20px;" alt='' >
-                {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}
-              </td>
-            {{/if}}
-          </tr>
-          <tr>
-            {{#if this.subscription.app_pricing_override}}
-              <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "2 premium supervisor credits included" key="premium_supporters_included"}}</td>
-              <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'></td>
-            {{else}}
-              <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-                {{t "add supervisor<br>credits for US$25 each" key="add_supervisor_credits_25_usd"}}
-              </td>
-              <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-                {{t "user management tools available for organizations," key="org_tools_available"}}
-                {{#unless this.subscription.app_pricing_override}}
-                  <LinkTo @route="contact">{{t "contact us!" key="contact_us_excl"}}</LinkTo>
-                {{/unless}}
-              </td>
-            {{/if}}
-          </tr>
-        {{/if}}
-        <tr>
+            </span>
+          </div>
+        </div>
+        <ul class="la-pricing-card__features">
+          <li>{{t "Run on multiple devices" key="run_on_multiple_devices"}}</li>
+          <li>{{t "Full communication system" key="full_communication_system"}}</li>
+          <li>{{t "premium voices, reports, modeling ideas, etc." key="premium_features_for_upgrade"}}</li>
           {{#unless this.subscription.app_pricing_override_no_monthly}}
-            <td>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> included in subscription" key="included_in_subscription"}}</td>
+            <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
           {{/unless}}
-          <td>
+          <li>
             {{#if this.subscription.user.lapsed}}
-              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>5-year credit<br>added" key="5_years_added"}}
+              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "added" key="5_years_added_word"}}
             {{else}}
-              {{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>5-year credit<br>included" key="5_years_included"}}
+              <button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button><br>{{t "5-year credit" key="5_year_credit"}}<br>{{t "included" key="5_years_included_word"}}
             {{/if}}
-          </td>
-          <td colspan='1' class='separator semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> for communicators" key="for_supported_communicators"}}</td>
-          <td colspan='1' class='semi_dim'>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a> reset after every eval" key="for_supported_communicators2"}}</td>
-        </tr>
-        {{#if this.pricing_only}}
-          <tr>
-            <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-              {{#unless this.subscription.app_pricing_override}}
-                <a href="#" {{action "bulk_purchase"}}>{{t "interested in a bulk purchase or PO/PCard purchase?" key="interested_in_bulk_purchase"}}</a>
-              {{/unless}}
-            </td>
-            <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-              {{t "free modeling-only accounts are also available for supporting paid communicators" key="free_modeling_only_accounts"}}
-            </td>
-          </tr>
-        {{else}}
-          <tr>
-            {{#unless this.subscription.app_pricing_override_no_monthly}}
-              <td style='width: 25%;'>
-                <button style='width: 100%;' rel='monthly' class={{this.communicator_monthly_subscription_class}} type="button" {{action "set_subscription_type" "monthly_communicator"}}>
-                  {{#if this.subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
-                  {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
-                  {{/if}}
-                  {{#if this.subscription.app_pricing_override}}
-                    {{this.subscription.monthly_app_price}} {{this.subscription.app_currency}}<br>{{t "per month" key="per_month_lower"}}
-                  {{else}}
-                    {{t "US$9 per month" key="9_per_month"}}
-                  {{/if}}
-                </button>
-              </td>
-            {{/unless}}
-            <td style='width: 25%;'>
-              <button style='width: 100%;' rel='long_term' class={{this.communicator_long_term_subscription_class}} type="button" {{action "set_subscription_type" "long_term_communicator"}}>
-                {{#if this.subscription.app_pricing_override}}
-                  <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
-                {{else}}
-                  <b>{{t "select this plan" key="select_this_plan"}}</b><br>
-                {{/if}}
-                {{#if this.subscription.app_pricing_override}}
-                  {{this.subscription.long_term_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
-                {{else}}
-                  US${{this.subscription.long_term_amount}} {{t "purchase" key="purchase_lower"}}
-                {{/if}}
-              </button>
-            </td>
-            <td class='separator semi_dim' style='width: 25%;'>
-              {{#if this.subscription.minimal_premium}}
-                {{t "already available for this account" key="already_available_for_this_account"}}
-              {{else}}
-                <button type="button" rel='slp_paid' class={{this.slp_long_term_class}} {{action "set_subscription" "long_term_slp"}}>
-                  {{#if this.subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
-                  {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
-                  {{/if}}
-                  {{#if this.subscription.app_pricing_override}}
-                    {{this.subscription.supporter_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
-                  {{else}}
-                    {{t "US$25 purchase" key="25_purchase"}}
-                  {{/if}}
-                </button>
-              {{/if}}
-            </td>
-            <td class='semi_dim' style='width: 25%;'>
-              {{#if this.subscription.minimal_premium}}
-                {{t "already available for this account" key="already_available_for_this_account"}}
-              {{else}}
-                <button type="button" rel='eval_paid' class={{this.eval_long_term_class}} {{action "set_subscription" "long_term_eval"}}>
-                  {{#if this.subscription.app_pricing_override}}
-                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
-                  {{else}}
-                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
-                  {{/if}}
-                  {{#if this.subscription.app_pricing_override}}
-                    {{this.subscription.eval_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
-                  {{else}}
-                    {{t "US$25 purchase" key="25_purchase"}}
-                  {{/if}}
-                </button>
-              {{/if}}
-            </td>
-          </tr>
-          {{#unless this.subscription.gift_type}}
-            <tr>
-              {{#if this.subscription.user.subscription.extras_enabled}}
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "premium symbols already added" key="premium_symbols_added"}}</td>
-                <td colspan='2' class='separator semi_dim'>{{t "premium symbols already added" key="premium_symbols_added"}}</td>
-              {{else if this.subscription.app_pricing_override}}
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "premium symbols included" key="premium_symbols_included"}}</td>
-                <td colspan='2' class='separator semi_dim'></td>
-              {{else}}
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-                  {{#if this.subscription.communicator_type}}
-                    <label>
-                      <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
-                      <Input @type="checkbox" @checked={{this.subscription.extras}} />
-                      {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
-                    </label>
-                  {{/if}}
-                </td>
-                <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-                  {{#if this.subscription.supporter_type}}
-                    {{#if this.subscription.minimal_premium}}
-                      <label> 
-                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
-                        {{t "premium symbols can be purchased separately" key="premium_purchased_separately"}}
-                      </label>
+          </li>
+        </ul>
+        <div class="subscription-form-card__body">
+          {{#unless this.pricing_only}}
+            <div class="subscription-form-card__buttons subscription-table__row--plan-buttons">
+              {{#unless this.subscription.app_pricing_override_no_monthly}}
+                <div class="subscription-table__cell--first-plan">
+                  <button style='width: 100%;' rel='monthly' class={{this.communicator_monthly_subscription_class}} type="button" {{action "set_subscription_type" "monthly_communicator"}}>
+                    {{#if this.subscription.app_pricing_override}}
+                      <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
                     {{else}}
-                      <label> 
-                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style="float: left; width: 60px; margin-left: 20px;" >
-                        <Input @type="checkbox" @checked={{this.subscription.extras}} />
+                      <b>{{t "select this plan" key="select_this_plan"}}</b><br>
+                    {{/if}}
+                    {{#if this.subscription.app_pricing_override}}
+                      {{this.subscription.monthly_app_price}} {{this.subscription.app_currency}}<br>{{t "per month" key="per_month_lower"}}
+                    {{else}}
+                      <span class="subscription-currency-us">US</span>$9 {{t "per month" key="per_month_lower"}}
+                    {{/if}}
+                  </button>
+                </div>
+              {{/unless}}
+              <div>
+                <button style='width: 100%;' rel='long_term' class={{this.communicator_long_term_subscription_class}} type="button" {{action "set_subscription_type" "long_term_communicator"}}>
+                  {{#if this.subscription.app_pricing_override}}
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
+                  {{else}}
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
+                  {{/if}}
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.long_term_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
+                  {{else}}
+                    <span class="subscription-currency-us">US</span>${{this.subscription.long_term_amount}} {{t "purchase" key="purchase_lower"}}
+                  {{/if}}
+                </button>
+              </div>
+            </div>
+            {{#unless this.subscription.gift_type}}
+              <div class="subscription-form-card__row subscription-table__row--light-gray-bg">
+                {{#if this.subscription.user.subscription.extras_enabled}}
+                  <div>{{t "premium symbols already added" key="premium_symbols_added"}}</div>
+                {{else if this.subscription.app_pricing_override}}
+                  <div>{{t "premium symbols included" key="premium_symbols_included"}}</div>
+                {{else}}
+                  <div>
+                    {{#if this.subscription.communicator_type}}
+                      <label>
+                        <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" class="subscription-form__premium-symbol-image" alt="">
+                        <Input type="checkbox" @checked={{this.subscription.extras}} />
                         {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
                       </label>
                     {{/if}}
-                  {{/if}}
-                </td>
+                  </div>
+                {{/if}}
+              </div>
+            {{else if this.subscription.free_extras}}
+              {{#if this.subscription.extras}}
+                <div class="subscription-form-card__row subscription-table__row--light-gray-bg">
+                  <div>{{t "premium symbols included" key="premium_symbols_included"}}</div>
+                </div>
               {{/if}}
-            </tr>
-          {{else if this.subscription.free_extras}}
-            {{#if this.subscription.extras}}
-              <tr>
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "premium symbols included" key="premium_symbols_included"}}</td>
-                <td colspan='2' class='separator semi_dim'></td>
-              </tr>
-            {{/if}}
-          {{/unless}}
-          {{#unless this.subscription.gift_type}}
-            <tr>
-              {{#if this.subscription.app_pricing_override}}
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "2 premium supervisor credits included" key="premium_supporters_included"}}</td>
-                <td colspan='2' class='separator semi_dim'></td>
-              {{else}}
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>
-                  {{#if this.subscription.communicator_type}}
-                    {{t "include" key="include"}}
-                    <span style='display: inline-block; width: 75px;'>
-                      {{bound-select select_class="form-control" select_id="supervisors" content=this.supervisor_options selection=this.subscription.included_supporters action=(action (mut this.subscription.included_supporters)) }}
-                    </span>
-                    {{t "supervisor credits" key="supervisor_credits"}}
-                  {{else}}
-                    <span class='text-muted'>
-                      {{t "optionally add supervisor credits" key="add_supervisor_credits"}}
-                    </span>
-                  {{/if}}
-                </td>
-                <td colspan={{if this.subscription.app_pricing_override "1" "2"}} class='separator semi_dim'>
-                  {{#unless this.subscription.app_pricing_override}}
-                    <a href="#" {{action "bulk_purchase"}} style='display: inline-block; margin-top: 10px;'>
-                      {{t "Bulk Purchase, PO or PCard?" key="bulk_purchase_or_po"}}
-                    </a>
-                  {{/unless}}
-                </td>
-              {{/if}}              
-            </tr>
-          {{else if this.subscription.free_supporters}}
-            {{#if this.subscription.included_supporters}}
-              <tr>
-                <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}}>{{t "%{n} premium supervisor credits included" key="premium_supervisors_included"}}</td>
-                <td colspan='2' class='separator semi_dim'></td>
-              </tr>
-            {{/if}}
-          {{/unless}}
-          <tr>
-            <td colspan={{if this.subscription.app_pricing_override_no_monthly "1" "2"}} style='text-align: right;'>
+            {{/unless}}
+            {{#unless this.subscription.gift_type}}
+              <div class="subscription-form-card__row subscription-table__row--blue-bg">
+                {{#if this.subscription.app_pricing_override}}
+                  <div>{{t "2 premium supervisor credits included" key="premium_supporters_included"}}</div>
+                {{else}}
+                  <div>
+                    {{#if this.subscription.communicator_type}}
+                      {{t "include" key="include"}}
+                      <span style='display: inline-block; width: 75px;'>
+                        {{bound-select select_class="form-control" select_id="supervisors" content=this.supervisor_options selection=this.subscription.included_supporters action=(action (mut this.subscription.included_supporters)) }}
+                      </span>
+                      {{t "supervisor credits" key="supervisor_credits"}}
+                    {{else}}
+                      <span class='text-muted'>
+                        {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}
+                      </span>
+                    {{/if}}
+                  </div>
+                {{/if}}
+              </div>
+            {{else if this.subscription.free_supporters}}
+              {{#if this.subscription.included_supporters}}
+                <div class="subscription-form-card__row">
+                  <div>{{t "%{n} premium supervisor credits included" key="premium_supervisors_included"}}</div>
+                </div>
+              {{/if}}
+            {{/unless}}
+            <div class="subscription-form-card__row subscription-table__row--navy-bg" style='text-align: center;'>
               {{#if this.move_gift_option}}
                 {{#if this.trial_option}}
-                  <button class='btn btn-default' rel='free_trial' {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
+                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
                 {{/if}}
               {{else if this.subscription.app_pricing_override}}
                 {{#if this.trial_option}}
-                  <button class='btn btn-default' rel='free_trial' {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
+                  <button type="button" class="subscribe-trial-btn" rel='free_trial' {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</button>
                 {{/if}}
               {{else}}
                 {{#if this.subscription.gift_type}}
@@ -368,18 +205,171 @@
                   </a>
                 {{/if}}
               {{/if}}
-            </td>
-            <td colspan='2' class='separator semi_dim' style='text-align: right;'>
+            </div>
+          {{/unless}}
+        </div>
+      </div>
+
+      {{!-- Supporter card (column 3) --}}
+      <div class="la-about-glass-card la-pricing-card subscription-form-card subscription-form-card--supporter">
+        <div class="la-about-glass-card__header">
+          <span class="la-about-glass-card__icon la-about-glass-card__icon--supporter" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <h3 class="la-about-glass-card__title">{{t "Supporter" key="supporter"}}</h3>
+        </div>
+        <p class="la-about-glass-card__text">
+          {{#if this.subscription.app_pricing_override}}
+            {{t "Add premium supporter access using this login across all devices." key="premium_supporter_across_devices"}}
+          {{/if}}
+          {{t "Used for supporting communicators." key="supporting_communicators"}}
+        </p>
+        <div class="la-pricing-card__prices">
+          <div class="la-pricing-card__price-row">
+            <span class="la-pricing-card__amount">
+              {{#if this.subscription.app_pricing_override}}
+                {{this.subscription.supporter_app_price}} {{this.subscription.app_currency}}
+              {{else}}
+                <span class="la-pricing-card__currency">US$</span>25
+              {{/if}}
+            </span>
+            <span class="la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+          </div>
+        </div>
+        <ul class="la-pricing-card__features">
+          <li>{{t "Run on multiple devices" key="run_on_multiple_devices"}}</li>
+          <li>{{t "Support, edit & model boards" key="works_for_communicators"}}</li>
+          <li>{{t "Track usage & receive alerts" key="track_for_communicators"}}</li>
+          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
+        </ul>
+        <div class="subscription-form-card__body">
+          {{#unless this.pricing_only}}
+            <div class="subscription-form-card__buttons subscription-table__row--plan-buttons semi_dim">
+              {{#if this.subscription.minimal_premium}}
+                <div>{{t "already available for this account" key="already_available_for_this_account"}}</div>
+              {{else}}
+                <button type="button" rel='slp_paid' class={{this.slp_long_term_class}} style='width: 100%;' {{action "set_subscription" "long_term_slp"}}>
+                  {{#if this.subscription.app_pricing_override}}
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
+                  {{else}}
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
+                  {{/if}}
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.supporter_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
+                  {{else}}
+                    <span class="subscription-currency-us">US</span>$25 {{t "purchase" key="purchase_lower"}}
+                  {{/if}}
+                </button>
+              {{/if}}
+            </div>
+            {{#unless this.subscription.gift_type}}
+              <div class="subscription-form-card__row subscription-table__row--light-gray-bg semi_dim">
+                {{#if this.subscription.user.subscription.extras_enabled}}
+                  <div>{{t "premium symbols already added" key="premium_symbols_added"}}</div>
+                {{else if this.subscription.app_pricing_override}}
+                  <div></div>
+                {{else}}
+                  <div>
+                    {{#if this.subscription.supporter_type}}
+                      {{#if this.subscription.minimal_premium}}
+                        <label>
+                          <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" class="subscription-form__premium-symbol-image" alt="">
+                          {{t "premium symbols can be purchased separately" key="premium_purchased_separately"}}
+                        </label>
+                      {{else}}
+                        <label>
+                          <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" class="subscription-form__premium-symbol-image" alt="">
+                          <Input type="checkbox" @checked={{this.subscription.extras}} />
+                          {{t "add symbols from LessonPix, PCS (BoardMaker) Tobii Dynavox & SymbolStix for US$25" key="add_premium_symbols2"}}
+                        </label>
+                      {{/if}}
+                    {{/if}}
+                  </div>
+                {{/if}}
+              </div>
+            {{/unless}}
+            {{#unless this.subscription.gift_type}}
+              <div class="subscription-form-card__row subscription-table__row--blue-bg semi_dim">
+                {{#if this.subscription.app_pricing_override}}
+                  <div></div>
+                {{else}}
+                  <div>
+                    {{#unless this.subscription.app_pricing_override}}
+                      <a href="#" {{action "bulk_purchase"}} style='display: inline-block;'>
+                        {{t "Bulk Purchase, PO or PCard?" key="bulk_purchase_or_po"}}
+                      </a>
+                    {{/unless}}
+                  </div>
+                {{/if}}
+              </div>
+            {{/unless}}
+            <div class="subscription-form-card__row subscription-table__row--navy-bg semi_dim" style='text-align: center;'>
               {{#if this.subscription.modeling_long_term}}
                 <button class='btn btn-primary' style='width: auto;'>{{t "set as a free<br> modeling-only account" key="set_as_free_modeling_only_two_lines"}}</button>
               {{else}}
                 <a href="#" {{action "set_subscription" "slp_monthly_free"}}>{{t "set as a free modeling-only account" key="set_as_free_modeling_only"}}</a>
               {{/if}}
-            </td>
-          </tr>
-        {{/if}}
-      </tbody>
-    </table>
+            </div>
+          {{/unless}}
+        </div>
+      </div>
+
+      {{!-- Eval card (column 4) --}}
+      <div class="la-about-glass-card la-pricing-card subscription-form-card subscription-form-card--eval">
+        <div class="la-about-glass-card__header">
+          <span class="la-about-glass-card__icon la-about-glass-card__icon--eval" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+          </span>
+          <h3 class="la-about-glass-card__title">{{t "Eval" key="eval"}}</h3>
+        </div>
+        <p class="la-about-glass-card__text">
+          {{#if this.subscription.app_pricing_override}}
+            {{t "Add premium evaluator access using this login across all devices." key="premium_eval_across_devices"}}
+          {{/if}}
+          {{t "Used for loaner/ evaluation devices." key="eval_descriptor"}}
+        </p>
+        <div class="la-pricing-card__prices">
+          <div class="la-pricing-card__price-row">
+            <span class="la-pricing-card__amount">
+              {{#if this.subscription.app_pricing_override}}
+                {{this.subscription.eval_app_price}} {{this.subscription.app_currency}}
+              {{else}}
+                <span class="la-pricing-card__currency">US$</span>25
+              {{/if}}
+            </span>
+            <span class="la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+          </div>
+        </div>
+        <ul class="la-pricing-card__features">
+          <li>{{t "Runs on one device" key="run_on_one_device"}}</li>
+          <li>{{t "full communication system for evals" key="full_communication_system_for_evals"}}</li>
+          <li>{{t "Premium voices on request" key="premium_voices_on_request"}}</li>
+          <li><button type="button" class="btn-link subscription-form__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset after every eval" key="for_supported_communicators2_suffix"}}</li>
+        </ul>
+        <div class="subscription-form-card__body">
+          {{#unless this.pricing_only}}
+            <div class="subscription-form-card__buttons subscription-table__row--plan-buttons semi_dim">
+              {{#if this.subscription.minimal_premium}}
+                <div>{{t "already available for this account" key="already_available_for_this_account"}}</div>
+              {{else}}
+                <button type="button" rel='eval_paid' class={{this.eval_long_term_class}} style='width: 100%;' {{action "set_subscription" "long_term_eval"}}>
+                  {{#if this.subscription.app_pricing_override}}
+                    <b>{{t "add to my account" key="add_to_my_account"}}</b><br>
+                  {{else}}
+                    <b>{{t "select this plan" key="select_this_plan"}}</b><br>
+                  {{/if}}
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.eval_app_price}} {{this.subscription.app_currency}}<br>{{t "purchase" key="purchase_lower"}}
+                  {{else}}
+                    <span class="subscription-currency-us">US</span>$25 {{t "purchase" key="purchase_lower"}}
+                  {{/if}}
+                </button>
+              {{/if}}
+            </div>
+          {{/unless}}
+        </div>
+      </div>
+    </div>
     </div></div>
     {{#if this.show_bulk_purchase}}
       <div class='form-group'>
@@ -393,58 +383,44 @@
     {{/if}}
     {{#if this.pricing_only}}
       {{#unless this.show_bulk_purchase}}
-        <div class="form-group">
-          <div class="col-sm-12" style="margin-top: 20px; padding-bottom: 20px; width: 630px;">
-            <div style='text-align: center;'>
-              <p style="font-size: 18px; color: #888;">{{t "Or start with a 2-month free trial and make sure it works for you." key="after_free_trial"}}</p>
-            </div>
-            {{#if this.show_expiration_notes}}
-              <p class="explanation" style="margin-top: 10px;">
-                {{t "We don't want to shut off anyone's voice, even if funding unexpectedly becomes an issue down the line. When a user's subscription expires %app_name% will still work as a communication system but premium features like reporting and video notes will be disabled." key="expiration_notes_pre"}}
-                {{#if this.app_state.domain_settings.support_url}}
-                  {{t "If you need help with funding please" key="expiration_notes_support"}} 
-                  <a href={{this.app_state.domain_settings.support_url}}>{{t "contact our support team" key="contact_support_team"}}</a> {{t "for more information." key="expiration_notes"}}
-                {{/if}}
-              </p>
+        {{#if this.show_expiration_notes}}
+          <p class="explanation" style="margin-top: 10px;">
+            {{t "We don't want to shut off anyone's voice, even if funding unexpectedly becomes an issue down the line. When a user's subscription expires %app_name% will still work as a communication system but premium features like reporting and video notes will be disabled." key="expiration_notes_pre"}}
+            {{#if this.app_state.domain_settings.support_url}}
+              {{t "If you need help with funding please" key="expiration_notes_support"}}
+              <a href={{this.app_state.domain_settings.support_url}}>{{t "contact our support team" key="contact_support_team"}}</a> {{t "for more information." key="expiration_notes"}}
             {{/if}}
-          </div>
-        </div>
+          </p>
+        {{/if}}
       {{/unless}}
-      {{#if this.app_state.domain_settings.full_domain}}
-        <div class="form-group">
-          <div class="col-sm-12">
-            <LinkTo @route="register" class="btn btn-lg btn-primary">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
-            {{#unless this.subscription.app_pricing_override}}
-              <LinkTo @route="gift_purchase" class="btn btn-lg btn-default">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
-            {{/unless}}
-          </div>
-        </div>
-      {{/if}}
     {{else}}
       <div class="form-group">
-        <div class="col-sm-12" style='margin-top: 20px;'>
+        <div class="col-sm-12 subscription-activate-row" style='margin-top: 20px;'>
           {{#if this.not_authenticated}}
             {{#unless this.subscription.confirmation}}
               <p class='text-danger'>{{t "There appears to be an issue with your session that could prevent your purchase from completing. Please try logging out and back in. If that doesn't correct the problem, please try a different browser or contact our support team." key="error_subscription_wont_word"}}</p>
             {{/unless}}
           {{/if}}
-          <button type="submit" rel='activate' class="btn btn-lg btn-primary">
+          <button type="submit" rel='activate' class="btn btn-lg btn-primary subscription-activate-btn">
             {{#if this.subscription.discount_percent}}
-              <div style='font-weight: bold;'>
-                <span class='glyphicon glyphicon-ok-sign'></span>
+              <div class="subscription-activate-btn__discount">
+                <span class="subscription-activate-btn__icon glyphicon glyphicon-ok-sign"></span>
                 {{t "Discount Applied!" key="discount_applied"}}
               </div>
             {{/if}}
+            <span class="subscription-activate-btn__heading-row">
             {{#if this.purchase_state.pending}}
-              {{t "Checking..." key="checking"}}
+              <span class="subscription-activate-btn__heading">{{t "Checking..." key="checking"}}</span>
             {{else if this.subscription.user.grace_period}}
-              {{t "Activate Account" key="activate_account"}}
+              <span class="subscription-activate-btn__heading">{{t "Activate Account" key="activate_account"}}</span>
             {{else}}
-              {{t "Update Account" key="update_account"}}
+              <span class="subscription-activate-btn__heading">{{t "Update Account" key="update_account"}}</span>
             {{/if}}
-            <div style='font-size: 14px;'>
+              <span class="subscription-activate-btn__arrow glyphicon glyphicon-arrow-right" aria-hidden="true"></span>
+            </span>
+            <div class="subscription-activate-btn__price">
             {{#if this.subscription.amount_in_dollars}}
-              ({{#if this.subscription.long_term_subscription}}
+              <span class="subscription-activate-btn__paren">(</span>{{#if this.subscription.long_term_subscription}}
                 {{t "process" key="process"}}
                 {{#if this.subscription.app_pricing_override}}
                   {{this.subscription.long_term_app_price}}
@@ -453,7 +429,7 @@
                   US${{this.subscription.amount_in_dollars}}
                 {{/if}}
               {{else}}
-                {{t "paying" key="paying"}}
+                <span class="subscription-activate-btn__paying-line">{{t "paying" key="paying"}}
                 {{#if this.subscription.app_pricing_override}}
                   {{this.subscription.monthly_app_price}}
                   {{this.subscription.app_currency}}
@@ -465,7 +441,8 @@
                     {{t "+ US$%{n} one-time fee" n=this.subscription.extras_in_dollars key="plus_one_time_extras"}}
                   {{/if}}
                 {{/if}}
-              {{/if}})
+                </span>
+              {{/if}}<span class="subscription-activate-btn__paren">)</span>
             {{else if this.subscription.extras}}
               {{#unless this.subscription.free_extras}}
                 {{t "(process one-time US$25 fee)" key="process_one_time_extras"}}
@@ -475,7 +452,7 @@
               {{#if this.subscription.monthly_subscription}}
                 {{#if this.subscription.communicator_type}}
                   {{#unless this.subscription.app_pricing_override}}
-                    <br><em>{{t "monthly fee starts after your free trial" key="billing_after_trial"}}</em>
+                    <br><em class="subscription-activate-btn__subtext">{{t "monthly fee starts after your free trial" key="billing_after_trial"}}</em>
                   {{/unless}}
                 {{/if}}
               {{/if}}
@@ -489,7 +466,7 @@
             {{else if this.subscription.user.really_expired}}
               &nbsp;&nbsp;<a href="#" rel='skip_subscription' class='btn btn-default btn-lg' {{action "skip_subscription"}}>{{t "I need more time" key="i_need_more_time"}}</a>
             {{else}}
-              &nbsp;&nbsp;<a href="#" rel='free_trial' class='btn btn-default btn-lg' {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</a>
+              <a href="#" rel='free_trial' class="subscribe-trial-btn" {{action "skip_subscription"}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</a>
             {{/if}}
           {{else}}
             <button type="button" rel='cancel' class="btn btn-lg btn-default" {{action "reset"}}>{{t "Cancel Changes" key="cancel_changes"}}</button>

@@ -1,20 +1,30 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <h3>
-      {{t "Complete %app_name% Registration" key="complete_registration"}}
-    </h3>
-  </div>
-  <div class="modal-body">
-    <span class="glyphicon glyphicon-info-sign" style="font-size: 40px; float: left; margin-top: 5px; margin-right: 10px; margin-bottom: 5px;"></span>
-    By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, and are capable of binding to a legal contract.
-    {{#if this.agree_error}}
-      <p class="text-danger">{{t "There was a problem updating your account, please try again." key="agree_error"}}</p>
-    {{/if}}
-  </div>
-  <div class="modal-footer">
-    <button {{action "confirm"}} class="btn btn-primary">{{t "Agree and Continue" key="accept_and_continue"}}</button>
-    {{#if this.session.as_user_id}}
-      <button {{action "close"}} class="btn btn-default">{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
-    {{/if}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") uncloseable="true"}}
+  <div class="la-support-modal-wrap la-terms-agree-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Complete %app_name% Registration" key="complete_registration"}}</span>
+    </div>
+    <div class="la-support-modal-body">
+      <div class="la-terms-agree-message">
+        <span class="la-terms-agree-icon" aria-hidden="true">
+          <svg class="la-terms-agree-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6"/>
+            <path d="M9 15l2 2 4-4"/>
+          </svg>
+        </span>
+        <p class="la-terms-agree-text">
+          {{t "By registering or using the product, you are agreeing that you have read and understood the" key="terms_agree_intro"}} <a href="/terms" target="_blank" rel="noopener" class="la-terms-agree-link">{{t "Terms of Use & License Agreement" key="terms_use_license"}}</a>{{t ", and are capable of binding to a legal contract." key="terms_agree_outro"}}
+        </p>
+      </div>
+      {{#if this.agree_error}}
+        <p class="la-terms-agree-error">{{t "There was a problem updating your account, please try again." key="agree_error"}}</p>
+      {{/if}}
+      <div class="la-contact-form__actions la-terms-agree-actions">
+        <button type="button" class="la-btn la-btn--primary" {{action "confirm"}}>{{t "Agree and Continue" key="accept_and_continue"}}</button>
+        {{#if this.session.as_user_id}}
+          <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
+        {{/if}}
+      </div>
+    </div>
   </div>
 {{/modal-dialog}}

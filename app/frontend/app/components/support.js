@@ -76,6 +76,19 @@ export default Component.extend({
     updateAuthorId(id) {
       this.set('author_id', id);
     },
+    show_speak_mode_intro_again() {
+      const appState = this.get('appState');
+      const user = appState.get('currentUser');
+      if (!user) { return; }
+      const progress = user.get('preferences.progress') || {};
+      delete progress.speak_mode_intro_done;
+      user.set('preferences.progress', progress);
+      appState.set('speak-mode-intro', false);
+      user.save().then(() => {
+        this.get('modal').close();
+        this.get('modal').open('speak-mode-intro');
+      }, function() {});
+    },
     submit_message() {
       if (!this.get('email') && !this.get('appState.currentUser')) { return; }
       const message = {

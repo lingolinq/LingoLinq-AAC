@@ -8,6 +8,7 @@ import { inject as service } from '@ember/service';
 
 export default Component.extend({
   appState: service('app-state'),
+  router: service('router'),
   willInsertElement: function() {
     this.set_board_record();
   },
@@ -78,6 +79,10 @@ export default Component.extend({
       }
     }
     return this.get('board_record.name');
+  }),
+  long_username: computed('board_record.user_name', function() {
+    var name = this.get('board_record.user_name') || '';
+    return name.length > 25;
   }),
   display_class: computed('children', function() {
     var e = this.element;
@@ -179,12 +184,17 @@ export default Component.extend({
         });
       } else {
         var key = board_record.get ? board_record.get('key') : board_record.key;
-        var id = board_record.get ? board_record.get('id') : board_record.id;
-        var opts = {force_board_state: {key: key, id: id}};
-        if(_this.get('localized')) {
-          opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
+        var parts = key ? key.split('/') : [];
+        if(parts.length === 2) {
+          _this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+        } else {
+          var id = board_record.get ? board_record.get('id') : board_record.id;
+          var opts = {force_board_state: {key: key, id: id}};
+          if(_this.get('localized')) {
+            opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
+          }
+          _this.appState.home_in_speak_mode(opts);
         }
-        this.appState.home_in_speak_mode(opts);
       }
     }
   }

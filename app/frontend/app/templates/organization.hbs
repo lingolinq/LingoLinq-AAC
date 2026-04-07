@@ -1,93 +1,46 @@
-<div class="row">
-  <div class="col-md-3 col-sm-5">
-    <div class="well" style="text-align: center;">
-      <h2 style="margin-bottom: 10px;">
-        <span class="glyphicon glyphicon-paperclip"></span>
+<div class="md-shell md-shell--org">
+  <div class="md-workspace">
+    <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+      <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Admin" key="admin"}}</LinkTo>
+      <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "People" key="people"}}</LinkTo>
+      <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
+      <LinkTo @route="organization.rooms" @model={{this.model.id}} class="md-pillnav__pill">{{t "Rooms" key="rooms"}}</LinkTo>
+      <LinkTo @route="organization.settings" @model={{this.model.id}} class="md-pillnav__pill">{{t "Settings" key="settings"}}</LinkTo>
+    </nav>
+
+    <header class="md-hero md-hero--dashboard md-hero--org">
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">
         {{#if this.model.permissions.view}}
-          {{ this.model.name }}
+          {{this.model.name}}
         {{else}}
           {{t "Organization" key="organization"}}
         {{/if}}
-      </h2>
-      <div style='text-align: left; width: 100px; margin: 0 auto;'>
-        {{t "user" key="user_count" count=this.model.total_users }}<br>
+      </span></h1>
+      <div class="md-org-meta">
+        <span class="md-org-meta__chip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {{t "user" key="user_count" count=this.model.total_users}}
+        </span>
         {{#if this.model.total_supervisors}}
-          {{t "supervisor" key="supervisor_count" count=this.model.total_supervisors}}
-          <br>
+          <span class="md-org-meta__chip">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {{t "supervisor" key="supervisor_count" count=this.model.total_supervisors}}
+          </span>
         {{/if}}
-        {{t "manager" key="manager_count" count=this.model.total_managers }}<br>
-        {{#if this.model.used_evals}}
-          {{t "eval" key="eval_count" count=this.model.used_evals}}<br>
+        <span class="md-org-meta__chip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          {{t "manager" key="manager_count" count=this.model.total_managers}}
+        </span>
+        {{#if this.model.created}}
+          <span class="md-org-meta__chip md-org-meta__chip--muted" title={{date this.model.created}}>
+            {{t "created" key="created_lower"}} {{date_ago this.model.created}}
+          </span>
         {{/if}}
       </div>
-      {{#if this.model.created}}
-        <div title={{date this.model.created}}>{{t "created" key="created_lower"}} {{date_ago this.model.created}}</div>
-      {{/if}}
-    </div>
-    {{#if this.model.permissions.edit}}
-      <div class="btn-group-vertical" style="width: 100%;">
-        <LinkTo @route="organization.index" @model={{this.model.id}} class="btn btn-default">{{t "Admin" key="admin"}}</LinkTo>
-        <LinkTo @route="organization.reports" @model={{this.model.id}} class="btn btn-default">{{t "Reports" key="reports"}}</LinkTo>
-        <LinkTo @route="organization.rooms" @model={{this.model.id}} class="btn btn-default">{{t "Rooms" key="rooms"}}</LinkTo>
-        {{#if this.model.premium}}
-          {{#if this.app_state.feature_flags.lessons}}
-            <LinkTo @route="organization.lessons" @model={{this.model.id}} class="btn btn-default">{{t "Trainings" key="trainings"}}</LinkTo>
-          {{/if}}
-        {{/if}}
+    </header>
 
-        {{#if this.model.admin}}
-          <LinkTo @route="organization.extras" @model={{this.model.id}} class="btn btn-default">{{t "Extras" key="extras"}}</LinkTo>
-        {{/if}}
-        {{#if this.model.permissions.manage_subscription}}
-          <LinkTo @route="organization.subscription" @model={{this.model.id}} class="btn btn-default">{{t "Billing" key="billing"}}</LinkTo>
-        {{/if}}
-        {{#if this.model.permissions.update_licenses}}
-            <span class="btn btn-default" style='text-align: left; display: none;'>
-              <div style='margin-bottom: 4px;'>
-                <Input @value={{this.model.allotted_licenses}} class="form-control inline inline-licenses" />
-                {{t "purchased licenses" key="purchased_licenses_lower"}}
-              </div>
-              <Input @value={{this.model.allotted_eval_licenses}} class="form-control inline inline-licenses" />
-              {{t "eval accounts" key="eval_accounts_lower"}}
-              <button class="btn btn-default" {{action "update_org"}}>{{t "update" key="update_lower"}}</button>
-            </span>
-        {{/if}}
-        {{#if this.model.admin}}
-          {{#if this.model.permissions.manage}}
-            <a href="#" class="btn btn-default" {{action "jobs"}}>
-              {{t "Background Jobs" key="background_jobs"}}
-              <span style='display: none;'>{{t "jobs" key="jobs"}}</span>
-            </a>
-            {{#if this.model.permissions.edit}}
-              <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
-            {{/if}}
-            <span class="btn btn-default">
-              <Input @value={{this.masquerade_user_name}} @enter={{action "masquerade"}} placeholder="user name" class="form-control inline inline-masquerade" />
-              <button class="btn btn-default" {{action "masquerade"}} style='width: 110px;'>{{t "masquerade" key="masquerade"}}</button>
-            </span>
-            <span class="btn btn-default">
-              <Input @value={{this.search_user}} @enter={{action "find_user"}} placeholder="user name/email" class="form-control inline inline-masquerade" />
-              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
-            </span>
-            <span class="btn btn-default">
-              <Input @value={{this.search_board}} @enter={{action "find_board"}} placeholder="board id/key" class="form-control inline inline-masquerade" />
-              <button class="btn btn-default" {{action "find_board"}} style='width: 110px;'>{{t "find board" key="find_board_lower"}}</button>
-            </span>
-          {{/if}}
-        {{else}}
-          {{#if this.model.permissions.edit}}
-            <LinkTo @route="organization.settings" @model={{this.model.id}} class="btn btn-default">{{t "Settings" key="settings"}}</LinkTo>
-            <span class="btn btn-default">
-              <Input @value={{this.search_user}} @enter={{action "find_user"}} placeholder="user name/email" class="form-control inline inline-masquerade" />
-              <button class="btn btn-default" {{action "find_user"}} style='width: 110px;'>{{t "find user" key="find_user"}}</button>
-            </span>
-          {{/if}}
-        {{/if}}
-      </div>
-    {{/if}}
-  </div>
-  <div class="col-md-9 col-sm-7">
-    {{outlet}}
+    <main class="md-main md-main--org">
+      {{outlet}}
+    </main>
   </div>
 </div>
-

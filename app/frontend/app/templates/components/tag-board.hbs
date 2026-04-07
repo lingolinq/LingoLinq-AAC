@@ -1,56 +1,67 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Categorize This Board" key="categorize_this_board"}}</h3>
-  </div>
-  <div class="modal-body">
-    <p>{{t "You can organize individual boards or sets of boards to make them easier to find in the future. Choose a new category name or select from the list of names you've already used." key="tag_explainer"}}</p>
-    <form class="form-horizontal" {{action "nothing" on="submit"}}>
-      <div class="form-group">
-        <label for="category" class="col-sm-3 control-label">{{t "Category" key="category"}}</label>
-        <div class="col-sm-9">
-          {{#if this.model.user.board_tags}}
-            <div class="input-group">
-              <Input type="text" id="category" class="form-control" @value={{this.tag}} />
-              <div class="input-group-btn">
-                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{t "Categories" key="categories"}} <span class="caret"></span></button>
-                <ul class="dropdown-menu dropdown-menu-right">
-                  {{#each this.model.user.board_tags as |tagOption|}}
-                    <li><a href='#' {{action "choose" tagOption}}>{{ tagOption }}</a></li>
-                  {{/each}}
-                </ul>
-              </div>
+  <div class="la-tag-board-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Categorize Board" key="categorize_this_board"}}</span>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+    </div>
+    <div class="la-tag-board-body">
+      <p class="la-tag-board-desc">{{t "Organize boards into categories for quick access. Enter a new name or pick an existing one. A board can belong to multiple categories." key="tag_explainer"}}</p>
+
+      {{#unless this.model.board}}
+        <div class="la-tag-board-section">
+          <label class="la-tag-board-label" for="tag-board-board">{{t "Board" key="board"}}</label>
+          <select id="tag-board-board" class="la-tag-board-input" {{on "change" (action "pickBoard")}}>
+            <option value="">{{t "Choose a board" key="tag_board_pick_board"}}</option>
+            {{#each this.boardChoicesList as |brd|}}
+              <option value={{brd.id}}>{{brd.name}}</option>
+            {{/each}}
+          </select>
+        </div>
+      {{/unless}}
+
+      <div class="la-tag-board-section">
+        <label class="la-tag-board-label" for="category">{{t "Category" key="category"}}</label>
+        {{#if this.model.user.board_tags}}
+          <div class="la-tag-board-input-group">
+            <Input type="text" id="category" class="la-tag-board-input" @value={{this.tag}} placeholder={{t "Enter category name" key="enter_category_name"}} />
+            <div class="la-tag-board-dropdown">
+              <button type="button" class="la-tag-board-dropdown-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{t "Categories" key="categories"}}
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 1.5 6 6.5 11 1.5"/></svg>
+              </button>
+              <ul class="la-tag-board-dropdown-menu dropdown-menu dropdown-menu-right">
+                {{#each this.model.user.board_tags as |tagOption|}}
+                  <li><a href='#' {{action "choose" tagOption}}>{{tagOption}}</a></li>
+                {{/each}}
+              </ul>
             </div>
-          {{else}}
-            <Input type="text" id="category" class="form-control" @value={{this.tag}} />
-          {{/if}}
-        </div>
-      </div>
-      {{#if this.model.board.downstream_boards}}
-        <div class="form-group">
-          <label class="col-sm-3 control-label" for="downstream">
-            {{t "Linked Boards" key="linked_boards"}}
-          </label>
-          <div class="col-sm-9">
-            <label id='home'>
-              <Input @type="checkbox" @checked={{this.downstream}} />
-              {{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}
-            </label>
           </div>
+        {{else}}
+          <Input type="text" id="category" class="la-tag-board-input" @value={{this.tag}} placeholder={{t "Enter category name" key="enter_category_name"}} />
+        {{/if}}
+      </div>
+
+      {{#if this.boardForTag.downstream_boards}}
+        <div class="la-tag-board-section">
+          <label class="la-tag-board-checkbox">
+            <Input type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
+            <span>{{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}</span>
+          </label>
         </div>
       {{/if}}
-    </form>
-  </div>
-  <div class="modal-footer">
-    <button class='btn btn-primary' {{action "update"}} disabled={{this.status.loading}}>
-      {{#if this.status.loading}}
-        {{t "Categorizing Board..." key="categorizing_board"}}
-      {{else if this.status.error}}
-        {{t "Categorization Failed" key="categorization_failed"}}
-      {{else}}
-        {{t "Categorize Board" key="categorize_board"}}
-      {{/if}}
-    </button>
-    <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
+
+      <div class="la-tag-board-actions">
+        <button class='la-tag-board-submit' {{action "update"}} disabled={{if this.not_ready true this.status.loading}}>
+          {{#if this.status.loading}}
+            {{t "Categorizing..." key="categorizing_board"}}
+          {{else if this.status.error}}
+            {{t "Failed" key="categorization_failed"}}
+          {{else}}
+            {{t "Categorize Board" key="categorize_board"}}
+          {{/if}}
+        </button>
+        <button type="button" class="la-tag-board-cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </div>
+    </div>
   </div>
 {{/modal-dialog}}

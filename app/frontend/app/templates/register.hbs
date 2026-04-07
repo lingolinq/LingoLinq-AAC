@@ -1,25 +1,32 @@
-<div class="row">
-  <div class="col-sm-6 col-sm-offset-3">
+<div class="register-page-bg">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="register-page">
+  <div class="register-card">
     {{#if this.stashes.enabled}}
-      <div class='col-sm-8 col-sm-offset-4'>
-        <h2>{{t "Join %app_name%" key="join_app"}}</h2>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
       </div>
-      <div class='col-sm-8 col-sm-offset-4' style='margin-bottom: 10px;'>
-        {{t "Ready to try %app_name% out for yourself? Every signup gets 2 months free to kick the tires and see if the app is going to work for them, no credit card required!" key="ready_to_try_app"}}
-      </div>
-      <form class="form-horizontal" {{action "saveProfile" on="submit"}}>
+      <form novalidate {{action "saveProfile" on="submit"}}>
       {{#if this.start_code_ref}}
-        <div class="form-group">
-          <label class="col-sm-4 control-label">
+        <div class="register-invite">
+          <div class="register-invite-icon">
             {{#if this.start_code_ref.image_url}}
-              <img src={{this.start_code_ref.image_url}} style='width: 75px; height: 75px; object-fit: contain; object-position: center;'>
+              <img src={{this.start_code_ref.image_url}} alt="">
             {{else}}
-              <span class="glyphicon glyphicon-paperclip" style="font-size: 75px;"></span>
+              <span class="glyphicon glyphicon-paperclip"></span>
             {{/if}}
-          </label>
-          <div class="col-sm-8">
+          </div>
+          <div class="register-invite-info">
             <h4>
-              {{t "Invited By" key="invited_by"}} 
+              {{t "Invited By" key="invited_by"}}
               {{#if this.start_code_ref.organization}}
                 {{t "Organization - " key="organization_dash"}}
               {{else}}
@@ -27,113 +34,106 @@
               {{/if}}
               <em>{{this.start_code_ref.name}}</em>
             </h4>
-            <em>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</em>
+            <p>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</p>
           </div>
         </div>
       {{/if}}
       <div class="form-group">
-        <label for="name" class="col-sm-4 control-label">{{t "Name" key="name"}}</label>
-        <div class="col-sm-8">
-          <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
-        </div>
+        <label for="name">{{t "Name" key="name"}}</label>
+        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
       </div>
       <div class="form-group">
-        <label for="user_name" class="col-sm-4 control-label">{{t "Username" key="username"}}</label>
-        <div class="col-sm-8">
-          <Input @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" />
-          {{#if this.noSpacesName}}
-            <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
-          {{else if this.user.user_name_check.checking}}
-          {{else if this.user.user_name_check.exists}}
-            <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
-          {{else if this.noName}}
-            <span class='text-danger'>{{t "name or username is required" key="name_or_username_required"}}</span>
-          {{/if}}
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
-        <div class="col-sm-8">
-          <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
-          {{#if this.badEmail}}
-            <span class='text-danger'>{{t "email required" key="email_required"}}</span>
-          {{/if}}
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
-        <div class="col-sm-8">
-            <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
-            {{#if this.shortPassword}}
-              <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span><br>
-            {{/if}}
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="registration_type" class="col-sm-4 control-label">{{t "Type" key="type"}}</label>
-        <div class="col-sm-8">
-          {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
-        </div>
-      </div>
-      <div class="form-group">
-        {{#if this.start_code}}
-          <label for="start_code" class="col-sm-4 control-label">{{t "Start Code" key="start_code"}}</label>
-          <div class="col-sm-8">
-            <Input @value={{this.model.start_code}} class="form-control" id="start_code" placeholder="optional, if provided" />
-          </div>
-        {{else}}
-          <div class='col-sm-8 col-sm-offset-4'>
-            <a href='#' {{action "allow_start_code"}}>{{t " I have a start code" key="have_a_start_code"}}</a>
-          </div>
+        <label for="user_name">{{t "Username" key="username"}}</label>
+        <Input @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" />
+        {{#if this.noSpacesName}}
+          <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
+        {{else if this.user.user_name_check.checking}}
+        {{else if this.user.user_name_check.exists}}
+          <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+        {{else if this.noName}}
+          <span class='text-danger'>{{t "name or username is required" key="name_or_username_required"}}</span>
         {{/if}}
       </div>
       <div class="form-group">
-        <div class="col-sm-offset-4 col-sm-8">
-          <div class="checkbox big_checkbox">
-            <label style="font-weight: normal;">
-              <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
-              {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
-            </label>
-          </div>
-          <div class="checkbox big_checkbox" style='margin-bottom: 10px;'>
-            <label style="font-weight: normal;">
-              <Input @type="checkbox" @checked={{this.model.terms_agree}} />
-              By registering or using the product, you are agreeing that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, and are capable of binding to a legal contract.
-            </label>
-          </div>
-          {{#if (persistence-online)}}
-            <button type="submit" disabled={{this.registering.saving}} class="btn btn-primary">
-              {{#if this.registering.initializing}}
-                {{t "Handling Start Code..." key="processing_start_code"}}
-              {{else if this.registering.saving}}
-                {{t "Signing Up..." key="signing_up"}}
-              {{else}}
-                {{t "Sign Up" key="sign_up"}}
-              {{/if}}
-            </button>
-          {{else}}
-            <button type='submit' disabled='true'>
-              {{t "Not Online" key="not_online"}}
-            </button>
-          {{/if}}
-          {{#if this.registering.error}}
-            <p class='text-danger'>
-              {{#if this.registering.error.email_blocked}}
-                {{t "The email address provided has been blocked, please try a different address" key="email_blocked"}}
-              {{else if this.registering.error.progress}}
-                {{t "User initialization failed. Please contact support." key="user_init_failed"}}
-              {{else if this.registering.error.start_code}}
-                {{t "Please re-check the start code" key="check_start_code"}}
-              {{else}}
-                {{t "There was an unexpected error while registering" key="error_registering"}}
-              {{/if}}
-            </p>
-          {{/if}}
+        <label for="email">{{t "Email" key="email"}}</label>
+        <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
+        {{#if this.badEmail}}
+          <span class='text-danger'>{{t "email required" key="email_required"}}</span>
+        {{/if}}
+      </div>
+      <div class="form-group">
+        <label for="password">{{t "Password" key="password"}}</label>
+        <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
+        {{#if this.shortPassword}}
+          <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+        {{/if}}
+      </div>
+      <div class="form-group">
+        <label for="registration_type">{{t "Type" key="type"}}</label>
+        {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
+      </div>
+      <div class="form-group">
+        {{#unless this.start_code}}
+          <button type="button" class="register-start-code-link" {{action "allow_start_code"}}>
+            {{t "I have a start code" key="have_a_start_code"}}
+          </button>
+        {{else}}
+          <label for="start_code">{{t "Start Code" key="start_code"}}</label>
+          <Input @value={{this.model.start_code}} class="form-control" placeholder="optional, if provided" />
+        {{/unless}}
+      </div>
+      <div class="register-checkboxes">
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
+            {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
+          </label>
+        </div>
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.model.terms_agree}} />
+            By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
+          </label>
         </div>
       </div>
+      <div class="register-btn-wrap">
+      {{#if (persistence-online)}}
+        <button type="submit" disabled={{this.registering.saving}} class="register-btn">
+          {{#if this.registering.initializing}}
+            {{t "Handling Start Code..." key="processing_start_code"}}
+          {{else if this.registering.saving}}
+            {{t "Signing Up..." key="signing_up"}}
+          {{else}}
+            {{t "Sign Up" key="sign_up"}}
+          {{/if}}
+        </button>
+      {{else}}
+        <button type='submit' disabled='true' class="register-btn register-btn--disabled">
+          {{t "Not Online" key="not_online"}}
+        </button>
+      {{/if}}
+      </div>
+      {{#if this.registering.error}}
+        <p class='register-error'>
+          {{#if this.registering.error.email_blocked}}
+            {{t "The email address provided has been blocked, please try a different address" key="email_blocked"}}
+          {{else if this.registering.error.progress}}
+            {{t "User initialization failed. Please contact support." key="user_init_failed"}}
+          {{else if this.registering.error.start_code}}
+            {{t "Please re-check the start code" key="check_start_code"}}
+          {{else}}
+            {{t "There was an unexpected error while registering" key="error_registering"}}
+          {{/if}}
+        </p>
+      {{/if}}
       </form>
     {{else}}
-      <h2>Can't Register</h2>
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Can't Register" key="cant_register"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
       <p>
         <span class="glyphicon glyphicon-exclamation-sign"></span>
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}
@@ -145,4 +145,5 @@
       </p>
     {{/if}}
   </div>
+</div>
 </div>

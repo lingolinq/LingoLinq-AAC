@@ -23,7 +23,15 @@ export default Component.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
   stashes: service('stashes'),
+  modal: service('modal'),
   app_state: alias('appState'),
+
+  activeTab: 'home',
+  /** When set (e.g. on user.extras), open this tab on load */
+  initialActiveTab: null,
+  isSearchOpen: false,
+  showNewBoardForm: false,
+  pillnavDropdownOpen: false,
 
   init() {
     this._super(...arguments);
@@ -39,6 +47,15 @@ export default Component.extend({
         configurable: true
       });
     }
+    var initial = this.get('initialActiveTab');
+    if (initial) {
+      this.set('activeTab', initial);
+    }
+    this._loadPreviewBoards();
+  },
+  didInsertElement() {
+    this._super(...arguments);
+    this._loadPreviewBoards();
   },
 
   sync_able: computed('extras.ready', 'appState.currentUser.external_device', function() {
@@ -51,6 +68,17 @@ export default Component.extend({
         return this.appState.get('currentUser.preferences.home_board.key') || this.appState.get('currentUser.supporter_view');
     }
   ),
+  last_board_name: computed('stashes.root_board_state', 'appState.currentUser.user_name', function() {
+    var fromStash = this.stashes.get('root_board_state.name');
+    if(fromStash) { return fromStash; }
+    var userName = this.appState.get('currentUser.user_name');
+    if(!userName) { return null; }
+    try {
+      var stored = localStorage['ll_last_board_' + userName];
+      if(stored) { return JSON.parse(stored).name || null; }
+    } catch(e) { }
+    return null;
+  }),
   needs_sync: computed('persistence.last_sync_at', function() {
     if (!this || typeof this.get !== 'function') { return false; }
     var p = null;
@@ -63,17 +91,13 @@ export default Component.extend({
   }),
   blank_slate: computed(
     'appState.currentUser.preferences.progress',
-    'appState.currentUser.using_for_a_while',
     function() {
       var progress = this.appState.get('currentUser.preferences.progress');
-      // TODO: eventually this should go away, maybe after a few weeks of active use or something
+      // Only hide Getting Started when user has actually completed setup
       if(progress && progress.setup_done) {
         return null;
-      } else if(this.appState.get('currentUser.using_for_a_while')) {
-        return null;
-      } else {
-        return progress;
       }
+      return progress;
     }
   ),
   no_intro: computed(
@@ -100,6 +124,16 @@ export default Component.extend({
   }),
   blank_slate_percent_style: computed('blank_slate_percent', function() {
     return htmlSafe("width: " + this.get('blank_slate_percent') + "%;");
+  }),
+  /** Current step (1–5) for Getting Started; same order as modal: intro, home board, app, preferences, profile */
+  getting_started_step: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (var i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
   }),
   checkForBlankSlate: observer('persistence.online', function() {
     if(!this || typeof this.get !== 'function') { return; }
@@ -435,12 +469,26 @@ export default Component.extend({
       return o.type == 'manager' && o.restricted != true; 
     });
   }),
-  has_management_responsibility: computed('managed_orgs', function() {
-    return (this.get('managed_orgs') || []).length > 0;
+  has_management_responsibility: computed('managed_orgs', 'appState.currentUser.supporter_role', function() {
+    return (this.get('managed_orgs') || []).length > 0 || this.appState.get('currentUser.supporter_role');
   }),
   manages_multiple_orgs: computed('managed_orgs', function() {
     return (this.get('managed_orgs') || []).length > 1;
   }),
+  all_orgs: computed('managed_orgs', 'appState.currentUser.managing_supervision_orgs', function() {
+    var manager = this.get('managed_orgs') || [];
+    var supervisor = this.appState.get('currentUser.managing_supervision_orgs') || [];
+    var seen = {};
+    return manager.concat(supervisor).filter(function(o) {
+      if(seen[o.id]) { return false; }
+      seen[o.id] = true;
+      return true;
+    });
+  }),
+  multipleOrgs: computed('all_orgs.length', function() {
+    return (this.get('all_orgs.length') || 0) > 1;
+  }),
+  orgDropdownOpen: false,
   autoOpenSpeakMode: computed('appState.currentUser.preferences.auto_open_speak_mode', {
     get() {
       return this.appState.get('currentUser.preferences.auto_open_speak_mode');
@@ -494,6 +542,13 @@ export default Component.extend({
       }
     }
   }),
+  showSupervisorsWhenRequested: observer('appState.requestedSupervisorsView', function() {
+    if(this.appState.get('requestedSupervisorsView')) {
+      this.appState.set('requestedSupervisorsView', false);
+      this.send('set_index_nav', 'supervisors');
+      this.set('activeTab', 'supervisors');
+    }
+  }),
   rating_allowed: computed('appState.sessionUser', function() {
     if(capabilities.installed_app && capabilities.mobile && capabilities.subsystem != 'Kindle') {
       var progress = this.appState.get('sessionUser.preferences.progress') || {};
@@ -506,9 +561,401 @@ export default Component.extend({
     }
     return false;
   }),
+  demoMainContentBg: null,
+  demoMainContentBgStyle: computed('demoMainContentBg', function() {
+    var bg = this.get('demoMainContentBg');
+    return bg ? htmlSafe('background: ' + bg + ';') : htmlSafe('');
+  }),
+  // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
+  sectionBorderMode: 'off',
+
+  activeTabLabel: computed('activeTab', function() {
+    var tab = this.get('activeTab');
+    var labels = { home: i18n.t('home', 'Home'), boards: i18n.t('boards', 'Boards'), reports: i18n.t('reports', 'Reports'), extras: i18n.t('extras', 'Extras'), supervisors: i18n.t('supervisors', 'Supervisors') };
+    return labels[tab] || labels.home;
+  }),
+  /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
+  boardsEmbedUser: computed('model', 'appState.currentUser', function() {
+    return this.get('model') || this.get('appState.currentUser');
+  }),
+  showGettingStarted: computed('appState.currentUser.preferences.progress', function() {
+    var progress = this.appState.get('currentUser.preferences.progress');
+    return progress && !progress.setup_done;
+  }),
+  gettingStartedPercent: computed('appState.currentUser.preferences.progress', function() {
+    var options = ['intro_watched', 'profile_edited', 'preferences_edited', 'home_board_set', 'app_added'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 100; }
+    var done = 0;
+    options.forEach(function(opt) { if (progress[opt]) { done++; } });
+    return options.length ? Math.round(done / options.length * 100) : 0;
+  }),
+  gettingStartedPercentStyle: computed('gettingStartedPercent', function() {
+    return htmlSafe('width: ' + this.get('gettingStartedPercent') + '%;');
+  }),
+  gettingStartedStep: computed('appState.currentUser.preferences.progress', function() {
+    var order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    var progress = this.appState.get('currentUser.preferences.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (var i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
+    }
+    return 5;
+  }),
+  boardsLoading: computed('_previewBoardsLoaded', '_fetchedPreviewBoards', function() {
+    return this.get('_previewBoardsLoaded') && !this.get('_fetchedPreviewBoards');
+  }),
+  previewBoards: computed('_fetchedPreviewBoards.[]', function() {
+    var boards = this.get('_fetchedPreviewBoards') || [];
+    var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
+    return boards.slice(0, 5).map(function(board, idx) {
+      return {
+        board: board,
+        name: board.get('name') || board.get('key'),
+        imageUrl: board.get('icon_url_with_fallback'),
+        key: board.get('key'),
+        thumbClass: thumbClasses[idx % thumbClasses.length]
+      };
+    });
+  }),
+  _loadPreviewBoards: observer('appState.currentUser.id', function() {
+    var _this = this;
+    var user = _this.get('appState.currentUser');
+    if (!user || !user.get('id')) { return; }
+    if (_this.get('_previewBoardsLoaded')) { return; }
+    _this.set('_previewBoardsLoaded', true);
+    // Fetch preview boards (5) and total count in parallel
+    _this.get('store').query('board', { user_id: user.get('id'), per_page: 5 }).then(function(boards) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      var results = boards.map(function(b) { return b; });
+      _this.set('_fetchedPreviewBoards', results);
+      var meta = _this.get('persistence').meta('board', boards);
+      if (meta && meta.more) {
+        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results.length);
+      } else {
+        _this.set('_fetchedBoardCount', results.length);
+      }
+    }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      _this.set('_fetchedPreviewBoards', []);
+    });
+  }),
+  _fetchRemainingForCount: function(userId, offset, accumulated) {
+    var _this = this;
+    _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      var count = accumulated + boards.map(function(b) { return b; }).length;
+      var meta = _this.get('persistence').meta('board', boards);
+      if (meta && meta.more) {
+        _this._fetchRemainingForCount(userId, meta.next_offset, count);
+      } else {
+        _this.set('_fetchedBoardCount', count);
+      }
+    }, function() {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      _this.set('_fetchedBoardCount', accumulated);
+    });
+  },
+  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', '_fetchedBoardCount', function() {
+    var user = this.get('appState.currentUser');
+    if (!user) { return 0; }
+    var roots = user.get('root_boards');
+    if (roots && roots.length !== undefined) { return roots.length; }
+    var mine = user.get('my_boards');
+    if (mine && mine.length !== undefined) { return mine.length; }
+    var fetched = this.get('_fetchedBoardCount');
+    if (fetched !== undefined && fetched !== null) { return fetched; }
+    return 0;
+  }),
+  _animateBoardCount: observer('boardCount', function() {
+    var _this = this;
+    var target = _this.get('boardCount') || 0;
+    var current = _this.get('_displayBoardCount') || 0;
+    if (current === target) { return; }
+    if (_this._boardCountFrame) { cancelAnimationFrame(_this._boardCountFrame); }
+    var start = current;
+    var diff = target - start;
+    var duration = Math.min(400, Math.max(150, Math.abs(diff) * 15));
+    var startTime = null;
+    function step(timestamp) {
+      if (_this.isDestroying || _this.isDestroyed) { return; }
+      if (!startTime) { startTime = timestamp; }
+      var elapsed = timestamp - startTime;
+      var progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      _this.set('_displayBoardCount', Math.round(start + diff * eased));
+      if (progress < 1) {
+        _this._boardCountFrame = requestAnimationFrame(step);
+      }
+    }
+    _this._boardCountFrame = requestAnimationFrame(step);
+  }),
+  displayBoardCount: computed('_displayBoardCount', 'boardCount', function() {
+    var display = this.get('_displayBoardCount');
+    if (display !== undefined && display !== null) { return display; }
+    return this.get('boardCount') || 0;
+  }),
+  extrasItems: computed('appState.currentUser', 'appState.currentUser.permissions.delete', 'appState.feature_flags.lessons', 'appState.feature_flags.emergency_boards', 'appState.currentUser.currently_premium_or_fully_purchased', 'appState.currentUser.external_device', function() {
+    var appState = this.appState;
+    var user = appState.get('currentUser');
+    var perms = user && user.get('permissions.delete');
+    var modelingOnly = user && user.get('modeling_only');
+    var externalDevice = user && user.get('external_device');
+    var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
+    var emergencyBoards = appState.get('feature_flags.emergency_boards');
+    return [
+      { title_key: 'learn_and_setup_card', title_default: 'Learn and Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started with %app_name%', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
+      { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
+      { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
+      { title_key: 'new_note', title_default: 'New Note', subtitle_key: 'new_note_subtitle', subtitle_default: 'Add a progress note', image: 'images/pastel-chat.svg', action: 'record_note', btn_key: 'add', btn_default: 'Add', show: !modelingOnly },
+      { title_key: 'run_eval', title_default: 'Run Evaluation', subtitle_key: 'run_eval_subtitle', subtitle_default: 'Assessment tools', image: 'images/pastel-lightbulb.png', action: 'run_eval', btn_key: 'run_action', btn_default: 'Run', show: !modelingOnly },
+      { title_key: 'my_account', title_default: 'My Account', subtitle_key: 'profile_and_settings', subtitle_default: 'Profile and settings', image: 'images/pastel-extras.png', action: 'account', btn_key: 'open', btn_default: 'Open', show: !!perms },
+      { title_key: 'supervisors', title_default: 'Supervisors', subtitle_key: 'manage_supervisors_sub', subtitle_default: 'Add or manage who can support you', image: 'images/pastel-chat.svg', action: 'supervisors', btn_key: 'view', btn_default: 'View', show: true },
+      { title_key: 'trainings', title_default: 'Trainings', subtitle_key: 'trainings_subtitle', subtitle_default: 'Continuing education', image: 'images/pastel-modeling.png', action: 'lessons', btn_key: 'start', btn_default: 'Start', show: !!lessons },
+      { title_key: 'critical_access', title_default: 'Basic Access', subtitle_key: 'offline_boards_subtitle', subtitle_default: 'Offline boards', image: 'images/pastel-house.png', action: 'offline_boards', btn_key: 'access', btn_default: 'Access', show: !!emergencyBoards }
+    ];
+  }),
+
   actions: {
+    addOrganization: function() {
+      var user_name = this.appState.get('currentUser.user_name');
+      if(user_name) {
+        this.get('router').transitionTo('user.subscription', user_name);
+      }
+    },
+    goToBoard: function(boardKey) {
+      if (boardKey) {
+        var parts = boardKey.split('/');
+        if(parts.length === 2) {
+          this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
+        } else {
+          this.get('router').transitionTo('board', boardKey);
+        }
+      }
+    },
     invalidateSession: function() {
       session.invalidate(true);
+    },
+    setDemoMainContentBg: function(color) {
+      var current = this.get('demoMainContentBg');
+      this.set('demoMainContentBg', current === color ? null : color);
+    },
+    clearDemoMainContentBg: function() {
+      this.set('demoMainContentBg', null);
+    },
+    toggleSectionBorder: function() {
+      var mode = this.get('sectionBorderMode');
+      var next = mode === 'off' ? 'thin' : (mode === 'thin' ? 'thick' : 'off');
+      this.set('sectionBorderMode', next);
+    },
+    openSearch: function() {
+      this.set('isSearchOpen', true);
+    },
+    closeSearch: function() {
+      this.set('isSearchOpen', false);
+    },
+    onSearchKeydown: function(event) {
+      if (event && event.key === 'Escape') {
+        if (this.get('pillnavDropdownOpen')) {
+          this.set('pillnavDropdownOpen', false);
+        } else {
+          this.set('isSearchOpen', false);
+        }
+      }
+    },
+    goTab: function(tab) {
+      if (tab === 'reports') {
+        var u = this.appState.get('currentUser.user_name');
+        if (u) { this.get('router').transitionTo('user.stats', u); }
+        return;
+      }
+      if (tab === 'boards') {
+        var ub = this.appState.get('currentUser.user_name');
+        if (ub) {
+          this.get('router').transitionTo('user.boards', ub).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
+        }
+        return;
+      }
+      if (tab === 'extras') {
+        var ux = this.appState.get('currentUser.user_name');
+        if (ux) {
+          this.get('router').transitionTo('user.extras', ux).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
+        }
+        return;
+      }
+      if (tab === 'home') {
+        var uh = this.appState.get('currentUser.user_name');
+        var homeFrom = this.get('router.currentRouteName');
+        if (uh && homeFrom !== 'user.home') {
+          this.get('router').transitionTo('user.home', uh);
+        } else {
+          this.set('activeTab', 'home');
+        }
+        this.set('showNewBoardForm', false);
+        return;
+      }
+      this.set('activeTab', tab);
+    },
+    togglePillnavDropdown: function() {
+      this.set('pillnavDropdownOpen', !this.get('pillnavDropdownOpen'));
+    },
+    toggleOrgDropdown: function() {
+      this.toggleProperty('orgDropdownOpen');
+    },
+    selectTab: function(tab) {
+      this.send('goTab', tab);
+      this.set('pillnavDropdownOpen', false);
+    },
+    go: function(dest) {
+      if (dest === 'speak') {
+        var user = this.appState.get('currentUser');
+        var lastBoard = this.stashes.get('root_board_state');
+        // Fall back to localStorage if stash doesn't have the board
+        if (!lastBoard || !lastBoard.key) {
+          var userName = user && user.get('user_name');
+          if (userName) {
+            try {
+              var stored = localStorage['ll_last_board_' + userName];
+              if (stored) {
+                lastBoard = JSON.parse(stored);
+              }
+            } catch(e) { }
+          }
+        }
+        var homeBoard = user && user.get('preferences.home_board');
+        if (lastBoard && lastBoard.key) {
+          var lbParts = lastBoard.key.split('/');
+          if(lbParts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', lbParts[0], lbParts[1]);
+          } else {
+            this.get('router').transitionTo('board', lastBoard.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
+          }
+        } else if (homeBoard && homeBoard.key) {
+          var hbParts = homeBoard.key.split('/');
+          if(hbParts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', hbParts[0], hbParts[1]);
+          } else {
+            this.get('router').transitionTo('board', homeBoard.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+          }
+        } else if (user && user.get('user_name')) {
+          this.get('router').transitionTo('user.boards', user.get('user_name')).then(function() {
+            var content = document.getElementById('content');
+            if (content) { content.scrollTop = 0; }
+            window.scrollTo(0, 0);
+          });
+        }
+        return;
+      }
+      if (dest === 'reports') {
+        var u = this.appState.get('currentUser.user_name');
+        if (u) { this.get('router').transitionTo('user.stats', u); }
+        return;
+      }
+      if (dest === 'boards') {
+        var un = this.appState.get('currentUser.user_name');
+        if (un) { this.get('router').transitionTo('user.boards', un); }
+        return;
+      }
+      if (dest === 'extras' || dest === 'supervisors') {
+        var ux2 = this.appState.get('currentUser.user_name');
+        if (ux2) { this.get('router').transitionTo('user.extras', ux2); }
+      }
+    },
+    goAndCloseSearch: function(dest) {
+      this.set('isSearchOpen', false);
+      this.send('go', dest);
+    },
+    openExtrasTab: function() {
+      this.set('isSearchOpen', false);
+      var ue = this.appState.get('currentUser.user_name');
+      if (ue) { this.get('router').transitionTo('user.extras', ue); }
+    },
+    openNewBoardOnBoards: function() {
+      if (this.appState.check_for_needing_purchase) {
+        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+      } else {
+        modal.open('new-board');
+      }
+    },
+    openSupervisorsModal: function() {
+      modal.open('dashboard-supervisors-modal');
+    },
+    closeNewBoardForm: function() {
+      this.set('showNewBoardForm', false);
+    },
+    getting_started: function() {
+      this.get('modal').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
+    },
+    extraAction: function(name) {
+      var appState = this.appState;
+      var user = appState.get('currentUser');
+      var userName = user && user.get('user_name');
+      var userId = user && user.get('id');
+      if (name === 'intro') {
+        this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
+      } else if (name === 'newBoard') {
+        if (this.appState.check_for_needing_purchase) {
+          this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+        } else {
+          modal.open('new-board');
+        }
+      } else if (name === 'searchBoards') {
+        this.get('router').transitionTo('search', 'any', encodeURIComponent('_'));
+      } else if (name === 'sync_details') {
+        var p = typeof window !== 'undefined' && window.persistence;
+        var list = (p && p.get && p.get('sync_log')) ? [].concat(p.get('sync_log')).reverse() : [];
+        modal.open('sync-details', { details: list });
+      } else if (name === 'goals') {
+        if (userName) { this.get('router').transitionTo('user.goals', userName); }
+      } else if (name === 'record_note') {
+        if (this.appState.check_for_needing_purchase) {
+          this.appState.check_for_needing_purchase().then(function() { modal.open('record-note', { note_type: 'text', user: user }); }, function() { modal.open('record-note', { note_type: 'text', user: user }); });
+        } else {
+          modal.open('record-note', { note_type: 'text', user: user });
+        }
+      } else if (name === 'run_eval') {
+        modal.open('modals/eval-status', { action: 'pick', user: appState.get('sessionUser') });
+      } else if (name === 'account') {
+        if (userName) { this.get('router').transitionTo('user', userName); }
+      } else if (name === 'lessons') {
+        if (userId) { this.get('router').transitionTo('user.lessons', userId); }
+      } else if (name === 'offline_boards') {
+        this.get('router').transitionTo('offline_boards');
+      }
+    },
+    recordNoteFor: function(supervisee) {
+      var user = supervisee || this.appState.get('currentUser');
+      if (!emberGet(user, 'avatar_url_with_fallback')) {
+        emberSet(user, 'avatar_url_with_fallback', emberGet(user, 'avatar_url'));
+      }
+      var _this = this;
+      this.appState.check_for_needing_purchase().then(function() {
+        modal.open('record-note', { note_type: 'text', user: user }).then(function() {
+          runLater(function() {
+            _this.appState.get('currentUser').reload().then(null, function() {});
+          }, 5000);
+        });
+      }, function() {
+        modal.open('record-note', { note_type: 'text', user: user });
+      });
+    },
+    quickAssessmentFor: function(supervisee) {
+      if (emberGet(supervisee, 'premium') || emberGet(supervisee, 'currently_premium')) {
+        modal.open('quick-assessment', { user: supervisee });
+      } else {
+        modal.open('premium-required', { user_name: supervisee.user_name, action: 'quick_assessment', reason: 'not_currently_premium' });
+      }
     },
     reload: function() {
       location.reload();
@@ -561,8 +1008,8 @@ export default Component.extend({
         modal.open('premium-required', {user_name: user.user_name, action: 'evaluation', reason: 'not_currently_premium'});
       }
     },
-    getting_started: function() {
-       modal.open('getting-started', {progress: this.appState.get('currentUser.preferences.progress')});
+    support: function() {
+      modal.open('support');
     },
     record_note: function(user) {
       user = user || this.appState.get('currentUser');
@@ -606,7 +1053,7 @@ export default Component.extend({
       this.set('selected', selected);
     },
     set_index_nav: function(nav) {
-      if(nav == 'main' || nav == 'supervisees') {
+      if(nav == 'main' || nav == 'supervisees' || nav == 'supervisors') {
         var u = this.appState.get('currentUser');
         // Ensure preferences and preferences.device exist before setting nested value
         var preferences = u.get('preferences') || {};
@@ -625,9 +1072,6 @@ export default Component.extend({
     },
     toggle_extras: function() {
       this.set('show_main_extras', !this.get('show_main_extras'));
-    },
-    expand_left_nav: function() {
-      this.set('left_nav_expanded', !this.get('left_nav_expanded'));
     },
     intro_video: function(id) {
       if(window.ga) {
@@ -657,13 +1101,14 @@ export default Component.extend({
       this.appState.set('index_view', false);
     },
     manage_supervisors: function() {
-      modal.open('supervision-settings', {user: this.appState.get('currentUser')});
+      this.send('set_index_nav', 'supervisors');
+      this.set('activeTab', 'supervisors');
     },
     session_select: function() {
       if(!this.appState.get('currentUser.preferences.logging')) {
         this.send('load_reports');
       } else {
-        this.send('set_index_nav', 'updates');
+        this.send('set_index_nav', 'logging');
       }
     },
     sync_details: function() {

@@ -139,6 +139,12 @@ export default Component.extend({
     setForUserId(userId) {
       this.set('for_user_id', userId);
     },
+    setLocale(value) {
+      this.set('locale', value);
+    },
+    setLabelsOrder(value) {
+      this.set('labels_order', value);
+    },
     grid_event(action, row, col) {
       this.send(action, row, col);
     },
@@ -255,7 +261,12 @@ export default Component.extend({
           modalUtil.close(true);
           editManager.auto_edit(board.id);
           _this.appState.set('referenced_board', { id: board.id, key: board.key });
-          _this.get('router').transitionTo('board', board.key);
+          var parts = (board.key || '').split('/');
+          if (parts.length >= 2) {
+            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          } else {
+            _this.get('router').transitionTo('board', board.key);
+          }
         } else {
           _this.set('status', {
             error: (res && res.error) || i18n.t('create_failed', 'Board creation failed')

@@ -30,7 +30,8 @@
     {{#if this.children}}
       {{t "board" key="n_boards" count=this.children.length}}
     {{else}}
-      {{t "by" key="by"}} {{this.board_record.user_name}}
+      <span class="author__label">{{t "by" key="by"}}</span>
+      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
     {{/if}}
   </div>
 </div>

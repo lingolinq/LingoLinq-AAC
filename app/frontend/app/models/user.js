@@ -57,6 +57,8 @@ LingoLinq.User = DS.Model.extend({
   external_nonce: DS.attr('raw'),
   state_2fa: DS.attr('raw'),
   board_tags: DS.attr('raw'),
+  /** Tag name -> global_id[] for folder UI (same as server user_extra.board_tags). */
+  board_tag_map: DS.attr('raw'),
   focus_words: DS.attr('raw'),
   access_methods: DS.attr('raw'),
   start_codes: DS.attr('raw'),
@@ -294,10 +296,10 @@ LingoLinq.User = DS.Model.extend({
     }
   ),
   stats: DS.attr('raw'),
-  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', function() {
+  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', 'fallback_avatar_url', function() {
     var url = this.get('avatar_data_uri') || this.get('avatar_url');
     if(!url) {
-      url = templateHelpers.path('images/action.png');
+      url = this.get('fallback_avatar_url') || templateHelpers.path('avatars/avatar-0.png');
     }
     return url;
   }),
@@ -908,12 +910,33 @@ LingoLinq.User = DS.Model.extend({
       if(res.tagged) {
         if(res.board_tags) {
           _this.set('board_tags', res.board_tags);
-          _this.reload();
         }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        _this.reload();
         return true;
       } else {
         return RSVP.reject({error: 'tag failed'});
       }
+    });
+  },
+  ensureBoardTag: function(tag) {
+    var _this = this;
+    return this.persistence.ajax('/api/v1/users/' + this.get('id') + '/board_tags/ensure', {
+      type: 'POST',
+      data: { tag: tag }
+    }).then(function(res) {
+      if(res.ok) {
+        if(res.board_tags) {
+          _this.set('board_tags', res.board_tags);
+        }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        return true;
+      }
+      return RSVP.reject({ error: 'ensure tag failed' });
     });
   },
   copy_home_board: function(board, swap_images, home_level) {
