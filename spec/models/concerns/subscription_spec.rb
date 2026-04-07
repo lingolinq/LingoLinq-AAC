@@ -1149,9 +1149,10 @@ describe Subscription, :type => :model do
       
       it "should ignore if not for the currently-set subscription" do
         u = User.create
+        started_iso = 3.months.ago.iso8601
         u.settings['subscription'] = {
           'subscription_id' => '12345',
-          'started' => 3.months.ago.iso8601,
+          'started' => started_iso,
           'plan_id' => 'monthly_8'
         }
         u.expires_at = nil
@@ -1163,7 +1164,7 @@ describe Subscription, :type => :model do
         
         expect(res).to eq(false)
         expect(u.settings['subscription']['subscription_id']).to eq('12345')
-        expect(u.settings['subscription']['started']).to eq(3.months.ago.iso8601)
+        expect(u.settings['subscription']['started']).to eq(started_iso)
         expect(u.settings['subscription']['plan_id']).to eq('monthly_8')
         expect(u.expires_at).to eq(nil)
       end
