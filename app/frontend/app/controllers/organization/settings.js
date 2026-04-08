@@ -108,8 +108,9 @@ export default Controller.extend({
         _this.set('model.saml_metadata_url', null);
         _this.set('model.saml_sso_url', null);
       }
-      if(_this.get('home_board_key_lines.length') > 0) {
-        _this.set('model.home_board_keys', _this.get('home_board_key_lines').split(/\n/));
+      var home_board_key_lines = _this.get('home_board_key_lines');
+      if(home_board_key_lines && home_board_key_lines.replace(/\s/g, '').length > 0) {
+        _this.set('model.home_board_keys', home_board_key_lines.split(/\n/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; }));
       }
       _this.set('model.support_target', null);
       if(_this.get('allow_support_target') && _this.get('support_email')) {

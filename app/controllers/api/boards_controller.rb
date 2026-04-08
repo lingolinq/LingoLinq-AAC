@@ -437,12 +437,18 @@ class Api::BoardsController < ApplicationController
     processed_params = params
     # Necessary because by default Rails is stripping out nil references in an array, which
     # messes up grid.order
-    if request.content_type == 'application/json'
-      processed_params = JSON.parse(request.body.read)
+    is_json_request = request.media_type == 'application/json'
+    if is_json_request
+      begin
+        processed_params = JSON.parse(request.raw_post)
+      rescue JSON::ParserError
+        processed_params = params
+        is_json_request = false
+      end
     end
     # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
     # JSON-parsed params are plain hashes; Rails params need permit! since models do their own filtering.
-    board_params = if request.content_type == 'application/json'
+    board_params = if is_json_request
       processed_params['board'] || {}
     else
       raw_board = params['board']
