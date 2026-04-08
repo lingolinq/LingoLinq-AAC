@@ -1284,6 +1284,13 @@ var pictureGrabber = EmberObject.extend({
         _this.controller.set('model.image', image);
       }
       _this.clear();
+      // Synchronously mirror the image onto board.buttons so persistence (which may
+      // serialize before afterRender fires) sees the updated image_id immediately.
+      var syncServerId = (image.get && image.get('id')) || image.id;
+      editManager.change_button(button_id, {
+        'image': image,
+        'image_id': syncServerId
+      });
       // Defer to afterRender so Ember Data has finished processing the save response.
       // This ensures we use the server-assigned id (not the client id) when the server
       // returns a different id (e.g. due to RecordIdentifier handling).
