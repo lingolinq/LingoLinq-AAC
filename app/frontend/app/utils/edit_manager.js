@@ -1387,7 +1387,7 @@ var editManager = EmberObject.extend({
           return typeof v.get !== 'function'; // exclude Ember models
         };
         for(var bi = 0; bi < boardButtons.length; bi++) {
-          if(boardButtons[bi] && boardButtons[bi].id == id) {
+          if(boardButtons[bi] && String(boardButtons[bi].id) === String(id)) {
             for(var key in options) {
               if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
                 boardButtons[bi][key] = options[key];
