@@ -807,7 +807,7 @@ class Api::OrganizationsController < ApplicationController
     if org.process(org_data, {'updater' => @api_user})
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
-      api_error(400, {error: "organization update failed", errors: org.processing_errors})
+      api_error(400, {error: "organization update failed", errors: (Array(org.processing_errors) + Array(org.errors.full_messages)).uniq})
     end
   end
   
