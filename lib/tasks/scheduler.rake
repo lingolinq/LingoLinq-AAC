@@ -141,6 +141,11 @@ task "scheduler:dispatch" => :environment do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"
     end
+
+    run_task.call("expire_licenses") do
+      count = License.expire_stale_licenses!
+      "#{count} licenses expired"
+    end
   end
 
   puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch Complete ==="

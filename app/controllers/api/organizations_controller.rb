@@ -209,6 +209,37 @@ class Api::OrganizationsController < ApplicationController
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix})
   end
   
+  def licenses
+    return unless allowed?(@org, 'edit')
+    licenses = @org.licenses
+    if params['status'].present?
+      licenses = licenses.where(status: params['status'])
+    end
+    if params['available'] == 'true'
+      licenses = licenses.where(user_id: nil)
+    end
+    sort_by = (params['sort_by'] || 'id').to_s
+    sort_order = (params['sort_order'] || 'desc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    licenses = licenses.order("#{sort_by} #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    
+    render json: JsonApi::License.paginate(params, licenses, {prefix: "/organizations/#{@org.global_id}/licenses"})
+  end
+
+  def claim_user
+    return unless allowed?(@org, 'manage')
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    
+    seat_type = params['seat_type'] || 'student'
+    begin
+      license = @org.claim_user(user, seat_type)
+      render json: {success: true, license: JsonApi::License.as_json(license)}
+    rescue => e
+      api_error 400, {error: e.message}
+    end
+  end
+
   def stats
     org = Organization.find_by_path(params['organization_id'])
     return unless allowed?(org, 'edit')
