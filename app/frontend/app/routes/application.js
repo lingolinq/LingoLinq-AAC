@@ -131,6 +131,12 @@ export default Route.extend({
     },
     didTransition: function() {
       this.appState.finish_global_transition();
+      if (!this.appState.get('skip_scroll_to_top')) {
+        window.scrollTo(0, 0);
+        var content = document.getElementById('content');
+        if (content) { content.scrollTop = 0; }
+      }
+      this.appState.set('skip_scroll_to_top', false);
       runLater(function() {
         speecher.load_beep().then(null, function() { });
       }, 100);

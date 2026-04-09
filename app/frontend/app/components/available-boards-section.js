@@ -21,6 +21,33 @@ export default Component.extend({
   editingFolderName: false,
   editFolderNameValue: '',
   confirmingFolderDelete: false,
+  folderFilterString: '',
+
+  filteredFolderSummaries: computed(
+    'boardsCtrl.mineTagFolderSummaries.[]',
+    'folderFilterString',
+    function() {
+      var summaries = this.get('boardsCtrl.mineTagFolderSummaries') || [];
+      var filter = (this.get('folderFilterString') || '').trim();
+      if (!filter) { return summaries; }
+      var re = null;
+      try { re = new RegExp(filter, 'i'); } catch (e) { return summaries; }
+      var ctrl = this.get('boardsCtrl');
+      return summaries.filter(function(folder) {
+        if (folder.tag.match(re)) { return true; }
+        var map = ctrl && ctrl.get('model.board_tag_map');
+        if (!map) { return false; }
+        var ids = map[folder.tag] || [];
+        return ids.some(function(gid) {
+          var b = ctrl._findMineBoardByGlobalId && ctrl._findMineBoardByGlobalId(gid);
+          if (!b) { return false; }
+          var name = b.get ? b.get('name') : (b.name || '');
+          var key = b.get ? b.get('key') : (b.key || '');
+          return (name && name.match(re)) || (key && key.match(re));
+        });
+      });
+    }
+  ),
 
   /** id for drag hint when the grid should reference it (omit when drilled into a folder). */
   boardGridAriaDescribedby: computed(
@@ -63,6 +90,7 @@ export default Component.extend({
     },
     folderDrop(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
+      if (event && event.stopPropagation) { event.stopPropagation(); }
       var el = event && event.currentTarget;
       if (el && el.classList) {
         el.classList.remove('ub-boards-page__tag-folder--dropping');
@@ -134,6 +162,35 @@ export default Component.extend({
         event.dataTransfer.effectAllowed = 'copyMove';
       }
     },
+    updateFolderFilter(event) {
+      this.set('folderFilterString', event.target.value || '');
+    },
+    clearFolderFilter() {
+      this.set('folderFilterString', '');
+    },
+    emptyFolderDragOver(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      if (event && event.dataTransfer) { event.dataTransfer.dropEffect = 'copy'; }
+    },
+    emptyFolderDrop(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      var raw = event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '';
+      var parts = (raw || '').split('|');
+      var boardId = parts[0];
+      var ctrl = this.get('boardsCtrl');
+      if (!ctrl || !boardId) { return; }
+      var store = this.get('store');
+      var modalSvc = this.get('modal');
+      if (!store) { return; }
+      store.findRecord('board', boardId).then(function(board) {
+        modalSvc.open('modals/tag-board', {
+          user: ctrl.get('model'),
+          board: board,
+          boardChoices: ctrl.get('model.my_boards'),
+          skipReturnToDetails: true
+        });
+      });
+    },
     openTagBoardModal() {
       var ctrl = this.get('boardsCtrl');
       if (!ctrl) { return; }
@@ -196,7 +253,13 @@ export default Component.extend({
         _this.set('editingFolderName', false);
       });
     },
-    startDeleteFolder() {
+    startDeleteFolder(event) {
+      var btn = event && event.target;
+      if (btn) {
+        var rect = btn.getBoundingClientRect();
+        var top = rect.bottom + 8;
+        document.documentElement.style.setProperty('--delete-folder-top', top + 'px');
+      }
       this.set('confirmingFolderDelete', true);
     },
     cancelDeleteFolder() {

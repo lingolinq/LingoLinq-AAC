@@ -15,19 +15,6 @@
     {{/unless}}
 
     <div class="la-board-actions-list">
-      <button type="button" class="la-board-actions-item" {{action "board_layout"}}>
-        <div class="la-board-actions-item__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1" stroke="#2A9D8F"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#46505F"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="#2A9D8F"/>
-          </svg>
-        </div>
-        <div class="la-board-actions-item__content">
-          <span class="la-board-actions-item__label">{{t "Board Layout" key="board_layout"}}</span>
-          <span class="la-board-actions-item__desc">{{t "Change button appearance, symbols, skin tones, and display preferences" key="board_layout_explainer"}}</span>
-        </div>
-        <svg class="la-board-actions-item__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-
       <button type="button" class="la-board-actions-item" {{action "categorize"}} disabled={{this.cannot_categorize}}>
         <div class="la-board-actions-item__icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -89,19 +76,6 @@
         <div class="la-board-actions-item__content">
           <span class="la-board-actions-item__label">{{t "Swap Images" key="swap_images"}}</span>
           <span class="la-board-actions-item__desc">{{t "Change the image library displayed for a board or set of boards" key="swap_images_explainer"}}</span>
-        </div>
-        <svg class="la-board-actions-item__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-
-      <button type="button" class="la-board-actions-item" {{action "download"}}>
-        <div class="la-board-actions-item__icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#46505F"/><polyline points="7 10 12 15 17 10" stroke="#2A9D8F"/><line x1="12" y1="15" x2="12" y2="3" stroke="#2A9D8F"/>
-          </svg>
-        </div>
-        <div class="la-board-actions-item__content">
-          <span class="la-board-actions-item__label">{{t "Download Board" key="download_board"}}</span>
-          <span class="la-board-actions-item__desc">{{t "Download an .obf or .obz file that can be shared with other users, or impored into apps that support obf" key="download_explainer"}}</span>
         </div>
         <svg class="la-board-actions-item__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
       </button>

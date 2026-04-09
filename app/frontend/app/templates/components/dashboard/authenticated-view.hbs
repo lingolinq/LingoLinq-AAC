@@ -50,7 +50,7 @@
       {{/if}}
     </header>
 
-<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+<section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}} {{if this.appState.currentUser.supporter_role "md-grid--with-caseload"}}" aria-label={{t "Dashboard" key="dashboard"}}>
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
         <div class="md-card__head md-card__head--getting-started">
@@ -77,52 +77,38 @@
       </article>
       <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
-      {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--org-management" aria-label={{t "Organization Management" key="org_management"}}>
+      {{#if this.appState.currentUser.supporter_role}}
+      <div class="md-card md-card--caseload">
         <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+          <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
           <div class="md-card__titles">
-            <div class="md-card__title">{{t "Organization Management" key="org_management"}}</div>
+            <div class="md-card__title">{{t "My Caseload" key="my_caseload"}}</div>
+            <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
+          </div>
+        </div>
+        <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
+      </div>
+      {{/if}}
+      {{#if this.has_management_responsibility}}
+      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <div class="md-card__title">{{t "My Organizations" key="my_organizations"}}</div>
             <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
           </div>
         </div>
-        <div class="md-card__org-list">
-          {{#if this.all_orgs.length}}
-            {{#if this.multipleOrgs}}
-              <div class="md-org-dropdown {{if this.orgDropdownOpen "is-open"}}">
-                <button type="button" class="md-org-dropdown__trigger" {{action "toggleOrgDropdown"}} aria-expanded={{this.orgDropdownOpen}} aria-haspopup="listbox">
-                  <span class="md-org-dropdown__label">{{t "Organizations" key="organizations"}}</span>
-                  <span class="md-org-dropdown__count">{{this.all_orgs.length}}</span>
-                  <span class="md-org-dropdown__chevron" aria-hidden="true"></span>
-                </button>
-                {{#if this.orgDropdownOpen}}
-                  <ul class="md-org-dropdown__list" role="listbox" aria-label={{t "Organizations" key="organizations"}}>
-                    {{#each this.all_orgs as |org|}}
-                      <li role="option">
-                        <LinkTo @route="organization" @model={{org.id}} class="md-org-dropdown__option">
-                          <span class="md-org-dropdown__org-icon" aria-hidden="true">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                          </span>
-                          <span class="md-org-dropdown__org-name">{{org.name}}</span>
-                        </LinkTo>
-                      </li>
-                    {{/each}}
-                  </ul>
-                {{/if}}
-              </div>
-            {{else}}
-              <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">
-                {{this.all_orgs.firstObject.name}}
-              </LinkTo>
-            {{/if}}
-          {{else}}
-            <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
-              {{t "Add Organization" key="add_organization"}}
-            </button>
-          {{/if}}
-        </div>
+        {{#if this.all_orgs.length}}
+          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
+        {{else}}
+          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
+            {{t "Add Organization" key="add_organization"}}
+          </button>
+        {{/if}}
       </article>
       {{/if}}
 

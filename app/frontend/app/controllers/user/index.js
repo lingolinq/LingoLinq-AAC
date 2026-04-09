@@ -131,12 +131,36 @@ export default Controller.extend({
     'selected',
     'parent_object',
     'model.board_tag_map',
+    'model.permissions.edit',
     function() {
       if (this.get('parent_object')) { return false; }
       var sel = this.get('selected');
       if (sel && sel !== 'mine') { return false; }
+      if (this.get('model.permissions.edit')) { return true; }
       var m = this.get('model.board_tag_map');
       return !!(m && typeof m === 'object' && Object.keys(m).length > 0);
+    }
+  ),
+  allBoardsCategorized: computed(
+    'model.board_tag_map',
+    'model.my_boards.[]',
+    'mineFoldersEnabled',
+    function() {
+      if (!this.get('mineFoldersEnabled')) { return false; }
+      var map = this.get('model.board_tag_map');
+      if (!map || typeof map !== 'object') { return false; }
+      var allIds = {};
+      Object.keys(map).forEach(function(tag) {
+        (map[tag] || []).forEach(function(gid) { allIds[gid] = true; });
+      });
+      var boards = this.get('model.my_boards');
+      if (!boards || !boards.length) { return false; }
+      var allCategorized = true;
+      boards.forEach(function(b) {
+        var gid = b && b.get ? b.get('id') : null;
+        if (gid && !allIds[gid]) { allCategorized = false; }
+      });
+      return allCategorized;
     }
   ),
   /** Sorted folder rows: { tag, count } for strip (hidden when filter excludes tag name and all boards in tag). */

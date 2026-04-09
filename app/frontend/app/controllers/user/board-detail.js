@@ -45,6 +45,32 @@ export default Controller.extend({
   show_quick_phrases: false,
   show_categories: false,
   panels_collapsed: false,
+  board_search_string: '',
+
+  _applyBoardSearch: function(val) {
+    var buttons = document.querySelectorAll('.md-board-detail-symbol-card');
+    if (!val || !val.trim()) {
+      buttons.forEach(function(btn) {
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+      });
+      return;
+    }
+    var re = null;
+    try { re = new RegExp(val.trim(), 'i'); } catch(e) { return; }
+    buttons.forEach(function(btn) {
+      var label = (btn.querySelector('.md-board-detail-symbol-card__label') || {}).textContent || '';
+      var voc = btn.getAttribute('data-vocalization') || '';
+      if (label.match(re) || voc.match(re)) {
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+      } else {
+        btn.style.opacity = '0.15';
+        btn.style.pointerEvents = 'none';
+      }
+    });
+  },
+
   edit_mode: false,
   board_collapsed: true,
   inlineSidebarOpen: false,
@@ -360,7 +386,7 @@ export default Controller.extend({
       hidden: btn.hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
-      border_color: btn.border_color || null,
+      border_color: (btn.background_color && window.tinycolor) ? window.tinycolor(btn.background_color).darken(20).toRgbString() : (btn.border_color || null),
       text_color: (function() {
         if(!btn.background_color || !window.tinycolor) { return null; }
         return window.tinycolor.mostReadable(btn.background_color, ['#fff', '#000']).toRgbString();
@@ -381,7 +407,11 @@ export default Controller.extend({
     }
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
-    return editManager.Button.create(btn, more_args);
+    var button = editManager.Button.create(btn, more_args);
+    if(btn.background_color && window.tinycolor) {
+      button.set('border_color', window.tinycolor(btn.background_color).darken(20).toRgbString());
+    }
+    return button;
   },
 
   processButtons: function() {
@@ -1635,6 +1665,12 @@ export default Controller.extend({
 
     // ── Paint Mode ──
 
+    open_board_layout: function() {
+      var board_key = this.get('user.user_name') + '/' + this.get('boardname');
+      this.get('app_state').set('skip_edit_exit_check', true);
+      this.get('router').transitionTo('board-layout', board_key);
+    },
+
     set_paint_mode: function(fill, border, part_of_speech) {
       this.set('show_paint_dropdown', false);
       if(fill === 'hide') {
@@ -1670,6 +1706,17 @@ export default Controller.extend({
 
     toggle_paint_dropdown: function() {
       this.toggleProperty('show_paint_dropdown');
+    },
+
+    update_board_search: function(event) {
+      var val = event && event.target ? event.target.value : '';
+      this.set('board_search_string', val);
+      this._applyBoardSearch(val);
+    },
+
+    clear_board_search: function() {
+      this.set('board_search_string', '');
+      this._applyBoardSearch('');
     },
 
     update_custom_paint_color: function(color) {

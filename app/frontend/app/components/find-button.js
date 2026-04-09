@@ -94,7 +94,9 @@ export default Component.extend({
       }
       _this.set('error', null);
       const include_other_boards = this.get('model.include_other_boards');
-      if (board && board.get('button_set')) {
+      var bs = this.get('button_set') || board.get('button_set');
+      if (board && bs) {
+        if (!board.get('button_set')) { board.set('button_set', bs); }
         const user = this.get('appState').get('currentUser');
         const include_home = this.get('appState').get('speak_mode');
         const now = (new Date()).getTime();
@@ -154,7 +156,17 @@ export default Component.extend({
 
   actions: {
     opening() {
-      this.ensureFindButtonOpeningOnce();
+      var modalService = this.get('modal');
+      if (modalService && modalService.setComponent) {
+        modalService.setComponent(this);
+      }
+      var template = 'find-button';
+      var options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
+                    (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
+                    this.get('model') || {};
+      this.set('model', options);
+      this.set('_findButtonOpeningSetupDone', false);
+      this.runOpeningSetup();
     },
     close() {
       this.get('modal').close();

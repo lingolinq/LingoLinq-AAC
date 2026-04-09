@@ -49,6 +49,17 @@ export default Component.extend({
     return found;
   }),
 
+  matchingTag: computed('tag', 'model.user.board_tags', function() {
+    var tag = (this.get('tag') || '').trim().toLowerCase();
+    if (!tag) { return null; }
+    var tags = this.get('model.user.board_tags') || [];
+    var match = null;
+    tags.forEach(function(t) {
+      if ((t || '').toLowerCase() === tag) { match = t; }
+    });
+    return match;
+  }),
+
   not_ready: computed('tag', 'model.board', 'pickedBoardId', function() {
     if (!this.get('tag') || !this.get('tag').trim()) { return true; }
     if (!this.get('model.board') && !this.get('pickedBoardId')) { return true; }
@@ -56,6 +67,7 @@ export default Component.extend({
   }),
 
   _return_to_details: function() {
+    if (this.get('model.skipReturnToDetails')) { return; }
     var board = this.get('model.board');
     if (board) {
       runLater(function() { modalUtil.open('board-details', { board: board }); }, 200);
@@ -69,12 +81,23 @@ export default Component.extend({
     },
     opening() {
       this.get('modal').setComponent(this);
+      this.set('tag', '');
       this.set('status', null);
       this.set('pickedBoardId', null);
+      const modalService = this.get('modal');
+      const template = 'modals/tag-board';
+      const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
+                      (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
+                      this.get('model') || {};
+      this.set('model', options);
       const user = this.get('model.user');
       if (user && !user.get('board_tags')) {
         user.reload();
       }
+      setTimeout(function() {
+        var input = document.getElementById('category');
+        if (input) { input.focus(); }
+      }, 300);
     },
     closing() {},
     nothing() {},
@@ -93,7 +116,8 @@ export default Component.extend({
         return;
       }
       this.set('status', { loading: true });
-      this.get('model.user').tag_board(board, this.get('tag'), false, downstream).then(function() {
+      var tagName = this.get('matchingTag') || this.get('tag');
+      this.get('model.user').tag_board(board, tagName, false, downstream).then(function() {
         _this.set('status', null);
         _this.get('modal').close();
         _this._return_to_details();

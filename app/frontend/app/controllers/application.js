@@ -1745,6 +1745,9 @@ export default Controller.extend({
       if(route === 'user.stats') {
         res = res + "stats-page ";
       }
+      if(route === 'caseload') {
+        res = res + "modern-dashboard ";
+      }
       if(this.get('session.isAuthenticated')) {
         res = res + "with_user ";
       } else if(this.appState.get('domain_settings.full_domain')) {
@@ -1800,7 +1803,8 @@ export default Controller.extend({
       (route === 'user.home' && cu) ||
       (route === 'user.extras' && cu) ||
       (route === 'user.stats' && cu) ||
-      (route === 'user.boards' && cu);
+      (route === 'user.boards' && cu) ||
+      (route === 'caseload' && cu);
   }),
   /** user.extras: full-bleed dashboard body (CSS class name is historical). */
   isModernDashboardRoute: computed('appState.current_route', function() {
@@ -1836,6 +1840,8 @@ export default Controller.extend({
       (route === 'home-boards' && cu) ||
       (route === 'search' && cu) ||
       (route === 'offline_boards' && cu) ||
+      (route === 'caseload' && cu) ||
+      (route === 'board-layout' && cu) ||
       route === 'support' ||
       route === 'faq' ||
       route === 'beta-feedback' ||

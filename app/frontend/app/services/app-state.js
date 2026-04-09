@@ -2338,7 +2338,7 @@ export default Service.extend({
           var noticed = false;
           if(this.stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
+            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), false);
           }
           if(this.get('currentBoardState.has_fallbacks')) {
             modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);

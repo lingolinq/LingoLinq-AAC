@@ -386,7 +386,7 @@ class User < ActiveRecord::Base
         'battery_sounds' => true,
         'default_sidebar_boards' => default_sidebar_boards,
         'blank_status' => false,
-        'preferred_symbols' => 'original',
+        'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
         'hidden_buttons' => 'grid',
         'symbol_background' => 'clear',
