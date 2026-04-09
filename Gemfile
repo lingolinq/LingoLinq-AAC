@@ -14,7 +14,8 @@ group :development, :test do
   gem 'rails-controller-testing'
   gem 'drb'
   gem 'irb'
-  gem 'ruby-lsp', require: false
+  # CVE-2026-34060 (GHSA-c4r5-fxqw-vh93); bundler-audit minimum
+  gem 'ruby-lsp', '>= 0.26.9', require: false
   gem 'ruby-lsp-rails', require: false
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
