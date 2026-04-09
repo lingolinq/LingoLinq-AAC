@@ -26,7 +26,7 @@ module JsonApi::BetaFeedback
     json = {
       'id' => msg.global_id,
       'created_at' => msg.created_at.utc.iso8601,
-      'date_short' => msg.created_at.strftime('%d %b %Y'),
+      'date_short' => msg.created_at.utc.strftime('%d %b %Y'),
       'subject' => subject,
       'feedback_type' => ftype,
       'severity' => sev,
