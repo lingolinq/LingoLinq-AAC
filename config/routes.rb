@@ -73,6 +73,8 @@ LingoLinq::Application.routes.draw do
   get 'search/:query' => ember_handler
   get 'search/:locale/:query' => ember_handler
   get 'setup' => ember_handler
+  get 'beta-feedback/admin' => ember_handler
+  get 'beta-feedback/admin/:feedback_id' => ember_handler, :constraints => {:feedback_id => /[\w\-]+/}
   get 'u/:reply_code' => 'boards#utterance_redirect'
   get ':id/logs/:log_id' => ember_handler, :constraints => {:id => user_id_regex}
   get ':id/goals/:goal_id' => ember_handler, :constraints => {:id => user_id_regex}
@@ -101,6 +103,9 @@ LingoLinq::Application.routes.draw do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
     post 'messages' => 'messages#create'
+    get 'beta_feedback' => 'beta_feedback#index'
+    patch 'beta_feedback/:id' => 'beta_feedback#update'
+    get 'beta_feedback/:id' => 'beta_feedback#show'
     post 'callback' => 'callbacks#callback'
     get 'domain_settings' => 'integrations#domain_settings'
     get 'start_code' => 'organizations#start_code_lookup'

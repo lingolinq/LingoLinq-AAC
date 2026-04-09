@@ -109,6 +109,9 @@ Router.map(function() {
   this.route('bulk_purchase', { path: '/purchase/:id'});
   this.route('support', { path: '/support' });
   this.route('beta-feedback', { path: '/beta-feedback' });
+  this.route('beta-feedback-admin', { path: '/beta-feedback/admin' }, function() {
+    this.route('entry', { path: '/:feedback_id' });
+  });
   this.route('faq', { path: '/faq' });
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });

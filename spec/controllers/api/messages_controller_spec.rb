@@ -50,10 +50,10 @@ describe Api::MessagesController, :type => :controller do
       expect(json['received']).to eq(true)
     end
 
-    it "should schedule beta feedback delivery" do
+    it "should persist beta feedback without scheduling email" do
       orig = ENV['ALLOW_UNAUTHENTICATED_TICKETS']
       ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = 'true'
-      expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+      expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
       post :create, params: {:message => {
         'recipient' => 'beta_feedback',
         'email' => 'beta@example.com',

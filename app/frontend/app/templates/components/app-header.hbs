@@ -21,6 +21,20 @@
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/if}}
+      {{#if this.app_state.eval_mode}}
+        <div class="speak-bar__eval-actions" role="toolbar" aria-label={{t "Evaluation controls" key="eval_speak_toolbar"}}>
+          <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_prev_section" {{action "change_section" "back"}} title={{t "Previous Section" key="previous_section"}} aria-label={{t "Previous Section" key="previous_section"}}>
+            <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="btn btn-default access speak-bar__eval-btn speak-bar__eval-btn--next" id="eval_next_section" {{action "change_section" "forward"}} title={{t "Next Section" key="next_section"}} aria-label={{t "Next Section" key="next_section"}}>
+            <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
+            <span class="speak-bar__eval-actions__label">{{t "Next" key="next"}}</span>
+          </button>
+          <button type="button" class="btn btn-default access skinnier speak-bar__eval-btn" id="eval_open_settings" {{action "assessment_settings"}} title={{t "Eval Settings" key="eval_settings"}} aria-label={{t "Eval Settings" key="eval_settings"}}>
+            <span class="glyphicon glyphicon-cog" aria-hidden="true"></span>
+          </button>
+        </div>
+      {{/if}}
       <div class="speak-bar__button-list-wrap">
         <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
           {{#unless this.app_state.button_list}}

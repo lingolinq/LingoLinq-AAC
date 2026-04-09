@@ -82,6 +82,7 @@
                   <div class="la-contact-form__row">
                     <label for="beta_device" class="la-contact-form__label">{{t "Device and app context (optional)" key="beta_feedback_device_label"}}</label>
                     <Input @value={{this.device_context}} class="la-contact-input" id="beta_device" placeholder={{t "e.g. iPad + Safari, Windows + Chrome, app version if known" key="beta_feedback_device_placeholder"}} maxlength="2000" />
+                    <p class="la-contact-form__hint">{{t "When you submit, we add a short summary (viewport, time zone, app route, path, and online status) after your text for troubleshooting." key="beta_feedback_device_auto_hint"}}</p>
                   </div>
                   <div class="la-contact-form__row">
                     <label for="beta_feedback_screenshot" class="la-contact-form__label">{{t "Screenshot (optional)" key="beta_feedback_screenshot_label"}}</label>

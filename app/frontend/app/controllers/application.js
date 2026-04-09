@@ -40,6 +40,31 @@ export default Controller.extend({
     return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser') || this.appState.get('current_route') === 'login.device';
   }),
 
+  /** Matches beta-feedback-admin route: site admin or admin_support_actions (e.g. org support). */
+  /** Depends on `permissions` as a whole (raw attr), not nested keys — nested CP deps can fail to invalidate. */
+  showBetaFeedbackAdminLink: computed(
+    'appState.sessionUser',
+    'appState.sessionUser.admin',
+    'appState.sessionUser.is_admin',
+    'appState.sessionUser.permissions',
+    'appState.currentUser',
+    'appState.currentUser.admin',
+    'appState.currentUser.is_admin',
+    'appState.currentUser.permissions',
+    function() {
+      // Prefer sessionUser (logged-in account); in speak mode currentUser may be the communicator.
+      var u = this.get('appState.sessionUser') || this.get('appState.currentUser');
+      if (!u) {
+        return false;
+      }
+      if (u.get('admin') || u.get('is_admin')) {
+        return true;
+      }
+      var perm = u.get('permissions');
+      return !!(perm && perm.admin_support_actions);
+    }
+  ),
+
   landingNavOpen: false,
   useAltLanding: true, // default unauthenticated view is landing-alt
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
@@ -1866,6 +1891,7 @@ export default Controller.extend({
       route === 'support' ||
       route === 'faq' ||
       route === 'beta-feedback' ||
+      (route && route.indexOf('beta-feedback-admin') === 0) ||
       route === 'contact' ||
       route === 'troubleshooting' ||
       route === 'login.device') {

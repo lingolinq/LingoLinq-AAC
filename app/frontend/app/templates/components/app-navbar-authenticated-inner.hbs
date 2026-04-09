@@ -78,6 +78,9 @@
         </li>
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
+        {{#if this.application.showBetaFeedbackAdminLink}}
+        <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
+        {{/if}}
         <li class="divider" role="separator"></li>
         <li>
           <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
@@ -136,6 +139,9 @@
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
     <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+    {{#if this.application.showBetaFeedbackAdminLink}}
+    <LinkTo @route="beta-feedback-admin" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo>
+    {{/if}}
     {{/unless}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>
     {{#if this.application.showThemePicker}}
