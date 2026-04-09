@@ -26,6 +26,10 @@ def create_user(user_name, password, options = {})
   user = User.find_by(user_name: user_name)
   if user
     puts "Found existing user: #{user_name}. Updating password..."
+    if options[:is_admin]
+      user.settings ||= {}
+      user.settings['admin'] = true
+    end
   else
     puts "Creating new user: #{user_name}..."
     user = User.process_new({
@@ -35,7 +39,8 @@ def create_user(user_name, password, options = {})
       public: false,
       password: password
     }, {
-      is_admin: options[:is_admin] || false
+      # User#process_params reads non_user_params['admin'] (not is_admin)
+      admin: options[:is_admin] || false
     })
   end
   

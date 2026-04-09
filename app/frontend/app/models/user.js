@@ -38,6 +38,8 @@ LingoLinq.User = DS.Model.extend({
   sync_stamp: DS.attr('string'),
   settings: DS.attr('raw'),
   is_admin: DS.attr('boolean'),
+  /** True when User#admin? on the server (settings admin or Admin org full manager). */
+  admin: DS.attr('boolean'),
   authored_organization_id: DS.attr('string'),
   terms_agree: DS.attr('boolean'),
   name: DS.attr('string'),

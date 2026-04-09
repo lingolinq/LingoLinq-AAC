@@ -1689,6 +1689,26 @@ header:has(#normal_mode) #inner_header {
 
 }
 
+/* AAC evaluation: prev / next / settings visible on speak bar (same actions as identity menu) */
+#inner_header:has(#speak) .speak-bar__eval-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  flex-shrink: 0 !important;
+  gap: 4px !important;
+  margin: 0 4px 0 0 !important;
+}
+#inner_header:has(#speak) .speak-bar__eval-actions .speak-bar__eval-actions__label {
+  margin-left: 4px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+#inner_header:has(#speak) .speak-bar__eval-actions .speak-bar__eval-btn--next {
+  padding-left: 10px !important;
+  padding-right: 12px !important;
+}
+
 /* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap */
 #inner_header:has(#speak) .speak-bar__button-list-wrap {
   flex: 1 !important;
@@ -1825,6 +1845,7 @@ header:has(#normal_mode) #inner_header {
 /* Right-side controls: square, white bg, faint border, grouped closely */
 #inner_header:has(#speak) #speak_options,
 #inner_header:has(#speak) #back_button,
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn,
 #inner_header:has(#speak) #backspace_button,
 #inner_header:has(#speak) #clear_button,
 #inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list,
@@ -1847,6 +1868,7 @@ header:has(#normal_mode) #inner_header {
 }
 
 /* Backspace and clear: match button_list height (58px) */
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn,
 #inner_header:has(#speak) #backspace_button,
 #inner_header:has(#speak) #clear_button {
   height: 90px !important;
@@ -1866,6 +1888,7 @@ header:has(#normal_mode) #inner_header {
 
 #inner_header:has(#speak) #speak_options:hover,
 #inner_header:has(#speak) #back_button:hover,
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn:hover,
 #inner_header:has(#speak) #backspace_button:hover,
 #inner_header:has(#speak) #clear_button:hover,
 #inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list:hover,
@@ -5640,6 +5663,32 @@ body > .popover.bottom {
 }
 .board {
   margin: -10px -20px;
+}
+/* Full-bleed #board_bg is position:absolute (see board/index.hbs + bg_style). Some browsers paint
+   it above grid buttons. Do NOT set position:relative on .button_row — fast_html uses position:absolute
+   on buttons with top/left computed for .board as containing block; relative on .button_row would
+   re-parent those coordinates and hide controls (obf/eval-*, all eval steps). */
+.board.eval_mode,
+.board:has(#board_bg) {
+  isolation: isolate;
+}
+.board.eval_mode #board_bg,
+.board:has(#board_bg) #board_bg {
+  z-index: 0 !important;
+  pointer-events: none;
+}
+.board.eval_mode #board_canvas,
+.board:has(#board_bg) #board_canvas {
+  position: relative;
+  z-index: 10 !important;
+  pointer-events: auto;
+}
+.board.eval_mode a.button,
+.board.eval_mode a[data-id],
+.board:has(#board_bg) a.button,
+.board:has(#board_bg) a[data-id] {
+  z-index: 10 !important;
+  pointer-events: auto;
 }
 .board.finding_target .button, .board.finding_target .button input {
   cursor: copy;
@@ -18695,21 +18744,21 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 }
 
 /* Navbar matches bento bar (ll-bento-bar--midday) only when NOT index/landing navbar */
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border-bottom: 1px solid #2A9D8F !important;
 
 }
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) h1 a,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #board_id,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #org_name,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .user_name {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) h1 a,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #board_id,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #org_name,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .user_name {
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border: none !important;
@@ -18720,8 +18769,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button:hover,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button:focus {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:hover,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:focus {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border: none !important;
@@ -18732,16 +18781,16 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link {
   color: rgba(230, 236, 242, 0.9) !important;
 
 }
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
   color: rgba(255, 255, 255, 1) !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -18754,8 +18803,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
   background: rgba(255, 255, 255, 1) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.35) !important;
@@ -18766,7 +18815,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
   background: rgba(81, 87, 99, 0.8) !important;
 
   border-color: rgba(255, 255, 255, 0.15) !important;
@@ -18775,7 +18824,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
   background: rgba(87, 93, 105, 0.9) !important;
 
   border-color: rgba(255, 255, 255, 0.22) !important;
@@ -18784,7 +18833,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -18797,7 +18846,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
   background: rgba(255, 255, 255, 1) !important;
 
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
@@ -18978,21 +19027,21 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 }
 
 /* Navbar matches bento bar (dark) only when NOT index/landing navbar */
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border-bottom: 1px solid #2A9D8F !important;
 
 }
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) h1 a,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #board_id,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #org_name,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .user_name {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) h1 a,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #board_id,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #org_name,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .user_name {
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border: none !important;
@@ -19003,8 +19052,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button:hover,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button:focus {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:hover,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:focus {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border: none !important;
@@ -19015,16 +19064,16 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link {
   color: rgba(230, 236, 242, 0.9) !important;
 
 }
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
   color: rgba(255, 255, 255, 1) !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -19037,8 +19086,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
   background: rgba(255, 255, 255, 1) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
@@ -19049,7 +19098,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
   background: rgba(56, 68, 84, 0.8) !important;
 
   border-color: rgba(255, 255, 255, 0.15) !important;
@@ -19058,7 +19107,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
   background: rgba(64, 76, 92, 0.9) !important;
 
   border-color: rgba(255, 255, 255, 0.22) !important;
@@ -19067,7 +19116,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -19080,7 +19129,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
   background: rgba(255, 255, 255, 1) !important;
 
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
@@ -52428,5 +52477,194 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-org-report-input {
     width: 100%;
+  }
+}
+
+/* Beta feedback admin (inbox + detail) */
+.la-beta-feedback-admin__body {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-admin__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+}
+.la-beta-feedback-admin__search-label {
+  flex: 1 1 220px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.la-beta-feedback-admin__search-input {
+  width: 100%;
+}
+.la-beta-feedback-admin__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+.la-beta-feedback-admin__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+.la-beta-feedback-admin__filter .form-control {
+  min-width: 0;
+}
+.la-beta-feedback-admin__label-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--md-muted, #1b365d);
+  opacity: 0.85;
+}
+.la-beta-feedback-admin__clear {
+  align-self: flex-end;
+}
+.la-beta-feedback-admin__loading {
+  margin: 8px 0 16px;
+  color: var(--md-muted, #1b365d);
+}
+.la-beta-feedback-admin__table-wrap {
+  margin-top: 8px;
+}
+.la-beta-feedback-admin__table {
+  font-size: 1.05rem;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-admin__table th,
+.la-beta-feedback-admin__table td {
+  vertical-align: middle;
+}
+.la-beta-feedback-admin__sort-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.la-beta-feedback-admin__sort-btn:hover,
+.la-beta-feedback-admin__sort-btn:focus {
+  color: #4c86d8;
+}
+.la-beta-feedback-admin__sort-ind {
+  margin-left: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+.la-beta-feedback-admin__summary-cell {
+  max-width: 28rem;
+  word-break: break-word;
+}
+.la-beta-feedback-admin__actions {
+  white-space: nowrap;
+}
+.la-beta-feedback-admin__actions .btn + .btn {
+  margin-left: 6px;
+}
+.la-beta-feedback-admin__more-hint {
+  margin-top: 12px;
+  font-size: 1rem;
+}
+.la-beta-feedback-admin__back {
+  margin-top: 24px;
+}
+
+.la-beta-feedback-detail__body {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 20px;
+  color: var(--md-ink, #111a2e);
+  line-height: 1.35;
+}
+.la-beta-feedback-detail__meta {
+  margin: 0 0 24px;
+  padding: 0;
+}
+.la-beta-feedback-detail__meta-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr;
+  gap: 8px 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(27, 54, 93, 0.12);
+  align-items: baseline;
+}
+.la-beta-feedback-detail__meta-row:last-child {
+  border-bottom: none;
+}
+.la-beta-feedback-detail__meta dt {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--md-muted, #1b365d);
+  opacity: 0.9;
+}
+.la-beta-feedback-detail__meta dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__wrap {
+  word-break: break-word;
+}
+.la-beta-feedback-detail__block {
+  margin: 24px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(27, 54, 93, 0.12);
+}
+.la-beta-feedback-detail__block-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__text {
+  font-size: 1.05rem;
+  color: var(--md-ink, #111a2e);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.la-beta-feedback-detail__screenshot-wrap {
+  margin: 0;
+}
+.la-beta-feedback-detail__screenshot {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(27, 54, 93, 0.15);
+}
+.la-beta-feedback-detail__back {
+  margin-top: 28px;
+}
+
+@media (max-width: 600px) {
+  .la-beta-feedback-detail__meta-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .la-beta-feedback-admin__actions {
+    white-space: normal;
+  }
+  .la-beta-feedback-admin__actions .btn {
+    margin-bottom: 6px;
   }
 }

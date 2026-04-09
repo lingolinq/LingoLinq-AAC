@@ -103,8 +103,8 @@ describe ContactMessage, :type => :model do
     })
   end
 
-  it "should schedule beta_feedback_sent for beta feedback messages" do
-    expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+  it "should not email beta feedback messages" do
+    expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
     ContactMessage.process_new({
       'name' => 'Beta User',
       'email' => 'beta@example.com',
@@ -117,7 +117,7 @@ describe ContactMessage, :type => :model do
   end
 
   it "should accept beta feedback without email" do
-    expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+    expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
     m = ContactMessage.process_new({
       'recipient' => 'beta_feedback',
       'subject' => 'Summary',
@@ -126,6 +126,7 @@ describe ContactMessage, :type => :model do
       'general_feedback' => 'x' * 12
     })
     expect(m.errored?).to eq(false)
+    expect(m.recipient).to eq('beta_feedback')
   end
 
   it "should reject beta feedback without subject" do

@@ -925,7 +925,7 @@ export default Component.extend({
           modal.open('record-note', { note_type: 'text', user: user });
         }
       } else if (name === 'run_eval') {
-        modal.open('modals/eval-status', { action: 'pick', user: appState.get('sessionUser') });
+        this.send('run_eval', 'pick');
       } else if (name === 'account') {
         if (userName) { this.get('router').transitionTo('user', userName); }
       } else if (name === 'lessons') {

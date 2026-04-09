@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -195,6 +195,14 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
     t.text "settings"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "recipient"
+    t.boolean "hidden", default: false, null: false
+    t.string "beta_subject"
+    t.string "beta_submitter_name"
+    t.string "beta_feedback_type"
+    t.string "beta_severity"
+    t.index ["recipient", "created_at"], name: "index_contact_messages_on_recipient_and_created_at"
+    t.index ["recipient", "hidden", "created_at"], name: "index_contact_messages_on_recipient_hidden_created_at"
   end
 
   create_table "deleted_boards", id: :serial, force: :cascade do |t|

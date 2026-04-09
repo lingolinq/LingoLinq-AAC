@@ -76,7 +76,7 @@ export default Controller.extend({
   ),
   updateSuggestions: observer(
     'appState.button_list',
-    'this.appState.button_list.[]',
+    'appState.button_list.[]',
     'appState.currentUser',
     'appState.shift',
     'appState.inflection_shift',
@@ -368,7 +368,7 @@ export default Controller.extend({
     'long_description',
     'appState.currentUser.preferences.word_suggestion_images',
     'text_position',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'appState.inflection_prefix',
     'appState.inflection_shift',
     'appState.flipped',
@@ -907,7 +907,7 @@ export default Controller.extend({
   }),
   current_level: computed(
     'model.default_level',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'preview_level',
     function() {
       return this.get('preview_level') || this.stashes.get('board_level') || this.get('model.default_level') || 10;
@@ -1165,6 +1165,9 @@ export default Controller.extend({
         if(style.font_class) {
           res = res + style.font_class + " ";
         }
+      }
+      if(this.appState.get('eval_mode')) {
+        res = res + 'eval_mode ';
       }
       return res;
     }
