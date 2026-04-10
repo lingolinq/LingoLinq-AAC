@@ -21,11 +21,33 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    console.log('[FIND-BTN] init() called');
+    this._loadModelFromService();
+    console.log('[FIND-BTN] init() model.board =', this.get('model.board'), 'model.board.id =', this.get('model.board.id'));
+  },
+
+  _loadModelFromService() {
     const modalService = this.get('modal');
     const template = 'find-button';
-    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
-                    (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
-                    this.get('model') || {};
+    var options = null;
+    console.log('[FIND-BTN] _loadModelFromService: modalService.settingsFor =', modalService && modalService.settingsFor);
+    console.log('[FIND-BTN] _loadModelFromService: modal.settings_for =', modal && modal.settings_for);
+    if (modalService && modalService.settingsFor && modalService.settingsFor[template]) {
+      options = modalService.settingsFor[template];
+      console.log('[FIND-BTN] _loadModelFromService: got options from modalService.settingsFor');
+    }
+    if (!options) {
+      var legacyModal = modal;
+      if (legacyModal && legacyModal.settings_for && legacyModal.settings_for[template]) {
+        options = legacyModal.settings_for[template];
+        console.log('[FIND-BTN] _loadModelFromService: got options from legacy modal.settings_for');
+      }
+    }
+    if (!options) {
+      options = this.get('model') || {};
+      console.log('[FIND-BTN] _loadModelFromService: fell back to this.get("model")');
+    }
+    console.log('[FIND-BTN] _loadModelFromService: options =', options, 'options.board =', options && options.board, 'options.board.id =', options && options.board && options.board.get && options.board.get('id'));
     this.set('model', options);
   },
 
@@ -34,45 +56,68 @@ export default Component.extend({
     this.set('_findButtonOpeningSetupDone', false);
   },
 
-  /**
-   * Tagless component (tagName: '') — didInsertElement never runs. Run setup on
-   * first didRender and/or when modal-dialog invokes opening() (same guard).
-   */
   ensureFindButtonOpeningOnce() {
     if (this.get('_findButtonOpeningSetupDone')) {
+      console.log('[FIND-BTN] ensureFindButtonOpeningOnce: already done, skipping');
       return;
     }
+    console.log('[FIND-BTN] ensureFindButtonOpeningOnce: running setup');
     this.set('_findButtonOpeningSetupDone', true);
     this.runOpeningSetup();
   },
 
   didRender() {
     this._super(...arguments);
+    console.log('[FIND-BTN] didRender() called');
     this.ensureFindButtonOpeningOnce();
   },
 
-  /**
-   * Resets search state, loads the board button set, and focuses the search field.
-   */
   runOpeningSetup() {
+    console.log('[FIND-BTN] runOpeningSetup() called');
     this.set('results', null);
     this.set('searchString', '');
+    var _this = this;
     const board = this.get('model.board');
+    console.log('[FIND-BTN] runOpeningSetup: board =', board, 'board.id =', board && board.get && board.get('id'));
     if (board) {
-      board.load_button_set().then((bs) => {
-        if (this.isDestroyed || this.isDestroying) { return; }
-        this.set('button_set', bs);
-      }, () => {
-        if (this.isDestroyed || this.isDestroying) { return; }
-        this.set('button_set', null);
-        runLater(() => {
-          if (this.isDestroyed || this.isDestroying) { return; }
-          board.load_button_set().then((bs) => {
-            if (this.isDestroyed || this.isDestroying) { return; }
-            this.set('button_set', bs);
-          }, () => {});
+      console.log('[FIND-BTN] runOpeningSetup: calling board.load_button_set(true)');
+      board.load_button_set(true).then(function(bs) {
+        console.log('[FIND-BTN] runOpeningSetup: load_button_set resolved, bs =', bs);
+        console.log('[FIND-BTN] runOpeningSetup: bs.buttons =', bs && bs.get && bs.get('buttons'));
+        console.log('[FIND-BTN] runOpeningSetup: bs.buttons.length =', bs && bs.get && bs.get('buttons') && bs.get('buttons').length);
+        console.log('[FIND-BTN] runOpeningSetup: bs.root_url =', bs && bs.get && bs.get('root_url'));
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (bs) {
+          console.log('[FIND-BTN] runOpeningSetup: calling bs.load_buttons(true)');
+          return bs.load_buttons(true).then(function() {
+            console.log('[FIND-BTN] runOpeningSetup: load_buttons resolved');
+            console.log('[FIND-BTN] runOpeningSetup: bs.buttons after load =', bs.get('buttons'));
+            console.log('[FIND-BTN] runOpeningSetup: bs.buttons.length after load =', bs.get('buttons') && bs.get('buttons').length);
+            if (_this.isDestroyed || _this.isDestroying) { return; }
+            _this.set('button_set', bs);
+            console.log('[FIND-BTN] runOpeningSetup: component button_set set');
+          });
+        }
+      }, function(err) {
+        console.log('[FIND-BTN] runOpeningSetup: load_button_set REJECTED', err);
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('button_set', null);
+        runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          board.load_button_set(true).then(function(bs) {
+            if (_this.isDestroyed || _this.isDestroying) { return; }
+            if (bs) {
+              return bs.load_buttons(true).then(function() {
+                if (_this.isDestroyed || _this.isDestroying) { return; }
+                _this.set('button_set', bs);
+                console.log('[FIND-BTN] retry: button_set set');
+              });
+            }
+          }, function(err2) { console.log('[FIND-BTN] retry also failed', err2); });
         }, 1000);
       });
+    } else {
+      console.log('[FIND-BTN] runOpeningSetup: NO BOARD - model =', this.get('model'));
     }
     runLater(() => {
       if (this.isDestroyed || this.isDestroying) { return; }
@@ -83,6 +128,7 @@ export default Component.extend({
 
   search: observer('searchString', 'button_set', function() {
     const board = this.get('model.board');
+    console.log('[FIND-BTN] search observer fired: searchString =', this.get('searchString'), 'board =', !!board);
     if (!board) {
       this.set('results', null);
       return;
@@ -95,6 +141,8 @@ export default Component.extend({
       _this.set('error', null);
       const include_other_boards = this.get('model.include_other_boards');
       var bs = this.get('button_set') || board.get('button_set');
+      console.log('[FIND-BTN] search: bs =', bs, 'bs.buttons.length =', bs && bs.get && bs.get('buttons') && bs.get('buttons').length);
+      console.log('[FIND-BTN] search: board.button_set =', board.get('button_set'));
       if (board && bs) {
         if (!board.get('button_set')) { board.set('button_set', bs); }
         const user = this.get('appState').get('currentUser');
@@ -106,12 +154,14 @@ export default Component.extend({
         runLater(function() {
           if (_this.get('search_id') !== search_id) { _this.set('loading', true); return; }
           let search = null;
+          console.log('[FIND-BTN] search: calling find_buttons with', _this.get('searchString'), 'board.id =', board.get('id'));
           if (_this.get('appState').get('feature_flags.find_multiple_buttons')) {
             search = board.get('button_set').find_sequence(_this.get('searchString'), board.get('id'), user, include_home);
           } else {
             search = board.get('button_set').find_buttons(_this.get('searchString'), board.get('id'), user, include_home);
           }
           search.then(function(results) {
+            console.log('[FIND-BTN] search: got results', results && results.length, results);
             const timing = (new Date()).getTime() - now;
             if (timing > interval + 200) {
               _this.set('search_interval', Math.min(interval + 200, 1000));
@@ -136,16 +186,16 @@ export default Component.extend({
                 _this.set('loading', false);
               });
             }
-            // Offline: show full matches immediately, then the promise above narrows to
-            // buttons with local images. Online: same assignments as the branch above.
             _this.set('results', results);
             _this.set('loading', false);
           }, function(err) {
+            console.log('[FIND-BTN] search: find_buttons REJECTED', err);
             _this.set('loading', false);
             _this.set('error', err && err.error);
           });
         }, interval);
       } else {
+        console.log('[FIND-BTN] search: NO BUTTON SET - board.button_set =', board.get('button_set'), 'component button_set =', this.get('button_set'));
         this.set('loading', false);
         this.set('error', i18n.t('button_set_not_found', 'Button set not downloaded, please try syncing or going online and reopening this board'));
       }
@@ -156,15 +206,12 @@ export default Component.extend({
 
   actions: {
     opening() {
+      console.log('[FIND-BTN] opening() action called');
       var modalService = this.get('modal');
       if (modalService && modalService.setComponent) {
         modalService.setComponent(this);
       }
-      var template = 'find-button';
-      var options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
-                    (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
-                    this.get('model') || {};
-      this.set('model', options);
+      this._loadModelFromService();
       this.set('_findButtonOpeningSetupDone', false);
       this.runOpeningSetup();
     },

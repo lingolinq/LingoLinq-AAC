@@ -350,7 +350,12 @@ var Button = EmberObject.extend({
           }
         }
       }
-      res = res + "<a href='#' style='" + this.get('computed_style') + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
+      var btnInlineStyle = this.get('computed_style') + '';
+      var bg = this.get('background_color');
+      if(bg && window.tinycolor) {
+        btnInlineStyle = btnInlineStyle + 'outline-color:' + window.tinycolor(bg).darken(20).toRgbString() + ';';
+      }
+      res = res + "<a href='#' style='" + btnInlineStyle + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
       if(this.get('pending')) {
         res = res + "<div class='pending'><img src='" + templateHelpers.path('images/spinner.gif') + "' draggable='false' /></div>";
       }
@@ -426,10 +431,11 @@ var Button = EmberObject.extend({
     'positioning.width',
     'positioning.left',
     'positioning.top',
+    'background_color',
     function() {
       var pos = this.get('positioning');
       if(!pos) { return htmlSafe(""); }
-      return Button.computed_style(pos);
+      return Button.computed_style(pos, this);
     }
   ),
   computed_class: computed('display_class', 'board.text_size', 'for_swap', function() {
@@ -799,7 +805,7 @@ Button.style = function(style) {
   return res;
 };
 
-Button.computed_style = function(pos) {
+Button.computed_style = function(pos, button) {
     var str = "";
     if(pos && pos.top !== undefined && pos.left !== undefined) {
       str = str + "position: absolute;";
@@ -811,6 +817,11 @@ Button.computed_style = function(pos) {
     }
     if(pos.height) {
       str = str + "height: " + Math.max(pos.height, 20) + "px;";
+    }
+    var bg = button && (button.get ? button.get('background_color') : button.background_color);
+    if(bg && window.tinycolor) {
+      var darkenedBorder = window.tinycolor(bg).darken(20).toRgbString();
+      str = str + "outline-color:" + darkenedBorder + ";";
     }
     return htmlSafe(str);
 };
@@ -918,7 +929,7 @@ Button.button_styling = function(button, board, pos) {
     res.button_class = res.button_class + " " + board.get('text_size') + " ";
   }
   // TODO: sanitize all these for safety?
-  res.button_style = Button.computed_style(pos);
+  res.button_style = Button.computed_style(pos, button);
   var action = Button.action_styling(null, button);
   res.action_class = action.action_class; //"action_container talk"; // TODO
   res.action_image = action.action_image; //templateHelpers.path('images/folder.png'); // TODO

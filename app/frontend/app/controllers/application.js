@@ -85,6 +85,18 @@ export default Controller.extend({
   boardMenuOpen: false,
   boardPickerLoading: false,
   boardPickerBoards: null,
+  boardPickerFilter: '',
+  filteredBoardPickerBoards: computed('boardPickerBoards.[]', 'boardPickerFilter', function() {
+    var boards = this.get('boardPickerBoards');
+    if(!boards) { return []; }
+    var filter = (this.get('boardPickerFilter') || '').toLowerCase().trim();
+    if(!filter) { return boards; }
+    return boards.filter(function(b) {
+      var name = (b.get('name') || '').toLowerCase();
+      var key = (b.get('key') || '').toLowerCase();
+      return name.indexOf(filter) !== -1 || key.indexOf(filter) !== -1;
+    });
+  }),
 
   init() {
     this._super(...arguments);
@@ -543,11 +555,15 @@ export default Controller.extend({
         model.prompt();
       }, 100);
     },
+    updateBoardPickerFilter: function(val) {
+      this.set('boardPickerFilter', val);
+    },
     openBoardPicker: function() {
       var _this = this;
       _this.set('boardPickerVisible', true);
       _this.set('boardPickerLoading', true);
       _this.set('boardPickerBoards', null);
+      _this.set('boardPickerFilter', '');
       var userId = _this.appState.get('referenced_user.id');
       LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
         var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
@@ -1343,15 +1359,23 @@ export default Controller.extend({
         var transition = _this.router.transitionTo('setup', {queryParams: params});
         transition.then(function() {
           runLater(function() {
-            var container = document.getElementById('setup_container');
-            if (container && typeof container.scrollIntoView === 'function') {
-              container.scrollIntoView({ behavior: 'instant', block: 'start' });
-            }
+            // Scroll every possible container to the top
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
             if (document.scrollingElement) {
               document.scrollingElement.scrollTop = 0;
             }
-            window.scrollTo(0, 0);
-          }, 0);
+            // Walk up from setup_container and reset all scrollable ancestors
+            var container = document.getElementById('setup_container');
+            if (container) {
+              var el = container.parentElement;
+              while (el) {
+                if (el.scrollTop > 0) { el.scrollTop = 0; }
+                el = el.parentElement;
+              }
+            }
+          }, 50);
         }, function() { });
       }, function() { });
     },
@@ -1378,7 +1402,8 @@ export default Controller.extend({
   setup_index: computed('setup_order', 'setup_page', function() {
     var order = this.get('setup_order');
     var current = this.get('setup_page') || 'intro';
-    return (order.indexOf(current) || 0) + 1;
+    var idx = order.indexOf(current);
+    return (idx >= 0 ? idx : 0) + 1;
   }),
   activateButton: function(button, options) {
     var _this = this;

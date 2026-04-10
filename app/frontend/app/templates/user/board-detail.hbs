@@ -1,4 +1,20 @@
 <div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}}">
+  {{#if this.board_recoloring}}
+    <div class="md-board-detail-loading md-board-detail-loading--overlay">
+      <div class="md-board-detail-loading__card">
+        <div class="md-loading-spinner"></div>
+        <span class="md-board-detail-loading__text">{{t "Recoloring board — this may take a moment for larger boards..." key="board_detail_recoloring"}}</span>
+        <button type="button" class="md-board-detail-loading__cancel" onclick="window.location.reload()">{{t "Cancel" key="cancel"}}</button>
+      </div>
+    </div>
+  {{else if this.board_reverting_colors}}
+    <div class="md-board-detail-loading md-board-detail-loading--overlay">
+      <div class="md-board-detail-loading__card">
+        <div class="md-loading-spinner"></div>
+        <span class="md-board-detail-loading__text">{{t "Reverting to previous colors..." key="board_detail_reverting_colors"}}</span>
+      </div>
+    </div>
+  {{/if}}
   {{outlet}}
   <div class="md-board-detail-layout {{if this.panels_collapsed 'md-board-detail-layout--collapsed'}}">
     {{!-- Overlay backdrop for mobile panels --}}
@@ -49,8 +65,9 @@
 
     {{!-- Main Content Area --}}
     <main class="md-board-detail-main">
-      {{!-- Sentence Bar --}}
-      <div class="md-board-detail-sentence-row">
+      {{!-- Sentence Bar — id="speak" lets the scanner find this row as the
+           speak target on board-detail (mirrors board-alt's #speak element). --}}
+      <div id="speak" class="md-board-detail-sentence-row">
       {{#unless this.edit_mode}}
       <button type="button"
         class="md-board-detail-collapse-btn md-board-detail-collapse-btn--sentence-row"

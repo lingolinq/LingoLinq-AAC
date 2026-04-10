@@ -5,7 +5,7 @@
       <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
     </div>
     <div class="la-find-button-body">
-      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder="Word or phrase you're looking for"}}
+      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder="Word or phrase you're looking for" autocomplete="off"}}
       {{#if this.searchString}}
         <div class="la-find-button-results">
           {{#if this.results}}

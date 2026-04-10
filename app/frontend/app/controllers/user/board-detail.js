@@ -1851,15 +1851,29 @@ export default Controller.extend({
       var saved = this.get('_saved_recolor');
 
       if(saved) {
-        // Revert to saved colors
-        for(var id in saved) {
-          editManager.change_button(id, {
-            background_color: saved[id].bg,
-            border_color: saved[id].border
+        // Revert to saved colors with progress overlay
+        this.set('board_reverting_colors', true);
+        var ids = Object.keys(saved);
+        var idx = 0;
+        var batch_size = 10;
+        var process_revert = function() {
+          if(idx >= ids.length) {
+            _this.set('_saved_recolor', null);
+            _this.set('board_recolored', false);
+            _this.set('board_reverting_colors', false);
+            return;
+          }
+          var batch = ids.slice(idx, idx + batch_size);
+          idx += batch_size;
+          batch.forEach(function(id) {
+            editManager.change_button(id, {
+              background_color: saved[id].bg,
+              border_color: saved[id].border
+            });
           });
-        }
-        this.set('_saved_recolor', null);
-        this.set('board_recolored', false);
+          runLater(process_revert, 30);
+        };
+        process_revert();
         return;
       }
 
@@ -1868,6 +1882,8 @@ export default Controller.extend({
           var ob = _this.get('ordered_buttons') || [];
           var colors = window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
           var savedColors = {};
+          var buttons_to_recolor = [];
+
           for(var ri = 0; ri < ob.length; ri++) {
             var row = ob[ri] || [];
             for(var ci = 0; ci < row.length; ci++) {
@@ -1878,43 +1894,48 @@ export default Controller.extend({
               var label = btn.get ? btn.get('label') : btn.label;
               if(is_empty || is_folder || !label) { continue; }
               var btn_id = btn.get ? btn.get('id') : btn.id;
-              // Save current colors before overwriting
               savedColors[btn_id] = {
                 bg: btn.get ? btn.get('background_color') : btn.background_color,
                 border: btn.get ? btn.get('border_color') : btn.border_color
               };
-              // Clear existing colors and look up part of speech to assign new ones
-              editManager.change_button(btn_id, {
-                background_color: null,
-                border_color: null
-              });
               var text = (btn.get ? btn.get('vocalization') : btn.vocalization) || label;
-              (function(b, bid) {
-                persistence.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
-                  if(res && res.types) {
-                    var found = false;
-                    res.types.forEach(function(type) {
-                      if(!found && colors) {
-                        colors.forEach(function(color) {
-                          if(!found && color.types && color.types.indexOf(type) >= 0) {
-                            editManager.change_button(bid, {
-                              background_color: color.fill,
-                              border_color: color.border,
-                              part_of_speech: type,
-                              suggested_part_of_speech: type
-                            });
-                            found = true;
-                          }
+              buttons_to_recolor.push({ id: btn_id, text: text });
+            }
+          }
+
+          _this.set('_saved_recolor', savedColors);
+          _this.set('board_recolored', true);
+          _this.set('board_recoloring', true);
+
+          // Single batch API call for all words
+          var words = buttons_to_recolor.map(function(b) { return b.text; });
+          persistence.ajax('/api/v1/search/batch_parts_of_speech', {type: 'GET', data: {words: words.join(',')}}).then(function(res) {
+            var results = (res && res.results) || {};
+            buttons_to_recolor.forEach(function(item) {
+              var data = results[item.text];
+              if(data && data.types) {
+                var found = false;
+                data.types.forEach(function(type) {
+                  if(!found && colors) {
+                    colors.forEach(function(color) {
+                      if(!found && color.types && color.types.indexOf(type) >= 0) {
+                        editManager.change_button(item.id, {
+                          background_color: color.fill,
+                          border_color: color.border,
+                          part_of_speech: type,
+                          suggested_part_of_speech: type
                         });
+                        found = true;
                       }
                     });
                   }
-                }, function() { });
-              })(btn, btn_id);
-            }
-          }
-          _this.set('_saved_recolor', savedColors);
-          _this.set('board_recolored', true);
+                });
+              }
+            });
+            _this.set('board_recoloring', false);
+          }, function() {
+            _this.set('board_recoloring', false);
+          });
           // If borders are matched, re-apply after API calls complete
           if(_this.get('borders_matched')) {
             runLater(function() {

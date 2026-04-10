@@ -865,6 +865,9 @@ export default Controller.extend({
       this.set('current_tag', tag);
     },
     enterMineFolderTag: function(tag) {
+      if(this.get('selected') !== 'mine') {
+        this.send('set_selected', 'mine');
+      }
       this.set('mineTagFolderDrillIn', tag);
       this.set('show_all_boards', false);
       this.set('boards_display_limit', null);

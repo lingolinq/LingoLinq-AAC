@@ -175,7 +175,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             store_anyway(true);
           });
         }
-      } else if(bs.get('buttons')) {
+      } else if(bs.get('buttons') && bs.get('buttons').length) {
         resolve(bs);
       } else {
         reject({error: 'root url not available'});
@@ -1023,6 +1023,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
 LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   // use promises to make this call idempotent
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
+  if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
   var promise = LingoLinq.Buttonset.pending_promises[id];
   if(promise) { return promise; }
   if(id && (id.match(/^b/) || id.match(/^i/))) {
@@ -1044,8 +1045,8 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   if(found) {
     var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
-      if(found.get('buttons') || found.get('root_url')) {
-        found.load_buttons(force); 
+      if((found.get('buttons') && found.get('buttons').length) || found.get('root_url')) {
+        found.load_buttons(force);
         return RSVP.resolve(found);
       }
     }
@@ -1107,7 +1108,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
       if(!button_set.get('root_url') && button_set.get('remote_enabled')) {
         // if root_url not available for the user, try to build one
         return generate(id);
-      } else if(button_set.get('buttons') || button_set.get('root_url')) {
+      } else if((button_set.get('buttons') && button_set.get('buttons').length) || button_set.get('root_url')) {
         // otherwise you should be good to go
         return button_set.load_buttons(force);
       } else {

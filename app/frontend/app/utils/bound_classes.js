@@ -42,14 +42,14 @@ var boundClasses = {};
         var cornerStr = '';
         if(button.background_color) {
           var fill = window.tinycolor(button.background_color || '#fff');
-          // Always use a border 20% darker than the background for visibility
+          // Always use an outline 20% darker than the background for visibility
           var autoBorder = window.tinycolor(button.background_color).darken(20);
-          str = str + 'border-color: ' + autoBorder.toRgbString() + ';';
+          str = str + 'outline-color: ' + autoBorder.toRgbString() + ';';
           str = str + 'background-color: ' + fill.toRgbString() + ';';
           str = str + '--btn-bg: ' + fill.toRgbString() + ';';
           button.dark_border_color = autoBorder.darken(5).toRgbString();
           button.dark_background_color = window.tinycolor(fill.toRgb()).darken(5).toRgbString();
-          hoverStr = hoverStr + 'border-color: ' + button.dark_border_color + ';';
+          hoverStr = hoverStr + 'outline-color: ' + button.dark_border_color + ';';
           hoverStr = hoverStr + 'background-color: ' + button.dark_background_color + ';';
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
           button.text_color = text.toRgbString();
