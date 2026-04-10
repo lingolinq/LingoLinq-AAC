@@ -1,0 +1,136 @@
+<div class="la-wrapper la-wrapper--pricing la-wrapper--support">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--support">
+        <section class="la-section la-beta-feedback-admin" aria-labelledby="beta-feedback-admin-heading">
+          <div class="la-section-header la-beta-feedback-admin__header">
+            <h1 id="beta-feedback-admin-heading" class="la-hero-title">{{t "Beta feedback inbox" key="beta_feedback_admin_title"}}</h1>
+            <p class="la-pricing-hero-subtitle">{{t "Search, filter, and sort submissions. Hidden items stay out of this list." key="beta_feedback_admin_intro_v2"}}</p>
+          </div>
+
+          <div class="la-support-content-wrapper">
+            <article class="la-about-glass-card la-support-page-card">
+              <div class="la-support-page-card__body md-support-content la-beta-feedback-admin__body">
+                {{#if this.loadError}}
+                  <p role="alert">{{t "Could not load feedback. Try again or sign in as an admin." key="beta_feedback_admin_load_error"}}</p>
+                {{else}}
+                  <div class="la-beta-feedback-admin__toolbar">
+                    <label class="la-beta-feedback-admin__search-label">
+                      <span class="la-beta-feedback-admin__label-text">{{t "Search" key="beta_feedback_admin_search_label"}}</span>
+                      <Input @type="search" @value={{this.searchQuery}} class="form-control la-beta-feedback-admin__search-input" autocomplete="off" placeholder={{t "Summary, name, category, severity…" key="beta_feedback_admin_search_placeholder"}} />
+                    </label>
+                    <div class="la-beta-feedback-admin__filters">
+                      <label class="la-beta-feedback-admin__filter">
+                        <span class="la-beta-feedback-admin__label-text">{{t "Category" key="beta_feedback_admin_col_category"}}</span>
+                        <select class="form-control" onchange={{action (mut this.filterType) value="target.value"}}>
+                          {{#each this.feedbackTypeOptions as |opt|}}
+                            <option value={{opt.id}} selected={{is-equal opt.id this.filterType}}>{{opt.label}}</option>
+                          {{/each}}
+                        </select>
+                      </label>
+                      <label class="la-beta-feedback-admin__filter">
+                        <span class="la-beta-feedback-admin__label-text">{{t "Severity" key="beta_feedback_admin_col_severity"}}</span>
+                        <select class="form-control" onchange={{action (mut this.filterSeverity) value="target.value"}}>
+                          {{#each this.severityOptions as |opt|}}
+                            <option value={{opt.id}} selected={{is-equal opt.id this.filterSeverity}}>{{opt.label}}</option>
+                          {{/each}}
+                        </select>
+                      </label>
+                      <button type="button" class="btn btn-default la-beta-feedback-admin__clear" {{action "clearFilters"}}>{{t "Clear filters" key="beta_feedback_admin_clear_filters"}}</button>
+                    </div>
+                  </div>
+
+                  {{#if this.loading}}
+                    <p class="la-beta-feedback-admin__loading" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+                  {{/if}}
+
+                  {{#if this.items.length}}
+                    <div class="table-responsive la-beta-feedback-admin__table-wrap">
+                      <table class="table table-striped la-beta-feedback-admin__table">
+                        <thead>
+                          <tr>
+                            <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "created_at"}}>
+                                {{t "Date" key="beta_feedback_admin_col_date"}}
+                                {{#if (is-equal this.sortColumn "created_at")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_submitter_name"}}>
+                                {{t "Name" key="name"}}
+                                {{#if (is-equal this.sortColumn "beta_submitter_name")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_feedback_type"}}>
+                                {{t "Category" key="beta_feedback_admin_col_category"}}
+                                {{#if (is-equal this.sortColumn "beta_feedback_type")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_severity"}}>
+                                {{t "Severity" key="beta_feedback_admin_col_severity"}}
+                                {{#if (is-equal this.sortColumn "beta_severity")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_subject"}}>
+                                {{t "Summary" key="beta_feedback_admin_col_summary"}}
+                                {{#if (is-equal this.sortColumn "beta_subject")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">{{t "Actions" key="beta_feedback_admin_col_actions"}}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {{#each this.items as |row|}}
+                            <tr>
+                              <td>{{row.date_short}}</td>
+                              <td>{{row.name}}</td>
+                              <td>{{row.feedback_type}}</td>
+                              <td>{{row.severity}}</td>
+                              <td class="la-beta-feedback-admin__summary-cell">{{row.subject}}</td>
+                              <td class="la-beta-feedback-admin__actions">
+                                <LinkTo @route="beta-feedback-admin.entry" @model={{row.id}} class="btn btn-default btn-sm">{{t "Details" key="beta_feedback_admin_details_link"}}</LinkTo>
+                                {{#if (is-equal this.filterType "hidden")}}
+                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__unhide-btn" {{action "unhideRow" row}}>{{t "Unhide" key="beta_feedback_admin_unhide"}}</button>
+                                {{else}}
+                                  <button type="button" class="btn btn-default btn-sm la-beta-feedback-admin__hide-btn" {{action "hideRow" row}}>{{t "Hide" key="beta_feedback_admin_hide"}}</button>
+                                {{/if}}
+                              </td>
+                            </tr>
+                          {{/each}}
+                        </tbody>
+                      </table>
+                    </div>
+                    {{#if this.meta.more}}
+                      <p class="text-muted la-beta-feedback-admin__more-hint">{{t "More results available — increase per_page or use pagination later." key="beta_feedback_admin_more_hint_v2"}}</p>
+                    {{/if}}
+                  {{else}}
+                    {{#unless this.loading}}
+                      {{#if (is-equal this.filterType "hidden")}}
+                        {{#if (or this.searchQuery this.filterSeverity)}}
+                          <p>{{t "No beta feedback submissions match your filters." key="beta_feedback_admin_empty_filtered"}}</p>
+                        {{else}}
+                          <p>{{t "No hidden submissions." key="beta_feedback_admin_empty_hidden"}}</p>
+                        {{/if}}
+                      {{else if (or this.searchQuery (or this.filterType this.filterSeverity))}}
+                        <p>{{t "No beta feedback submissions match your filters." key="beta_feedback_admin_empty_filtered"}}</p>
+                      {{else}}
+                        <p>{{t "No beta feedback submissions yet." key="beta_feedback_admin_empty"}}</p>
+                      {{/if}}
+                    {{/unless}}
+                  {{/if}}
+                {{/if}}
+
+                <p class="la-beta-feedback-admin__back">
+                  <LinkTo @route="beta-feedback" class="btn btn-default">{{t "Back to beta feedback form" key="beta_feedback_admin_back_form"}}</LinkTo>
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

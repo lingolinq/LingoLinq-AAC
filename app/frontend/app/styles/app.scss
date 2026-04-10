@@ -26,6 +26,19 @@ $la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
 
+/*
+  Keyboard focus indicator (Tab / switch / voice access):
+  When someone moves through the app without a mouse, the focused control gets a clear
+  navy ring so they always know which button, link, or field is active. Older styles
+  used "outline: none", which hid that ring; this rule brings it back for keyboard-style
+  focus only (not for every mouse click). Matches WCAG 2.4.7 (Focus Visible).
+  Scoped to #within_ember; !important wins over legacy outline resets.
+*/
+#within_ember *:focus-visible {
+  outline: 2px solid #1B365D !important;
+  outline-offset: 2px !important;
+}
+
 /* Standard app layout (bento page with bottom navbar) – used for padding and fixed bars */
 :root {
   --topbar-height: 68px;
@@ -441,7 +454,8 @@ body:has(#within_ember.bento-page-with-footer) {
   padding-bottom: 0;
   display: flex !important;
   flex-direction: column !important;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 /* Ember outlet wrapper: when it wraps #index_view or .md-shell (modern dashboard), keep it in the flex chain. When empty or a ghost sibling (no #index_view or .md-shell inside), collapse it so it doesn't split space with #index_view. */
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view,
@@ -1679,6 +1693,26 @@ header:has(#normal_mode) #inner_header {
 
 }
 
+/* AAC evaluation: prev / next / settings visible on speak bar (same actions as identity menu) */
+#inner_header:has(#speak) .speak-bar__eval-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  flex-shrink: 0 !important;
+  gap: 4px !important;
+  margin: 0 4px 0 0 !important;
+}
+#inner_header:has(#speak) .speak-bar__eval-actions .speak-bar__eval-actions__label {
+  margin-left: 4px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+#inner_header:has(#speak) .speak-bar__eval-actions .speak-bar__eval-btn--next {
+  padding-left: 10px !important;
+  padding-right: 12px !important;
+}
+
 /* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap */
 #inner_header:has(#speak) .speak-bar__button-list-wrap {
   flex: 1 !important;
@@ -1815,6 +1849,7 @@ header:has(#normal_mode) #inner_header {
 /* Right-side controls: square, white bg, faint border, grouped closely */
 #inner_header:has(#speak) #speak_options,
 #inner_header:has(#speak) #back_button,
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn,
 #inner_header:has(#speak) #backspace_button,
 #inner_header:has(#speak) #clear_button,
 #inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list,
@@ -1837,6 +1872,7 @@ header:has(#normal_mode) #inner_header {
 }
 
 /* Backspace and clear: match button_list height (58px) */
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn,
 #inner_header:has(#speak) #backspace_button,
 #inner_header:has(#speak) #clear_button {
   height: 90px !important;
@@ -1856,6 +1892,7 @@ header:has(#normal_mode) #inner_header {
 
 #inner_header:has(#speak) #speak_options:hover,
 #inner_header:has(#speak) #back_button:hover,
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn:hover,
 #inner_header:has(#speak) #backspace_button:hover,
 #inner_header:has(#speak) #clear_button:hover,
 #inner_header:has(#speak) #speak .btn.btn-default.pass_to_btn_list:hover,
@@ -2484,12 +2521,6 @@ h1 a:hover {
   text-decoration: none !important;
 
   color: inherit !important;
-
-}
-/* Remove browser focus outline that can appear as white squiggly ring around the logo */
-.nav-header__logo-link:focus,
-.nav-header__logo-link:focus-visible {
-  outline: none !important;
 
 }
 .nav-header__logo {
@@ -5859,6 +5890,32 @@ body > .popover.bottom {
 .board {
   margin: -10px -20px;
 }
+/* Full-bleed #board_bg is position:absolute (see board/index.hbs + bg_style). Some browsers paint
+   it above grid buttons. Do NOT set position:relative on .button_row — fast_html uses position:absolute
+   on buttons with top/left computed for .board as containing block; relative on .button_row would
+   re-parent those coordinates and hide controls (obf/eval-*, all eval steps). */
+.board.eval_mode,
+.board:has(#board_bg) {
+  isolation: isolate;
+}
+.board.eval_mode #board_bg,
+.board:has(#board_bg) #board_bg {
+  z-index: 0 !important;
+  pointer-events: none;
+}
+.board.eval_mode #board_canvas,
+.board:has(#board_bg) #board_canvas {
+  position: relative;
+  z-index: 10 !important;
+  pointer-events: auto;
+}
+.board.eval_mode a.button,
+.board.eval_mode a[data-id],
+.board:has(#board_bg) a.button,
+.board:has(#board_bg) a[data-id] {
+  z-index: 10 !important;
+  pointer-events: auto;
+}
 .board.finding_target .button, .board.finding_target .button input {
   cursor: copy;
 }
@@ -6603,6 +6660,16 @@ body > .popover.bottom {
 }
 .board .button.dim_button {
   opacity: 0.5;
+}
+/* Focus words: matched buttons — outline + glow in addition to dimming non-matches */
+.board .button.focus_word_button {
+  position: relative;
+  z-index: 2;
+  outline: 3px solid rgba(42, 157, 143, 0.92);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 5px rgba(42, 157, 143, 0.18),
+    0 4px 14px rgba(27, 54, 93, 0.14);
 }
 .color_black {
   .board.hint_hidden_buttons:not(.edit):not(.show_all_buttons) .button.hidden_button {
@@ -15251,11 +15318,6 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   color: #ffffff !important;
 
 }
-.app-navbar .nav-header__logo-link:focus,
-.app-navbar .nav-header__logo-link:focus-visible {
-  outline: none !important;
-
-}
 .app-navbar .nav-header__logo {
   display: inline-flex !important;
 
@@ -16089,7 +16151,6 @@ header.header--unauthenticated ~ #content .la-topbar {
   background: rgba(255, 255, 255, 0.18) !important;
   background-image: none !important;
   border-color: rgba(255, 255, 255, 0.25);
-  outline: none;
   box-shadow: none;
   color: #fff;
   transform: none;
@@ -19269,57 +19330,53 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 }
 
 /* Navbar matches bento bar (ll-bento-bar--midday) only when NOT index/landing navbar */
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border-bottom: 1px solid #2A9D8F !important;
 
 }
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) h1 a,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #board_id,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #org_name,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .user_name {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) h1 a,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #board_id,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #org_name,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .user_name {
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border: none !important;
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button:hover,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity_button:focus {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:hover,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:focus {
   background: linear-gradient(135deg, rgb(118, 122, 130) 0%, rgb(114, 118, 126) 100%) !important;
 
   border: none !important;
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link {
   color: rgba(230, 236, 242, 0.9) !important;
 
 }
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
   color: rgba(255, 255, 255, 1) !important;
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -19332,8 +19389,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
   background: rgba(255, 255, 255, 1) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.35) !important;
@@ -19344,7 +19401,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
   background: rgba(81, 87, 99, 0.8) !important;
 
   border-color: rgba(255, 255, 255, 0.15) !important;
@@ -19353,7 +19410,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
   background: rgba(87, 93, 105, 0.9) !important;
 
   border-color: rgba(255, 255, 255, 0.22) !important;
@@ -19362,7 +19419,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -19375,7 +19432,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-midday-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
+#within_ember.bento-midday-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
   background: rgba(255, 255, 255, 1) !important;
 
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
@@ -19556,57 +19613,53 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 }
 
 /* Navbar matches bento bar (dark) only when NOT index/landing navbar */
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border-bottom: 1px solid #2A9D8F !important;
 
 }
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) h1 a,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #board_id,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #org_name,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .user_name {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) h1 a,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #board_id,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #org_name,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .user_name {
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border: none !important;
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button:hover,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity_button:focus {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:hover,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity_button:focus {
   background: linear-gradient(135deg, rgba(63, 77, 95, 0.7) 0%, rgba(54, 68, 83, 0.62) 100%) !important;
 
   border: none !important;
 
   box-shadow: none !important;
 
-  outline: none !important;
-
   color: #e8ecf2 !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link {
   color: rgba(230, 236, 242, 0.9) !important;
 
 }
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .identity-landing-link:hover {
   color: rgba(255, 255, 255, 1) !important;
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -19619,8 +19672,8 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:hover,
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) #identity.identity-with-dark-toggle #identity_button:focus {
   background: rgba(255, 255, 255, 1) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
@@ -19631,7 +19684,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button) {
   background: rgba(56, 68, 84, 0.8) !important;
 
   border-color: rgba(255, 255, 255, 0.15) !important;
@@ -19640,7 +19693,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .btn-default:not(#identity_button):hover {
   background: rgba(64, 76, 92, 0.9) !important;
 
   border-color: rgba(255, 255, 255, 0.22) !important;
@@ -19649,7 +19702,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header {
   background: rgba(255, 255, 255, 0.95) !important;
 
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -19662,7 +19715,7 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 
 }
 
-#within_ember.bento-dark-mode-active header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
+#within_ember.bento-dark-mode-active > header:not(.header-index-with-dark-toggle) .ll-bento-dark-toggle--header:hover {
   background: rgba(255, 255, 255, 1) !important;
 
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
@@ -23177,7 +23230,7 @@ $aac-z-topbar:   400;
 
 @mixin aac-focus-ring($color: $color-sage) {
   &:focus-visible {
-    outline: none;
+    /* Keyboard ring: app-wide #within_ember *:focus-visible; optional accent glow */
     box-shadow: 0 0 0 3px rgba($color, 0.4);
   }
 }
@@ -44208,6 +44261,31 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     color: #1b2a4a !important;
   }
 
+  // Focus words (dim_button): strengthen dimming on board-alt grid (same intent as board-view block above).
+  .board .button.dim_button {
+    opacity: 0.4 !important;
+    filter: saturate(45%) brightness(0.88) !important;
+  }
+  &.mid_dim .board .button.dim_button {
+    opacity: 0.32 !important;
+    filter: saturate(38%) brightness(0.84) !important;
+  }
+  &.extra_dim .board .button.dim_button {
+    opacity: 0.22 !important;
+    filter: saturate(30%) brightness(0.78) !important;
+  }
+
+  .board .button.focus_word_button {
+    opacity: 1 !important;
+    filter: saturate(100%) brightness(1) !important;
+    outline: 3px solid rgba(42, 157, 143, 0.95) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 5px rgba(42, 157, 143, 0.22),
+      0 4px 16px rgba(27, 54, 93, 0.12) !important;
+    z-index: 2;
+  }
+
   .board .button:hover {
     border-color: var(--btn-bg, #b3cfc9) !important;
     box-shadow: 0 4px 12px rgba(27, 42, 74, 0.1) !important;
@@ -45020,6 +45098,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
     color: #1b2a4a !important;
     filter: saturate(70%);
+  }
+
+  // Focus words: `dim_button` is set on non-focus buttons (bound_classes + board contextualized_buttons).
+  // This shell applies `filter: saturate(70%)` to every `.board .button`, which stacks with the global
+  // `.board .button.dim_button { opacity: … }` rules and makes dimming look too subtle. Override filter +
+  // opacity for dim buttons only so focus words stand out clearly.
+  .board .button.dim_button {
+    opacity: 0.38 !important;
+    filter: saturate(38%) brightness(0.9) !important;
+  }
+  &.mid_dim .board .button.dim_button {
+    opacity: 0.3 !important;
+    filter: saturate(32%) brightness(0.85) !important;
+  }
+  &.extra_dim .board .button.dim_button {
+    opacity: 0.2 !important;
+    filter: saturate(26%) brightness(0.78) !important;
+  }
+
+  .board .button.focus_word_button {
+    opacity: 1 !important;
+    filter: saturate(100%) brightness(1) !important;
+    outline: 3px solid rgba(42, 157, 143, 0.95) !important;
+    outline-offset: 2px !important;
+    box-shadow:
+      0 0 0 5px rgba(42, 157, 143, 0.22),
+      0 4px 16px rgba(27, 54, 93, 0.12) !important;
+    z-index: 2;
   }
 
   // === Modern speak header (light theme) ===
@@ -48966,6 +49072,33 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 #within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card {
   margin: 0;
+}
+
+/* Focus words (board-detail): non-focus cells get `dim_button` from board-detail controller */
+#within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.38;
+  filter: saturate(38%) brightness(0.9);
+}
+#within_ember.board-detail-view.mid_dim .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.3;
+  filter: saturate(32%) brightness(0.85);
+}
+#within_ember.board-detail-view.extra_dim .md-board-detail-grid.board .button.md-board-detail-symbol-card.dim_button {
+  opacity: 0.2;
+  filter: saturate(26%) brightness(0.78);
+}
+
+/* Focus words: matched cells — outline + glow (paired with dim_button on non-matches).
+   Cards set inline outline-color from border_color; use !important so the focus ring stays visible. */
+#within_ember.board-detail-view .md-board-detail-grid.board .button.md-board-detail-symbol-card.focus_word_button {
+  opacity: 1 !important;
+  filter: saturate(100%) brightness(1) !important;
+  outline: 3px solid var(--md-teal, #2cb7b0) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 5px rgba(44, 183, 176, 0.28),
+    0 4px 16px rgba(27, 54, 93, 0.14) !important;
+  z-index: 2;
 }
 
 /* Layer 3: Controls — elevated cards matching header icon style */
@@ -53706,5 +53839,194 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   .md-org-report-input {
     width: 100%;
+  }
+}
+
+/* Beta feedback admin (inbox + detail) */
+.la-beta-feedback-admin__body {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-admin__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+}
+.la-beta-feedback-admin__search-label {
+  flex: 1 1 220px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.la-beta-feedback-admin__search-input {
+  width: 100%;
+}
+.la-beta-feedback-admin__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+.la-beta-feedback-admin__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+.la-beta-feedback-admin__filter .form-control {
+  min-width: 0;
+}
+.la-beta-feedback-admin__label-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--md-muted, #1b365d);
+  opacity: 0.85;
+}
+.la-beta-feedback-admin__clear {
+  align-self: flex-end;
+}
+.la-beta-feedback-admin__loading {
+  margin: 8px 0 16px;
+  color: var(--md-muted, #1b365d);
+}
+.la-beta-feedback-admin__table-wrap {
+  margin-top: 8px;
+}
+.la-beta-feedback-admin__table {
+  font-size: 1.05rem;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-admin__table th,
+.la-beta-feedback-admin__table td {
+  vertical-align: middle;
+}
+.la-beta-feedback-admin__sort-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.la-beta-feedback-admin__sort-btn:hover,
+.la-beta-feedback-admin__sort-btn:focus {
+  color: #4c86d8;
+}
+.la-beta-feedback-admin__sort-ind {
+  margin-left: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+.la-beta-feedback-admin__summary-cell {
+  max-width: 28rem;
+  word-break: break-word;
+}
+.la-beta-feedback-admin__actions {
+  white-space: nowrap;
+}
+.la-beta-feedback-admin__actions .btn + .btn {
+  margin-left: 6px;
+}
+.la-beta-feedback-admin__more-hint {
+  margin-top: 12px;
+  font-size: 1rem;
+}
+.la-beta-feedback-admin__back {
+  margin-top: 24px;
+}
+
+.la-beta-feedback-detail__body {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 20px;
+  color: var(--md-ink, #111a2e);
+  line-height: 1.35;
+}
+.la-beta-feedback-detail__meta {
+  margin: 0 0 24px;
+  padding: 0;
+}
+.la-beta-feedback-detail__meta-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr;
+  gap: 8px 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(27, 54, 93, 0.12);
+  align-items: baseline;
+}
+.la-beta-feedback-detail__meta-row:last-child {
+  border-bottom: none;
+}
+.la-beta-feedback-detail__meta dt {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--md-muted, #1b365d);
+  opacity: 0.9;
+}
+.la-beta-feedback-detail__meta dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__wrap {
+  word-break: break-word;
+}
+.la-beta-feedback-detail__block {
+  margin: 24px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(27, 54, 93, 0.12);
+}
+.la-beta-feedback-detail__block-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--md-ink, #111a2e);
+}
+.la-beta-feedback-detail__text {
+  font-size: 1.05rem;
+  color: var(--md-ink, #111a2e);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.la-beta-feedback-detail__screenshot-wrap {
+  margin: 0;
+}
+.la-beta-feedback-detail__screenshot {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(27, 54, 93, 0.15);
+}
+.la-beta-feedback-detail__back {
+  margin-top: 28px;
+}
+
+@media (max-width: 600px) {
+  .la-beta-feedback-detail__meta-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .la-beta-feedback-admin__actions {
+    white-space: normal;
+  }
+  .la-beta-feedback-admin__actions .btn {
+    margin-bottom: 6px;
   }
 }

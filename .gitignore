@@ -20,6 +20,7 @@
 /.env
 /.env.*
 !.env.example
+!.env.op.template
 
 /app/frontend/dist/
 /app/frontend/tmp/
@@ -38,6 +39,9 @@
 /lib/domains.json
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# Cursor IDE debug session logs (NDJSON)
+.cursor/debug*.log
 
 # Ignore local settings for claude
 /.claude

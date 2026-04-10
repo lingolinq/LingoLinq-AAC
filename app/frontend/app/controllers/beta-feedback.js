@@ -150,6 +150,76 @@ export default Controller.extend({
     ];
   }),
 
+  _buildAutoDeviceContextSummary() {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return '';
+    }
+    var router = this.get('router');
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var dpr = window.devicePixelRatio || 1;
+    var tz = '';
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    var route = router && router.get('currentRouteName') ? String(router.get('currentRouteName')) : '';
+    var path = window.location.pathname || '';
+    if (window.location.search) {
+      path += window.location.search;
+    }
+    var online = navigator.onLine;
+    var onlineStr = online
+      ? i18n.t('beta_feedback_context_online_yes', 'yes')
+      : i18n.t('beta_feedback_context_online_no', 'no');
+    var na = i18n.t('beta_feedback_auto_context_na', '—');
+    var lines = [
+      i18n.t('beta_feedback_auto_context_header', '--- Auto (submission) ---'),
+      i18n.t('beta_feedback_auto_context_viewport', 'Viewport: %{w}×%{h} (%{dpr} dppx)', { w: vw, h: vh, dpr: dpr }),
+      i18n.t('beta_feedback_auto_context_timezone', 'Time zone: %{tz}', { tz: tz || na }),
+      i18n.t('beta_feedback_auto_context_route', 'Route: %{route}', { route: route || na }),
+      i18n.t('beta_feedback_auto_context_path', 'Path: %{path}', { path: path || na }),
+      i18n.t('beta_feedback_auto_context_online', 'Online: %{online}', { online: onlineStr })
+    ];
+    return lines.join('\n');
+  },
+
+  _combineDeviceContextForSubmit(userText, autoBlock) {
+    var maxLen = 2000;
+    var sep = '\n\n';
+    var u = (userText || '').trim();
+    var auto = autoBlock || '';
+    if (!auto) {
+      return u.length <= maxLen ? u : u.substring(0, maxLen);
+    }
+    if (auto.length >= maxLen) {
+      return auto.substring(0, maxLen);
+    }
+    if (!u) {
+      return auto;
+    }
+    var combined = u + sep + auto;
+    if (combined.length <= maxLen) {
+      return combined;
+    }
+    var reserve = sep.length + auto.length;
+    var userBudget = maxLen - reserve;
+    if (userBudget <= 0) {
+      return auto.length <= maxLen ? auto : auto.substring(0, maxLen);
+    }
+    if (u.length <= userBudget) {
+      return combined;
+    }
+    var ellipsis = i18n.t('beta_feedback_auto_context_truncation_ellipsis', '…');
+    if (userBudget <= ellipsis.length) {
+      return u.substring(0, userBudget) + sep + auto;
+    }
+    return u.substring(0, userBudget - ellipsis.length) + ellipsis + sep + auto;
+  },
+
   actions: {
     clearFieldError(field) {
       this.clearError(field);
@@ -226,6 +296,7 @@ export default Controller.extend({
         el.value = '';
       }
     },
+
     submit_feedback() {
       this.clearAllErrors();
       this.set('error', false);
@@ -272,6 +343,8 @@ export default Controller.extend({
         });
         return;
       }
+      var autoCtx = this._buildAutoDeviceContextSummary();
+      var deviceContext = this._combineDeviceContextForSubmit(this.get('device_context'), autoCtx);
       const message = {
         name: this.get('name'),
         email: this.get('email'),
@@ -285,7 +358,7 @@ export default Controller.extend({
         expected_result: this.get('expected_result'),
         actual_result: this.get('actual_result'),
         general_feedback: this.get('general_feedback'),
-        device_context: this.get('device_context'),
+        device_context: deviceContext,
         screenshot_data: this.get('screenshotData'),
         beta_feedback_hp: this.get('feedback_hp')
       };

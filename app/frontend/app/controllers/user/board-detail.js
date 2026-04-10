@@ -331,6 +331,7 @@ export default Controller.extend({
         return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map);
       });
       _this.set('ordered_buttons', [buttons]);
+      _this._apply_focus_dim_to_ordered_buttons();
       return;
     }
 
@@ -360,6 +361,8 @@ export default Controller.extend({
       result.push(row);
     }
     _this.set('ordered_buttons', result);
+
+    _this._apply_focus_dim_to_ordered_buttons();
 
     // Resolve POS for untyped buttons
     if(!use_ember) {
@@ -419,6 +422,200 @@ export default Controller.extend({
       this._build_from_raw(this._last_raw);
     }
   },
+
+  /**
+   * Matched button list for this board from `focus_words.board_ids` (same keys as Buttonset.find_routes).
+   * Returns `undefined` if this board is not present yet (still loading); `[]` if present but no matches.
+   */
+  _focus_word_buttons_for_board: function(board) {
+    var fw = this.get('app_state.focus_words');
+    if (!fw || !board) { return undefined; }
+    var ids = fw.board_ids || {};
+    var cand = [board.get('global_id'), board.get('id'), board.get('_actual_id')].filter(function(k) {
+      return k != null && k !== '';
+    });
+    var i;
+    for (i = 0; i < cand.length; i++) {
+      if (Object.prototype.hasOwnProperty.call(ids, cand[i])) {
+        return ids[cand[i]];
+      }
+    }
+    var idStr = String(board.get('id') || '');
+    for (var k in ids) {
+      if (Object.prototype.hasOwnProperty.call(ids, k) && String(k) === idStr) {
+        return ids[k];
+      }
+    }
+    return undefined;
+  },
+
+  /**
+   * Focus words dim non-matching cells via `button.dim` -> `dim_button` (bound_classes) on the
+   * classic board. Board-detail builds its own `ordered_buttons` and never merged that state,
+   * so focus mode had no visible effect here. Copy dim flags from `board.contextualized_buttons`.
+   * Matched cells get `focus_word_match` -> `focus_word_button` for an extra outline/glow.
+   *
+   * Prefer merging from `focus_words.board_ids` directly so we are not blocked by
+   * contextualized_buttons cache or locale gates.
+   */
+  /**
+   * Board-detail grid buttons are usually plain objects. Mutating `dim` / `focus_word_match` in place
+   * plus `notifyPropertyChange` does not reliably re-run `{{if btn.dim}}` in the template; shallow-copy
+   * non-Ember buttons so Glimmer updates class bindings.
+   */
+  _finalizeFocusDimGrid: function(ob) {
+    var newOb = ob.map(function(row) {
+      return row.map(function(btn) {
+        if (!btn) { return btn; }
+        if (btn.empty) { return btn; }
+        if (typeof btn.set === 'function') { return btn; }
+        return Object.assign({}, btn);
+      });
+    });
+    this.set('ordered_buttons', newOb);
+  },
+
+  _apply_focus_dim_to_ordered_buttons: function() {
+    var board = this.get('model');
+    var appState = this.get('app_state');
+    var ob = this.get('ordered_buttons');
+    if (!board || !ob) {
+      return;
+    }
+
+    var walk = function(fn) {
+      ob.forEach(function(row) {
+        row.forEach(function(btn) {
+          if (btn && !btn.empty) { fn(btn); }
+        });
+      });
+    };
+
+    var setDim = function(btn, on) {
+      if (btn.set) {
+        btn.set('dim', !!on);
+      } else if (!on) {
+        delete btn.dim;
+      } else {
+        btn.dim = true;
+      }
+    };
+
+    var setFocusMatch = function(btn, on) {
+      if (btn.set) {
+        btn.set('focus_word_match', !!on);
+      } else if (!on) {
+        delete btn.focus_word_match;
+      } else {
+        btn.focus_word_match = true;
+      }
+    };
+
+    var applyFocusState = function(btn, dimMap, matchMap) {
+      var id = String(btn.id);
+      if (dimMap[id] !== undefined) {
+        setDim(btn, dimMap[id]);
+      } else {
+        setDim(btn, false);
+      }
+      if (matchMap[id] !== undefined) {
+        setFocusMatch(btn, matchMap[id]);
+      } else {
+        setFocusMatch(btn, false);
+      }
+      try {
+        boundClasses.add_classes(btn);
+      } catch (e) { /* plain object / missing fields */ }
+    };
+
+    if (!appState.get('focus_words')) {
+      walk(function(btn) {
+        setDim(btn, false);
+        setFocusMatch(btn, false);
+        try {
+          boundClasses.add_classes(btn);
+        } catch (e) { /* skip */ }
+      });
+      this._finalizeFocusDimGrid(ob);
+      return;
+    }
+
+    var fw = appState.get('focus_words');
+    var fwUser = fw.user_id;
+    var sessUser = appState.get('sessionUser.id');
+    var refUser = appState.get('referenced_user.id');
+    var userOk = fwUser == null || fwUser === '' ||
+      String(fwUser) === String(sessUser) ||
+      (refUser != null && refUser !== '' && String(fwUser) === String(refUser));
+    if (!userOk) {
+      walk(function(btn) {
+        setDim(btn, false);
+        setFocusMatch(btn, false);
+        try {
+          boundClasses.add_classes(btn);
+        } catch (e) { /* skip */ }
+      });
+      this._finalizeFocusDimGrid(ob);
+      return;
+    }
+
+    var directList = this._focus_word_buttons_for_board(board);
+    if (directList !== undefined) {
+      var active_button_ids = {};
+      directList.forEach(function(b) {
+        if (b && b.id !== undefined) { active_button_ids[String(b.id)] = true; }
+      });
+      walk(function(btn) {
+        var id = String(btn.id);
+        var active = !!active_button_ids[id];
+        setDim(btn, !active);
+        setFocusMatch(btn, active);
+        try {
+          boundClasses.add_classes(btn);
+        } catch (e) { /* skip */ }
+      });
+      this._finalizeFocusDimGrid(ob);
+      return;
+    }
+
+    var contextualized = board.contextualized_buttons(
+      appState.get('label_locale'),
+      appState.get('vocalization_locale'),
+      this.get('stashes.working_vocalization'),
+      false,
+      appState.get('inflection_shift')
+    );
+    var dimMap = {};
+    var matchMap = {};
+    (contextualized || []).forEach(function(b) {
+      dimMap[String(b.id)] = !!b.dim;
+      matchMap[String(b.id)] = !!b.focus_word_match;
+    });
+
+    walk(function(btn) {
+      applyFocusState(btn, dimMap, matchMap);
+    });
+    this._finalizeFocusDimGrid(ob);
+  },
+
+  _focus_dim_observer: observer(
+    'app_state.focus_words',
+    'app_state.focus_words.board_ids',
+    'app_state.focus_words.pending',
+    'app_state.sessionUser.id',
+    'app_state.referenced_user.id',
+    'model.focus_id',
+    'model.id',
+    'model.global_id',
+    'app_state.label_locale',
+    'app_state.vocalization_locale',
+    'app_state.inflection_shift',
+    function() {
+      // Do not gate on _last_raw: focus_words.board_ids arrives async after find_routes; we still need
+      // to merge dim/focus into ordered_buttons. _apply_focus_dim_to_ordered_buttons no-ops if no grid.
+      this._apply_focus_dim_to_ordered_buttons();
+    }
+  ),
 
   update_button_symbol_class: function() {
     var buttons = this.get('model.buttons');

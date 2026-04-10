@@ -1290,6 +1290,7 @@ var editManager = EmberObject.extend({
     if(!this.controller || !this.controller.get) { return []; }
     var ob = this.controller.get('ordered_buttons') || [];
     var res = null;
+    var board = this.controller.get('model');
     for(var idx = 0; idx < ob.length; idx++) {
       for(var jdx = 0; jdx < ob[idx].length; jdx++) {
         if(!res) {
@@ -1298,10 +1299,14 @@ var editManager = EmberObject.extend({
           } else if(id == 'empty' && ob[idx][jdx].empty) {
             res = ob[idx][jdx];
           }
+          // board-detail (and similar) may use plain objects for display; Button methods are required
+          if(res && typeof res.load_image !== 'function') {
+            res = editManager.Button.create(Object.assign({}, res), {board: board});
+            ob[idx][jdx] = res;
+          }
         }
       }
     }
-    var board = this.controller.get('model');
     var buttons = board.contextualized_buttons(editManager.get_app_state().get('label_locale'), editManager.get_app_state().get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, editManager.get_app_state().get('inflection_shift'));
     if(res) {
       var trans_button = buttons.find(function(b) { return b.id == id; });
@@ -1382,7 +1387,7 @@ var editManager = EmberObject.extend({
           return typeof v.get !== 'function'; // exclude Ember models
         };
         for(var bi = 0; bi < boardButtons.length; bi++) {
-          if(boardButtons[bi] && boardButtons[bi].id == id) {
+          if(boardButtons[bi] && String(boardButtons[bi].id) === String(id)) {
             for(var key in options) {
               if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
                 boardButtons[bi][key] = options[key];
@@ -1710,6 +1715,12 @@ var editManager = EmberObject.extend({
       if (this.controller === controller) { this.controller = null; }
       return;
     }
+    var applyBoardDetailFocusDim = function() {
+      if(!controller || !controller.get) { return; }
+      if(controller.get('is_board_detail') && typeof controller._apply_focus_dim_to_ordered_buttons === 'function') {
+        controller._apply_focus_dim_to_ordered_buttons();
+      }
+    };
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
     board.set('display_level', board_level);
     if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying getting contextualized_buttons'); }
@@ -1789,6 +1800,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('already have fast render');
         if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)'); }
         resume_scanning();
+        applyBoardDetailFocusDim();
         return;
       } else {
         board.set('fast_html', null);
@@ -1818,6 +1830,7 @@ var editManager = EmberObject.extend({
           // TODO: this repeats too many times
           if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)'); }
           resume_scanning();
+          applyBoardDetailFocusDim();
           return;
         }
       }
@@ -1893,6 +1906,7 @@ var editManager = EmberObject.extend({
               LingoLinq.log.track('redrawing if needed');
               controller.redraw_if_needed();
               LingoLinq.log.track('done redrawing if needed');
+              applyBoardDetailFocusDim();
               resume_scanning();  
             }
           }
@@ -1904,6 +1918,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('redrawing if needed');
         controller.redraw_if_needed();
         LingoLinq.log.track('done redrawing if needed');
+        applyBoardDetailFocusDim();
         resume_scanning();
         for(var idx = 0; idx < result.length; idx++) {
           for(var jdx = 0; jdx < result[idx].length; jdx++) {

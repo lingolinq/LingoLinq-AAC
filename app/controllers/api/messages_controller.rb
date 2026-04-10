@@ -32,7 +32,7 @@ class Api::MessagesController < ApplicationController
       api_error(400, {error: "message creation failed", errors: m && m.processing_errors})
     else
       if m.settings['recipient'].to_s == 'beta_feedback'
-        Rails.logger.info("Beta feedback stored as ContactMessage #{m.global_id}; mail delivery queued on Resque priority queue")
+        Rails.logger.info("Beta feedback stored as ContactMessage #{m.global_id}")
       end
       render json: {received: true, id: m.global_id}.to_json
     end

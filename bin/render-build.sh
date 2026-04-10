@@ -43,13 +43,6 @@ bundle exec rake extras:copy_terms
 echo "=== Building Frontend (Ember) ==="
 cd app/frontend
 npm install
-# Only run bower install if bower.json exists (migrating away from bower)
-if [ -f "bower.json" ]; then
-  echo "Installing Bower dependencies..."
-  npx bower install --allow-root
-else
-  echo "No bower.json found, skipping bower install"
-fi
 npx ember build --environment production
 cd ../..
 
