@@ -10,6 +10,7 @@ import templateHelpers from './template_helpers';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
 import { set as emberSet, observer } from '@ember/object';
+import app_state from './app_state';
 
 // select language when starting assessment
 
@@ -28,12 +29,13 @@ var evaluation = {
     this._services.i18n = i18n;
     this._services.capabilities = capabilities;
   },
-  get appState() { return this._services.appState; },
+  // Fall back when setup() has not run yet or eval.js was re-evaluated (e.g. dev reload) while the app kept running.
+  get appState() { return this._services.appState || app_state; },
   get persistence() { return this._services.persistence; },
   get stashes() { return this._services.stashes; },
   get speecher() { return this._services.speecher; },
   get utterance() { return this._services.utterance; },
-  get obf() { return this._services.obf; },
+  get obf() { return this._services.obf || (typeof window !== 'undefined' && window.obf); },
   get modal() { return this._services.modal; },
   get i18n() { return this._services.i18n; },
   get capabilities() { return this._services.capabilities; },
@@ -87,6 +89,9 @@ var evaluation = {
       }
       assessment.user_id = settings.for_user.user_id;
       assessment.user_name = settings.for_user.user_name;
+    } else if(!assessment.saved && settings.user_id) {
+      assessment.user_id = settings.user_id;
+      assessment.user_name = settings.user_name;
     }
     if(reload) {
       evaluation.appState.jump_to_board({key: 'obf/eval-' + (new Date()).getTime()});
@@ -98,8 +103,17 @@ var evaluation = {
     assessment.working_stash = Object.assign({}, working);
     assessment.ref_id = assessment.ref_id || "tmp." + (new Date()).getTime() + "." + (Math.random());
     delete assessment.working_stash['ref'];
-    // save the evaluation
-    evaluation.appState.set('last_assessment_for_' + assessment.user_id, assessment);
+    // save the evaluation (must match user.log lookup: same id string + optional username alias)
+    var evaluated_user_id = assessment.user_id;
+    if (evaluated_user_id == null || evaluated_user_id === '') {
+      evaluated_user_id = evaluation.appState.get('currentUser.id');
+      assessment.user_id = evaluated_user_id;
+    }
+    evaluated_user_id = String(evaluated_user_id);
+    evaluation.appState.set('last_assessment_for_' + evaluated_user_id, assessment);
+    if (assessment.user_name) {
+      evaluation.appState.set('last_assessment_for_uname_' + assessment.user_name, assessment);
+    }
     evaluation.stashes.log_event(assessment, assessment.user_id, evaluation.appState.get('sessionUser.id'));
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
@@ -108,6 +122,24 @@ var evaluation = {
     evaluation.appState.controller.transitionToRoute('user.log', assessment.user_name, 'last-eval');
     assessment = {};
     working = {};
+  },
+  last_assessment_from_memory: function(userId, userName) {
+    if (userId != null && userId !== '') {
+      var byId = evaluation.appState.get('last_assessment_for_' + String(userId));
+      if (byId) { return byId; }
+    }
+    if (userName) {
+      return evaluation.appState.get('last_assessment_for_uname_' + userName) || {};
+    }
+    return {};
+  },
+  clear_last_assessment_memory: function(userId, userName) {
+    if (userId != null && userId !== '') {
+      evaluation.appState.set('last_assessment_for_' + String(userId), null);
+    }
+    if (userName) {
+      evaluation.appState.set('last_assessment_for_uname_' + userName, null);
+    }
   },
   settings: function() {
     evaluation.modal.open('modals/assessment-settings', {assessment: assessment});
@@ -164,6 +196,82 @@ var evaluation = {
     working.correct = 0;
     working.fails = 0;
     working.ref.session_events = [];
+    evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+    evaluation.appState.set_history([]);
+  },
+  /** Header shortcuts for intro boards when on-board Start/Skip are obscured (same logic as intro_board handler). */
+  intro_header_visibility: function() {
+    try {
+      if(typeof levels === 'undefined' || !levels || !levels.length) {
+        return { showStart: false, showSkip: false };
+      }
+      if(!working || working.level === undefined || working.level === null) {
+        return { showStart: false, showSkip: false };
+      }
+      var level = levels[working.level];
+      if(!level) { return { showStart: false, showSkip: false }; }
+      var step = level[working.step];
+      if(!step || !step.intro || step.intro === 'done') {
+        return { showStart: false, showSkip: false };
+      }
+      return {
+        showStart: true,
+        showSkip: !step.intro.match(/intro/)
+      };
+    } catch(e) {
+      return { showStart: false, showSkip: false };
+    }
+  },
+  intro_header_start: function() {
+    if(!evaluation.appState.get('speak_mode')) {
+      evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+      return;
+    }
+    evaluation.speecher.click();
+    var level = levels[working.level];
+    if(!level) { return; }
+    var step = level[working.step];
+    if(!step || !step.intro || step.intro === 'done') { return; }
+    if(step.intro == 'find_target') {
+      var start_step = level.find(function(s) { return s.id == "find-4"; });
+      if(start_step) {
+        working.step = level.indexOf(start_step);
+      } else {
+        working.step++;
+      }
+    } else if(step.intro == 'diff_target') {
+      var step_id = 'diff-4';
+      if(working.skill == 1) { step_id = 'diff-15'; }
+      else if(working.skill == 2) { step_id = 'diff-6-24'; }
+      var start_step = level.find(function(s) { return s.id == step_id; });
+      if(start_step) {
+        working.step = level.indexOf(start_step);
+      } else {
+        working.step++;
+      }
+    } else {
+      working.step++;
+    }
+    if(!level[working.step]) {
+      working.level++;
+      working.step = 0;
+    }
+    evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
+    evaluation.appState.set_history([]);
+  },
+  intro_header_skip: function() {
+    if(!evaluation.appState.get('speak_mode')) {
+      evaluation.modal.notice(evaluation.i18n.t('speak_mode_required_for_buttons', "Please enter speak mode before trying to run an evaluation"), true);
+      return;
+    }
+    evaluation.speecher.click();
+    var level = levels[working.level];
+    if(!level) { return; }
+    var step = level[working.step];
+    if(!step || !step.intro || step.intro === 'done') { return; }
+    if(step.intro.match(/intro/)) { return; }
+    working.step = 0;
+    working.level++;
     evaluation.appState.jump_to_board({key: 'obf/eval-' + working.level + '-' + working.step});
     evaluation.appState.set_history([]);
   },
@@ -572,34 +680,34 @@ var evaluation = {
         id: 'button_save',
         skip_vocalization: true,
         image: {url: words.find(function(w) { return w.label == 'done'; }).urls['default']},
-      }, 2, 5);
+      }, 0, 5);
       board.add_button({
         label: 'settings',
         id: 'button_settings',
         skip_vocalization: true,
         image: {url: words.find(function(w) { return w.label == 'think'; }).urls['default']},
-      }, 2, 0);
+      }, 0, 0);
     } else {
       board.add_button({
         label: step.intro.match(/intro/) ? 'next' : 'start',
         id: 'button_start',
         skip_vocalization: true,
         image: {url: words.find(function(w) { return w.label == 'go'; }).urls['default']},
-      }, 2, 5);
+      }, 0, 5);
       if(step.intro.match(/intro/)) {
         board.add_button({
           label: 'settings',
           id: 'button_settings',
           skip_vocalization: true,
           image: {url: words.find(function(w) { return w.label == 'think'; }).urls['default']},
-        }, 2, 0);
+        }, 0, 0);
       } else {
         board.add_button({
           label: 'skip',
           id: 'button_skip',
           skip_vocalization: true,
           image: {url: words.find(function(w) { return w.label == 'right'; }).urls['default']},
-        }, 2, 4);
+        }, 0, 4);
       }
     }
     var handler = function(button) {
@@ -902,6 +1010,19 @@ evaluation.callback = function(key) {
       name: 'Unnamed Eval',
     };
     working = {step: 0};
+  } else if(opts[0] === 'eval' && opts[1] && opts[1].match(/^\d+$/) && opts[2] && opts[2].match(/^\d+$/)) {
+    // board route calls obf.lookup(params.key.split(/\//)[1]) so key is "eval-3-3", not "obf/eval-3-3".
+    // Sync in-memory working to the URL so reload / deep links match the route (was only updated on jump_to_board).
+    working.level = parseInt(opts[1], 10);
+    working.step = parseInt(opts[2], 10);
+    if(opts[3] !== undefined && opts[3] !== '' && String(opts[3]).match(/^\d+$/)) {
+      working.attempts = parseInt(opts[3], 10);
+    }
+    working.level = Math.max(0, Math.min(levels.length - 1, working.level));
+    var _levelArr = levels[working.level];
+    if(_levelArr) {
+      working.step = Math.max(0, Math.min(_levelArr.length - 1, working.step));
+    }
   } else if(!working || working.step == undefined) {
     board = evaluation.obf.shell(1, 1);
     runLater(function() {

@@ -697,7 +697,9 @@ LingoLinq.Board = DS.Model.extend({
       var allReady = true;
       if(!this.get('pending_buttons')) { return; }
       this.get('pending_buttons').forEach(function(b) {
-        if(b.get('content_status') != 'ready' && b.get('content_status') != 'errored') { allReady = false; }
+        // 'missing' = no_lookups / local-only path gave up on image/sound (same as errored for display readiness)
+        var s = b.get('content_status');
+        if(s != 'ready' && s != 'errored' && s != 'missing') { allReady = false; }
       });
       this.set('all_ready', allReady);
     }
@@ -1451,8 +1453,11 @@ LingoLinq.Board = DS.Model.extend({
   render_fast_html: function(size) {
     LingoLinq.log.track('redrawing');
 
-    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), this.stashes.get('working_vocalization'), false, this.appState.get('inflection_shift'));
     var grid = this.get('grid');
+    if(!grid || !(grid.rows >= 1) || !(grid.columns >= 1)) {
+      return null;
+    }
+    var buttons = this.contextualized_buttons(this.appState.get('label_locale'), this.appState.get('vocalization_locale'), this.stashes.get('working_vocalization'), false, this.appState.get('inflection_shift'));
     var ob = [];
     for(var idx = 0; idx < grid.rows; idx++) {
       var row = [];
@@ -1555,9 +1560,9 @@ LingoLinq.Board = DS.Model.extend({
       var holder_style = '';
       if(button.text_only) {
         var fit = capabilities.fit_text(txt, (pos.font_family || opts.font_family || 'Arial'), pos.width, pos.height, 10);
+        holder_style = "style='position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; z-index: 1;'";
         if(fit.any_fit) {
           text_style = "style='font-size: " + fit.size + "px;'";
-          holder_style = "style='position: absolute;'";
         }
       } else if(txt && pos.width) {
         // Scale down label font when text is too wide for the button

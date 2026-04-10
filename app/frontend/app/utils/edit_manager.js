@@ -17,6 +17,13 @@ import i18n from './i18n';
 import { observer } from '@ember/object';
 import utterance from './utterance';
 
+/** True when fast_html can be shown ({{#if board.fast_html.html}}). Ember SafeString is truthy in JS even when empty. */
+export function fastHtmlHasRenderableContent(fast) {
+  if(!fast || fast.html == null) { return false; }
+  var s = typeof fast.html.toString === 'function' ? fast.html.toString() : String(fast.html);
+  return s.length > 0;
+}
+
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
@@ -1786,7 +1793,7 @@ var editManager = EmberObject.extend({
     if(appState.get('speak_mode')) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();
-      if(!ignore_fast_html && board.get('fast_html') 
+      if(!ignore_fast_html && board.get('fast_html') && fastHtmlHasRenderableContent(board.get('fast_html'))
             && board.get('fast_html.width') == controller.get('width') 
             && board.get('fast_html.height') == controller.get('height') 
             && board.get('current_revision') == board.get('fast_html.revision') 
@@ -1822,7 +1829,7 @@ var editManager = EmberObject.extend({
           button_symbol_class: controller.get('button_symbol_class')
         });
 
-        if(fast && fast.html) {
+        if(fastHtmlHasRenderableContent(fast)) {
           // var prior = JSON.stringify(board.get('fast_html'));
           // if(prior && prior != JSON.stringify(fast)) {
             board.set_fast_html(fast);

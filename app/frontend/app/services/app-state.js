@@ -3758,6 +3758,36 @@ export default Service.extend({
   eval_mode: computed('currentBoardState.key', function() {
     return (this.get('currentBoardState.key') || '').match(/^obf\/eval/);
   }),
+  /**
+   * Eval boards require speak mode: fast_html path, eval.js handlers, and the speak header
+   * (eval toolbar lives inside {{#if speak_mode}} in application.hbs).
+   * Dashboard "Run evaluation" uses set_speak_mode_user(..., 'obf/eval') → home_in_speak_mode
+   * → toggle_mode('speak'), which already enables speak mode. This catches jump_to_board,
+   * deep links, or any path that lands on obf/eval without speak mode.
+   */
+  ensure_speak_mode_for_eval: observer('currentBoardState.key', 'stashes.current_mode', function() {
+    if(isTesting()) { return; }
+    var key = this.get('currentBoardState.key') || '';
+    if(!key.match(/^obf\/eval/)) { return; }
+    if(this.get('speak_mode')) { return; }
+    if(this.get('sessionUser.eval_ended')) { return; }
+    var board_state = this.get('currentBoardState');
+    if(!board_state || !board_state.key) { return; }
+    var _this = this;
+    if(this._ensureSpeakForEvalScheduled) { return; }
+    this._ensureSpeakForEvalScheduled = true;
+    runLater(function() {
+      _this._ensureSpeakForEvalScheduled = false;
+      if(!_this || (_this.isDestroyed !== undefined && _this.isDestroyed)) { return; }
+      var k = _this.get('currentBoardState.key') || '';
+      if(!k.match(/^obf\/eval/)) { return; }
+      if(_this.get('speak_mode')) { return; }
+      if(_this.get('sessionUser.eval_ended')) { return; }
+      var bs = _this.get('currentBoardState');
+      if(!bs || !bs.key) { return; }
+      _this.toggle_mode('speak', {force: true, override_state: bs});
+    }, 1);
+  }),
   launch_url: function(button, force, board) {
     var _this = this;
     if(!force && _this.get('currentUser.preferences.external_links') == 'confirm_all') {
