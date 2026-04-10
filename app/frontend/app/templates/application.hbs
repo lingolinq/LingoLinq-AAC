@@ -1241,6 +1241,7 @@
             <img src={{path "images/icon-language-new2.png"}} class="dropdown-menu__language-icon" alt="" aria-hidden="true">
           </a>
         </li>
+        {{!-- Color Tone picker hidden until ready for use
         <li class="divider" role="separator"></li>
         <li class="dropdown-header ll-theme-picker-dropdown-label">{{t "Color Tone" key="color_tone"}}</li>
         <li class="ll-bento-theme-picker-dropdown">
@@ -1263,6 +1264,7 @@
             </div>
           </div>
         </li>
+        --}}
         <li class="divider" role="separator"></li>
         <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
@@ -1382,17 +1384,32 @@
         </svg>
       </button>
     </div>
+    <div class="board-picker__filter">
+      <svg class="board-picker__filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" class="board-picker__filter-input" placeholder={{t "Filter boards..." key="filter_boards"}} value={{this.boardPickerFilter}} oninput={{action "updateBoardPickerFilter" value="target.value"}} autocomplete="off">
+      {{#if this.boardPickerFilter}}
+        <button type="button" class="board-picker__filter-clear" {{action "updateBoardPickerFilter" ""}} aria-label={{t "Clear filter" key="clear_filter"}}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      {{/if}}
+    </div>
     <div id="board_picker_inner">
       {{#if this.boardPickerLoading}}
         <p class="board-picker__loading">{{t "Loading boards..." key="loading_boards"}}</p>
       {{else}}
-        {{#each this.boardPickerBoards as |board|}}
+        {{#each this.filteredBoardPickerBoards as |board|}}
           <a href="#" {{action "pickBoard" board.key}} class="board-picker__item">
             <span class="board-picker__thumb">
               <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
             </span>
             <span class="board-picker__name">{{board.name}}</span>
           </a>
+        {{else}}
+          <p class="board-picker__empty">{{t "No boards match your filter" key="no_boards_match_filter"}}</p>
         {{/each}}
       {{/if}}
     </div>

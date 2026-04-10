@@ -112,6 +112,18 @@ class Api::SearchController < ApplicationController
     render json: req.body
   end
     
+  def batch_parts_of_speech
+    words = (params['words'] || '').split(',').map(&:strip).reject(&:blank?).uniq.first(100)
+    results = {}
+    words.each do |word|
+      data = WordData.find_word(word)
+      if data && data['types']
+        results[word] = { 'types' => data['types'], 'word' => data['word'] }
+      end
+    end
+    render json: { results: results }
+  end
+
   def parts_of_speech
     data = WordData.find_word(params['q'])
     res = {}

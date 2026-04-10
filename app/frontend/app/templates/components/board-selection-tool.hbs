@@ -1,6 +1,9 @@
 <div >
-  {{#if this.status.loading}}
-    {{t "Loading Layouts..." key="loading_layouts"}}
+  {{#if this._boards_loading}}
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 16px;">
+      <div class="md-loading-spinner"></div>
+      <p style="color: #6b7280; font-size: 16px; margin: 0;">{{t "Loading Layouts..." key="loading_layouts"}}</p>
+    </div>
   {{else if this.status.error}}
     {{t "Error Loading Layouts" key="error_loading_layouts"}}
   {{else if this.boards}}

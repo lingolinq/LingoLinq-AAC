@@ -301,6 +301,9 @@ var modal = EmberObject.extend({
       modal.close(null, 'highlight');
       modal.close(null, 'highlight-secondary');
     }
+    // Clear highlight settings even without controller
+    this.highlight_settings = null;
+    this.highlight2_settings = null;
   },
   close: function(success, outlet) {
     outlet = outlet || 'modal';

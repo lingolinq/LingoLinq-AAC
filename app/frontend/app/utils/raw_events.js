@@ -299,7 +299,7 @@ $(document).on('mousedown touchstart', function(event) {
     scanner.prev();
     event.preventDefault();
   } else if((event.keyCode || -1) == buttonTracker.check('cancel_keycode') || (event.code || -1) == buttonTracker.check('cancel_keycode')) { // esc key
-    scanner.stop();
+    scanner.escape();
     event.preventDefault();
   }
 }).on('facechange', function(event) {

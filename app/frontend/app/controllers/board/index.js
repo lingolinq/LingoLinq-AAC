@@ -740,8 +740,8 @@ export default Controller.extend({
               }
             }
           }
-          var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
-          var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
+          var image_height = (button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
+          var image_width = (button_width - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
 
           var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
           if(_this.get('model.text_size') == 'really_small_text') {

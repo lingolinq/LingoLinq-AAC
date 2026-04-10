@@ -1,0 +1,122 @@
+<div id="index_view" class="row main_columns" style="touch-action: manipulation;">
+<div class="md-shell md-shell--extras-view">
+  <div class="md-workspace">
+    <nav class="md-pillnav" aria-label={{t "Navigation" key="navigation"}}>
+      <LinkTo @route="index" class="md-pillnav__pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+        {{t "Home" key="home"}}
+      </LinkTo>
+      <span class="md-pillnav__pill is-active">{{t "My Caseload" key="my_caseload"}}</span>
+    </nav>
+
+    <article class="md-card md-card--sup" aria-label={{t "My Caseload" key="my_caseload"}}>
+      <div class="md-card__head md-card__head--between">
+        <div>
+          <div class="md-card__title">{{t "My Caseload" key="my_caseload"}}</div>
+          <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
+        </div>
+      </div>
+
+      <div class="md-caseload">
+        {{#if this.supervisees.length}}
+          <div class="md-caseload__grid">
+            {{#each this.supervisees as |supervisee|}}
+              <div class="md-caseload__card">
+                <div class="md-caseload__card-header">
+                  <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__avatar-link">
+                    <img src={{supervisee.avatar_url}} alt="" class="md-caseload__avatar">
+                    {{#if supervisee.online}}
+                      <span class="md-caseload__online" title={{t "currently online" key="currently_online"}}></span>
+                    {{/if}}
+                  </LinkTo>
+                  <div class="md-caseload__info">
+                    <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__name">{{supervisee.user_name}}</LinkTo>
+                    {{#if supervisee.goal}}
+                      <span class="md-caseload__goal">{{supervisee.goal.summary}}</span>
+                    {{else}}
+                      <span class="md-caseload__goal md-caseload__goal--empty">
+                        {{t "no goal set" key="no_goal_set"}}
+                        {{#if this.persistence.online}}
+                          <a href="#" {{action "set_goal" supervisee}}>{{t "set a goal" key="set_a_goal"}}</a>
+                        {{/if}}
+                      </span>
+                    {{/if}}
+                  </div>
+                </div>
+
+                <div class="md-caseload__actions">
+                  {{#if supervisee.home_board_key}}
+                    <button type="button" class="md-caseload__action md-caseload__action--primary" {{action "homeInSpeakMode" supervisee.id true}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#2A9D8F"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#46505F"/>
+                      </svg>
+                      <span>{{t "Model for" key="model_for"}} {{supervisee.user_name}}</span>
+                    </button>
+                    <button type="button" class="md-caseload__action" {{action "homeInSpeakMode" supervisee.id}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="#46505F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#2A9D8F"/>
+                      </svg>
+                      <span>{{t "Speak as" key="speak_as"}} {{supervisee.user_name}}</span>
+                    </button>
+                  {{else}}
+                    <button type="button" class="md-caseload__action" {{action "intro" supervisee.id}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#2A9D8F"/>
+                      </svg>
+                      <span>{{t "Setup User" key="setup_user"}}</span>
+                    </button>
+                  {{/if}}
+                  <button type="button" class="md-caseload__action" {{action "stats" supervisee.user_name}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="18" y1="20" x2="18" y2="10" stroke="#2A9D8F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#46505F"/><line x1="6" y1="20" x2="6" y2="14" stroke="#2A9D8F"/>
+                    </svg>
+                    <span>{{t "Usage Reports" key="usage_reports"}}</span>
+                  </button>
+                  <button type="button" class="md-caseload__action" {{action "modeling_ideas" supervisee.user_name}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 18h6" stroke="#46505F"/><path d="M10 22h4" stroke="#46505F"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" stroke="#2A9D8F"/>
+                    </svg>
+                    <span>{{t "Modeling Ideas" key="modeling_ideas"}}</span>
+                  </button>
+                  <div class="md-caseload__extras">
+                    <div class="md-caseload__extras-dropdown">
+                      <button type="button" class="md-caseload__action md-caseload__action--extras" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-right">
+                        {{#if supervisee.home_board_key}}
+                          <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
+                        {{/if}}
+                        <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
+                        <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
+                        <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                        <li><a href="#" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {{#if supervisee.current_badge}}
+                  {{#if supervisee.premium}}
+                    <div class="md-caseload__badge-progress">
+                      {{badge-progress badge=supervisee.current_badge}}
+                    </div>
+                  {{/if}}
+                {{/if}}
+              </div>
+            {{/each}}
+          </div>
+        {{else}}
+          <div class="md-caseload__empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#7693B9"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#7693B9"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/>
+            </svg>
+            <p class="md-caseload__empty-title">{{t "No communicators yet" key="no_communicators_yet"}}</p>
+            <p class="md-caseload__empty-desc">{{t "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicator's account." key="no_supervisors_explainer"}}</p>
+          </div>
+        {{/if}}
+      </div>
+    </article>
+  </div>
+</div>
+</div>

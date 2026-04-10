@@ -47,8 +47,30 @@
             </div>
             {{/if}}
           </div>
-          <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}>
-            {{#each this.boardsCtrl.mineTagFolderSummaries as |folder|}}
+          <form class="ub-boards-page__folder-filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+            <label for="folder-filter-input" class="ub-boards-page__folder-filter-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              {{t "Filter" key="filter"}}
+            </label>
+            <input
+              id="folder-filter-input"
+              type="text"
+              class="ub-boards-page__folder-filter-input"
+              placeholder={{t "Search folders and boards..." key="filter_folders"}}
+              value={{this.folderFilterString}}
+              {{on "input" (action "updateFolderFilter")}}
+            />
+            {{#if this.folderFilterString}}
+              <button type="button" class="ub-boards-page__folder-filter-clear" {{action "clearFolderFilter"}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                {{t "Clear" key="clear"}}
+              </button>
+            {{/if}}
+          </form>
+          <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
+            {{on "dragover" (action "emptyFolderDragOver")}}
+            {{on "drop" (action "emptyFolderDrop")}}
+          >
+            {{#each this.filteredFolderSummaries as |folder|}}
               <button
                 type="button"
                 class="ub-boards-page__tag-folder"
@@ -67,31 +89,37 @@
                   <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
                 </span>
               </button>
+            {{else}}
+              <div class="ub-boards-page__folder-strip-empty">
+                <span class="ub-boards-page__folder-strip-empty-text">{{t "No folders yet — drag a board here to create one" key="no_folders_yet_drag"}}</span>
+              </div>
             {{/each}}
           </div>
         </div>
         {{/unless}}
       {{/if}}
 
-      <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
-        <label for={{this.filterInputId}} class="ub-boards-page__filter-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          {{t "Filter" key="filter"}}
-        </label>
-        <input
-          id={{this.filterInputId}}
-          type="text"
-          class="ub-boards-page__filter-input"
-          placeholder={{t "Filter boards..." key="filter_results"}}
-          value={{this.boardsCtrl.filterString}}
-          {{on "input" (action "updateFilterString" target=this.boardsCtrl)}}
-        />
-        {{#if this.boardsCtrl.filterString}}
-          <button type="button" class="ub-boards-page__filter-clear" {{action "clearFilter" target=this.boardsCtrl}} aria-label={{t "Clear filter" key="clear_filter"}}>
-            {{t "Clear" key="clear"}}
-          </button>
-        {{/if}}
-      </form>
+      {{#unless this.boardsCtrl.allBoardsCategorized}}
+        <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+          <label for={{this.filterInputId}} class="ub-boards-page__filter-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            {{t "Filter" key="filter"}}
+          </label>
+          <input
+            id={{this.filterInputId}}
+            type="text"
+            class="ub-boards-page__filter-input"
+            placeholder={{t "Filter boards..." key="filter_results"}}
+            value={{this.boardsCtrl.filterString}}
+            {{on "input" (action "updateFilterString" target=this.boardsCtrl)}}
+          />
+          {{#if this.boardsCtrl.filterString}}
+            <button type="button" class="ub-boards-page__filter-clear" {{action "clearFilter" target=this.boardsCtrl}} aria-label={{t "Clear filter" key="clear_filter"}}>
+              {{t "Clear" key="clear"}}
+            </button>
+          {{/if}}
+        </form>
+      {{/unless}}
 
       {{#if this.boardsCtrl.mineFoldersEnabled}}
         {{#if this.boardsCtrl.mineTagFolderDrillIn}}
@@ -121,7 +149,7 @@
                   <button type="button" class="ub-boards-page__folder-edit-btn" {{action "startFolderRename"}} aria-label={{t "Rename folder" key="rename_folder"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button type="button" class="ub-boards-page__folder-delete-btn" {{action "startDeleteFolder"}} aria-label={{t "Delete folder" key="delete_folder"}}>
+                  <button type="button" class="ub-boards-page__folder-delete-btn" {{on "click" (action "startDeleteFolder")}} aria-label={{t "Delete folder" key="delete_folder"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </span>
@@ -130,6 +158,7 @@
           </div>
           <hr class="ub-boards-page__folder-context-divider">
           {{#if this.confirmingFolderDelete}}
+            <div class="la-delete-folder-backdrop" {{action "cancelDeleteFolder"}}></div>
             <div class="la-delete-folder-modal la-delete-folder-modal--inline">
               <div class="la-modal-header">
                 <span class="la-modal-header-label">{{t "Delete Folder" key="delete_folder"}}</span>

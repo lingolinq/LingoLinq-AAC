@@ -1,6 +1,7 @@
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
+import { later as runLater } from '@ember/runloop';
 import i18n from '../../utils/i18n';
 import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
@@ -81,6 +82,11 @@ export default Route.extend({
 
     if(!model || model.error) { return; }
 
+    // Load button set for find-a-button functionality
+    if(model.get('valid_id') && !model.get('integration')) {
+      model.load_button_set();
+    }
+
     // Set currentBoardState
     var board_langs = (model.get('locales') || []);
     _this.appState.set('currentBoardState', {
@@ -156,6 +162,13 @@ export default Route.extend({
       controller.set('_was_not_speak_mode', true);
       _this.stashes.persist('current_mode', 'speak');
     }
+
+    // Trigger scanning check after speak mode is set and buttons are rendered
+    runLater(function() {
+      if(_this.appState && typeof _this.appState.check_scanning === 'function') {
+        _this.appState.check_scanning();
+      }
+    }, 500);
   },
 
   resetController: function(controller, isExiting) {

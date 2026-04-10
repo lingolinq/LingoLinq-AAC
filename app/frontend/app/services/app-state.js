@@ -640,7 +640,7 @@ export default Service.extend({
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
-    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index') {
+    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index' && transition.to_route != 'user.board-detail.index' && transition.to_route != 'user.board-detail.edit') {
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
@@ -1646,12 +1646,12 @@ export default Service.extend({
       if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
         buttonTracker.scanning_enabled = true;
         buttonTracker.any_select = _this.get('currentUser.preferences.device.scanning_select_on_any_event');
-        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode');
+        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode') || 32; // default: spacebar
         buttonTracker.skip_header = _this.get('currentUser.preferences.device.scanning_skip_header');
         buttonTracker.scan_modeling = _this.get('currentUser.preferences.device.scan_modeling');
-        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode');
+        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode') || 13; // default: Enter
         buttonTracker.prev_keycode = _this.get('currentUser.preferences.device.scanning_prev_keycode');
-        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode');
+        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode') || 27; // default: Escape
         buttonTracker.left_screen_action = _this.get('currentUser.preferences.device.scanning_left_screen_action');
         buttonTracker.right_screen_action = _this.get('currentUser.preferences.device.scanning_right_screen_action');
         if(capabilities.system == 'iOS' && !capabilities.installed_app && !buttonTracker.left_screen_action && !buttonTracker.right_screen_action) {
@@ -1659,6 +1659,10 @@ export default Service.extend({
         }
         if(modal.is_open() && (!modal.highlight_settings || modal.highlight_settings.highlight_type != 'button_search')) {
           modal.close();
+        }
+        // Ensure scanner has a reference to appState for preference checks
+        if(!scanner.get('appState')) {
+          scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
         scanner.start({
@@ -2338,7 +2342,7 @@ export default Service.extend({
           var noticed = false;
           if(this.stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
+            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), false);
           }
           if(this.get('currentBoardState.has_fallbacks')) {
             modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);

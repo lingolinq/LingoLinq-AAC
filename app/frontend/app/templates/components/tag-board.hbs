@@ -41,6 +41,10 @@
         {{/if}}
       </div>
 
+      {{#if this.matchingTag}}
+        <p class="la-tag-board-info">{{t "This board will be added to the existing \"%{name}\" folder" key="category_exists_will_add" name=this.matchingTag}}</p>
+      {{/if}}
+
       {{#if this.boardForTag.downstream_boards}}
         <div class="la-tag-board-section">
           <label class="la-tag-board-checkbox">

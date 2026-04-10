@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
@@ -6,6 +7,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  app_state: service('app-state'),
   refresh_lists: function() {
     this.set('logs', {});
     this.refresh_stats();

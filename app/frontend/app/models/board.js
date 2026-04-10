@@ -1175,18 +1175,18 @@ LingoLinq.Board = DS.Model.extend({
       this.set('button_set_needs_reload', null);
     }
     if(this.get('button_set') && !force) {
-      if(this.get('button_set.buttons') || this.get('button_set.root_url')) {
+      if((this.get('button_set.buttons.length')) || this.get('button_set.root_url')) {
         return this.get('button_set').load_buttons().then(sync_buttons_from_set);
       }
     }
-    if(this.get('local_only')) { 
-      var res = RSVP.reject({error: 'board is local only'}); 
+    if(this.get('local_only')) {
+      var res = RSVP.reject({error: 'board is local only'});
       res.then(null, function() { });
       return res;
     }
     if(!this.get('id')) { return RSVP.reject({error: 'board has no id'}); }
     var button_set = LingoLinq.store.peekRecord('buttonset', this.get('id'));
-    if(button_set && !force && (button_set.get('buttons') || button_set.get('root_url'))) {
+    if(button_set && !force && ((button_set.get('buttons') && button_set.get('buttons').length) || button_set.get('root_url'))) {
       this.set('button_set', button_set);
       return button_set.load_buttons().then(sync_buttons_from_set);
     } else {
@@ -1194,7 +1194,7 @@ LingoLinq.Board = DS.Model.extend({
       // first check if there's a satisfactory higher-level buttonset that can be used instead
       LingoLinq.store.peekAll('buttonset').map(function(i) { return i; }).forEach(function(bs) {
         if(bs && (bs.get('board_ids') || []).indexOf(_this.get('id')) != -1) {
-          if(bs.get('buttons') || bs.get('root_url')) {
+          if((bs.get('buttons') && bs.get('buttons').length) || bs.get('root_url')) {
             if(bs.get('fresh') || !valid_button_set) {
               valid_button_set = bs;
             }
@@ -1524,11 +1524,11 @@ LingoLinq.Board = DS.Model.extend({
       var opts = Button.button_styling(button, _this, pos);
       var anchor_class = (opts.button_class && opts.button_class.toString().indexOf('button') !== -1) ? opts.button_class : ('button ' + (opts.button_class || ''));
 
-      // Add darkened border inline (same approach as board-detail page)
+      // Add darkened outline inline (same approach as board-detail page)
       var btnStyle = opts.button_style || '';
       if(button.background_color && window.tinycolor) {
         var darkenedBorder = window.tinycolor(button.background_color).darken(20).toRgbString();
-        btnStyle = btnStyle + 'border-color:' + darkenedBorder + ';';
+        btnStyle = btnStyle + 'outline-color:' + darkenedBorder + ';';
       }
       res = res + "<a href='#' style='" + btnStyle + "' class='" + anchor_class + "' data-id='" + button.id + "' tabindex='0'>";
       res = res + "<div class='" + opts.action_class + "'>";
@@ -1627,8 +1627,8 @@ LingoLinq.Board = DS.Model.extend({
         var top = extra_pad + (i * starting_height);
         var left = extra_pad + (j * starting_width) - 2;
 
-        var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
-        var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
+        var image_height = (button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
+        var image_width = (button_width - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
 
         var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
         if(_this.get('text_size') == 'really_small_text') {

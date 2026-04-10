@@ -10,6 +10,24 @@
     </div>
   {{/if}}
 
+  {{!-- Link to Caseload --}}
+  {{#if this.app_state.currentUser.supporter_role}}
+    <div class="md-org-supervisees-link">
+      <LinkTo @route="caseload" class="md-org-supervisees-link__card">
+        <div class="md-org-supervisees-link__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2A9D8F"/>
+          </svg>
+        </div>
+        <div class="md-org-supervisees-link__text">
+          <span class="md-org-supervisees-link__label">{{t "My Caseload" key="my_caseload"}}</span>
+          <span class="md-org-supervisees-link__desc">{{t "View and manage your communicators" key="view_manage_communicators"}}</span>
+        </div>
+        <svg class="md-org-supervisees-link__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      </LinkTo>
+    </div>
+  {{/if}}
+
   {{!-- ═══════════════ Dashboard Stats (visible to managing users) ═══════════════ --}}
   {{#if this.model.permissions.manage}}
     <section class="md-org-stats" aria-label={{t "Organization Statistics" key="org_statistics"}}>

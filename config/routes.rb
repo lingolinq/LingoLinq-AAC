@@ -269,6 +269,7 @@ LingoLinq::Application.routes.draw do
     get "search/external_resources" => "search#external_resources"
     get "search/proxy" => "search#proxy"
     get "search/parts_of_speech" => "search#parts_of_speech"
+    get "search/batch_parts_of_speech" => "search#batch_parts_of_speech"
     get "search/apps" => "search#apps"
     get "search/audio" => "search#audio"
     get "search/focus" => "search#focuses"
