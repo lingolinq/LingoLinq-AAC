@@ -67,6 +67,12 @@ $la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
 #within_ember:has(header.header-index-with-dark-toggle #nav_header) {
   --topbar-height: 135px;
 }
+/* Board index route: header often lacks header-index-with-dark-toggle; speak bar still needs the same
+   --topbar-height baseline so board/index ResizeObserver math matches #content padding (see docs/SPEAK_MODE_EVAL_LAYOUT.md). */
+#within_ember.board-view:has(#inner_header #speak),
+#within_ember.board-alt-view:has(#inner_header #speak) {
+  --topbar-height: 135px;
+}
 /* Landing navbar: target height 88–96px; footer 50% taller and content vertically centered */
 #within_ember:has(header.header--unauthenticated) {
   --topbar-height: 92px;
@@ -1636,6 +1642,12 @@ header:has(#normal_mode) #inner_header {
   gap: 2px !important;
 
 }
+/* Evaluation toolbar + sentence strip: allow wrap on narrow viewports so inner_header height updates via ResizeObserver */
+#inner_header:has(#speak) #speak:has(.speak-bar__eval-actions) {
+  flex-wrap: wrap !important;
+  align-items: stretch !important;
+  row-gap: 4px !important;
+}
 
 #inner_header:has(#speak) .speak-header__home-marker {
   float: none !important;
@@ -1879,6 +1891,17 @@ header:has(#normal_mode) #inner_header {
 
   min-height: 90px !important;
 
+}
+
+/* Intro Start/Skip: smaller than prev/next/settings (must follow 90px eval rule) */
+#inner_header:has(#speak) .speak-bar__eval-actions .btn.speak-bar__eval-btn.speak-bar__eval-btn--compact {
+  height: auto !important;
+  min-height: 44px !important;
+  max-height: 56px !important;
+  padding: 6px 10px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
 }
 #inner_header:has(#speak) #clear_button .button_icon,
 #inner_header:has(#speak) #clear_button .glyphicon {
@@ -6864,6 +6887,20 @@ body > .popover.bottom {
   width: -webkit-calc(100% - 0.1rem);
   width: calc(100% - 0.1rem);
 }
+/* Board routes: #within_ember uses overflow:hidden; padding-top + board height can exceed the visible
+   viewport (e.g. DevTools docked, speak bar wrapping). Cap #content to the dynamic viewport and scroll
+   so the bottom of the grid is reachable without clipping.
+   Omit the global +3rem on #content — that extra ~48px is legacy breathing room; --topbar-height plus
+   --speak-bar-extra already offset the fixed header + wrapped speak bar (see board/index ResizeObserver). */
+#within_ember.board-view #content,
+#within_ember.board-alt-view #content {
+  padding-top: calc(var(--topbar-height) + var(--speak-bar-extra, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 100vh;
+  max-height: 100dvh;
+  box-sizing: border-box;
+}
 /* Default: allow page scroll. Do not apply when bento footer layout is active (so full-height chain rules can take effect). */
 html:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))),
 body:not(:has(#within_ember.bento-page-with-footer)):not(:has(#within_ember:has(.page-footer))) {
@@ -7217,6 +7254,17 @@ body.pretty_loader #loading_box {
 }
 .board.text_none .button .button-label {
   display: none;
+}
+/* Keyboard / symbol-free rows: the label *is* the button content; device "text none" must not hide it. */
+.board.text_none .button .button-label-holder.no_image .button-label {
+  display: block !important;
+}
+/* fast_html applies large inline font-size; default span height + overflow:hidden clips glyphs entirely. */
+.button .button-label-holder.no_image span.button-label {
+  height: auto !important;
+  max-height: none;
+  overflow: visible !important;
+  line-height: 1.05;
 }
 .board .button.small_text {
   span.button-label {

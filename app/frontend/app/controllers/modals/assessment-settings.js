@@ -20,10 +20,14 @@ export default modal.ModalController.extend({
       settings.user_id = app_state.get('currentUser.id') || settings.initiator_user_id;
       settings.user_name = app_state.get('currentUser.name') || settings.initiator_user_name;
     }
-    if(settings.user_id && !settings.for_user) {
-      settings.for_user = {user_id: settings.user_id, user_name: settings.user_name};
+    if(!settings.for_user) {
+      if(settings.user_id) {
+        settings.for_user = {user_id: settings.user_id, user_name: settings.user_name || app_state.get('currentUser.user_name')};
+      } else {
+        settings.for_user = {user_id: 'self', user_name: app_state.get('currentUser.user_name')};
+      }
     }
-    if(settings.for_user.user_id == app_state.get('sessionUser.id')) {
+    if(settings.for_user && settings.for_user.user_id == app_state.get('sessionUser.id')) {
       settings.for_user.user_id = 'self';
     }
     settings.prompts_delay || '';

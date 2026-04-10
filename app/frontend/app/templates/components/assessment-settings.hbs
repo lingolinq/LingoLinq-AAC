@@ -44,7 +44,7 @@
                 <span class='caret' style='position: absolute; right: 5px; top: 15px;'></span>
               </button>
               <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style='max-height: 225px; overflow: auto;'>
-                {{#each this.symbol_options as |option|}}
+                {{#each this.eval_symbol_options as |option|}}
                   <li role="presentation">
                     <a role="menuitem" class='symbol_target' href="#" tabindex="-1" {{action "choose" option.id}}>
                       {{#each option.images as |url|}}

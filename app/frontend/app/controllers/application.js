@@ -106,6 +106,20 @@ export default Controller.extend({
     return this.get('on_board') || this.get('on_board_alt');
   }),
 
+  /** Intro-only header shortcuts (mirror on-board Start/Skip when board controls are obscured). */
+  eval_intro_header_show_start: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    if(!ev || !ev.intro_header_visibility) { return false; }
+    return ev.intro_header_visibility().showStart;
+  }),
+  eval_intro_header_show_skip: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    if(!ev || !ev.intro_header_visibility) { return false; }
+    return ev.intro_header_visibility().showSkip;
+  }),
+
   boardPickerVisible: false,
   boardMenuOpen: false,
   boardPickerLoading: false,
@@ -586,6 +600,12 @@ export default Controller.extend({
     },
     change_section: function(direction) {
       obf.eval.move(direction);
+    },
+    eval_intro_header_start: function() {
+      obf.eval.intro_header_start();
+    },
+    eval_intro_header_skip: function() {
+      obf.eval.intro_header_skip();
     },
     jump_section: function() {
       obf.eval.jump_to();
