@@ -3,7 +3,7 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
-import editManager from '../../utils/edit_manager';
+import editManager, { fastHtmlHasRenderableContent } from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
 import { inject as service } from '@ember/service';
@@ -277,16 +277,17 @@ export default Controller.extend({
     'appState.referenced_user.preferences.skin',
     'appState.referenced_user.preferences.preferred_symbols',
     function() {
-      var res = !!(this.get('model.fast_html') && this.get('model.fast_html.width') == this.get('width') 
-            && this.get('model.fast_html.height') == this.get('height') 
-            && this.get('model.current_revision') == this.get('model.fast_html.revision') 
-            && this.get('model.fast_html.label_locale') == this.appState.get('label_locale') 
-            && this.get('model.fast_html.display_level') == this.get('model.display_level') 
-            && this.appState.get('inflection_prefix') == this.get('model.fast_html.inflection_prefix') 
-            && this.appState.get('inflection_shift') == this.get('model.fast_html.inflection_shift') 
-            && this.appState.get('referenced_user.preferences.skin') == this.get('model.fast_html.skin') 
-            && this.appState.get('referenced_user.preferences.preferred_symbols') == this.get('model.fast_html.symbols') 
-            && this.get('model.focus_id') == this.get('model.fast_html.focus_id'));
+      var fast = this.get('model.fast_html');
+      var res = !!(fast && fastHtmlHasRenderableContent(fast) && fast.width == this.get('width')
+            && fast.height == this.get('height')
+            && this.get('model.current_revision') == fast.revision
+            && fast.label_locale == this.appState.get('label_locale')
+            && fast.display_level == this.get('model.display_level')
+            && this.appState.get('inflection_prefix') == fast.inflection_prefix
+            && this.appState.get('inflection_shift') == fast.inflection_shift
+            && this.appState.get('referenced_user.preferences.skin') == fast.skin
+            && this.appState.get('referenced_user.preferences.preferred_symbols') == fast.symbols
+            && this.get('model.focus_id') == fast.focus_id);
       return res;
     }
   ),
@@ -380,7 +381,7 @@ export default Controller.extend({
       }
       var width = inner_width;
       var sidebar_width = window.innerWidth <= 767 ? 75 : 100;
-      if(this.appState.get('sidebar_visible')) {
+      if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width; // TODO: make sidebar size configurable, or have it match top bar
       }
       this.set('window_inner_width', inner_width);
@@ -452,6 +453,22 @@ export default Controller.extend({
             _thisCtrl.appState.refresh_suggestions();
           }
         });
+      } else if(this.appState.get('speak_mode') && this.get('model') && this.get('model.grid')) {
+        // First layout can run before speak bar height is final (ResizeObserver / extra_header_height).
+        // Without a re-run, fast_html/ordered_buttons may never match viewport → "Loading" until a full route refresh (e.g. Back).
+        var nw = this.get('width');
+        var nh = this.get('height');
+        if(nw > 0 && nh > 0) {
+          var layoutKey = (this.get('model.id') || '') + '|' + nw + '|' + nh;
+          if(this._lastSpeakLayoutProcessKey !== layoutKey) {
+            this._lastSpeakLayoutProcessKey = layoutKey;
+            var _dimCtrl = this;
+            runLater(function() {
+              if(_dimCtrl.isDestroyed || !_dimCtrl.get('model')) { return; }
+              editManager.process_for_displaying();
+            });
+          }
+        }
       }
     }
   ),
@@ -459,6 +476,7 @@ export default Controller.extend({
   _watchSpeakMode: observer('appState.speak_mode', function() {
     var _this = this;
     if (_this.appState.get('speak_mode')) {
+      _this.set('_lastSpeakLayoutProcessKey', null);
       runLater(function() { _this._setupSpeakBarObserver(); }, 100);
     } else {
       _this._teardownSpeakBarObserver();

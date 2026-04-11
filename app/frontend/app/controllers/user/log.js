@@ -153,7 +153,7 @@ export default Controller.extend({
       if(this.get('model.type') == 'eval') {
         var assessment = this.get('model.evaluation');
         if(this.get('model.eval_in_memory')) {
-          assessment = app_state.get('last_assessment_for_' + this.get('user.id')) || {};
+          assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
         }
         window.current_assesment = assessment;
         return evaluation.analyze(assessment);
@@ -197,7 +197,7 @@ export default Controller.extend({
     resume: function() {
       var assessment = this.get('model.evaluation');
       if(this.get('model.eval_in_memory')) {
-        assessment = app_state.get('last_assessment_for_' + this.get('user.id')) || {};
+        assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
         // TODO: how to get log_session_id for in-memory evaluation
         assessment.log_session_id;
       } else {

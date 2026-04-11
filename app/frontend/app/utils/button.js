@@ -914,7 +914,12 @@ Button.action_styling = function(action, button) {
 };
 Button.image_holder_style = function(pos, text_only) {
   if(!pos || !pos.image_height) { return ""; }
-  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_width + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
+  // Text-only buttons: no symbol image — do not reserve the "image" band or the label sits below an
+  // empty ~70px-tall span and gets clipped by the short button (keyboard / eval open-keyboard steps).
+  if(text_only) {
+    return "display: block; width: 100%; height: 0; margin: 0; padding: 0; line-height: 0; overflow: hidden;";
+  }
+  return "margin-top: " + pos.image_top_margin + "px; vertical-align: top; display: inline-block; width: " + pos.image_width + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
 };
 Button.image_style = function(pos) {
   if(!pos || !pos.image_height) { return ""; }
