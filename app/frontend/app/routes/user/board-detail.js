@@ -48,6 +48,21 @@ export default Route.extend({
 
     controller.set('model', model);
     controller.set('user', user);
+
+    // Mirror the board model onto the `board.index` controller. The
+    // application controller injects `board: inject('board.index')` and
+    // reads `this.get('board.model')` from many legacy code paths —
+    // notably `highlight_button` / `activateButton` / the find-button
+    // modal's result-picking logic. Without this, those paths see
+    // `board.model == null` while we are on the board-detail route and
+    // silently no-op. Sharing the same model instance keeps every legacy
+    // hook working unchanged.
+    try {
+      var boardIndexController = this.controllerFor('board.index');
+      if (boardIndexController) {
+        boardIndexController.set('model', model);
+      }
+    } catch (e) { /* board.index controller may not exist yet on first load */ }
     controller.set('boardname', (model.get ? model.get('key') : '').split('/').slice(1).join('/') || '');
     controller.set('ordered_buttons', null);
     controller.set('preview_level', null);
@@ -67,8 +82,16 @@ export default Route.extend({
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
     controller.set('folder_dropdown_open', false);
 
-    // Default panels to collapsed (unexpanded)
-    controller.set('panels_collapsed', true);
+    // Default panels to collapsed (unexpanded), unless a one-shot flag was
+    // set by an in-page navigation that wants to preserve the expanded state
+    // (e.g. clicking Symbol Board to reload the current board view).
+    var keep_expanded = this.appState.get('board_detail_keep_panels_expanded');
+    if(keep_expanded) {
+      controller.set('panels_collapsed', false);
+      this.appState.set('board_detail_keep_panels_expanded', false);
+    } else {
+      controller.set('panels_collapsed', true);
+    }
     controller.set('board_collapsed', true);
 
     // Initialize the user's saved voice for speech synthesis

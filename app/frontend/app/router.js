@@ -58,7 +58,6 @@ Router.map(function() {
   this.route('board-layout', { path: '/board-layout/*board_key' });
   this.route('create-board', { path: '/create-board' });
   this.route('about', { path: '/about' });
-  this.route('landing', { path: '/landing' });
   this.route('landing-alt', { path: '/landing-alt' });
   this.route('download', { path: '/download' });
   this.route('terms', { path: '/terms' });

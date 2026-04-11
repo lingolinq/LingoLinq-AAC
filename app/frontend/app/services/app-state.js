@@ -2180,7 +2180,7 @@ export default Service.extend({
   }),
   index_or_landing_view: computed('index_view', 'current_route', function() {
     var route = this.get('current_route');
-    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing' || route === 'landing-alt' || route === 'bento';
+    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento';
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
