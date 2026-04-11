@@ -48,6 +48,10 @@ services:
         value: /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
       - key: MALLOC_CONF
         value: "background_thread:true,narenas:2,dirty_decay_ms:1000"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: RUBY_YJIT_ENABLE
+        value: "1"
   - type: worker
     name: LingoLinq-AAC-Worker
     runtime: ruby
@@ -79,6 +83,12 @@ services:
           property: connectionString
       - key: RAILS_LOG_TO_STDOUT
         value: "true"
+      - key: LD_PRELOAD
+        value: /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+      - key: MALLOC_CONF
+        value: "background_thread:true,narenas:2,dirty_decay_ms:1000"
+      - key: RUBY_YJIT_ENABLE
+        value: "1"
 
 databases:
   - name: lingolinq-prod-db

@@ -51,6 +51,14 @@ class BoardContent < ApplicationRecord
     # Load the current state, using the board settings first and
     # the offloaded content second
     raise "unexpected attribute for loading, #{attr}" unless OFFLOADABLE_ATTRIBUTES.include?(attr)
+
+    # Request/job-scoped cache to avoid re-parsing the same content multiple times
+    # within a single request or background job. Cleared by ApplicationController
+    # and Worker after each request/job.
+    Thread.current[:board_content_cache] ||= {}
+    cache_key = "#{board.global_id}/#{attr}"
+    return Thread.current[:board_content_cache][cache_key] if Thread.current[:board_content_cache].has_key?(cache_key)
+
     from_offload = false
     board.settings ||= {}
     res = board.settings[attr] if !board.settings[attr].blank?
@@ -85,6 +93,7 @@ class BoardContent < ApplicationRecord
         end
       end
     end
+    Thread.current[:board_content_cache][cache_key] = res
     res
   end
 

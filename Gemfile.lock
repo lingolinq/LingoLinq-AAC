@@ -577,6 +577,7 @@ DEPENDENCIES
   mutex_m
   newrelic_rpm
   obf
+  oj (~> 3.16)
   paper_trail (~> 15.0)
   permissable-coughdrop
   pg (~> 1.5)

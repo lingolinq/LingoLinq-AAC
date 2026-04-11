@@ -72,6 +72,8 @@ module Converters::LingoLinq
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
+    # Load translations once per board instead of once per button (was an N+1 within a loop)
+    all_translations = BoardContent.load_content(board, 'translations') || {}
     Progress.as_percent(0.3, 1.0) do
       (board.buttons || []).each_with_index do |original_button, idx|
         button = {
@@ -89,10 +91,10 @@ module Converters::LingoLinq
         if !opts || !opts['simple']
           inflection_defaults = nil
           trans = {}
-          (BoardContent.load_content(board, 'translations') || {}).each do |loc, hash|
+          all_translations.each do |loc, hash|
             next unless hash && hash.is_a?(Hash)
-            if hash[original_button['id']]
-              trans[loc] = hash[original_button['id']]
+            if hash[original_button['id'].to_s] || hash[original_button['id']]
+              trans[loc] = hash[original_button['id'].to_s] || hash[original_button['id']]
             end
           end
           trans[board.settings['locale']] ||= original_button if original_button['inflections']
@@ -522,6 +524,10 @@ module Converters::LingoLinq
           sounds += res['sounds']
           res.delete('sounds')
           boards << res
+
+          # Deduplicate early to keep array sizes manageable across many boards
+          images.uniq!{|i| i['id']}
+          sounds.uniq!{|s| s['id']}
         end
         tally += incr
       end

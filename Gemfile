@@ -36,6 +36,10 @@ gem 'concurrent-ruby', '~> 1.3'
 gem 'rails', '>= 7.2.3.1', '< 7.3'
 # CVE-2026-33210 (format string); bundler-audit advisory minimum
 gem 'json', '>= 2.19.2'
+# oj is a faster JSON parser/generator (5-10x faster than stdlib json).
+# Used via Oj.mimic_JSON in config/initializers/oj.rb to transparently
+# replace the JSON module across the app, including Rails internals.
+gem 'oj', '~> 3.16'
 # GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
 gem 'loofah', '>= 2.25.1'
 gem 'pg', '~> 1.5'
