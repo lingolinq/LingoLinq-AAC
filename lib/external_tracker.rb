@@ -13,7 +13,7 @@ module ExternalTracker
     user = User.find_by_path(user_id)
     return false unless user && user.external_email_allowed? && user.supporter_registration?
     return false if user.cookies_opted_out?
-    return false unless ENV['HUBSPOT_TOKEN']
+    return false unless ENV['HUBSPOT_ACCESS_TOKEN']
     return false unless user.settings && user.settings['email']
 
     d = user.devices[0]
@@ -25,6 +25,7 @@ module ExternalTracker
         res = Typhoeus.get(url, timeout: 5)
         location = JSON.parse(res.body)
       rescue => e
+        Rails.logger.warn("ExternalTracker: iplocate lookup failed for user #{user.global_id}: #{e.class}: #{e.message}")
       end
     end
     email = user.settings['email']
@@ -81,13 +82,18 @@ module ExternalTracker
     end
   
     url = "https://api.hubapi.com/contacts/v1/contact/"
-    res = Typhoeus.post(url, {body: json.to_json, headers: {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{ENV['HUBSPOT_TOKEN']}"
-      }})
-    # if res.code > 299
-    #   puts res.body
-    # end
+    begin
+      res = Typhoeus.post(url, {body: json.to_json, headers: {
+        'Content-Type' => 'application/json',
+        'Authorization' => "Bearer #{ENV['HUBSPOT_ACCESS_TOKEN']}"
+        }})
+    rescue => e
+      Rails.logger.error("ExternalTracker: HubSpot POST raised for user #{user.global_id}: #{e.class}: #{e.message}")
+      return nil
+    end
+    if res.code.to_i >= 300
+      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code} body=#{res.body.to_s[0, 500]}")
+    end
     res.code
   end
 end
