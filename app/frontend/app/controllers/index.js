@@ -10,8 +10,8 @@ export default Controller.extend({
   applicationController: controller('application'),
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
-  useAltLanding: alias('applicationController.useAltLanding'),
-  
+
+
   // Computed properties to safely access app_state properties
   // Note: We need to track the service itself and the nested properties separately
   hasCurrentUser: computed('appState.currentUser', 'appState', function() {

@@ -111,7 +111,7 @@
                     <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
                   {{/if}}
                   {{#if part.image_url}}
-                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img">
+                    <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
                   {{/if}}
                   {{#unless this.utterance_text_on_top}}
                     <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
@@ -939,6 +939,153 @@
       {{!-- Grid + Sidebar wrapper --}}
       <div class="md-board-detail-grid-sidebar-wrap">
 
+      {{#if (is-equal this.active_view "phrase-builder")}}
+        {{!-- =========================================================
+              Phrase Builder view: search-driven button finder
+              ========================================================= --}}
+        <section class="md-board-detail-phrase-builder" aria-label={{t "Phrase builder" key="board_detail_phrase_builder"}}>
+          <header class="md-board-detail-phrase-builder__header">
+            <div class="md-board-detail-phrase-builder__title-row">
+              <h2 class="md-board-detail-phrase-builder__title">{{t "Phrase Builder" key="board_detail_phrase_builder_title"}}</h2>
+              <p class="md-board-detail-phrase-builder__hint">{{t "Search for words to add to your message" key="board_detail_phrase_builder_hint"}}</p>
+            </div>
+            <div class="md-board-detail-phrase-builder__search">
+              <span class="md-board-detail-phrase-builder__search-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <Input
+                @type="text"
+                @value={{this.phrase_search}}
+                class="md-board-detail-phrase-builder__input"
+                placeholder={{t "Type a word or a full sentence…" key="board_detail_phrase_builder_placeholder"}}
+                aria-label={{t "Search for buttons or type a sentence" key="board_detail_search_buttons_aria"}}
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+              />
+              {{#if this.has_phrase_search}}
+                <button type="button" class="md-board-detail-phrase-builder__clear" {{action "clear_phrase_search"}} aria-label={{t "Clear search" key="board_detail_clear_search"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              {{/if}}
+            </div>
+            {{#unless this.phrase_loading}}
+              {{#if this.has_phrase_search}}
+                {{#if this.phrase_sentence_mode}}
+                  <p class="md-board-detail-phrase-builder__count">
+                    {{t "Building phrase from sentence" key="board_detail_phrase_sentence_mode"}}
+                  </p>
+                {{else}}
+                  <p class="md-board-detail-phrase-builder__count">
+                    {{#if this.phrase_results.length}}
+                      {{t "%{n} matches across this board and linked sub-boards" n=this.phrase_results.length key="board_detail_phrase_n_matches"}}
+                    {{else}}
+                      {{t "No matches" key="board_detail_phrase_no_matches"}}
+                    {{/if}}
+                  </p>
+                {{/if}}
+              {{else if this.phrase_all_buttons.length}}
+                <p class="md-board-detail-phrase-builder__count">
+                  {{t "%{n} buttons · alphabetical · type a sentence to build a phrase" n=this.phrase_all_buttons.length key="board_detail_phrase_n_total_with_hint"}}
+                </p>
+              {{/if}}
+            {{/unless}}
+          </header>
+
+          <div class="md-board-detail-phrase-builder__results">
+            {{#if this.phrase_loading}}
+              <div class="md-board-detail-phrase-builder__loading">
+                <div class="md-loading-spinner"></div>
+                {{#if this.has_phrase_search}}
+                  <p>{{t "Searching…" key="board_detail_phrase_searching"}}</p>
+                {{else}}
+                  <p>{{t "Loading buttons from this board and all linked sub-boards…" key="board_detail_phrase_loading_buttons"}}</p>
+                {{/if}}
+              </div>
+            {{else if this.phrase_search_error}}
+              <div class="md-board-detail-phrase-builder__empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <p>{{this.phrase_search_error}}</p>
+              </div>
+            {{else if this.has_phrase_search}}
+              {{#if this.phrase_sentence_mode}}
+                {{!-- Sentence mode: one chip per typed word, in order, with an Add All button --}}
+                <div class="md-board-detail-phrase-builder__sentence">
+                  <div class="md-board-detail-phrase-builder__sentence-row">
+                    {{#each this.phrase_results as |btn index|}}
+                      {{#if index}}
+                        <span class="md-board-detail-phrase-builder__sentence-sep" aria-hidden="true">→</span>
+                      {{/if}}
+                      {{#if btn.is_match}}
+                        <button type="button"
+                          class="md-board-detail-phrase-builder__sentence-chip md-board-detail-phrase-builder__sentence-chip--match"
+                          {{action "phrase_builder_select" btn}}
+                          aria-label={{btn.label}}>
+                          {{#if btn.image}}
+                            <span class="md-board-detail-phrase-builder__sentence-chip-img">
+                              <img src={{btn.image}} alt="" draggable="false" onerror="this.style.display='none'">
+                            </span>
+                          {{/if}}
+                          <span class="md-board-detail-phrase-builder__sentence-chip-label">{{btn.label}}</span>
+                        </button>
+                      {{else}}
+                        <span class="md-board-detail-phrase-builder__sentence-chip md-board-detail-phrase-builder__sentence-chip--missing" aria-label={{t "No match" key="board_detail_phrase_no_match_label"}}>
+                          <span class="md-board-detail-phrase-builder__sentence-chip-label">{{btn.label}}</span>
+                          <span class="md-board-detail-phrase-builder__sentence-chip-missing">{{t "not found" key="board_detail_phrase_not_found"}}</span>
+                        </span>
+                      {{/if}}
+                    {{/each}}
+                  </div>
+                  <button type="button" class="md-board-detail-phrase-builder__sentence-commit" {{action "phrase_builder_commit_sentence"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    {{t "Add to sentence bar" key="board_detail_phrase_add_all"}}
+                  </button>
+                </div>
+              {{else if this.phrase_results.length}}
+                <div class="md-board-detail-phrase-builder__chip-list">
+                  {{#each this.phrase_results as |btn|}}
+                    <button type="button"
+                      class="md-board-detail-phrase-builder__chip {{unless btn.on_this_board 'md-board-detail-phrase-builder__chip--linked'}}"
+                      {{action "phrase_builder_select" btn}}
+                      aria-label={{btn.label}}>
+                      <span class="md-board-detail-phrase-builder__chip-label">{{btn.label}}</span>
+                      {{#unless btn.on_this_board}}
+                        {{#if btn.pre_buttons.length}}
+                          <span class="md-board-detail-phrase-builder__chip-path">
+                            {{#each btn.pre_buttons as |pre index|}}{{#if index}} › {{/if}}{{#if pre.label}}{{pre.label}}{{else}}{{pre.vocalization}}{{/if}}{{/each}}
+                          </span>
+                        {{/if}}
+                      {{/unless}}
+                    </button>
+                  {{/each}}
+                </div>
+              {{else}}
+                <div class="md-board-detail-phrase-builder__empty">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                  <p>{{t "No buttons match your search" key="board_detail_phrase_empty_search"}}</p>
+                  <p class="md-board-detail-phrase-builder__empty-hint">{{t "Try a different word or clear the search" key="board_detail_phrase_empty_hint"}}</p>
+                </div>
+              {{/if}}
+            {{else if this.phrase_all_buttons.length}}
+              <div class="md-board-detail-phrase-builder__chip-list">
+                {{#each this.phrase_all_buttons as |btn|}}
+                  <button type="button"
+                    class="md-board-detail-phrase-builder__chip"
+                    {{action "phrase_builder_select" btn}}
+                    aria-label={{btn.label}}>
+                    <span class="md-board-detail-phrase-builder__chip-label">{{btn.label}}</span>
+                  </button>
+                {{/each}}
+              </div>
+            {{else}}
+              <div class="md-board-detail-phrase-builder__empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                <p>{{t "No buttons found on this board" key="board_detail_phrase_empty_all"}}</p>
+              </div>
+            {{/if}}
+          </div>
+        </section>
+      {{else}}
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
       {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
@@ -1109,6 +1256,7 @@
         {{/unless}}
       </div>
       {{/button-listener}}
+      {{/if}}{{!-- /active_view phrase-builder vs symbol-board --}}
 
       {{!-- Inline Sidebar Boards (speak mode navigation) --}}
       {{#unless this.edit_mode}}

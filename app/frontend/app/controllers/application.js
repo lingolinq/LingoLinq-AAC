@@ -66,7 +66,6 @@ export default Controller.extend({
   ),
 
   landingNavOpen: false,
-  useAltLanding: true, // default unauthenticated view is landing-alt
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
 
   /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
@@ -484,9 +483,6 @@ export default Controller.extend({
     },
     closeLandingNav: function() {
       this.set('landingNavOpen', false);
-    },
-    toggleAltLanding: function() {
-      this.toggleProperty('useAltLanding');
     },
     language: function() {
       modal.open('modals/choose-locale');
@@ -1836,9 +1832,6 @@ export default Controller.extend({
         res = res + "low_for_high_contrast ";
       }
       res = res + "new_index ";
-      if(route === 'landing') {
-        res = res + "landing ";
-      }
       return res;
     }
   ),

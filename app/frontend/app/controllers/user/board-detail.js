@@ -5,7 +5,7 @@ import { observer } from '@ember/object';
 import { set as emberSet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -46,6 +46,11 @@ export default Controller.extend({
   show_categories: false,
   panels_collapsed: false,
   board_search_string: '',
+
+  // Active center-content view: 'symbol-board' (default) or 'phrase-builder'
+  active_view: 'symbol-board',
+  // Phrase builder search input
+  phrase_search: '',
 
   _applyBoardSearch: function(val) {
     var buttons = document.querySelectorAll('.md-board-detail-symbol-card');
@@ -162,6 +167,58 @@ export default Controller.extend({
 
   has_sentence: computed('sentence_parts.[]', function() {
     return (this.get('sentence_parts') || []).length > 0;
+  }),
+
+  /**
+   * Mirror new entries from the global utterance state
+   * (`app_state.button_list`) into our local `sentence_parts`. This is
+   * how the sentence-bar UI on board-detail picks up button activations
+   * that come through the *global* `app_state.activate_button` /
+   * `utterance.add_button` path — most notably the find-a-button
+   * "guided walkthrough" flow, where the application controller's
+   * `highlight_button` action calls `activateButton` directly without
+   * going through this controller's local `select_button` handler.
+   *
+   * Sync rules:
+   *   - Only ADD entries; never remove. Local clear/backspace stay
+   *     authoritative for removal (and call `utterance.clear` /
+   *     `utterance.backspace` to keep the global state in sync).
+   *   - Dedupe by `raw_index` from utterance, so an activation that
+   *     ALSO did a local push (the regular `select_button` flow,
+   *     pre-refactor) doesn't double-add. Once `select_button` stops
+   *     pushing locally, this dedupe is still safe — entries from
+   *     local-only sources (quick phrases, completions, phrase
+   *     builder) carry no `raw_index` and never collide with globals.
+   *   - Empty global list is a no-op (local clear was the trigger).
+   */
+  _sync_sentence_from_global: observer('app_state.button_list.[]', function() {
+    var global_list = this.get('app_state.button_list') || [];
+    if(!global_list.length) { return; }
+    var existing = this.get('sentence_parts') || [];
+    var seen_raw = {};
+    existing.forEach(function(p) {
+      if(p && p.raw_index != null) { seen_raw[p.raw_index] = true; }
+    });
+    var to_add = [];
+    global_list.forEach(function(b) {
+      if(!b) { return; }
+      // Skip hint entries (utterance pushes a transient hint button
+      // for find-a-button guidance — those should not enter the
+      // visible sentence bar).
+      if(b.hint || b.in_progress) { return; }
+      if(b.raw_index == null) { return; }
+      if(seen_raw[b.raw_index]) { return; }
+      seen_raw[b.raw_index] = true;
+      to_add.push({
+        id: b.button_id || ('utt-' + b.raw_index),
+        raw_index: b.raw_index,
+        label: b.label || b.vocalization || '',
+        image_url: b.image
+      });
+    });
+    if(to_add.length > 0) {
+      this.set('sentence_parts', existing.concat(to_add));
+    }
   }),
 
   utterance_show_symbols: computed('app_state.referenced_user.preferences.device.utterance_text_only', function() {
@@ -954,11 +1011,12 @@ export default Controller.extend({
     });
   }),
 
-  sidebar_nav: computed(function() {
+  sidebar_nav: computed('active_view', function() {
+    var av = this.get('active_view');
     return {
       communicate: [
-        { id: 'symbol-board', label: i18n.t('nav_symbol_board', "Symbol Board"), icon: 'symbol-board', active: true },
-        { id: 'phrase-builder', label: i18n.t('nav_phrase_builder', "Phrase Builder"), icon: 'phrase-builder' },
+        { id: 'symbol-board', label: i18n.t('nav_symbol_board', "Symbol Board"), icon: 'symbol-board', active: av === 'symbol-board' },
+        { id: 'phrase-builder', label: i18n.t('nav_phrase_builder', "Phrase Builder"), icon: 'phrase-builder', active: av === 'phrase-builder' },
         { id: 'favorites', label: i18n.t('nav_favorites', "Favorites"), icon: 'favorites' },
         { id: 'recent', label: i18n.t('nav_recent', "Recent"), icon: 'recent' }
       ],
@@ -974,6 +1032,545 @@ export default Controller.extend({
       ]
     };
   }),
+
+  // Phrase builder: cross-board button search powered by the ButtonSet model.
+  // Loads the full button set (including all linked sub-board buttons) once
+  // when the user enters the phrase-builder view, then runs find_buttons on
+  // each query change with a debounce.
+  has_phrase_search: computed('phrase_search', function() {
+    return ((this.get('phrase_search') || '').trim()).length > 0;
+  }),
+
+  phrase_results: null,        // populated asynchronously by _phrase_run_search
+  phrase_all_buttons: null,    // alphabetized default list (all buttons from buttonset)
+  phrase_loading: false,
+  phrase_search_error: null,
+  phrase_sentence_mode: false, // true when phrase_results is a sentence sequence
+  _phrase_button_set: null,    // cached ButtonSet for the current board
+  _phrase_search_timer: null,  // debounce handle
+  _phrase_search_id: null,     // race-condition guard
+
+  // Enter the phrase builder view. Shows a loading state until the full
+  // cross-board walk completes; the user never sees a partial list.
+  _phrase_init: function() {
+    console.log('[PHRASE] _phrase_init called');
+    this.set('phrase_search', '');
+    this.set('phrase_results', null);
+    this.set('phrase_all_buttons', null);
+    this.set('phrase_loading', true);
+    this.set('phrase_search_error', null);
+    this.set('phrase_sentence_mode', false);
+
+    // Kick off the cross-board walk. The walker itself will call
+    // _phrase_populate_local as an immediate fallback if the raw data is
+    // missing, and the final committed list populates phrase_all_buttons.
+    try {
+      this._phrase_try_upgrade_to_buttonset();
+    } catch(e) {
+      console.error('[PHRASE] _phrase_try_upgrade_to_buttonset threw', e);
+      // On any thrown error, fall back to local buttons so the user still
+      // has something usable.
+      try {
+        this._phrase_populate_local();
+        this.set('phrase_loading', false);
+      } catch(e2) {
+        console.error('[PHRASE] _phrase_populate_local threw', e2);
+        this.set('phrase_all_buttons', []);
+        this.set('phrase_loading', false);
+      }
+    }
+  },
+
+  // Immediately populate phrase_all_buttons from the current board's
+  // locally-rendered buttons. This never fails and gives the user a
+  // usable phrase builder without any network activity. Folder buttons
+  // (those that load another board) are excluded — the phrase builder
+  // is for words, not navigation.
+  _phrase_populate_local: function() {
+    var buttons = this.get('flat_ordered_buttons') || [];
+    var seen = {};
+    var list = [];
+    var _get = function(obj, key) {
+      return (obj && obj.get && typeof obj.get === 'function') ? obj.get(key) : (obj && obj[key]);
+    };
+    buttons.forEach(function(btn) {
+      if(!btn) { return; }
+      if(_get(btn, 'empty') || _get(btn, 'hidden')) { return; }
+      // Skip folder buttons — phrase builder is for words only
+      if(_get(btn, 'load_board')) { return; }
+      var label = (_get(btn, 'label') || _get(btn, 'vocalization') || '').toString().trim();
+      if(!label) { return; }
+      var key = label.toLowerCase();
+      if(seen[key]) { return; }
+      seen[key] = true;
+      list.push({
+        id: _get(btn, 'id'),
+        label: label,
+        vocalization: _get(btn, 'vocalization'),
+        image: _get(btn, 'local_image_url') || _get(btn, 'image_url')
+      });
+    });
+    list.sort(function(a, b) {
+      var la = (a.label || '').toLowerCase();
+      var lb = (b.label || '').toLowerCase();
+      return la < lb ? -1 : la > lb ? 1 : 0;
+    });
+    this.set('phrase_all_buttons', list);
+    console.log('[PHRASE] local populate:', list.length, 'buttons (folders excluded)');
+    this._phrase_preload_images(list);
+  },
+
+  // Warm the browser image cache for every button in the phrase builder
+  // list so that clicking a chip → adding to the sentence bar shows its
+  // image instantly. Images load in the background; no UI blocking.
+  _phrase_preload_images: function(list) {
+    if(!list || !list.length) { return; }
+    // Throttle: spread the preload over time so we don't hammer the browser
+    // connection pool. AAC boards can have 500+ buttons.
+    var batch = 0;
+    var i = 0;
+    var cache = this._phrase_image_cache || (this._phrase_image_cache = {});
+    var kick = function() {
+      var limit = Math.min(i + 20, list.length);
+      while(i < limit) {
+        var url = list[i] && list[i].image;
+        i++;
+        if(!url || cache[url]) { continue; }
+        cache[url] = true;
+        try {
+          var img = new Image();
+          img.src = url;
+        } catch(e) { /* ignore */ }
+      }
+      if(i < list.length) {
+        runLater(kick, 80);
+      }
+    };
+    runLater(kick, 100);
+  },
+
+  // Try to load the full cross-board button set. On success, rebuild the
+  // alphabetical list from the richer data (including all sub-board
+  // buttons). On failure, silently keep the local-only list. Never shows
+  // an error — the phrase builder always works.
+  //
+  // Cross-board walk: recursively fetches each linked sub-board via the
+  // /api/v1/boards/:key endpoint (same one the route uses for the current
+  // board) and aggregates all of their buttons into phrase_all_buttons.
+  //
+  // This bypasses the buttonset endpoint entirely — the buttonset is an
+  // optimization that requires backend generation + S3 uploads, which can
+  // hang or fail in some environments. Raw board fetches always work since
+  // they're the same endpoint we already use successfully.
+  //
+  // Hard cap on depth (3 levels) and total board fetches (20) to prevent
+  // runaway walks on huge boards or cycles.
+  //
+  _phrase_try_upgrade_to_buttonset: function() {
+    var _this = this;
+    var board = this.get('model');
+    if(!board) { return; }
+
+    // _last_raw is a plain JS property set by _build_from_raw, not an
+    // Ember-observed attribute — use direct access.
+    var raw = this._last_raw;
+    if(!raw) {
+      console.warn('[PHRASE] no raw board data available for cross-board walk');
+      // Fall back to local so the user isn't stuck in a loading state
+      this._phrase_populate_local();
+      this.set('phrase_loading', false);
+      return;
+    }
+    // Inject the board id/key into the raw object if they aren't already
+    // there, so the walker can track visited boards correctly.
+    if(!raw.id) { raw.id = board.get('id') || board.get('global_id'); }
+    if(!raw.key) { raw.key = board.get('key'); }
+
+    console.log('[PHRASE] starting cross-board walk from', raw.key || raw.id);
+    this._phrase_walk_boards(raw, 3);
+  },
+
+  // Recursively walks this raw board and every linked sub-board, collecting
+  // all non-folder buttons into a single alphabetized list.
+  //
+  // @param raw - { buttons: [...], image_urls: {...}, images: [...], id, key }
+  // @param max_depth - maximum recursion depth from the starting board
+  _phrase_walk_boards: function(raw, max_depth) {
+    var _this = this;
+    var visited = {};       // board keys we've already fetched
+    var pending = 0;        // in-flight sub-board requests
+    var total_fetched = 0;  // total boards walked
+    var MAX_BOARDS = 20;    // hard safety cap
+
+    // Master aggregation map — dedup by lowercase label so the same word
+    // appearing on multiple sub-boards only shows once.
+    var all_seen = {};
+    var all_list = [];
+
+    var add_raw_board = function(raw_board) {
+      if(!raw_board || !raw_board.buttons) { return; }
+      var image_map = raw_board.image_urls || {};
+      (raw_board.images || []).forEach(function(img) {
+        if(img && img.id && img.url) { image_map[img.id] = img.url; }
+      });
+      raw_board.buttons.forEach(function(btn) {
+        if(!btn) { return; }
+        if(btn.hidden) { return; }
+        if(btn.load_board || btn.linked_board_id || btn.linked_board_key) { return; }
+        var label = (btn.label || btn.vocalization || '').toString().trim();
+        if(!label) { return; }
+        var key = label.toLowerCase();
+        if(all_seen[key]) { return; }
+        all_seen[key] = true;
+        var img_url = null;
+        if(btn.image_id && image_map[btn.image_id]) {
+          img_url = image_map[btn.image_id];
+        }
+        all_list.push({
+          id: btn.id,
+          board_id: raw_board.id,
+          label: label,
+          vocalization: btn.vocalization,
+          image: img_url
+        });
+      });
+    };
+
+    var commit_list = function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      all_list.sort(function(a, b) {
+        var la = (a.label || '').toLowerCase();
+        var lb = (b.label || '').toLowerCase();
+        return la < lb ? -1 : la > lb ? 1 : 0;
+      });
+      console.log('[PHRASE] walk complete: fetched', total_fetched, 'boards,', all_list.length, 'unique words');
+      _this.set('phrase_all_buttons', all_list);
+      _this.set('phrase_loading', false);
+      if(all_list.length) {
+        _this._phrase_preload_images(all_list);
+      }
+    };
+
+    var walk = function(raw_board, depth) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(!raw_board) { return; }
+      var board_key = raw_board.key || raw_board.id;
+      if(!board_key || visited[board_key]) { return; }
+      visited[board_key] = true;
+      total_fetched++;
+      add_raw_board(raw_board);
+
+      if(depth <= 0) { return; }
+      if(total_fetched >= MAX_BOARDS) { return; }
+
+      // Walk sub-boards
+      (raw_board.buttons || []).forEach(function(btn) {
+        if(!btn) { return; }
+        var load_board = btn.load_board;
+        if(!load_board) { return; }
+        var next_key = load_board.key;
+        var next_id = load_board.id;
+        var lookup = next_key || next_id;
+        if(!lookup || visited[lookup]) { return; }
+        if(total_fetched + pending >= MAX_BOARDS) { return; }
+
+        pending++;
+        persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
+          pending--;
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(data && data.board) {
+            walk(data.board, depth - 1);
+          }
+          if(pending === 0) { commit_list(); }
+        }, function(err) {
+          pending--;
+          console.warn('[PHRASE] sub-board fetch failed for', lookup, err);
+          if(pending === 0) { commit_list(); }
+        });
+      });
+    };
+
+    walk(raw, max_depth);
+    // If there are no sub-boards to walk, commit immediately
+    if(pending === 0) { commit_list(); }
+  },
+
+  // (obsolete: _phrase_build_all_list removed — we no longer use the
+  // buttonset endpoint; see _phrase_walk_boards for the cross-board walk.)
+
+  // Debounced search trigger. Observes phrase_search.
+  _phrase_search_observer: observer('phrase_search', function() {
+    if(this.get('active_view') !== 'phrase-builder') { return; }
+    // Cancel any pending run
+    if(this._phrase_search_timer) {
+      runCancel(this._phrase_search_timer);
+      this._phrase_search_timer = null;
+    }
+    var _this = this;
+    if(!this.get('has_phrase_search')) {
+      // Empty input: clear results immediately, no debounce needed
+      this.set('phrase_results', null);
+      this.set('phrase_loading', false);
+      this.set('phrase_search_error', null);
+      return;
+    }
+    // Show loading indicator immediately on subsequent keystrokes
+    this.set('phrase_loading', true);
+    this._phrase_search_timer = runLater(function() {
+      _this._phrase_search_timer = null;
+      _this._phrase_run_search();
+    }, 200);
+  }),
+
+  // Search the phrase_all_buttons list. Two modes:
+  //
+  //   1. Single-word mode (no spaces in query) — substring filter, returns
+  //      every button whose label/vocalization contains the query. This
+  //      is the original broad-search behavior.
+  //
+  //   2. Sentence mode (query contains spaces) — splits on whitespace and
+  //      finds the best button match for each word in order, preserving
+  //      the typed sequence. Used to build a phrase from an existing
+  //      sentence in one go. Words with no match are shown as placeholder
+  //      "not found" entries so the user can see which words are missing.
+  _phrase_run_search: function() {
+    var query = (this.get('phrase_search') || '').trim();
+    if(!query) {
+      this.set('phrase_results', null);
+      this.set('phrase_sentence_mode', false);
+      this.set('phrase_loading', false);
+      return;
+    }
+    var all = this.get('phrase_all_buttons') || [];
+    // Strip common punctuation at word boundaries before splitting
+    var words = query.split(/\s+/).map(function(w) {
+      return w.replace(/^[^\w'-]+|[^\w'-]+$/g, '');
+    }).filter(function(w) { return w.length > 0; });
+
+    if(words.length <= 1) {
+      // Single-word: substring filter with apostrophe-insensitive match,
+      // so typing "Im" matches "I'm" and vice versa.
+      var norm_q = this._phrase_norm(query);
+      var norm = this._phrase_norm;
+      var matches = all.filter(function(b) {
+        return norm(b.label).indexOf(norm_q) !== -1 ||
+               norm(b.vocalization).indexOf(norm_q) !== -1;
+      }).map(function(b) {
+        return Object.assign({}, b, { on_this_board: true });
+      });
+      this.set('phrase_sentence_mode', false);
+      this.set('phrase_results', matches);
+      this.set('phrase_loading', false);
+      this.set('phrase_search_error', null);
+      return;
+    }
+
+    // Sentence mode: one match per word, in typed order. If a word has no
+    // direct match but is a known contraction, fall back to trying the
+    // expanded form ("don't" → "do" + "not") so the user can still build
+    // the phrase from the split words on the board.
+    var best_match = this._phrase_best_match.bind(this);
+    var expand = this._phrase_expand_contraction.bind(this);
+    var make_hit = function(match, word) {
+      return Object.assign({}, match, {
+        on_this_board: true,
+        typed_word: word,
+        is_match: true
+      });
+    };
+    var make_miss = function(word, suffix) {
+      return {
+        id: 'missing-' + word + (suffix || ''),
+        label: word,
+        is_match: false,
+        typed_word: word
+      };
+    };
+    var sequence = [];
+    words.forEach(function(word) {
+      var match = best_match(all, word);
+      if(match) {
+        sequence.push(make_hit(match, word));
+        return;
+      }
+      // No direct match — try contraction expansion
+      var expansion = expand(word);
+      if(expansion && expansion.length) {
+        expansion.forEach(function(token, idx) {
+          var sub_match = best_match(all, token);
+          if(sub_match) {
+            sequence.push(make_hit(sub_match, token));
+          } else {
+            sequence.push(make_miss(token, '-' + idx));
+          }
+        });
+        return;
+      }
+      sequence.push(make_miss(word));
+    });
+    this.set('phrase_sentence_mode', true);
+    this.set('phrase_results', sequence);
+    this.set('phrase_loading', false);
+    this.set('phrase_search_error', null);
+  },
+
+  // Normalize a word for contraction-insensitive matching:
+  //   - Lowercase
+  //   - Strip apostrophes (straight ' and curly ’)
+  // This lets "I'm" / "Im" / "im" all match each other, and
+  // "don't" / "dont" / "Dont" all resolve identically.
+  _phrase_norm: function(s) {
+    return (s || '').toLowerCase().replace(/['\u2019]/g, '');
+  },
+
+  // Common English contraction expansions, keyed by apostrophe-stripped form
+  // (so "dont" and "don't" both expand to ["do", "not"]).
+  // Used by sentence mode: when the user types "I'm" or "Im" and no exact
+  // match is found on the board, we fall back to trying "I" + "am" as two
+  // separate tokens. This way the user can search for a phrase even if the
+  // board has only the grammatically split words.
+  _phrase_contraction_map: function() {
+    if(this.__phrase_contractions) { return this.__phrase_contractions; }
+    this.__phrase_contractions = {
+      // am / is / are / was / were
+      'im':       ['I', 'am'],
+      'youre':    ['you', 'are'],
+      'were':     ['we', 'are'],      // collides with past-tense "were"; handled by matching pref
+      'theyre':   ['they', 'are'],
+      'hes':      ['he', 'is'],
+      'shes':     ['she', 'is'],
+      'its':      ['it', 'is'],
+      'thats':    ['that', 'is'],
+      'theres':   ['there', 'is'],
+      'whats':    ['what', 'is'],
+      'whos':     ['who', 'is'],
+      'wheres':   ['where', 'is'],
+      // will
+      'ill':      ['I', 'will'],
+      'youll':    ['you', 'will'],
+      'hell':     ['he', 'will'],
+      'shell':    ['she', 'will'],
+      'well':     ['we', 'will'],     // collides with "well"; matcher tries direct first
+      'theyll':   ['they', 'will'],
+      // have / has / had
+      'ive':      ['I', 'have'],
+      'youve':    ['you', 'have'],
+      'weve':     ['we', 'have'],
+      'theyve':   ['they', 'have'],
+      // would / had
+      'id':       ['I', 'would'],
+      'youd':     ['you', 'would'],
+      'hed':      ['he', 'would'],
+      'shed':     ['she', 'would'],
+      'wed':      ['we', 'would'],
+      'theyd':    ['they', 'would'],
+      // not
+      'dont':     ['do', 'not'],
+      'doesnt':   ['does', 'not'],
+      'didnt':    ['did', 'not'],
+      'isnt':     ['is', 'not'],
+      'arent':    ['are', 'not'],
+      'wasnt':    ['was', 'not'],
+      'werent':   ['were', 'not'],
+      'hasnt':    ['has', 'not'],
+      'havent':   ['have', 'not'],
+      'hadnt':    ['had', 'not'],
+      'cant':     ['can', 'not'],
+      'couldnt':  ['could', 'not'],
+      'wont':     ['will', 'not'],
+      'wouldnt':  ['would', 'not'],
+      'shouldnt': ['should', 'not'],
+      'mustnt':   ['must', 'not'],
+      // let us
+      'lets':     ['let', 'us']
+    };
+    return this.__phrase_contractions;
+  },
+
+  // Try to expand a word as a contraction. Returns an array of expanded
+  // tokens if recognized, or null if not a known contraction. Preserves
+  // the original capitalization of the first character of the first token
+  // (so "I'm" → ["I", "am"] but "i'm" → ["i", "am"]).
+  _phrase_expand_contraction: function(word) {
+    if(!word) { return null; }
+    var key = this._phrase_norm(word);
+    var map = this._phrase_contraction_map();
+    var expansion = map[key];
+    if(!expansion) { return null; }
+    // Preserve capitalization of the first letter of the typed word
+    var first = word.charAt(0);
+    if(first && first === first.toUpperCase() && first !== first.toLowerCase()) {
+      return [expansion[0], expansion[1]];
+    }
+    return [expansion[0].toLowerCase(), expansion[1]];
+  },
+
+  // Best-match lookup used by sentence mode. Tries increasingly loose
+  // matching strategies, all using apostrophe-insensitive normalization:
+  //   1. Exact label match
+  //   2. Exact vocalization match
+  //   3. Common English suffix stripping (plays → play, wants → want)
+  //   4. Prefix match ("play" matches "player", "playing")
+  //   5. Word-boundary substring match ("play" matches "to play")
+  // Returns the first successful match, or null if nothing fits.
+  _phrase_best_match: function(all_buttons, word) {
+    if(!word) { return null; }
+    var norm = this._phrase_norm;
+    var w = norm(word);
+    if(!w) { return null; }
+    var i, b, label_n, voc_n;
+
+    // Strategy 1: exact label match
+    for(i = 0; i < all_buttons.length; i++) {
+      b = all_buttons[i];
+      if(!b) { continue; }
+      if(norm(b.label) === w) { return b; }
+    }
+    // Strategy 2: exact vocalization match
+    for(i = 0; i < all_buttons.length; i++) {
+      b = all_buttons[i];
+      if(!b) { continue; }
+      if(norm(b.vocalization) === w) { return b; }
+    }
+    // Strategy 3: common English suffix stripping
+    //   plays/played/playing → play, runs/running → run, wants/wanted → want
+    var stems = [];
+    if(w.length > 3) {
+      if(w.endsWith('ing')) { stems.push(w.slice(0, -3)); }
+      if(w.endsWith('ed'))  { stems.push(w.slice(0, -2)); }
+      if(w.endsWith('es'))  { stems.push(w.slice(0, -2)); }
+      if(w.endsWith('s'))   { stems.push(w.slice(0, -1)); }
+      if(w.endsWith('ly'))  { stems.push(w.slice(0, -2)); }
+    }
+    for(var s = 0; s < stems.length; s++) {
+      var stem = stems[s];
+      if(!stem || stem.length < 2) { continue; }
+      for(i = 0; i < all_buttons.length; i++) {
+        b = all_buttons[i];
+        if(!b) { continue; }
+        label_n = norm(b.label);
+        voc_n = norm(b.vocalization);
+        if(label_n === stem || voc_n === stem) { return b; }
+      }
+    }
+    // Strategy 4: the stored label starts with the typed word
+    //   "play" → "player", "playing"
+    for(i = 0; i < all_buttons.length; i++) {
+      b = all_buttons[i];
+      if(!b) { continue; }
+      label_n = norm(b.label);
+      if(label_n.length > w.length && label_n.indexOf(w) === 0) { return b; }
+    }
+    // Strategy 5: word-boundary substring
+    //   "play" → "to play", "will play"
+    var re = new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+    for(i = 0; i < all_buttons.length; i++) {
+      b = all_buttons[i];
+      if(!b) { continue; }
+      if(re.test(norm(b.label)) || re.test(norm(b.vocalization))) { return b; }
+    }
+    return null;
+  },
 
   // ── Level Preview ──
 
@@ -1297,6 +1894,7 @@ export default Controller.extend({
     },
 
     exit_to_home: function() {
+      this.set('show_options_menu', false);
       this.set('app_state.board_detail_nav_history', []);
       this.set('app_state.board_detail_entry_board', null);
       this.get('router').transitionTo('index');
@@ -1449,10 +2047,12 @@ export default Controller.extend({
     },
 
     toggle_panels: function() {
+      this.set('show_options_menu', false);
       this.toggleProperty('panels_collapsed');
     },
 
     toggle_dark_mode: function() {
+      this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
     },
 
@@ -1610,28 +2210,32 @@ export default Controller.extend({
         }
       }
 
-      // Add to sentence bar
-      var label = _get(button, 'label');
-      var image_url = _get(button, 'local_image_url') || _get(button, 'image_url');
-      var vocalization = _get(button, 'vocalization');
-      var parts = (_this.get('sentence_parts') || []).slice();
-      parts.push({ id: btn_id, label: label, image_url: image_url });
-      _this.set('sentence_parts', parts);
-
-      // Speak the button immediately
-      speecher.stop('text');
-      utterance.speak_button({
-        label: label,
-        vocalization: vocalization || label
-      });
-
-      // Also try full activation for logging and special actions
+      // Route the activation through the application controller, which
+      // funnels into `app_state.activate_button` → `utterance.add_button`.
+      // That single global path handles speaking, sentence-bar entry,
+      // logging, suggestion lookups, and any specialty button behavior.
+      // Our `_sync_sentence_from_global` observer mirrors the resulting
+      // `app_state.button_list` change into our local `sentence_parts`,
+      // so the visible sentence bar updates without us doing a redundant
+      // (and divergence-prone) local push here.
       var appController = _this.get('app_state.controller');
       var board = _this.get('model');
       var em_button = editManager.find_button(btn_id);
       var has_em = em_button && em_button.get && typeof em_button.get === 'function';
       if(has_em && appController && appController.activateButton && board) {
-        appController.activateButton(em_button, { board: board });
+        appController.activateButton(em_button, { board: board, trigger_source: 'click' });
+      } else {
+        // Fallback for the rare case the editManager has not picked up
+        // this button yet (e.g. mid-render). Speak the label so the
+        // user gets immediate feedback; the sentence bar will catch up
+        // on the next click.
+        var label = _get(button, 'label');
+        var vocalization = _get(button, 'vocalization');
+        speecher.stop('text');
+        utterance.speak_button({
+          label: label,
+          vocalization: vocalization || label
+        });
       }
     },
 
@@ -1740,15 +2344,23 @@ export default Controller.extend({
     },
 
     clear_sentence: function() {
+      // Clear both the local UI state AND the global utterance state.
+      // Skipping the global clear would leave button_list dirty, so a
+      // subsequent activation that grows it would re-sync the stale
+      // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
+      try { utterance.clear(); } catch(e) { }
     },
 
     backspace_sentence: function() {
+      // Pop both local and global so the observer's next sync sees a
+      // consistent state and does not restore the dropped entry.
       var parts = (this.get('sentence_parts') || []).slice();
       if(parts.length > 0) {
         parts.pop();
         this.set('sentence_parts', parts);
       }
+      try { utterance.backspace(); } catch(e) { }
     },
 
     open_speak_menu: function() {
@@ -1787,6 +2399,24 @@ export default Controller.extend({
       var user = this.get('user');
       if(!user) { return; }
       var un = user.get('user_name');
+      if(item_id === 'symbol-board') {
+        // Symbol Board: switch the center view back to the symbol grid.
+        this.set('active_view', 'symbol-board');
+        return;
+      }
+      if(item_id === 'phrase-builder') {
+        // Phrase Builder: replace the symbol grid with a search-driven
+        // button finder that adds taps to the sentence bar. Searches the
+        // ENTIRE button set across all linked sub-boards via ButtonSet.find_buttons.
+        this.set('active_view', 'phrase-builder');
+        this._phrase_init();
+        // Focus the search input on the next tick
+        runLater(function() {
+          var input = document.querySelector('.md-board-detail-phrase-builder__input');
+          if(input) { input.focus(); }
+        }, 50);
+        return;
+      }
       if(item_id === 'preferences') {
         this.get('router').transitionTo('user.preferences', un);
       } else if(item_id === 'progress-reports') {
@@ -1794,6 +2424,110 @@ export default Controller.extend({
       } else if(item_id === 'goal-tracking') {
         this.get('router').transitionTo('user.goals', un);
       }
+    },
+
+    phrase_search_change: function(value) {
+      this.set('phrase_search', value || '');
+    },
+
+    clear_phrase_search: function() {
+      this.set('phrase_search', '');
+      var input = document.querySelector('.md-board-detail-phrase-builder__input');
+      if(input) { input.focus(); }
+    },
+
+    // Click handler for phrase builder result buttons. Adds the button to
+    // the sentence bar and speaks it. Results come from ButtonSet.find_buttons
+    // which returns plain objects with `label`, `vocalization`, `image`, and
+    // an `id` plus a `pre_buttons` breadcrumb path. We never navigate to the
+    // source board — the user stays in the phrase builder.
+    // Commit every matched button in a sentence-mode result set to the
+    // sentence bar, in the order they were typed. Skips not-found words.
+    phrase_builder_commit_sentence: function() {
+      var results = this.get('phrase_results') || [];
+      if(!results.length) { return; }
+      var _this = this;
+      var _get = function(obj, key) {
+        return (obj && obj.get && typeof obj.get === 'function') ? obj.get(key) : (obj && obj[key]);
+      };
+      var flat = this.get('flat_ordered_buttons') || [];
+      var find_local = function(btn_id) {
+        if(!btn_id) { return null; }
+        return flat.find(function(b) {
+          if(!b) { return false; }
+          var bid = _get(b, 'id');
+          return String(bid) === String(btn_id);
+        });
+      };
+      var parts = (this.get('sentence_parts') || []).slice();
+      results.forEach(function(button) {
+        if(!button || button.is_match === false) { return; }
+        var label = button.label;
+        var image_url = button.image || button.image_url || button.local_image_url;
+        var btn_id = button.id;
+        // Prefer the already-cached local image URL when available
+        var local = find_local(btn_id);
+        if(local) {
+          var local_img = _get(local, 'local_image_url') || _get(local, 'image_url');
+          if(local_img) { image_url = local_img; }
+        }
+        parts.push({ id: btn_id, label: label, image_url: image_url });
+      });
+      this.set('sentence_parts', parts);
+      // Speak the full sentence (mirrors the speak_sentence action so the
+      // user hears the whole phrase, not just the first word). Also pushes
+      // it onto the recent-phrases history.
+      var text = this.get('sentence_text');
+      if(text) {
+        speecher.stop('text');
+        speecher.speak_text(text);
+        var phrases = (this.get('app_state.board_detail_recent_phrases') || []).slice();
+        phrases.unshift({ text: text, timestamp: new Date() });
+        if(phrases.length > 5) { phrases = phrases.slice(0, 5); }
+        this.set('app_state.board_detail_recent_phrases', phrases);
+      }
+      // Clear the search so the user sees the alphabetical list again
+      this.set('phrase_search', '');
+    },
+
+    phrase_builder_select: function(button) {
+      if(!button) { return; }
+      // Sentence-mode placeholders for unmatched words are not clickable
+      if(button.is_match === false) { return; }
+      // Results from find_buttons use `image` (URL string); local board
+      // buttons use `image_url`. Support both shapes. For local-board
+      // buttons, also try the flat_ordered_buttons lookup as a last resort
+      // since those entries have the resolved image_url from the board's
+      // raw.image_urls map (which is what the symbol grid uses).
+      var label = button.label;
+      var image_url = button.image || button.image_url || button.local_image_url;
+      var vocalization = button.vocalization;
+      var btn_id = button.id;
+      // Try to find a richer local version of this button so we pick up the
+      // already-cached image URL that the symbol grid renders.
+      if(btn_id) {
+        var local = (this.get('flat_ordered_buttons') || []).find(function(b) {
+          if(!b) { return false; }
+          var bid = (b.get && typeof b.get === 'function') ? b.get('id') : b.id;
+          return String(bid) === String(btn_id);
+        });
+        if(local) {
+          var _get = function(obj, key) {
+            return (obj && obj.get && typeof obj.get === 'function') ? obj.get(key) : (obj && obj[key]);
+          };
+          var local_img = _get(local, 'local_image_url') || _get(local, 'image_url');
+          if(local_img) { image_url = local_img; }
+        }
+      }
+      var parts = (this.get('sentence_parts') || []).slice();
+      parts.push({ id: btn_id, label: label, image_url: image_url });
+      this.set('sentence_parts', parts);
+      // Speak the button immediately
+      speecher.stop('text');
+      utterance.speak_button({
+        label: label,
+        vocalization: vocalization || label
+      });
     },
 
     toggleInlineSidebar: function() {
