@@ -1082,7 +1082,7 @@
       {{#if this.vocalization_sound_conflict}}
         <p class='text_danger'>{{t "WARNING: Sound attachments will be removed if there is a value in the 'Speak' field" key="vocalization_sound_conflict"}}</p>
       {{/if}}
-      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if this.sound_recording.recording "recording"}} style='outline: none;'>
+      <button id="recording_status" type="button" {{action "toggle_recording_sound"}} class={{if this.sound_recording.recording "recording"}} aria-pressed={{if this.sound_recording.recording "true" "false"}}>
         <span class="sub_status">
           <span>Start</span>
         </span>

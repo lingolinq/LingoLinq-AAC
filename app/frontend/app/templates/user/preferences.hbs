@@ -1793,7 +1793,8 @@
       </div>
     </div>
   {{else}}
-    {{#preference-box title="Voice Settings" glyph='glyphicon glyphicon-volume-up' title_key='voice_settings'}}
+    <div id="voice-settings-box"></div>
+    {{#preference-box title="Voice Settings" glyph='glyphicon glyphicon-volume-up' title_key='voice_settings' open=this.auto_open_voice}}
       <span style='display: none;'>{{t "Voice Settings" key='voice_settings'}}</span>
       {{#if this.user_voice_list}}
         <div class="form-group">

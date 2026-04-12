@@ -47,6 +47,19 @@ export default Controller.extend({
         _this.set('weblinger_enabled', true);
       }
     }, 1000);
+
+    // If arriving from the Voice & Output modal's "More options" link,
+    // auto-expand the Voice Settings section and scroll to it.
+    if(app_state.get('open_voice_settings')) {
+      app_state.set('open_voice_settings', false);
+      this.set('auto_open_voice', true);
+      runLater(function() {
+        var el = document.getElementById('voice-settings-box');
+        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }, 300);
+    } else {
+      this.set('auto_open_voice', false);
+    }
   },
   speecher: speecher,
   buttonSpacingList: [

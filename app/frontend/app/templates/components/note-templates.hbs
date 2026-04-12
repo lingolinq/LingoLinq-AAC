@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="md-modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
     <h3 class="md-modal-title">{{t "Note Templates" key="note_templates"}}</h3>
   </div>
   <div class="md-modal-body" style="text-align: left;">

@@ -12,7 +12,7 @@
     <article class="md-card md-card--sup" aria-label={{t "My Caseload" key="my_caseload"}}>
       <div class="md-card__head md-card__head--between">
         <div>
-          <div class="md-card__title">{{t "My Caseload" key="my_caseload"}}</div>
+          <h1 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h1>
           <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
         </div>
       </div>
@@ -24,7 +24,7 @@
               <div class="md-caseload__card">
                 <div class="md-caseload__card-header">
                   <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__avatar-link">
-                    <img src={{supervisee.avatar_url}} alt="" class="md-caseload__avatar">
+                    <img src={{supervisee.avatar_url}} alt={{t "Avatar for %{name}" key="avatar_for_name" name=supervisee.user_name}} class="md-caseload__avatar">
                     {{#if supervisee.online}}
                       <span class="md-caseload__online" title={{t "currently online" key="currently_online"}}></span>
                     {{/if}}
@@ -37,7 +37,7 @@
                       <span class="md-caseload__goal md-caseload__goal--empty">
                         {{t "no goal set" key="no_goal_set"}}
                         {{#if this.persistence.online}}
-                          <a href="#" {{action "set_goal" supervisee}}>{{t "set a goal" key="set_a_goal"}}</a>
+                          <button type="button" class="md-link-btn" {{action "set_goal" supervisee}}>{{t "set a goal" key="set_a_goal"}}</button>
                         {{/if}}
                       </span>
                     {{/if}}
@@ -79,8 +79,8 @@
                     <span>{{t "Modeling Ideas" key="modeling_ideas"}}</span>
                   </button>
                   <div class="md-caseload__extras">
-                    <div class="md-caseload__extras-dropdown">
-                      <button type="button" class="md-caseload__action md-caseload__action--extras" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <div class="md-caseload__extras-dropdown" {{action "extras_dropdown_keydown" on="keyDown"}}>
+                      <button type="button" class="md-caseload__action md-caseload__action--extras" data-toggle="dropdown" aria-haspopup="menu" aria-expanded="false" aria-label={{t "More options for %{name}" key="more_options_for_name" name=supervisee.user_name}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7693B9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                       </button>
                       <ul class="dropdown-menu dropdown-menu-right">
@@ -88,9 +88,9 @@
                           <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
                         {{/if}}
                         <li><LinkTo @route="user" @model={{supervisee.user_name}}>{{t "Account" key="account"}}</LinkTo></li>
-                        <li><a href="#" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
-                        <li><a href="#" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
-                        <li><a href="#" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
+                        <li><button type="button" {{action "record_note" supervisee}}>{{t "New Note" key="new_note"}}</button></li>
+                        <li><button type="button" {{action "quick_assessment" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
+                        <li><button type="button" {{action "run_eval" supervisee}}>{{t "Run Evaluation" key="run_evaluation"}}</button></li>
                       </ul>
                     </div>
                   </div>

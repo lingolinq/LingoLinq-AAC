@@ -533,6 +533,12 @@ export default Controller.extend({
       }
     }
   ),
+  // Premium voices require a native TTS engine (Cordova on mobile or
+  // extra_tts on Windows desktop). Hide the Browse Premium Voices button
+  // on the web app where neither is available.
+  premium_voices_supported: computed(function() {
+    return !!(window.cordova || window.extra_tts);
+  }),
   user_voice_list: computed(
     'speecher.voiceList',
     'setup_user.premium_voices.claimed',
