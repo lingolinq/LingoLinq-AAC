@@ -61,11 +61,11 @@ class BoardContent < ApplicationRecord
       # single request or background job. Overrides are always applied fresh.
       # Cleared by ApplicationController and Worker after each request/job.
       Thread.current[:board_content_cache] ||= {}
-      offload_key = "#{board.board_content_id}/#{attr}"
-      unless Thread.current[:board_content_cache].has_key?(offload_key)
-        Thread.current[:board_content_cache][offload_key] = board.board_content.settings[attr]
+      cache_key = "#{board.board_content_id}/#{attr}"
+      unless Thread.current[:board_content_cache].has_key?(cache_key)
+        Thread.current[:board_content_cache][cache_key] = board.board_content.settings[attr]
       end
-      raw = Thread.current[:board_content_cache][offload_key]
+      raw = Thread.current[:board_content_cache][cache_key]
       res = raw ? raw.deep_dup : nil
       from_offload = true
     end
