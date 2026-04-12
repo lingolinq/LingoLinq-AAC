@@ -11,6 +11,7 @@ require 'oj'
 # get the speedup with no code changes.
 Oj.mimic_JSON
 
-# Use the :rails mode for Oj's own dump/load calls so it matches Rails'
-# JSON serialization conventions (Time as ISO 8601, BigDecimal as string, etc.)
+# Use the :rails mode for Oj's own dump/load calls so it generally matches
+# Rails' JSON serialization conventions (for example, Time as ISO 8601).
+# App-specific overrides, such as custom BigDecimal serialization, still apply.
 Oj.default_options = { mode: :rails }
