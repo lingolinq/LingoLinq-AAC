@@ -52,18 +52,21 @@ class BoardContent < ApplicationRecord
     # the offloaded content second
     raise "unexpected attribute for loading, #{attr}" unless OFFLOADABLE_ATTRIBUTES.include?(attr)
 
-    # Request/job-scoped cache to avoid re-parsing the same content multiple times
-    # within a single request or background job. Cleared by ApplicationController
-    # and Worker after each request/job.
-    Thread.current[:board_content_cache] ||= {}
-    cache_key = "#{board.global_id}/#{attr}"
-    return Thread.current[:board_content_cache][cache_key] if Thread.current[:board_content_cache].has_key?(cache_key)
-
     from_offload = false
     board.settings ||= {}
     res = board.settings[attr] if !board.settings[attr].blank?
     if board.board_content_id && board.board_content_id > 0 && !res
-      res = board.board_content.settings[attr].deep_dup
+      # Cache only the immutable offloaded base content by board_content_id/attr
+      # to avoid re-parsing the same S3-backed content multiple times within a
+      # single request or background job. Overrides are always applied fresh.
+      # Cleared by ApplicationController and Worker after each request/job.
+      Thread.current[:board_content_cache] ||= {}
+      offload_key = "#{board.board_content_id}/#{attr}"
+      unless Thread.current[:board_content_cache].has_key?(offload_key)
+        Thread.current[:board_content_cache][offload_key] = board.board_content.settings[attr]
+      end
+      raw = Thread.current[:board_content_cache][offload_key]
+      res = raw ? raw.deep_dup : nil
       from_offload = true
     end
     res ||= board.settings[attr]
@@ -93,7 +96,6 @@ class BoardContent < ApplicationRecord
         end
       end
     end
-    Thread.current[:board_content_cache][cache_key] = res
     res
   end
 
