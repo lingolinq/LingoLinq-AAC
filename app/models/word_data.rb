@@ -738,7 +738,7 @@ class WordData < ActiveRecord::Base
     words.each do |word|
       w = word.to_s.downcase
       if Thread.current[:word_inflection_cache][locale].has_key?(w)
-        hash[w] = Thread.current[:word_inflection_cache][locale][w]
+        hash[word] = Thread.current[:word_inflection_cache][locale][w]
       else
         words_to_query << w
       end
