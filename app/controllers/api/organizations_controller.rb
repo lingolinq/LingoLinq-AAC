@@ -218,7 +218,8 @@ class Api::OrganizationsController < ApplicationController
     if params['available'] == 'true'
       licenses = licenses.where(user_id: nil)
     end
-    sort_by = (params['sort_by'] || 'id').to_s
+    allowed_sort_columns = %w[id status seat_type granted_at expires_at created_at].freeze
+    sort_by = allowed_sort_columns.include?(params['sort_by']) ? params['sort_by'] : 'id'
     sort_order = (params['sort_order'] || 'desc').to_s
     sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
     licenses = licenses.order("#{sort_by} #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
@@ -234,6 +235,13 @@ class Api::OrganizationsController < ApplicationController
     seat_type = params['seat_type'] || 'student'
     begin
       license = @org.claim_user(user, seat_type)
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'license_claim',
+        'organization_id' => @org.global_id,
+        'user_id' => user.global_id,
+        'license_id' => license.global_id,
+        'seat_type' => seat_type
+      })
       render json: {success: true, license: JsonApi::License.as_json(license)}
     rescue => e
       api_error 400, {error: e.message}

@@ -28,7 +28,15 @@ class License < ApplicationRecord
       # 1. Free up the seat for the district to use on a new student
       old_user = self.user
       old_org = self.organization
-      
+
+      AuditEvent.log_command('system', {
+        'type' => 'license_release',
+        'organization_id' => old_org&.global_id,
+        'user_id' => old_user&.global_id,
+        'license_id' => self.global_id,
+        'reason' => self.status
+      })
+
       self.update!(user_id: nil, granted_at: nil)
 
       if old_user
