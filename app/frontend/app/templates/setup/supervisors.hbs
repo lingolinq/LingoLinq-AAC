@@ -1,19 +1,21 @@
-<div class='col-sm-10 col-sm-offset-1'>
+<div class='col-sm-12'>
   <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
 </div>
-<div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/supervisors.gif"}} style='width: 100%;' >
-</div>
-<div class='col-sm-5'>
-  <p class='prompt'>{{t "%app_name% works best with a team around the communicator. Supporters get free accounts—add them as supervisors to share boards, reports, and goals." key="supervisors_explainer"}}</p>
-  {{#if this.setup_user.supporter_role}}
-    <p class='prompt'>{{t "In order to see the boards and reports for communicators you work with, those users need to add you from their dashboard. You can encourage them to add everyone around the communicator as supervisors to help build a strong support team. %app_name% offers free modeling-only accounts to help everyone get involved!" key="get_added_as_supervisor"}}</p>
-  {{else}}
-    <p class='prompt'>{{t "Encourage family, teachers, and therapists to sign up for a free account, then add them as supervisors." key="add_lots_of_supervisors"}}</p>
+<div class='col-sm-12'>
+  <ul class="usage-checklist">
+    <li class="usage-checklist__item">{{t "Communication grows faster with a team. Add the people who support your communicator — family, teachers, therapists — so everyone stays connected." key="supervisors_explainer"}}</li>
+    {{#if this.setup_user.supporter_role}}
+      <li class="usage-checklist__item">{{t "To access boards and reports, communicators need to add you as a supervisor from their dashboard." key="get_added_as_supervisor"}}</li>
+      <li class="usage-checklist__item">{{t "Free modeling-only accounts make it easy for the whole team to get involved." key="supervisors_free_accounts"}}</li>
+    {{else}}
+      <li class="usage-checklist__item">{{t "Supervisor accounts are free — invite your team to sign up and add them here." key="add_lots_of_supervisors"}}</li>
+    {{/if}}
+  </ul>
+  {{#unless this.setup_user.supporter_role}}
     {{#if this.setup_user}}
       <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{action "manage_supervision"}}>
         {{t "Add or Manage Supervisors" key="add_of_manage_supervisors"}}
       </button></p>
     {{/if}}
-  {{/if}}
+  {{/unless}}
 </div>

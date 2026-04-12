@@ -1,9 +1,9 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
     <h3>
       {{#if this.model.badge.avatar_url}}
-        <img src={{this.model.badge.avatar_url}} class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
+        <img src={{this.model.badge.avatar_url}} alt="" class='fit_image' style='height: 60px; width: 60px; margin: -15px 10px -25px -5px; border: 1px solid rgba(0, 0, 0, 0.5); border-radius: 100%; padding: 1px; background: #fff; box-shadow: 0px 0px 3px;' onerror='button_broken_image(this)'>
       {{/if}}
       {{#if this.user_goals_and_badges}}
         {{t "Badges and Goals" key="badges_and_goals"}}
@@ -26,13 +26,13 @@
         {{else if this.user_badges}}
           {{#each this.user_badges as |badge|}}
             <div style='float: left;'>
-              <a href="#" {{action "show_badge" badge.id}}>
+              <button type="button" class="md-link-btn" {{action "show_badge" badge.id}} aria-label={{t "View badge details" key="view_badge_details"}}>
                 {{#if badge.image_url}}
-                  <img src={{badge.image_url}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                  <img src={{badge.image_url}} alt="" style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{else}}
-                  <img src={{path "images/badge-fallback.png"}} style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                  <img src={{path "images/badge-fallback.png"}} alt="" style="height: 80px; margin-right: 10px;" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{/if}}
-              </a>
+              </button>
             </div>
           {{/each}}
           <div style='clear: left;'></div>
@@ -45,12 +45,12 @@
         {{t "Error Loading Goals" key="error_loading_goals_cap"}}
       {{else if this.user_goals}}
         {{#each this.user_goals as |goal|}}
-          <div {{action "show_goal" goal.id}} class={{if goal.badge_image_url "cursor"}} style='padding-top: 10px; padding-bottom: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee;'>
+          <button type="button" {{action "show_goal" goal.id}} class={{if goal.badge_image_url "cursor"}} style='padding-top: 10px; padding-bottom: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; display: block;'>
             <div style='float: left; margin-right: 10px;'>
             {{#if goal.badge_image_url}}
-              <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
+              <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' alt="">
             {{else}}
-              <span class='glyphicon glyphicon-flag' style='margin-top: 5px; display: inline-block;width: 50px; height: 40px; font-size: 30px; text-align: center;'></span>
+              <span class='glyphicon glyphicon-flag' style='margin-top: 5px; display: inline-block;width: 50px; height: 40px; font-size: 30px; text-align: center;' aria-hidden="true"></span>
             {{/if}}
             </div>
             <div style='font-size: 20px; white-space: nowrap; overflow: hidden;'>
@@ -67,7 +67,7 @@
                 long goal
               {{/if}}
             </div>
-          </div>
+          </button>
         {{/each}}
       {{else}}
         <span class='glyphicon glyphicon-flag' style='font-size: 30px; float: left; margin-right: 10px;'></span>
@@ -91,9 +91,9 @@
             <div class='medal-holder'>
               <div class='medal'>
                 {{#if this.model.badge.image_url}}
-                  <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                  <img src={{this.model.badge.image_url}} alt="" style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{else}}
-                  <img src={{path "images/badge-fallback.png"}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+                  <img src={{path "images/badge-fallback.png"}} alt="" style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
                 {{/if}}
                 <div class='sparkle'>&#10022;</div>
               </div>
@@ -112,7 +112,7 @@
             {{/if}}
           {{else}}
             <div>
-              <img src={{this.model.badge.image_url}} style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
+              <img src={{this.model.badge.image_url}} alt="" style='width: 200px;' onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}} >
             </div>
           {{/if}}
           <div style='font-weight: bold; font-size: 30px;'>{{this.model.badge.name}}</div>

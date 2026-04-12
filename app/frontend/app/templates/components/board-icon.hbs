@@ -1,12 +1,15 @@
-<div tabindex="0" {{action "pick_board" this.board_record}} class={{this.display_class}} style={{this.cursor_style}}>
+{{!-- WCAG fix: outer wrapper is now a real <button> for keyboard accessibility.
+     The "info" preview button is a sibling rather than nested (HTML disallows
+     buttons inside buttons). --}}
+<div class={{this.display_class}} style={{this.cursor_style}}>
   {{#unless this.noinfo}}
-    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;">
+    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
       {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
           {{this.override_count}}
         </span>
       {{else}}
-        <span class='glyphicon glyphicon-info-sign'></span>
+        <span class='glyphicon glyphicon-info-sign' aria-hidden="true"></span>
         {{#if this.board_record.grid.rows}}
           <span class='size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
         {{/if}}
@@ -15,23 +18,25 @@
   {{/unless}}
   {{#if this.flag_home }}
     {{#if this.board_record.home_board}}
-      <div style='position: absolute; top: 0; left: 5px; color: #888;'><span class='glyphicon glyphicon-home'></span></div>
+      <div style='position: absolute; top: 0; left: 5px; color: #888;' aria-label={{t "Home board" key="home_board"}}><span class='glyphicon glyphicon-home' aria-hidden="true"></span></div>
     {{/if}}
   {{/if}}
-  {{#if this.override_count}}
-    <img src={{this.board_record.style.image_url}} onerror="button_broken_image(this);">
-  {{else}}
-    <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);">
-  {{/if}}
-  <div class={{if this.noinfo "name compact" "name"}}>
-  {{this.best_name}}
-  </div>
-  <div class='author'>
-    {{#if this.children}}
-      {{t "board" key="n_boards" count=this.children.length}}
+  <button type="button" {{action "pick_board" this.board_record}} class="board-icon__pick" style="background: none; border: none; padding: 0; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: inherit; font: inherit; color: inherit; cursor: inherit;" aria-label={{this.best_name}}>
+    {{#if this.override_count}}
+      <img src={{this.board_record.style.image_url}} onerror="button_broken_image(this);" alt="">
     {{else}}
-      <span class="author__label">{{t "by" key="by"}}</span>
-      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
+      <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);" alt="">
     {{/if}}
-  </div>
+    <div class={{if this.noinfo "name compact" "name"}}>
+    {{this.best_name}}
+    </div>
+    <div class='author'>
+      {{#if this.children}}
+        {{t "board" key="n_boards" count=this.children.length}}
+      {{else}}
+        <span class="author__label">{{t "by" key="by"}}</span>
+        <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
+      {{/if}}
+    </div>
+  </button>
 </div>

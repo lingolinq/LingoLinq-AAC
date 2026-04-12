@@ -1,8 +1,8 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
     <h3>{{t "Modeling Ideas" key="modeling_ideas"}}
-      <a href="#" class='text-info' {{action "show_intro"}}><span class='glyphicon glyphicon-question-sign'></span></a>
+      <button type="button" class='text-info md-link-btn' {{action "show_intro"}} aria-label={{t "Show introduction" key="show_intro_aria"}}><span class='glyphicon glyphicon-question-sign' aria-hidden="true"></span></button>
     </h3>
   </div>
   <div class="modal-body" style='font-size: 18px;'>
@@ -14,13 +14,13 @@
         <button class='btn btn-default btn-lg' style='float: right;' {{action "next"}} disabled={{this.no_next}}>{{t "Next" key="next"}} <span class='glyphicon glyphicon-chevron-right'></span></button>
         {{#if this.show_words_list}}
           {{#if this.current_activity.word}}
-            <div class='text-muted' {{action "target_words"}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
+            <button type="button" class='text-muted md-link-btn' {{action "target_words"}} style='padding: 0 10px; text-align: center;'>
               <span style='color: #aaa;'>{{t "using the word:" key="using_the_word"}}</span> {{this.current_activity.word}}
-            </div>
+            </button>
           {{else if this.words_list}}
-            <div class='text-muted' {{action "target_words"}} style='cursor: pointer; padding: 0 10px; text-align: center;'>
+            <button type="button" class='text-muted md-link-btn' {{action "target_words"}} style='padding: 0 10px; text-align: center;'>
               <span style='color: #aaa;'>{{t "targets:" key="target_words_colon"}}</span> {{this.words_list}}
-            </div>
+            </button>
           {{/if}}
         {{/if}}
         <div style='clear: both;'></div>
@@ -32,7 +32,7 @@
       {{t "Error Loading Ideas" key="error_loading_ideas"}}
     {{else if this.show_target_words}}
       {{#if this.current_activity.word}}
-        <img src={{path "images/modeling_ideas.svg"}} style='width: 100px; float: left; padding-right: 10px;' >
+        <img src={{path "images/modeling_ideas.svg"}} alt="" style='width: 100px; float: left; padding-right: 10px;' >
         <p>{{t "You can help your communicator learn to use their words by showing them! Look for opportunities to <b>use the word \"%{word}\"</b> in different activities and settings so they will get more comfortable with the word." word=this.current_activity.word key="chances_to_use_word"}}</p>
         <p style='margin-top: 30px; font-size: 14px;'>{{t "Below are some other words %app_name% sees might be useful to work with for your communicators." key="more_core_words"}}</p>
       {{else}}
@@ -94,9 +94,9 @@
     {{else if this.current_activity.real}}
       {{#if this.current_activity.types.topic_starters}}
       {{else if this.current_activity.image.image_url}}
-        <img src={{this.current_activity.image.image_url}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
+        <img src={{this.current_activity.image.image_url}} alt="" class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
       {{else}}
-        <img src={{path "images/modeling_ideas.svg"}} class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
+        <img src={{path "images/modeling_ideas.svg"}} alt="" class='fit_image' style='width: 150px; height: 150px; float: left; margin-right: 10px;'>
       {{/if}}
       {{#if this.current_activity.follow_up}}
         <h3>{{t "How Did It Go?" key="how_did_it_go"}}</h3>
@@ -111,7 +111,7 @@
         <p>{{t "Read the book together, taking time to model \"%{w}\"  and other target words to make observations, or to ask and answer questions." w=this.current_activity.word key="repeat_and_model_book"}}</p>
         {{#unless this.current_activity.follow_up}}
           <button {{action "book" true}} class='btn btn-primary btn-lg'><span class='glyphicon glyphicon-book'></span> {{t "Read the Book Together" key="read_the_book_together"}}</button>
-          <a href="#" {{action "book"}}><span class='glyphicon glyphicon-book'></span> {{t "Preview" key="preview"}}</a>
+          <button type="button" class="md-link-btn" {{action "book"}}><span class='glyphicon glyphicon-book' aria-hidden="true"></span> {{t "Preview" key="preview"}}</button>
         {{/unless}}
       {{else if this.current_activity.types.videos}}
         <p>{{t "Watch the video together, looking for opportunities to model \"%{w}\" and other target words to make observations or repeat from the video." w=this.current_activity.word key="repeat_and_model_video"}}</p>
@@ -121,7 +121,7 @@
         {{/unless}}
       {{else if this.current_activity.types.topic_starters}}
         <div style='text-align: center;'>
-          <img src={{this.current_activity.image.image_url}} class='fit_image' style='width: 100%; max-height: 500px;'>
+          <img src={{this.current_activity.image.image_url}} alt={{this.current_activity.title}} class='fit_image' style='width: 100%; max-height: 500px;'>
         </div>
       {{/if}}
       {{#if this.current_activity.completed}}
@@ -134,7 +134,7 @@
         <div style='font-size: 13px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key="activity_match_for"}} {{t "user" count=this.current_activity.matching_users key="n_users"}}</div>
       {{/if}}
     {{else if this.current_activity}}
-      <img src={{path "images/modeling_ideas.svg"}} style='width: 150px; float: left; margin-right: 10px;'>
+      <img src={{path "images/modeling_ideas.svg"}} alt="" style='width: 150px; float: left; margin-right: 10px;'>
       <p>{{t "Did you know that new communicators learn to combine words by observing others do it first? Did you know that babies hear thousands of hours of spoken language before speaking on their own? Or that AAC experts recommend up to 80% of communication with a new user be modeled on a device?" key="modeling_ideas_intro_1"}}</p>
       <p>{{t "Modeling, or showing examples of how to hit buttons to communicate, is very important! As you start work with communicators who are using AAC, look for chances to model different words, or the same words in different ways. It may take practice to get comfortable or to see results, but research has shown over and over how much of a different modeling makes!" key="modeling_ideas_intro_2"}}</p>
       <p>{{t "<b>Modeling Ideas</b> is a %app_name% tool that recommends a few activities every day based on target words from your user's goals and log history. We hope it helps give you lots of ideas to help your communicator grow!" key="modeling_intro_3"}}</p>

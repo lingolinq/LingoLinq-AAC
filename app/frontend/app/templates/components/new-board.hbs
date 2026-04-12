@@ -120,7 +120,7 @@
       {{#unless this.more_options}}
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <a href="#" {{action "more_options"}}>more options</a>
+            <button type="button" class="md-link-btn" {{action "more_options"}}>{{t "more options" key="more_options"}}</button>
           </div>
         </div>
       {{else}}
@@ -206,12 +206,12 @@
             <span class={{this.labels_class}}>
               {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
             </span>
-            <a href="#" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</a>
+            <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
             {{#if this.speech}}
                |
-              <a href="#" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</a>
+              <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
             {{/if}}
-            <a style="display: none;" href="#" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</a>
+            <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
           </div>
         </div>
         {{#if this.core_lists}}
@@ -220,7 +220,7 @@
             <ul class="nav nav-pills">
               {{#each this.core_words as |core_word|}}
                 <li class={{if core_word.active "active"}}>
-                  <a href="#" {{action "enable_word" core_word.id}}>{{ core_word.label }}</a>
+                  <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
                 </li>
               {{/each}}
             </ul>
@@ -238,10 +238,10 @@
               <ul class="nav nav-pills">
                 {{#each this.speech.words as |word|}}
                   <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
-                    <a href="#" {{action "remove_word" word.id}}>
+                    <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
                       {{word.label}}
-                      <span class="glyphicon glyphicon-remove" title="remove"></span>
-                    </a>
+                      <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                    </button>
                   </li>
                 {{/each}}
               </ul>
