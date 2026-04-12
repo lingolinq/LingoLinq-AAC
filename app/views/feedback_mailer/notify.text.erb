@@ -1,0 +1,18 @@
+LingoLinq Feedback
+
+Category: <%= @feedback.category %>
+Priority: <%= @feedback.priority %>
+User ID: <%= @feedback.user_id || 'anonymous' %>
+Organization ID: <%= @feedback.organization_id || 'none' %>
+
+Description:
+<%= @feedback.description %>
+
+Device info:
+<% (@feedback.device_info || {}).each do |k, v| %>
+  <%= k %>: <%= v %>
+<% end %>
+
+<% if @feedback.screenshot_url.present? %>
+Screenshot: <%= @feedback.screenshot_url %>
+<% end %>

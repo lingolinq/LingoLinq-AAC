@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import modal from '../utils/modal';
 
 /**
  * Reusable authenticated navbar inner: brand, search, identity (with optional
@@ -76,6 +77,13 @@ export default Component.extend({
     },
     handleSearchInput(event) {
       this.send('updateSearchString', event.target.value);
+    },
+    openHelpFeedback() {
+      modal.open('help-feedback-form');
+    },
+    openHelpFeedbackFromDrawer() {
+      this.send('closeDrawer');
+      modal.open('help-feedback-form');
     }
   }
 });

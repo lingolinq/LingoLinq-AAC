@@ -1,0 +1,129 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") uncloseable=true}}
+  <div class="hf-form-modal-wrap" role="dialog" aria-modal="true" aria-labelledby="hf-form-title">
+    <div class="hf-modal-header">
+      <h3 id="hf-form-title" class="hf-modal-title">{{t "Help & Feedback" key="feedback_title"}}</h3>
+      <button type="button" class="hf-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
+    </div>
+
+    {{#if this.submitted}}
+      <div class="hf-modal-body hf-modal-body--success">
+        <div class="hf-success" role="status" aria-live="polite">
+          <p class="hf-success-message">{{this.sla_message}}</p>
+          <button type="button" class="hf-btn hf-btn--primary" {{action "dismiss_success"}}>
+            {{t "Close" key="feedback_close_success"}}
+          </button>
+        </div>
+      </div>
+    {{else}}
+      <form class="hf-modal-body" {{action "submit" on="submit"}} novalidate>
+        <div class="hf-warning" role="note">
+          <strong>{{t "Privacy notice:" key="feedback_privacy_label"}}</strong>
+          {{t "Please do not include student names, photos, or personal information in your message or screenshots." key="feedback_pii_warning"}}
+        </div>
+
+        <div class="hf-field">
+          <label for="hf-category" class="hf-label">
+            {{t "What can we help with?" key="feedback_category_label"}}
+            <span class="hf-required" aria-hidden="true">*</span>
+          </label>
+          <select
+            id="hf-category"
+            class="hf-input hf-select"
+            aria-required="true"
+            aria-describedby="hf-category-error"
+            onchange={{action "set_category"}}
+          >
+            {{#each this.category_options as |opt|}}
+              <option value={{opt.value}} selected={{is_equal opt.value this.category}}>{{opt.label}}</option>
+            {{/each}}
+          </select>
+          <span id="hf-category-error" class="hf-error" aria-live="polite">
+            {{this.field_errors.category}}
+          </span>
+        </div>
+
+        <div class="hf-field">
+          <label for="hf-description" class="hf-label">
+            {{t "Tell us more" key="feedback_description_label"}}
+            <span class="hf-required" aria-hidden="true">*</span>
+          </label>
+          <textarea
+            id="hf-description"
+            class="hf-input hf-textarea"
+            rows="6"
+            maxlength={{this.max_description_length}}
+            aria-required="true"
+            aria-describedby="hf-description-help hf-description-error"
+            value={{this.description}}
+            oninput={{action "set_description"}}
+          ></textarea>
+          <div id="hf-description-help" class="hf-help">
+            {{this.description_chars_left}} {{t "characters remaining" key="feedback_chars_remaining"}}
+          </div>
+          <span id="hf-description-error" class="hf-error" aria-live="polite">
+            {{this.field_errors.description}}
+          </span>
+        </div>
+
+        <div class="hf-field">
+          <label for="hf-screenshot" class="hf-label">
+            {{t "Attach a screenshot (optional)" key="feedback_screenshot_label"}}
+          </label>
+          <input
+            id="hf-screenshot"
+            type="file"
+            class="hf-input hf-file"
+            accept="image/*"
+            aria-describedby="hf-screenshot-help"
+            onchange={{action "set_screenshot"}}
+          />
+          <div id="hf-screenshot-help" class="hf-help">
+            {{t "EXIF data will be stripped before upload." key="feedback_screenshot_help"}}
+          </div>
+        </div>
+
+        <div class="hf-field">
+          <label for="hf-email" class="hf-label">
+            {{t "Reply-to email" key="feedback_email_label"}}
+          </label>
+          <input
+            id="hf-email"
+            type="email"
+            class="hf-input"
+            value={{this.email}}
+            oninput={{action "set_email"}}
+            aria-describedby="hf-email-help"
+          />
+          <div id="hf-email-help" class="hf-help">
+            {{t "We may reply here if we need more details." key="feedback_email_help"}}
+          </div>
+        </div>
+
+        <div class="hf-status" aria-live="polite" role="status">
+          {{this.status_message}}
+        </div>
+
+        {{#if this.error_message}}
+          <div class="hf-error hf-error--global" role="alert">{{this.error_message}}</div>
+        {{/if}}
+
+        <p class="hf-privacy-link">
+          <a href="/privacy" target="_blank" rel="noopener">{{t "View our privacy policy" key="feedback_privacy_link"}}</a>
+        </p>
+
+        <div class="hf-actions">
+          <button type="button" class="hf-btn hf-btn--secondary" {{action "close"}} disabled={{this.submitting}}>
+            {{t "Cancel" key="feedback_cancel"}}
+          </button>
+          <button type="submit" class="hf-btn hf-btn--primary" disabled={{this.submitting}}>
+            {{#if this.submitting}}
+              {{t "Sending..." key="feedback_sending"}}
+            {{else}}
+              {{t "Send feedback" key="feedback_submit"}}
+            {{/if}}
+          </button>
+        </div>
+      </form>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

@@ -1,0 +1,23 @@
+<h2>LingoLinq Feedback</h2>
+
+<p>
+  <strong>Category:</strong> <%= @feedback.category %><br>
+  <strong>Priority:</strong> <%= @feedback.priority %><br>
+  <strong>User ID:</strong> <%= @feedback.user_id || 'anonymous' %><br>
+  <strong>Organization ID:</strong> <%= @feedback.organization_id || 'none' %>
+</p>
+
+<h3>Description</h3>
+<p><%= simple_format(@feedback.description) %></p>
+
+<h3>Device info</h3>
+<ul>
+  <% (@feedback.device_info || {}).each do |k, v| %>
+    <li><strong><%= k %>:</strong> <%= v %></li>
+  <% end %>
+</ul>
+
+<% if @feedback.screenshot_url.present? %>
+  <h3>Screenshot</h3>
+  <p><a href="<%= @feedback.screenshot_url %>"><%= @feedback.screenshot_url %></a></p>
+<% end %>

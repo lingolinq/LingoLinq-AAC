@@ -21,3 +21,10 @@
 
 en:
   hello: "Hello world"
+  feedback:
+    feature_disabled: "The feedback feature is not enabled for your account."
+    rate_limited: "You have submitted too many feedback items recently. Please try again later."
+    sla:
+      urgent: "We'll respond within 4 business hours."
+      standard: "We'll respond within 1 business day."
+      feature_request: "Thanks! We review feature requests weekly and respond within 3 business days when we can."

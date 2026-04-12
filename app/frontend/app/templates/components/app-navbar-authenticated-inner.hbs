@@ -38,17 +38,32 @@
     {{/if}}
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      {{t "Beta feedback" key="beta_feedback_nav"}}
-    </LinkTo>
-    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
-      <div class="ll-bento-help-btn__support-inner">
-        <span class="ll-bento-help-btn__icon" aria-hidden="true">
-          <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.85.7c0 1.6-2.35 2.3-2.35 2.3"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg>
-        </span>
-      </div>
-    </LinkTo>
+    {{#if this.appState.feature_flags.help_feedback_v2}}
+      {{!-- v2 unified help+feedback button, hidden on boards and speak mode --}}
+      {{#unless this.appState.currentBoardState.id}}
+        {{#unless this.appState.speak_mode}}
+          <button class="help-feedback-trigger ll-bento-help-btn--nav"
+                  type="button"
+                  aria-label={{t "Open help and feedback form" key="help_feedback_open"}}
+                  {{action "openHelpFeedback"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.85.7c0 1.6-2.35 2.3-2.35 2.3"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg>
+            {{t "Help & feedback" key="help_feedback_label"}}
+          </button>
+        {{/unless}}
+      {{/unless}}
+    {{else}}
+      <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        {{t "Beta feedback" key="beta_feedback_nav"}}
+      </LinkTo>
+      <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+        <div class="ll-bento-help-btn__support-inner">
+          <span class="ll-bento-help-btn__icon" aria-hidden="true">
+            <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.85.7c0 1.6-2.35 2.3-2.35 2.3"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg>
+          </span>
+        </div>
+      </LinkTo>
+    {{/if}}
     {{/unless}}
     <span style="display: inline-block;" class="dropdown">
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
@@ -77,7 +92,11 @@
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
-        <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
+        {{#if this.appState.feature_flags.help_feedback_v2}}
+          <li><a href="#" {{action "openHelpFeedback" preventDefault=true}}>{{t "Help & feedback" key="help_feedback_label"}}</a></li>
+        {{else}}
+          <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
+        {{/if}}
         <li class="divider" role="separator"></li>
         <li>
           <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
@@ -134,8 +153,12 @@
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "goUpgrade"}}>{{t "Upgrade" key="upgrade"}}</button>
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
-    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
-    <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+    {{#if this.appState.feature_flags.help_feedback_v2}}
+      <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "openHelpFeedbackFromDrawer"}}>{{t "Help & feedback" key="help_feedback_label"}}</button>
+    {{else}}
+      <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
+      <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+    {{/if}}
     {{/unless}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>
     {{#if this.application.showThemePicker}}

@@ -78,6 +78,7 @@ gem 'rotp'
 
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'
+gem 'mini_magick'
 gem 'anthropic', '~> 1.23'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 

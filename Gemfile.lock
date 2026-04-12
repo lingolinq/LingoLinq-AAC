@@ -236,6 +236,8 @@ GEM
       logger
       mime-types-data (~> 3.2025, >= 3.2025.0507)
     mime-types-data (3.2025.0924)
+    mini_magick (5.3.1)
+      logger
     mini_mime (1.1.5)
     minitest (5.27.0)
     mono_logger (1.1.2)
@@ -572,6 +574,7 @@ DEPENDENCIES
   json (>= 2.19.2)
   loofah (>= 2.25.1)
   matrix
+  mini_magick
   mutex_m
   newrelic_rpm
   obf

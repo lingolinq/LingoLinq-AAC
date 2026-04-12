@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_06_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -240,6 +240,25 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.integer "uses"
+  end
+
+  create_table "feedbacks", force: :cascade do |t|
+    t.bigint "user_id"
+    t.bigint "organization_id"
+    t.string "category", null: false
+    t.string "priority", default: "normal", null: false
+    t.text "description", null: false
+    t.string "email"
+    t.jsonb "device_info", default: {}, null: false
+    t.string "screenshot_url"
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_feedbacks_on_category"
+    t.index ["organization_id"], name: "index_feedbacks_on_organization_id"
+    t.index ["priority"], name: "index_feedbacks_on_priority"
+    t.index ["status"], name: "index_feedbacks_on_status"
+    t.index ["user_id"], name: "index_feedbacks_on_user_id"
   end
 
   create_table "gift_purchases", id: :serial, force: :cascade do |t|
@@ -663,4 +682,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000001) do
     t.index ["locale", "reviews", "priority", "word"], name: "index_word_data_on_locale_and_reviews_and_priority_and_word"
     t.index ["word", "locale"], name: "index_word_data_on_word_and_locale", unique: true
   end
+
+  add_foreign_key "feedbacks", "organizations"
+  add_foreign_key "feedbacks", "users"
 end

@@ -101,6 +101,7 @@ LingoLinq::Application.routes.draw do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
     post 'messages' => 'messages#create'
+    post 'feedbacks' => 'feedbacks#create'
     post 'callback' => 'callbacks#callback'
     get 'domain_settings' => 'integrations#domain_settings'
     get 'start_code' => 'organizations#start_code_lookup'
