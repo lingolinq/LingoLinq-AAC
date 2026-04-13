@@ -52829,6 +52829,26 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-org-user-row__supervisee-link:hover {
   text-decoration: underline;
 }
+.md-org-user-row__edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(70, 80, 95, 0.45);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.md-org-user-row__edit:hover {
+  background: rgba(76, 134, 216, 0.10);
+  color: #4C86D8;
+  text-decoration: none;
+}
 .md-org-user-row__remove {
   display: flex;
   align-items: center;

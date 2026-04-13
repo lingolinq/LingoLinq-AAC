@@ -100,6 +100,32 @@ class ProfileTemplate < ApplicationRecord
     res
   end
 
+  # Resolve org profile id for comparison: blank/default => env default for that role; 'none' => no template.
+  def self.resolve_profile_identifier(id, prof_type)
+    return nil if id.to_s.strip == 'none'
+    raw = if id.blank?
+      default_profile_id(prof_type)
+    else
+      s = id.to_s.strip
+      return nil if s == 'none'
+      s = default_profile_id(prof_type) if s == 'default'
+      s
+    end
+    return nil if raw.blank?
+    find_by_code(raw)
+  end
+
+  # True when stored and incoming refer to the same profile (code vs global id vs default).
+  def self.same_profile?(a, b, prof_type)
+    return true if a.to_s == b.to_s
+    pa = resolve_profile_identifier(a, prof_type)
+    pb = resolve_profile_identifier(b, prof_type)
+    return true if pa.nil? && pb.nil?
+    return false if pa.nil? || pb.nil?
+    return true if pa.global_id.present? && pb.global_id.present? && pa.global_id == pb.global_id
+    pa.public_profile_id.present? && pa.public_profile_id == pb.public_profile_id
+  end
+
   def process_params(params, non_user_params)
     self.settings ||= {}
     self.user ||= non_user_params[:user]
