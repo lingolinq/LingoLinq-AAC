@@ -31,7 +31,6 @@ module Exporter
     
     # If chunking is required, the result will need to be a zip file, not a single obl/obla
     if chunks.length > 1 && !zipper && !cutoff
-      raise 'arg'
       file = Tempfile.new(['log-data', '.zip'])
       begin
         file.close
@@ -510,8 +509,10 @@ More information about the file formats being used is available at https://www.o
   end
 
   # Stream a local file into the zipper without loading it all into memory.
-  # Falls back to file.read for zippers that lack add_file (e.g. tests with
+  # Falls back to File.binread for zippers that lack add_file (e.g. tests with
   # the original OBF::Utils::Zipper).
+  # NOTE: this method always deletes local_path after writing (in an ensure
+  # block), so it must only be called with temporary files that are safe to remove.
   def self.add_local_file(zipper, name, local_path)
     if zipper.respond_to?(:add_file)
       zipper.add_file(name, local_path)
