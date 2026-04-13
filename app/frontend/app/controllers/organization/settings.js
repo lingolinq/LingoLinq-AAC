@@ -22,6 +22,7 @@ export default Controller.extend({
     if(!lookup_id || !lookup_id.match(/\d+_\d+/)) { return; }
     if(lookup_id && _this.get('model.parent_org.id') != lookup_id) {
       _this.set('model.parent_org', {
+        id: lookup_id,
         name: i18n.t('loading', "Loading..."),
         pending: true
       });
@@ -36,6 +37,7 @@ export default Controller.extend({
       }, function() {
         if(lookup_id == _this.get('model.parent_org_id')) {
           _this.set('model.parent_org', {
+            id: lookup_id,
             error: true,
             pending: true,
             name: i18n.t('error_loading_org', "Error Loading Organization")

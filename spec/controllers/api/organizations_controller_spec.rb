@@ -95,6 +95,38 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['organization']['id']).to eq(o.global_id)
       expect(json['organization']['name']).to eq('my cool org')
     end
+
+    it "should update name when parent_org is a partial hash without id (must not clear parent)" do
+      token_user
+      admin_o = Organization.create(:admin => true)
+      admin_o.add_manager(@user.user_name, true)
+      parent = Organization.create
+      child = Organization.create
+      child.parent_organization_id = parent.id
+      child.save!
+      child.add_manager(@user.user_name)
+      expect(child.parent_organization_id).to eq(parent.id)
+      put :update, params: {:id => child.global_id, :organization => {:name => "renamed child", :parent_org => {"name" => "Loading...", "pending" => true}}}
+      expect(response.successful?).to eq(true)
+      child.reload
+      expect(child.parent_organization_id).to eq(parent.id)
+      expect(child.settings['name']).to eq("renamed child")
+    end
+
+    it "should clear parent when parent_org id is explicitly blank" do
+      token_user
+      admin_o = Organization.create(:admin => true)
+      admin_o.add_manager(@user.user_name, true)
+      parent = Organization.create
+      child = Organization.create
+      child.parent_organization_id = parent.id
+      child.save!
+      child.add_manager(@user.user_name)
+      put :update, params: {:id => child.global_id, :organization => {:parent_org => {"id" => ""}}}
+      expect(response.successful?).to eq(true)
+      child.reload
+      expect(child.parent_organization_id).to eq(nil)
+    end
     
     it "should not allow updating license count unless authorized" do
       token_user
