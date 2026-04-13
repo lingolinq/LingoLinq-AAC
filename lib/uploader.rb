@@ -320,8 +320,9 @@ module Uploader
     Progress.update_current_progress(0.9, :uploading_file)
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
     raise "File not uploaded" unless url
-    File.unlink(path) if File.exist?(path)
     return url
+  ensure
+    File.unlink(path) if path && File.exist?(path)
   end
   
   def self.valid_remote_url?(url)
