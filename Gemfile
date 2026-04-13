@@ -81,6 +81,8 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 
+gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
+
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'
 gem 'anthropic', '~> 1.23'
