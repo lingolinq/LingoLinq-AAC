@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="la-focus-words-modal-wrap">
-  <div class="modal-header">
+  <div class="modal-header md-modal-header">
     <span class="la-modal-header-label">
       {{t "Focus Words" key="focus_words"}}
       {{#if this.model.user}}
@@ -8,9 +8,11 @@
         <span style='font-size: 14px; font-weight: 500; opacity: 0.75;'>{{this.model.user.user_name}}</span>
       {{/if}}
     </span>
-    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     <div class='row'>
       {{#if this.analysis}}
         <div class='col-sm-12'>
@@ -242,7 +244,7 @@
       {{/if}}
     </div>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     <button type="button" class='btn btn-default btn-lg' style='background: #4c86d8; color: #fff; border-color: #4c86d8;' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Apply this word list as the active focus filter on boards and close this window." key='set_focus_words_tooltip')}} {{action "set_focus_words"}}>{{t "Set Focus Words" key="set_focus_words"}}</button>
     {{#if this.analysis}}
       <button type="button" class='btn btn-default btn-lg' disabled={{this.not_ready}} title={{if this.not_ready (t "Choose or enter at least one word to use this action." key='focus_words_need_words_tooltip') (t "Open a printable view of this analysis." key='printable_analysis_tooltip')}} {{action "report"}}>{{t "Printable Analysis" key="printable_analysis"}}</button>

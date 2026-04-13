@@ -14,8 +14,8 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 
-var order = ['intro', 'usage', 'board_category', 'core', 'access', 'voice', 'logging', 'supervisors', 'done'];
-var extra_order = ['extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-supervisors', 'extra-reports', 'extra-logs', 'extra-done'];
+var order = ['intro', 'usage', 'board_category', 'core', 'access', 'voice', 'logging', 'supervisors', 'extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-logs', 'extra-done'];
+var extra_order = [];
 export default Controller.extend({
   router: service('router'),
   appState: service('app-state'),

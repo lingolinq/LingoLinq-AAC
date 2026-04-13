@@ -2171,6 +2171,13 @@ export default Controller.extend({
       this.toggleProperty('dark_mode');
     },
 
+    toggle_modeling: function() {
+      this.set('show_options_menu', false);
+      this.get('app_state').toggle_modeling_if_possible(
+        !this.get('app_state.modeling')
+      );
+    },
+
     toggle_details_dropdown: function() {
       var was_open = this.get('details_dropdown_open');
       this.toggleProperty('details_dropdown_open');
