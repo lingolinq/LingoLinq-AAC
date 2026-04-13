@@ -1,15 +1,17 @@
-<div class='col-sm-10 col-sm-offset-1'>
+<div class='col-sm-12'>
   <h4>{{t "Exiting Speak Mode" key="exiting_speak_mode"}}</h4>
 </div>
-<div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/speak_mode_exiting.gif"}} style='width: 100%;' >
+<div class='col-sm-12'>
+  <div class="setup-exit-demo">
+    <img src={{path "images/board-exit.png"}} alt="" class="setup-exit-demo__img" >
+    <div class="setup-exit-demo__circle" aria-hidden="true"></div>
+    <div class="setup-exit-demo__rect" aria-hidden="true"></div>
+  </div>
 </div>
-<div class='col-sm-5'>
-  <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's preferences." key="exit_speak_mode_1"}}</p>
-  <label>
-    {{t "Optionally set a 4-digit pin to prevent exiting Speak Mode:" key="pin_for_exiting_speak_mode"}}
-    <span style='display: inline-block; width: 200px;'>
-      <Input type="text" @value={{this.pin}} placeholder="4-digit PIN" class="form-control input-lg" />
-    </span>
-  </label>
+<div class='col-sm-12' style="margin-top: 16px;">
+  <ul class="usage-checklist">
+    <li class="usage-checklist__item">{{t "Tap the options button (three dots) in the top right of the board to open the menu." key="exit_speak_mode_1"}}</li>
+    <li class="usage-checklist__item">{{t "Select \"Exit Speak Mode\" at the bottom of the menu to return to your dashboard and settings." key="exit_speak_mode_2"}}</li>
+    <li class="usage-checklist__item">{{t "To prevent accidental exits, you can set a 4-digit PIN in Preference Settings." key="exit_speak_mode_3"}}</li>
+  </ul>
 </div>

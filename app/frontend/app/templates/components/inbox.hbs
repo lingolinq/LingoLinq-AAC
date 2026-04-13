@@ -1,10 +1,12 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Messages and Alerts" key="messages_and_alerts"}}
     </h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     {{#if this.app_state.referenced_user.request_alert}}
       {{#if this.app_state.referenced_user.request_alert.user.avatar_url}}
         <img src={{this.app_state.referenced_user.request_alert.user.avatar_url}} style='float: left; height: 75px; margin-right: 10px;' >
@@ -85,7 +87,7 @@
       <p>{{t "No messages or alerts to show" key="no_messages_or_alerts_to_show"}}</p>
     {{/if}}
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     {{#if this.app_state.referenced_user.request_alert}}
       {{#if this.app_state.referenced_user.request_alert.model}}
         <button class='btn btn-default btn-lg' {{action "accept_pair"}}>{{t "Pair With %{user_name} & Allow Followers" user_name=this.app_state.referenced_user.request_alert.user.user_name key="accept_pairing"}}</button>

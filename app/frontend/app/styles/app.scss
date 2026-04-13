@@ -3762,6 +3762,12 @@ tr.accuracy_non_mastered {
   gap: 12px;
   flex-wrap: wrap;
 }
+.md-hero--setup__nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
 /* Back to Dashboard: same pill style and hover as Skip Setup */
 .md-hero--setup__back-pill {
   text-decoration: none;
@@ -4307,9 +4313,9 @@ tr.accuracy_non_mastered {
 /* Board Category step: medium-sized page header inside setup container */
 .md-card--setup .setup-board-category__page-header {
   margin: 0 0 1rem;
-  font-size: 1.95rem;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
   line-height: 1.3;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -4362,9 +4368,9 @@ tr.accuracy_non_mastered {
 /* Access step: large page header (same as Board Category) */
 .md-card--setup .setup-access__page-header {
   margin: 0 0 1rem;
-  font-size: 1.5rem;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
   line-height: 1.3;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -4659,18 +4665,16 @@ tr.accuracy_non_mastered {
     min-width: 0;
   }
 
-  /* Headings: same as .md-card__title on dashboard */
+  /* Headings: uniform size across all setup pages.
+     Uses !important to override the global h2 { font-size: 25px !important } at line 2589. */
   h1, h2, h3, h4 {
-    margin: 0 0 1rem;
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: -0.2px;
-    color: var(--md-ink);
-    line-height: 1.3;
+    margin: 0 0 1rem !important;
+    font-size: 20px !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.2px !important;
+    color: var(--md-ink) !important;
+    line-height: 1.3 !important;
   }
-  h1 { font-size: clamp(20px, 2.2vw, 24px); }
-  h2 { font-size: 19px; }
-  h3 { font-size: 18px; }
 
   p {
     margin-bottom: 1.25rem;
@@ -4691,51 +4695,7 @@ tr.accuracy_non_mastered {
     margin-bottom: 1.5rem;
   }
 
-  /* Usage step: key things to know – each item a clear visual block to guide the eye */
-  .usage-checklist__title {
-    margin: 0 0 1rem;
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--md-ink);
-  }
-  .usage-checklist {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .usage-checklist__item {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem 0.75rem 1rem;
-    margin: 0;
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--md-ink);
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 12px;
-    border-left: 4px solid rgba(44, 183, 176, 0.6);
-    box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
-  }
-  .usage-checklist__item::before {
-    content: "✓";
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.35rem;
-    height: 1.35rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #fff;
-    background: rgba(44, 183, 176, 0.85);
-    border-radius: 50%;
-    line-height: 1;
-  }
+  /* Usage step: inherit global checklist styles (defined at root below) */
   /* Setup done page — modern action buttons */
   .setup-done-actions {
     display: flex;
@@ -4782,6 +4742,192 @@ tr.accuracy_non_mastered {
   }
   .setup-done-actions__btn svg {
     flex-shrink: 0;
+  }
+
+  /* Back button demo — image with animated circle pointing at the back button */
+  .setup-back-btn-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-back-btn-demo__img {
+    width: 100%;
+    display: block;
+  }
+  /* Animated pulsing circle that highlights the back button location.
+     Positioned at ~6.5% from left, ~4.5% from top (where the back chevron
+     sits in the sentence bar of the board-back.png screenshot). */
+  .setup-back-btn-demo__circle {
+    position: absolute;
+    top: 7.75%;
+    left: 7.25%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: setup-back-pulse 5s ease-in-out infinite;
+  }
+  @keyframes setup-back-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    15% {
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+    30% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    /* pause */
+    55% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    70% {
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+    85%, 100% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Exit speak mode demo — two-phase animation:
+     Phase 1 (0-3s): pulsing circle on the options button
+     Phase 2 (3-6s): pulsing rectangle around Exit Speak Mode button
+     Total cycle: 6s, repeats infinitely. */
+  .setup-exit-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-exit-demo__img {
+    width: 100%;
+    display: block;
+  }
+  /* Circle over the options button (three dots, top right) */
+  .setup-exit-demo__circle {
+    position: absolute;
+    top: 4.1%;
+    right: 2.1%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(50%, -50%);
+    pointer-events: none;
+    animation: setup-exit-circle 6s ease-in-out infinite;
+  }
+  /* Rectangle around Exit Speak Mode button (bottom of menu) */
+  .setup-exit-demo__rect {
+    position: absolute;
+    bottom: 33%;
+    right: 0.5%;
+    width: 12.5%;
+    height: 9%;
+    border: 3px solid $brand-verdigris;
+    border-radius: 10px;
+    pointer-events: none;
+    animation: setup-exit-rect 6s ease-in-out infinite;
+  }
+  /* Phase 1: circle pulses once for 0-3s, then disappears */
+  @keyframes setup-exit-circle {
+    0% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(50%, -50%) scale(1);
+    }
+    20% {
+      opacity: 1;
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(50%, -50%) scale(1.15);
+    }
+    35% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.3);
+      transform: translate(50%, -50%) scale(1);
+    }
+    45% {
+      opacity: 0;
+      transform: translate(50%, -50%) scale(1);
+    }
+    50%, 100% {
+      opacity: 0;
+      box-shadow: none;
+    }
+  }
+  /* Phase 2: rectangle pulses once for 3-6s, then disappears */
+  @keyframes setup-exit-rect {
+    0%, 45% {
+      opacity: 0;
+      box-shadow: none;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: scale(1);
+    }
+    70% {
+      opacity: 1;
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: scale(1.05);
+    }
+    85% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.3);
+      transform: scale(1);
+    }
+    95% {
+      opacity: 0;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      box-shadow: none;
+      transform: scale(1);
+    }
+  }
+
+  /* Modeling mode demo — two-phase animation matching exit-speak-mode:
+     Phase 1 (0-3s): pulsing circle on the options button
+     Phase 2 (3-6s): pulsing rectangle around Model for Communicator item */
+  .setup-modeling-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-modeling-demo__img {
+    width: 100%;
+    display: block;
+  }
+  .setup-modeling-demo__circle {
+    position: absolute;
+    top: 4.1%;
+    right: 2.1%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(50%, -50%);
+    pointer-events: none;
+    animation: setup-exit-circle 6s ease-in-out infinite;
+  }
+  .setup-modeling-demo__rect {
+    position: absolute;
+    bottom: 50%;
+    right: 0.5%;
+    width: 12%;
+    height: 7.5%;
+    border: 3px solid $brand-verdigris;
+    border-radius: 10px;
+    pointer-events: none;
+    animation: setup-exit-rect 6s ease-in-out infinite;
   }
 
   .setup_setting {
@@ -5455,8 +5601,8 @@ tr.accuracy_non_mastered {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding-top: 32px;
-  padding-bottom: 32px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 .md-card--setup-intro::before {
   content: '';
@@ -5480,7 +5626,8 @@ tr.accuracy_non_mastered {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: 140px;
+  min-height: 84px;
+  padding-bottom: 0;
 }
 .md-card--setup-intro .md-card__head--setup-intro,
 .md-card--setup-intro .md-card__head--getting-started {
@@ -5490,6 +5637,8 @@ tr.accuracy_non_mastered {
   gap: 20px;
   margin-bottom: 0;
   flex-shrink: 0;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
 }
 .md-card--setup-intro .md-card__head-left {
   display: flex;
@@ -5510,8 +5659,8 @@ tr.accuracy_non_mastered {
 }
 .setup-intro__header {
   margin: 0 0 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  padding-bottom: 0;
+  border-bottom: none;
   color: var(--md-navy, $la-navy);
 }
 .setup-intro__username {
@@ -38378,8 +38527,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   background: rgba(255, 255, 255, 0.72) !important;
 
-  transition: transform 0.12s ease !important;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 
+}
+.md-btn:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba($brand-verdigris, 0.35) !important;
+  box-shadow: 0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-btn:active { transform: scale(var(--md-tap)); }
 
@@ -38390,6 +38544,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   color: $la-navy !important;
 
+}
+.md-btn--primary:hover {
+  background: rgba($brand-dusty-denim, 0.45) !important;
+  border-color: rgba($brand-dusty-denim, 0.35) !important;
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15) !important;
 }
 
 .md-btn--pill {
@@ -38422,6 +38581,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-btn--ghost {
   background: rgba(255, 255, 255, 0.62) !important;
 
+}
+.md-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba($la-navy, 0.15) !important;
+  box-shadow: 0 4px 14px rgba($la-navy, 0.08) !important;
 }
 
 .md-btn--wide { width: 100%; margin-top: 12px; }
@@ -39695,11 +39859,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-add-supervisor__options {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
 }
 .md-add-supervisor__options .md-btn {
-  flex: 1;
-  min-width: 120px;
+  flex: 0 0 calc(50% - 4px);
+  white-space: nowrap;
+  border-radius: 999px !important;
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  min-height: 44px !important;
+  text-align: center;
+  justify-content: center;
 }
 .md-add-supervisor__hint {
   margin-top: 10px;
@@ -45874,6 +46047,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-sentence-bar__back-btn:active {
   transform: scale(var(--md-tap, 0.97));
 }
+/* Modeling mode badge — appears inside the sentence bar when modeling
+   is active so the supporter always knows their taps are being logged
+   as modeling actions, not communicator actions. */
+.md-board-detail-sentence-bar__modeling-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.18);
+  color: $brand-verdigris-aa;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  animation: modeling-badge-pulse 2s ease-in-out infinite;
+}
+@keyframes modeling-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge {
+  background: rgba($brand-verdigris, 0.25);
+  color: $brand-verdigris;
+}
 .md-board-detail-sentence-bar__text {
   flex: 1;
   font-size: 20px;
@@ -47511,12 +47710,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* Actions dropdown (right of sentence bar) */
+/* Actions dropdown (right of sentence bar).
+   z-index 100 keeps the options button and menu above the frosted
+   backdrop (z-index 99) so both remain sharp and clickable. */
 .md-board-detail-sentence-bar__actions-wrap {
   position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
+  z-index: 100;
 }
 .md-board-detail-sentence-bar__actions-wrap--stacked {
   flex-direction: column;
@@ -47544,6 +47746,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
   padding: 0;
   transition: background 0.12s ease;
+  /* Stay above the frosted backdrop so the button isn't blurred */
+  position: relative;
+  z-index: 101;
 }
 .md-board-detail-actions-toggle:hover {
   background: #6583a9;
@@ -47563,10 +47768,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   right: 0;
   bottom: 0;
   z-index: 99;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .md-board-detail-actions-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: 50px;
   right: 0;
   background: #fff;
   border-radius: 14px;
@@ -50474,6 +50682,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail--dark .md-board-detail-actions-toggle:hover {
   background: #344054;
 }
+.md-board-detail--dark .md-board-detail-actions-backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
 .md-board-detail--dark .md-board-detail-actions-menu {
   background: #1e2530;
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -50682,6 +50893,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-modal-body {
   padding: 28px 24px;
   text-align: center;
+  font-size: 16px;
 }
 .md-modal-icon-row {
   display: flex;
@@ -50699,7 +50911,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
 }
 .md-modal-message {
-  font-size: 15px;
+  font-size: 16px;
   color: $brand-charcoal-blue;
   line-height: 1.5;
   margin: 0 0 8px;
@@ -50762,17 +50974,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: left;
 }
 .md-modal-label {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   display: block;
   margin-bottom: 4px;
 }
 .md-modal-hint {
-  font-size: 13px;
+  font-size: 16px;
   color: $brand-slate-gray;
   margin: 0 0 8px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 .md-modal-select {
   width: 100%;
@@ -50790,6 +51002,55 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: none;
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+}
+/* Style any Bootstrap form-control inside modern modals to match the
+   md-modal-input / md-modal-select look (e.g. user-select component
+   which hardcodes form-control). */
+.md-modal-body select.form-control {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  padding-right: 40px !important;
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+  color: $la-navy !important;
+  background: rgba($la-navy, 0.03) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2346505F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px 16px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease !important;
+  height: auto !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* Force user-select component spans to full width inside modals */
+.md-modal-body .md-modal-field > span {
+  display: block !important;
+  width: 100% !important;
+}
+.md-modal-body input.form-control,
+.md-modal-body textarea.form-control {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+  color: $la-navy !important;
+  background: rgba($la-navy, 0.03) !important;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease !important;
+  height: auto !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.md-modal-body select.form-control:focus,
+.md-modal-body input.form-control:focus,
+.md-modal-body textarea.form-control:focus {
+  border-color: $brand-verdigris !important;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12) !important;
+  outline: none !important;
 }
 
 /* ── Voice & Output Modal layout helpers ── */
@@ -50818,9 +51079,65 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
 }
 
+/* ── Usage checklist (global — used in setup pages, modals, etc.) ── */
+.usage-checklist__title {
+  margin: 0 0 1rem;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--md-ink, $la-navy);
+}
+.usage-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.usage-checklist__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-ink, $la-navy);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  border-left: 4px solid rgba(44, 183, 176, 0.6);
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
+}
+.usage-checklist__item::before {
+  content: "✓";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(44, 183, 176, 0.85);
+  border-radius: 50%;
+  line-height: 1;
+}
+
+/* Checklist inside modals uses dusty-denim with white checkmark.
+   White on #4C86D8 = 3.86:1 — passes WCAG 1.4.11 non-text (3:1). */
+.md-modal-body .usage-checklist__item {
+  border-left-color: $brand-dusty-denim;
+}
+.md-modal-body .usage-checklist__item::before {
+  background: $brand-dusty-denim;
+  color: #fff;
+}
+
 /* ── Share Board Modal: shared users list ── */
 .md-modal-section-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   margin: 16px 0 10px;
@@ -51046,7 +51363,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 16px;
   color: $brand-charcoal-blue;
   cursor: pointer;
 }
@@ -51113,7 +51430,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin: 10px 0 0;
   padding: 8px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
 }
 .md-modal-status--success {

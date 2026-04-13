@@ -1,15 +1,16 @@
 <div class='col-sm-12'>
-  <h4>{{t "Adding Supervisors" key="adding_supervisors"}}</h4>
+  <h4>{{t "Supervisors" key="supervisors"}}</h4>
 </div>
 <div class='col-sm-12'>
   <ul class="usage-checklist">
     <li class="usage-checklist__item">{{t "Communication grows faster with a team. Add the people who support your communicator — family, teachers, therapists — so everyone stays connected." key="supervisors_explainer"}}</li>
     {{#if this.setup.setup_user.supporter_role}}
       <li class="usage-checklist__item">{{t "To access boards and reports, communicators need to add you as a supervisor from their dashboard." key="get_added_as_supervisor"}}</li>
-      <li class="usage-checklist__item">{{t "Free modeling-only accounts make it easy for the whole team to get involved." key="supervisors_free_accounts"}}</li>
     {{else}}
       <li class="usage-checklist__item">{{t "Supervisor accounts are free — invite your team to sign up and add them here." key="add_lots_of_supervisors"}}</li>
     {{/if}}
+    <li class="usage-checklist__item">{{t "Once added, supervisors can view and practice with the communicator's boards on their own devices — great for building confidence with the vocabulary." key="supervisors_2"}}</li>
+    <li class="usage-checklist__item">{{t "Supervisors with editing permission can also add new buttons and phrases to help the communicator grow." key="supervisors_3"}}</li>
   </ul>
   {{#unless this.setup.setup_user.supporter_role}}
     {{#if this.setup.setup_user}}

@@ -1,21 +1,26 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "About %app_name%" key="about_app"}}
-    </h3>
+  <div class="modal-header md-modal-header" style="text-align: center;">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    {{app-logo size="150px" ariaHiddenImg=false}}
   </div>
-  <div class="modal-body">
-    <span style="float: left;">{{app-logo size="65px"}}</span>
-    {{#if this.app_state.currentUser}}
-      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, so it's limited to speak mode only, but if you visit the web site you should be able to access your account as usual." key="thanks_app"}}</p>
-    {{else}}
-      <p>{{t "Thanks for trying %app_name% in your web browser! This is a demo you're seeing embedded in a web site, but %app_name% is a powerful augmentative communication (AAC) app that can run as it's own tab in a browser on a desktop, or be downloaded in app stores on tablets and smartphones. You can sign up for a free trial and see if it will work for you or someone you know!" key="thanks_app_long"}}</p>
-    {{/if}}
-    <div style="margin-top: 20px;">
-      <a class='btn btn-lg btn-primary' href="https://www.mylingolinq.com" target="_blank" rel="noopener">{{t "Learn More" key="learn_more"}}</a>
-      <a class='btn btn-lg btn-default' href={{this.app_state.board_url}} target="_blank" rel="noopener">{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
-      <button class='btn btn-lg btn-default' {{action "close"}}>{{t "Back to the Demo" key="back_to_demo"}}</button>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <ul class="usage-checklist">
+      {{#if this.app_state.currentUser}}
+        <li class="usage-checklist__item">{{t "You're viewing a web-based demo of %app_name% with limited functionality." key="thanks_app_check_1"}}</li>
+        <li class="usage-checklist__item">{{t "For the full experience — including board editing, reports, and offline access — visit your account on the main site." key="thanks_app_check_2"}}</li>
+      {{else}}
+        <li class="usage-checklist__item">{{t "%app_name% is an AAC app designed to give everyone a voice." key="thanks_app_long_check_1"}}</li>
+        <li class="usage-checklist__item">{{t "Runs in any browser, and available as a downloadable app for tablets and smartphones." key="thanks_app_long_check_2"}}</li>
+        <li class="usage-checklist__item">{{t "Sign up for a free trial and see how it can help you or someone you know." key="thanks_app_long_check_3"}}</li>
+      {{/if}}
+    </ul>
+
+    <div class="md-modal-field" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+      <a class="btn md-modal-btn md-modal-btn--primary" href="https://www.mylingolinq.com" target="_blank" rel="noopener" aria-label={{t "Learn More (opens in new tab)" key="learn_more_new_tab"}}>{{t "Learn More" key="learn_more"}}</a>
+      <a class="btn md-modal-btn md-modal-btn--cancel" href={{this.app_state.board_url}} target="_blank" rel="noopener" aria-label={{t "View in %app_name% (opens in new tab)" key="view_in_app_new_tab"}}>{{t "View in %app_name%" key="view_this_board_in_app"}}</a>
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Back to the Demo" key="back_to_demo"}}</button>
     </div>
   </div>
 {{/modal-dialog}}

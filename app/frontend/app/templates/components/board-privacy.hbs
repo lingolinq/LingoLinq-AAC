@@ -1,10 +1,12 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="la-board-privacy-wrap">
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Adjust Board Privacy" key="adjust_board_privacy"}}</h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     {{#if this.model.confirmation}}
       <p class="la-board-privacy-desc">{{t "Would you like to update your home board to use the symbol library you've selected? You can update all the linked boards or pick and choose which to change." key="confirm_swap_images"}}</p>
     {{else}}
@@ -31,7 +33,7 @@
       {{bound-select select_class="la-board-privacy-select" select_id="privacy_level" content=this.privacy_levels selection=this.privacy action=(action (mut this.privacy)) }}
     </div>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     <button class='la-board-privacy-submit' {{action "update"}} disabled={{this.status.loading}}>
       {{#if this.status.loading}}
         {{t "Updating Boards..." key="updating_boards"}}
