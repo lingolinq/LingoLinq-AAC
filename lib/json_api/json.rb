@@ -110,6 +110,11 @@ module JsonApi::Json
     (@@running_domains[Worker.thread_id] || {})['override'] || self.default_domain
   end
 
+  # COPPA under-13 signup: age gate + parental email consent (see User#coppa_parental_consent_pending?).
+  def self.coppa_parental_consent_enabled?
+    !!(current_domain && current_domain['settings'] && current_domain['settings']['coppa_parental_consent'])
+  end
+
   def self.default_domain
     {
       'css' => nil,
@@ -129,7 +134,8 @@ module JsonApi::Json
         'youtube_url' => ENV['YOUTUBE_URL'],
         'support_url' => ENV['SUPPORT_URL'],
         'board_user_name' => ENV['BOARD_USER_NAME'] || 'example',
-        'full_domain' => true
+        'full_domain' => true,
+        'coppa_parental_consent' => ENV['COPPA_PARENTAL_CONSENT'].to_s == 'true'
       }
     }
   end

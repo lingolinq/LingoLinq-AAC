@@ -65,6 +65,8 @@ LingoLinq.User = DS.Model.extend({
   access_methods: DS.attr('raw'),
   start_codes: DS.attr('raw'),
   start_code: DS.attr('string'),
+  coppa_under_13: DS.attr('boolean'),
+  parent_consent_email: DS.attr('string'),
   unread_messages: DS.attr('number'),
   unread_alerts: DS.attr('number'),
   external_device: DS.attr('raw'),

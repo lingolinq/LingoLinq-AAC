@@ -655,6 +655,80 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
 
+    describe "COPPA parental consent" do
+      before do
+        allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      end
+
+      it "creates a pending minor without access token and emails the parent" do
+        expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).not_to receive(:schedule_delivery).with(:confirm_registration, anything)
+        expect(UserMailer).not_to receive(:schedule_delivery).with(:new_user_registration, anything)
+        expect(ExternalTracker).not_to receive(:track_new_user)
+        post :create, params: {:user => {
+          'name' => 'coppa_kid',
+          'email' => 'kid_coppa@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_coppa@example.com'
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        expect(json['meta']['access_token']).to eq(nil)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+        d = Device.find_by(:user_id => u.id, :device_key => 'default', :developer_key_id => 0)
+        expect((d.settings['keys'] || []).length).to eq(0)
+      end
+
+      it "rejects under-13 without parent email" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid2',
+          'email' => 'kid2@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "rejects parent email matching account email" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid3',
+          'email' => 'same@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'same@example.com'
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email must be different from the account email')
+      end
+
+      it "blocks confirm_registration until parent consents" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid4',
+          'email' => 'kid4@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent4@example.com'
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        code = u.registration_code
+        post :confirm_registration, params: {:user_id => u.global_id, :code => code}
+        expect(response.status).to eq(400)
+        body = JSON.parse(response.body)
+        expect(body['coppa_parental_consent_pending']).to eq(true)
+      end
+    end
+
     it "should error on invalid start code" do
       post :create, params: {:user => {'name' => 'fred', 'start_code' => 'asdf'}}
       assert_error('invalid start code')

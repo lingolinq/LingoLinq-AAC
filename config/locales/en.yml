@@ -21,3 +21,18 @@
 
 en:
   hello: "Hello world"
+  parental_consent_mailer:
+    subject: "Parental consent for a new %{app_name} account"
+    greeting: "Hello,"
+    intro: "A new %{app_name} account was created for a user who indicated they are under 13. U.S. regulations require verifiable parental consent before the account can be fully activated."
+    action_prompt: "If you are the parent or legal guardian, please open the link below to provide consent:"
+    footer: "If you did not expect this message, you can ignore this email. The account will remain restricted until consent is given or the request expires."
+  parental_consent:
+    page_title: "Parental consent"
+    already_title: "Consent already recorded"
+    already_body: "This account has already been approved. No further action is needed."
+    thanks_title: "Thank you"
+    thanks_body: "Parental consent has been recorded. The account holder can finish setup using the email sent to their address."
+    invalid_title: "Link invalid or expired"
+    invalid_body: "This consent link is not valid anymore. If you still need to approve an account, ask the registrant to start again or contact support."
+    home_link: "%{app_name} home"

@@ -348,6 +348,46 @@ class User < ActiveRecord::Base
     end
     self.settings['registration_code']
   end
+
+  def coppa_parental_consent_pending?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    !!c['pending_parent_consent']
+  end
+
+  # Parent completes email link with token. Returns true when consent is newly recorded or already granted.
+  def grant_parental_consent!(token)
+    return false if token.blank?
+    self.settings ||= {}
+    c = self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    return false unless c['pending_parent_consent']
+    stored = c['parent_consent_token'].to_s
+    tok = token.to_s
+    return false if stored.blank?
+    return false if stored.bytesize != tok.bytesize
+    return false unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+    exp = c['parent_consent_expires_at']
+    if exp.present?
+      begin
+        return false if Time.iso8601(exp) < Time.now.utc
+      rescue ArgumentError
+        return false
+      end
+    end
+    c['parent_consent_granted_at'] = Time.now.utc.iso8601
+    c.delete('parent_consent_token')
+    c.delete('parent_consent_expires_at')
+    c.delete('pending_parent_consent')
+    self.settings['coppa'] = c
+    res = self.save
+    if res
+      devices.each(&:invalidate_cached_keys)
+    end
+    res
+  end
   
   def anonymized_identifier(str=nil)
     str ||= ""
@@ -895,6 +935,31 @@ class User < ActiveRecord::Base
         return false
       end
       self.settings['email'] = process_string(new_email)
+    end
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !params['authored_organization_id']
+      wants_minor = [true, 'true', '1', 1].include?(params['coppa_under_13'])
+      if wants_minor
+        parent = (params['parent_consent_email'] || '').to_s.strip
+        child_email = (self.settings['email'] || '').to_s.strip.downcase
+        if parent.blank?
+          add_processing_error('parent consent email required for under-13 registration')
+          return false
+        end
+        if parent !~ URI::MailTo::EMAIL_REGEXP
+          add_processing_error('invalid parent consent email format')
+          return false
+        end
+        if parent.downcase == child_email
+          add_processing_error('parent consent email must be different from the account email')
+          return false
+        end
+        self.settings['coppa'] = {
+          'pending_parent_consent' => true,
+          'parent_email' => process_string(parent),
+          'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
+        }
+      end
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']

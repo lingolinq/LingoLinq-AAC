@@ -258,21 +258,33 @@ class Api::UsersController < ApplicationController
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
     end
-    UserMailer.schedule_delivery(:confirm_registration, user.global_id)
-    UserMailer.schedule_delivery(:new_user_registration, user.global_id)
-    ExternalTracker.track_new_user(user)
+    coppa_pending = user.coppa_parental_consent_pending?
+    unless coppa_pending
+      UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+      UserMailer.schedule_delivery(:new_user_registration, user.global_id)
+      ExternalTracker.track_new_user(user)
+    else
+      UserMailer.schedule_delivery(:parental_consent_request, user.global_id)
+    end
 
     d = Device.find_or_create_by(:user_id => user.id, :device_key => 'default', :developer_key_id => 0)
     d.settings['ip_address'] = request.remote_ip
     log_installed_client_signal('api/users#create')
     apply_device_classification!(d, installed_app?)
     d.settings['user_agent'] = request.headers['User-Agent']
-    
-    d.generate_token!(!!d.settings['app'])
+    d.save
+    d.generate_token!(!!d.settings['app']) unless coppa_pending
 
     res = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user || user)
     res['user']['start_progress'] = JsonApi::Progress.as_json(start_progress) if start_progress
-    res['meta'] = JsonApi::Token.as_json(user, d)
+    if coppa_pending
+      res['meta'] = {
+        'token_type' => 'bearer',
+        'coppa_parental_consent_pending' => true
+      }
+    else
+      res['meta'] = JsonApi::Token.as_json(user, d)
+    end
     render json: res
   end
   
@@ -645,13 +657,20 @@ class Api::UsersController < ApplicationController
     if params['resend']
       sent = false
       if user.settings['pending'] != false
-        sent = true
-        UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        if user.coppa_parental_consent_pending?
+          sent = false
+        else
+          sent = true
+          UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        end
       end
       render json: {sent: sent}
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
+        if user.coppa_parental_consent_pending?
+          return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
+        end
         confirmed = true
         user.update_setting('pending', false)
       end
