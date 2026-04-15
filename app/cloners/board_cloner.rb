@@ -69,7 +69,7 @@ class BoardCloner < Clowne::Cloner
       if source.settings['prefix'] && record.settings['name'].index(source.settings['prefix']) == 0
         record.settings['name'] = record.settings['name'].sub(/#{source.settings['prefix']}\s+/, '')
       end
-      if !record.settings['name'].index(prefix) != 0
+      if record.settings['name'].index(prefix) != 0
         record.settings['name'] = "#{prefix} #{record.settings['name']}"
       end
       record.settings['prefix'] = prefix

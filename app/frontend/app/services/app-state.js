@@ -38,6 +38,7 @@ import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from '../utils/sync';
+import config from '../config/environment';
 
 // tracks:
 // current mode (edit mode, speak mode, default)
@@ -203,6 +204,19 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
+    var _domainSync = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var w = window.domain_settings || {};
+      _this.set('domain_settings', Object.assign({}, w));
+      if (config.environment === 'development') {
+        // eslint-disable-next-line no-console
+        console.info('[LingoLinq] domain_settings synced: coppa_parental_consent=', w.coppa_parental_consent, 'full_domain=', w.full_domain);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lingolinq-domain-settings-sync', _domainSync);
+      runLater(_domainSync, 500);
+    }
     // Bento dashboard theme: light | midDay | dark | default - persisted in localStorage (gold palette renamed to default)
     var theme = 'light';
     try {

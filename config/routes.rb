@@ -9,7 +9,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'support', 'help', 'forum', 'talk', 'chat', 'feedback', 'faq', 
   'about', 'contact', 'info', 'docs', 'purchase', 'pricing', 'careers', 
   'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
-  'privacy', 'terms', 'hipaa', 'accessibility', 'history',
+  'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
   'mylingolinq', 'inflection', 'inflections', 'saml'
@@ -39,6 +39,7 @@ LingoLinq::Application.routes.draw do
   get '/privacy' => 'boards#privacy'
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
+  get '/parental_consent/complete' => 'parental_consents#complete'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'
   get '/inflections/:word_id/:locale' => ember_handler
@@ -102,6 +103,7 @@ LingoLinq::Application.routes.draw do
   scope 'api/v1', module: 'api' do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
+    post 'users/resend_parental_consent' => 'users#resend_parental_consent'
     post 'messages' => 'messages#create'
     get 'beta_feedback' => 'beta_feedback#index'
     patch 'beta_feedback/:id' => 'beta_feedback#update'

@@ -80,6 +80,27 @@ describe UserMailer, :type => :mailer do
       expect(html).to match("-The Cheddarific Team")
     end
   end
+
+  describe "parental_consent_request" do
+    it "sends to the parent email with a consent URL" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid',
+        'email' => 'kid_m@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      m = UserMailer.parental_consent_request(u.global_id)
+      expect(m.to).to eq(['parent_m@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/parental_consent\/complete/)
+    end
+  end
   
   describe "forgot_password" do
     it "should find the correct user" do

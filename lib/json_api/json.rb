@@ -97,8 +97,21 @@ module JsonApi::Json
       }
       domain_overrides['settings']['app_name'] ||= "LingoLinq"
       domain_overrides['settings']['company_name'] ||= "Someone"
+      # Org host_settings replace default_domain; merge COPPA from ENV unless org set it explicitly.
+      s = domain_overrides['settings']
+      if s['coppa_parental_consent'].nil?
+        s['coppa_parental_consent'] = JsonApi::Json.coppa_parental_consent_from_env?
+      end
     end
     domain_overrides['host'] = host
+    if defined?(Rails) && Rails.env.development?
+      s = domain_overrides['settings'] || {}
+      Rails.logger.info(
+        "[domain_settings] host=#{host.inspect} org_custom_domain=#{!!domain} " \
+        "coppa_parental_consent=#{s['coppa_parental_consent'].inspect} " \
+        "COPPA_PARENTAL_CONSENT=#{ENV['COPPA_PARENTAL_CONSENT'].inspect}"
+      )
+    end
     @@running_domains ||= {}
     @@running_domains.each{|id, hash| @@running_domains.delete(id) if (hash['timestamp'] || 0) < 1.hour.ago.to_i }
     @@running_domains[Worker.thread_id] = {'timestamp' => Time.now.to_i, 'override' => domain_overrides}
@@ -108,6 +121,17 @@ module JsonApi::Json
   def self.current_domain
     @@running_domains ||= {}
     (@@running_domains[Worker.thread_id] || {})['override'] || self.default_domain
+  end
+
+  # COPPA under-13 signup: age gate + parental email consent (see User#coppa_parental_consent_pending?).
+  def self.coppa_parental_consent_enabled?
+    !!(current_domain && current_domain['settings'] && current_domain['settings']['coppa_parental_consent'])
+  end
+
+  # Truthy: true, 1, yes, on (case-insensitive). Matches typical .env conventions.
+  def self.coppa_parental_consent_from_env?
+    v = ENV['COPPA_PARENTAL_CONSENT'].to_s.strip.downcase
+    %w[1 true yes on].include?(v)
   end
 
   def self.default_domain
@@ -129,7 +153,8 @@ module JsonApi::Json
         'youtube_url' => ENV['YOUTUBE_URL'],
         'support_url' => ENV['SUPPORT_URL'],
         'board_user_name' => ENV['BOARD_USER_NAME'] || 'example',
-        'full_domain' => true
+        'full_domain' => true,
+        'coppa_parental_consent' => JsonApi::Json.coppa_parental_consent_from_env?
       }
     }
   end

@@ -109,6 +109,20 @@
             {{ this.login_error }}
           </div>
         {{/if}}
+        {{#if this.coppa_awaiting_parent}}
+          <div class="form-group" style="margin-top: 8px;">
+            <button type="button" class="login-btn login-btn--outline" style="width: 100%;" disabled={{this.coppaResendDisabled}} {{action "resendParentConsentEmail"}}>
+              {{#if this.coppa_resend_busy}}
+                {{t "Sending Email..." key="sending_email"}}
+              {{else}}
+                {{t "Resend approval email to parent" key="coppa_resend_parent_email"}}
+              {{/if}}
+            </button>
+            {{#if this.coppa_resend_notice}}
+              <p class="text-muted" style="margin-top: 10px; font-size: 1rem;">{{this.coppa_resend_notice}}</p>
+            {{/if}}
+          </div>
+        {{/if}}
         <div class="form-group">
           <button type="submit" class='login-btn' disabled={{this.noSubmit}}>
             {{#if this.noSecret}}

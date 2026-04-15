@@ -104,7 +104,10 @@ class SessionController < ApplicationController
         end
       end
     end
-    if params['2fa_code']
+    if !error && user && user.coppa_parental_consent_pending?
+      error = 'awaiting_parental_consent'
+    end
+    if !error && params['2fa_code']
       if user.valid_2fa?(params['2fa_code'])
         @valid_2fa = true
         config['approved_2fa'] = true
@@ -518,6 +521,9 @@ class SessionController < ApplicationController
         return api_error 400, { error: "Invalid client_secret for client_id", client_id: params['client_id'] }
       end
       if u && u.valid_password?(params['password'])
+        if u.coppa_parental_consent_pending?
+          return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
+        end
         # generated based on request headers
         device_key = request.headers['X-Device-Id'] || params['device_id'] || 'default'
 
