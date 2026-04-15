@@ -441,6 +441,8 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         end
       end
     end
+    # Exposed for registration (COPPA): lets the client detect pending consent even if response meta is not matched.
+    json['coppa_parental_consent_pending'] = true if user.coppa_parental_consent_pending?
     json
   end
 end

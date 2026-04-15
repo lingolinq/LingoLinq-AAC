@@ -103,6 +103,7 @@ LingoLinq::Application.routes.draw do
   scope 'api/v1', module: 'api' do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
+    post 'users/resend_parental_consent' => 'users#resend_parental_consent'
     post 'messages' => 'messages#create'
     get 'beta_feedback' => 'beta_feedback#index'
     patch 'beta_feedback/:id' => 'beta_feedback#update'

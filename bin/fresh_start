@@ -44,9 +44,14 @@ echo "LingoLinq is starting on:"
 echo "  Backend:  http://localhost:5000"
 echo "  Frontend: http://localhost:8184 (proxies API to :5000)"
 echo ""
-echo "Tip: COPPA_PARENTAL_CONSENT in .env applies to domain_settings from Rails."
-echo "  Ember on :8184 merges /api/v1/domain_settings after load; open Register once"
-echo "  backend is up, or use http://localhost:5000 for the same HTML as production."
+cat <<'TIP'
+
+Tip: COPPA_PARENTAL_CONSENT in .env applies to domain_settings from Rails.
+  Ember on :8184 merges /api/v1/domain_settings after load; open Register once
+  backend is up, or use http://localhost:5000 for the same HTML as production.
+  If new Ember UI changes (e.g. COPPA on Register) shows on :8184 but not :5000, rebuild
+  the Rails bundle: (cd app/frontend && npx ember build) && bundle exec rake extras:assert_js
+TIP
 echo "=========================================="
 echo ""
 

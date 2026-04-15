@@ -28,6 +28,7 @@ en:
     action_prompt: "If you are the parent or legal guardian, please open the link below to provide consent:"
     footer: "If you did not expect this message, you can ignore this email. The account will remain restricted until consent is given or the request expires."
   parental_consent:
+    oauth_login_blocked: "This account is waiting for a parent or guardian to approve it before you can sign in here."
     page_title: "Parental consent"
     already_title: "Consent already recorded"
     already_body: "This account has already been approved. No further action is needed."

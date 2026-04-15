@@ -936,10 +936,18 @@ class User < ActiveRecord::Base
       end
       self.settings['email'] = process_string(new_email)
     end
-    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !params['authored_organization_id']
-      wants_minor = [true, 'true', '1', 1].include?(params['coppa_under_13'])
+    # Use blank? so empty string from the client does not skip COPPA (!"" is false in Ruby).
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored_organization_id'].blank?
+      # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
+      minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
+      wants_minor = [true, 'true', '1', 1].include?(minor_flag)
       if wants_minor
-        parent = (params['parent_consent_email'] || '').to_s.strip
+        parent = (
+          params['parent_consent_email'] ||
+          params['parent-consent-email'] ||
+          params['parentConsentEmail'] ||
+          ''
+        ).to_s.strip
         child_email = (self.settings['email'] || '').to_s.strip.downcase
         if parent.blank?
           add_processing_error('parent consent email required for under-13 registration')
@@ -963,7 +971,7 @@ class User < ActiveRecord::Base
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
-    if params['authored_organization_id'] && !self.id
+    if params['authored_organization_id'].present? && !self.id
       org = Organization.find_by_global_id(params['authored_organization_id'])
       if org && non_user_params[:author] && org.allows?(non_user_params[:author], 'edit')
         self.settings['authored_organization_id'] = org.global_id

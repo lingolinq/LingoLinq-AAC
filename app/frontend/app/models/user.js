@@ -67,6 +67,8 @@ LingoLinq.User = DS.Model.extend({
   start_code: DS.attr('string'),
   coppa_under_13: DS.attr('boolean'),
   parent_consent_email: DS.attr('string'),
+  /** Set by API on create when parental consent is still required (COPPA). */
+  coppa_parental_consent_pending: DS.attr('boolean'),
   unread_messages: DS.attr('number'),
   unread_alerts: DS.attr('number'),
   external_device: DS.attr('raw'),

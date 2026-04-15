@@ -17,6 +17,11 @@ class ParentalConsentsController < ApplicationController
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)
       ExternalTracker.track_new_user(user)
       d = Device.find_or_create_by(user_id: user.id, device_key: 'default', developer_key_id: 0)
+      d.settings['ip_address'] = request.remote_ip
+      log_installed_client_signal('parental_consents#complete')
+      apply_device_classification!(d, installed_app?)
+      d.settings['user_agent'] = request.headers['User-Agent']
+      d.save
       d.generate_token!(!!d.settings['app'])
     end
     render layout: 'parental_consent'

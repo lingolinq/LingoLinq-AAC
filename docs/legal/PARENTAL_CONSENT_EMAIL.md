@@ -49,6 +49,15 @@ The mailer method is `UserMailer#parental_consent_request` in `app/mailers/user_
 3. Confirm **who** the reply-to / from addresses should be (`DEFAULT_EMAIL_FROM`, domain `admin_email`, etc.).
 4. If you need **non-English** parent emails, add the same keys under other `config/locales/*.yml` files (or your i18n process for Rails mailers).
 
+## Why the parent may not receive mail on localhost
+
+1. **Queued mail** — `UserMailer.schedule_delivery` enqueues `UserMailer.deliver_message` on the **Resque `priority` queue** (`app/mailers/concerns/general.rb`). If no **Resque worker** is running, the job never runs and nothing is sent.
+2. **Delivery method** — In `config/environments/development.rb`, Action Mailer uses **`:ses`** (Amazon SES). You need valid **`SES_KEY` / `SES_SECRET`** (or `AWS_KEY` / `AWS_SECRET`) and region. With `raise_delivery_errors = false`, SES failures may not surface as obvious UI errors—check **Rails logs** and the worker log.
+3. **Optional: send during the HTTP request (development only)** — Set **`INLINE_PARENTAL_CONSENT_EMAIL=1`** (or `true` / `yes` / `on`) in the environment for the Rails process. Then `Api::UsersController#create` calls `UserMailer.deliver_message` immediately for the parental consent message instead of queuing it. You still need SES (or change development delivery to `:test` / Letter Opener locally if your team uses that).
+
+This is **not** because the parent address is wrong: `UserMailer#parental_consent_request` sets **`mail(to: settings['coppa']['parent_email'])`**, which is the address submitted as `parent_consent_email` at registration.
+
 ## Changelog
 
 - **2026-04-13** — Initial engineering defaults added with COPPA parental consent feature.
+- **2026-04-14** — Documented Resque + SES and `INLINE_PARENTAL_CONSENT_EMAIL` for local testing.

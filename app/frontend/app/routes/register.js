@@ -58,7 +58,8 @@ export default Route.extend({
         user.set('password', null);
         controller.set('triedToSave', false);
         var meta = _this.persistence.meta('user', null);
-        if(meta && meta.coppa_parental_consent_pending) {
+        var coppaPending = (meta && meta.coppa_parental_consent_pending) || user.get('coppa_parental_consent_pending');
+        if(coppaPending) {
           controller.set('registering', null);
           controller.set('coppaWaitingParent', true);
           return;

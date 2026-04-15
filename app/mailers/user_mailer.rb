@@ -267,6 +267,8 @@ class UserMailer < ActionMailer::Base
     mail_message(@user, "Valet Login Used") if @user
   end
 
+  # Sends the approval link to the parent/guardian address collected at signup (settings['coppa']['parent_email']),
+  # not the child's account email. Delivery is normally via UserMailer.schedule_delivery -> Resque.
   def parental_consent_request(user_id)
     @user = User.find_by_global_id(user_id)
     c = (@user && @user.settings) ? @user.settings['coppa'] : nil
