@@ -978,6 +978,18 @@ export default Controller.extend({
           } else {
             emberSet(btn, 'suggested_part_of_speech', cls);
           }
+          // _make_btn builds new plain objects from _last_raw.buttons; without this, the next
+          // _build_from_raw (preferred_symbols, focus dim, etc.) drops suggestions and every
+          // button is "default" again — re-hitting parts_of_speech and risking 429.
+          var btnId = btn.get ? btn.get('id') : btn.id;
+          var rawList = (_this._last_raw && _this._last_raw.buttons) || [];
+          for(var rbi = 0; rbi < rawList.length; rbi++) {
+            var rawB = rawList[rbi];
+            if(rawB && rawB.id != null && String(rawB.id) === String(btnId)) {
+              rawB.suggested_part_of_speech = cls;
+              break;
+            }
+          }
           _this.notifyPropertyChange('ordered_buttons');
         }
       });
