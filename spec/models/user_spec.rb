@@ -1414,18 +1414,12 @@ describe User, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u3)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(opts[:authorized_user]).to eq(u2)
-        expect(user).to eq(u3)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(b1a.global_id)
-        expect(action).to eq('update_inline')
+      expect(BoardSetCopier).to receive(:new).and_wrap_original do |m, **kwargs|
+        expect(kwargs[:user]).to eq(u3)
+        expect(kwargs[:starting_old_board]).to eq(b1)
+        expect(kwargs[:starting_new_board]).to eq(b2)
+        expect(kwargs[:opts][:authorized_user]).to eq(u2)
+        m.call(**kwargs)
       end
       u3.copy_board_links(old_board_id: b1.global_id, new_board_id: b2.global_id, ids_to_copy: [], make_public: false, user_for_paper_trail: "user:#{u2.global_id}")
     end

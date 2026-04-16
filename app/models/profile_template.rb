@@ -118,6 +118,8 @@ class ProfileTemplate < ApplicationRecord
   # True when stored and incoming refer to the same profile (code vs global id vs default).
   def self.same_profile?(a, b, prof_type)
     return true if a.to_s == b.to_s
+    # 'none' must not match 'default' (or anything else) when identifiers fail to resolve to records.
+    return false if a.to_s.strip == 'none' || b.to_s.strip == 'none'
     pa = resolve_profile_identifier(a, prof_type)
     pb = resolve_profile_identifier(b, prof_type)
     return true if pa.nil? && pb.nil?
