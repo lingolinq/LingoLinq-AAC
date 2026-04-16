@@ -1,4 +1,16 @@
 {{#if this.session.isAuthenticated}}
+  {{#if this.show_org_trainings_admin}}
+    <div class="alert alert-info" style="margin-bottom: 1.25rem;">
+      <p style="margin-bottom: 0.75rem;">{{t "As an organization manager, you can add trainings, assign them to staff, and track completion from your organization's trainings page." key="org_manager_trainings_cta"}}</p>
+      <ul class="list-unstyled" style="margin-bottom: 0;">
+        {{#each this.app_state.sessionUser.managed_orgs as |org|}}
+          <li style="margin-bottom: 0.35rem;">
+            <LinkTo @route="organization.lessons" @model={{org.id}}>{{org.name}} — {{t "Trainings" key="trainings"}}</LinkTo>
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/if}}
   <h2>
     {{t "Current Trainings" key="current_trainings"}}
   </h2>
