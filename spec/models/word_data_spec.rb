@@ -934,6 +934,14 @@ RSpec.describe WordData, :type => :model do
   end
 
   describe "inflection_locations_for" do
+    around do |example|
+      prior_cache = Thread.current[:word_inflection_cache]
+      Thread.current[:word_inflection_cache] = {}
+      example.run
+    ensure
+      Thread.current[:word_inflection_cache] = prior_cache
+    end
+
     it "should return an empty hash for no words or locales" do
       expect(WordData).to_not receive(:where)
       expect(WordData.inflection_locations_for([], 'en')).to eq({})
@@ -1418,7 +1426,6 @@ RSpec.describe WordData, :type => :model do
           regulars: ['comparative']
         }
       }, {updater: u.reload})
-      Thread.current[:word_inflection_cache] = {}
       allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
         key.to_s.start_with?('rules/') ? nil : method.call(key)
       end
@@ -1525,7 +1532,6 @@ RSpec.describe WordData, :type => :model do
           regulars: ['present_participle', 'plural_present']
         }
       }, {updater: u.reload})
-      Thread.current[:word_inflection_cache] = {}
       allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
         key.to_s.start_with?('rules/') ? nil : method.call(key)
       end
@@ -1723,7 +1729,6 @@ RSpec.describe WordData, :type => :model do
           regulars: ['comparative', 'past', 'personal_past']
         }
       }, {updater: u.reload})
-      Thread.current[:word_inflection_cache] = {}
       allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
         key.to_s.start_with?('rules/') ? nil : method.call(key)
       end
