@@ -5,6 +5,9 @@
       <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "People" key="people"}}</LinkTo>
       <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
       <LinkTo @route="organization.rooms" @model={{this.model.id}} class="md-pillnav__pill">{{t "Rooms" key="rooms"}}</LinkTo>
+      {{#if (and this.app_state.feature_flags.lessons this.model.permissions.edit)}}
+        <LinkTo @route="organization.lessons" @model={{this.model.id}} class="md-pillnav__pill">{{t "Trainings" key="trainings"}}</LinkTo>
+      {{/if}}
       <LinkTo @route="organization.settings" @model={{this.model.id}} class="md-pillnav__pill">{{t "Settings" key="settings"}}</LinkTo>
     </nav>
 

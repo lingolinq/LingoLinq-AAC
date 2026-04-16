@@ -1071,8 +1071,8 @@ var persistence = Service.extend({
   remote_json: function(url, encryption_settings) {
     var _this = this;
     return _this.find_json(url).then(null, function() {
-      return persistence.ajax(url, {type: 'GET', dataType: 'text'}).then(function(data) {
-        return this.decrypt_json(data.text, encryption_settings);
+      return _this.ajax(url, {type: 'GET', dataType: 'text'}).then(function(data) {
+        return _this.decrypt_json(data.text, encryption_settings);
       });
     });
   },
@@ -1200,7 +1200,7 @@ var persistence = Service.extend({
       var result = undefined;
       var parse_uri = function(data_uri) {
         try {
-          return this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+          return _this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
             return result || [];
           });
         } catch(e) {
@@ -1225,11 +1225,11 @@ var persistence = Service.extend({
             })  
           });
         } else {
-          return persistence.ajax(storage.local_url, {type: 'GET', dataType: 'text'}).then(function(res) {
-            return this.bg_parse_json(res.text);
+          return _this.ajax(storage.local_url, {type: 'GET', dataType: 'text'}).then(function(res) {
+            return _this.bg_parse_json(res.text);
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
-              this.remove('dataCache', storage.local_url);
+              _this.remove('dataCache', storage.local_url);
               persistence.url_cache[storage.local_url] = null;
             }
             return RSVP.reject(err);
@@ -1573,7 +1573,7 @@ var persistence = Service.extend({
     }
 
     var url_id = this.normalize_url(url);
-    var _this = persistence;
+    var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       var lookup = RSVP.reject();
 
@@ -1601,7 +1601,7 @@ var persistence = Service.extend({
         // skip the remote request if it's stored locally from a location we
         // know won't ever modify static assets
         lookup = lookup.then(null, function() {
-          return this.find('dataCache', url_id).then(function(data) {
+          return _this.find('dataCache', url_id).then(function(data) {
             // if it's a manual sync, always re-download untrusted resources
             if(force_reload && !trusted_not_to_change) {
               return RSVP.reject();
@@ -1661,7 +1661,7 @@ var persistence = Service.extend({
         }
         var external_proxy = RSVP.reject();
         if(window.symbol_proxy_key) {
-          external_proxy = persistence.ajax('https://www.opensymbols.org/api/v1/symbols/proxy?url=' + encodeURIComponent(url) + '&access_token=' + window.symbol_proxy_key, {type: 'GET'}).then(function(data) {
+          external_proxy = _this.ajax('https://www.opensymbols.org/api/v1/symbols/proxy?url=' + encodeURIComponent(url) + '&access_token=' + window.symbol_proxy_key, {type: 'GET'}).then(function(data) {
             var object = {
               url: url,
               type: type,
@@ -1672,7 +1672,7 @@ var persistence = Service.extend({
           });
         }
         return external_proxy.then(null, function() {
-          return persistence.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(url), {type: 'GET'}).then(function(data) {
+          return _this.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(url), {type: 'GET'}).then(function(data) {
             var object = {
               url: url,
               type: type,
@@ -1692,7 +1692,7 @@ var persistence = Service.extend({
           if(str && str.match(/^aes256-/)) {
             // if it's encrypted, try decrypting it and generating a
             // new data-uri before continuing
-            return this.decrypt_json(str, encryption_settings).then(function(res) {
+            return _this.decrypt_json(str, encryption_settings).then(function(res) {
               var json_str = JSON.stringify(res);
               object.data_uri = "data:application/json," + btoa(json_str);
               return object;
@@ -2197,9 +2197,9 @@ var persistence = Service.extend({
       var prime_image_cache = _this_sync.time_promise(confirm_quota_for_user.then(check_first(function(user) {
         if(!ignore_supervisees) {
           return capabilities.storage.list_files('image').then(function(images) {
-            persistence.image_filename_cache = {};
+            _this_sync.image_filename_cache = {};
             images.forEach(function(image) {
-              persistence.image_filename_cache[image] = true;
+              _this_sync.image_filename_cache[image] = true;
             });
             return user;
           });
@@ -2902,7 +2902,7 @@ var persistence = Service.extend({
     var allow_any_cached = false;
     var get_remote_revisions = RSVP.resolve({});
     if(user) {
-      get_remote_revisions = persistence.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', {type: 'GET'}).then(function(res) {
+      get_remote_revisions = _this.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', {type: 'GET'}).then(function(res) {
         fresh_revisions = res;
         // Check for any missing or out-of-date boards here
         // instead of at request time, and make a batch request
@@ -2997,11 +2997,11 @@ var persistence = Service.extend({
           }
         });
       }, function() {
-        if(!this.get('online')) {
+        if(!_this.get('online')) {
           return RSVP.reject({error: 'could not retrieve board revisions'})
         }
-        if(this.get('sync_progress.root_user') != user.get('id')) {
-          var stamps = this.get('sync_stamps') || {};
+        if(_this.get('sync_progress.root_user') != user.get('id')) {
+          var stamps = _this.get('sync_stamps') || {};
           if(stamps[user.get('id')] && stamps[user.get('id')] >= user.get('sync_stamp')) {
             // If the req errors for a supervisee, and the sync_stamp
             // is up-to-date from the last sync, don't try to reload boards
@@ -3014,7 +3014,7 @@ var persistence = Service.extend({
 
     // all_image_urls is a hash of base urls, not skinned urls
     var get_images = get_remote_revisions.then(function() {
-      return this.queue_sync_action('find_all_image_urls', sync_id, function() {
+      return _this.queue_sync_action('find_all_image_urls', sync_id, function() {
         if(Object.keys(all_image_urls).length == 0) {
           return lingoLinqExtras.storage.find_all('image').then(function(list) {
             list.forEach(function(img) {
@@ -3031,7 +3031,7 @@ var persistence = Service.extend({
 
     var all_sound_urls = {};
     var get_sounds = get_images.then(function() {
-      return this.queue_sync_action('find_all_sound_urls', sync_id, function() {
+      return _this.queue_sync_action('find_all_sound_urls', sync_id, function() {
         if(Object.keys(all_sound_urls).length == 0) {
           return lingoLinqExtras.storage.find_all('sound').then(function(list) {
             list.forEach(function(snd) {
@@ -3046,7 +3046,8 @@ var persistence = Service.extend({
       });
     });
 
-    var sync_all_boards = get_sounds.then((function(soundRes, _sync) {
+    var sync_all_boards = get_sounds.then(function(soundRes) {
+      var _sync = _this;
       return new RSVP.Promise(function(resolve, reject) {
         var to_visit_boards = [];
         if(user.get('preferences.home_board.id')) {
@@ -3159,9 +3160,9 @@ var persistence = Service.extend({
                 }));
                 importantIds.push("dataCache_" + board.get('icon_url_with_fallback'));
               }
-              if(LingoLinq.remote_url(board.get('background.image')) && !this.store_url_quick_check(board.get('background.image'), 'image')) {
+              if(LingoLinq.remote_url(board.get('background.image')) && !_sync.store_url_quick_check(board.get('background.image'), 'image')) {
                 content_promises++;
-                visited_board_promises.push(this.store_url(board.get('background.image'), 'image', true, force, sync_id).then(null, function() {
+                visited_board_promises.push(_sync.store_url(board.get('background.image'), 'image', true, force, sync_id).then(null, function() {
                   console.log("bg url failed to sync, " + board.get('background.image'));
                   return RSVP.resolve();
                 }));
@@ -3176,10 +3177,10 @@ var persistence = Service.extend({
                 importantIds.push("dataCache_" + board.get('background.prompt.sound'));
               }
 
-              if(next.image && !this.store_url_quick_check(next.image, 'image')) {
+              if(next.image && !_sync.store_url_quick_check(next.image, 'image')) {
                 content_promises++;
                 visited_board_promises.push(//this.queue_sync_action('store_sidebar_image', sync_id, function() {
-                  /*return*/ this.store_url(next.image, 'image', false, force, sync_id).then(null, function() {
+                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function() {
                     return RSVP.reject({error: "sidebar icon url failed to sync, " + next.image});
                   })
                /*})*/);
@@ -3221,10 +3222,11 @@ var persistence = Service.extend({
                   // If the device thinks the image is stored locally but
                   // it isn't, then go ahead and re-download it
                   var image_filename = image.url && image.url.split(/\/|\\/).pop();
-                  if(!persistence.image_filename_cache[image_filename]) {
+                  _sync.image_filename_cache = _sync.image_filename_cache || {};
+                  if(!_sync.image_filename_cache[image_filename]) {
                     content_promises++;
                     visited_board_promises.push(
-                      this.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function() {
+                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function() {
                         return RSVP.reject({error: "missing button image failed to sync, " + image.url});
                       })
                    );
@@ -3241,9 +3243,9 @@ var persistence = Service.extend({
               board.map_sound_urls(all_sound_urls).forEach(function(sound) {
 //               board.get('local_sounds_with_license').forEach(function(sound) {
                 importantIds.push("sound_" + sound.id);
-                if(LingoLinq.remote_url(sound.url) && !this.store_url_quick_check(sound.url, 'sound')) {
+                if(LingoLinq.remote_url(sound.url) && !_sync.store_url_quick_check(sound.url, 'sound')) {
                   visited_board_promises.push(//this.queue_sync_action('store_button_sound', sync_id, function() {
-                     /*return*/ this.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
+                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
                       return RSVP.reject({error: "button sound failed to sync, " + sound.url});
                      })
                   /*})*/);
@@ -3273,8 +3275,8 @@ var persistence = Service.extend({
                   // (this check is here because it's possible to lose some data via leakage,
                   // since if a board is safely cached it's sub-boards should be as well,
                   // but unfortunately sometimes they're not)
-                  var find = this.queue_sync_action('find_board', sync_id, function() {
-                    return this.find('board', board.id);
+                  var find = _sync.queue_sync_action('find_board', sync_id, function() {
+                    return _sync.find('board', board.id);
                   });
                   // for every linked board, check all the board's buttons. If all the images
                   // and sounds are already in the cache then mark the board as safely cached.
@@ -3422,17 +3424,17 @@ var persistence = Service.extend({
         var n_threads = capabilities.mobile ? 6 : 10;
         var add_thread = function(defer) {
           defer = defer || RSVP.defer();
-          if(persistence.active_board_threads > n_threads) {
+          if(_this.active_board_threads > n_threads) {
             runLater(function() {
               add_thread(defer);
             }, 1000);
           } else {
-            persistence.active_board_threads = (persistence.active_board_threads || 0) + 1;
+            _this.active_board_threads = (_this.active_board_threads || 0) + 1;
             nextBoard(defer);
             defer.promise.then(function() {
-              persistence.active_board_threads--;
+              _this.active_board_threads--;
             }, function() {
-              persistence.active_board_threads--;
+              _this.active_board_threads--;
             });  
           }
           if(!defer.added) {
@@ -3450,7 +3452,7 @@ var persistence = Service.extend({
           reject.apply(null, arguments);
         });
       });
-    }));
+    });
 
     return sync_all_boards.then(function(full_set_revisions) {
       return _this.store('settings', full_set_revisions, 'synced_full_set_revisions');

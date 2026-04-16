@@ -43,15 +43,6 @@ export default Component.extend({
     }
   ),
 
-  refreshing_class: computed('persistence.syncing', function() {
-    let res = 'glyphicon glyphicon-refresh ';
-    const persistenceService = this.persistence;
-    if (persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('syncing')) {
-      res = res + 'spinning ';
-    }
-    return res;
-  }),
-
   needs_sync: computed('persistence.last_sync_at', function() {
     const p = this.get('persistence');
     if (!p || typeof p.get !== 'function') { return false; }

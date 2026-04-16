@@ -2633,6 +2633,26 @@ h2 {
   margin-bottom: 6px;
 }
 
+.subscribe-modal-header {
+  position: relative;
+}
+.subscribe-modal-header__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: rgba($la-navy, 0.04);
+  color: $brand-slate-gray;
+}
+.subscribe-modal-header__close:hover {
+  background: $brand-charcoal-blue;
+  color: #fff;
+  border-color: $brand-charcoal-blue;
+}
+.subscribe-modal-header .subscribe-trial-btn {
+  margin-right: 56px;
+}
 .subscribe-modal-header__title-wrap {
   display: flex;
   align-items: center;
@@ -30655,6 +30675,295 @@ a.la-footer-bottom-a11y-wcag {
 .la-record-note-cancel-btn:hover {
   background: #f3f4f6;
   border-color: rgba($brand-blue-black, 0.25);
+}
+
+/* ── Sync Details modal (matches record-note modal shell) ── */
+.modal .modal-dialog:has(.la-sync-details-modal-wrap) {
+  margin-top: 15px;
+  max-width: min(720px, 94vw);
+}
+.la-sync-details-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-sync-details-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-sync-details-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-sync-details-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-sync-details-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--sync {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-sync-details-modal-body {
+  padding: 20px 24px;
+  text-align: left;
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-sync-details-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+.la-sync-details-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.la-sync-details-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 24px;
+  border-radius: 999px;
+  background: $brand-charcoal-dark;
+  border: 1px solid rgba($brand-charcoal-dark, 0.3);
+  color: #fff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-sync-details-primary-btn:hover {
+  background: #4b5563;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.la-sync-details-secondary-btn {
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: 1.5px solid rgba($brand-blue-black, 0.15);
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-sync-details-secondary-btn:hover {
+  background: #f3f4f6;
+  border-color: rgba($brand-blue-black, 0.25);
+}
+.la-sync-details-btn-refresh {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.la-sync-details-btn-refresh--spinning {
+  animation: spinningAnimation 2s infinite linear;
+}
+.la-sync-details-lead {
+  margin: 0 0 18px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--md-ink);
+}
+.la-sync-details-log-heading {
+  margin: 20px 0 8px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.la-sync-details-log-heading .text-danger,
+.la-sync-details-log-heading .text-warning,
+.la-sync-details-log-heading .text-success {
+  font-size: inherit;
+}
+.la-sync-details-muted-block {
+  margin-top: 20px;
+  margin-bottom: 0;
+  color: var(--md-muted);
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+.la-sync-details-see-link {
+  margin-left: 4px;
+  font-weight: 600;
+  font-size: inherit;
+}
+.la-sync-details-status-error {
+  margin-left: 10px;
+  margin-top: 4px;
+}
+.la-sync-details-table-scroll {
+  max-height: 60vh;
+  overflow: auto;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--md-line);
+}
+.la-sync-details-table {
+  margin-bottom: 0;
+  font-size: 1.0625rem;
+}
+.la-sync-details-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.la-sync-details-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--md-line);
+}
+.la-sync-details-modal-footer .la-record-note-cancel-btn {
+  font-size: 1.0625rem;
+  padding: 11px 26px;
+}
+
+/* ── Assign Lesson modal (matches sync / record-note shell) ── */
+.modal .modal-dialog:has(.la-assign-lesson-modal-wrap) {
+  margin-top: 15px;
+  max-width: min(720px, 94vw);
+}
+.la-assign-lesson-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-assign-lesson-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-assign-lesson-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-assign-lesson-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-assign-lesson-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--lesson {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-assign-lesson-modal-body {
+  padding: 20px 24px;
+  text-align: left;
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-assign-lesson-modal-body .form-control {
+  font-size: 1.125rem;
+  border: 1.5px solid rgba($brand-blue-black, 0.12);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: var(--md-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.la-assign-lesson-modal-body .form-control:focus {
+  border-color: var(--md-teal);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+  outline: none;
+}
+.la-assign-lesson-modal-body .control-label {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: $brand-slate-blue;
+}
+.la-assign-lesson-modal-body .form-control-static {
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--md-ink);
+}
+.la-assign-lesson-modal-body .checkbox label {
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--md-ink);
+  line-height: 1.5;
+}
+.la-assign-lesson-intro {
+  margin: 0;
+  color: var(--md-muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-assign-lesson-hint {
+  margin-top: 8px;
+  font-size: 1.0625rem;
+  font-style: italic;
+  color: var(--md-muted);
+}
+.la-assign-lesson-allow-past-check {
+  margin-top: 0;
+}
+.la-assign-lesson-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--md-line);
+}
+.la-assign-lesson-modal-footer .la-record-note-cancel-btn {
+  font-size: 1.0625rem;
+  padding: 11px 26px;
+}
+.la-assign-lesson-modal-footer .la-sync-details-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .la-support-modal-wrap {

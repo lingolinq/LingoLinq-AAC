@@ -1,4 +1,6 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import session from '../utils/session';
@@ -9,6 +11,8 @@ import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  app_state: alias('appState'),
   actions: {
     update_org: function() {
       var org = this.get('model');

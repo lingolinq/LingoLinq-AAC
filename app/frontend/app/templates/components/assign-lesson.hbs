@@ -1,111 +1,122 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header md-modal-header">
-    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <h3>
-      {{#if this.lesson.id}}
-        {{t "Update Lesson" key="update_lesson"}}
-      {{else}}
-        {{t "New Lesson" key="new_lesson"}}
-      {{/if}}
-    </h3>
-  </div>
-  <div class="modal-body md-modal-body">
-    <form class="form-horizontal">
+  <div class="la-assign-lesson-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--lesson" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="#46505F"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="#2A9D8F"/><path d="M8 7h8M8 11h8" stroke="#46505F"/></svg>
+      </div>
+      <h3 class="la-modal-header-label">
+        {{#if this.lesson.id}}
+          {{t "Update Lesson" key="update_lesson"}}
+        {{else}}
+          {{t "New Lesson" key="new_lesson"}}
+        {{/if}}
+      </h3>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
+    </div>
+    <div class="la-assign-lesson-modal-body">
+      <form class="form-horizontal">
         {{#unless this.lesson.id}}
-        <div class='form-group'>
-          <div class='col-sm-9 col-sm-offset-3'>
-            <p>{{t "The Internet has many AAC training resources that can benefit AAC staff, users and families. You can assign any web URL as a lesson for users, and they can report back when they have finished the lesson." key="lessons_new_explainer"}}</p>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <p class="la-assign-lesson-intro">{{t "The Internet has many AAC training resources that can benefit AAC staff, users and families. You can assign any web URL as a lesson for users, and they can report back when they have finished the lesson." key="lessons_new_explainer"}}</p>
+            </div>
+          </div>
+        {{/unless}}
+        <div class="form-group">
+          <label class="control-label col-sm-3" for="assign-lesson-title">{{t "Title" key="title"}}</label>
+          <div class="col-sm-6">
+            <Input id="assign-lesson-title" type="text" @value={{this.lesson.title}} class="form-control" />
           </div>
         </div>
-      {{/unless}}
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Title" key="title"}}</label>
-        <div class='col-sm-6'>
-          <Input type="text" @value={{this.lesson.title}} class="form-control" />
-        </div>
-      </div>
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Lesson URL" key="lesson_url"}}</label>
-        <div class='col-sm-9'>
-          <Input type="text" @value={{this.lesson.original_url}} class="form-control" placeholder="https://" />
-        </div>
-      </div>
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Instructions" key="instructions"}}</label>
-        <div class='col-sm-9'>
-          <Textarea @value={{this.lesson.description}} class="form-control" placeholder="additional instructions" rows={{2}} />
-        </div>
-      </div>
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Time Estimate" key="time_estimate"}}</label>
-        <div class='col-sm-2'>
-          <Input type="text" @value={{this.lesson.time_estimate}} class="form-control" placeholder="##" />
-        </div>
-        <div class='col-sm-2'><p class='form-control-static'>{{t "minutes" key="minutes"}}</p></div>
-      </div>
-      {{#if this.model.org}}
-        <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Target Users" key="target_users"}}</label>
-          <div class='col-sm-9'>
-            {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(action (mut this.target_type)) }}
+        <div class="form-group">
+          <label class="control-label col-sm-3" for="assign-lesson-url">{{t "Lesson URL" key="lesson_url"}}</label>
+          <div class="col-sm-9">
+            <Input id="assign-lesson-url" type="text" @value={{this.lesson.original_url}} class="form-control" placeholder="https://" />
           </div>
         </div>
-      {{else if this.model.unit}}
-        <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Target Users" key="target_users"}}</label>
-          <div class='col-sm-9'>
-            {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(action (mut this.target_type)) }}
+        <div class="form-group">
+          <label class="control-label col-sm-3" for="assign-lesson-instructions">{{t "Instructions" key="instructions"}}</label>
+          <div class="col-sm-9">
+            <Textarea id="assign-lesson-instructions" @value={{this.lesson.description}} class="form-control" placeholder="additional instructions" rows={{2}} />
           </div>
         </div>
-      {{/if}}
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Required" key="required"}}</label>
-        <div class='col-sm-9'>
-          {{bound-select select_class="form-control" select_id="required" content=this.required_options selection=this.required_option action=(action (mut this.required_option)) }}
-        </div>
-      </div>
-      {{#if (is-equal this.required_option "required")}}
-        <div class='form-group'>
-          <label class='control-label col-sm-3'>{{t "Due By" key="due_by"}}</label>
-          <div class='col-sm-6'>
-            <Input type="date" @value={{this.lesson.due_at}} class="form-control" />
-            <div class='text-muted' style='margin-left: 10px; font-size: 14px; font-style: italic;'>{{t "leave blank for no due date" key="blank_for_no_due"}}</div>
+        <div class="form-group">
+          <label class="control-label col-sm-3" for="assign-lesson-time-est">{{t "Time Estimate" key="time_estimate"}}</label>
+          <div class="col-sm-2">
+            <Input id="assign-lesson-time-est" type="text" @value={{this.lesson.time_estimate}} class="form-control" placeholder="##" />
           </div>
-          <div class='col-sm-2'><button type="button" class='btn btn-default' {{action "clear_due_date"}}>{{t "clear" key="clear_lower"}}</button></div>
+          <div class="col-sm-2"><p class="form-control-static">{{t "minutes" key="minutes"}}</p></div>
         </div>
-      {{/if}}
-      <div class='form-group'>
-        <label class='control-label col-sm-3'>{{t "Allow Past" key="allow_past"}}</label>
-        <div class='col-sm-9'>
-          <div class="checkbox big_checkbox">
-            <label>
-              <Input @checked={{this.allow_past}} type="checkbox" />
-              {{t "don't require users to re-take the lesson if they already have" key="dont_require_retaking"}}
-            </label>
+        {{#if this.model.org}}
+          <div class="form-group">
+            <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
+            <div class="col-sm-9">
+              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(action (mut this.target_type)) }}
+            </div>
+          </div>
+        {{else if this.model.unit}}
+          <div class="form-group">
+            <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
+            <div class="col-sm-9">
+              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(action (mut this.target_type)) }}
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <label class="control-label col-sm-3">{{t "Required" key="required"}}</label>
+          <div class="col-sm-9">
+            {{bound-select select_class="form-control" select_id="required" content=this.required_options selection=this.required_option action=(action (mut this.required_option)) }}
+          </div>
+        </div>
+        {{#if (is-equal this.required_option "required")}}
+          <div class="form-group">
+            <label class="control-label col-sm-3" for="assign-lesson-due">{{t "Due By" key="due_by"}}</label>
+            <div class="col-sm-6">
+              <Input id="assign-lesson-due" type="date" @value={{this.lesson.due_at}} class="form-control" />
+              <div class="la-assign-lesson-hint">{{t "leave blank for no due date" key="blank_for_no_due"}}</div>
+            </div>
+            <div class="col-sm-2">
+              <button type="button" class="la-sync-details-secondary-btn" {{action "clear_due_date"}}>{{t "clear" key="clear_lower"}}</button>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <span class="control-label col-sm-3" id="assign-lesson-allow-past-label">{{t "Allow Past" key="allow_past"}}</span>
+          <div class="col-sm-9">
+            <div class="checkbox big_checkbox la-assign-lesson-allow-past-check" role="group" aria-labelledby="assign-lesson-allow-past-label">
+              <label>
+                <Input @type="checkbox" @checked={{this.allow_past}} id="assign-lesson-allow-past" />
+                {{t "don't require users to re-take the lesson if they already have" key="dont_require_retaking"}}
+              </label>
+            </div>
           </div>
         </div>
         {{#if this.allow_past}}
-          <div class='col-sm-2 col-sm-offset-3'><p class='form-control-static'>{{t "in the last" key="in_the_last"}}</p></div>
-          <div class='col-sm-2'>
-            <Input type="text" @value={{this.lesson.past_cutoff}} class="form-control" placeholder="##" />
+          <div class="form-group">
+            <div class="col-sm-offset-3 col-sm-2">
+              <p class="form-control-static">{{t "in the last" key="in_the_last"}}</p>
+            </div>
+            <div class="col-sm-2">
+              <Input type="text" @value={{this.lesson.past_cutoff}} class="form-control" placeholder="##" />
+            </div>
+            <div class="col-sm-2">
+              <p class="form-control-static">{{t "months" key="months_lower"}}</p>
+            </div>
           </div>
-          <div class='col-sm-2'><p class='form-control-static'>{{t "months" key="months_lower"}}</p></div>
         {{/if}}
-      </div>
-    </form>
-  </div>
-  <div class='modal-footer'>
-    <button class='btn btn-primary btn-lg' {{action "confirm"}}>
-      {{#if this.status.saving}}
-        {{t "Saving..." key="saving"}}
-      {{else if this.status.error}}
-        {{t "Error Saving" key="error_saving"}}
-      {{else}}
-        {{t "Save" key="save"}}
-      {{/if}}
-    </button>
-    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </form>
+    </div>
+    <div class="la-assign-lesson-modal-footer">
+      <button type="button" class="la-sync-details-primary-btn" disabled={{this.status.saving}} {{action "confirm"}}>
+        {{#if this.status.saving}}
+          {{t "Saving..." key="saving"}}
+        {{else if this.status.error}}
+          {{t "Error Saving" key="error_saving"}}
+        {{else}}
+          {{t "Save" key="save"}}
+        {{/if}}
+      </button>
+      <button type="button" class="la-record-note-cancel-btn" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    </div>
   </div>
 {{/modal-dialog}}
