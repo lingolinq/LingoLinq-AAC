@@ -1,5 +1,6 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
+{{app-loading-overlay}}
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -1422,7 +1423,10 @@
     </div>
     <div id="board_picker_inner">
       {{#if this.boardPickerLoading}}
-        <p class="board-picker__loading">{{t "Loading boards..." key="loading_boards"}}</p>
+        <div class="board-picker__loading" role="status" aria-live="polite" aria-busy="true">
+          <span class="board-picker__loading-spinner" aria-hidden="true"></span>
+          <span class="board-picker__loading-text">{{t "Loading boards..." key="loading_boards"}}</span>
+        </div>
       {{else}}
         {{#each this.filteredBoardPickerBoards as |board|}}
           <a href="#" {{action "pickBoard" board.key}} class="board-picker__item">

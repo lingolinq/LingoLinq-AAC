@@ -30,10 +30,11 @@
     {{!-- Left Sidebar Navigation --}}
     <aside class="md-board-detail-sidebar {{if this.panels_collapsed 'md-board-detail-sidebar--collapsed'}}" aria-label={{t "Board navigation" key="board_navigation"}}>
       <section class="md-board-detail-sidebar__section">
-        <h3 class="md-board-detail-sidebar__heading">{{t "Communicate" key="board_detail_communicate"}}</h3>
+        <h2 class="md-board-detail-sidebar__heading">{{t "Communicate" key="board_detail_communicate"}}</h2>
         {{#each this.sidebar_nav.communicate as |item|}}
           <button type="button"
             class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            aria-current={{if item.active "page" "false"}}
             {{action "nav_select" item.id}}>
             <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
             <span class="md-board-detail-sidebar__label">{{item.label}}</span>
@@ -42,10 +43,11 @@
       </section>
 
       <section class="md-board-detail-sidebar__section">
-        <h3 class="md-board-detail-sidebar__heading">{{t "Clinical" key="board_detail_clinical"}}</h3>
+        <h2 class="md-board-detail-sidebar__heading">{{t "Clinical" key="board_detail_clinical"}}</h2>
         {{#each this.sidebar_nav.clinical as |item|}}
           <button type="button"
             class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            aria-current={{if item.active "page" "false"}}
             {{action "nav_select" item.id}}>
             <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
             <span class="md-board-detail-sidebar__label">{{item.label}}</span>
@@ -54,10 +56,11 @@
       </section>
 
       <section class="md-board-detail-sidebar__section">
-        <h3 class="md-board-detail-sidebar__heading">{{t "Settings" key="board_detail_settings"}}</h3>
+        <h2 class="md-board-detail-sidebar__heading">{{t "Settings" key="board_detail_settings"}}</h2>
         {{#each this.sidebar_nav.settings as |item|}}
           <button type="button"
             class="md-board-detail-sidebar__item {{if item.active 'md-board-detail-sidebar__item--active'}}"
+            aria-current={{if item.active "page" "false"}}
             {{action "nav_select" item.id}}>
             <span class="md-board-detail-sidebar__icon md-board-detail-sidebar__icon--{{item.icon}}" aria-hidden="true"></span>
             <span class="md-board-detail-sidebar__label">{{item.label}}</span>
@@ -1144,6 +1147,12 @@
                 </div>
               </div>
             {{/if}}
+            {{!-- template-lint-disable-tree no-nested-interactive --}}
+            {{!-- Intentional nested interactive elements in edit_mode: the outer
+                 card is the primary tap target (select button); the inner
+                 <button>s are secondary edit actions that stop propagation via
+                 bubbles=false. Screen readers handle this via the outer
+                 aria-label and each inner button's own title. --}}
             <div
               class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
               role="button"

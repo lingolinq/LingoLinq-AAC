@@ -1100,6 +1100,15 @@ export default Service.extend({
     }
   },
   toggle_speak_mode: function(decision) {
+    // If we're currently in speak mode and the user is triggering any exit
+    // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
+    // or no decision at all), show the loading overlay until the home board
+    // renders. 'off' is already-off; skip.
+    console.log('[LOADING-OVERLAY] toggle_speak_mode called; speak_mode=', this.get('speak_mode'), 'decision=', decision);
+    var exitingSpeakMode = this.get('speak_mode') && decision !== 'off';
+    if(exitingSpeakMode) {
+      this.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+    }
     if(decision) {
       modal.close(true);
     }
@@ -1141,6 +1150,11 @@ export default Service.extend({
       this.toggle_mode('speak', {override_state: preferred});
     } else {
       this.controller.send('pickWhichHome');
+    }
+    if(exitingSpeakMode) {
+      // Release the overlay — hide_loading_overlay enforces the minimum
+      // display time, so fast transitions still show it for ~700ms.
+      this.hide_loading_overlay();
     }
   },
   /**
@@ -2666,6 +2680,51 @@ export default Service.extend({
         i.src = img.getAttribute('rel-url');
       }
     })
+  }),
+  // When the loading overlay becomes active, wait for the next router
+  // routeDidChange event (destination route fully rendered) and then clear it.
+  // This keeps the overlay visible for the full transition duration on slow
+  // networks, instead of clearing on a fixed 450ms timer.
+  // Minimum time the overlay stays on screen once shown, so fast synchronous
+  // transitions still let the user see it (and don't flash-and-disappear).
+  LOADING_OVERLAY_MIN_MS: 700,
+
+  show_loading_overlay: function(message) {
+    console.log('[LOADING-OVERLAY] show_loading_overlay called; message =', message);
+    this.set('loading_overlay_message', message);
+    this._loading_overlay_shown_at = Date.now();
+  },
+
+  hide_loading_overlay: function() {
+    var _this = this;
+    var shown_at = this._loading_overlay_shown_at || 0;
+    var elapsed = Date.now() - shown_at;
+    var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
+    var remaining = Math.max(0, min - elapsed);
+    console.log('[LOADING-OVERLAY] hide_loading_overlay called; elapsed =', elapsed, 'delay =', remaining);
+    runLater(function() {
+      if(_this.isDestroyed) { return; }
+      _this.set('loading_overlay_message', null);
+      _this._loading_overlay_shown_at = null;
+    }, remaining);
+  },
+
+  _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
+    console.log('[LOADING-OVERLAY] observer fired; loading_overlay_message =', this.get('loading_overlay_message'));
+  }),
+  // Safety net — in case the speak_mode transition fails or stalls, never leave
+  // the overlay on-screen for more than ~4 seconds.
+  _loading_overlay_timeout_guard: observer('loading_overlay_message', function() {
+    if(this.get('loading_overlay_message')) {
+      var _this = this;
+      if(this._loading_overlay_guard_timer) { return; }
+      this._loading_overlay_guard_timer = runLater(function() {
+        _this._loading_overlay_guard_timer = null;
+        if(!_this.isDestroyed) { _this.set('loading_overlay_message', null); }
+      }, 15000);
+    } else if(this._loading_overlay_guard_timer) {
+      this._loading_overlay_guard_timer = null;
+    }
   }),
   auto_exit_speak_mode: observer('speak_mode_started', 'medium_refresh_stamp', function() {
     var now = (new Date()).getTime();

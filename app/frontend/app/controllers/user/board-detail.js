@@ -16,8 +16,10 @@ import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
 import wordSuggestionsModule from '../../utils/word_suggestions';
+import prefClasses from '../../mixins/pref-classes';
+import LingoLinq from '../../app';
 
-export default Controller.extend({
+export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
   router: service('router'),
@@ -366,11 +368,17 @@ export default Controller.extend({
 
   // Build display buttons from raw API data (proven approach)
   _build_from_raw: function(raw) {
+    // Short-circuit if the user has clicked Exit Speak Mode / Exit to Home —
+    // building out the button grid while navigating away just wastes CPU and
+    // can cause observer churn on a torn-down controller.
+    if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
     var _this = this;
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id && img.url) { image_map[img.id] = img.url; }
     });
+    var skin = _this.get('app_state.referenced_user.preferences.skin');
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin);
     // Cache raw data for preference-triggered rebuilds
     _this._last_raw = raw;
     // Apply preferred_symbols variant URLs
@@ -768,17 +776,6 @@ export default Controller.extend({
   button_text_position_class: computed('app_state.referenced_user.preferences.device.button_text_position', function() {
     var pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || 'top';
     return 'md-board-detail-grid--text-pos-' + pos;
-  }),
-
-  symbol_background_class: computed('app_state.referenced_user.preferences.device.symbol_background', function() {
-    var bg = this.get('app_state.referenced_user.preferences.device.symbol_background') || '';
-    if (!bg) { return ''; }
-    return 'symbol_background_' + bg;
-  }),
-
-  high_contrast_class: computed('app_state.referenced_user.preferences.high_contrast', function() {
-    var hc = this.get('app_state.referenced_user.preferences.high_contrast');
-    return hc === true ? 'high_contrast' : '';
   }),
 
   button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
@@ -2013,14 +2010,39 @@ export default Controller.extend({
     },
 
     exit_to_home: function() {
+      console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
+      // Signal any in-flight async work on this controller to bail.
+      // _build_from_raw and its callers check this flag and return early.
+      this.set('_exiting', true);
+      // Cancel known scheduled timers on this controller.
+      if(this._phrase_search_timer) {
+        try { runCancel(this._phrase_search_timer); } catch(e) {}
+        this._phrase_search_timer = null;
+      }
       this.set('show_options_menu', false);
       this.set('app_state.board_detail_nav_history', []);
       this.set('app_state.board_detail_entry_board', null);
-      this.get('router').transitionTo('index');
+      var app_state = this.get('app_state');
+      app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+      var transition = this.get('router').transitionTo('index');
+      if(transition && typeof transition.then === 'function') {
+        transition.then(
+          function() { app_state.hide_loading_overlay(); },
+          function() { app_state.hide_loading_overlay(); }
+        );
+      } else {
+        app_state.hide_loading_overlay();
+      }
     },
 
     exit_speak_mode: function() {
+      this.set('_exiting', true);
+      if(this._phrase_search_timer) {
+        try { runCancel(this._phrase_search_timer); } catch(e) {}
+        this._phrase_search_timer = null;
+      }
       this.set('show_options_menu', false);
+      // app_state.toggle_speak_mode handles the loading overlay internally.
       this.get('app_state').toggle_speak_mode();
     },
 
