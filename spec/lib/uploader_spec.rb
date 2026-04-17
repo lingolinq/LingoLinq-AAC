@@ -217,7 +217,7 @@ describe Uploader do
         expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
       )
       expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
+      expect(Uploader.check_existing_upload("/a/b/c", "chksum")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
 
     it "should return found false when S3 raises a service error (e.g. access denied)" do
