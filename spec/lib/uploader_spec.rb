@@ -1604,8 +1604,16 @@ describe Uploader do
       expect(Uploader.find_resources('bacon', 'whatever', nil)).to eq([])
       expect(Uploader.find_resources('bacon', nil, nil)).to eq([])
     end
-    
+
+    it 'should return [] for tarheel sources when tarheel_reader flag is off' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(false)
+      expect(Typhoeus).not_to receive(:get)
+      expect(Uploader.find_resources('bacon', 'tarheel', nil)).to eq([])
+      expect(Uploader.find_resources('bacon-1', 'tarheel_book', nil)).to eq([])
+    end
+
     it 'should search for tarheel results' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("https://tarheelreader.org/find/?search=bacon&category=&reviewed=R&audience=E&language=en&page=1&json=1", {timeout: 5}).and_return(OpenStruct.new(body: {
         books: [
           {
@@ -1651,6 +1659,7 @@ describe Uploader do
     end
     
     it 'should return tarheel book pages' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("https://tarheelreader.org/book-as-json/?slug=bacon-1", {:followlocation=>true}).and_return(OpenStruct.new(headers: {}, body: {
         'slug' => 'bacon-1',
         'ID' => '12345',
@@ -1702,6 +1711,7 @@ describe Uploader do
     end
 
     it "should return custom book pages" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("http://www.example.com/book.json", {:followlocation=>true}).and_return(OpenStruct.new(headers: {}, body: {
         "book_url": "http://github.com/whitmer",
         "author": "Brian",
