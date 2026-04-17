@@ -1268,6 +1268,27 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
     end
+
+    it "should reject non-object JSON body" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
+  end
+
+  describe "generate_labels" do
+    it "should reject non-object JSON body" do
+      token_user
+      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
   end
   
   describe "update" do
@@ -1382,6 +1403,16 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
+    end
+
+    it "should reject non-object JSON body" do
+      token_user
+      b = Board.create(:user => @user)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
     end
     
     it "should support single-button updating" do
