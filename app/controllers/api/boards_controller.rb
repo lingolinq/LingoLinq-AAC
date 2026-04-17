@@ -395,7 +395,14 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
-    processed_params = request.content_type == 'application/json' ? JSON.parse(request.body.read) : params
+    processed_params = params
+    if request.media_type == 'application/json'
+      begin
+        processed_params = JSON.parse(request.raw_post)
+      rescue JSON::ParserError
+        processed_params = params
+      end
+    end
     prompt = (processed_params['prompt'] || '').to_s.strip
     return api_error(400, { error: 'prompt required' }) if prompt.blank?
 
@@ -564,9 +571,14 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'edit')
     processed_params = params
     # Necessary because by default Rails is stripping out nil references in an array, which
-    # messes up grid.order
-    if request.content_type == 'application/json'
-      processed_params = JSON.parse(request.body.read)
+    # messes up grid.order. Use raw_post (not request.body.read) so the body is still available
+    # after Rails parameter parsing (same pattern as #create).
+    if request.media_type == 'application/json'
+      begin
+        processed_params = JSON.parse(request.raw_post)
+      rescue JSON::ParserError
+        processed_params = params
+      end
     end
     res = false
     if processed_params['button']
