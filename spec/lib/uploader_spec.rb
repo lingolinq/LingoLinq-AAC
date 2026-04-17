@@ -277,19 +277,41 @@ describe Uploader do
   end
   
   describe "signed_download_url" do
+    let(:static_bucket) { 'spec-static-bucket' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: 'spec-uploads',
+        static_bucket_name: static_bucket
+      }
+    end
     let(:s3_client) { instance_double(Aws::S3::Client) }
     let(:presigner) { instance_double(Aws::S3::Presigner) }
 
     before do
+      @orig_static_s3_bucket = ENV['STATIC_S3_BUCKET']
+      ENV['STATIC_S3_BUCKET'] = static_bucket
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
       allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
       allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
     end
 
+    after do
+      if @orig_static_s3_bucket.nil?
+        ENV.delete('STATIC_S3_BUCKET')
+      else
+        ENV['STATIC_S3_BUCKET'] = @orig_static_s3_bucket
+      end
+    end
+
     it "should return a signed url if the object is found" do
-      expect(s3_client).to receive(:head_object).with(bucket: ENV['STATIC_S3_BUCKET'], key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new)
       expect(presigner).to receive(:presigned_url).with(
         :get_object,
-        hash_including(bucket: ENV['STATIC_S3_BUCKET'], key: 'asdf', expires_in: Uploader::S3_EXPIRATION_TIME)
+        hash_including(bucket: static_bucket, key: 'asdf', expires_in: Uploader::S3_EXPIRATION_TIME)
       ).and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
     end
@@ -305,11 +327,11 @@ describe Uploader do
     end
 
     it "should filter out the bucket host and protocol" do
-      expect(s3_client).to receive(:head_object).with(bucket: ENV['STATIC_S3_BUCKET'], key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new).exactly(3).times
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new).exactly(3).times
       expect(presigner).to receive(:presigned_url).exactly(3).times.and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://#{static_bucket}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://s3.amazonaws.com/#{static_bucket}/asdf")).to eq("asdfjkl")
     end
   end
 
@@ -337,23 +359,56 @@ describe Uploader do
   end  
 
   describe "remote_remove" do
+    let(:uploads_bucket) { 'spec-uploads-for-remote-remove' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{uploads_bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      @orig_uploads_bucket = ENV['UPLOADS_S3_BUCKET']
+      @orig_uploads_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
+
+    after do
+      if @orig_uploads_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_bucket
+      end
+      if @orig_uploads_cdn.nil?
+        ENV.delete('UPLOADS_S3_CDN')
+      else
+        ENV['UPLOADS_S3_CDN'] = @orig_uploads_cdn
+      end
+    end
+
     it "should raise error on unexpected path" do
       expect{ Uploader.remote_remove("https://www.google.com/bacon") }.to raise_error("scary delete, not a path I'm comfortable deleting: https://www.google.com/bacon")
-      expect{ Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
+      expect{ Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
     end
-    
+
     it "should remove the object if found" do
       s3_client = instance_double(Aws::S3::Client)
       expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
       expect(s3_client).to receive(:head_object).with(
-        bucket: ENV['UPLOADS_S3_BUCKET'],
+        bucket: uploads_bucket,
         key: 'images/abcdefg/asdf-asdf.asdf'
       ).and_return(Aws::S3::Types::HeadObjectOutput.new)
       expect(s3_client).to receive(:delete_object).with(
-        bucket: ENV['UPLOADS_S3_BUCKET'],
+        bucket: uploads_bucket,
         key: 'images/abcdefg/asdf-asdf.asdf'
       ).and_return(true)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
 
@@ -362,7 +417,7 @@ describe Uploader do
       expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
       expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(s3_client).not_to receive(:delete_object)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(nil)
     end
 
@@ -371,7 +426,7 @@ describe Uploader do
       expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
       expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
       expect(s3_client).to receive(:delete_object).and_return(true)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
 
@@ -384,7 +439,7 @@ describe Uploader do
       )
       expect(s3_client).to receive(:head_object).and_return(head)
       expect(s3_client).not_to receive(:delete_object)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
 
@@ -393,14 +448,28 @@ describe Uploader do
       expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
       expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(s3_client).not_to receive(:delete_object)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
   end
 
   describe 'remote_touch' do
-    let(:bucket) { ENV['UPLOADS_S3_BUCKET'] }
+    let(:bucket) { 'spec-uploads-for-remote-touch' }
     let(:key) { 'images/abcdefg/asdf-asdf.asdf' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
 
     it 'should copy the path to the same location' do
       s3_client = instance_double(Aws::S3::Client)
