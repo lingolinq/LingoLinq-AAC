@@ -45,7 +45,33 @@ class Lesson < ApplicationRecord
     end
     res
   }
+  # Lessons assigned to an org/unit may still be stored with user_id only; org/unit managers
+  # need edit so they can update links and settings from the organization trainings UI.
+  add_permissions('view', 'view_ratings', 'edit') {|user|
+    (self.settings['usages'] || []).any? do |use|
+      record_code = use['obj']
+      next false unless record_code
+      rec = Webhook.find_record(record_code)
+      !!(rec && (
+        (rec.is_a?(Organization) && rec.allows?(user, 'edit')) ||
+        (rec.is_a?(OrganizationUnit) && rec.allows?(user, 'edit'))
+      ))
+    end
+  }
   cache_permissions
+
+  # Bare hostnames (e.g. "google.com") are invalid in iframe src without a scheme — browsers
+  # resolve them as paths relative to the current URL. Prepend https:// when appropriate.
+  def self.normalize_lesson_embed_url(url)
+    return nil if url.blank?
+    url = url.to_s.strip
+    return nil if url.empty?
+    return url if url.start_with?('/')
+    return url if url.start_with?('//')
+    return url if url.match?(/\Ahttps?:\/\//i)
+    return nil if url.match?(/\A[a-z][a-z0-9+.-]*:/i)
+    "https://#{url}"
+  end
 
   def generate_defaults
     self.settings ||= {}
@@ -109,13 +135,16 @@ class Lesson < ApplicationRecord
   end
 
   def check_url(frd=false)
-    return if !self.settings['url'] || (self.settings['checked_url'] && self.settings['checked_url']['url'] = self.settings['url'])
+    return if !self.settings['url']
+    normalized = Lesson.normalize_lesson_embed_url(self.settings['url'])
+    return if !normalized
+    return if self.settings['checked_url'] && self.settings['checked_url']['url'] == normalized
     if !frd
       self.schedule(:check_url, true)
       return
     end
-    res = Typhoeus.head(self.settings['url'], followlocation: true)
-    self.settings['checked_url'] = {'url' => self.settings['url'], 'ts' => Time.now.to_i}
+    res = Typhoeus.head(normalized, followlocation: true)
+    self.settings['checked_url'] = {'url' => normalized, 'ts' => Time.now.to_i}
     if res.code < 300 && res.code > 199
       if ['deny', 'sameorigin'].include?((res.headers['X-Frame-Options'] || '').downcase)
         self.settings['checked_url']['noframe'] = true
@@ -338,7 +367,9 @@ class Lesson < ApplicationRecord
     self.settings['author_id'] ||= non_user_params['author'].global_id
     self.settings['title'] = process_string(params['title']) if params['title']
     self.settings['description'] = process_string(params['description']) if params['description']
-    self.settings['url'] = process_string(params['url']) if params['url']
+    if params['url']
+      self.settings['url'] = Lesson.normalize_lesson_embed_url(process_string(params['url']))
+    end
     self.settings['required'] = process_boolean(params['required']) if params['required']
     if params.key?('due_at')
       self.settings['due_at'] = params['due_at'].present? ? Time.parse(params['due_at'].to_s).iso8601 : nil
@@ -355,7 +386,7 @@ class Lesson < ApplicationRecord
   end
 
   def launch_url
-    self.settings['url']
+    Lesson.normalize_lesson_embed_url(self.settings['url'])
   end
   
 end

@@ -63,7 +63,11 @@ export default Service.extend({
     // Expose globally for utilities
     window.appState = this;
     if (typeof window !== 'undefined') {
-      window.LingoLinq = window.LingoLinq || {};
+      // Never assign `{}` here: it is truthy and would replace the real namespace
+      // (including `Lessons`) if something created an empty `window.LingoLinq` early.
+      if (!window.LingoLinq || !window.LingoLinq.Lessons) {
+        window.LingoLinq = LingoLinq;
+      }
       window.LingoLinq.appState = this;
     }
     // Also assign to buttonTracker as it's used in raw_events
