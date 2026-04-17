@@ -340,7 +340,9 @@ class Lesson < ApplicationRecord
     self.settings['description'] = process_string(params['description']) if params['description']
     self.settings['url'] = process_string(params['url']) if params['url']
     self.settings['required'] = process_boolean(params['required']) if params['required']
-    self.settings['due_at'] = Time.parse(params['due_at']).iso8601 if params['due_at']
+    if params.key?('due_at')
+      self.settings['due_at'] = params['due_at'].present? ? Time.parse(params['due_at'].to_s).iso8601 : nil
+    end
     self.settings['time_estimate'] = params['time_estimate'].to_i
     self.settings['time_estimate'] = nil if self.settings['time_estimate'] == 0
     self.settings['past_cutoff'] = params['past_cutoff'].to_i

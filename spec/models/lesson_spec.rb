@@ -487,6 +487,21 @@ describe Lesson, :type => :model do
       expect(l.settings['past_cutoff']).to eq(154)
     end
 
+    it "should not raise when due_at is blank and should clear when explicitly blank" do
+      l = Lesson.create
+      u = User.create
+      l.process({
+        'title' => 'cheddar',
+        'due_at' => 'June 20, 2020'
+      }, {'author' => u})
+      expect(l.settings['due_at']).to be_present
+
+      expect {
+        l.process({'due_at' => ''}, {'author' => u})
+      }.not_to raise_error
+      expect(l.settings['due_at']).to eq(nil)
+    end
+
     it "should assign the correct target" do
       l = Lesson.create
       u = User.create
