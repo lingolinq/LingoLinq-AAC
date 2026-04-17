@@ -136,7 +136,12 @@ describe Lesson, :type => :model do
       expect(Lesson.normalize_lesson_embed_url('https://example.com/x')).to eq('https://example.com/x')
       expect(Lesson.normalize_lesson_embed_url('//example.com/x')).to eq('//example.com/x')
       expect(Lesson.normalize_lesson_embed_url('/internal/lesson')).to eq('/internal/lesson')
-      expect(Lesson.normalize_lesson_embed_url('mailto:a@b.co')).to eq('mailto:a@b.co')
+    end
+
+    it "rejects non-http(s) schemes used for iframe src" do
+      expect(Lesson.normalize_lesson_embed_url('mailto:a@b.co')).to eq(nil)
+      expect(Lesson.normalize_lesson_embed_url('javascript:alert(1)')).to eq(nil)
+      expect(Lesson.normalize_lesson_embed_url('data:text/html,<script>1</script>')).to eq(nil)
     end
   end
 

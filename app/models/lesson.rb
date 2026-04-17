@@ -66,9 +66,10 @@ class Lesson < ApplicationRecord
     return nil if url.blank?
     url = url.to_s.strip
     return nil if url.empty?
-    return url if url.match?(/\A[a-z][a-z0-9+.-]*:/i)
-    return url if url.start_with?('//')
     return url if url.start_with?('/')
+    return url if url.start_with?('//')
+    return url if url.match?(/\Ahttps?:\/\//i)
+    return nil if url.match?(/\A[a-z][a-z0-9+.-]*:/i)
     "https://#{url}"
   end
 
@@ -136,6 +137,7 @@ class Lesson < ApplicationRecord
   def check_url(frd=false)
     return if !self.settings['url']
     normalized = Lesson.normalize_lesson_embed_url(self.settings['url'])
+    return if !normalized
     return if self.settings['checked_url'] && self.settings['checked_url']['url'] == normalized
     if !frd
       self.schedule(:check_url, true)
