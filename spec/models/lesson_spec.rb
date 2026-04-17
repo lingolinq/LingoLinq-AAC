@@ -23,13 +23,13 @@ describe Lesson, :type => :model do
       expect(l.permissions_for(u)).to eq({'user_id' => u.global_id, 'view' => true, 'edit' => true, 'view_ratings' => true})
     end
 
-    it "should let all usages view" do
+    it "should let organization managers view and edit lessons assigned to their org" do
       l = Lesson.create
       u = User.create
       o = Organization.create
       o.add_manager(u.user_name, true)
       l.settings['usages'] = [{'obj' => Webhook.get_record_code(o)}]
-      expect(l.permissions_for(u)).to eq({'user_id' => u.global_id, 'view' => true, 'view_ratings' => true})
+      expect(l.permissions_for(u)).to eq({'user_id' => u.global_id, 'view' => true, 'view_ratings' => true, 'edit' => true})
     end
   end
 
@@ -125,60 +125,75 @@ describe Lesson, :type => :model do
     end
   end
 
+  describe "normalize_lesson_embed_url" do
+    it "prepends https for hostnames without a scheme" do
+      expect(Lesson.normalize_lesson_embed_url('google.com')).to eq('https://google.com')
+      expect(Lesson.normalize_lesson_embed_url('  www.example.org/path  ')).to eq('https://www.example.org/path')
+    end
+
+    it "leaves absolute URLs and paths unchanged" do
+      expect(Lesson.normalize_lesson_embed_url('http://example.com/x')).to eq('http://example.com/x')
+      expect(Lesson.normalize_lesson_embed_url('https://example.com/x')).to eq('https://example.com/x')
+      expect(Lesson.normalize_lesson_embed_url('//example.com/x')).to eq('//example.com/x')
+      expect(Lesson.normalize_lesson_embed_url('/internal/lesson')).to eq('/internal/lesson')
+      expect(Lesson.normalize_lesson_embed_url('mailto:a@b.co')).to eq('mailto:a@b.co')
+    end
+  end
+
   describe "check_url" do
     it "should skip if already checked" do
       l = Lesson.create
       expect(l.check_url).to eq(nil)
-      l.settings['url'] = 'asdf'
-      l.settings['checked_url'] = {'url' => 'asdf'}
+      l.settings['url'] = 'http://example.com/lesson'
+      l.settings['checked_url'] = {'url' => 'http://example.com/lesson'}
       expect(l.check_url).to eq(nil)
     end
 
     it "should schedule a check if not checked and not frd" do
       l = Lesson.create
-      l.settings['url'] = 'asdf'
+      l.settings['url'] = 'http://example.com/lesson'
       expect(l).to receive(:schedule).with(:check_url, true)
       expect(l.check_url).to eq(nil)
     end
 
     it "should make a remote call if frd" do
       l = Lesson.create
-      l.settings['url'] = 'asdf'
+      l.settings['url'] = 'http://example.com/lesson'
       o = OpenStruct.new(code: 200, headers: {})
-      expect(Typhoeus).to receive(:head).with('asdf', followlocation: true).and_return(o)
+      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
       expect(l.check_url(true)).to eq(true)
       l.reload
-      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'asdf'})
+      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson'})
     end
 
     it "should mark deny or sameorigin responses as problematic" do
       l = Lesson.create
-      l.settings['url'] = 'asdf'
+      l.settings['url'] = 'http://example.com/lesson'
       o = OpenStruct.new(code: 200, headers: {'X-Frame-Options' => 'deny'})
-      expect(Typhoeus).to receive(:head).with('asdf', followlocation: true).and_return(o)
+      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
       expect(l.check_url(true)).to eq(true)
       l.reload
-      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'asdf', 'noframe' => true})
+      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson', 'noframe' => true})
     end
 
     it "should mark csp issues as problematic" do
       l = Lesson.create
-      l.settings['url'] = 'asdf'
+      l.settings['url'] = 'http://example.com/lesson'
       o = OpenStruct.new(code: 200, headers: {'Content-Security-Policy' => 'a;b;  frame-ancestors: asdf'})
-      expect(Typhoeus).to receive(:head).with('asdf', followlocation: true).and_return(o)
+      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
       expect(l.check_url(true)).to eq(true)
       l.reload
-      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'asdf', 'noframe' => true})
+      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson', 'noframe' => true})
     end
 
     it "should remember checked_url" do
       l = Lesson.create
-      l.settings['url'] = 'asdf'
+      l.settings['url'] = 'http://example.com/lesson'
       o = OpenStruct.new(code: 200, headers: {})
-      expect(Typhoeus).to receive(:head).with('asdf', followlocation: true).and_return(o)
+      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
       expect(l.check_url(true)).to eq(true)
       l.reload
-      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'asdf'})
+      expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson'})
     end
   end
 

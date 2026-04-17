@@ -530,9 +530,10 @@ LingoLinq.avatarUrls = [
 ];
 LingoLinq.Lessons = {
   track: function(url) {
-    return new RSVP.Promise(function(resolve, reject) {
+    return new RSVP.Promise(function(resolve) {
       var lesson = LingoLinq.Lessons.assert_lesson();
       lesson.restart(url);
+      resolve(lesson);
     });
   },
   assert_lesson: function() {
@@ -541,6 +542,7 @@ LingoLinq.Lessons = {
         this.set('state', null);
       }
     }).create();
+    return LingoLinq.Lessons.lesson;
   }
 };
 LingoLinq.Videos = {

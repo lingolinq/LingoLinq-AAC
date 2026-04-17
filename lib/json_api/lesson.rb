@@ -10,8 +10,9 @@ module JsonApi::Lesson
     
     json['id'] = lesson.global_id
     json['title'] = lesson.settings['title']
-    json['url'] = lesson.settings['url']
-    json['original_url'] = lesson.settings['url']
+    stored_url = lesson.settings['url']
+    json['original_url'] = stored_url
+    json['url'] = ::Lesson.normalize_lesson_embed_url(stored_url)
     json['required'] = !!lesson.settings['required']
     json['lesson_code'] = lesson.nonce
     json['due_at'] = lesson.settings['due_at']
@@ -45,12 +46,18 @@ module JsonApi::Lesson
         json['editable'] = true if lesson.user_id == args[:obj].id
         json['completed_users'][args[:obj].global_id] = comps[args[:obj].global_id] if comps[args[:obj].global_id]
       elsif args[:obj].is_a?(Organization)
-        json['editable'] = true if lesson.organization_id == args[:obj].id
-        ids = args[:obj].attached_users('all').map(&:global_id)
+        org = args[:obj]
+        owned_by_org = lesson.organization_id == org.id
+        assigned_to_org = (lesson.settings['usages'] || []).any? { |u| u['obj'] == Webhook.get_record_code(org) }
+        json['editable'] = true if owned_by_org || assigned_to_org
+        ids = org.attached_users('all').map(&:global_id)
         ids.each{|user_id| json['completed_users'][user_id] = comps[user_id] if comps[user_id] }
       elsif args[:obj].is_a?(OrganizationUnit)
-        json['editable'] = true if lesson.organization_unit_id == args[:obj].id
-        ids = args[:obj].all_user_ids
+        unit = args[:obj]
+        owned_by_unit = lesson.organization_unit_id == unit.id
+        assigned_to_unit = (lesson.settings['usages'] || []).any? { |u| u['obj'] == Webhook.get_record_code(unit) }
+        json['editable'] = true if owned_by_unit || assigned_to_unit
+        ids = unit.all_user_ids
         ids.each{|user_id| json['completed_users'][user_id] = comps[user_id] if comps[user_id] }
       end
     end
