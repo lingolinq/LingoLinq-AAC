@@ -54,6 +54,14 @@ $brand-danger:             #C0392B;
 
 $brand-blue-black:         #111A2E;
 
+// AA-compliant darker variants for accent colors when used as text on
+// light backgrounds (WCAG 1.4.3 fix — added 2026-04-11 per WCAG audit).
+// Use these instead of $brand-verdigris / $brand-dusty-denim for body
+// text and links on white/light backgrounds, where the brand swatches
+// only achieve ~3.1-3.5:1 contrast.
+$brand-verdigris-aa:       #1A7B7A;  // 4.73:1 on white
+$brand-dusty-denim-aa:     #2860C9;  // 4.65:1 on white
+
 // Stone scale (warm neutral background gradient — used by hero/landing-alt)
 $brand-stone-100:          #F4F3F0;
 $brand-stone-200:          #EBE8E4;

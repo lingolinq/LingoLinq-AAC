@@ -395,6 +395,9 @@ import app_state from './app_state';
   $.ajax.meta_push = function(opts) {
     var now = (new Date()).getTime();
     opts.ts = now;
+    if (opts.method) {
+      opts.method = String(opts.method).toUpperCase();
+    }
 
     var metas = $.ajax.metas || [];
     var new_list = [];
@@ -407,8 +410,21 @@ import app_state from './app_state';
     new_list.push(opts);
     $.ajax.metas = new_list;
   };
+  function metaUrlPath(u) {
+    if(!u || typeof u !== 'string') { return u; }
+    var s = u;
+    if(s.indexOf('http://') === 0 || s.indexOf('https://') === 0) {
+      s = s.replace(/^https?:\/\/[^/?#]+/, '');
+    }
+    var q = s.indexOf('?');
+    if(q !== -1) { s = s.substring(0, q); }
+    return s;
+  }
   $.ajax.meta = function(method, store, id) {
     var res = null;
+    if (method) {
+      method = String(method).toUpperCase();
+    }
     var metas = $.ajax.metas || [];
     // TODO: pluralize correctly using same ember library
     var url = "/api/v1/" + store + "s";
@@ -416,8 +432,10 @@ import app_state from './app_state';
       url = capabilities.api_host + url;
     }
     if(id) { url = url + "/" + id; }
+    var expectedPath = metaUrlPath(url);
     metas.forEach(function(meta) {
-      if(meta.method == method && (url == meta.url || (store == meta.model && id == meta.id))) {
+      var metaPath = metaUrlPath(meta.url);
+      if(meta.method == method && (metaPath === expectedPath || url == meta.url || (store == meta.model && id == meta.id))) {
         res = meta.meta;
       }
     });

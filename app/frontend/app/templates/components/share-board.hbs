@@ -1,6 +1,6 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="modal-header md-modal-header">
-    <button type="button" class="close" {{action "close"}}>
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <h3 class="md-modal-title">{{t "Share Board" key="share_board"}}</h3>
@@ -19,22 +19,24 @@
 
       <div class="md-modal-field">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-          <img src={{this.board.icon_url_with_fallback}} style="height: 30px; border-radius: 6px;">
+          <img src={{this.board.icon_url_with_fallback}} alt="" style="height: 30px; border-radius: 6px;">
           {{#if this.board.link}}
             <a href={{this.board.link}} target="_blank" rel="noopener" class="md-modal-link">{{this.board.name}} ({{this.board.key}}) <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
             <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{this.board.link}}</span>
           {{/if}}
         </div>
         {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(action "copy_event")}}
-        {{#if this.copy_result.succeeded}}
-          <p class="md-modal-status md-modal-status--success">{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>
-        {{else if this.copy_result.failed}}
-          <p class="md-modal-status md-modal-status--error">{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
-        {{else}}
-          {{#unless this.appState.installed_app}}
-            <p class="md-modal-hint"><a href="#" class="md-modal-link" {{action "show_embed_board"}}>{{t "embed board" key="embed_board"}}</a></p>
-          {{/unless}}
-        {{/if}}
+        <div aria-live="polite" aria-atomic="true">
+          {{#if this.copy_result.succeeded}}
+            <p class="md-modal-status md-modal-status--success">{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>
+          {{else if this.copy_result.failed}}
+            <p class="md-modal-status md-modal-status--error" role="alert">{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
+          {{else}}
+            {{#unless this.appState.installed_app}}
+              <p class="md-modal-hint"><button type="button" class="md-link-btn md-modal-link" {{action "show_embed_board"}}>{{t "embed board" key="embed_board"}}</button></p>
+            {{/unless}}
+          {{/if}}
+        </div>
         {{#if this.show_embed}}
           <div class="md-modal-field">
             <p class="md-modal-hint">{{t "You can embed your %app_name% boards in other web sites like blogs or how-to's so people can try them out more easily. Just copy and paste the code below into your web site:" key="copy_html_embed_code"}}</p>
@@ -48,7 +50,7 @@
         <p class="md-modal-hint">{{t "This board contains protected material, and can't be made public. However, you can share it with other users who have purchased access to the same content." key="protected_material_shareable"}}</p>
       {{else if this.board.permissions.edit}}
         {{#if this.error_confirming_public_board}}
-          <p class="md-modal-status md-modal-status--error">{{t "There was an unexpected error while trying to update the board" key="board_update_error"}}</p>
+          <p class="md-modal-status md-modal-status--error" role="alert">{{t "There was an unexpected error while trying to update the board" key="board_update_error"}}</p>
         {{/if}}
         {{#if this.confirm_public_board}}
           <p class="md-modal-hint">{{t "Are you sure you want to make this board public? Anyone will be able to search for and see it. This is not recommended for boards containing any personal information." key="confirm_make_public"}}</p>
@@ -80,7 +82,7 @@
           <div class="md-modal-shared-users-list">
             {{#each this.board.shared_users as |user|}}
               <div class="md-modal-shared-user">
-                <img src={{user.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;">
+                <img src={{user.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
                 <div class="md-modal-shared-user__info">
                   <div class="md-modal-shared-user__name">
                     {{user.name}}
@@ -109,7 +111,8 @@
         <form {{action "share_with_user" on="submit"}}>
           <div class="md-modal-field">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <Input @value={{this.share_user_name}} class="md-modal-input" placeholder="user name to add" style="flex: 1;" />
+              <label for="share_board_user_name" class="sr-only">{{t "User name to add" key="user_name_to_add"}}</label>
+              <Input id="share_board_user_name" @value={{this.share_user_name}} class="md-modal-input" placeholder="user name to add" style="flex: 1;" />
               {{#if this.appState.currentUser.known_supervisees}}
                 <div class="btn-group">
                   <button class="btn md-modal-btn md-modal-btn--cancel dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button">
@@ -117,7 +120,7 @@
                   </button>
                   <ul class="dropdown-menu" style="right: 0; left: inherit; text-align: left;">
                     {{#each this.appState.currentUser.known_supervisees as |user|}}
-                      <li><a href="#" {{action "set_share_user_name" user.user_name}}>{{user.user_name}}</a></li>
+                      <li><button type="button" {{action "set_share_user_name" user.user_name}}>{{user.user_name}}</button></li>
                     {{/each}}
                   </ul>
                 </div>

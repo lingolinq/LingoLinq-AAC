@@ -78,30 +78,40 @@ module Uploader
     return {found: false} unless remote_path
     config = remote_upload_config
     return {found: false} unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)    
-    if remote_path.match(/^\//)
-      remote_path = remote_path[1..-1]
-    end
-    bucket = service.buckets.find(config[:bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      req = object.send(:object_request, :head, {})
-      return {found: true, mismatch: true} if checksum && req['etag'] && checksum != req['etag'].gsub(/\"/, '')
-      exp = ((req['x-amz-expiration'] || "").match(/expiry-date="([^"]+)"/) || [])[1]
-      exp = Time.parse(exp) rescue nil
-      if exp && exp < 48.hours.from_now
-        return {found: true, expired: true}
-      else
-        # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
-        url = if ENV['UPLOADS_S3_CDN'].present?
-          "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"
-        else
-          "#{config[:upload_url]}#{remote_path}"
-        end
-        return {found: true, url: url}
+    begin
+      service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
+      if remote_path.match(/^\//)
+        remote_path = remote_path[1..-1]
       end
+      bucket = service.buckets.find(config[:bucket_name])
+      # s3 gem rescues some errors in BucketsExtension#find_first and returns nil; avoid NoMethodError below
+      return {found: false} unless bucket
+      object = bucket.objects.find(remote_path) rescue nil
+      if object
+        req = object.send(:object_request, :head, {})
+        return {found: true, mismatch: true} if checksum && req['etag'] && checksum != req['etag'].gsub(/\"/, '')
+        exp = ((req['x-amz-expiration'] || "").match(/expiry-date="([^"]+)"/) || [])[1]
+        exp = Time.parse(exp) rescue nil
+        if exp && exp < 48.hours.from_now
+          return {found: true, expired: true}
+        else
+          # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
+          url = if ENV['UPLOADS_S3_CDN'].present?
+            "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"
+          else
+            "#{config[:upload_url]}#{remote_path}"
+          end
+          return {found: true, url: url}
+        end
+      end
+      {found: false}
+    rescue S3::Error::ResponseError => e
+      # BucketsExtension#find only rescues ForbiddenBucket/NoSuchBucket. Empty/non-XML error bodies
+      # become generic ResponseError (see s3 gem connection.rb#handle_response) and would 500 callers.
+      code = e.response.respond_to?(:code) ? e.response.code : nil
+      Rails.logger.warn("Uploader.check_existing_upload S3::Error::ResponseError path=#{remote_path} code=#{code} message=#{e.message}")
+      {found: false}
     end
-    return {found: false}
   end
 
   def self.remote_touch(path)
@@ -320,8 +330,9 @@ module Uploader
     Progress.update_current_progress(0.9, :uploading_file)
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
     raise "File not uploaded" unless url
-    File.unlink(path) if File.exist?(path)
     return url
+  ensure
+    File.unlink(path) if path && File.exist?(path)
   end
   
   def self.valid_remote_url?(url)

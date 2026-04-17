@@ -20,12 +20,23 @@ export default Component.extend({
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
+      // Capture the element that had focus before the modal opened so
+      // willDestroy can return focus to it on close (WCAG 2.1.2 / 2.4.3
+      // best practice — added 2026-04-11 per WCAG audit). We store it on
+      // the component instance, not via a service, since modal-dialog is
+      // already the natural single source of truth for modal lifecycle.
+      try {
+        var prevFocus = document.activeElement;
+        if (prevFocus && prevFocus !== document.body && typeof prevFocus.focus === 'function') {
+          this._previously_focused = prevFocus;
+        }
+      } catch(e) { }
       // Access closure action via get() - direct property access bypasses Ember's property system
       var opening = this.get('opening');
       if (opening && typeof opening === 'function') {
         opening();
       }
-      
+
       // Accessibility: Focus first tabbable element or the modal itself
       runLater(() => {
         if (this.isDestroyed || this.isDestroying || !this.element) { return; }
@@ -125,6 +136,17 @@ export default Component.extend({
         }
       } catch(e) { }
     }
+    // Restore focus to the element that had it before the modal opened
+    // (WCAG 2.1.2 / 2.4.3 best practice — added 2026-04-11). Skip if the
+    // saved element is no longer in the DOM (e.g. its containing route
+    // unmounted while the modal was open).
+    try {
+      var prev = this._previously_focused;
+      if (prev && document.body.contains(prev) && typeof prev.focus === 'function') {
+        prev.focus();
+      }
+      this._previously_focused = null;
+    } catch(e) { }
     if(modal.component === this) {
       modal.component = null;
     }

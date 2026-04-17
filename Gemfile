@@ -62,8 +62,10 @@ gem 'puma'
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
+# zip_kit handles all ZIP writing (streaming, flat memory).
 gem 'rubyzip', '~> 2.3'
+gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
 gem 'bugsnag'
 gem 'stripe'

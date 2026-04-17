@@ -1,13 +1,15 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
   <div class="md-add-supervisor">
-    <div class="md-add-supervisor__head">
-      <h2 class="md-add-supervisor__title">{{t "Add Supervisor" key="add_supervisor"}}</h2>
-      <button type="button" class="md-add-supervisor__close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
+    <div class="modal-header md-modal-header">
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h3 class="md-modal-title">{{t "Add Supervisor" key="add_supervisor"}}</h3>
     </div>
-    <div class="md-add-supervisor__body">
-      <p class="md-add-supervisor__intro md-muted">
-        {{t "A supervisor is linked to your account and can have full access—including changing the home board, viewing and editing private boards, and seeing reports. Adding a therapist, family member, or caregiver can be helpful; please add only people you trust, since they will have full account access. We describe how we handle this information in our " key="add_supervisor_intro_before"}}
-        <LinkTo @route="privacy" class="md-add-supervisor__link">{{t "Privacy Policy" key="privacy_policy"}}</LinkTo>{{t "." key="add_supervisor_intro_after"}}
+    <div class="modal-body md-modal-body" style="text-align: left;">
+      <p class="md-modal-hint">
+        {{t "Supervisors have full access to boards, reports, and settings. Only add people you trust." key="add_supervisor_intro_before"}}
+        <LinkTo @route="privacy" class="md-modal-link">{{t "Privacy Policy" key="privacy_policy"}}</LinkTo>
       </p>
       <form class="md-add-supervisor__form" {{action "add" on="submit"}}>
         <div class="md-add-supervisor__field">
@@ -21,10 +23,10 @@
         {{#if this.consent_request}}
           {{#if this.consent_submitted}}
             <div class="md-add-supervisor__field" role="status">
-              <p class="md-muted">{{t "If the email address is associated with an account, the account owner will receive a consent request. You will be notified when they respond." key="consent_request_sent_message"}}</p>
+              <p class="md-modal-hint">{{t "A consent request has been sent. You'll be notified when they respond." key="consent_request_sent_message"}}</p>
             </div>
           {{else}}
-            <p class="md-add-supervisor__hint md-muted"><em>{{t "Enter the email address of the person you want to add as a supervisor. They will receive a consent request and must approve before access is granted." key="consent_request_intro"}}</em></p>
+            <p class="md-modal-hint" style="font-style: italic;">{{t "Enter their email address. They'll receive a consent request and must approve before access is granted." key="consent_request_intro"}}</p>
             <div class="md-add-supervisor__field">
               <label for="owner_email" class="md-add-supervisor__label">{{t "Email" key="email"}}</label>
               <Input @value={{this.owner_email}} class="md-add-supervisor__input" id="owner_email" placeholder={{t "Supervisor's email address" key="supervisor_email_placeholder"}} />
@@ -39,7 +41,7 @@
           <div class="md-add-supervisor__field">
             <label for="add_start_code_key" class="md-add-supervisor__label">{{t "Start Code" key="start_code"}}</label>
             <Input @value={{this.start_code_key}} class="md-add-supervisor__input" id="add_start_code" placeholder="start code" />
-            <p class="md-add-supervisor__hint md-muted">{{t "In addition to adding supervision access, start codes may update some of your preferences based on the pre-set configuration by the supervisor, so make sure to check with them before entering a start code." key="start_code_warning"}}</p>
+            <p class="md-modal-hint" style="font-style: italic;">{{t "Start codes may also update some of your preferences — check with the supervisor before entering one." key="start_code_warning"}}</p>
           </div>
         {{else}}
           <div class="md-add-supervisor__field">
@@ -78,42 +80,42 @@
             {{/if}}
           {{/unless}}
         {{/unless}}
-        {{#unless this.consent_submitted}}
-          <div class="md-add-supervisor__actions">
-            {{#if this.consent_request}}
-              <button type="button" class="md-btn md-btn--primary" {{action "send_consent_request"}} disabled={{this.consent_submitting}}>
-                {{#if this.consent_submitting}}
-                  {{t "Sending Request..." key="sending_consent_request"}}
-                {{else}}
-                  {{t "Send Consent Request" key="send_consent_request"}}
-                {{/if}}
-              </button>
-            {{else}}
-              <button type="submit" class="md-btn md-btn--primary" disabled={{this.linking}}>
-                {{#if this.linking.start_code}}
-                  {{t "Handling Start Code..." key="handling_start_code"}}
-                {{else if this.linking}}
-                  {{t "Adding Supervisor..." key="adding_supervisor"}}
-                {{else}}
-                  {{#if this.error}}
-                    {{t "Adding Supervisor Failed" key="adding_supervisor_failed"}}
-                  {{else}}
-                    {{#if this.start_code}}
-                      {{t "Add From Start Code" key="add_from_start_code"}}
-                    {{else}}
-                      {{t "Add Supervisor" key="add_supervisor"}}
-                    {{/if}}
-                  {{/if}}
-                {{/if}}
-              </button>
-            {{/if}}
-            <button type="button" class="md-btn md-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-            {{#if this.error}}
-              <p class="md-add-supervisor__error">{{this.error}}</p>
-            {{/if}}
-          </div>
-        {{/unless}}
       </form>
     </div>
+    {{#unless this.consent_submitted}}
+      <div class="modal-footer md-modal-footer">
+        {{#if this.error}}
+          <p class="md-modal-status md-modal-status--error" role="alert">{{this.error}}</p>
+        {{/if}}
+        {{#if this.consent_request}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "send_consent_request"}} disabled={{this.consent_submitting}}>
+            {{#if this.consent_submitting}}
+              {{t "Sending Request..." key="sending_consent_request"}}
+            {{else}}
+              {{t "Send Consent Request" key="send_consent_request"}}
+            {{/if}}
+          </button>
+        {{else}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "add"}} disabled={{this.linking}}>
+            {{#if this.linking.start_code}}
+              {{t "Handling Start Code..." key="handling_start_code"}}
+            {{else if this.linking}}
+              {{t "Adding Supervisor..." key="adding_supervisor"}}
+            {{else}}
+              {{#if this.error}}
+                {{t "Adding Supervisor Failed" key="adding_supervisor_failed"}}
+              {{else}}
+                {{#if this.start_code}}
+                  {{t "Add From Start Code" key="add_from_start_code"}}
+                {{else}}
+                  {{t "Add Supervisor" key="add_supervisor"}}
+                {{/if}}
+              {{/if}}
+            {{/if}}
+          </button>
+        {{/if}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      </div>
+    {{/unless}}
   </div>
 {{/modal-dialog}}

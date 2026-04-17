@@ -135,6 +135,9 @@ export default Controller.extend({
       return name.indexOf(filter) !== -1 || key.indexOf(filter) !== -1;
     });
   }),
+  boardPickerHasHomeBoard: computed('boardPickerVisible', 'appState.referenced_user.preferences.home_board.key', function() {
+    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  }),
 
   init() {
     this._super(...arguments);
@@ -649,6 +652,21 @@ export default Controller.extend({
         }
       }
       this.jumpToBoard({ key: key });
+    },
+    pickHomeBoard: function() {
+      var homeKey = this.appState.get('referenced_user.preferences.home_board.key');
+      if(homeKey) {
+        this.send('pickBoard', homeKey);
+      } else {
+        // No home board set — close the picker and route to the user's My Boards
+        // page so they can pick or create one and set it as home. The inline
+        // message in the picker explains this state.
+        this.set('boardPickerVisible', false);
+        var userName = this.appState.get('referenced_user.user_name') || this.appState.get('currentUser.user_name');
+        if(userName) {
+          this.router.transitionTo('user.boards', userName);
+        }
+      }
     },
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());

@@ -26,6 +26,8 @@ export default Component.extend({
     this.set('model.user.preferences.allow_log_reports', false);
     this.set('publishing', false);
     this.set('research_use', null);
+    this.set('research_use_selection_id', '');
+    this.set('research_use_other_spec', '');
     this.set('research_age', null);
     this.set('research_experience', null);
     this.set('model.user.preferences.allow_log_publishing', false);
@@ -35,8 +37,9 @@ export default Component.extend({
     this.set('model.user.preferences.allow_log_reports', !!this.get('research'));
     this.set('model.user.preferences.allow_log_publishing', !!this.get('publishing'));
     if (this.get('research')) {
-      if (this.get('research_use') || this.get('research_age') || this.get('research_experience')) {
-        this.set('model.user.preferences.research_primary_use', this.get('research_use'));
+      var primaryUse = this._primaryResearchUseValue();
+      if (primaryUse || this.get('research_age') || this.get('research_experience')) {
+        this.set('model.user.preferences.research_primary_use', primaryUse);
         this.set('model.user.preferences.research_age', this.get('research_age'));
         this.set('model.user.preferences.research_experience_level', this.get('research_experience'));
       }
@@ -83,34 +86,61 @@ export default Component.extend({
       { id: 'exp_over_5_yr', name: "Pver 5 years experience" }
     ];
   }),
+  research_use_requires_other: computed('research_use_selection_id', function() {
+    var id = this.get('research_use_selection_id');
+    if (!id) {
+      return false;
+    }
+    var opt = (this.get('research_uses') || []).find(function(o) {
+      return o.id === id;
+    });
+    return !!(opt && opt.other);
+  }),
+
   research_uses: computed(function() {
     return [
-      { name: i18n.t('developmental_disability', "Developmental Disability"), header: true },
-      { name: i18n.t('autism', "Autism") },
-      { name: i18n.t('down_syndrome', "Down Syndrome") },
-      { name: i18n.t('cerebral_palsy', "Cerebral Palsy") },
-      { name: i18n.t('rett_syndrome', "Rett Syndrome") },
-      { name: i18n.t('angelman_syndrome', "Angelman Syndrome") },
-      { name: i18n.t('other_please_specify', "Other (Please Specify)"), other: true },
-      { name: i18n.t('acquired_disorder', "Acquired Disorder"), header: true },
-      { name: i18n.t('tbi', "Traumatic Brain Injury") },
-      { name: i18n.t('stroke', "Stroke") },
-      { name: i18n.t('multiple_sclerosis', "Multiple Sclerosis") },
-      { name: i18n.t('dysarthria', "Dysarthria") },
-      { name: i18n.t('throat_cancer', "Throat Cancer") },
-      { name: i18n.t('other_please_specify', "Other (Please Specify)"), other: true },
-      { name: i18n.t('progressive_disorder', "Progressive Disorder"), header: true },
-      { name: i18n.t('parkinsons', "Parkinson's Disease") },
-      { name: i18n.t('mnd', "Motor Neuron Disease") },
-      { name: i18n.t('als', "Amyotrophic Lateral Sclerosis") },
-      { name: i18n.t('other_please_specify', "Other (Please Specify)"), other: true },
-      { name: i18n.t('cognitive_communication_disorder', "Cognitive-Communication Disorder"), header: true },
-      { name: i18n.t('dementia', "Dementia") },
-      { name: i18n.t('alzheimers', "Alzheimer's") },
-      { name: i18n.t('aphasia', "Aphasia") },
-      { name: i18n.t('other_please_specify', "Other (Please Specify)"), other: true }
+      { id: '', name: i18n.t('research_primary_use_select', "[ Select ]") },
+      { id: '_grp_developmental', name: i18n.t('developmental_disability', "Developmental Disability"), disabled: true },
+      { id: 'use_autism', name: i18n.t('autism', "Autism") },
+      { id: 'use_down_syndrome', name: i18n.t('down_syndrome', "Down Syndrome") },
+      { id: 'use_cerebral_palsy', name: i18n.t('cerebral_palsy', "Cerebral Palsy") },
+      { id: 'use_rett_syndrome', name: i18n.t('rett_syndrome', "Rett Syndrome") },
+      { id: 'use_angelman_syndrome', name: i18n.t('angelman_syndrome', "Angelman Syndrome") },
+      { id: '_grp_acquired', name: i18n.t('acquired_disorder', "Acquired Disorder"), disabled: true },
+      { id: 'use_tbi', name: i18n.t('tbi', "Traumatic Brain Injury") },
+      { id: 'use_stroke', name: i18n.t('stroke', "Stroke") },
+      { id: 'use_multiple_sclerosis', name: i18n.t('multiple_sclerosis', "Multiple Sclerosis") },
+      { id: 'use_dysarthria', name: i18n.t('dysarthria', "Dysarthria") },
+      { id: 'use_throat_cancer', name: i18n.t('throat_cancer', "Throat Cancer") },
+      { id: '_grp_progressive', name: i18n.t('progressive_disorder', "Progressive Disorder"), disabled: true },
+      { id: 'use_parkinsons', name: i18n.t('parkinsons', "Parkinson's Disease") },
+      { id: 'use_mnd', name: i18n.t('mnd', "Motor Neuron Disease") },
+      { id: 'use_als', name: i18n.t('als', "Amyotrophic Lateral Sclerosis") },
+      { id: '_grp_cognitive', name: i18n.t('cognitive_communication_disorder', "Cognitive-Communication Disorder"), disabled: true },
+      { id: 'use_dementia', name: i18n.t('dementia', "Dementia") },
+      { id: 'use_alzheimers', name: i18n.t('alzheimers', "Alzheimer's") },
+      { id: 'use_aphasia', name: i18n.t('aphasia', "Aphasia") },
+      { id: 'use_other', name: i18n.t('other_please_specify', "Other (Please Specify)"), other: true }
     ];
   }),
+
+  _primaryResearchUseValue() {
+    var id = this.get('research_use_selection_id');
+    if (!id) {
+      return null;
+    }
+    var opt = (this.get('research_uses') || []).find(function(o) {
+      return o.id === id;
+    });
+    if (!opt || opt.disabled) {
+      return null;
+    }
+    if (opt.other) {
+      var detail = (this.get('research_use_other_spec') || '').trim();
+      return detail || null;
+    }
+    return this.get('research_use') || null;
+  },
 
   actions: {
     close() {
@@ -124,11 +154,20 @@ export default Component.extend({
     updateResearchExperience(value) {
       this.set('research_experience', value);
     },
-    set_research_use(opt) {
-      if (opt.other) {
-        this.set('research_use', '');
-      } else if (opt.name) {
+    updateResearchUse(id) {
+      this.set('research_use_selection_id', id);
+      var opt = (this.get('research_uses') || []).find(function(o) {
+        return o.id === id;
+      });
+      if (!id || !opt || opt.disabled) {
+        this.set('research_use', null);
+        this.set('research_use_other_spec', '');
+      } else if (opt.other) {
+        this.set('research_use', null);
+        this.set('research_use_other_spec', '');
+      } else {
         this.set('research_use', opt.name);
+        this.set('research_use_other_spec', '');
       }
     }
   }

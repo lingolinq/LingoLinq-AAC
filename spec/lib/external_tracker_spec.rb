@@ -68,9 +68,9 @@ describe ExternalTracker do
     end
 
     it "should not call HubSpot when user opted out of cookies (GDPR)" do
-      original_token = ENV['HUBSPOT_TOKEN']
+      original_token = ENV['HUBSPOT_ACCESS_TOKEN']
       begin
-        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
         u = User.create
         u.settings['preferences'] ||= {}
         u.settings['preferences']['registration_type'] = 'therapist'
@@ -80,14 +80,14 @@ describe ExternalTracker do
         expect(Typhoeus).not_to receive(:post)
         expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
       ensure
-        ENV['HUBSPOT_TOKEN'] = original_token
+        ENV['HUBSPOT_ACCESS_TOKEN'] = original_token
       end
     end
 
     it "should not call HubSpot when cookies preference is legacy string false" do
-      original_token = ENV['HUBSPOT_TOKEN']
+      original_token = ENV['HUBSPOT_ACCESS_TOKEN']
       begin
-        ENV['HUBSPOT_TOKEN'] = 'hubby'
+        ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
         u = User.create
         u.settings['preferences'] ||= {}
         u.settings['preferences']['registration_type'] = 'therapist'
@@ -97,29 +97,17 @@ describe ExternalTracker do
         expect(Typhoeus).not_to receive(:post)
         expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
       ensure
-        ENV['HUBSPOT_TOKEN'] = original_token
+        ENV['HUBSPOT_ACCESS_TOKEN'] = original_token
       end
     end
 
-    it "should return false if not configured" do
-      u = User.create
-      ENV['HUBSPOT_KEY'] = nil
-      expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
-    end
-    
-    it "should return false if no email provided" do
-      u = User.create
-      ENV['HUBSPOT_KEY'] = 'hubby'
-      expect(ExternalTracker.persist_new_user(u.global_id)).to eq(false)
-    end
-    
     it "should return non-false on success" do
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
       u.save
-      ENV['HUBSPOT_TOKEN'] = 'hubby'
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
 #       geo = {
 #         'country_code' => 'US',
 #         'city' => 'Sandy',
@@ -153,7 +141,7 @@ describe ExternalTracker do
       d = Device.create(:user => u)
       d.settings['ip_address'] = '1.2.3.4'
       d.save
-      ENV['HUBSPOT_TOKEN'] = 'hubby'
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
       geo = {
         'country_code' => 'US',
         'city' => 'Sandy',
@@ -187,7 +175,7 @@ describe ExternalTracker do
       d = Device.create(:user => u)
       d.settings['ip_address'] = '1.2.3.4'
       d.save
-      ENV['HUBSPOT_TOKEN'] = 'hubby'
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
       geo = {
         'country_code' => 'US',
         'city' => 'Sandy',

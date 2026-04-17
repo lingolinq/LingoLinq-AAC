@@ -183,111 +183,134 @@
   </div>
 {{else}}
   {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Supervision Settings for" key="supervision_settings_for"}} {{this.model.user_name}}</h3>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Supervision Settings for" key="supervision_settings_for"}} {{this.model.user_name}}</h3>
   </div>
-  <div class="modal-body">
-    <h3 style='margin-top: 0;'>{{t "My Supervisors" key="my_supervisors"}}</h3>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505f"/>
+          <circle cx="9" cy="7" r="4" stroke="#46505f"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#2a9d8f"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#2a9d8f"/>
+        </svg>
+      </div>
+    </div>
+
+    <h4 class="md-modal-section-title">{{t "My Supervisors" key="my_supervisors"}}</h4>
     {{#if this.model.supervisors_or_managing_org}}
-      <table class="table table-hover">
-        <tbody>
+      <div class="md-modal-shared-users-list">
         {{#each this.model.managing_orgs as |org|}}
-          <tr>
-            <td style="text-align: center; vertical-align: middle; font-size: 40px;">
-              <span class="glyphicon glyphicon-paperclip"></span>
-            </td>
-            <td>
-              <div style="font-size: 20px;">{{org.name}}</div>
-              <span class="text-muted">{{t "organization managers (editing allowed)" key="org_managers_editing_allowed"}}</span>
-            </td>
-            <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-              <a href='#' {{action "remove_supervisor" org.id "org"}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
-            </td>
-          </tr>
+          <div class="md-modal-shared-user">
+            <div class="md-modal-avatar" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(70, 80, 95, 0.08); border-radius: 50%;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46505f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="md-modal-shared-user__info">
+              <div class="md-modal-shared-user__name">{{org.name}}</div>
+              <div class="md-modal-shared-user__detail">
+                <span class="md-modal-shared-user__badge">{{t "organization managers (editing allowed)" key="org_managers_editing_allowed"}}</span>
+              </div>
+            </div>
+            <button type="button" class="md-modal-shared-user__remove" {{action "remove_supervisor" org.id "org"}} aria-label={{t "Remove" key="remove"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         {{/each}}
         {{#each this.model.managing_supervision_orgs as |org|}}
-          <tr>
-            <td style="width: 60px; text-align: center; vertical-align: middle; font-size: 40px;">
-              <span class="glyphicon glyphicon-paperclip"></span>
-            </td>
-            <td>
-              <div style="font-size: 20px;">{{org.name}}</div>
-              <span class="text-muted">{{t "organization managers (view only)" key="org_managers_view_only"}}</span>
-            </td>
-            <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-              <a href='#' {{action "remove_supervision" org.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
-            </td>
-          </tr>
+          <div class="md-modal-shared-user">
+            <div class="md-modal-avatar" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(70, 80, 95, 0.08); border-radius: 50%;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46505f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="md-modal-shared-user__info">
+              <div class="md-modal-shared-user__name">{{org.name}}</div>
+              <div class="md-modal-shared-user__detail">
+                <span class="md-modal-shared-user__badge">{{t "organization managers (view only)" key="org_managers_view_only"}}</span>
+              </div>
+            </div>
+            <button type="button" class="md-modal-shared-user__remove" {{action "remove_supervision" org.id}} aria-label={{t "Remove" key="remove"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         {{/each}}
         {{#each this.model.supervisors as |supervisor|}}
-          <tr>
-            <td style="width: 60px;">
-              <img src={{supervisor.avatar_url}} style="height: 50px; width: 50px;">
-            </td>
-            <td>
-              <div style="font-size: 20px;">{{supervisor.name}}</div>
-              <LinkTo @route="user" @model={{supervisor.user_name}}>{{supervisor.user_name}}</LinkTo>
-              {{#if supervisor.organization_unit_id}}
-                <span class="text-muted">({{t "added by organization" key="org_added"}})</span>
-              {{/if}}
-              {{#if supervisor.edit_permission}}
-                <span class="text-muted">{{t "(editing allowed)" key="editing_allowed"}}</span>
-              {{else if supervisor.modeling_only}}
-                <span class="text-muted">{{t "(modeling only)" key="modeling_only"}}</span>
-              {{/if}}
-            </td>
-            <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-              {{#if this.model.permissions.manage_supervision}}
-                <a href='#' {{action "remove_supervisor" supervisor.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
-              {{/if}}
-            </td>
-          </tr>
+          <div class="md-modal-shared-user">
+            <img src={{supervisor.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
+            <div class="md-modal-shared-user__info">
+              <div class="md-modal-shared-user__name">
+                {{supervisor.name}}
+                {{#if supervisor.organization_unit_id}}
+                  <span class="md-modal-shared-user__badge">({{t "added by organization" key="org_added"}})</span>
+                {{/if}}
+              </div>
+              <div class="md-modal-shared-user__detail">
+                <LinkTo @route="user" @model={{supervisor.user_name}}>{{supervisor.user_name}}</LinkTo>
+                {{#if supervisor.edit_permission}}
+                  <span class="md-modal-shared-user__badge">{{t "(editing allowed)" key="editing_allowed"}}</span>
+                {{else if supervisor.modeling_only}}
+                  <span class="md-modal-shared-user__badge">{{t "(modeling only)" key="modeling_only"}}</span>
+                {{/if}}
+              </div>
+            </div>
+            {{#if this.model.permissions.manage_supervision}}
+              <button type="button" class="md-modal-shared-user__remove" {{action "remove_supervisor" supervisor.id}} aria-label={{t "Remove" key="remove"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            {{/if}}
+          </div>
         {{/each}}
-        </tbody>
-      </table>
+      </div>
     {{else}}
-      <p>{{t "None found" key="none_found"}}</p>
+      <p class="md-modal-hint">{{t "None found" key="none_found"}}</p>
     {{/if}}
+
     {{pending-consent-requests user=this.model}}
+
     {{#if this.model.permissions.manage_supervision}}
-      {{#if this.model.permissions.delete}}
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        {{#unless this.hideMakeSupervisorButton}}
-          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
-        {{/unless}}
-      {{else}}
-        <button type='button' class='md-btn md-btn--primary' {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
-        {{#unless this.hideMakeSupervisorButton}}
-          <button type='button' class='md-btn md-btn--primary' {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
-        {{/unless}}
-      {{/if}}
+      <div class="md-modal-field" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        {{#if this.model.permissions.delete}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+          {{#unless this.hideMakeSupervisorButton}}
+            <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "add_supervisee"}}>{{t "Make me a Supervisor" key="make_me_supervisor"}}</button>
+          {{/unless}}
+        {{else}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "add_supervisor"}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
+          {{#unless this.hideMakeSupervisorButton}}
+            <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "add_supervisee"}}>{{t "Make %{uname} a supervisor" uname=this.model.user_name key="make_user_supervisor"}}</button>
+          {{/unless}}
+        {{/if}}
+      </div>
       {{#if this.add_supervisee_hit}}
-        <p class='text-info'><em>{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</em></p>
+        <p class="md-modal-hint" style="font-style: italic;">{{t "For security reasons, communicators must add you as a supervisor from their account. On the communicator's device or account, enter your user name to add yourself as a supervisor." key="supervisor_adding_explainer"}}</p>
       {{/if}}
     {{/if}}
+
     {{#if this.model.supporter_role}}
-      <button type='button' class='btn btn-default' style='margin-top: 5px;' {{action "request_access"}}>{{t "Request Access to a Communicator" key="request_access_communicator"}}</button>
+      <div class="md-modal-field">
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "request_access"}}>{{t "Request Access to a Communicator" key="request_access_communicator"}}</button>
+      </div>
     {{/if}}
+
     {{#if this.aliasable_orgs}}
       {{#if this.model.permissions.link_auth}}
-        <h3>{{t "Externally-Authenticated Orgs" key="external_auth_orgs"}}</h3>
-        <table class='table table-hover'>
-          <tbody>
-            {{#each this.aliasable_orgs as |org|}}
-              <tr>
-                <td style="width: 60px; text-align: center; vertical-align: middle; font-size: 40px;">
-                  <span class="glyphicon glyphicon-paperclip"></span>
-                </td>
-                <td>
-                  <div style="font-size: 20px;">{{org.name}}</div>
-                  <form {{action "update_alias" org on="submit"}}>
-                    {{t "Alias" key="alias"}}
+        <h4 class="md-modal-section-title">{{t "Externally-Authenticated Orgs" key="external_auth_orgs"}}</h4>
+        <div class="md-modal-shared-users-list">
+          {{#each this.aliasable_orgs as |org|}}
+            <div class="md-modal-shared-user" style="flex-wrap: wrap;">
+              <div class="md-modal-avatar" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(70, 80, 95, 0.08); border-radius: 50%;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46505f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div class="md-modal-shared-user__info">
+                <div class="md-modal-shared-user__name">{{org.name}}</div>
+                <div class="md-modal-shared-user__detail">
+                  <form {{action "update_alias" org on="submit"}} style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span>{{t "Alias" key="alias"}}</span>
                     {{#if org.aliasable}}
-                      <div style='display: inline-block; width: 200px;'>
-                        <Input type="text" class="form-control" @value={{org.external_auth_alias}} placeholder="external login id or email" />
-                      </div>
-                      <button type='submit' disabled={{org.alias_state.updating}} class='btn btn-default'>
+                      <Input type="text" class="md-modal-input" style="width: 200px;" @value={{org.external_auth_alias}} placeholder="external login id or email" />
+                      <button type="submit" disabled={{org.alias_state.updating}} class="btn md-modal-btn md-modal-btn--cancel">
                         {{#if org.alias_state.updating}}
                           {{t "updating..." key="updating_ellipsis"}}
                         {{else if org.alias_state.error}}
@@ -299,11 +322,11 @@
                         {{/if}}
                       </button>
                     {{else if org.external_auth_alias}}
-                      <b>{{ org.external_auth_alias }}</b>
+                      <strong>{{org.external_auth_alias}}</strong>
                     {{else}}
-                      <span class='text-muted'>{{t "none set" key="none_set_lower"}}</span>
+                      <span class="md-modal-shared-user__badge">{{t "none set" key="none_set_lower"}}</span>
                     {{/if}}
-                    <button class='btn btn-default' disabled={{org.alias_state.temping}} type='button' {{action "link_auth" org}}>
+                    <button class="btn md-modal-btn md-modal-btn--cancel" disabled={{org.alias_state.temping}} type="button" {{action "link_auth" org}}>
                       {{#if org.alias_state.temping}}
                         {{t "configuring..." key="configuring"}}
                       {{else if org.alias_state.temp_error}}
@@ -315,58 +338,60 @@
                       {{/if}}
                     </button>
                   </form>
-                </td>
-              </tr>
-            {{/each}}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        </div>
       {{/if}}
     {{/if}}
+
     {{#if this.show_supervisees}}
-      <h3>{{t "People I Supervise" key="my_supervisees"}}</h3>
+      <h4 class="md-modal-section-title">{{t "People I Supervise" key="my_supervisees"}}</h4>
       {{#if this.model.known_supervisees}}
-        <table class="table table-hover">
-          <tbody>
+        <div class="md-modal-shared-users-list">
           {{#each this.model.known_supervisees as |supervisee|}}
-            <tr>
-              <td style="width: 60px;">
-                <img src={{supervisee.avatar_url}} style="height: 50px; width: 50px;">
-              </td>
-              <td>
-                <div style="font-size: 20px;">{{supervisee.name}}</div>
-                <LinkTo @route="user" @model={{supervisee.user_name}}>{{supervisee.user_name}}</LinkTo>
-                {{#if supervisee.edit_permission}}
-                  <span class="text-muted">{{t "(editing allowed)" key="editing_allowed"}}</span>
-                {{else if supervisee.modeling_only}}
-                  <span class="text-muted">{{t "(modeling only)" key="modeling_only"}}</span>
-                {{/if}}
-              </td>
-              <td style="width: 30px; font-size: 20px; vertical-align: middle;">
-                {{#if this.model.permissions.manage_supervision}}
-                  <a href='#' {{action "remove_supervisee" supervisee.id}} class="glyphicon glyphicon-trash"><span class='text-hide'>delete</span></a>
-                {{/if}}
-              </td>
-            </tr>
+            <div class="md-modal-shared-user">
+              <img src={{supervisee.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
+              <div class="md-modal-shared-user__info">
+                <div class="md-modal-shared-user__name">{{supervisee.name}}</div>
+                <div class="md-modal-shared-user__detail">
+                  <LinkTo @route="user" @model={{supervisee.user_name}}>{{supervisee.user_name}}</LinkTo>
+                  {{#if supervisee.edit_permission}}
+                    <span class="md-modal-shared-user__badge">{{t "(editing allowed)" key="editing_allowed"}}</span>
+                  {{else if supervisee.modeling_only}}
+                    <span class="md-modal-shared-user__badge">{{t "(modeling only)" key="modeling_only"}}</span>
+                  {{/if}}
+                </div>
+              </div>
+              {{#if this.model.permissions.manage_supervision}}
+                <button type="button" class="md-modal-shared-user__remove" {{action "remove_supervisee" supervisee.id}} aria-label={{t "Remove" key="remove"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              {{/if}}
+            </div>
           {{/each}}
-          </tbody>
-        </table>
+        </div>
       {{else}}
-        <p>{{t "None found" key="none_found"}}</p>
+        <p class="md-modal-hint">{{t "None found" key="none_found"}}</p>
       {{/if}}
       {{#if this.model.all_connections.loading}}
-        <p>{{t "Loading more..." key="loading_more"}}</p>
+        <p class="md-modal-status md-modal-status--info">{{t "Loading more..." key="loading_more"}}</p>
       {{else if this.model.all_connections.error}}
-        <p class='text-danger'>{{t "There was an error loading supervision users" key="error_loading_connections"}}</p>
+        <p class="md-modal-status md-modal-status--error" role="alert">{{t "There was an error loading supervision users" key="error_loading_connections"}}</p>
       {{/if}}
     {{/if}}
+
     {{#if this.model.supporter_role}}
       {{#if this.model.permissions.edit}}
-        <button class='btn btn-default' {{action "start_codes"}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
+        <div class="md-modal-field">
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "start_codes"}}>{{t "Manage Start Codes" key="manage_start_codes"}}</button>
+        </div>
       {{/if}}
     {{/if}}
   </div>
-  <div class="modal-footer">
-    <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
   {{/modal-dialog}}
 {{/if}}

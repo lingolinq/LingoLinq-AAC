@@ -245,6 +245,25 @@ describe Uploader do
 
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
+
+    it "should return found false when S3 raises ResponseError (e.g. empty error body from AWS)" do
+      service = OpenStruct.new
+      response = double('response', code: '403')
+      err = S3::Error::ResponseError.new('AccessDenied', response)
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
+      expect(service).to receive(:buckets).and_return(service)
+      expect(service).to receive(:find).with('test-bucket').and_raise(err)
+      expect(Rails.logger).to receive(:warn).with(/Uploader\.check_existing_upload S3::Error::ResponseError/)
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
+    end
+
+    it "should return found false when bucket find returns nil" do
+      service = OpenStruct.new
+      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
+      expect(service).to receive(:buckets).and_return(service)
+      expect(service).to receive(:find).with('test-bucket').and_return(nil)
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
+    end
   end  
 
   describe "remote_upload_params" do

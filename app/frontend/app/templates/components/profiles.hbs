@@ -1,10 +1,12 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3><span class='glyphicon glyphicon-lamp'></span> {{t "Communication Profiles for %{un}" un=this.model.user.user_name key="communication_profiles_for"}}
     </h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     {{#if this.model.profile_id}}
       <div>
         {{#if this.profile.loading}}
@@ -17,18 +19,18 @@
       </div>
       {{#if this.profile.date}}
         <div style='margin: 10px 0 20px;'>
-          <div {{action "review_profile" this.profile.log_id}} class={{if this.profile.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{this.profile.circle_style}}>
+          <button type="button" {{action "review_profile" this.profile.log_id}} class={{if this.profile.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{this.profile.circle_style}}>
             {{#if this.profile.summary}}
               {{this.profile.summary}}
             {{else}}
               {{date this.profile.date "tiny_day"}}
             {{/if}}
-          </div>
+          </button>
           {{#if this.profile.author}}
             {{t "completed by <b>%{un}</b>" un=this.profile.author.user_name key="completed_by_user"}}
           {{/if}}
           <div style='font-style: italic; margin-left: 30px;'>{{date this.profile.date}}</div>
-          <a {{action "review_profile" this.profile.log_id}} href="#">{{t "review details" key="review_details"}}</a>
+          <button type="button" class="md-link-btn" {{action "review_profile" this.profile.log_id}}>{{t "review details" key="review_details"}}</button>
         </div>
         {{#if this.profile.priors}}
           Additional profiles:<br>
@@ -44,7 +46,7 @@
         </div>
       {{/if}}
       <div style='margin-top: 20px;'>
-        <a href="#" {{action "clear_profile"}}>{{t "See other profile results" key="see_other_profile_results"}}</a>
+        <button type="button" class="md-link-btn" {{action "clear_profile"}}>{{t "See other profile results" key="see_other_profile_results"}}</button>
       </div>
     {{else}}
       {{#if this.profiles.loading}}
@@ -62,13 +64,13 @@
               <tr style='border-bottom: 1px solid #ccc;'>
                 {{#if prof.date}}
                   <td style='height: 80px;'>
-                    <div {{action "review_profile" prof.log_id}} class={{if prof.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{prof.circle_style}}>
+                    <button type="button" {{action "review_profile" prof.log_id}} class={{if prof.summary "profile_modal_circle single_row" "profile_modal_circle"}} style={{prof.circle_style}}>
                       {{#if prof.summary}}
                         {{prof.summary}}
                       {{else}}
                         {{date prof.date "tiny_day"}}
                       {{/if}}
-                    </div>
+                    </button>
                   </td>
                   <td style='width: 100%;'>
                     <div style='font-size: 16px; font-weight: bold;'>{{prof.name}}</div>
@@ -82,9 +84,9 @@
                   </td>
                 {{else}}
                   <td style='height: 80px;'>
-                    <div {{action "review_profile"}} class='profile_modal_circle single_row' style='opacity: 0.8;'>
+                    <button type="button" {{action "review_profile"}} class='profile_modal_circle single_row' style='opacity: 0.8;' aria-label={{t "No profile data" key="no_profile_data"}}>
                       -
-                    </div>
+                    </button>
                   </td>
                   <td style='width: 100%;'>
                     <div style='font-size: 16px; font-weight: bold;'>{{prof.name}}</div>
@@ -102,7 +104,8 @@
         </table>
         <div class='row' style='margin: 15px 0;'>
           <div class='col-sm-5' style='padding-right: 0;'>
-            <Input type="text" class="form-control" @enter={{action "lookup"}} @value={{this.find_profile_id}} placeholder="Look up profile by ID" />
+            <label for="find_profile_id" class="sr-only">{{t "Look up profile by ID" key="find_profile_id_label"}}</label>
+            <Input id="find_profile_id" type="text" class="form-control" @enter={{action "lookup"}} @value={{this.find_profile_id}} placeholder="Look up profile by ID" />
           </div>
           <div class='col-sm-3' style='padding-left: 3px;'>
             <button class='btn btn-default' {{action "lookup"}}>{{t "Go" key="go"}}</button>
@@ -151,7 +154,7 @@
       {{/if}}
     {{/if}}
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     {{#if this.profile.date}}
       <button {{action "review_profile" this.profile.log_id}} class='btn btn-lg btn-default'>{{t "Review Results" key="review_profile"}}</button>
     {{/if}}

@@ -1,25 +1,16 @@
-<div class='col-sm-10 col-sm-offset-1'>
-  <h4>{{t "Accessing Linked Boards" key="accessing_linked_boards"}}</h4>
+<div class='col-sm-12'>
+  <h4>{{t "Navigating Between Boards" key="accessing_linked_boards"}}</h4>
 </div>
-<div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/speak_mode_folders.gif"}} style='width: 100%;' >
+<div class='col-sm-12'>
+  <div class="setup-back-btn-demo">
+    <img src={{path "images/board-back.png"}} alt="" class="setup-back-btn-demo__img" >
+    <div class="setup-back-btn-demo__circle" aria-hidden="true"></div>
+  </div>
 </div>
-<div class='col-sm-5'>
-  <p>{{t "Buttons that have a little folder icon or a mark in the corner are linked buttons, which means that if you select them it will take you to another board. This lets you have multiple levels, with more words and phrases than could fit on a single screen. You can always get back to the first board by hitting the home button." key="folders_1"}}</p>
-  <p>{{t "By default linked buttons do not speak, and when the communicator hits a non-linked button they will be taken back to the home board, but both of these settings are optional and can be changed in a user's preferences." key="folders_2"}}</p>
-  <label style='padding: 10px 0; font-size: 16px;'>
-    <Input @type="checkbox" @checked={{this.setup.vocalize_buttons}} />
-    <span style='padding-left: 5px;'>{{t "Speak after each button selection" key="speak_on_select"}}</span>
-  </label>
-  {{#if this.setup.vocalize_buttons}}
-    <label style='padding: 10px 0; font-size: 16px;'>
-      <Input @type="checkbox" @checked={{this.setup.vocalize_linked_buttons}} />
-      <span style='padding-left: 5px;'>{{t "Speak even when linked buttons are selected" key="speak_linked_buttons"}}</span>
-    </label>
-  {{/if}}
-  <label style='padding: 10px 0; font-size: 16px;'>
-    <Input @type="checkbox" @checked={{this.setup.auto_home_return}} />
-    <span style='padding-left: 5px;'>{{t "Return home when unlinked buttons are selected" key="unlinked_auto_home_return"}}</span>
-  </label>
+<div class='col-sm-12' style="margin-top: 16px;">
+  <ul class="usage-checklist">
+    <li class="usage-checklist__item">{{t "Buttons with a folder icon link to other boards — tap one to navigate deeper into a vocabulary set." key="folders_1"}}</li>
+    <li class="usage-checklist__item">{{t "Use the back button in the sentence bar to return to the previous board." key="folders_2"}}</li>
+    <li class="usage-checklist__item">{{t "Button settings can be changed in Preference Settings." key="folders_3"}}</li>
+  </ul>
 </div>
-

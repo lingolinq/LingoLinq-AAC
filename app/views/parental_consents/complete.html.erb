@@ -1,0 +1,14 @@
+<div class="box">
+  <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
+  <% if @success && @already_granted %>
+    <h1><%= t('parental_consent.already_title') %></h1>
+    <p><%= t('parental_consent.already_body') %></p>
+  <% elsif @success %>
+    <h1><%= t('parental_consent.thanks_title') %></h1>
+    <p><%= t('parental_consent.thanks_body') %></p>
+  <% else %>
+    <h1><%= t('parental_consent.invalid_title') %></h1>
+    <p><%= t('parental_consent.invalid_body') %></p>
+  <% end %>
+  <p><a href="/"><%= t('parental_consent.home_link', app_name: app_name) %></a></p>
+</div>

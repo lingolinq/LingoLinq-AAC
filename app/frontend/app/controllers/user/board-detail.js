@@ -116,7 +116,10 @@ export default Controller.extend({
       if(_this.get('share_dropdown_open') && !e.target.closest('.md-board-detail-share-dropdown-wrap')) {
         _this.set('share_dropdown_open', false);
       }
-      if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap')) {
+      if(_this.get('show_paint_dropdown') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap--paint')) {
+        _this.set('show_paint_dropdown', false);
+      }
+      if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap--folder')) {
         _this.set('folder_dropdown_open', false);
       }
     };
@@ -975,6 +978,18 @@ export default Controller.extend({
           } else {
             emberSet(btn, 'suggested_part_of_speech', cls);
           }
+          // _make_btn builds new plain objects from _last_raw.buttons; without this, the next
+          // _build_from_raw (preferred_symbols, focus dim, etc.) drops suggestions and every
+          // button is "default" again — re-hitting parts_of_speech and risking 429.
+          var btnId = btn.get ? btn.get('id') : btn.id;
+          var rawList = (_this._last_raw && _this._last_raw.buttons) || [];
+          for(var rbi = 0; rbi < rawList.length; rbi++) {
+            var rawB = rawList[rbi];
+            if(rawB && rawB.id != null && String(rawB.id) === String(btnId)) {
+              rawB.suggested_part_of_speech = cls;
+              break;
+            }
+          }
           _this.notifyPropertyChange('ordered_buttons');
         }
       });
@@ -1016,9 +1031,10 @@ export default Controller.extend({
     return {
       communicate: [
         { id: 'symbol-board', label: i18n.t('nav_symbol_board', "Symbol Board"), icon: 'symbol-board', active: av === 'symbol-board' },
-        { id: 'phrase-builder', label: i18n.t('nav_phrase_builder', "Phrase Builder"), icon: 'phrase-builder', active: av === 'phrase-builder' },
-        { id: 'favorites', label: i18n.t('nav_favorites', "Favorites"), icon: 'favorites' },
-        { id: 'recent', label: i18n.t('nav_recent', "Recent"), icon: 'recent' }
+        { id: 'phrase-builder', label: i18n.t('nav_phrase_builder', "Phrase Builder"), icon: 'phrase-builder', active: av === 'phrase-builder' }
+        // TODO: enable when implemented
+        // { id: 'favorites', label: i18n.t('nav_favorites', "Favorites"), icon: 'favorites' },
+        // { id: 'recent', label: i18n.t('nav_recent', "Recent"), icon: 'recent' }
       ],
       clinical: [
         { id: 'progress-reports', label: i18n.t('nav_progress_reports', "Progress Reports"), icon: 'progress-reports' },
@@ -1027,7 +1043,7 @@ export default Controller.extend({
         { id: 'goal-tracking', label: i18n.t('nav_goal_tracking', "Goal Tracking"), icon: 'goal-tracking' }
       ],
       settings: [
-        { id: 'preferences', label: i18n.t('nav_preferences', "preferences"), icon: 'preferences' },
+        { id: 'preferences', label: i18n.t('nav_preferences', "Preferences"), icon: 'preferences' },
         { id: 'voice-output', label: i18n.t('nav_voice_output', "Voice & Output"), icon: 'voice-output' }
       ]
     };
@@ -1880,9 +1896,124 @@ export default Controller.extend({
     return null;
   },
 
+  // Shared WAI-ARIA menu keyboard handler for the board-detail dropdowns
+  // (details/share, paint palette, folder display style). Bootstrap 3
+  // and our controller-driven `_open` flags handle open/close on click,
+  // but provide no arrow-key navigation, Home/End shortcuts, or Escape
+  // support. This helper implements that pattern on top, so each
+  // dropdown only needs a thin action wrapper.
+  //
+  // opts: { state_prop, item_sel, toggle_action }
+  _dropdown_keydown_handler: function(event, opts) {
+    if(!event || !opts) { return; }
+    var key = event.key;
+    var keyCode = event.keyCode;
+    var container = event.currentTarget;
+    if(!container) { return; }
+    // The first DOM child of the wrap is always the trigger button.
+    var trigger = container.children[0];
+    var items = Array.prototype.slice.call(
+      container.querySelectorAll(opts.item_sel)
+    ).filter(function(el) { return el.offsetParent !== null; });
+    var is_open = this.get(opts.state_prop);
+    var current_idx = items.indexOf(document.activeElement);
+
+    // Escape: close the dropdown and restore focus to the trigger.
+    if(key === 'Escape' || key === 'Esc' || keyCode === 27) {
+      if(is_open) {
+        event.preventDefault();
+        this.set(opts.state_prop, false);
+        if(trigger && typeof trigger.focus === 'function') {
+          trigger.focus();
+        }
+      }
+      return;
+    }
+
+    // ArrowDown: from trigger opens the menu (toggle action handles
+    // focusing the first item via runLater); from a menu item moves
+    // to the next item, wrapping at the end.
+    if(key === 'ArrowDown' || keyCode === 40) {
+      if(!is_open && document.activeElement === trigger) {
+        event.preventDefault();
+        this.send(opts.toggle_action);
+        return;
+      }
+      if(is_open && items.length) {
+        event.preventDefault();
+        if(current_idx < 0 || current_idx >= items.length - 1) {
+          items[0].focus();
+        } else {
+          items[current_idx + 1].focus();
+        }
+      }
+      return;
+    }
+
+    // ArrowUp: previous item, wrapping at the top.
+    if(key === 'ArrowUp' || keyCode === 38) {
+      if(is_open && items.length) {
+        event.preventDefault();
+        if(current_idx <= 0) {
+          items[items.length - 1].focus();
+        } else {
+          items[current_idx - 1].focus();
+        }
+      }
+      return;
+    }
+
+    // Home: jump to first item.
+    if(key === 'Home' || keyCode === 36) {
+      if(is_open && items.length) {
+        event.preventDefault();
+        items[0].focus();
+      }
+      return;
+    }
+
+    // End: jump to last item.
+    if(key === 'End' || keyCode === 35) {
+      if(is_open && items.length) {
+        event.preventDefault();
+        items[items.length - 1].focus();
+      }
+      return;
+    }
+  },
+
   actions: {
     toggle_options_menu: function() {
+      var was_open = this.get('show_options_menu');
       this.toggleProperty('show_options_menu');
+      // When opening, move keyboard focus into the menu's first item so
+      // arrow-key / Tab navigation can begin there. When closing, return
+      // focus to the trigger button so the user lands back where they
+      // started (WCAG 2.1.2 / 2.4.3 best practice).
+      var _this = this;
+      runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (!was_open) {
+          var first_item = document.querySelector('.md-board-detail-actions-menu .md-board-detail-actions-menu__item');
+          if (first_item) { first_item.focus(); }
+        } else {
+          var trigger = document.querySelector('.md-board-detail-actions-toggle');
+          if (trigger) { trigger.focus(); }
+        }
+      }, 50);
+    },
+
+    // Close the options menu on Escape from anywhere within the menu.
+    // Wired from `keydown` on `.md-board-detail-actions-menu`.
+    options_menu_keydown: function(event) {
+      if (!event) { return; }
+      var key = event.key || event.keyCode;
+      if (key === 'Escape' || key === 'Esc' || key === 27) {
+        event.preventDefault();
+        if (this.get('show_options_menu')) {
+          this.send('toggle_options_menu');
+        }
+      }
     },
 
     enter_edit_mode: function() {
@@ -1974,11 +2105,7 @@ export default Controller.extend({
     },
 
     toggle_board_collapsed: function() {
-      var collapsing = !this.get('board_collapsed');
-      this.set('board_collapsed', collapsing);
-      if(collapsing && !this.get('panels_collapsed')) {
-        this.set('panels_collapsed', true);
-      }
+      this.toggleProperty('board_collapsed');
     },
 
     toggle_color_legend: function() {
@@ -2056,8 +2183,35 @@ export default Controller.extend({
       this.toggleProperty('dark_mode');
     },
 
+    toggle_modeling: function() {
+      this.set('show_options_menu', false);
+      this.get('app_state').toggle_modeling_if_possible(
+        !this.get('app_state.modeling')
+      );
+    },
+
     toggle_details_dropdown: function() {
+      var was_open = this.get('details_dropdown_open');
       this.toggleProperty('details_dropdown_open');
+      var _this = this;
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!was_open) {
+          var first_item = document.querySelector('.md-board-detail-share-dropdown .md-board-detail-share-dropdown__item');
+          if(first_item) { first_item.focus(); }
+        } else {
+          var trigger = document.querySelector('.md-board-detail-details-dropdown-wrap > button');
+          if(trigger) { trigger.focus(); }
+        }
+      }, 50);
+    },
+
+    details_dropdown_keydown: function(event) {
+      this._dropdown_keydown_handler(event, {
+        state_prop: 'details_dropdown_open',
+        item_sel: '.md-board-detail-share-dropdown__item',
+        toggle_action: 'toggle_details_dropdown'
+      });
     },
 
     toggle_favorite: function() {
@@ -2158,6 +2312,21 @@ export default Controller.extend({
     },
 
     // ── Button Interaction ──
+
+    // Keyboard activation for symbol grid cards. The cards are
+    // <div role="gridcell" tabindex="0"> rather than <button> because
+    // they contain nested edit-action buttons in edit mode (HTML
+    // disallows buttons inside buttons). Wire Enter/Space to the same
+    // select_button action so keyboard users can communicate via the
+    // tiles. Added 2026-04-11 per WCAG audit (2.1.1 Keyboard).
+    select_button_key: function(button, event) {
+      if(!event) { return; }
+      var key = event.key || event.keyCode;
+      if(key === 'Enter' || key === ' ' || key === 'Spacebar' || key === 13 || key === 32) {
+        event.preventDefault();
+        this.send('select_button', button);
+      }
+    },
 
     select_button: function(button) {
       if(this.get('color_picker_button') === button) { return; }
@@ -2419,6 +2588,16 @@ export default Controller.extend({
       }
       if(item_id === 'preferences') {
         this.get('router').transitionTo('user.preferences', un);
+      } else if(item_id === 'voice-output') {
+        // Open the in-place Voice & Output modal so the user can adjust
+        // voice picker / rate / pitch / volume / output target without
+        // leaving the board-detail page. Falls back to the full
+        // preferences page via the modal's "More options" link.
+        modal.open('voice-output', { user: user });
+      } else if(item_id === 'sessions') {
+        this.get('router').transitionTo('user.logs', un);
+      } else if(item_id === 'profiles') {
+        this.get('router').transitionTo('user.account', un);
       } else if(item_id === 'progress-reports') {
         this.get('router').transitionTo('user.stats', un);
       } else if(item_id === 'goal-tracking') {
@@ -2636,7 +2815,27 @@ export default Controller.extend({
     },
 
     toggle_paint_dropdown: function() {
+      var was_open = this.get('show_paint_dropdown');
       this.toggleProperty('show_paint_dropdown');
+      var _this = this;
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!was_open) {
+          var first_item = document.querySelector('.md-board-detail-edit-toolbar__paint-dropdown .md-board-detail-edit-toolbar__paint-dropdown-item');
+          if(first_item) { first_item.focus(); }
+        } else {
+          var trigger = document.querySelector('.md-board-detail-edit-toolbar__btn--palette');
+          if(trigger) { trigger.focus(); }
+        }
+      }, 50);
+    },
+
+    paint_dropdown_keydown: function(event) {
+      this._dropdown_keydown_handler(event, {
+        state_prop: 'show_paint_dropdown',
+        item_sel: '.md-board-detail-edit-toolbar__paint-dropdown-item',
+        toggle_action: 'toggle_paint_dropdown'
+      });
     },
 
     update_board_search: function(event) {
@@ -2903,7 +3102,27 @@ export default Controller.extend({
     },
 
     toggle_folder_dropdown: function() {
+      var was_open = this.get('folder_dropdown_open');
       this.toggleProperty('folder_dropdown_open');
+      var _this = this;
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!was_open) {
+          var first_item = document.querySelector('.md-board-detail-folder-dropdown .md-board-detail-folder-dropdown__item');
+          if(first_item) { first_item.focus(); }
+        } else {
+          var trigger = document.querySelector('.md-board-detail-edit-toolbar__btn--folder-toggle');
+          if(trigger) { trigger.focus(); }
+        }
+      }, 50);
+    },
+
+    folder_dropdown_keydown: function(event) {
+      this._dropdown_keydown_handler(event, {
+        state_prop: 'folder_dropdown_open',
+        item_sel: '.md-board-detail-folder-dropdown__item',
+        toggle_action: 'toggle_folder_dropdown'
+      });
     },
 
     match_borders_to_fill: function() {

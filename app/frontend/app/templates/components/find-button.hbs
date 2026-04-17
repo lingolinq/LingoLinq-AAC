@@ -5,16 +5,17 @@
       <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
     </div>
     <div class="la-find-button-body">
-      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder="Word or phrase you're looking for" autocomplete="off"}}
+      <label for="button_search_string" class="sr-only">{{t "Search for buttons" key="search_for_buttons"}}</label>
+      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder="Word or phrase you're looking for" autocomplete="off" aria-label=(t "Search for buttons" key="search_for_buttons")}}
       {{#if this.searchString}}
-        <div class="la-find-button-results">
+        <div class="la-find-button-results" role="region" aria-live="polite" aria-atomic="false" aria-label={{t "Search results" key="search_results"}}>
           {{#if this.results}}
             {{#each this.results as |result|}}
-              <div {{action "pick_result" result}} class="la-find-button-result">
+              <button type="button" {{action "pick_result" result}} class="la-find-button-result">
                 {{#if result.sequence}}
                   <div class="la-find-button-result__images">
                     {{#each result.steps as |step|}}
-                      <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img">
+                      <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img" alt={{step.button.label}}>
                     {{/each}}
                   </div>
                   <div class="la-find-button-result__info">
@@ -42,7 +43,7 @@
                   </div>
                 {{else}}
                   <div class="la-find-button-result__images">
-                    <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img">
+                    <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img" alt={{result.label}}>
                   </div>
                   <div class="la-find-button-result__info">
                     <span class="la-find-button-result__label">{{result.label}}</span>
@@ -63,10 +64,10 @@
                     </span>
                   </div>
                 {{/if}}
-              </div>
+              </button>
             {{/each}}
           {{else}}
-            <div class="la-find-button-empty">
+            <div class="la-find-button-empty" role="status" aria-live="polite">
               {{#if this.loading}}
                 {{t "Loading..." key="loading"}}
               {{else}}

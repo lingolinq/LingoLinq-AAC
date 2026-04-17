@@ -16,14 +16,14 @@
           </p>
           <div class="la-eval-status-form">
             <div class="la-eval-status-field">
-              <label class="la-eval-status-field__label">{{t "Current User Name" key="current_user_name"}}</label>
-              <Input type="text" @value={{this.reset_user_name}} class="la-eval-status-field__input" />
+              <label class="la-eval-status-field__label" for="eval_reset_user_name">{{t "Current User Name" key="current_user_name"}}</label>
+              <Input type="text" id="eval_reset_user_name" @value={{this.reset_user_name}} class="la-eval-status-field__input" />
             </div>
             <div class="la-eval-status-field">
-              <label class="la-eval-status-field__label">{{t "New Email Address" key="new_email"}}</label>
-              <Input type="text" @value={{this.reset_email}} class="la-eval-status-field__input" />
+              <label class="la-eval-status-field__label" for="eval_reset_email">{{t "New Email Address" key="new_email"}}</label>
+              <Input type="text" id="eval_reset_email" @value={{this.reset_email}} class="la-eval-status-field__input" />
               {{#if this.status.reset_email_used}}
-                <p class="la-eval-status-error">{{t "Must be a different email address than last time" key="must_be_different_email"}}</p>
+                <p class="la-eval-status-error" role="alert">{{t "Must be a different email address than last time" key="must_be_different_email"}}</p>
               {{/if}}
             </div>
             {{#if this.org_board_keys}}
@@ -39,12 +39,12 @@
               {{/if}}
             {{/if}}
             <div class="la-eval-status-field">
-              <label class="la-eval-status-field__label">{{t "New Expiration" key="new_expiration"}}</label>
-              <Input type="date" @value={{this.eval_expires}} class="la-eval-status-field__input" />
+              <label class="la-eval-status-field__label" for="eval_reset_expires">{{t "New Expiration" key="new_expiration"}}</label>
+              <Input type="date" id="eval_reset_expires" @value={{this.eval_expires}} class="la-eval-status-field__input" />
             </div>
             <div class="la-eval-status-field">
-              <label class="la-eval-status-field__label">{{t "New Password" key="new_password"}}</label>
-              <Input type="password" placeholder="(optional)" @value={{this.reset_password}} class="la-eval-status-field__input" />
+              <label class="la-eval-status-field__label" for="eval_reset_password">{{t "New Password" key="new_password"}}</label>
+              <Input type="password" id="eval_reset_password" placeholder="(optional)" @value={{this.reset_password}} class="la-eval-status-field__input" />
             </div>
           </div>
         {{else}}
@@ -56,15 +56,15 @@
         </p>
         <div class="la-eval-status-form">
           <div class="la-eval-status-field">
-            <label class="la-eval-status-field__label">{{t "New User Name" key="new_user_name"}}</label>
-            <Input type="text" @value={{this.transfer_user_name}} class="la-eval-status-field__input" />
+            <label class="la-eval-status-field__label" for="eval_transfer_user_name">{{t "New User Name" key="new_user_name"}}</label>
+            <Input type="text" id="eval_transfer_user_name" @value={{this.transfer_user_name}} class="la-eval-status-field__input" />
             {{#if this.status.transfer_bad_credentials}}
-              <p class="la-eval-status-error">{{t "No account found with that user name and password" key="no_account_found"}}</p>
+              <p class="la-eval-status-error" role="alert">{{t "No account found with that user name and password" key="no_account_found"}}</p>
             {{/if}}
           </div>
           <div class="la-eval-status-field">
-            <label class="la-eval-status-field__label">{{t "New Password" key="new_password"}}</label>
-            <Input type="password" @value={{this.transfer_password}} class="la-eval-status-field__input" />
+            <label class="la-eval-status-field__label" for="eval_transfer_password">{{t "New Password" key="new_password"}}</label>
+            <Input type="password" id="eval_transfer_password" @value={{this.transfer_password}} class="la-eval-status-field__input" />
           </div>
         </div>
       {{else if this.choice.extend}}
@@ -82,8 +82,8 @@
               <span class="la-eval-status-field__value">{{date this.user.subscription.eval_expires "day"}}</span>
             </div>
             <div class="la-eval-status-field">
-              <label class="la-eval-status-field__label">{{t "Updated Expiration" key="updated_expiration"}}</label>
-              <Input type="date" @value={{this.extend_date}} class="la-eval-status-field__input" />
+              <label class="la-eval-status-field__label" for="eval_extend_date">{{t "Updated Expiration" key="updated_expiration"}}</label>
+              <Input type="date" id="eval_extend_date" @value={{this.extend_date}} class="la-eval-status-field__input" />
             </div>
           </div>
         {{/if}}

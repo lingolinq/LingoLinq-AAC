@@ -1,7 +1,7 @@
 class Api::UsersController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
 
-  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
+  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button, :resend_parental_consent]
   def show
     # If requesting 'self' but no authenticated user, return 401 instead of 404
     if params['id'] == 'self' && !@api_user
@@ -243,8 +243,9 @@ class Api::UsersController < ApplicationController
   def create
     user_data = params['user']
     user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
-    if user_data && user_data['start_code']
+    if user_data && user_data['start_code'].present?
       # Validate user.start_code if present and error before trying to create
+      # (Blank string must be ignored: in Ruby "" is truthy, but optional forms submit it.)
       code = Organization.parse_activation_code(user_data['start_code'])
       return api_error(400, {error: "invalid start code", start_code_error: true}) if !code || code[:disabled]
     end
@@ -253,26 +254,38 @@ class Api::UsersController < ApplicationController
     if !user || user.errored?
       return api_error(400, {error: "user creation failed", errors: user && user.processing_errors})
     end
-    if user_data['start_code']
+    if user_data && user_data['start_code'].present?
       # Process start code actions once the user is fully created (can't add supervisors beforehand)
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
     end
-    UserMailer.schedule_delivery(:confirm_registration, user.global_id)
-    UserMailer.schedule_delivery(:new_user_registration, user.global_id)
-    ExternalTracker.track_new_user(user)
+    coppa_pending = user.coppa_parental_consent_pending?
+    unless coppa_pending
+      UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+      UserMailer.schedule_delivery(:new_user_registration, user.global_id)
+      ExternalTracker.track_new_user(user)
+    else
+      schedule_parental_consent_request_email!(user)
+    end
 
     d = Device.find_or_create_by(:user_id => user.id, :device_key => 'default', :developer_key_id => 0)
     d.settings['ip_address'] = request.remote_ip
     log_installed_client_signal('api/users#create')
     apply_device_classification!(d, installed_app?)
     d.settings['user_agent'] = request.headers['User-Agent']
-    
-    d.generate_token!(!!d.settings['app'])
+    d.save
+    d.generate_token!(!!d.settings['app']) unless coppa_pending
 
     res = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user || user)
     res['user']['start_progress'] = JsonApi::Progress.as_json(start_progress) if start_progress
-    res['meta'] = JsonApi::Token.as_json(user, d)
+    if coppa_pending
+      res['meta'] = {
+        'token_type' => 'bearer',
+        'coppa_parental_consent_pending' => true
+      }
+    else
+      res['meta'] = JsonApi::Token.as_json(user, d)
+    end
     render json: res
   end
   
@@ -645,13 +658,20 @@ class Api::UsersController < ApplicationController
     if params['resend']
       sent = false
       if user.settings['pending'] != false
-        sent = true
-        UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        if user.coppa_parental_consent_pending?
+          sent = false
+        else
+          sent = true
+          UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        end
       end
       render json: {sent: sent}
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
+        if user.coppa_parental_consent_pending?
+          return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
+        end
         confirmed = true
         user.update_setting('pending', false)
       end
@@ -692,6 +712,42 @@ class Api::UsersController < ApplicationController
         api_error 400, {email_sent: false, users: 0, error: message, message: message}
       end
     end
+  end
+
+  # Re-send parental consent email when the child cannot log in until a parent approves (same flow as signup).
+  # Requires username + password and a valid browser client_secret (same bar as /token). Rate-limited per user in Redis.
+  def resend_parental_consent
+    unless JsonApi::Json.coppa_parental_consent_enabled?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless params['client_id'].to_s == 'browser' && GoSecure.valid_browser_token?(params['client_secret'])
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    identification = (params['username'] || params['identification'] || params['user_name']).to_s.strip
+    password = params['password'].to_s
+    if identification.blank? || password.blank?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    user = User.find_for_login(identification, nil, password)
+    if !user || !user.valid_password?(password)
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless user.coppa_parental_consent_pending?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    key = parental_consent_resend_redis_key(user)
+    ttl_ms = begin
+      RedisInit.default.pttl(key)
+    rescue Redis::BaseError
+      nil
+    end
+    if ttl_ms && ttl_ms > 0
+      retry_after = [(ttl_ms / 1000.0).ceil, 1].max
+      return api_error 429, {error: 'parental_consent_resend_throttled', retry_after_seconds: retry_after}
+    end
+    Permissions.setex(RedisInit.default, key, parental_consent_resend_ttl_seconds, '1', true)
+    schedule_parental_consent_request_email!(user)
+    render json: {sent: true}
   end
   
   def password_reset
@@ -945,6 +1001,29 @@ class Api::UsersController < ApplicationController
     render json: nonce.encryption_result
   end
   
+  private
+
+  def schedule_parental_consent_request_email!(user)
+    # Mail goes to settings['coppa']['parent_email'] (see UserMailer#parental_consent_request).
+    # By default delivery is queued (Resque priority); without a worker the email never sends.
+    # In development, set INLINE_PARENTAL_CONSENT_EMAIL=1 to call SES immediately (still needs SES_KEY/SECRET or delivery will no-op / log).
+    if Rails.env.development? && %w[1 true yes on].include?(ENV['INLINE_PARENTAL_CONSENT_EMAIL'].to_s.strip.downcase)
+      UserMailer.deliver_message(:parental_consent_request, user.global_id)
+      Rails.logger.info("[COPPA] parental_consent_request delivered inline for user=#{user.global_id}")
+    else
+      UserMailer.schedule_delivery(:parental_consent_request, user.global_id)
+      Rails.logger.info("[COPPA] parental_consent_request queued for user=#{user.global_id} (start Resque priority worker, or set INLINE_PARENTAL_CONSENT_EMAIL=1 in development)")
+    end
+  end
+
+  def parental_consent_resend_redis_key(user)
+    "parental_consent_resend:#{user.global_id}"
+  end
+
+  def parental_consent_resend_ttl_seconds
+    180
+  end
+
   protected
   def grab_url(url)
     res = Typhoeus.get(url, timeout: 3)

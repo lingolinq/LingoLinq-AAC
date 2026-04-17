@@ -31,15 +31,18 @@ module Exporter
     
     # If chunking is required, the result will need to be a zip file, not a single obl/obla
     if chunks.length > 1 && !zipper && !cutoff
-      raise 'arg'
       file = Tempfile.new(['log-data', '.zip'])
-      file.close
-      OBF::Utils.build_zip(file.path) do |zipper|
-        export_logs(user_id, anonymized, zipper, cutoff)
+      begin
+        file.close
+        OBF::Utils.build_zip(file.path) do |zipper|
+          export_logs(user_id, anonymized, zipper, cutoff)
+        end
+        export_fn = fn + ".zip"
+        ts = Time.now.iso8601[0, 16].sub(/:/, '-')
+        return Uploader.remote_upload("downloads/logs/user/#{ts}/#{user.anonymized_identifier}/#{export_fn}", file.path, 'application/zip')
+      ensure
+        File.unlink(file.path) if file && File.exist?(file.path)
       end
-      export_fn = fn + ".zip"
-      ts = Time.now.iso8601[0, 16].sub(/:/, '-')
-      return Uploader.remote_upload("downloads/logs/user/#{ts}/#{user.anonymized_identifier}/#{export_fn}", file.path, 'application/zip')
     end
 
     upload_res = nil
@@ -87,6 +90,8 @@ More information about the file formats being used is available at https://www.o
       export_boards(user, zipper)
     end
     Uploader.remote_upload("downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/lingolinq-export-#{user.user_name}.zip", file.path, "application/zip")
+  ensure
+    File.unlink(file.path) if file && File.exist?(file.path)
   end
   
   def self.export_boards(user, zipper=nil)
@@ -101,17 +106,13 @@ More information about the file formats being used is available at https://www.o
         path = file.path
         file.close
         Converters::LingoLinq.to_obz(home_board, path, {'user' => user})
-        file = File.open(path, 'rb')
-        zipper.add('boards/home.obz', file.read)
-        file.close
+        add_local_file(zipper, 'boards/home.obz', path)
 
         file = Tempfile.new(['home-board', '.pdf'])
         path = file.path
         file.close
         Converters::LingoLinq.to_pdf(home_board, path, {'user' => user, 'packet' => true})
-        file = File.open(path, 'rb')
-        zipper.add('boards/home.pdf', file.read)
-        file.close
+        add_local_file(zipper, 'boards/home.pdf', path)
       end
     end
     user.sidebar_boards.each_with_index do |board, idx|
@@ -124,9 +125,7 @@ More information about the file formats being used is available at https://www.o
         path = file.path
         file.close
         Converters::LingoLinq.to_obz(sidebar_board, path, {'user' => user})
-        file = File.open(path, 'rb')
-        zipper.add("boards/sidebar-#{idx.to_s.rjust(2, '0')}.obz", file.read)
-        file.close
+        add_local_file(zipper, "boards/sidebar-#{idx.to_s.rjust(2, '0')}.obz", path)
       end
     end
     Board.where(user_id: user.id).find_in_batches(batch_size: 5) do |batch|
@@ -136,9 +135,7 @@ More information about the file formats being used is available at https://www.o
         path = file.path
         file.close
         Converters::LingoLinq.to_obf(board, path)
-        file = File.open(path, 'rb')
-        zipper.add("boards/personal/board-#{board.global_id}.obf", file.read)
-        file.close
+        add_local_file(zipper, "boards/personal/board-#{board.global_id}.obf", path)
       end
     end
     "boards/home.obz"
@@ -509,6 +506,21 @@ More information about the file formats being used is available at https://www.o
       hash[:text] = str
     end
     hash
+  end
+
+  # Stream a local file into the zipper without loading it all into memory.
+  # Falls back to File.binread for zippers that lack add_file (e.g. tests with
+  # the original OBF::Utils::Zipper).
+  # NOTE: this method always deletes local_path after writing (in an ensure
+  # block), so it must only be called with temporary files that are safe to remove.
+  def self.add_local_file(zipper, name, local_path)
+    if zipper.respond_to?(:add_file)
+      zipper.add_file(name, local_path)
+    else
+      zipper.add(name, File.binread(local_path))
+    end
+  ensure
+    File.unlink(local_path) if File.exist?(local_path)
   end
 
   def self.process_log(data, type, user_id, author_id, device_id)

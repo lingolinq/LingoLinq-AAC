@@ -18,19 +18,19 @@
   <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
     <button type="button" class="md-pillnav-dropdown__trigger" {{action "togglePillnavDropdown"}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
       <span class="md-pillnav-dropdown__label">
-        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
-        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
-        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "boards")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{/if}}
+        {{#if (is-equal this.activeTab "reports")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{/if}}
+        {{#if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors"))}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{/if}}
         {{this.activeTabLabel}}
       </span>
       <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{action "selectTab" "home"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{action "selectTab" "boards"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "reports") "is-active"}}" {{action "selectTab" "reports"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{action "selectTab" "extras"}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
     </ul>
   </div>
 
@@ -59,7 +59,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="#2A9D8F"/><path d="M22 4L12 14.01l-3-3" stroke="#46505F"/></svg>
             </div>
             <div class="md-card__titles">
-              <div class="md-card__title">{{t "Getting Started" key="getting_started"}}</div>
+              <h3 class="md-card__title">{{t "Getting Started" key="getting_started"}}</h3>
               <div class="md-card__sub">{{t "Finish setting up your account" key="on_your_way"}}</div>
             </div>
           </div>
@@ -84,7 +84,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
           </div>
           <div class="md-card__titles">
-            <div class="md-card__title">{{t "My Caseload" key="my_caseload"}}</div>
+            <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
             <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
           </div>
         </div>
@@ -98,7 +98,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
           </div>
           <div class="md-card__titles">
-            <div class="md-card__title">{{t "My Organizations" key="my_organizations"}}</div>
+            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
             <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
           </div>
         </div>
@@ -118,7 +118,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
           </div>
           <div class="md-card__titles">
-            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</div>
+            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
             <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
@@ -141,7 +141,7 @@
       <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
         <div class="md-card__head md-card__head--between">
           <div>
-            <div class="md-card__title">{{t "Extras" key="extras"}}</div>
+            <h3 class="md-card__title">{{t "Extras" key="extras"}}</h3>
             <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
@@ -159,7 +159,7 @@
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
-            <div class="md-card__title">{{t "Boards" key="boards"}}</div>
+            <h3 class="md-card__title">{{t "Boards" key="boards"}}</h3>
             <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>
@@ -218,7 +218,7 @@
           <article class="md-card md-card--sup" aria-label={{t "supervisees:" key="supervisees_colon"}}>
             <div class="md-card__head md-card__head--between">
               <div>
-                <div class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</div>
+                <h3 class="md-card__title">{{t "supervisees:" key="supervisees_colon"}}</h3>
                 <div class="md-card__sub">{{t "People you support" key="people_you_support"}}</div>
               </div>
             </div>
@@ -245,11 +245,11 @@
                       {{#if supervisee.home_board_key}}
                         <li><LinkTo @route="board" @model={{supervisee.home_board_key}}>{{t "Home Board" key="home_board"}}</LinkTo></li>
                       {{/if}}
-                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</a></li>
-                      <li><a href="#" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</a></li>
+                      <li><button type="button" {{action "homeInSpeakMode" supervisee.id true}}>{{t "Speak Mode (modeling)" key="speak_mode_as_me"}}</button></li>
+                      <li><button type="button" {{action "homeInSpeakMode" supervisee.id}}>{{t "Speak Mode (as %{user_name})" key="speak_mode_as_user" user_name=supervisee.user_name}}</button></li>
                       <li><LinkTo @route="user.stats" @model={{supervisee.user_name}} @query={{hash highlighted=null start=null end=null device_id=null location_id=null split=null start2=null end2=null device_id2=null location_id2=null}}>{{t "Reports" key="reports"}}</LinkTo></li>
-                      <li><a href="#" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</a></li>
-                      <li><a href="#" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                      <li><button type="button" {{action "recordNoteFor" supervisee}}>{{t "New Note" key="new_note"}}</button></li>
+                      <li><button type="button" {{action "quickAssessmentFor" supervisee}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
                     </ul>
                   </div>
                 {{/each}}
@@ -267,7 +267,7 @@
           <article class="md-card md-card--sup md-card--manage" aria-label={{t "Manage Supervisors" key="manage_supervisors"}}>
             <div class="md-card__head md-card__head--between">
               <div>
-                <div class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</div>
+                <h3 class="md-card__title">{{t "Supervisors for %{username}" key="supervisors_for_username" username=this.appState.currentUser.user_name}}</h3>
                 <div class="md-card__sub">{{t "Add or manage who can support you" key="manage_supervisors_sub"}}</div>
                 {{#unless this.appState.currentUser.supervisors_or_managing_org}}
                   <span class="md-info-badge md-info-badge--below-sub" role="status">
@@ -284,15 +284,15 @@
           {{#if this.appState.currentUser.supervised_units}}
             <article class="md-card md-card--rooms" aria-label={{t "rooms:" key="rooms_colon"}}>
               <div class="md-card__head">
-                <div class="md-card__title">{{t "rooms:" key="rooms_colon"}}</div>
+                <h3 class="md-card__title">{{t "rooms:" key="rooms_colon"}}</h3>
               </div>
-              <div class="md-rooms-list">
+              <ul class="md-rooms-list" role="list">
                 {{#each this.appState.currentUser.supervised_units as |unit|}}
-                  <span class="md-rooms-list__item">
+                  <li class="md-rooms-list__item">
                     <LinkTo @route="organization.room" @models={{array unit.organization_id unit.id}}>{{unit.name}}</LinkTo>
-                  </span>
+                  </li>
                 {{/each}}
-              </div>
+              </ul>
             </article>
           {{/if}}
         {{/if}}

@@ -55,7 +55,13 @@
 
  
   <%= stylesheet_link_tag "application", media: "all" %>
-  <%# Client reads window.domain_settings (script below), not a link tag. %>
+  <%# window.domain_settings must be defined in <head> so it runs before application.js (deferred or dynamically inserted in boards/index). %>
+  <% if @domain_overrides && @domain_overrides['settings'] %>
+    <script type="text/javascript">
+      window.domain_settings = <%= (@domain_overrides['settings'] || {}).to_json.html_safe %>;
+      window.domain_settings['domain'] = "<%= j((@domain_overrides['domain'].presence || @domain_overrides['host']).to_s) %>";
+    </script>
+  <% end %>
   <% if @domain_overrides && @domain_overrides['css'] %>
     <%= stylesheet_link_tag @domain_overrides['css'] %>
   <% end %>
@@ -91,12 +97,6 @@
       <button class='btn btn-default' id='cookies_prompt_disable'>No Thanks</button>
     </div>
   </div>
-<% end %>
-<% if @domain_overrides && @domain_overrides['settings'] %>
-  <script style='text/javascript'>
-    window.domain_settings = <%= (@domain_overrides['settings'] || {}).to_json.html_safe %>;
-    window.domain_settings['domain'] = "<%= @domain_overrides['domain'] %>";
-  </script>
 <% end %>
 <script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script>
 <script src='/mespeak/mespeak.js' async='true'></script>

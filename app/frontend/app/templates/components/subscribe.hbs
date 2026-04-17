@@ -1,5 +1,10 @@
 {{#modal-dialog opening=(action "opening") closing=(action "closing") uncloseable="true"}}
   <div class="modal-header subscribe-modal-header">
+    {{#unless (and this.model.subscription this.model.subscription.finalizing_purchase)}}
+      <button type="button" class="la-modal-close subscribe-modal-header__close" {{action "dismiss_subscribe_modal"}} aria-label={{t "Close" key="close"}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    {{/unless}}
     <button type="button" class="subscribe-trial-btn" {{action "really_subscription_skip"}}>{{t "Start w/ 2-Month Trial" key="start_with_2_month_trial_brief"}}</button>
     <div class="subscribe-modal-header__title-wrap">
       {{#unless this.model.user.really_expired}}
@@ -12,7 +17,7 @@
       {{/if}}
     </div>
   </div>
-  <div class="modal-body" id="button_settings">
+  <div class="modal-body md-modal-body" id="button_settings">
     {{#if this.model.user.really_expired}}
       <p>
         {{t "Your %app_name% trial period has expired. Please update your billing settings to continue using LingoLinq." key="welcome_fill_out_subscription"}}

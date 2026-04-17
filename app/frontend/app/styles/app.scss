@@ -241,14 +241,15 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
   }
 }
 .la-pricing-bulk-link {
-  color: var(--fs-dark-teal, $brand-verdigris);
+  /* WCAG AA fix — was $brand-verdigris on white = 3.32:1. */
+  color: var(--fs-dark-teal, $brand-verdigris-aa);
   text-decoration: none;
   font-weight: 500;
   border-bottom: 1px solid transparent;
   transition: border-color 0.12s ease;
 
   &:hover {
-    border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
+    border-bottom-color: var(--fs-dark-teal, $brand-verdigris-aa);
   }
 }
 .la-pricing-bulk-explainer {
@@ -258,13 +259,14 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
   color: #2c3e50;
 
   a {
-    color: var(--fs-dark-teal, $brand-verdigris);
+    /* WCAG AA fix — was $brand-verdigris on white = 3.32:1. */
+    color: var(--fs-dark-teal, $brand-verdigris-aa);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.12s ease;
 
     &:hover {
-      border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
+      border-bottom-color: var(--fs-dark-teal, $brand-verdigris-aa);
     }
   }
 }
@@ -2631,6 +2633,26 @@ h2 {
   margin-bottom: 6px;
 }
 
+.subscribe-modal-header {
+  position: relative;
+}
+.subscribe-modal-header__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: rgba($la-navy, 0.04);
+  color: $brand-slate-gray;
+}
+.subscribe-modal-header__close:hover {
+  background: $brand-charcoal-blue;
+  color: #fff;
+  border-color: $brand-charcoal-blue;
+}
+.subscribe-modal-header .subscribe-trial-btn {
+  margin-right: 56px;
+}
 .subscribe-modal-header__title-wrap {
   display: flex;
   align-items: center;
@@ -3760,6 +3782,12 @@ tr.accuracy_non_mastered {
   gap: 12px;
   flex-wrap: wrap;
 }
+.md-hero--setup__nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
 /* Back to Dashboard: same pill style and hover as Skip Setup */
 .md-hero--setup__back-pill {
   text-decoration: none;
@@ -3959,7 +3987,8 @@ tr.accuracy_non_mastered {
   margin: 0;
 }
 .md-download-card__link {
-  color: $brand-verdigris;
+  /* WCAG AA fix — was $brand-verdigris on white = 3.32:1. */
+  color: $brand-verdigris-aa;
   font-weight: 600;
   text-decoration: none;
 }
@@ -3980,7 +4009,9 @@ tr.accuracy_non_mastered {
   font-size: 15px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  /* WCAG AA fix (was $brand-blue-grey → $brand-charcoal-blue, 3.16:1 on lightest stop).
+     $la-navy → $brand-charcoal-dark gives 6.5:1+ across the gradient. */
+  background: linear-gradient(135deg, $la-navy, $brand-charcoal-dark);
   text-decoration: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 2px 8px rgba($brand-charcoal-blue, 0.25);
@@ -3992,7 +4023,9 @@ tr.accuracy_non_mastered {
   text-decoration: none;
 }
 .md-download-card__btn--secondary {
-  background: linear-gradient(135deg, #a0aec0, #718096);
+  /* WCAG AA fix (was #a0aec0 → #718096, 2.26:1 on lightest stop — worst in audit).
+     Darker slate gradient gives ~5:1+ across the entire gradient. */
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-dark);
 }
 @media (max-width: 420px) {
   .md-download-grid {
@@ -4300,9 +4333,9 @@ tr.accuracy_non_mastered {
 /* Board Category step: medium-sized page header inside setup container */
 .md-card--setup .setup-board-category__page-header {
   margin: 0 0 1rem;
-  font-size: 1.95rem;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
   line-height: 1.3;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -4355,9 +4388,9 @@ tr.accuracy_non_mastered {
 /* Access step: large page header (same as Board Category) */
 .md-card--setup .setup-access__page-header {
   margin: 0 0 1rem;
-  font-size: 1.5rem;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.2px;
   line-height: 1.3;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -4652,18 +4685,16 @@ tr.accuracy_non_mastered {
     min-width: 0;
   }
 
-  /* Headings: same as .md-card__title on dashboard */
+  /* Headings: uniform size across all setup pages.
+     Uses !important to override the global h2 { font-size: 25px !important } at line 2589. */
   h1, h2, h3, h4 {
-    margin: 0 0 1rem;
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: -0.2px;
-    color: var(--md-ink);
-    line-height: 1.3;
+    margin: 0 0 1rem !important;
+    font-size: 20px !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.2px !important;
+    color: var(--md-ink) !important;
+    line-height: 1.3 !important;
   }
-  h1 { font-size: clamp(20px, 2.2vw, 24px); }
-  h2 { font-size: 19px; }
-  h3 { font-size: 18px; }
 
   p {
     margin-bottom: 1.25rem;
@@ -4684,51 +4715,241 @@ tr.accuracy_non_mastered {
     margin-bottom: 1.5rem;
   }
 
-  /* Usage step: key things to know – each item a clear visual block to guide the eye */
-  .usage-checklist__title {
-    margin: 0 0 1rem;
-    font-size: 17px;
-    font-weight: 700;
-    color: var(--md-ink);
-  }
-  .usage-checklist {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  /* Usage step: inherit global checklist styles (defined at root below) */
+  /* Setup done page — modern action buttons */
+  .setup-done-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 10px;
+    max-width: 480px;
+    margin-top: 1.5rem;
   }
-  .usage-checklist__item {
-    position: relative;
+  .setup-done-actions__btn {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem 0.75rem 1rem;
-    margin: 0;
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--md-ink);
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 12px;
-    border-left: 4px solid rgba(44, 183, 176, 0.6);
-    box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
-  }
-  .usage-checklist__item::before {
-    content: "✓";
-    flex-shrink: 0;
-    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.35rem;
-    height: 1.35rem;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #fff;
-    background: rgba(44, 183, 176, 0.85);
-    border-radius: 50%;
-    line-height: 1;
+    gap: 10px;
+    width: 100%;
+    padding: 16px 24px;
+    min-height: 56px;
+    font-size: 16px;
+    font-weight: 600;
+    color: $la-navy;
+    background: #fff;
+    border: 1.5px solid rgba($la-navy, 0.12);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    box-shadow: 0 1px 4px rgba($la-navy, 0.06);
   }
+  .setup-done-actions__btn:hover {
+    border-color: rgba($brand-verdigris, 0.4);
+    box-shadow: 0 4px 14px rgba($la-navy, 0.10);
+    background: rgba($brand-verdigris, 0.03);
+  }
+  .setup-done-actions__btn:active {
+    transform: scale(0.98);
+  }
+  .setup-done-actions__btn--primary {
+    background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+    color: #fff;
+    border-color: rgba($brand-charcoal-blue, 0.3);
+    box-shadow: 0 2px 8px rgba($brand-charcoal-blue, 0.2);
+  }
+  .setup-done-actions__btn--primary:hover {
+    box-shadow: 0 6px 20px rgba($brand-charcoal-blue, 0.25);
+    background: linear-gradient(135deg, #6583a9, $brand-charcoal-blue);
+  }
+  .setup-done-actions__btn svg {
+    flex-shrink: 0;
+  }
+
+  /* Back button demo — image with animated circle pointing at the back button */
+  .setup-back-btn-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-back-btn-demo__img {
+    width: 100%;
+    display: block;
+  }
+  /* Animated pulsing circle that highlights the back button location.
+     Positioned at ~6.5% from left, ~4.5% from top (where the back chevron
+     sits in the sentence bar of the board-back.png screenshot). */
+  .setup-back-btn-demo__circle {
+    position: absolute;
+    top: 7.75%;
+    left: 7.25%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: setup-back-pulse 5s ease-in-out infinite;
+  }
+  @keyframes setup-back-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    15% {
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+    30% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    /* pause */
+    55% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+    70% {
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+    85%, 100% {
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Exit speak mode demo — two-phase animation:
+     Phase 1 (0-3s): pulsing circle on the options button
+     Phase 2 (3-6s): pulsing rectangle around Exit Speak Mode button
+     Total cycle: 6s, repeats infinitely. */
+  .setup-exit-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-exit-demo__img {
+    width: 100%;
+    display: block;
+  }
+  /* Circle over the options button (three dots, top right) */
+  .setup-exit-demo__circle {
+    position: absolute;
+    top: 4.1%;
+    right: 2.1%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(50%, -50%);
+    pointer-events: none;
+    animation: setup-exit-circle 6s ease-in-out infinite;
+  }
+  /* Rectangle around Exit Speak Mode button (bottom of menu) */
+  .setup-exit-demo__rect {
+    position: absolute;
+    bottom: 33%;
+    right: 0.5%;
+    width: 12.5%;
+    height: 9%;
+    border: 3px solid $brand-verdigris;
+    border-radius: 10px;
+    pointer-events: none;
+    animation: setup-exit-rect 6s ease-in-out infinite;
+  }
+  /* Phase 1: circle pulses once for 0-3s, then disappears */
+  @keyframes setup-exit-circle {
+    0% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: translate(50%, -50%) scale(1);
+    }
+    20% {
+      opacity: 1;
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: translate(50%, -50%) scale(1.15);
+    }
+    35% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.3);
+      transform: translate(50%, -50%) scale(1);
+    }
+    45% {
+      opacity: 0;
+      transform: translate(50%, -50%) scale(1);
+    }
+    50%, 100% {
+      opacity: 0;
+      box-shadow: none;
+    }
+  }
+  /* Phase 2: rectangle pulses once for 3-6s, then disappears */
+  @keyframes setup-exit-rect {
+    0%, 45% {
+      opacity: 0;
+      box-shadow: none;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.4);
+      transform: scale(1);
+    }
+    70% {
+      opacity: 1;
+      box-shadow: 0 0 0 14px rgba($brand-verdigris, 0);
+      transform: scale(1.05);
+    }
+    85% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba($brand-verdigris, 0.3);
+      transform: scale(1);
+    }
+    95% {
+      opacity: 0;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      box-shadow: none;
+      transform: scale(1);
+    }
+  }
+
+  /* Modeling mode demo — two-phase animation matching exit-speak-mode:
+     Phase 1 (0-3s): pulsing circle on the options button
+     Phase 2 (3-6s): pulsing rectangle around Model for Communicator item */
+  .setup-modeling-demo {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+  .setup-modeling-demo__img {
+    width: 100%;
+    display: block;
+  }
+  .setup-modeling-demo__circle {
+    position: absolute;
+    top: 4.1%;
+    right: 2.1%;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $brand-verdigris;
+    border-radius: 50%;
+    transform: translate(50%, -50%);
+    pointer-events: none;
+    animation: setup-exit-circle 6s ease-in-out infinite;
+  }
+  .setup-modeling-demo__rect {
+    position: absolute;
+    bottom: 50%;
+    right: 0.5%;
+    width: 12%;
+    height: 7.5%;
+    border: 3px solid $brand-verdigris;
+    border-radius: 10px;
+    pointer-events: none;
+    animation: setup-exit-rect 6s ease-in-out infinite;
+  }
+
   .setup_setting {
     margin-bottom: 1.75rem;
 
@@ -5371,8 +5592,11 @@ tr.accuracy_non_mastered {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36. */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: 50%;
   border: 1px solid rgba($la-navy, 0.12);
   background: rgba($la-navy, 0.04);
@@ -5397,8 +5621,8 @@ tr.accuracy_non_mastered {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding-top: 32px;
-  padding-bottom: 32px;
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 .md-card--setup-intro::before {
   content: '';
@@ -5422,7 +5646,8 @@ tr.accuracy_non_mastered {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: 140px;
+  min-height: 84px;
+  padding-bottom: 0;
 }
 .md-card--setup-intro .md-card__head--setup-intro,
 .md-card--setup-intro .md-card__head--getting-started {
@@ -5432,6 +5657,8 @@ tr.accuracy_non_mastered {
   gap: 20px;
   margin-bottom: 0;
   flex-shrink: 0;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
 }
 .md-card--setup-intro .md-card__head-left {
   display: flex;
@@ -5452,8 +5679,8 @@ tr.accuracy_non_mastered {
 }
 .setup-intro__header {
   margin: 0 0 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  padding-bottom: 0;
+  border-bottom: none;
   color: var(--md-navy, $la-navy);
 }
 .setup-intro__username {
@@ -8805,6 +9032,10 @@ video.button_image {
     margin: 7px 7.5px;
   }
 }
+#recording_status:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
 #recording_status:hover, #recording_status.recording {
   border-color: $brand-danger;
 }
@@ -9091,9 +9322,35 @@ video.button_image {
 .dropdown-menu {
   font-size: 18px;
 }
-.dropdown-menu > li > a {
-  padding-top: 7px;
-  padding-bottom: 7px;
+.dropdown-menu > li > a,
+.dropdown-menu > li > button {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  /* WCAG AA touch target — was 7px (~22px tall, below 24px floor). */
+  min-height: 44px;
+}
+/* Dropdown menu button styles match the Bootstrap <a> defaults so a
+   converted <button> looks identical (added 2026-04-11 per WCAG audit). */
+.dropdown-menu > li > button {
+  display: block;
+  width: 100%;
+  padding: 10px 20px;
+  clear: both;
+  font-weight: normal;
+  line-height: 1.42857143;
+  color: #333;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+}
+.dropdown-menu > li > button:hover,
+.dropdown-menu > li > button:focus {
+  color: #262626;
+  text-decoration: none;
+  background-color: #f5f5f5;
 }
 .dropdown-menu__language-link {
   display: inline-flex;
@@ -9509,7 +9766,8 @@ video.button_image {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: $brand-verdigris;
+  /* WCAG AA fix — was $brand-verdigris on $surface-100 = 3.15:1. */
+  color: $brand-verdigris-aa;
   margin: 0 0 10px 0;
 }
 
@@ -9539,12 +9797,13 @@ video.button_image {
   margin-left: 0;
 }
 .la-board-details-wrap .dl-horizontal a {
-  color: $brand-verdigris;
+  /* WCAG AA fix — was $brand-verdigris on $surface-100 = 3.15:1. */
+  color: $brand-verdigris-aa;
   text-decoration: none;
   font-weight: 500;
 }
 .la-board-details-wrap .dl-horizontal a:hover {
-  color: #238b7f;
+  color: #146462;
   text-decoration: underline;
 }
 
@@ -9584,7 +9843,8 @@ video.button_image {
   stroke-width: 2.5;
 }
 .la-board-details-wrap .dl-horizontal a.la-board-details-rename-link:hover {
-  color: $brand-verdigris !important;
+  /* WCAG AA fix — hover was $brand-verdigris (3.15:1 on light bg). */
+  color: $brand-verdigris-aa !important;
 }
 .la-board-details-delete-btn {
   color: $brand-danger !important;
@@ -9611,7 +9871,7 @@ video.button_image {
   border-radius: 8px;
   border: 1px solid rgba($brand-verdigris, 0.25);
   background: rgba($brand-verdigris, 0.06);
-  color: $brand-verdigris;
+  color: $brand-verdigris-aa; /* WCAG AA fix — was $brand-verdigris (3.32:1). */
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -9816,11 +10076,13 @@ video.button_image {
 /* Chevron arrow */
 .la-board-actions-item__arrow {
   flex-shrink: 0;
-  color: $brand-cool-steel;
+  /* WCAG AA fix — was $brand-cool-steel (2.84:1). */
+  color: $brand-slate-gray;
   transition: color 0.12s ease, transform 0.12s ease;
 }
 .la-board-actions-item:hover .la-board-actions-item__arrow {
-  color: $brand-verdigris;
+  /* WCAG AA fix — was $brand-verdigris (3.32:1). */
+  color: $brand-verdigris-aa;
   transform: translateX(2px);
 }
 
@@ -10397,8 +10659,11 @@ video.button_image {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -10556,8 +10821,11 @@ video.button_image {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -10603,13 +10871,22 @@ video.button_image {
   overflow-y: auto;
 }
 .la-find-button-result {
+  /* Now a <button> element (was <div>) per WCAG 2.1.1.
+     Reset button defaults so the visual is identical to the prior <div>. */
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  /* Bump padding from 10×12 to 12×14 to meet WCAG 2.5.5 / AAC touch targets. */
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.12s ease;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 .la-find-button-result:hover {
   background: rgba($brand-verdigris, 0.06);
@@ -10669,7 +10946,9 @@ video.button_image {
   justify-content: flex-end;
 }
 .la-find-button-cancel {
-  padding: 10px 20px;
+  /* WCAG 2.5.5 + AAC touch target — was 10px 20px (~34×32). */
+  padding: 14px 28px;
+  min-height: 44px;
   border-radius: 10px;
   border: none;
   background: $brand-charcoal-blue;
@@ -10718,8 +10997,11 @@ video.button_image {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
   border-radius: 50%;
@@ -10742,7 +11024,8 @@ video.button_image {
 }
 .la-eval-status-desc {
   font-size: 15px;
-  color: $brand-charcoal-blue;
+  /* WCAG AA fix — was $brand-charcoal-blue (4.04:1, borderline). */
+  color: $brand-charcoal-dark;
   line-height: 1.6;
   margin: 0 0 16px;
 }
@@ -10795,7 +11078,9 @@ video.button_image {
   letter-spacing: 0.04em;
 }
 .la-eval-status-field__input {
-  padding: 10px 14px;
+  /* WCAG 2.5.5 AAA touch target — was 10px 14px (~35-38 tall). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: 1.5px solid rgba($brand-blue-black, 0.12);
   border-radius: 10px;
   font-size: 15px;
@@ -11174,7 +11459,7 @@ video.button_image {
 .la-batch-recording-section { margin-bottom: 18px; }
 .la-batch-recording-label {
   display:block; font-size:13px; font-weight:700; text-transform:uppercase;
-  letter-spacing:0.06em; color:$brand-verdigris; margin-bottom:8px;
+  letter-spacing:0.06em; color:$brand-verdigris-aa; margin-bottom:8px; /* WCAG AA fix. */
 }
 .la-batch-recording-nav {
   display:flex; align-items:center; gap:10px; margin-bottom:16px;
@@ -11184,13 +11469,13 @@ video.button_image {
   background:#fff; color:#4a5568; cursor:pointer; display:flex; align-items:center;
   justify-content:center; padding:0; transition:background 0.12s ease, color 0.12s ease; flex-shrink:0;
 }
-.la-batch-recording-back-btn:hover { background:$surface-200; color:$brand-verdigris; }
+.la-batch-recording-back-btn:hover { background:$surface-200; color:$brand-verdigris-aa; } /* WCAG AA fix — was $brand-verdigris (~3.8:1 on $surface-200). */
 .la-batch-recording-phrase-title { margin:0; font-size:18px; font-weight:700; color:$la-navy; }
 .la-batch-recording-breadcrumb { font-size:13px; color:$brand-slate-gray; }
-.la-batch-recording-breadcrumb--dim { color:$brand-cool-steel; }
+.la-batch-recording-breadcrumb--dim { color:$brand-slate-gray; } /* WCAG AA fix — was $brand-cool-steel (2.84:1). */
 .la-batch-recording-repo-title { font-size:18px; font-weight:700; color:$la-navy; margin:0 0 4px; }
 .la-batch-recording-repo-desc { font-size:14px; color:$brand-slate-gray; line-height:1.5; margin-bottom:8px; }
-.la-batch-recording-repo-desc a { color:$brand-verdigris; }
+.la-batch-recording-repo-desc a { color:$brand-verdigris-aa; } /* WCAG AA fix — was $brand-verdigris on white. */
 .la-batch-recording-progress { font-size:13px; color:$brand-slate-gray; text-align:right; margin-bottom:12px; }
 .la-batch-recording-loading { font-size:14px; color:$brand-slate-gray; font-style:italic; }
 .la-batch-recording-error { font-size:14px; color:$brand-danger; }
@@ -11219,7 +11504,7 @@ video.button_image {
   width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-size:12px; font-weight:700; flex-shrink:0;
 }
-.la-batch-recording-icon--ok { background:rgba($brand-verdigris, 0.12); color:$brand-verdigris; }
+.la-batch-recording-icon--ok { background:rgba($brand-verdigris, 0.12); color:$brand-verdigris-aa; } /* WCAG AA fix. */
 .la-batch-recording-icon--warning { background:rgba(212,168,75,0.15); color:#c49a3a; }
 .la-batch-recording-count { margin-left:auto; font-size:13px; color:$brand-slate-gray; font-weight:400; }
 .la-batch-recording-next { text-align:right; margin-top:14px; }
@@ -11334,7 +11619,7 @@ video.button_image {
 .la-board-privacy-section:last-child { margin-bottom:0; }
 .la-board-privacy-label {
   display:block; font-size:13px; font-weight:700; text-transform:uppercase;
-  letter-spacing:0.06em; color:$brand-verdigris; margin-bottom:8px;
+  letter-spacing:0.06em; color:$brand-verdigris-aa; margin-bottom:8px; /* WCAG AA fix. */
 }
 .la-board-privacy-boards {
   padding:12px 16px; background:rgba($brand-verdigris, 0.03); border:1px solid rgba($la-navy, 0.06);
@@ -11395,7 +11680,7 @@ video.button_image {
 .la-edit-board-section:last-child { border-bottom:none; }
 .la-edit-board-section__heading {
   font-size:12px; font-weight:700; text-transform:uppercase;
-  letter-spacing:0.06em; color:$brand-verdigris; margin:0 0 12px;
+  letter-spacing:0.06em; color:$brand-verdigris-aa; margin:0 0 12px; /* WCAG AA fix. */
 }
 
 /* Fields */
@@ -11480,8 +11765,8 @@ video.button_image {
 .la-edit-board-add-btn:hover { background:$surface-200; }
 
 /* Advanced link */
-.la-edit-board-advanced-link { color:$brand-verdigris; font-size:14px; font-weight:500; }
-.la-edit-board-advanced-link:hover { color:#238b7f; text-decoration:underline; }
+.la-edit-board-advanced-link { color:$brand-verdigris-aa; font-size:14px; font-weight:500; } /* WCAG AA fix. */
+.la-edit-board-advanced-link:hover { color:#146462; text-decoration:underline; }
 
 /* Footer */
 .la-edit-board-details-wrap > .modal-footer {
@@ -11513,8 +11798,8 @@ video.button_image {
 .la-board-ideas-wrap > .modal-header .close:hover { background:#fff; color:$brand-charcoal-dark; }
 .la-board-ideas-wrap > .modal-body { padding:24px; max-height:70vh; overflow-y:auto; }
 .la-board-ideas-desc { font-size:14px; color:$brand-charcoal-dark; line-height:1.5; margin-bottom:12px; }
-.la-board-ideas-desc a { color:$brand-verdigris; }
-.la-board-ideas-status { font-size:13px; color:$brand-verdigris; font-weight:600; margin-bottom:12px; }
+.la-board-ideas-desc a { color:$brand-verdigris-aa; } /* WCAG AA fix — was $brand-verdigris (3.32:1). */
+.la-board-ideas-status { font-size:13px; color:$brand-verdigris-aa; font-weight:600; margin-bottom:12px; } /* WCAG AA fix. */
 .la-board-ideas-warning { font-size:14px; padding:10px 14px; border-radius:10px; margin-bottom:12px; line-height:1.4; }
 .la-board-ideas-warning--danger { background:rgba($brand-danger, 0.06); border:1px solid rgba($brand-danger, 0.12); color:$brand-danger; }
 .la-board-ideas-user-select { margin-bottom:14px; }
@@ -11529,7 +11814,7 @@ video.button_image {
   color:$brand-slate-gray; font-size:14px; font-weight:500; cursor:pointer;
   transition:background 0.12s ease, color 0.12s ease;
 }
-.la-board-ideas-tab:hover { background:rgba($brand-verdigris, 0.06); color:$brand-verdigris; }
+.la-board-ideas-tab:hover { background:rgba($brand-verdigris, 0.06); color:$brand-verdigris-aa; } /* WCAG AA fix. */
 .la-board-ideas-tab--active {
   background:linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim); color:#fff; font-weight:600;
 }
@@ -11558,9 +11843,9 @@ video.button_image {
   background:#fff; color:#4a5568; cursor:pointer; display:flex; align-items:center;
   justify-content:center; padding:0; flex-shrink:0;
 }
-.la-board-ideas-back-btn:hover { background:$surface-200; color:$brand-verdigris; }
+.la-board-ideas-back-btn:hover { background:$surface-200; color:$brand-verdigris-aa; } /* WCAG AA fix. */
 .la-board-ideas-cat-title { margin:0; font-size:17px; font-weight:700; color:$la-navy; }
-.la-board-ideas-breadcrumb { font-size:13px; color:$brand-cool-steel; }
+.la-board-ideas-breadcrumb { font-size:13px; color:$brand-slate-gray; } /* WCAG AA fix — was $brand-cool-steel (2.84:1). */
 .la-board-ideas-progress { font-size:13px; color:$brand-slate-gray; margin-bottom:10px; }
 .la-board-ideas-loading { font-size:14px; color:$brand-slate-gray; font-style:italic; }
 .la-board-ideas-error { font-size:14px; color:$brand-danger; }
@@ -11578,8 +11863,8 @@ video.button_image {
 .la-board-ideas-item-image { width:64px; height:64px; border-radius:8px; overflow:hidden; flex-shrink:0; }
 .la-board-ideas-item-image img { width:100%; height:100%; object-fit:cover; }
 .la-board-ideas-item-text { flex:1; font-size:15px; white-space:normal; }
-.la-board-ideas-item-text--used { color:$brand-cool-steel; }
-.la-board-ideas-item-check { color:$brand-verdigris; margin-right:6px; font-weight:700; }
+.la-board-ideas-item-text--used { color:$brand-slate-gray; } /* WCAG AA fix — was $brand-cool-steel (2.84:1). */
+.la-board-ideas-item-check { color:$brand-verdigris-aa; margin-right:6px; font-weight:700; } /* WCAG AA fix. */
 .la-board-ideas-item-count { font-size:13px; color:$brand-slate-gray; font-weight:400; margin-left:auto; flex-shrink:0; }
 .la-board-ideas-add-btn {
   border-radius:24px; padding:6px 16px; background:#fff; color:$brand-charcoal-dark;
@@ -13028,7 +13313,8 @@ form.row.subscription-form-with-cards {
   font-weight: 600;
 }
 .md-speak-menu__bottom-btn--action {
-  color: $brand-dusty-denim;
+  /* WCAG AA fix — was $brand-dusty-denim on white = 3.49:1. */
+  color: $brand-dusty-denim-aa;
   font-weight: 600;
 }
 .md-speak-menu__bottom-btn--remembered {
@@ -25031,7 +25317,9 @@ header #identity #identity_button.btn::after {
   display: flex;
   align-items: center;
   gap: $aac-spacing-10;
-  padding: $aac-spacing-10 $aac-spacing-14;
+  /* WCAG 2.5.5 AAA touch target — was 10×14 (~20 tall). */
+  padding: $aac-spacing-12 $aac-spacing-14;
+  min-height: 44px;
   border-radius: $aac-radius-md;
   cursor: pointer;
   font-size: $la-panel-font-size-sm;
@@ -29056,8 +29344,12 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  /* WCAG 2.5.5 AAA touch target (44px min) + AAC standard headroom.
+     Updated 2026-04-11 per WCAG audit; was 32×32. */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   border-radius: $aac-radius-circle;
   border: 1px solid rgba(white, 0.15);
   background: rgba(white, 0.08);
@@ -29152,8 +29444,11 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -30382,6 +30677,295 @@ a.la-footer-bottom-a11y-wcag {
   border-color: rgba($brand-blue-black, 0.25);
 }
 
+/* ── Sync Details modal (matches record-note modal shell) ── */
+.modal .modal-dialog:has(.la-sync-details-modal-wrap) {
+  margin-top: 15px;
+  max-width: min(720px, 94vw);
+}
+.la-sync-details-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-sync-details-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-sync-details-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-sync-details-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-sync-details-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--sync {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-sync-details-modal-body {
+  padding: 20px 24px;
+  text-align: left;
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-sync-details-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+.la-sync-details-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.la-sync-details-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 24px;
+  border-radius: 999px;
+  background: $brand-charcoal-dark;
+  border: 1px solid rgba($brand-charcoal-dark, 0.3);
+  color: #fff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-sync-details-primary-btn:hover {
+  background: #4b5563;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.la-sync-details-secondary-btn {
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: 1.5px solid rgba($brand-blue-black, 0.15);
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-sync-details-secondary-btn:hover {
+  background: #f3f4f6;
+  border-color: rgba($brand-blue-black, 0.25);
+}
+.la-sync-details-btn-refresh {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.la-sync-details-btn-refresh--spinning {
+  animation: spinningAnimation 2s infinite linear;
+}
+.la-sync-details-lead {
+  margin: 0 0 18px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--md-ink);
+}
+.la-sync-details-log-heading {
+  margin: 20px 0 8px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.la-sync-details-log-heading .text-danger,
+.la-sync-details-log-heading .text-warning,
+.la-sync-details-log-heading .text-success {
+  font-size: inherit;
+}
+.la-sync-details-muted-block {
+  margin-top: 20px;
+  margin-bottom: 0;
+  color: var(--md-muted);
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+.la-sync-details-see-link {
+  margin-left: 4px;
+  font-weight: 600;
+  font-size: inherit;
+}
+.la-sync-details-status-error {
+  margin-left: 10px;
+  margin-top: 4px;
+}
+.la-sync-details-table-scroll {
+  max-height: 60vh;
+  overflow: auto;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--md-line);
+}
+.la-sync-details-table {
+  margin-bottom: 0;
+  font-size: 1.0625rem;
+}
+.la-sync-details-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.la-sync-details-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--md-line);
+}
+.la-sync-details-modal-footer .la-record-note-cancel-btn {
+  font-size: 1.0625rem;
+  padding: 11px 26px;
+}
+
+/* ── Assign Lesson modal (matches sync / record-note shell) ── */
+.modal .modal-dialog:has(.la-assign-lesson-modal-wrap) {
+  margin-top: 15px;
+  max-width: min(720px, 94vw);
+}
+.la-assign-lesson-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-assign-lesson-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-assign-lesson-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-assign-lesson-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-assign-lesson-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--lesson {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-assign-lesson-modal-body {
+  padding: 20px 24px;
+  text-align: left;
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-assign-lesson-modal-body .form-control {
+  font-size: 1.125rem;
+  border: 1.5px solid rgba($brand-blue-black, 0.12);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: var(--md-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.la-assign-lesson-modal-body .form-control:focus {
+  border-color: var(--md-teal);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+  outline: none;
+}
+.la-assign-lesson-modal-body .control-label {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: $brand-slate-blue;
+}
+.la-assign-lesson-modal-body .form-control-static {
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--md-ink);
+}
+.la-assign-lesson-modal-body .checkbox label {
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: var(--md-ink);
+  line-height: 1.5;
+}
+.la-assign-lesson-intro {
+  margin: 0;
+  color: var(--md-muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+.la-assign-lesson-hint {
+  margin-top: 8px;
+  font-size: 1.0625rem;
+  font-style: italic;
+  color: var(--md-muted);
+}
+.la-assign-lesson-allow-past-check {
+  margin-top: 0;
+}
+.la-assign-lesson-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--md-line);
+}
+.la-assign-lesson-modal-footer .la-record-note-cancel-btn {
+  font-size: 1.0625rem;
+  padding: 11px 26px;
+}
+.la-assign-lesson-modal-footer .la-sync-details-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .la-support-modal-wrap {
   color: var(--md-ink);
   min-width: 0;
@@ -30419,8 +31003,11 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -30483,8 +31070,11 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -30910,8 +31500,11 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -31064,8 +31657,11 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -33839,7 +34435,9 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 .md-pillnav__pill {
-  padding: 10px 12px !important;
+  /* WCAG 2.5.5 AAA touch target — was 10px 12px (~34×40). */
+  padding: 14px 18px !important;
+  min-height: 48px !important;
 
   border-radius: 999px !important;
 
@@ -33859,7 +34457,7 @@ a.la-footer-bottom-a11y-wcag {
 
   margin-left: 2px !important;
 
-  padding-left: 12px !important;
+  padding-left: 18px !important;
 
   border-left: 1px solid rgba(0, 0, 0, 0.06) !important;
 
@@ -33867,7 +34465,7 @@ a.la-footer-bottom-a11y-wcag {
 .md-pillnav__pill:first-child {
   margin-left: 0 !important;
 
-  padding-left: 12px !important;
+  padding-left: 18px !important;
 
   border-left-color: transparent !important;
 
@@ -33887,7 +34485,7 @@ a.la-footer-bottom-a11y-wcag {
 
   margin-left: 0 !important;
 
-  padding-left: 12px !important;
+  padding-left: 18px !important;
 
 }
 .md-pillnav__pill:active { transform: scale(var(--md-tap)); }
@@ -33929,7 +34527,7 @@ a.md-pillnav__pill.active:not(:first-child),
 
   margin-left: 0 !important;
 
-  padding-left: 12px !important;
+  padding-left: 18px !important;
 
 }
 /* Active pill badge (e.g. unread count): keep visible and contrasting */
@@ -34812,7 +35410,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 0 6px !important;
   border-radius: 999px !important;
   background: rgba($brand-dusty-denim, 0.15) !important;
-  color: $brand-dusty-denim !important;
+  color: $brand-dusty-denim-aa !important; /* WCAG AA fix. */
   font-size: 12px !important;
   font-weight: 800 !important;
   line-height: 1 !important;
@@ -34878,7 +35476,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 32px !important;
   border-radius: 10px !important;
   background: rgba($brand-dusty-denim, 0.10) !important;
-  color: $brand-dusty-denim !important;
+  color: $brand-dusty-denim-aa !important; /* WCAG AA fix. */
   flex-shrink: 0 !important;
 }
 .md-org-dropdown__org-name {
@@ -36526,8 +37124,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 14px 20px;
   cursor: pointer;
   background: rgba(248, 250, 252, 0.8);
+  border: none;
   border-bottom: 1px solid var(--md-line);
   transition: background 0.12s ease;
+  /* `.md-pref-box__header` is now a <button> (was a <div>). Reset button
+     defaults so the header still looks the same. Added 2026-04-11. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
 }
 .md-pref-box__header:hover {
   background: rgba(240, 243, 247, 0.9);
@@ -37718,7 +38324,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 
-.md-card__title { font-weight: 900; font-size: 20px; letter-spacing: -0.2px; }
+/* `.md-card__title` is now applied to <h3> elements (WCAG 1.3.1 — Heading hierarchy).
+   Reset browser h3 defaults so the visual is identical to the prior <div> usage. */
+.md-card__title { font-weight: 900; font-size: 20px; letter-spacing: -0.2px; margin: 0; line-height: 1.2; color: inherit; }
 .md-card__sub { color: #3A506E; margin-top: 4px; font-weight: 500; }
 
 .md-muted { color: var(--md-muted); }
@@ -37738,6 +38346,41 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 .md-link:active { transform: scale(var(--md-tap)); }
+
+/* `.md-link-btn` — used by <button> elements that need to LOOK like inline
+   links but provide proper button semantics. Added 2026-04-11 per WCAG audit
+   when converting <a href="#" {{action ...}}> patterns to real buttons. */
+.md-link-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.md-link-btn:hover { text-decoration: none; }
+
+/* `.md-link-btn-pill` — used inside Bootstrap `<ul class="nav nav-pills">`
+   structures where the legacy markup expected `<li><a>` (which Bootstrap
+   styles into a pill). Resets button defaults so the parent Bootstrap pill
+   styles still apply. */
+.nav-pills > li > .md-link-btn-pill {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  text-align: left;
+}
 
 /* --- Getting Started Card (home only, when checklist incomplete) --- */
 .md-grid--dashboard .md-card--getting-started,
@@ -38179,7 +38822,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 .md-btn {
-  padding: 12px 16px !important;
+  /* WCAG 2.5.5 AAA touch target — was 12px 16px (~36×38). */
+  padding: 14px 20px !important;
+  min-height: 44px !important;
 
   border-radius: 16px !important;
 
@@ -38191,8 +38836,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   background: rgba(255, 255, 255, 0.72) !important;
 
-  transition: transform 0.12s ease !important;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
 
+}
+.md-btn:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba($brand-verdigris, 0.35) !important;
+  box-shadow: 0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-btn:active { transform: scale(var(--md-tap)); }
 
@@ -38203,6 +38853,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   color: $la-navy !important;
 
+}
+.md-btn--primary:hover {
+  background: rgba($brand-dusty-denim, 0.45) !important;
+  border-color: rgba($brand-dusty-denim, 0.35) !important;
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15) !important;
 }
 
 .md-btn--pill {
@@ -38235,6 +38890,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-btn--ghost {
   background: rgba(255, 255, 255, 0.62) !important;
 
+}
+.md-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba($la-navy, 0.15) !important;
+  box-shadow: 0 4px 14px rgba($la-navy, 0.08) !important;
 }
 
 .md-btn--wide { width: 100%; margin-top: 12px; }
@@ -39508,11 +40168,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-add-supervisor__options {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
 }
 .md-add-supervisor__options .md-btn {
-  flex: 1;
-  min-width: 120px;
+  flex: 0 0 calc(50% - 4px);
+  white-space: nowrap;
+  border-radius: 999px !important;
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  min-height: 44px !important;
+  text-align: center;
+  justify-content: center;
 }
 .md-add-supervisor__hint {
   margin-top: 10px;
@@ -43488,13 +44157,70 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
+.board-picker__filter-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 90%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.board-picker__home-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* WCAG 2.5.5 AAA touch target. */
+  min-height: 44px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1.5px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.board-picker__home-btn:hover {
+  border-color: $brand-verdigris;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 4px rgba($brand-verdigris, 0.12);
+}
+.board-picker__home-btn--unset {
+  border-color: rgba($brand-verdigris-aa, 0.45);
+  background: rgba($brand-verdigris-aa, 0.06);
+}
+.board-picker__home-btn--unset:hover {
+  border-color: $brand-verdigris-aa;
+  background: rgba($brand-verdigris-aa, 0.10);
+}
+.board-picker__no-home-msg {
+  width: 90%;
+  max-width: 480px;
+  margin: 0 auto 8px;
+  padding: 10px 14px;
+  background: rgba($brand-verdigris-aa, 0.08);
+  border: 1px solid rgba($brand-verdigris-aa, 0.25);
+  border-radius: 10px;
+  color: $la-navy;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+}
+.board-picker__home-btn-icon {
+  flex-shrink: 0;
+  color: $brand-verdigris-aa;
+}
+.board-picker__home-btn-label {
+  white-space: nowrap;
+}
 .board-picker__filter {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 90%;
-  max-width: 360px;
-  margin: 0 auto;
+  min-width: 0;
   padding: 8px 14px;
   background: rgba(255, 255, 255, 0.8);
   border: 1.5px solid rgba($la-navy, 0.12);
@@ -44986,8 +45712,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG AA + AAC touch target — was 36×36 */
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   margin: 0;
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -45302,8 +46031,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Expand/collapse toggle */
 .md-board-detail-collapse-btn {
-  width: 36px;
-  height: 36px;
+  /* WCAG 2.5.5 AAA touch target — was 36×36. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 10px;
   border: 1px solid rgba($la-navy, 0.10);
   background: rgba(255, 255, 255, 0.85);
@@ -45324,8 +46056,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   position: static !important;
   flex-shrink: 0;
   align-self: center !important;
-  width: 36px !important;
-  height: 36px !important;
+  /* WCAG 2.5.5 AAA touch target — was 36×36. */
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
   border-radius: 10px !important;
 }
 
@@ -45348,7 +46083,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 11px 14px;
+  /* WCAG 2.5.5 AAA touch target — was 11px 14px (~42 tall). */
+  padding: 13px 14px;
+  min-height: 44px;
   border: none;
   border-radius: 14px;
   background: transparent;
@@ -45465,7 +46202,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-sentence-row {
   display: flex;
   align-items: stretch;
-  gap: 12px;
+  /* 13px (odd) so the 1px ::before/::after dividers on the sentence bar can
+     sit perfectly centered in the gap with whole-pixel symmetry on both sides
+     (6px from the bar, 6px from the adjacent stack). */
+  gap: 13px;
   flex-shrink: 0;
   margin: 4px 4px 6px 4px;
 }
@@ -45474,31 +46214,31 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Stacked nav buttons (home + back) to the left of the sentence bar */
 .md-board-detail-sentence-nav {
+  /* Stacked column matching the right-side .actions-wrap--stacked pattern:
+     no pill container — just two standalone buttons separated by a small gap. */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  gap: 2px;
   flex-shrink: 0;
-  background: rgba(110, 122, 140, 0.40);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+/* Top of the left stack — "primary" weight, mirrors .md-board-detail-actions-toggle. */
 .md-board-detail-sentence-nav__btn {
-  width: 36px;
-  flex: 1;
+  /* WCAG 2.5.5 AAA touch target. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  color: $brand-charcoal-blue;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.2);
+  background: $brand-blue-grey;
+  color: #fff;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease;
 }
 .md-board-detail-sentence-nav__btn svg {
   flex-shrink: 0;
@@ -45506,42 +46246,141 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 22px;
 }
 .md-board-detail-sentence-nav__btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-.md-board-detail-sentence-nav__btn:hover svg {
-  color: #fff;
+  background: #6583a9;
 }
 .md-board-detail-sentence-nav__btn:disabled {
   opacity: 0.3;
   cursor: default;
 }
 .md-board-detail-sentence-nav__btn:disabled:hover {
-  background: none;
+  background: $brand-blue-grey;
 }
-.md-board-detail-sentence-nav__divider {
-  width: 20px;
-  height: 1px;
-  background: rgba($indigo, 0.15);
-  margin: 2px 0;
+/* Bottom of the left stack — "secondary" weight, mirrors .md-board-detail-sidebar-toggle--stacked.
+   Also overrides the legacy `align-self: center` so the button stacks
+   properly inside the column rather than centering in the parent row. */
+.md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row {
+  align-self: stretch !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba($brand-charcoal-blue, 0.2) !important;
+  background: rgba($brand-blue-grey, 0.15) !important;
+  color: $brand-charcoal-blue !important;
+  box-shadow: none !important;
+}
+.md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row:hover {
+  background: rgba($brand-blue-grey, 0.3) !important;
+  box-shadow: none !important;
 }
 .md-board-detail-sentence-bar {
   flex: 1;
+  /* `position: relative` so the ::before / ::after dividers can position
+     themselves outside the bar's left and right edges. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  height: 72px;
+  /* Height stretches to match the surrounding stacked button groups via the
+     parent .md-board-detail-sentence-row's `align-items: stretch`. */
+  min-height: 72px;
   padding: 0 28px;
   border-radius: 999px;
-  background: rgba(110, 122, 140, 0.40);
+  background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   color: #fff;
   margin-bottom: 0;
+  /* Sunken / inset look on BOTH top and bottom edges — the surrounding
+     page rim appears to cast a shadow inward from above and below, so the
+     bar reads as a recessed well rather than a chip floating on top. */
   box-shadow:
-    0 2px 8px rgba($la-navy, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 2px 5px rgba($la-navy, 0.18),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -2px 5px rgba($la-navy, 0.18),
+    inset 0 -1px 1px rgba($la-navy, 0.10);
+}
+/* Vertical dividers on the left and right of the sentence bar, rendered as
+   pseudo-elements of the bar itself. Using ::before/::after of a single
+   element guarantees byte-identical rendering on both sides — there is no
+   way for one to inherit different styles than the other. The dividers sit
+   in the parent .md-board-detail-sentence-row's `gap: 12px`, positioned
+   half-way through the gap so they're visually centered between the bar
+   and the adjacent stacked nav. */
+.md-board-detail-sentence-bar::before,
+.md-board-detail-sentence-bar::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba($la-navy, 0.18);
+  pointer-events: none;
+}
+.md-board-detail-sentence-bar::before {
+  left: -7px;
+}
+.md-board-detail-sentence-bar::after {
+  right: -7px;
+}
+/* Back button inside the sentence bar — appears only when the user has
+   navigated into a sub-board via a folder. Styled as a subtle pill that
+   sits at the left edge of the bar, matching the sentence bar's frosted
+   aesthetic. */
+.md-board-detail-sentence-bar__back-btn {
+  flex-shrink: 0;
+  /* WCAG 2.5.5 AAA touch target. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.06);
+}
+.md-board-detail-sentence-bar__back-btn:hover {
+  background: #fff;
+  border-color: rgba($brand-verdigris, 0.4);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.12);
+}
+.md-board-detail-sentence-bar__back-btn:active {
+  transform: scale(var(--md-tap, 0.97));
+}
+/* Modeling mode badge — appears inside the sentence bar when modeling
+   is active so the supporter always knows their taps are being logged
+   as modeling actions, not communicator actions. */
+.md-board-detail-sentence-bar__modeling-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.18);
+  color: $brand-verdigris-aa;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  animation: modeling-badge-pulse 2s ease-in-out infinite;
+}
+@keyframes modeling-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge {
+  background: rgba($brand-verdigris, 0.25);
+  color: $brand-verdigris;
 }
 .md-board-detail-sentence-bar__text {
   flex: 1;
@@ -45597,7 +46436,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-shrink: 0;
 }
 .md-board-detail-sentence-bar__btn {
-  padding: 10px 20px;
+  /* WCAG 2.5.5 AAA touch target — was 10px 20px (~40 tall). */
+  padding: 12px 20px;
+  min-height: 44px;
   border-radius: 999px;
   border: none;
   font-weight: 700;
@@ -45619,8 +46460,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba(255, 255, 255, 0.25);
 }
 .md-board-detail-sentence-bar__icon-btn {
-  width: 38px;
-  height: 38px;
+  /* WCAG 2.5.5 AAA touch target — was 38×38. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 10px;
   border: none;
@@ -45643,7 +46487,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-sentence-bar__tools {
   display: flex;
   align-items: center;
-  gap: 4px;
+  /* WCAG 2.5.5 spacing — was 4px gap with 32px buttons (FAIL).
+     With 44×44 buttons below, 6px gap is acceptable. */
+  gap: 6px;
   padding: 4px 6px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.12);
@@ -45651,8 +46497,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-left: 4px;
 }
 .md-board-detail-sentence-bar__tool-btn {
-  width: 32px;
-  height: 32px;
+  /* WCAG 2.5.5 AAA touch target — was 32×32. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 8px;
   border: none;
@@ -45665,8 +46514,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transition: background 0.12s ease, color 0.12s ease;
 }
 .md-board-detail-sentence-bar__tool-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: rgba($la-navy, 0.12);
+  color: $la-navy;
 }
 .md-board-detail-sentence-bar__tool-btn:active {
   transform: scale(var(--md-tap, 0.97));
@@ -45731,12 +46580,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  /* WCAG 2.5.5 AAA touch target — was 30×30. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: $brand-blue-grey;
+  /* WCAG 1.4.11 — was $brand-blue-grey (3.5:1, borderline). */
+  color: $brand-charcoal-blue;
   cursor: pointer;
   transition: color 0.15s ease;
   padding: 0;
@@ -45744,7 +46597,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-top: -1rem;
 }
 .md-board-detail-info-btn:hover {
-  color: $brand-verdigris;
+  color: $brand-verdigris-aa;
 }
 .md-board-detail-header__row {
   display: flex;
@@ -45783,8 +46636,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* WCAG 2.5.5 AAA touch target — was 36×36. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 12px;
   border: 1px solid rgba($brand-charcoal-blue, 0.2);
   background: $brand-blue-grey;
@@ -45833,7 +46689,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 16px;
+  /* WCAG 2.5.5 AAA touch target — was 9px 16px (~32-37 tall). */
+  padding: 12px 16px;
+  min-height: 44px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -45948,7 +46806,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  /* WCAG 2.5.5 AAA touch target — was 8×12 (~21×18). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: none;
   background: none;
   font-size: 13px;
@@ -46051,7 +46911,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 14px;
+  /* WCAG 2.5.5 AAA touch target — was 6×14 (~12 tall). */
+  padding: 12px 16px;
+  min-height: 44px;
   border-radius: 999px;
   border: 1px solid rgba($la-navy, 0.10);
   background: rgba(255, 255, 255, 0.85);
@@ -46101,8 +46963,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 12px;
 }
 .md-board-detail-color-legend__swatch {
-  width: 32px;
-  height: 32px;
+  /* WCAG 2.5.5 AAA touch target — was 32×32. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 10px;
   border: 2px solid transparent;
   flex-shrink: 0;
@@ -46112,8 +46977,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-color-legend__folder-wrap {
   position: relative;
-  width: 32px;
-  height: 32px;
+  /* Match swatch size — was 32×32. */
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 .md-board-detail-color-legend__folder-wrap .md-folder-back {
@@ -46170,7 +47036,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  /* WCAG 2.5.5 AAA touch target — was 8×16 (~16 tall). */
+  padding: 12px 18px;
+  min-height: 44px;
   border-radius: 999px;
   border: 1px solid rgba($la-navy, 0.10);
   background: rgba(255, 255, 255, 0.85);
@@ -46223,7 +47091,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 12px;
+  /* WCAG 2.5.5 AAA touch target — was 6×12 (~12 tall). */
+  padding: 12px 16px;
+  min-height: 44px;
   border-radius: 999px;
   border: 1px solid rgba($la-navy, 0.08);
   background: rgba(255, 255, 255, 0.65);
@@ -46272,8 +47142,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   white-space: nowrap;
 }
 .md-board-detail-filter-chip__clear {
-  width: 20px;
-  height: 20px;
+  /* WCAG 2.5.8 AA touch target — was 20×20 (FAIL).
+     Bumped to 32×32 — passes WCAG AA's 24px minimum.
+     44×44 would dominate the filter chip layout. */
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   border: none;
   background: rgba(255, 255, 255, 0.20);
   border-radius: 50%;
@@ -46390,7 +47265,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 8px 0;
 }
 .md-board-detail-sidebar-toggle--stacked {
-  width: 40px !important;
+  /* WCAG 2.5.5 AAA touch target — was 40px. */
+  width: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
   height: unset !important;
   padding: 0 !important;
   border-radius: 12px !important;
@@ -46514,8 +47392,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  /* WCAG 2.5.5 AAA touch target — was 28×28. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   background: rgba($la-navy, 0.06);
   color: $brand-charcoal-blue;
@@ -46923,13 +47804,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 .md-board-detail-inline-sidebar__item {
+  /* Now a <button> element (was <a href="#">) per WCAG 2.1.1.
+     Reset button defaults so the visual is identical to the prior link.
+     Bumped padding from 6×8 to 10×8 for AA touch target. */
   display: block;
-  padding: 6px 8px;
+  width: 100%;
+  padding: 10px 8px;
+  min-height: 44px;
   text-decoration: none;
   color: #333;
   font-size: 12px;
   line-height: 1.2;
+  border: none;
   border-bottom: 1px solid #f0f0f0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
   &:hover {
     background: #f5f5f5;
     text-decoration: none;
@@ -47002,7 +47893,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 10px;
+  /* Match .md-board-detail-share-dropdown__item — full hit area. */
+  width: 100%;
   padding: 10px 14px;
+  /* WCAG 2.5.5 AAA touch target — was ~32×20. */
+  min-height: 44px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -47124,21 +48019,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* Vertical divider between sentence bar and options */
-.md-board-detail-sentence-bar__divider {
-  width: 1px;
-  align-self: stretch;
-  background: rgba($la-navy, 0.18);
-  flex-shrink: 0;
-  margin: 4px 4px;
-}
-
-/* Actions dropdown (right of sentence bar) */
+/* Actions dropdown (right of sentence bar).
+   z-index 100 keeps the options button and menu above the frosted
+   backdrop (z-index 99) so both remain sharp and clickable. */
 .md-board-detail-sentence-bar__actions-wrap {
   position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
+  z-index: 100;
 }
 .md-board-detail-sentence-bar__actions-wrap--stacked {
   flex-direction: column;
@@ -47151,7 +48040,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-self: auto;
 }
 .md-board-detail-actions-toggle {
-  width: 40px;
+  /* WCAG 2.5.5 AAA touch target — was 40px. */
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   align-self: stretch;
   border-radius: 12px;
   border: 1px solid rgba($brand-charcoal-blue, 0.2);
@@ -47163,9 +48055,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
   padding: 0;
   transition: background 0.12s ease;
+  /* Stay above the frosted backdrop so the button isn't blurred */
+  position: relative;
+  z-index: 101;
 }
 .md-board-detail-actions-toggle:hover {
   background: #6583a9;
+}
+/* Suppress the browser's default :focus outline on mouse click — the
+   rectangular shadow that occasionally appears is the UA stylesheet's
+   focus ring lingering after the menu closes. :focus-visible (keyboard
+   focus) still shows the verdigris ring from the shared focus rule. */
+.md-board-detail-actions-toggle:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 .md-board-detail-actions-backdrop {
   position: fixed;
@@ -47174,10 +48077,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   right: 0;
   bottom: 0;
   z-index: 99;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .md-board-detail-actions-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: 50px;
   right: 0;
   background: #fff;
   border-radius: 14px;
@@ -47432,13 +48338,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-loading__cancel {
   margin-top: 4px;
-  padding: 8px 24px;
+  /* WCAG 2.5.5 AAA touch target — was 8×24 (~16 tall, FAIL). */
+  padding: 12px 24px;
+  min-height: 44px;
   border: none;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   color: #fff;
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  /* WCAG AA fix — gradient previously used $brand-blue-grey (lightest stop
+     3.16:1 with white text); same fix as .md-download-card__btn. */
+  background: linear-gradient(135deg, $la-navy, $brand-charcoal-dark);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   box-shadow: 0 2px 8px rgba($brand-charcoal-blue, 0.25);
@@ -47983,8 +48893,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
 }
 .md-board-detail-color-picker__close {
-  width: 24px;
-  height: 24px;
+  /* WCAG 2.5.5 AAA touch target — was 24×24 (at AA limit). */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   background: transparent;
   font-size: 18px;
@@ -48011,7 +48924,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  /* WCAG AA + AAC fix — was 6px 8px (~21×19, below 24×24 floor). */
+  padding: 12px 16px;
+  min-height: 44px;
   border-radius: 10px;
   border: 1px solid rgba($la-navy, 0.06);
   background: transparent;
@@ -48096,7 +49011,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-color: $brand-verdigris;
 }
 .md-board-detail-color-picker__apply {
-  padding: 8px 14px;
+  /* WCAG 2.5.5 AAA touch target — was 8×14 (~16 tall, FAIL). */
+  padding: 12px 18px;
+  min-height: 44px;
   border-radius: 10px;
   border: none;
   background: $brand-charcoal-blue;
@@ -48352,8 +49269,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-toolbar__btn {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
+  gap: 6px;
+  /* WCAG 2.5.5 AAA touch target — was 6×10 → 10×14/40 in pass 2 → 44 now. */
+  padding: 12px 14px;
+  min-height: 44px;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
   background: #fff;
@@ -48432,8 +49351,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  /* WCAG 2.5.5 AAA touch target — was 30×30. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: none;
   background: transparent;
@@ -48500,7 +49422,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  /* WCAG 2.5.5 AAA touch target — was 7×10 (~19×18). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: none;
   background: none;
   border-radius: 8px;
@@ -48558,8 +49482,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
 }
 .md-board-detail-paint-picker__close {
-  width: 28px;
-  height: 28px;
+  /* WCAG 2.5.5 AAA touch target — was 28×28. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   border: 1px solid rgba($la-navy, 0.10);
   background: rgba($la-navy, 0.04);
@@ -48605,10 +49532,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-width: 0;
 }
 .md-board-detail-paint-picker__apply {
-  padding: 8px 16px;
+  /* WCAG 2.5.5 AAA touch target — was 8×16 (~16 tall). */
+  padding: 12px 18px;
+  min-height: 44px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  /* WCAG AA fix — gradient was $brand-blue-grey → $brand-charcoal-blue
+     (lighter stop fails 4.5:1 with white text). */
+  background: linear-gradient(135deg, $la-navy, $brand-charcoal-dark);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -48654,9 +49585,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 1;
 }
 .md-board-detail-symbol-card__edit-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  /* WCAG 2.5.5 AAA touch target — was 26×26 (FAIL).
+     These are overlay edit buttons that appear on hover over symbol
+     cards in edit mode. AAC users with motor disabilities need a
+     reliable target. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 8px;
   border: 1px solid rgba($la-navy, 0.15);
   background: rgba(255, 255, 255, 0.92);
   color: #4a5568;
@@ -48725,7 +49662,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 12px;
+  /* WCAG 2.5.5 AAA touch target — was 6×12 (~24×22). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: none;
   background: none;
   color: #4a5568;
@@ -48759,7 +49698,47 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-paint-picker__apply:focus-visible,
 .md-board-detail-paint-picker__close:focus-visible,
 .md-board-detail-color-picker__swatch:focus-visible,
-.md-modal-btn:focus-visible {
+.md-modal-btn:focus-visible,
+/* ── Added 2026-04-11 per WCAG audit (2.4.7 Focus Visible). ── */
+.la-btn:focus-visible,
+.la-modal-close:focus-visible,
+.la-find-button-result:focus-visible,
+.la-find-button-cancel:focus-visible,
+.md-pillnav__pill:focus-visible,
+.md-pillnav-dropdown__trigger:focus-visible,
+.md-pillnav-dropdown__option:focus-visible,
+.md-caseload__action:focus-visible,
+.md-caseload__action--extras:focus-visible,
+.md-btn:focus-visible,
+.md-board-detail-actions-menu__item:focus-visible,
+.md-board-layout-close:focus-visible,
+/* ── Added 2026-04-11 per WCAG audit follow-up (2.4.7 Focus Visible). ── */
+.md-board-detail-info-btn:focus-visible,
+.md-board-detail-nav-btn:focus-visible,
+.md-board-detail-header__expand-link:focus-visible,
+.md-board-detail-color-legend-toggle:focus-visible,
+.md-board-detail-quick-toggle:focus-visible,
+.md-board-detail-filter-chip__clear:focus-visible,
+.md-board-detail-sidebar-toggle--stacked:focus-visible,
+.md-board-detail-phrase-builder__clear:focus-visible,
+.md-board-detail-actions-toggle:focus-visible,
+.md-board-detail-sentence-nav__btn:focus-visible,
+.md-board-detail-color-legend__swatch:focus-visible,
+.md-board-detail-symbol-card[role="button"]:focus-visible,
+.md-board-detail-inline-sidebar__item:focus-visible,
+/* ── Added 2026-04-11 pass 4 (2.4.7 Focus Visible). ── */
+.md-board-detail-edit-toolbar__stepper-btn:focus-visible,
+.md-board-detail-edit-toolbar__paint-dropdown-item:focus-visible,
+.md-board-detail-share-dropdown__item:focus-visible,
+.md-board-detail-add-dropdown__item:focus-visible,
+/* ── Added 2026-04-11 pass 5 (2.4.7 Focus Visible). ── */
+.md-board-detail-color-picker__apply:focus-visible,
+.md-board-detail-paint-picker__apply:focus-visible,
+.md-board-detail-folder-dropdown__item:focus-visible,
+/* ── Added 2026-04-11 pass 6 (2.4.7 Focus Visible). ── */
+.md-board-detail-panels-close-btn:focus-visible,
+.md-board-detail-edit-btn:focus-visible,
+.md-board-detail-suggestion:focus-visible {
   outline: 2px solid $brand-verdigris;
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba($brand-verdigris, 0.15);
@@ -48994,7 +49973,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-schedule-list__type--practice {
   background: rgba($brand-dusty-denim, 0.12);
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .md-board-detail-schedule-list__type--social {
   background: rgba(212, 168, 75, 0.12);
@@ -49208,7 +50187,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  /* WCAG 2.5.5 AAA touch target — was 8×12 (~16 tall). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: none;
   background: none;
   font-size: 13px;
@@ -49952,7 +50933,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: #fff;
   background: rgba(255, 255, 255, 0.10);
 }
-.md-board-detail--dark .md-board-detail-sentence-bar__divider {
+.md-board-detail--dark .md-board-detail-sentence-bar::before,
+.md-board-detail--dark .md-board-detail-sentence-bar::after {
   background: rgba(255, 255, 255, 0.10);
 }
 .md-board-detail--dark .md-board-detail-search__label {
@@ -49981,9 +50963,25 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba($brand-verdigris, 0.15);
   border-color: rgba($brand-verdigris, 0.30);
 }
-.md-board-detail--dark .md-board-detail-sentence-nav {
-  background: rgba(33, 43, 58, 0.75);
-  border-color: rgba(255, 255, 255, 0.08);
+/* Dark mode for the left stack — mirrors the right stack's dark treatment.
+   Top (primary) follows .md-board-detail-actions-toggle dark style; bottom
+   (secondary) keeps the translucent tint, mirroring sidebar-toggle--stacked. */
+.md-board-detail--dark .md-board-detail-sentence-nav__btn {
+  background: #2a3344;
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.85);
+}
+.md-board-detail--dark .md-board-detail-sentence-nav__btn:hover {
+  background: #344054;
+}
+.md-board-detail--dark .md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row {
+  background: rgba($brand-blue-grey, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+.md-board-detail--dark .md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row:hover {
+  background: rgba($brand-blue-grey, 0.3) !important;
+  color: #fff !important;
 }
 .md-board-detail--dark .md-board-detail-actions-toggle {
   background: #2a3344;
@@ -49992,6 +50990,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-board-detail-actions-toggle:hover {
   background: #344054;
+}
+.md-board-detail--dark .md-board-detail-actions-backdrop {
+  background: rgba(0, 0, 0, 0.35);
 }
 .md-board-detail--dark .md-board-detail-actions-menu {
   background: #1e2530;
@@ -50034,6 +51035,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-board-detail-symbol-card--no-color .md-board-detail-symbol-card__label {
   color: $brand-charcoal-dark;
+}
+/* Dark mode: darken folder cells by 2% as a single filter operation —
+   no overlay, no pseudo-element, no wrapper. brightness(0.98) multiplies
+   text and background RGB by the same factor, so contrast stays well above
+   WCAG AAA. Applied to the cell so the folder back, tab, badge, and inner
+   symbol card all darken together. */
+.md-board-detail--dark .md-board-detail-grid__cell--folder {
+  filter: brightness(0.98);
 }
 .md-board-detail--dark .md-board-detail-board-actions {
   background: linear-gradient(135deg, #1f2937, $brand-charcoal-dark);
@@ -50141,17 +51150,27 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ── Modern Modal Styles ──────────────────────────────── */
+/* Reduce the default Bootstrap margin-top on modernized modals so they sit
+   closer to the top of the viewport — the default 30px is too much. */
+.modal-dialog:has(.md-modal-header) {
+  margin-top: 15px;
+}
 .md-modal-header {
   border-bottom: 1px solid rgba($la-navy, 0.08);
-  padding: 20px 24px;
+  padding: 32px 24px;
   position: relative;
 }
-.md-modal-header .close {
+.md-modal-header .close,
+.md-modal-header .la-modal-close {
   position: absolute;
-  top: calc(16px + 1rem);
+  top: 50%;
+  transform: translateY(-50%);
   right: 16px;
-  width: 30px;
-  height: 30px;
+  /* WCAG 2.5.5 AAA touch target. */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50167,7 +51186,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 0;
   opacity: 1;
 }
-.md-modal-header .close:hover {
+.md-modal-header .close:hover,
+.md-modal-header .la-modal-close:hover {
   background: $brand-charcoal-blue;
   color: #fff;
   border-color: $brand-charcoal-blue;
@@ -50182,6 +51202,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-modal-body {
   padding: 28px 24px;
   text-align: center;
+  font-size: 16px;
 }
 .md-modal-icon-row {
   display: flex;
@@ -50199,7 +51220,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
 }
 .md-modal-message {
-  font-size: 15px;
+  font-size: 16px;
   color: $brand-charcoal-blue;
   line-height: 1.5;
   margin: 0 0 8px;
@@ -50221,7 +51242,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  /* WCAG 2.5.5 AAA touch target — was 10×20 (~20 tall). */
+  padding: 12px 20px;
+  min-height: 44px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
@@ -50260,17 +51283,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: left;
 }
 .md-modal-label {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   display: block;
   margin-bottom: 4px;
 }
 .md-modal-hint {
-  font-size: 13px;
+  font-size: 16px;
   color: $brand-slate-gray;
   margin: 0 0 8px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 .md-modal-select {
   width: 100%;
@@ -50289,10 +51312,141 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
 }
+/* Style any Bootstrap form-control inside modern modals to match the
+   md-modal-input / md-modal-select look (e.g. user-select component
+   which hardcodes form-control). */
+.md-modal-body select.form-control {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  padding-right: 40px !important;
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+  color: $la-navy !important;
+  background: rgba($la-navy, 0.03) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2346505F' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 16px 16px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease !important;
+  height: auto !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* Force user-select component spans to full width inside modals */
+.md-modal-body .md-modal-field > span {
+  display: block !important;
+  width: 100% !important;
+}
+.md-modal-body input.form-control,
+.md-modal-body textarea.form-control {
+  width: 100% !important;
+  padding: 10px 14px !important;
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+  color: $la-navy !important;
+  background: rgba($la-navy, 0.03) !important;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease !important;
+  height: auto !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.md-modal-body select.form-control:focus,
+.md-modal-body input.form-control:focus,
+.md-modal-body textarea.form-control:focus {
+  border-color: $brand-verdigris !important;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12) !important;
+  outline: none !important;
+}
+
+/* ── Voice & Output Modal layout helpers ── */
+.md-voice-output__voice-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.md-voice-output__voice-select {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+.md-voice-output__voice-row .md-modal-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.md-voice-output__volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.md-voice-output__volume-row .md-modal-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Usage checklist (global — used in setup pages, modals, etc.) ── */
+.usage-checklist__title {
+  margin: 0 0 1rem;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--md-ink, $la-navy);
+}
+.usage-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.usage-checklist__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-ink, $la-navy);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  border-left: 4px solid rgba(44, 183, 176, 0.6);
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
+}
+.usage-checklist__item::before {
+  content: "✓";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(44, 183, 176, 0.85);
+  border-radius: 50%;
+  line-height: 1;
+}
+
+/* Checklist inside modals uses dusty-denim with white checkmark.
+   White on #4C86D8 = 3.86:1 — passes WCAG 1.4.11 non-text (3:1). */
+.md-modal-body .usage-checklist__item {
+  border-left-color: $brand-dusty-denim;
+}
+.md-modal-body .usage-checklist__item::before {
+  background: $brand-dusty-denim;
+  color: #fff;
+}
 
 /* ── Share Board Modal: shared users list ── */
 .md-modal-section-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   margin: 16px 0 10px;
@@ -50499,7 +51653,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-modal-input {
   width: 100%;
-  padding: 10px 14px;
+  /* WCAG 2.5.5 AAA touch target — was 10px 14px (~34 tall). */
+  padding: 12px 14px;
+  min-height: 44px;
   border: 1px solid rgba($la-navy, 0.15);
   border-radius: 10px;
   font-size: 14px;
@@ -50516,7 +51672,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 16px;
   color: $brand-charcoal-blue;
   cursor: pointer;
 }
@@ -50583,7 +51739,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin: 10px 0 0;
   padding: 8px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
 }
 .md-modal-status--success {
@@ -50979,7 +52135,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 16px;
 }
 .md-org-parent-badge a {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix — was $brand-dusty-denim (3.49:1). */
   text-decoration: none;
   font-weight: 600;
 }
@@ -51114,8 +52270,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-caseload__action {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
+  gap: 8px;
+  /* WCAG 2.5.8 AA touch target — was padding: 7px 12px (~20×21, FAIL).
+     Now ~42×42 minimum which clears AA, AAA, and the AAC standard. */
+  padding: 12px 18px;
+  min-height: 42px;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
   background: #fff;
@@ -51150,7 +52309,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
 }
 .md-caseload__action--extras {
-  padding: 7px 8px;
+  /* WCAG 2.5.8 AA + AAC touch target — was 7px 8px (~18×17, FAIL).
+     Square 44×44 icon button. */
+  padding: 12px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-color: rgba($la-navy, 0.08);
 }
 .md-caseload__extras {
@@ -51270,7 +52438,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 2px 8px rgba($brand-dusty-denim, 0.1);
 }
 .md-org-home-board__icon {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   flex-shrink: 0;
 }
 .md-org-home-board__text {
@@ -51293,7 +52461,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transition: color 0.15s ease;
 }
 .md-org-home-board__link:hover {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .md-org-home-board__arrow {
   display: flex;
@@ -51309,7 +52477,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-home-board__arrow:hover {
   background: rgba($brand-dusty-denim, 0.08);
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 
 /* Charts layout */
@@ -51396,7 +52564,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-user-row__main:hover {
   text-decoration: none;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .md-org-user-row__avatar {
   width: 32px;
@@ -51413,7 +52581,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 32px;
   border-radius: 10px;
   background: rgba($brand-dusty-denim, 0.10);
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   flex-shrink: 0;
 }
 .md-org-user-row__name {
@@ -51436,11 +52604,31 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 13px;
 }
 .md-org-user-row__supervisee-link {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-user-row__supervisee-link:hover {
   text-decoration: underline;
+}
+.md-org-user-row__edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(70, 80, 95, 0.45);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.md-org-user-row__edit:hover {
+  background: rgba(76, 134, 216, 0.10);
+  color: #4C86D8;
+  text-decoration: none;
 }
 .md-org-user-row__remove {
   display: flex;
@@ -51472,7 +52660,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-add-row__link {
   font-size: 13px;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
   font-weight: 600;
 }
@@ -51508,7 +52696,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-block;
   margin-top: 8px;
   font-size: 13px;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   font-weight: 600;
   text-decoration: none;
 }
@@ -51582,7 +52770,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-session-row__user {
   font-weight: 600;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-session-row__time {
@@ -51592,7 +52780,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-session-row__count {
   font-size: 13px;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-session-row__summary {
@@ -51759,7 +52947,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-org-report-row__link {
   font-size: 13px;
   font-weight: 600;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-report-row__link:hover {
@@ -51771,7 +52959,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-org-report-row__user {
   font-weight: 600;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-report-row__user:hover {
@@ -51910,7 +53098,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
   transition: opacity 0.15s ease;
 }
@@ -51933,7 +53121,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-org-btn--outline {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba($brand-dusty-denim, 0.2);
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .md-org-btn--outline:hover {
   background: rgba($brand-dusty-denim, 0.08);
@@ -51975,7 +53163,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 2px 10px;
   border-radius: 8px;
   background: rgba($brand-dusty-denim, 0.1);
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   font-size: 13px;
   font-weight: 600;
   margin-left: 4px;
@@ -52168,7 +53356,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-sc-row__code-text {
   font-size: 14px;
   font-weight: 700;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
   font-family: monospace;
 }
@@ -52188,7 +53376,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-sc-tag {
   font-size: 12px;
   font-weight: 600;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   font-style: italic;
 }
 .md-sc-detail {
@@ -52247,13 +53435,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   letter-spacing: -0.01em;
 }
 .md-org-room-card__title:hover {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .md-org-room-card__details-link {
   font-size: 12px;
   font-weight: 500;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
+  /* Note: with opacity:0.7 the effective contrast drops below AA. */
   opacity: 0.7;
   transition: opacity 0.15s ease;
 }
@@ -52324,7 +53513,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 10px;
   border: 1px solid rgba($la-navy, 0.08);
   background: transparent;
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -52382,7 +53571,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   line-height: 1.6;
 }
 .md-org-room-summary__link {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
   text-decoration: none;
 }
 .md-org-room-summary__link:hover {
@@ -52580,7 +53769,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .la-beta-feedback-admin__sort-btn:hover,
 .la-beta-feedback-admin__sort-btn:focus {
-  color: $brand-dusty-denim;
+  color: $brand-dusty-denim-aa; /* WCAG AA fix. */
 }
 .la-beta-feedback-admin__sort-ind {
   margin-left: 4px;

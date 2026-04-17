@@ -537,6 +537,7 @@ GEM
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
     zeitwerk (2.7.5)
+    zip_kit (6.3.4)
 
 PLATFORMS
   aarch64-linux
@@ -613,6 +614,7 @@ DEPENDENCIES
   stripe
   ttfunk (= 1.7)
   typhoeus
+  zip_kit (~> 6.3)
 
 RUBY VERSION
    ruby 3.4.4p34

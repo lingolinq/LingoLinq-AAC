@@ -1,5 +1,5 @@
 <fieldset class="md-pref-box">
-    <div class='md-pref-box__header' {{action "toggle" on="click"}}>
+    <button type="button" class='md-pref-box__header' {{action "toggle"}} aria-expanded={{if this.open "true" "false"}}>
       <div class="md-pref-box__chevron">
         {{#if this.open}}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -45,11 +45,11 @@
         {{/if}}
       </div>
       <h4 class="md-pref-box__title">{{t this.title key=this.title_key}}</h4>
-    </div>
+    </button>
     {{#if this.open}}
       {{yield}}
     {{else}}
-      <div class='md-pref-box__collapsed' {{action "toggle" on="click"}}>
+      <button type="button" class='md-pref-box__collapsed' {{action "toggle"}} aria-label={{t "Expand %{title}" key="expand_named" title=(t this.title key=this.title_key)}}>
         <div class='form-group'>
           <div class='col-sm-5 col-sm-offset-3'>
             {{#if this.closed_text}}
@@ -59,6 +59,6 @@
             {{/if}}
           </div>
         </div>
-      </div>
+      </button>
     {{/if}}
 </fieldset>
