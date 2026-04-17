@@ -194,6 +194,7 @@ module Uploader
         return nil
       end
       client.delete_object(bucket: config[:bucket_name], key: remote_path)
+      true
     else
       return false
     end
