@@ -157,11 +157,13 @@ describe Uploader do
     let(:upload_config) do
       { access_key: 'test_key', secret: 'test_secret', bucket_name: 'test-bucket', upload_url: 'https://example.com/' }
     end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
 
     before do
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
       @orig_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://example.com'
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
     end
 
     after do
@@ -173,95 +175,61 @@ describe Uploader do
     end
 
     it "should return false if the object is not found" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.check_existing_upload("a/b/c")).to eq({found: false})
     end
 
     it "should strip the leading slash" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
     end
 
     it "should return the found record" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: '""',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
 
     it "should return expiration status" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.hours.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: '""',
+        expiration: "expiry-date=\"#{7.hours.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, expired: true})
     end
 
     it "should return mismatch status" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum2', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'chksum2',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c", "chksum")).to eq({found: true, mismatch: true})
     end
 
     it "should return the found record if checksum matches" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
-
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'chksum',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
+      expect(Uploader.check_existing_upload("/a/b/c", "chksum")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
 
-    it "should return found false when S3 raises ResponseError (e.g. empty error body from AWS)" do
-      service = OpenStruct.new
-      response = double('response', code: '403')
-      err = S3::Error::ResponseError.new('AccessDenied', response)
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_raise(err)
-      expect(Rails.logger).to receive(:warn).with(/Uploader\.check_existing_upload S3::Error::ResponseError/)
+    it "should return found false when S3 raises a service error (e.g. access denied)" do
+      err = Aws::S3::Errors::AccessDenied.new(nil, 'Access Denied')
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(err)
+      expect(Rails.logger).to receive(:warn).with(/Uploader\.check_existing_upload Aws::S3::Errors::ServiceError/)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
     end
 
-    it "should return found false when bucket find returns nil" do
-      service = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(nil)
+    it "should return found false when bucket_name is blank" do
+      allow(Uploader).to receive(:remote_upload_config).and_return(upload_config.merge(bucket_name: nil))
+      expect(Aws::S3::Client).not_to receive(:new)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
     end
   end  
@@ -309,53 +277,61 @@ describe Uploader do
   end
   
   describe "signed_download_url" do
+    let(:static_bucket) { 'spec-static-bucket' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: 'spec-uploads',
+        static_bucket_name: static_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_static_s3_bucket = ENV['STATIC_S3_BUCKET']
+      ENV['STATIC_S3_BUCKET'] = static_bucket
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_static_s3_bucket.nil?
+        ENV.delete('STATIC_S3_BUCKET')
+      else
+        ENV['STATIC_S3_BUCKET'] = @orig_static_s3_bucket
+      end
+    end
+
     it "should return a signed url if the object is found" do
-      object = OpenStruct.new(:temporary_url => "asdfjkl")
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(object)
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: static_bucket, key: 'asdf', expires_in: Uploader::S3_EXPIRATION_TIME)
+      ).and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
     end
-    
+
     it "should return nil if an object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(nil)
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.signed_download_url("asdf")).to eq(nil)
     end
-    
-    it "should return nil if the bucket is not found" do
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(nil)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+
+    it "should return nil if head_object raises a service error" do
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NoSuchBucket.new(nil, 'no bucket'))
       expect(Uploader.signed_download_url("asdf")).to eq(nil)
     end
-    
+
     it "should filter out the bucket host and protocol" do
-      object = OpenStruct.new(:temporary_url => "asdfjkl")
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(object).exactly(3).times
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket).exactly(3).times
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service).exactly(3).times
-      
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new).exactly(3).times
+      expect(presigner).to receive(:presigned_url).exactly(3).times.and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://#{static_bucket}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://s3.amazonaws.com/#{static_bucket}/asdf")).to eq("asdfjkl")
     end
   end
 
@@ -383,167 +359,157 @@ describe Uploader do
   end  
 
   describe "remote_remove" do
+    let(:uploads_bucket) { 'spec-uploads-for-remote-remove' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{uploads_bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      @orig_uploads_bucket = ENV['UPLOADS_S3_BUCKET']
+      @orig_uploads_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
+
+    after do
+      if @orig_uploads_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_bucket
+      end
+      if @orig_uploads_cdn.nil?
+        ENV.delete('UPLOADS_S3_CDN')
+      else
+        ENV['UPLOADS_S3_CDN'] = @orig_uploads_cdn
+      end
+    end
+
     it "should raise error on unexpected path" do
       expect{ Uploader.remote_remove("https://www.google.com/bacon") }.to raise_error("scary delete, not a path I'm comfortable deleting: https://www.google.com/bacon")
-      expect{ Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
+      expect{ Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
     end
-    
+
     it "should remove the object if found" do
-      object = OpenStruct.new
-      expect(object).to receive(:destroy).and_return(true)
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(
+        bucket: uploads_bucket,
+        key: 'images/abcdefg/asdf-asdf.asdf'
+      ).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(
+        bucket: uploads_bucket,
+        key: 'images/abcdefg/asdf-asdf.asdf'
+      ).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
-    
+
     it "should not error if the object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_raise("not found")
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(nil)
     end
-    
+
     it "should remove with a nil checksum" do
-      object = OpenStruct.new
-      expect(object).to receive(:destroy).and_return(true)
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
 
     it "should not remove with a mismatched checksum" do
-      object = OpenStruct.new
-      expect(object).to receive(:object_request).with(:head, {}).and_return({
-        'etag' => "remote_checksum",
-        'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""
-      })
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'remote_checksum',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).and_return(head)
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
 
     it "should not remove if checksum is passed and object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(nil)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
   end
 
   describe 'remote_touch' do
+    let(:bucket) { 'spec-uploads-for-remote-touch' }
+    let(:key) { 'images/abcdefg/asdf-asdf.asdf' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
+
     it 'should copy the path to the same location' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(true)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object) do |opts|
+        expect(opts).to include(
+          bucket: bucket,
+          key: key,
+          copy_source: "#{bucket}/#{key}",
+          metadata_directive: 'COPY'
+        )
+        expect(opts[:acl]).to eq('public-read') unless ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+      end.and_return(true)
+      expect(Uploader.remote_touch(key)).to eq(true)
     end
 
     it 'should return false on failed update' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_raise("bacon")
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(false)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object).and_raise(StandardError.new('bacon'))
+      expect(Uploader.remote_touch(key)).to eq(false)
     end
 
     it 'should return false on missing path' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_raise("nope")
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(false)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(Uploader.remote_touch(key)).to eq(false)
     end
 
     it 'should return true on success' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(true)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object).with(
+        hash_including(bucket: bucket, key: key, copy_source: "#{bucket}/#{key}")
+      ).and_return(true)
+      expect(Uploader.remote_touch(key)).to eq(true)
     end
   end
   
