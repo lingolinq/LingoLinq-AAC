@@ -6,7 +6,7 @@ module Uploader
   CONTENT_LENGTH_RANGE=200.megabytes.to_i
 
   def self.s3_region
-    ENV['AWS_REGION'].presence || 'us-east-1'
+    ENV['AWS_REGION'].presence || 'us-west-2'
   end
 
   def self.s3_client(config)
