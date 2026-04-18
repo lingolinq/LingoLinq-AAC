@@ -27403,6 +27403,37 @@ header #identity #identity_button.btn::after {
   margin-top: 3rem;
 }
 
+/* Terms outline: Roman main sections, numbered subheads; bullets like privacy */
+.la-wrapper--terms .la-privacy-content {
+  h3 {
+    font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+    font-size: 1.2rem;
+    font-weight: $aac-font-weight-bold;
+    color: $indigo;
+    margin: $aac-spacing-28 0 $aac-spacing-12;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+
+  h3:first-of-type {
+    margin-top: 0;
+  }
+
+  ul {
+    list-style-type: disc;
+    margin: 0 0 $aac-spacing-16;
+    padding-left: 1.35rem;
+  }
+
+  li {
+    margin-bottom: $aac-spacing-8;
+  }
+
+  li:last-child {
+    margin-bottom: 0;
+  }
+}
+
 /* About hero: same feature grid and cards as #la-features */
 #about-hero .la-feature-grid {
   display: grid;
