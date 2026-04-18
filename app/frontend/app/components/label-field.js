@@ -35,12 +35,23 @@ export default Component.extend({
   }),
   focusIn: function(event) {
     editManager.clear_text_edit();
+    // Store the original value so Escape can revert changes
+    this._original_value = this.get('element').value;
   },
   keyDown: function(event) {
     if(event.keyCode == 13 || event.code == 'Enter') {
       this.change.call(this);
       var id = this._getButtonId();
       editManager.lucky_symbol(id);
+      this.get('element').blur();
+    } else if(event.keyCode == 27 || event.code == 'Escape') {
+      // Revert to the original value and blur
+      event.preventDefault();
+      event.stopPropagation();
+      if(this._original_value !== undefined) {
+        this.get('element').value = this._original_value;
+        this.set('value', this._original_value);
+      }
       this.get('element').blur();
     }
   },

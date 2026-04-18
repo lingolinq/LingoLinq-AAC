@@ -916,8 +916,16 @@ export default Component.extend({
       this.set('state', state);
     },
     clear_button: function() {
+      var _this = this;
+      _this.set('show_clear_confirm', true);
+    },
+    confirm_clear_button: function() {
       editManager.clear_button(this.get('model.id'));
+      this.set('show_clear_confirm', false);
       this.get('modal').close(true);
+    },
+    cancel_clear_button: function() {
+      this.set('show_clear_confirm', false);
     },
     clear_override: function(attr) {
       var button = this.get('model');

@@ -17,11 +17,12 @@ import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import prefClasses from '../../mixins/pref-classes';
 
 var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
-export default Controller.extend({
+export default Controller.extend(prefClasses, {
   appState: service('app-state'),
   app_state: alias('appState'),
   stashes: service('stashes'),
@@ -1086,17 +1087,6 @@ export default Controller.extend({
       return "text_position_" + (position || 'top');
     }
   ),
-  symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
-    var bg = this.appState.get('currentUser.preferences.symbol_background');
-    if(!bg) {
-      if(this.appState.get('currentUser')) {
-        bg = 'white';
-      } else {
-        bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
-      }
-    }
-    return "symbol_background_" + bg;
-  }),
   border_style: computed('appState.currentUser.preferences.device.button_border', function() {
     var spacing = this.appState.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
     return "border_" + spacing;
@@ -1126,7 +1116,8 @@ export default Controller.extend({
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
-    'appState.currentUser.preferences.high_contrast',
+    'high_contrast_class',
+    'symbol_background_class',
     function() {
       var res = "board advanced_selection ";
       if(this.appState.get('edit_mode')) {
@@ -1135,8 +1126,8 @@ export default Controller.extend({
       if(!this.appState.get('currentUser.preferences.folder_icons')) {
         res = res + "colored_icons ";
       }
-      if(this.appState.get('currentUser.preferences.high_contrast')) {
-        res = res + "high_contrast ";
+      if(this.get('high_contrast_class')) {
+        res = res + this.get('high_contrast_class') + " ";
       }
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
@@ -1170,8 +1161,8 @@ export default Controller.extend({
       if(this.get('text_position')) {
         res = res + this.get('text_position') + " ";
       }
-      if(this.get('symbol_background')) {
-        res = res + this.get('symbol_background') + " ";
+      if(this.get('symbol_background_class')) {
+        res = res + this.get('symbol_background_class') + " ";
       }
       if(this.get('button_style')) {
         var style = Button.style(this.get('button_style'));
