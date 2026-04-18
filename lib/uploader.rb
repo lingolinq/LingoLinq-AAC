@@ -1,9 +1,31 @@
-require 's3'
+require 'aws-sdk-s3'
 require 'accessible-books'
 
 module Uploader
   S3_EXPIRATION_TIME=60*60
   CONTENT_LENGTH_RANGE=200.megabytes.to_i
+
+  def self.s3_region
+    ENV['AWS_REGION'].presence || 'us-east-1'
+  end
+
+  def self.s3_client(config)
+    Aws::S3::Client.new(
+      region: s3_region,
+      credentials: Aws::Credentials.new(config[:access_key], config[:secret]),
+      http_open_timeout: 3,
+      http_read_timeout: 3
+    )
+  end
+
+  def self.presigned_get_url(client, bucket, key, expires_in: S3_EXPIRATION_TIME)
+    Aws::S3::Presigner.new(client: client).presigned_url(
+      :get_object,
+      bucket: bucket,
+      key: key,
+      expires_in: expires_in
+    ).sub(/\Ahttp:/, 'https:')
+  end
   
   def self.remote_upload(remote_path, local_path, content_type, checksum=nil)
     # NOTE: if you specify checksum, you may get back a different
@@ -77,47 +99,54 @@ module Uploader
   def self.check_existing_upload(remote_path, checksum=nil)
     return {found: false} unless remote_path
     config = remote_upload_config
-    return {found: false} unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)    
-    if remote_path.match(/^\//)
-      remote_path = remote_path[1..-1]
-    end
-    bucket = service.buckets.find(config[:bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      req = object.send(:object_request, :head, {})
-      return {found: true, mismatch: true} if checksum && req['etag'] && checksum != req['etag'].gsub(/\"/, '')
-      exp = ((req['x-amz-expiration'] || "").match(/expiry-date="([^"]+)"/) || [])[1]
+    return {found: false} unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    key = remote_path.to_s.sub(/\A\//, '')
+    begin
+      client = s3_client(config)
+      resp = client.head_object(bucket: config[:bucket_name], key: key)
+      raw_etag = resp.etag
+      etag = raw_etag.to_s.delete('"')
+      return {found: true, mismatch: true} if checksum && raw_etag && checksum != etag
+
+      exp_header = resp.expiration.to_s
+      exp = ((exp_header.match(/expiry-date="([^"]+)"/) || [])[1])
       exp = Time.parse(exp) rescue nil
       if exp && exp < 48.hours.from_now
         return {found: true, expired: true}
-      else
-        # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
-        url = if ENV['UPLOADS_S3_CDN'].present?
-          "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"
-        else
-          "#{config[:upload_url]}#{remote_path}"
-        end
-        return {found: true, url: url}
       end
+      # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
+      url = if ENV['UPLOADS_S3_CDN'].present?
+        "#{ENV['UPLOADS_S3_CDN']}/#{key}"
+      else
+        "#{config[:upload_url]}#{key}"
+      end
+      {found: true, url: url}
+    rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+      {found: false}
+    rescue Aws::S3::Errors::ServiceError => e
+      Rails.logger.warn("Uploader.check_existing_upload Aws::S3::Errors::ServiceError path=#{key} code=#{e.code} message=#{e.message}")
+      {found: false}
     end
-    return {found: false}
   end
 
   def self.remote_touch(path)
     config = remote_upload_config
-    return false unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)    
-    bucket = service.buckets.find(config[:bucket_name])
-    if path && path.match(/^\//)
-      path = path[1..-1]
-    end
-    object = bucket.objects.find(path) rescue nil
-    return false unless object
-    copy_opts = { :key => path, :bucket => bucket }
+    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    key = path.to_s.sub(/\A\//, '')
+    bucket_name = config[:bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: key)
+    copy_opts = {
+      bucket: bucket_name,
+      key: key,
+      copy_source: "#{bucket_name}/#{key}",
+      metadata_directive: 'COPY'
+    }
     copy_opts[:acl] = 'public-read' unless ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
-    res = object.copy(copy_opts) rescue nil
-    !!res
+    client.copy_object(copy_opts)
+    true
+  rescue Aws::S3::Errors::ServiceError, StandardError
+    false
   end
 
   def self.remote_remove_later(path, checksum)
@@ -157,11 +186,15 @@ module Uploader
     end
     if do_remove
       config = remote_upload_config
-      return nil unless config[:access_key] && config[:secret]
-      service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-      bucket = service.buckets.find(config[:bucket_name])
-      object = bucket.objects.find(remote_path) rescue nil
-      object.destroy if object
+      return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+      client = s3_client(config)
+      begin
+        client.head_object(bucket: config[:bucket_name], key: remote_path)
+      rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+        return nil
+      end
+      client.delete_object(bucket: config[:bucket_name], key: remote_path)
+      true
     else
       return false
     end
@@ -185,15 +218,13 @@ module Uploader
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['STATIC_S3_BUCKET']}\//, '')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-    bucket = service.buckets.find(config[:static_bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      object.temporary_url.sub(/^http:/, 'https:')
-    else
-      nil
-    end
+    return nil unless config[:access_key] && config[:secret] && config[:static_bucket_name].present?
+    bucket_name = config[:static_bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: remote_path)
+    presigned_get_url(client, bucket_name, remote_path)
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    nil
   end
 
   # Presigned URL for uploads bucket (board downloads, etc). Works even when bucket blocks public access.
@@ -205,15 +236,13 @@ module Uploader
     remote_path = remote_path[1..-1] if remote_path.start_with?('/')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret] && config[:bucket_name]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-    bucket = service.buckets.find(config[:bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      object.temporary_url.sub(/^http:/, 'https:')
-    else
-      nil
-    end
+    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    bucket_name = config[:bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: remote_path)
+    presigned_get_url(client, bucket_name, remote_path)
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    nil
   end
   
   def self.remote_upload_params(remote_path, content_type)
@@ -320,8 +349,9 @@ module Uploader
     Progress.update_current_progress(0.9, :uploading_file)
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
     raise "File not uploaded" unless url
-    File.unlink(path) if File.exist?(path)
     return url
+  ensure
+    File.unlink(path) if path && File.exist?(path)
   end
   
   def self.valid_remote_url?(url)

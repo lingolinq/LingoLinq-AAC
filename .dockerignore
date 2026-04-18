@@ -1,8 +1,11 @@
+# Version control and editor metadata
 .git
 .bundle
 .claude
 .cursor
 .devcontainer
+
+# Runtime / build artifacts
 log/*
 tmp/*
 !tmp/keep
@@ -12,5 +15,14 @@ app/frontend/dist
 app/frontend/bower_components
 public/assets
 storage/*
-.env
-.env.test
+
+# Secrets and local credentials (must not enter the build context)
+.env*
+!.env.example
+!.env.op.template
+config/master.key
+config/credentials/*.key
+
+# Package-manager auth files sometimes present locally
+.npmrc
+.yarnrc.yml

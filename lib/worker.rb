@@ -2,6 +2,16 @@ module Worker
   @queue = :default
   extend BoyBand::WorkerMethods
 
+  # Clears request-scoped Thread.current caches after each background job
+  # so cached data doesn't persist across jobs in the same worker process.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def self.perform(*args)
+    super
+  ensure
+    Thread.current[:board_content_cache] = nil
+    Thread.current[:word_inflection_cache] = nil
+  end
+
   def self.method_stats(queue='default')
     list = Worker.scheduled_actions(queue); list.length
     methods = {}

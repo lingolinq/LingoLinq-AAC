@@ -395,7 +395,10 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
-    processed_params = request.content_type == 'application/json' ? JSON.parse(request.body.read) : params
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
+    end
     prompt = (processed_params['prompt'] || '').to_s.strip
     return api_error(400, { error: 'prompt required' }) if prompt.blank?
 
@@ -434,18 +437,11 @@ class Api::BoardsController < ApplicationController
 
   def create
     @board_user = @api_user
-    processed_params = params
-    # Necessary because by default Rails is stripping out nil references in an array, which
-    # messes up grid.order
-    is_json_request = request.media_type == 'application/json'
-    if is_json_request
-      begin
-        processed_params = JSON.parse(request.raw_post)
-      rescue JSON::ParserError
-        processed_params = params
-        is_json_request = false
-      end
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
     end
+    is_json_request = json_body_source == :json_hash
     # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
     # JSON-parsed params are plain hashes; Rails params need permit! since models do their own filtering.
     board_params = if is_json_request
@@ -562,11 +558,9 @@ class Api::BoardsController < ApplicationController
     end    
     return unless exists?(board, params['id'])
     return unless allowed?(board, 'edit')
-    processed_params = params
-    # Necessary because by default Rails is stripping out nil references in an array, which
-    # messes up grid.order
-    if request.content_type == 'application/json'
-      processed_params = JSON.parse(request.body.read)
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
     end
     res = false
     if processed_params['button']
@@ -785,6 +779,25 @@ class Api::BoardsController < ApplicationController
     ids << board.global_id
     progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
+  end
+
+  private
+
+  # Re-parse JSON from raw_post for application/json because Rails drops nil entries in arrays
+  # (e.g. grid.order). On JSON::ParserError, fall back to params (same as before). On valid JSON
+  # whose root is not an object, returns :invalid_json_root so callers can respond with 400.
+  def board_json_body_params_source
+    unless request.media_type == 'application/json'
+      return params, :rails_params
+    end
+    begin
+      parsed = JSON.parse(request.raw_post)
+    rescue JSON::ParserError
+      return params, :rails_params
+    end
+    return parsed, :json_hash if parsed.is_a?(Hash)
+
+    [nil, :invalid_json_root]
   end
 
   protected

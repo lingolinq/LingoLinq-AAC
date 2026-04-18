@@ -8,6 +8,16 @@
   <div class="register-page">
   <div class="register-card">
     {{#if this.stashes.enabled}}
+      {{#if this.coppaWaitingParent}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Check with a parent or guardian" key="coppa_waiting_parent_title"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
+        <p>{{t "We emailed the parent or guardian address you provided. They must approve your account before you can sign in. Ask them to check their inbox (and spam folder)." key="coppa_waiting_parent_body"}}</p>
+        <p><LinkTo @route="login" class="register-btn">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
+      {{else}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">
           <h2 class="la-hero-title"><span class="la-hero-title__prefix">{{t "Create a " key="create_account_prefix"}}</span><span class="hero-gradient">{{t "LingoLinq" key="app_name"}}</span><span class="la-hero-title__prefix">{{t " Account" key="create_account_suffix"}}</span></h2>
@@ -61,6 +71,41 @@
           <span class='text-danger'>{{t "email required" key="email_required"}}</span>
         {{/if}}
       </div>
+      {{#if this.showCoppaConsent}}
+        <div class="form-group">
+          <fieldset>
+            <legend class="sr-only">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</legend>
+            <span id="coppa-age-prompt">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</span>
+            <div class="checkbox big_checkbox" style="margin-top: 0.5rem;">
+              <label>
+                <input type="radio" name="coppa_age" checked={{is-equal this.coppa_age_group "over_13"}} onclick={{action (mut this.coppa_age_group) "over_13"}} />
+                {{t "13 or older" key="coppa_age_13_or_older"}}
+              </label>
+            </div>
+            <div class="checkbox big_checkbox">
+              <label>
+                <input type="radio" name="coppa_age" checked={{is-equal this.coppa_age_group "under_13"}} onclick={{action (mut this.coppa_age_group) "under_13"}} />
+                {{t "Under 13" key="coppa_age_under_13"}}
+              </label>
+            </div>
+            {{#if this.coppaAgeRequired}}
+              <span class="text-danger">{{t "Please select an age option." key="coppa_age_required"}}</span>
+            {{/if}}
+          </fieldset>
+        </div>
+        {{#if (is-equal this.coppa_age_group "under_13")}}
+          <div class="form-group">
+            <label for="parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
+            <Input @value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} />
+            {{#if this.coppaParentEmailMissing}}
+              <span class="text-danger">{{t "Parent or guardian email is required for users under 13." key="coppa_parent_email_required"}}</span>
+            {{/if}}
+            {{#if this.coppaParentEmailSameAsAccount}}
+              <span class="text-danger">{{t "Parent email must be different from the account email." key="coppa_parent_email_must_differ"}}</span>
+            {{/if}}
+          </div>
+        {{/if}}
+      {{/if}}
       <div class="form-group">
         <label for="password">{{t "Password" key="password"}}</label>
         <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
@@ -127,6 +172,7 @@
         </p>
       {{/if}}
       </form>
+      {{/if}}
     {{else}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">

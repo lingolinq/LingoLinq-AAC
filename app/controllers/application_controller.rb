@@ -8,7 +8,18 @@ class ApplicationController < ActionController::Base
   before_action :set_paper_trail_whodunnit
   after_action :log_api_call
   before_bugsnag_notify :add_user_info_to_bugsnag
-  
+  around_action :with_request_caching
+
+  # Clears request-scoped Thread.current caches after each request to prevent
+  # data leaking between requests on the same Puma thread.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def with_request_caching
+    yield
+  ensure
+    Thread.current[:board_content_cache] = nil
+    Thread.current[:word_inflection_cache] = nil
+  end
+
   def set_host
     Rails.logger.info("Request ID #{request.headers['X-Request-Id'] || request.headers['X-Request-ID'] || request.request_id} #{request.headers['X-Request-Start']} #{}")
     if request.headers['X-SILENCE-LOGGER']

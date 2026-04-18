@@ -9,9 +9,9 @@
     </h4>
 
     <div class="md-org-settings-field">
-      <label for="name" class="md-org-settings-field__label">{{t "Name" key="name"}}</label>
+      <label for="org-settings-name" class="md-org-settings-field__label">{{t "Name" key="name"}}</label>
       {{#if this.model.permissions.update_licenses}}
-        <Input @value={{this.model.name}} class="md-org-settings-input" id="name" placeholder="Organization Name" />
+        <Input @value={{this.model.name}} class="md-org-settings-input" id="org-settings-name" name="organization-name" autocomplete="organization" placeholder="Organization Name" />
       {{else}}
         <span class="md-org-settings-field__static">{{this.model.name}}</span>
       {{/if}}

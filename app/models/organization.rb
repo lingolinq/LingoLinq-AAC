@@ -1447,16 +1447,21 @@ class Organization < ActiveRecord::Base
         }, false)
       end
     end
+    # Only change parent when id is present (set or move) or explicitly cleared (id key present but blank).
+    # Partial payloads without an id key (e.g. Ember display-only {name, pending}) must not clear parent.
     if params[:parent_org]
-      if params[:parent_org]['id']
-        if params[:parent_org]['id'] != self.parent_org_id
-          org = Organization.find_by_path(params[:parent_org]['id'])
-          if org
-            self.parent_organization_id = org.id
+      parent_org = params[:parent_org]
+      parent_org = parent_org.to_unsafe_h if parent_org.respond_to?(:to_unsafe_h)
+      parent_org = parent_org.with_indifferent_access if parent_org.is_a?(Hash)
+      if parent_org.is_a?(Hash)
+        if parent_org['id'].present?
+          if parent_org['id'] != self.parent_org_id
+            org = Organization.find_by_path(parent_org['id'])
+            self.parent_organization_id = org.id if org
           end
+        elsif parent_org.key?('id') && !parent_org['id'].present?
+          self.parent_organization_id = nil
         end
-      else
-        self.parent_organization_id = nil
       end
     end
     if params[:external_auth_shortcut]
@@ -1560,20 +1565,26 @@ class Organization < ActiveRecord::Base
 
     ['communicator_profile', 'supervisor_profile'].each do |prof|
       prof_id = prof + "_id"
+      prof_type = prof.sub(/_profile$/, '')
       do_assert = false
+      incoming = params[prof_id]
+      incoming = incoming.to_s.strip if incoming.is_a?(String)
+      incoming = nil if incoming.respond_to?(:empty?) && incoming.empty?
+
       opts = {'profile_id' => params[prof_id]}
       if params[prof + "_frequency"].to_i > 0
         do_assert = (self.settings[prof] || {})['frequency'] != params[prof + "_frequency"].to_i
         opts['frequency'] = params[prof + "_frequency"].to_f 
         opts['frequency'] *= 1.month.to_i if opts['frequency'] < 300
       end
-      if params[prof_id] && (self.settings[prof] || {})['profile_id'] != params[prof_id]
+      stored_pid = (self.settings[prof] || {})['profile_id']
+      if incoming.present? && !ProfileTemplate.same_profile?(stored_pid, incoming, prof_type)
         valid = false
-        if params[prof_id] == 'default' || params[prof_id] == 'none'
+        if incoming == 'default' || incoming == 'none'
           valid = true
-          opts = nil if params[prof_id] == 'none'
+          opts = nil if incoming == 'none'
         else
-          pt = ProfileTemplate.find_by_code(params[prof_id])
+          pt = ProfileTemplate.find_by_code(incoming)
           if pt
             if pt.settings['public'] == false && pt.organization != self
               add_processing_error("#{prof_id} not authorized for this organization")

@@ -36,6 +36,10 @@ gem 'concurrent-ruby', '~> 1.3'
 gem 'rails', '>= 7.2.3.1', '< 7.3'
 # CVE-2026-33210 (format string); bundler-audit advisory minimum
 gem 'json', '>= 2.19.2'
+# oj is a faster JSON parser/generator (5-10x faster than stdlib json).
+# Used via Oj.mimic_JSON in config/initializers/oj.rb to transparently
+# replace the JSON module across the app, including Rails internals.
+gem 'oj', '~> 3.16'
 # GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
 gem 'loofah', '>= 2.25.1'
 gem 'pg', '~> 1.5'
@@ -50,16 +54,17 @@ gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
-# TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
-gem 's3'
+gem 'aws-sdk-s3', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'
 gem 'puma'
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
+# zip_kit handles all ZIP writing (streaming, flat memory).
 gem 'rubyzip', '~> 2.3'
+gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
 gem 'bugsnag'
 gem 'stripe'
@@ -76,6 +81,8 @@ gem 'boy_band'
 gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
+
+gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'

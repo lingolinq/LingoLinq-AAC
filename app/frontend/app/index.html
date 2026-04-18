@@ -59,18 +59,29 @@
     <script src="{{rootURL}}assets/vendor.js"></script>
     <script src="{{rootURL}}assets/frontend.js"></script>
 
-    <!-- When served by Ember dev server (not Rails), inject domain_settings so layout matches production -->
+    <!-- When served by Ember dev server (not Rails), stub domain_settings then merge from Rails (proxy) so .env COPPA_* matches backend. -->
     <script>
-      if (typeof window.domain_settings === 'undefined') {
-        window.domain_settings = {
-          app_name: 'LingoLinq',
-          company_name: 'Someone',
-          logo_url: '/images/LL_Logo_Line_Bright.png',
-          full_domain: true,
-          support_url: 'https://lingolinq.zendesk.com',
-          domain: window.location.host || 'localhost'
-        };
-      }
+      (function () {
+        if (typeof window.domain_settings === 'undefined') {
+          window.domain_settings = {
+            app_name: 'LingoLinq',
+            company_name: 'Someone',
+            logo_url: '/images/LL_Logo_Line_Bright.png',
+            full_domain: true,
+            support_url: 'https://lingolinq.zendesk.com',
+            domain: window.location.host || 'localhost'
+          };
+        }
+        fetch('/api/v1/domain_settings', { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.settings && typeof data.settings === 'object') {
+              Object.assign(window.domain_settings, data.settings);
+              window.dispatchEvent(new Event('lingolinq-domain-settings-sync'));
+            }
+          })
+          .catch(function () { /* keep stub; e.g. backend not up yet */ });
+      })();
     </script>
 
     {{content-for "body-footer"}}

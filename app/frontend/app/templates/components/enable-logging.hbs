@@ -39,25 +39,13 @@
 
           <div class="md-modal-field">
             <label for="research_primary_use" class="md-modal-label">{{t "Primary Reason for Using AAC" key="primary_reason_for_aac_user"}}</label>
-            <div class="md-voice-output__voice-row">
-              <div class="md-voice-output__voice-select">
-                <Input @value={{this.research_use}} class="md-modal-input" id="research_primary_use" placeholder="" />
+            {{bound-select select_class="md-modal-select" select_id="research_primary_use" content=this.research_uses selection=this.research_use_selection_id action=(action "updateResearchUse")}}
+            {{#if this.research_use_requires_other}}
+              <div class="md-modal-field">
+                <label for="research_primary_use_other" class="md-modal-label">{{t "Please specify (sent to researchers as entered)" key="research_primary_use_please_specify"}}</label>
+                <Input @value={{this.research_use_other_spec}} class="md-modal-input" id="research_primary_use_other" />
               </div>
-              <div class="btn-group dropup">
-                <button class="btn md-modal-btn md-modal-btn--cancel dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button">
-                  <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu" style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
-                  {{#each this.research_uses as |option|}}
-                    {{#if option.header}}
-                      <li><button type="button" {{action "set_research_use" option}}><b>{{option.name}}</b></button></li>
-                    {{else}}
-                      <li><button type="button" {{action "set_research_use" option}}>&nbsp;{{option.name}}</button></li>
-                    {{/if}}
-                  {{/each}}
-                </ul>
-              </div>
-            </div>
+            {{/if}}
           </div>
 
           <div class="md-modal-field">

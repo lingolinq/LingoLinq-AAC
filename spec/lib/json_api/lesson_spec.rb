@@ -17,6 +17,23 @@ describe JsonApi::Lesson do
       expect(json['lesson_code']).to eq(l.nonce)
     end
 
+    it "should normalize schemaless lesson URLs for iframe embedding" do
+      l = Lesson.create(settings: {'url' => 'google.com', 'title' => 'Test'})
+      json = JsonApi::Lesson.build_json(l)
+      expect(json['original_url']).to eq('google.com')
+      expect(json['url']).to eq('https://google.com')
+    end
+
+    it "marks lessons editable for org admins when the training is assigned to the org" do
+      o = Organization.create
+      author = User.create
+      l = Lesson.create(user_id: author.id)
+      l.settings['usages'] = [{'obj' => Webhook.get_record_code(o)}]
+      l.save!
+      json = JsonApi::Lesson.build_json(l, {obj: o})
+      expect(json['editable']).to eq(true)
+    end
+
     it "should include target preferences if specified" do
       o = Organization.create
       o2 = Organization.create

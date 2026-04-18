@@ -135,6 +135,30 @@ describe SessionController, :type => :controller do
       expect(response).not_to be_successful
       expect(assigns[:error]).to eq('invalid_login')
     end
+
+    it "errors when COPPA parental consent is still pending" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'user_name' => 'coppa_oauth_kid',
+        'name' => 'COPPA OAuth Kid',
+        'email' => 'child_coppa_oauth@example.com',
+        'password' => 'bacon',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_oauth@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+
+      key_with_stash
+      post :oauth_login, params: {:code => @code, :username => 'coppa_oauth_kid', :password => 'bacon'}
+      expect(response).not_to be_successful
+      expect(assigns[:error]).to eq('awaiting_parental_consent')
+      str = RedisInit.default.get("oauth_#{@code}")
+      json = JSON.parse(str)
+      expect(json['user_id']).to eq(nil)
+    end
     
     it "should redirect to redirect_uri for the developer on reject" do
       key_with_stash
@@ -528,6 +552,30 @@ describe SessionController, :type => :controller do
       expect(d).not_to eq(nil)
       expect(d.developer_key_id).to eq(0)
       expect(d.user).to eq(u)
+    end
+
+    it "rejects password token when COPPA parental consent is still pending" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_login_kid',
+        'name' => 'COPPA Login Kid',
+        'email' => 'child_coppa_token@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_token@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_login_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('awaiting parental consent')
+      expect(json['coppa_parental_consent_pending']).to eq(true)
+      expect(json['access_token']).to eq(nil)
     end
     
 #     it "should not respect expired browser token" do

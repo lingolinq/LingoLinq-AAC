@@ -72,6 +72,8 @@ module Converters::LingoLinq
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
+    # Lazily load translations once per board, only when needed for non-simple exports
+    all_translations = nil
     Progress.as_percent(0.3, 1.0) do
       (board.buttons || []).each_with_index do |original_button, idx|
         button = {
@@ -87,12 +89,13 @@ module Converters::LingoLinq
         }
         button['ext_lingolinq_rules'] = original_button['rules'] if original_button['rules']
         if !opts || !opts['simple']
+          all_translations ||= BoardContent.load_content(board, 'translations') || {}
           inflection_defaults = nil
           trans = {}
-          (BoardContent.load_content(board, 'translations') || {}).each do |loc, hash|
+          all_translations.each do |loc, hash|
             next unless hash && hash.is_a?(Hash)
-            if hash[original_button['id']]
-              trans[loc] = hash[original_button['id']]
+            if hash[original_button['id'].to_s] || hash[original_button['id']]
+              trans[loc] = hash[original_button['id'].to_s] || hash[original_button['id']]
             end
           end
           trans[board.settings['locale']] ||= original_button if original_button['inflections']
@@ -499,6 +502,8 @@ module Converters::LingoLinq
     boards = []
     images = []
     sounds = []
+    seen_image_ids = {}
+    seen_sound_ids = {}
     
     board.track_downstream_boards!
     Progress.update_current_progress(0.1, 'tracked downstreams')
@@ -517,9 +522,19 @@ module Converters::LingoLinq
       if b
         Progress.as_percent(tally, tally + incr) do
           res = to_external(b, opts)
-          images += res['images']
+          res['images'].each do |img|
+            unless seen_image_ids[img['id']]
+              images << img
+              seen_image_ids[img['id']] = true
+            end
+          end
           res.delete('images')
-          sounds += res['sounds']
+          res['sounds'].each do |snd|
+            unless seen_sound_ids[snd['id']]
+              sounds << snd
+              seen_sound_ids[snd['id']] = true
+            end
+          end
           res.delete('sounds')
           boards << res
         end
@@ -529,8 +544,8 @@ module Converters::LingoLinq
       
     return {
       'boards' => boards,
-      'images' => images.uniq,
-      'sounds' => sounds.uniq
+      'images' => images,
+      'sounds' => sounds
     }
   end
   

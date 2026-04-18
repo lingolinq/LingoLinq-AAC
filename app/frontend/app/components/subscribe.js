@@ -30,6 +30,18 @@ export default Component.extend({
     close() {
       this.get('modal').close();
     },
+    dismiss_subscribe_modal() {
+      const user = this.get('model.user');
+      if (user && !user.get('really_expired')) {
+        const role = this.get('model.subscription.user_type');
+        user.set('preferences.role', role);
+        const progress = user.get('preferences.progress') || {};
+        progress.skipped_subscribe_modal = true;
+        user.set('preferences.progress', progress);
+        user.save().then(null, function() {});
+      }
+      modal.close();
+    },
     opening() {},
     closing() {},
     really_subscription_skip() {
