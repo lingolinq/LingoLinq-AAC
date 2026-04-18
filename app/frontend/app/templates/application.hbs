@@ -839,7 +839,7 @@
           {{/unless}}
           <span class="bento-dark-toggle-wrap ll-bento-theme-picker-wrap" style="display: inline-block; position: relative;">
           {{#if this.showThemePicker}}
-            <div class="ll-bento-theme-picker-backdrop" {{action "closeThemePicker"}} role="button" aria-label={{t "Close" key="close"}}></div>
+            <div class="ll-bento-theme-picker-backdrop" {{action "closeThemePicker"}} role="button" tabindex="0" aria-label={{t "Close" key="close"}}></div>
             <div class="ll-bento-theme-picker ll-bento-theme-picker--open" role="dialog" aria-label={{t "Choose theme" key="choose_theme"}}>
               <div class="ll-bento-theme-picker__row">
               <div class="ll-bento-theme-picker__options">
@@ -1385,7 +1385,7 @@
 {{/if}}
 
 {{#if this.boardPickerVisible}}
-  <div id="board_picker_backdrop" {{action "closeBoardPicker"}} style="position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 900;"></div>
+  <div id="board_picker_backdrop" {{action "closeBoardPicker"}} role="button" tabindex="0" aria-label={{t "Close" key="close"}} style="position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 900;"></div>
   <div id="board_picker" role="dialog" aria-label={{t "My Boards" key="my_boards"}}>
     <div id="board_picker_header">
       <span class="la-section-eyebrow-badge">{{t "My Boards" key="my_boards"}}</span>

@@ -81,19 +81,36 @@ export default DS.RESTSerializer.extend({
       }
     }
 
-    // When the server deduplicates an image or sound on createRecord, it may return an ID
-    // that already exists in the store (e.g. the board was loaded with that image reference).
-    // Unload the stale record so Ember Data can assign the ID to the newly-created record
-    // without triggering "has already been used with another record" assertions.
+    // Board save/fetch responses include sideloaded images[] and sounds[].
+    // Strip them so they aren't pushed (board tracks image URLs via image_urls hash).
+    if (primaryModelClass.modelName === 'board' && payload) {
+      if (payload.images) { delete payload.images; }
+      if (payload.sounds) { delete payload.sounds; }
+    }
+
+    // When the server deduplicates an image or sound on createRecord, it may return
+    // an ID that already exists in the store. Unload ALL records of that type with
+    // that ID — including records in isSaving state — by destroying them first.
     if (requestType === 'createRecord' &&
       (primaryModelClass.modelName === 'image' || primaryModelClass.modelName === 'sound')) {
       var mediaKey = primaryModelClass.modelName;
       var mediaData = payload[mediaKey];
       if (mediaData && mediaData.id) {
-        var existingRecord = store.peekRecord(mediaKey, mediaData.id);
-        if (existingRecord) {
-          store.unloadRecord(existingRecord);
-        }
+        var conflictId = String(mediaData.id);
+        try {
+          var allRecs = store.peekAll(mediaKey).toArray();
+          for (var mi = 0; mi < allRecs.length; mi++) {
+            if (String(allRecs[mi].get('id')) === conflictId) {
+              // Force the record out of saving state so it can be unloaded
+              try {
+                allRecs[mi].set('currentState.isSaving', false);
+              } catch(eSt) {}
+              try {
+                store.unloadRecord(allRecs[mi]);
+              } catch(eUn) {}
+            }
+          }
+        } catch(eAll) {}
       }
     }
 

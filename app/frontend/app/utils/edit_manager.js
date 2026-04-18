@@ -1201,12 +1201,17 @@ var editManager = EmberObject.extend({
         }
         raw.local_image_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_image_url') : btn.local_image_url;
         raw.local_sound_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_sound_url') : btn.local_sound_url;
+        raw.image_url = (btn.get && typeof btn.get === 'function') ? btn.get('image_url') : btn.image_url;
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
         raw.pending_image = false;
         raw.pending_sound = false;
         var b = editManager.Button.create(raw, {board: board});
         if(b.get('board') != board || (b.get('pending_image') || b.get('pending_sound'))) { alert('blech!'); }
         b.set('id', oldState[idx][jdx].get('id'));
+        // Explicitly preserve empty/image_url — Button.create may not retain them from raw
+        if(raw.empty) { b.set('empty', true); }
+        if(raw.image_url) { b.set('image_url', raw.image_url); }
+        if(idx === 0 && jdx < 3) { console.log('[CLONE]', 'id=', b.get('id'), 'empty=', b.get('empty'), 'label=', b.get('label'), 'bg=', b.get('background_color'), 'img_url=', b.get('image_url')); }
         arr.push(b);
       }
       clone_state.push(arr);
@@ -1219,6 +1224,13 @@ var editManager = EmberObject.extend({
     if(lastState) {
       var currentState = this.clone_state();
       this.get('future').pushObject(currentState);
+      console.log('[UNDO] restoring state, first 3 buttons:');
+      if(lastState[0]) {
+        for(var ui = 0; ui < Math.min(3, lastState[0].length); ui++) {
+          var ub = lastState[0][ui];
+          console.log('[UNDO]', 'id=', ub.get('id'), 'empty=', ub.get('empty'), 'label=', ub.get('label'), 'bg=', ub.get('background_color'), 'img_url=', ub.get('image_url'));
+        }
+      }
       this.controller.set('ordered_buttons', lastState);
       this.update_color_key_id();
     }
@@ -1350,6 +1362,7 @@ var editManager = EmberObject.extend({
     }
     opts.label = '';
     opts.image = null;
+    opts.image_url = null;
     opts.local_image_url = null;
     opts.local_sound_url = null;
     opts.image_style = null;

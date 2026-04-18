@@ -18,9 +18,23 @@
   focus only (not for every mouse click). Matches WCAG 2.4.7 (Focus Visible).
   Scoped to #within_ember; !important wins over legacy outline resets.
 */
-#within_ember *:focus-visible {
-  outline: 2px solid $la-navy !important;
-  outline-offset: 2px !important;
+#within_ember *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+  outline: none !important;
+  box-shadow: 0 0 0 3px $la-navy !important;
+  background-color: rgba($la-navy, 0.06);
+  border-radius: 6px;
+}
+/* On dark backgrounds, use a light focus ring for contrast */
+#within_ember.board-detail-view:has(.md-board-detail--dark) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+.md-board-detail--dark *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+header:has(#speak) *:focus-visible,
+#inner_header:has(#speak) *:focus-visible,
+.md-board-detail-sentence-bar *:focus-visible,
+.md-board-detail-header *:focus-visible,
+.md-board-detail-board-actions *:focus-visible,
+.md-board-detail-board-actions__btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
+  border-radius: 6px;
 }
 
 /*
@@ -2169,7 +2183,7 @@ header.speaking, .board.speak {
                                   supported by Chrome and Opera */
 }
 .board.speak {
-  margin-top: 24px !important;
+  margin-top: 32px !important;
 }
 .md-board-detail-grid.board.speak {
   margin-top: 0px !important;
@@ -2532,9 +2546,8 @@ h1 a:hover {
 .nav-header__logo-link:focus-visible,
 .nav-header__app-name-link:focus-visible,
 #home_button:focus-visible {
-  outline: 2px solid #2a9d8f;
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 3px #2a9d8f;
 }
 .nav-header__logo {
   display: inline-flex !important;
@@ -5821,6 +5834,8 @@ tr.accuracy_non_mastered {
   &:hover {
     text-decoration: none;
     color: #000;
+    outline: 4px solid; /* override Bootstrap a:hover { outline: 0 } — thicken on hover */
+    outline-offset: -4px;
   }
   &.hover_button {
     box-shadow: 6px 6px 20px rgba(60, 60, 60, 0.7), -2px -2px 20px rgba(60, 60, 60, 0.7), 6px 6px 30px rgba(255, 255, 0, 0.8), -2px -2px 30px rgba(255, 0, 0, 0.8);
@@ -6157,12 +6172,6 @@ body > .popover.bottom {
 .board .button {
   margin: 2px 2px;
 }
-.board .button:hover {
-  border-width: 2px;
-  &.hidden_button, &.empty {
-    border-width: 1px;
-  }
-}
 .board .button.touched, .board .button:focus-visible {
   padding-top: 0px;
   border-width: 5px;
@@ -6176,12 +6185,6 @@ body > .popover.bottom {
 .board.border_none .button {
   border-width: 0;
 }
-.board.border_none .button:hover {
-  border-width: 2px;
-  &:hidden_button {
-    border-width: 0;
-  }
-}
 .board.border_none .button.touched, .board.border_none .button:focus-visible {
   padding-top: 0px;
   border-width: 5px;
@@ -6191,12 +6194,6 @@ body > .popover.bottom {
 }
 .board.border_medium .button {
   border-width: 2px;
-}
-.board.border_medium .button:hover {
-  border-width: 4px;
-  &:hidden_button {
-    border-width: 2px;
-  }
 }
 .board.border_medium .button.touched, .board.border_medium .button:focus-visible {
   padding-top: 0px;
@@ -6208,12 +6205,6 @@ body > .popover.bottom {
 .board.border_large .button {
   border-width: 5px;
 }
-.board.border_large .button:hover {
-  border-width: 7px;
-  &:hidden_button {
-    border-width: 5px;
-  }
-}
 .board.border_large .button.touched, .board.border_large .button:focus-visible {
   padding-top: 0px;
   border-width: 10px;
@@ -6223,12 +6214,6 @@ body > .popover.bottom {
 }
 .board.border_huge .button {
   border-width: 10px;
-}
-.board.border_huge .button:hover {
-  border-width: 12px;
-  &:hidden_button {
-    border-width: 10px;
-  }
 }
 .board.border_huge .button.touched, .board.border_huge .button:focus-visible {
   padding-top: 0px;
@@ -6841,10 +6826,6 @@ body > .popover.bottom {
 .symbol_background_black .button img.symbol {
   filter: invert(0.85);
 }
-.button:hover {
-  background: #fafafa;
-  border-color: #aaa;
-}
 .button.touched, .button:focus-visible {
   border-color: #888;
 }
@@ -7104,9 +7085,16 @@ body > .popover.bottom {
    so the bottom of the grid is reachable without clipping.
    Omit the global +3rem on #content — that extra ~48px is legacy breathing room; --topbar-height plus
    --speak-bar-extra already offset the fixed header + wrapped speak bar (see board/index ResizeObserver). */
-#within_ember.board-view #content,
-#within_ember.board-alt-view #content {
+#within_ember.board-view #content {
   padding-top: calc(var(--topbar-height) + var(--speak-bar-extra, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 100vh;
+  max-height: 100dvh;
+  box-sizing: border-box;
+}
+#within_ember.board-alt-view #content {
+  padding-top: calc(38px + var(--speak-bar-extra, 0px));
   overflow-x: hidden;
   overflow-y: auto;
   max-height: 100vh;
@@ -9502,6 +9490,15 @@ video.button_image {
   color: #fff;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba($brand-verdigris, 0.25);
+}
+
+/* Stronger keyboard focus ring for all interactive elements in button settings modal.
+   Uses outline instead of box-shadow so it doesn't conflict with existing box-shadow on active tabs. */
+.modal-content:has(#button_settings) *:focus-visible {
+  outline: 3px solid #1B365D !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+  border-radius: 6px;
 }
 
 /* Form controls */
@@ -42683,11 +42680,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     z-index: 2;
   }
 
-  .board .button:hover {
-    border-color: var(--btn-bg, #b3cfc9) !important;
-    box-shadow: 0 4px 12px rgba($indigo, 0.1) !important;
-    border-width: 2px !important;
-  }
 
   .board .button.touched,
   .board .button:focus-visible {
@@ -45834,9 +45826,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 .md-board-detail-sidebar__heading {
-  font-size: 1rem; /* 16px — uppercase section heading */
+  font-size: 13px; /* matches right panel heading */
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em; /* matches right panel heading */
   text-transform: uppercase;
   color: $brand-stormy-teal;
   padding: 0 14px 8px;
@@ -45854,9 +45846,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: none;
   border-radius: 14px;
   background: transparent;
-  font-size: 1.125rem; /* 18px — AAC requirement */
+  font-size: 15px; /* matches right panel content size */
   font-weight: 500;
-  color: rgba($la-navy, 0.92); /* ~14:1 contrast on white — passes AAA */
+  color: rgba($la-navy, 0.72); /* matches right panel content contrast */
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   text-align: left;
@@ -45907,7 +45899,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Layer 2: Panel container */
 .md-board-detail-main {
-  padding: 7px 7px 7px;
+  padding: 2px 7px 7px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -46051,8 +46043,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   /* Height stretches to match the surrounding stacked button groups via the
      parent .md-board-detail-sentence-row's `align-items: stretch`. */
   min-height: 72px;
-  padding: 0 28px;
-  border-radius: 999px;
+  padding: 10px;
+  border-radius: 18px;
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
@@ -46085,7 +46077,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   pointer-events: none;
 }
 .md-board-detail-sentence-bar::before {
-  left: -7px;
+  display: none;
 }
 .md-board-detail-sentence-bar::after {
   right: -7px;
@@ -46194,6 +46186,64 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 0.5;
   font-weight: 400;
   color: $brand-charcoal-blue;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* ── Inline word predictions (inside sentence bar) ───── */
+.md-board-detail-sentence-bar__prediction-group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.55);
+}
+.md-board-detail-sentence-bar__prediction {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 10px;
+  min-width: 44px;
+  height: 72px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+.md-board-detail-sentence-bar__prediction:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-1px);
+}
+.md-board-detail-sentence-bar__prediction:active {
+  transform: scale(0.96);
+}
+.md-board-detail-sentence-bar__prediction-img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 1;
+  min-height: 0;
+  opacity: 0.7;
+}
+.md-board-detail-sentence-bar__prediction-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.2;
+  text-align: center;
+  font-style: italic;
 }
 .md-board-detail-sentence-bar__actions {
   display: flex;
@@ -46252,31 +46302,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-sentence-bar__tools {
   display: flex;
   align-items: center;
-  /* WCAG 2.5.5 spacing — was 4px gap with 32px buttons (FAIL).
-     With 44×44 buttons below, 6px gap is acceptable. */
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 8px;
   margin-left: 4px;
 }
 .md-board-detail-sentence-bar__tool-btn {
   /* WCAG 2.5.5 AAA touch target — was 32×32. */
   width: 44px;
-  height: 44px;
+  height: 55px;
   min-width: 44px;
-  min-height: 44px;
+  min-height: 55px;
   padding: 0;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
   color: rgba($indigo, 0.60);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.12s ease, color 0.12s ease;
+}
+.md-board-detail-sentence-bar__tool-btn svg {
+  width: 18px;
+  height: 18px;
 }
 .md-board-detail-sentence-bar__tool-btn:hover {
   background: rgba($la-navy, 0.12);
@@ -46293,6 +46341,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 999px;
   font-weight: 600;
   box-shadow: 0 1px 4px rgba($la-navy, 0.06);
+  width: 55px;
+  height: 55px;
+  min-width: 55px;
+  padding: 0;
+  justify-content: center;
 }
 .md-board-detail-sentence-bar__btn--speak:hover {
   background: rgba(255, 255, 255, 1);
@@ -46458,6 +46511,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 12px 16px;
   min-height: 44px;
   border: none;
+  border-radius: 18px;
   background: transparent;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.85);
@@ -46575,6 +46629,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 12px 14px;
   min-height: 44px;
   border: none;
+  border-radius: 8px;
   background: none;
   font-size: 13px;
   font-weight: 500;
@@ -46991,7 +47046,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 .md-board-detail-tease-row {
   display: flex;
@@ -47842,18 +47897,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   right: 0;
   bottom: 0;
   z-index: 99;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(4px);
+  background: transparent;
   -webkit-backdrop-filter: blur(4px);
 }
 .md-board-detail-actions-menu {
   position: absolute;
-  top: 50px;
+  top: 46px;
   right: 0;
   background: #fff;
   border-radius: 14px;
   border: 1px solid rgba($la-navy, 0.10);
-  box-shadow: 0 8px 28px rgba($la-navy, 0.15);
+  box-shadow: 0 12px 40px rgba($la-navy, 0.25), 0 4px 12px rgba(0, 0, 0, 0.10);
   padding: 6px;
   min-width: 200px;
   z-index: 100;
@@ -47890,12 +47944,77 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba($la-navy, 0.10);
   margin: 4px 10px;
 }
+.md-board-detail-actions-menu__section {
+  padding: 6px 0;
+  border-bottom: 2px solid rgba($la-navy, 0.10);
+}
+.md-board-detail-actions-menu__section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.md-board-detail-actions-menu__section:first-child {
+  padding-top: 0;
+}
+.md-board-detail-actions-menu__section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.45);
+  padding: 4px 14px 2px;
+}
+.md-board-detail-actions-menu__submenu-wrap {
+  position: relative;
+}
+.md-board-detail-actions-menu__item--has-sub {
+  justify-content: flex-start;
+}
+.md-board-detail-actions-menu__chevron {
+  margin-left: auto;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+.md-board-detail-actions-menu__submenu {
+  padding: 4px 0 4px 0;
+  border-left: 2px solid rgba($brand-verdigris, 0.25);
+  margin-left: 18px;
+}
+.md-board-detail-actions-menu__submenu .md-board-detail-actions-menu__item {
+  font-size: 13px;
+  padding: 8px 12px;
+  min-height: 38px;
+}
+.md-board-detail--dark .md-board-detail-actions-menu__submenu {
+  border-left-color: rgba($brand-verdigris, 0.40);
+}
+.md-board-detail--dark .md-board-detail-actions-menu__section {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.md-board-detail--dark .md-board-detail-actions-menu__section-label {
+  color: rgba(255, 255, 255, 0.65);
+}
 .md-board-detail-actions-menu__hint {
   display: block;
   font-size: 12px;
   color: $brand-cool-steel;
   font-weight: 400;
   margin-top: -2px;
+}
+.md-board-detail-actions-menu__item--edit {
+  background: $brand-blue-grey;
+  color: #fff !important;
+  border-radius: 10px;
+}
+.md-board-detail-actions-menu__item--edit svg {
+  stroke: #fff;
+}
+.md-board-detail-actions-menu__item--edit:hover {
+  background: color.adjust($brand-blue-grey, $lightness: -5%);
+  color: #fff !important;
+}
+.md-board-detail-actions-menu__item--edit:hover svg {
+  stroke: $brand-verdigris;
 }
 .md-board-detail-actions-menu__item--exit {
   background: $brand-charcoal-blue;
@@ -48264,20 +48383,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 8px 24px rgba(27, 42, 65, 0.10),
     0 1px 3px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition:
-    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.25s ease;
 }
-.md-board-detail-symbol-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 16px rgba($la-navy, 0.16),
-    0 10px 28px rgba(27, 42, 65, 0.14),
-    0 2px 4px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
-}
+/* Click: thicken the outline to match board-alt's .touched border effect */
 .md-board-detail-symbol-card:active {
-  transform: scale(var(--md-tap, 0.97));
+  outline-width: 5px;
+  outline-offset: -5px;
 }
 .md-board-detail-symbol-card__image {
   flex: 1 1 auto;
@@ -48334,10 +48444,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
   mix-blend-mode: normal;
-}
-.md-board-detail-symbol-card:hover .md-board-detail-symbol-card__image img {
-  opacity: 0.92;
-  filter: contrast(0.90) brightness(1.03);
 }
 .md-board-detail-symbol-card__image--placeholder {
   background: rgba($brand-verdigris, 0.08);
@@ -48804,6 +48910,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
+  min-height: 44px;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
   background: #fff;
@@ -48998,7 +49105,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: $surface-100;
   border: 1px solid rgba($la-navy, 0.10);
   border-radius: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
 .md-board-detail-edit-toolbar__section {
   display: flex;
@@ -49109,7 +49216,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
-  overflow: hidden;
   background: #fff;
 }
 .md-board-detail-edit-toolbar__stepper-btn {
@@ -49127,6 +49233,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $brand-charcoal-dark;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
+}
+.md-board-detail-edit-toolbar__stepper-btn:focus-visible {
+  box-shadow: inset 0 0 0 3px $la-navy !important;
+  border-radius: 8px;
 }
 .md-board-detail-edit-toolbar__stepper-btn:hover {
   background: $surface-200;
@@ -49346,7 +49456,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   z-index: 2;
 }
 .md-board-detail-symbol-card:hover .md-board-detail-symbol-card__edit-actions,
-.md-shell--board-detail-edit .md-board-detail-symbol-card:hover .md-board-detail-symbol-card__edit-actions {
+.md-shell--board-detail-edit .md-board-detail-symbol-card:hover .md-board-detail-symbol-card__edit-actions,
+/* Show edit actions when menu trigger receives keyboard focus */
+.md-board-detail-symbol-card:focus-within .md-board-detail-symbol-card__edit-actions {
   opacity: 1;
 }
 .md-board-detail-symbol-card__edit-btn {
@@ -49405,20 +49517,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* Dropdown menu styles */
-/* Allow dropdown to escape card overflow */
+/* Allow dropdown to escape card and grid-cell overflow.
+   Grid rows with minmax(0, 1fr) implicitly clip; overflow:visible on
+   both the card and its cell lets the absolutely-positioned dropdown
+   render outside the row boundary. */
 .md-board-detail-symbol-card:has(.md-board-detail-symbol-card__edit-dropdown) {
   overflow: visible;
 }
 .md-board-detail-symbol-card__edit-dropdown {
-  position: absolute;
-  top: 0;
-  right: 30px;
+  position: fixed;
+  visibility: hidden;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10);
   border: 1px solid rgba($la-navy, 0.12);
   padding: 4px 0;
-  z-index: 10;
+  z-index: 50;
   min-width: 120px;
   white-space: nowrap;
 }
@@ -49431,6 +49545,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 12px 14px;
   min-height: 44px;
   border: none;
+  border-radius: 8px;
   background: none;
   color: #4a5568;
   font-size: 13px;
@@ -49504,9 +49619,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-panels-close-btn:focus-visible,
 .md-board-detail-edit-btn:focus-visible,
 .md-board-detail-suggestion:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba($brand-verdigris, 0.15);
+  outline: none;
+  box-shadow: 0 0 0 3px $brand-verdigris, 0 0 0 5px rgba($brand-verdigris, 0.15);
 }
 
 /* ── Edit-mode layout overrides ──────────────────────── */
@@ -49956,6 +50070,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 12px 14px;
   min-height: 44px;
   border: none;
+  border-radius: 8px;
   background: none;
   font-size: 13px;
   font-weight: 500;
@@ -50652,21 +50767,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ── Dark Mode ─────────────────────────────────────────── */
+#within_ember.board-detail-view:has(.md-board-detail--dark) {
+  background: #000 !important;
+}
 #within_ember.board-detail-view:has(.md-board-detail--dark) #content {
-  background: #2d3a4d !important;
+  background: #000 !important;
 }
 .md-board-detail--dark.md-shell--board-detail {
-  background: #2d3a4d;
+  background: #000 !important; /* overrides the radial-gradient layer from .md-shell--board-detail */
 }
 .md-board-detail--dark .md-board-detail-main {
-  background: #2d3a4d;
+  background: rgba(30, 37, 48, 0.85);
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 6px 40px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar {
-  background: rgba(30, 37, 48, 0.85);
+  background: #2d3a4d;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__text {
@@ -50674,6 +50792,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__placeholder {
   color: rgba(255, 255, 255, 0.60);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__chip-label {
+  color: #e1e5eb;
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction-group {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.7);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction-label {
+  color: rgba(255, 255, 255, 0.55);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__btn {
   color: rgba(255, 255, 255, 0.85);
@@ -50742,7 +50878,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail--dark .md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row {
   background: rgba($brand-blue-grey, 0.15) !important;
   border-color: rgba(255, 255, 255, 0.10) !important;
-  color: rgba(255, 255, 255, 0.65) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
 }
 .md-board-detail--dark .md-board-detail-sentence-nav .md-board-detail-collapse-btn--sentence-row:hover {
   background: rgba($brand-blue-grey, 0.3) !important;
@@ -50751,18 +50887,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail--dark .md-board-detail-actions-toggle {
   background: #2a3344;
   border-color: rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.95);
 }
 .md-board-detail--dark .md-board-detail-actions-toggle:hover {
   background: #344054;
 }
 .md-board-detail--dark .md-board-detail-actions-backdrop {
-  background: rgba(0, 0, 0, 0.35);
+  background: transparent;
 }
 .md-board-detail--dark .md-board-detail-actions-menu {
   background: #1e2530;
   border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.50), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .md-board-detail--dark .md-board-detail-actions-menu__item {
   color: #d1d5db;
@@ -50794,9 +50930,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 2px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   outline-color: rgba(255, 255, 255, 0.10);
-}
-.md-board-detail--dark .md-board-detail-symbol-card:hover {
-  background: rgba(255, 255, 255, 0.06);
 }
 .md-board-detail--dark .md-board-detail-symbol-card--no-color .md-board-detail-symbol-card__label {
   color: $brand-charcoal-dark;
@@ -50875,11 +51008,101 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail--dark .md-board-detail-collapse-btn {
   background: rgba(30, 37, 48, 0.85);
   border-color: rgba(255, 255, 255, 0.10);
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-detail-collapse-btn svg {
+  filter: brightness(3);
 }
 .md-board-detail--dark .md-board-detail-collapse-btn:hover {
   background: rgba(40, 50, 65, 0.90);
   color: #fff;
+}
+.md-board-detail--dark .md-board-detail-collapse-btn:hover svg {
+  filter: brightness(4);
+}
+/* Brighten hardcoded SVG strokes in dark mode for sidebar toggle & back button */
+.md-board-detail--dark .md-board-detail-sidebar-toggle svg,
+.md-board-detail--dark .md-board-detail-sentence-bar__back-btn svg {
+  filter: brightness(3);
+}
+.md-board-detail--dark .md-board-detail-sidebar-toggle:hover svg,
+.md-board-detail--dark .md-board-detail-sentence-bar__back-btn:hover svg {
+  filter: brightness(4);
+}
+/* Edit toolbar in dark mode */
+.md-board-detail--dark .md-board-detail-edit-toolbar {
+  background: #1e2530;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__section-label {
+  color: rgba(255, 255, 255, 0.50);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn {
+  background: #2a3344;
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.90);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn:hover {
+  background: #344054;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn:disabled {
+  opacity: 0.35;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn:disabled:hover {
+  background: #2a3344;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn svg {
+  filter: brightness(3);
+}
+/* Rows/Cols steppers in dark mode */
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper {
+  background: #2a3344;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper-btn {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper-btn:focus-visible {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper-btn:hover {
+  background: #344054;
+  color: $brand-verdigris;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper-btn:active {
+  background: #3d4a5e;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__stepper-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+/* Search in dark mode */
+.md-board-detail--dark .md-board-detail-edit-toolbar__search {
+  background: #2a3344;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__search-input {
+  color: rgba(255, 255, 255, 0.90);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.40);
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__search svg {
+  filter: brightness(3);
+}
+/* Search container focus: rounded ring matching the 8px border-radius */
+.md-board-detail-edit-toolbar__search:focus-within {
+  box-shadow: 0 0 0 3px $la-navy !important;
+  border-radius: 8px;
+}
+.md-board-detail--dark .md-board-detail-edit-toolbar__search:focus-within {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
+}
+#within_ember .md-board-detail-edit-toolbar__search-input:focus-visible {
+  box-shadow: none !important;
+  outline: none !important;
 }
 .md-board-detail--dark .md-board-detail-divider {
   border-top-color: rgba(255, 255, 255, 0.08);
@@ -53531,6 +53754,78 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .la-beta-feedback-admin__actions .btn + .btn {
   margin-left: 6px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Custom confirm dialog — brand-styled replacement for browser confirm().
+   Used in button-settings "Clear Button" and reusable elsewhere.
+   ───────────────────────────────────────────────────────────────────────── */
+.ll-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  animation: ll-loading-overlay-fade-in 120ms ease-out;
+}
+.ll-confirm-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 36px 40px 32px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+  max-width: 520px;
+  width: 90%;
+  text-align: center;
+}
+.ll-confirm-title {
+  margin: 0 0 12px;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: $la-navy;
+}
+.ll-confirm-desc {
+  margin: 0 0 28px;
+  font-size: 1.4rem;
+  color: $brand-charcoal-dark;
+  line-height: 1.5;
+}
+.ll-confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.ll-confirm-btn {
+  padding: 14px 32px;
+  min-height: 52px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.ll-confirm-btn--cancel {
+  background: $surface-200;
+  color: $brand-charcoal-dark;
+}
+.ll-confirm-btn--cancel:hover {
+  background: color.adjust($surface-200, $lightness: -5%);
+}
+.ll-confirm-btn--danger {
+  background: $brand-danger;
+  color: #fff;
+}
+.ll-confirm-btn--danger:hover {
+  background: color.adjust($brand-danger, $lightness: -8%);
+  box-shadow: 0 4px 12px rgba($brand-danger, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-confirm-overlay { animation: none; }
 }
 .la-beta-feedback-admin__more-hint {
   margin-top: 12px;

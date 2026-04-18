@@ -163,6 +163,21 @@ $(document).on('mousedown touchstart', function(event) {
   var dwell_key = buttonTracker.check('dwell_enabled') && (event.keyCode == select_code || event.code == select_code) && buttonTracker.check('dwell_selection') == 'button';
   if(event.isComposing || event.keyCode == 229 || event.key == 'Unidentified' || event.key == 'Dead') { return; }
   if(special_keys.indexOf(event.key) != -1) { return; }
+  // When a board-detail symbol card is focused, Space/Enter should activate
+  // the button (populate sentence bar + speak) rather than type a character.
+  var focusedCard = event.target && (
+    event.target.classList.contains('md-board-detail-symbol-card') ?
+      event.target :
+      (event.target.closest ? event.target.closest('.md-board-detail-symbol-card[role="button"]') : null)
+  );
+  if(focusedCard && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    // Don't activate blank/empty buttons — keep focus in place
+    if(focusedCard.classList.contains('md-board-detail-symbol-card--empty')) { return; }
+    // Simulate a click on the card — this triggers the Ember {{action "select_button"}}
+    focusedCard.click();
+    return;
+  }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open()) {
     // add letter to the sentence box
     var key = "+" + event.key;

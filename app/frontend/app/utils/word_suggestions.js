@@ -129,7 +129,17 @@ var word_suggestions = EmberObject.extend({
           }
           var find_or_store = persistenceService.find('settings', store_key).then(null, function() {
             if(is_dev) {
-              return { suggestions: {} };
+              // In dev, try loading from local public/ directory first
+              return $.ajax({
+                url: '/language/ngrams.arpa.' + idx + '.' + _this.pieces + '.json',
+                type: 'GET',
+                dataType: data_type
+              }).then(function(res) {
+                if(data_type == 'text') { res = JSON.parse(res.text); }
+                return res;
+              }, function() {
+                return { suggestions: {} };
+              });
             }
             return $.ajax({
               url: remote_url,

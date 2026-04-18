@@ -49,8 +49,6 @@ var boundClasses = {};
           str = str + '--btn-bg: ' + fill.toRgbString() + ';';
           button.dark_border_color = autoBorder.darken(5).toRgbString();
           button.dark_background_color = window.tinycolor(fill.toRgb()).darken(5).toRgbString();
-          hoverStr = hoverStr + 'outline-color: ' + button.dark_border_color + ';';
-          hoverStr = hoverStr + 'background-color: ' + button.dark_background_color + ';';
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
           button.text_color = text.toRgbString();
           str = str + 'color: ' + button.text_color + ';';
@@ -58,7 +56,6 @@ var boundClasses = {};
           var border = window.tinycolor(button.border_color || '#eee');
           str = str + 'border-color: ' + border.toRgbString() + ';';
           button.dark_border_color = window.tinycolor(border.toRgb()).darken(5).toRgbString();
-          hoverStr = hoverStr + 'border-color: ' + button.dark_border_color + ';';
         }
 
         add_css_rule('.button.' + key, str);

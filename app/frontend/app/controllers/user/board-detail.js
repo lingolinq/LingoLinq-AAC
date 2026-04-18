@@ -15,6 +15,7 @@ import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
+import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
@@ -91,7 +92,7 @@ export default Controller.extend(prefClasses, {
   show_options_menu: false,
   share_dropdown_open: false,
   details_dropdown_open: false,
-  dark_mode: false,
+  dark_mode: true,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
@@ -710,20 +711,23 @@ export default Controller.extend(prefClasses, {
 
   // Word suggestions
   suggestions: null,
-  show_word_suggestions: computed('model.word_suggestions', 'edit_mode', function() {
-    return this.get('model.word_suggestions') && !this.get('edit_mode');
+  show_word_suggestions: computed('edit_mode', function() {
+    return !this.get('edit_mode');
   }),
 
   updateSuggestions: observer(
     'app_state.button_list',
     'app_state.button_list.[]',
     function() {
-      if(!this.get('model.word_suggestions') || this.get('edit_mode')) { return; }
+      if(this.get('edit_mode')) { return; }
       var _this = this;
-      var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
-      if(!word_suggestions || !word_suggestions.lookup) { return; }
 
       var button_list = this.get('app_state.button_list') || [];
+      if(!button_list.length) {
+        this.set('suggestions', null);
+        return;
+      }
+
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
@@ -733,15 +737,41 @@ export default Controller.extend(prefClasses, {
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
 
-      word_suggestions.lookup({
-        last_finished_word: last_finished_word,
-        word_in_progress: word_in_progress,
-        board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
-      }).then(function(result) {
-        _this.set('suggestions', { ready: true, list: result });
-      }, function() {
-        _this.set('suggestions', { ready: true, list: [] });
-      });
+      // Try local n-gram lookup first (instant, zero API cost)
+      var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
+      if(word_suggestions && word_suggestions.lookup) {
+        word_suggestions.lookup({
+          last_finished_word: last_finished_word,
+          word_in_progress: word_in_progress,
+          board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
+        }).then(function(result) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(result && result.length > 0) {
+            _this.set('suggestions', { ready: true, list: result });
+          } else {
+            // Fallback to AI predictor if n-gram data has no match
+            var sentence = button_list.map(function(b) {
+              return b.label || b.vocalization || '';
+            }).join(' ').trim();
+            if(sentence) {
+              _this.set('suggestions', { loading: true });
+              aiPredictor.predict(sentence, {
+                locale: _this.get('app_state.label_locale') || 'en'
+              }).then(function(words) {
+                if(_this.isDestroyed || _this.isDestroying) { return; }
+                var list = words.map(function(w) { return { word: w }; });
+                _this.set('suggestions', { ready: true, list: list });
+              }, function() {
+                if(_this.isDestroyed || _this.isDestroying) { return; }
+                _this.set('suggestions', { ready: true, list: [] });
+              });
+            }
+          }
+        }, function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this.set('suggestions', { ready: true, list: [] });
+        });
+      }
     }
   ),
 
@@ -1988,6 +2018,18 @@ export default Controller.extend(prefClasses, {
       }, 50);
     },
 
+    toggle_expand_submenu: function() {
+      this.toggleProperty('expand_submenu_open');
+    },
+
+    toggle_session_submenu: function() {
+      this.toggleProperty('session_submenu_open');
+    },
+
+    toggle_styles_submenu: function() {
+      this.toggleProperty('styles_submenu_open');
+    },
+
     // Close the options menu on Escape from anywhere within the menu.
     // Wired from `keydown` on `.md-board-detail-actions-menu`.
     options_menu_keydown: function(event) {
@@ -1998,6 +2040,88 @@ export default Controller.extend(prefClasses, {
         if (this.get('show_options_menu')) {
           this.send('toggle_options_menu');
         }
+        return;
+      }
+      // Arrow Up/Down: navigate between menu items (WAI-ARIA menu pattern)
+      if (key === 'ArrowDown' || key === 'ArrowUp' || key === 40 || key === 38) {
+        var items = Array.prototype.slice.call(
+          document.querySelectorAll('.md-board-detail-actions-menu__item')
+        ).filter(function(el) { return el.offsetParent !== null; });
+        if (!items.length) { return; }
+        event.preventDefault();
+        event.stopPropagation();
+        var idx = items.indexOf(document.activeElement);
+        if (key === 'ArrowDown' || key === 40) {
+          items[(idx + 1) % items.length].focus();
+        } else {
+          items[(idx - 1 + items.length) % items.length].focus();
+        }
+      }
+    },
+
+    // Arrow Up/Down for the per-button Edit/Color/Stash/Word Data/Clear dropdown
+    button_dropdown_keydown: function(btn_id, event) {
+      if(!event) { return; }
+      var key = event.key || event.keyCode;
+      var items = Array.prototype.slice.call(
+        document.querySelectorAll('#button-edit-dropdown .md-board-detail-symbol-card__edit-dropdown-item')
+      ).filter(function(el) { return el.offsetParent !== null; });
+      if(!items.length) { return; }
+      var idx = items.indexOf(document.activeElement);
+      var _this = this;
+
+      if(key === 'ArrowDown' || key === 40) {
+        event.preventDefault();
+        event.stopPropagation();
+        items[(idx + 1) % items.length].focus();
+      } else if(key === 'ArrowUp' || key === 38) {
+        event.preventDefault();
+        event.stopPropagation();
+        items[(idx - 1 + items.length) % items.length].focus();
+      } else if(key === 'Escape' || key === 'Esc' || key === 27) {
+        event.preventDefault();
+        event.stopPropagation();
+        // Close and return focus to the trigger that opened this menu
+        var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
+        _this.set('button_menu_id', null);
+        if(trigger) { trigger.focus(); }
+      } else if(key === 'Tab' || key === 9) {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('[DROPDOWN-TAB] Tab pressed, btn_id=', btn_id);
+        // Close dropdown, find the next board button's label input
+        var currentBtnId = btn_id;
+        _this.set('button_menu_id', null);
+        // Get all button IDs from ordered_buttons in grid order
+        var ordered = _this.get('ordered_buttons') || [];
+        var allIds = [];
+        for(var r = 0; r < ordered.length; r++) {
+          var row = ordered[r];
+          for(var c = 0; c < row.length; c++) {
+            var b = row[c];
+            var id = b && (b.get ? b.get('id') : b.id);
+            if(id !== undefined && id !== null) { allIds.push(String(id)); }
+          }
+        }
+        var curIdx = allIds.indexOf(String(currentBtnId));
+        // Find the next non-empty button after current
+        runLater(function() {
+          for(var j = curIdx + 1; j < allIds.length; j++) {
+            var nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
+            if(nextInput) {
+              nextInput.focus();
+              return;
+            }
+          }
+          // Wrap to first if at end
+          for(var k = 0; k < curIdx; k++) {
+            var firstInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
+            if(firstInput) {
+              firstInput.focus();
+              return;
+            }
+          }
+        }, 50);
       }
     },
 
@@ -2367,9 +2491,18 @@ export default Controller.extend(prefClasses, {
         return (obj && obj.get && typeof obj.get === 'function') ? obj.get(key) : (obj && obj[key]);
       };
 
+      // Blank buttons: do nothing, keep focus where it is
+      var isEmpty = _get(button, 'empty') || !(_get(button, 'label') || _get(button, 'image_id') || _get(button, 'vocalization'));
+      if(isEmpty) { return; }
+
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
       if(load_board) {
+        // Board lock: prevent navigation when sticky_board is enabled
+        if(_this.get('stashes').get('sticky_board')) {
+          modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+          return;
+        }
         _this._push_nav_history();
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
@@ -2549,10 +2682,21 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       if(!word) { return; }
       var text = word.word;
-      var parts = (this.get('sentence_parts') || []).slice();
-      parts.push({ id: 'suggestion', label: text, image_url: word.image || word.original_image });
-      this.set('sentence_parts', parts);
+
+      // Add to the global utterance so sentence bar + logging stay in sync
+      utterance.add_button({
+        label: text,
+        vocalization: text,
+        image: word.image || word.original_image,
+        button_id: null,
+        source: 'prediction',
+        board: { id: 'word_prediction', key: 'core/word_prediction' },
+        type: 'speak'
+      });
       speecher.speak_text(text);
+
+      // The updateSuggestions observer will fire when button_list
+      // updates from add_button above, handling the next prediction.
     },
 
     speak_sentence: function() {
@@ -2931,12 +3075,129 @@ export default Controller.extend(prefClasses, {
     // ── Button Operations ──
 
     toggle_button_menu: function(btn) {
+      var _controller = this;
       var btn_id = btn.get ? btn.get('id') : btn.id;
       if(this.get('button_menu_id') === btn_id) {
         this.set('button_menu_id', null);
       } else {
         this.set('button_menu_id', btn_id);
+        // Position the portal dropdown next to the trigger
+        runLater(function() {
+          var trigger = document.querySelector('.md-board-detail-symbol-card[data-id="' + btn_id + '"] .md-board-detail-symbol-card__edit-menu-trigger');
+          var dropdown = document.getElementById('button-edit-dropdown');
+          if(trigger && dropdown) {
+            var rect = trigger.getBoundingClientRect();
+            var dropW = dropdown.offsetWidth;
+            var dropH = dropdown.offsetHeight;
+            var top = rect.top;
+            var left = rect.left - dropW;
+            if(top + dropH > window.innerHeight) { top = window.innerHeight - dropH - 8; }
+            if(top < 8) { top = 8; }
+            if(left < 8) { left = rect.right + 4; }
+            dropdown.style.top = top + 'px';
+            dropdown.style.left = left + 'px';
+            dropdown.style.visibility = 'visible';
+            // Focus the first menu item for keyboard navigation
+            var firstItem = dropdown.querySelector('.md-board-detail-symbol-card__edit-dropdown-item');
+            if(firstItem) { firstItem.focus(); }
+            // Attach native keydown to each menu item button
+            var menuItems = dropdown.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item');
+            menuItems.forEach(function(item) {
+              if(item._keydownBound) { return; }
+              item._keydownBound = true;
+              item.addEventListener('keydown', function(e) {
+                console.log('[DROPDOWN-KEY] native keydown fired, key=', e.key);
+                var dd = document.getElementById('button-edit-dropdown');
+                if(!dd) { return; }
+                var btnId = dd.getAttribute('data-btn-id');
+                var items = Array.prototype.slice.call(
+                  dd.querySelectorAll('.md-board-detail-symbol-card__edit-dropdown-item')
+                );
+                var idx = items.indexOf(document.activeElement);
+                if(e.key === 'ArrowDown' || e.keyCode === 40) {
+                  e.preventDefault(); e.stopPropagation();
+                  items[(idx + 1) % items.length].focus();
+                } else if(e.key === 'ArrowUp' || e.keyCode === 38) {
+                  e.preventDefault(); e.stopPropagation();
+                  items[(idx - 1 + items.length) % items.length].focus();
+                } else if(e.key === 'Escape' || e.keyCode === 27) {
+                  e.preventDefault(); e.stopPropagation();
+                  _controller.set('button_menu_id', null);
+                  var trig = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
+                  if(trig) { trig.focus(); }
+                } else if(e.key === 'Tab' || e.keyCode === 9) {
+                  e.preventDefault(); e.stopPropagation();
+                  if(e.shiftKey) {
+                    // Shift+Tab: move to previous item, or exit on first
+                    if(idx <= 0) {
+                      // On first item — close and return to trigger
+                      _controller.set('button_menu_id', null);
+                      var trig2 = document.querySelector('.md-board-detail-symbol-card[data-id="' + btnId + '"] .md-board-detail-symbol-card__edit-menu-trigger');
+                      if(trig2) { trig2.focus(); }
+                    } else {
+                      items[idx - 1].focus();
+                    }
+                  } else {
+                    // Tab: move to next item, or exit on last
+                    if(idx >= items.length - 1) {
+                      // On last item — close and move to next button
+                      var ordered = _controller.get('ordered_buttons') || [];
+                      var allIds = [];
+                      for(var r = 0; r < ordered.length; r++) {
+                        for(var c = 0; c < ordered[r].length; c++) {
+                          var b = ordered[r][c];
+                          var bid = b && (b.get ? b.get('id') : b.id);
+                          if(bid !== undefined && bid !== null) { allIds.push(String(bid)); }
+                        }
+                      }
+                      var curIdx = allIds.indexOf(String(btnId));
+                      var nextInput = null;
+                      for(var j = curIdx + 1; j < allIds.length && !nextInput; j++) {
+                        nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[j] + '"] .md-board-detail-symbol-card__label-input');
+                      }
+                      if(!nextInput) {
+                        for(var k = 0; k < curIdx && !nextInput; k++) {
+                          nextInput = document.querySelector('.md-board-detail-symbol-card[data-id="' + allIds[k] + '"] .md-board-detail-symbol-card__label-input');
+                        }
+                      }
+                      if(nextInput) { nextInput.focus(); }
+                      _controller.set('button_menu_id', null);
+                    } else {
+                      items[idx + 1].focus();
+                    }
+                  }
+                }
+              });
+            });
+          }
+        }, 50);
       }
+    },
+
+    // Portal dropdown action wrappers — accept a button ID string instead of a button object
+    edit_button_settings_by_id: function(btn_id) {
+      this.set('button_menu_id', null);
+      if(btn_id) { this._open_button_settings(btn_id, 'general'); }
+    },
+    open_color_picker_by_id: function(btn_id) {
+      this.set('button_menu_id', null);
+      var button = editManager.find_button(btn_id);
+      if(button) { this.send('open_color_picker', button); }
+    },
+    stash_button_by_id: function(btn_id) {
+      this.set('button_menu_id', null);
+      var button = editManager.find_button(btn_id);
+      if(button) { this.send('stash_button', button); }
+    },
+    word_data_by_id: function(btn_id) {
+      this.set('button_menu_id', null);
+      var button = editManager.find_button(btn_id);
+      if(button) { this.send('word_data', button); }
+    },
+    clear_button_by_id: function(btn_id) {
+      this.set('button_menu_id', null);
+      var button = editManager.find_button(btn_id);
+      if(button) { this.send('clear_button', button); }
     },
 
     edit_button_settings: function(btn) {

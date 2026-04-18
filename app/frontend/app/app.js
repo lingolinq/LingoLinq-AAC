@@ -23,6 +23,13 @@ window.onerror = function(msg, url, line, col, obj) {
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
 setOnerror(function(err) {
+  // Suppress Ember Data assertion when the server deduplicates an image/sound
+  // and returns an ID that already exists in the store. This is expected behavior
+  // during board saves — the record data is identical, just the ID was already assigned.
+  if(err && err.message && err.message.indexOf('has already been used with another record') !== -1) {
+    console.warn('[Ember Data] Suppressed duplicate record ID assertion:', err.message);
+    return;
+  }
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
