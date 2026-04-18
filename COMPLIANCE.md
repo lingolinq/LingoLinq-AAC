@@ -1,6 +1,6 @@
 # LingoLinq AAC -- Compliance & Data Governance
 
-**Last updated:** 2026-02-21
+**Last updated:** 2026-04-18
 **Owner:** Scott W.
 **Review cycle:** Annual (next review: 2027-02-21)
 
@@ -117,8 +117,8 @@ This table maps every external service to the data it receives, its BAA status, 
 
 | Service              | What Data Does It Receive?                          | BAA Status                  | Action Required                                |
 |----------------------|-----------------------------------------------------|-----------------------------|------------------------------------------------|
-| **Render.com**       | Hosts PostgreSQL and Redis with all user records    | **BAA REQUIRED**            | **Priority #1** -- Execute BAA before first school/hospital deployment |
-| **AWS S3**           | User-uploaded images, symbols, board exports        | **BAA REQUIRED**            | **Priority #2** -- Execute BAA; confirm bucket encryption settings     |
+| **Render.com**       | Hosts PostgreSQL and Redis with all user records    | **BAA DEFERRED (pre-MVP gate)** | Render BAA requires Team plan upgrade. Strategic decision to execute before first institutional contract (paying school/clinic). Pilot-scope DSA engagements proceed without it. |
+| **AWS S3**           | User-uploaded images, symbols, board exports        | **BAA SIGNED (2026-02-07)** | Accepted on AWS account 2390-4478-5114 via AWS Artifact. See `docs/legal/AWS_BAA_ACCEPTED.md` and `docs/legal/AWS_BAA_2026-02.pdf`. HIPAA-eligible services only; bucket encryption enforced. |
 | **Anthropic (Claude)** | Developer queries only; code assistance           | No BAA needed               | Max plan; no user data ever sent; dev use only  |
 | **Google (Gemini)**  | Developer queries only; code assistance             | No BAA needed               | No user data ever sent; dev use only            |
 | **HubSpot**          | Business contacts: admin names, school/hospital emails, deal info | No BAA needed | Business contacts only; never student/patient data |
@@ -231,7 +231,7 @@ These rules are **non-negotiable**. Any violation is treated as a security incid
 |----|-------------------------------------------------------------------|------------------------------------------------------------------|
 | A1 | **ALWAYS** put AI features behind feature flags with org-level opt-out. | Schools/hospitals must control what AI features are active for their users. |
 | A2 | **ALWAYS** log AI API calls via the `AiApiLog` model.             | Full audit trail: timestamp, feature, de-identified payload hash, response status. |
-| A3 | **ALWAYS** execute BAAs with Render and AWS before handling HIPAA data. | These are the two services that store actual user data. **Required ASAP.** |
+| A3 | **ALWAYS** execute BAAs with Render and AWS before handling HIPAA data. | AWS BAA signed 2026-02-07 (see `docs/legal/`). Render BAA deferred as a pre-MVP gate; must be executed before any paying institutional contract. |
 | A4 | **ALWAYS** encrypt user data at rest (AES-256) and in transit (TLS 1.2+). | Baseline security requirement for both FERPA and HIPAA.          |
 | A5 | **ALWAYS** review AI feature data flows before launching a new AI capability. | Every new AI feature must be documented here with its data flow. |
 | A6 | **ALWAYS** use the `pii_scrubber.rb` module for any new AI integration. | No ad-hoc scrubbing; everything goes through the single enforcement point. |
@@ -500,7 +500,7 @@ Perform an immediate review when:
 | Automated security scanning via `security-hotfix` skill (run before deploys) | Done (2026-02-22) |
 | React migration plan in progress — incremental, feature-by-feature | In progress |
 | Build pipeline runs in isolated CI environment, not on user-facing servers | Already in place |
-| Content Security Policy (CSP) headers limit what scripts can execute in browser | Already in place |
+| Content Security Policy (CSP) headers limit what scripts can execute in browser | Planned (not yet deployed; report-only initializer in progress on `feat/csp-headers-report-only`) |
 
 **What would change this assessment:**
 - A CVE is discovered in `ember-source 3.28` or `ember-data 3.28` (the runtime packages) — would trigger an emergency patch or accelerated migration of affected features.
@@ -540,6 +540,7 @@ Full scan report: `audit-reports/security-hotfix-2026-02-22.md`
 
 | Date       | Author   | Change                                              |
 |------------|----------|-----------------------------------------------------|
+| 2026-04-18 | Scott W. | Record AWS BAA signed 2026-02-07; correct CSP status to "planned, not deployed"; add Render BAA pre-MVP gate framing; link `docs/legal/` BAA artifacts |
 | 2026-02-23 | Scott W. | Add accepted risk for Ember 3.28, security hotfix summary, remediation backlog |
 | 2026-02-21 | Scott W. | Initial version: full compliance framework created   |
 
