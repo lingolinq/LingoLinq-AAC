@@ -725,6 +725,13 @@ class SessionController < ApplicationController
   end
 
   def status
+    # Security: only expose internal diagnostics to authenticated API users.
+    # Unauthenticated callers get a minimal response (use /api/v1/health for orchestrators).
+    unless @api_user
+      render json: {active: true}
+      return
+    end
+
     last_id = (Board.last || OpenStruct.new(id: 5)).id
     Board.find_by(id: rand(last_id))
     user_id = (User.last || OpenStruct.new(id: 9)).id
