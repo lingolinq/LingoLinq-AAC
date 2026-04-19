@@ -74,14 +74,14 @@ export default Component.extend({
   symbol_libraries: computed(function() {
     const list = [];
     list.push({ name: i18n.t('dont_set_preferred_symbols', "Don't Set Preferred Symbols"), id: '' });
-    list.push({ name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols' });
+    list.push({ name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' });
     list.push({ name: i18n.t('use_lessonpix_with_addon', "LessonPix symbol library (requires paid add-on)"), id: 'lessonpix' });
     list.push({ name: i18n.t('use_symbolstix_with_addon', "SymbolStix Symbols (requires paid add-on)"), id: 'symbolstix' });
     list.push({ name: i18n.t('use_pcs_with_addon', "PCS Symbols by Tobii Dynavox (requires paid add-on)"), id: 'pcs' });
     list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
     list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
     return list;
   }),
 

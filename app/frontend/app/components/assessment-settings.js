@@ -26,7 +26,6 @@ export default Component.extend({
                     this.get('model') || {};
     this.set('model', options);
     this.set('settings', null);
-    this.set('symbol_options', []);
     this.set('aborting', false);
   },
 
@@ -80,7 +79,9 @@ export default Component.extend({
     return res;
   }),
 
-  symbol_options: computed('symbol_libraries.[]', 'settings.default_library', function() {
+  // Named to avoid computed-property.override when `symbol_options` is set on the instance
+  // (e.g. attrs or legacy patterns); the list is always derived from library + eval words.
+  eval_symbol_options: computed('symbol_libraries.[]', 'settings.default_library', function() {
     const library = this.get('settings.default_library') || 'default';
     const words = evaluation.words || [];
     const res = [
@@ -126,9 +127,9 @@ export default Component.extend({
     return res;
   }),
 
-  current_option: computed('settings.label', 'symbol_options.[]', function() {
+  current_option: computed('settings.label', 'eval_symbol_options.[]', function() {
     const option_id = this.get('settings.label');
-    const options = this.get('symbol_options') || [];
+    const options = this.get('eval_symbol_options') || [];
     let res = options.find(o => o.id === option_id);
     res = res || options[0] || { label: i18n.t('choose_blank', "[Choose]") };
     return res;
@@ -146,8 +147,18 @@ export default Component.extend({
         settings.user_id = this.get('appState.currentUser.id') || settings.initiator_user_id;
         settings.user_name = this.get('appState.currentUser.name') || settings.initiator_user_name;
       }
-      if (settings.user_id && !settings.for_user) {
-        settings.for_user = { user_id: settings.user_id, user_name: settings.user_name };
+      if (!settings.for_user) {
+        if (settings.user_id) {
+          settings.for_user = {
+            user_id: settings.user_id,
+            user_name: settings.user_name || this.get('appState.currentUser.user_name')
+          };
+        } else {
+          settings.for_user = {
+            user_id: 'self',
+            user_name: this.get('appState.currentUser.user_name')
+          };
+        }
       }
       if (settings.for_user && settings.for_user.user_id === this.get('appState.sessionUser.id')) {
         settings.for_user = Object.assign({}, settings.for_user, { user_id: 'self' });

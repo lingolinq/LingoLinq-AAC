@@ -1,0 +1,66 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>
+      {{t "Choose Profile Pic" key="choose_avatar"}}
+    </h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <div class="row">
+      <div class="col-xs-12">
+        {{#if this.model.user.avatar_url}}
+          <img src={{this.model.user.avatar_url}} style="height: 75px; max-width: 100px; float: left; padding-right: 10px;">
+        {{/if}}
+        {{t "Select an image from the list below, or upload your own!" key="select_or_upload"}}<br>
+        {{#if this.loading_avatar}}
+          {{t "Uploading..." key="uploading"}}
+        {{else}}
+          <input type="file" id="avatar_upload" >
+          {{#if this.editable}}
+            <div style='margin-bottom: 10px; margin-top: 5px;'>
+              <a href="#" class='btn btn-default btn-sm' {{action "edit_image_url"}}>{{t "edit image" key="edit_image_lower"}}</a>
+            </div>
+          {{/if}}
+        {{/if}}
+        <div style="clear: left;"></div>
+      </div>
+    </div>
+    {{#if this.editing}}
+      <iframe src="https://www.opensymbols.org/editor#embed" style="width: 100%; height: 225px;" frameborder="0" title="Avatar editor"></iframe>
+    {{else}}
+      <div class="row" style="max-height: 200px; max-height: calc(100vh - 315px); overflow: auto;">
+      {{#each this.avatar_options as |option|}}
+        <div class="col-xs-3 col-sm-2" style="padding: 2px;">
+            <button class={{if option.selected "btn btn-primary" "btn btn-default"}} style="width: 100%;" {{action "pick" option}}>
+              <div style={{option.div_style}}>
+              </div>
+            </button>
+        </div>
+      {{/each}}
+      </div>
+      <div class="row">
+        <div class="col-xs-12" style="padding-top: 5px;">
+          <Input @type="text" class="form-control" @value={{this.model.user.avatar_url}} placeholder="avatar url" />
+        </div>
+      </div>
+    {{/if}}
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{#if this.editing}}
+      <button class='btn btn-primary' {{action "save_edit"}}>
+        {{#if this.saving}}
+          {{t "Saving..." key="saving"}}
+        {{else}}
+          {{t "Save" key="save"}}
+        {{/if}}
+      </button>
+      <button class='btn btn-default' {{action "edit_image_url"}}>{{t "Cancel Changes" key="cancel_changes"}}</button>
+      <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
+    {{else}}
+      <button class='btn btn-primary' {{action "select"}}>{{t "Select Profile Pic" key="select_avatar"}}</button>
+      <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    {{/if}}
+  </div>
+{{/modal-dialog}}

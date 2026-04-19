@@ -1,0 +1,106 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Voice & Output" key="voice_and_output"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#46505f"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#2a9d8f"/>
+          <line x1="12" y1="19" x2="12" y2="23" stroke="#46505f"/>
+          <line x1="8" y1="23" x2="16" y2="23" stroke="#46505f"/>
+        </svg>
+      </div>
+    </div>
+
+    <p class="md-modal-hint">{{t "Adjust the voice your communicator hears. Changes are saved when you click Save." key="voice_output_hint"}}</p>
+
+    {{!-- Voice picker --}}
+    {{#if this.user_voice_list}}
+      <div class="md-modal-field">
+        <label for="vo-voice-uri" class="md-modal-label">{{t "Voice" key="voiceURI"}}</label>
+        <div class="md-voice-output__voice-row">
+          <div class="md-voice-output__voice-select">
+            {{bound-select select_class="md-modal-select" select_id="vo-voice-uri" content=this.user_voice_list selection=this.pending_prefs.voice_uri action=(action "update_voice_uri")}}
+          </div>
+          <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "open_premium_voices"}}>{{t "Premium Voices" key="premium_voices"}}</button>
+        </div>
+      </div>
+    {{/if}}
+
+    {{!-- Voice Rate --}}
+    <div class="md-modal-field">
+      <label for="vo-voice-rate" class="md-modal-label">{{t "Voice Rate" key="voice_rate"}}</label>
+      <div class="md-number-picker">
+        <button type="button" class="md-number-picker__btn" {{action "bump_rate" -0.1}} aria-label={{t "Decrease rate" key="voice_output_decrease_rate"}}>−</button>
+        <Input @value={{this.pending_prefs.rate}} @type="text" class="md-number-picker__input" id="vo-voice-rate" placeholder="1.0" />
+        <button type="button" class="md-number-picker__btn" {{action "bump_rate" 0.1}} aria-label={{t "Increase rate" key="voice_output_increase_rate"}}>+</button>
+      </div>
+    </div>
+
+    {{!-- Voice Pitch --}}
+    <div class="md-modal-field">
+      <label for="vo-voice-pitch" class="md-modal-label">{{t "Voice Pitch" key="voice_pitch"}}</label>
+      <div class="md-number-picker">
+        <button type="button" class="md-number-picker__btn" {{action "bump_pitch" -0.1}} aria-label={{t "Decrease pitch" key="voice_output_decrease_pitch"}}>−</button>
+        <Input @value={{this.pending_prefs.pitch}} @type="text" class="md-number-picker__input" id="vo-voice-pitch" placeholder="1.0" />
+        <button type="button" class="md-number-picker__btn" {{action "bump_pitch" 0.1}} aria-label={{t "Increase pitch" key="voice_output_increase_pitch"}}>+</button>
+      </div>
+    </div>
+
+    {{!-- Voice Volume + Test --}}
+    <div class="md-modal-field">
+      <label for="vo-voice-volume" class="md-modal-label">{{t "Voice Volume" key="voice_volume"}}</label>
+      <div class="md-voice-output__volume-row">
+        <div class="md-number-picker">
+          <button type="button" class="md-number-picker__btn" {{action "bump_volume" -0.1}} aria-label={{t "Decrease volume" key="voice_output_decrease_volume"}}>−</button>
+          <Input @value={{this.pending_prefs.volume}} @type="text" class="md-number-picker__input" id="vo-voice-volume" placeholder="1.0" />
+          <button type="button" class="md-number-picker__btn" {{action "bump_volume" 0.1}} aria-label={{t "Increase volume" key="voice_output_increase_volume"}}>+</button>
+        </div>
+        <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "test_voice"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: middle; margin-right: 6px;">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          {{t "Test Voice" key="test_voice"}}
+        </button>
+      </div>
+      <p class="md-modal-hint" style="margin-top: 6px; font-style: italic;">{{t "Some voices may not support changing pitch or volume" key="voice_pitch_volume_note"}}</p>
+    </div>
+
+    {{!-- Audio output target (mobile only) --}}
+    {{#if this.audio_target_available}}
+      <div class="md-modal-field">
+        <label for="vo-audio-target" class="md-modal-label">{{t "Audio Output" key="audio_output"}}</label>
+        {{bound-select select_class="md-modal-select" select_id="vo-audio-target" content=this.audio_output_list selection=this.pending_prefs.target action=(action "update_target")}}
+      </div>
+    {{/if}}
+
+    {{!-- More options link --}}
+    <div class="md-modal-field" style="text-align: center; margin-top: 18px;">
+      <button type="button" class="md-link-btn md-modal-link" {{action "open_full_preferences"}}>
+        {{t "More voice and output options" key="voice_output_more_options"}}
+      </button>
+    </div>
+
+    {{!-- Status messages --}}
+    <div aria-live="polite" aria-atomic="true">
+      {{#if this.status.saving}}
+        <p class="md-modal-status md-modal-status--info">{{t "Saving..." key="saving_lower"}}</p>
+      {{else if this.status.saved}}
+        <p class="md-modal-status md-modal-status--success">{{t "Saved!" key="saved_exclamation"}}</p>
+      {{else if this.status.error}}
+        <p class="md-modal-status md-modal-status--error" role="alert">{{t "There was an error saving your voice settings." key="voice_output_save_error"}}</p>
+      {{/if}}
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "save"}} disabled={{this.status.saving}}>
+      {{t "Save" key="save"}}
+    </button>
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+  </div>
+{{/modal-dialog}}

@@ -22,6 +22,7 @@ export default Controller.extend({
     if(!lookup_id || !lookup_id.match(/\d+_\d+/)) { return; }
     if(lookup_id && _this.get('model.parent_org.id') != lookup_id) {
       _this.set('model.parent_org', {
+        id: lookup_id,
         name: i18n.t('loading', "Loading..."),
         pending: true
       });
@@ -36,6 +37,7 @@ export default Controller.extend({
       }, function() {
         if(lookup_id == _this.get('model.parent_org_id')) {
           _this.set('model.parent_org', {
+            id: lookup_id,
             error: true,
             pending: true,
             name: i18n.t('error_loading_org', "Error Loading Organization")
@@ -63,8 +65,8 @@ export default Controller.extend({
   }),
   symbols_list: computed(function() {
     var list = [
-      {name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'},
-      {name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'},
+      {name: i18n.t('original_symbols', "Default symbols"), id: 'original'},
+      {name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'},
 
       {name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'},
       {name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix'},
@@ -73,7 +75,7 @@ export default Controller.extend({
       {name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'},
       {name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'},
       {name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'},
-      {name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'},
+      {name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'},
     ];
     return list;
   }),
@@ -108,8 +110,9 @@ export default Controller.extend({
         _this.set('model.saml_metadata_url', null);
         _this.set('model.saml_sso_url', null);
       }
-      if(_this.get('home_board_key_lines.length') > 0) {
-        _this.set('model.home_board_keys', _this.get('home_board_key_lines').split(/\n/));
+      var home_board_key_lines = _this.get('home_board_key_lines');
+      if(home_board_key_lines && home_board_key_lines.replace(/\s/g, '').length > 0) {
+        _this.set('model.home_board_keys', home_board_key_lines.split(/\n/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; }));
       }
       _this.set('model.support_target', null);
       if(_this.get('allow_support_target') && _this.get('support_email')) {

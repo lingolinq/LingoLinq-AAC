@@ -19,6 +19,21 @@ import editManager from '../../utils/edit_manager';
 
 export default Controller.extend({
   router: service('router'),
+  notification_frequency_options: [
+    {name: i18n.t('no_notifications', "Don't Email Me Communicator Reports"), id: ''},
+    {name: i18n.t('weekly_notifications', "Email Me Weekly Communicator Reports"), id: '1_week'},
+    {name: i18n.t('bi_weekly_reports', "Email Me Communicator Reports Every Two Weeks"), id: '2_weeks'},
+    {name: i18n.t('monthly_reports', "Email Me Monthly Communicator Reports"), id: '1_month'}
+  ],
+  goal_notification_options: [
+    {name: i18n.t('email_goal_completion', "Email Me When Goals are Completed or Badges are Earned"), id: 'enabled'},
+    {name: i18n.t('dont_email_goal_completion', "Don't Email Me When Goals are Completed or Badges are Earned"), id: 'disabled'}
+  ],
+  allow_shares_options: [
+    {name: i18n.t('email_shares', "Email"), id: 'email'},
+    {name: i18n.t('text_shares', "Text Message"), id: 'text'},
+    {name: i18n.t('app_shares', "In-App Notification"), id: 'app'}
+  ],
   setup: function() {
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
@@ -32,6 +47,19 @@ export default Controller.extend({
         _this.set('weblinger_enabled', true);
       }
     }, 1000);
+
+    // If arriving from the Voice & Output modal's "More options" link,
+    // auto-expand the Voice Settings section and scroll to it.
+    if(app_state.get('open_voice_settings')) {
+      app_state.set('open_voice_settings', false);
+      this.set('auto_open_voice', true);
+      runLater(function() {
+        var el = document.getElementById('voice-settings-box');
+        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }, 300);
+    } else {
+      this.set('auto_open_voice', false);
+    }
   },
   speecher: speecher,
   buttonSpacingList: [
@@ -234,17 +262,17 @@ export default Controller.extend({
   ],
   symbolsList: computed(function() {
     var list = [
-      {name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'},
-      {name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'},
+      {name: i18n.t('original_symbols', "Default symbols"), id: 'original'},
+      {name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'},
 
       {name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'},
       {name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix'},
       {name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs'},
 
       {name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'},
-      {name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'},
+      {name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project'},
       {name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'},
-      {name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'},
+      {name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'},
     ];
     return list;
   }),
@@ -385,10 +413,12 @@ export default Controller.extend({
     return capabilities.system == 'iOS' && capabilities.installed_app;
   }),
   raw_core_word_list: computed('core_lists.for_user', function() {
+    var list = this.get('core_lists.for_user') || [];
     var div = document.createElement('div');
-    (this.get('core_lists.for_user') || []).each(function(w) {
+    var arr = list.toArray ? list.toArray() : (Array.isArray(list) ? list : []);
+    arr.forEach(function(w) {
       var span = document.createElement('span');
-      span.innerText = w;
+      span.innerText = w + ' ';
       div.appendChild(span);
     });
     return htmlSafe(div.innerHTML);
@@ -876,8 +906,14 @@ export default Controller.extend({
             }
           }
         } else if(['string', 'boolean', 'number'].indexOf(typeof(pending[key])) != -1) {
-          if(pending[key] != orig[key]) {
-            user.set('preferences.' + key, pending[key]);
+          var val = pending[key];
+          var origVal = orig[key];
+          if(key === 'cookies') {
+            val = val === true || val === 'true';
+            origVal = origVal === true || origVal === 'true';
+          }
+          if(val != origVal) {
+            user.set('preferences.' + key, val);
           }
         } else {
           user.set('preferences.' + key, pending[key]);

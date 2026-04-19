@@ -1,11 +1,13 @@
 {{#modal-dialog desired_width=850 action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header" style='padding: 10px 20px 0;'>
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header" style='padding: 10px 20px 0;'>
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <button class='btn btn-default btn-lg' {{action "oops"}} style='float: right; margin-right: 10px; border-width: 2px; border-color: rgb(124, 72, 72); margin-top: -10px;'><span class='glyphicon glyphicon-exclamation-sign'></span> {{t "Oops" key="oops"}}</button>
     <h3>{{t "Modify and Repair Message" key="modify_and_repair_message"}}
     </h3>
   </div>
-  <div class="modal-body" style='padding-top: 5px; padding-bottom: 5px;'>
+  <div class="modal-body md-modal-body" style='padding-top: 5px; padding-bottom: 5px;'>
     {{#if this.buttons}}
       <div class='cursor_holder'>
         <div class='cursor_navigation repair_buttons'>
@@ -131,7 +133,7 @@
       </div>
     </div>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     {{#if this.model.speak_on_done}}
       <button class='btn btn-primary btn-lg' {{action "done" true}}>
         {{t "Speak and Update" key="speak_and_update"}}

@@ -1,10 +1,12 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Program NFC Tag" key="program_nfc_tag"}}
     </h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     <span class='glyphicon glyphicon-tag' style='font-size: 50px; padding-right: 10px; float: left;'></span>
     <p>
       {{t "Using NFC tags, you can connect %app_name% buttons and phrases to real-world items by attaching an NFC tag to them!" key="nfc_explainer"}}
@@ -62,18 +64,18 @@
       {{#if this.can_write}}
         {{#unless this.update_tag_id}}
           <label>
-            <Input type="checkbox" @checked={{this.write_tag}} />
+            <Input @type="checkbox" @checked={{this.write_tag}} />
             {{t "Write data to the NFC tag if possible" key="write_data_to_nfc_tag"}}
           </label>
         {{/unless}}
       {{/if}}
       <label>
-        <Input type="checkbox" @checked={{this.public}} />
+        <Input @type="checkbox" @checked={{this.public}} />
         {{t "Let others see this data when they tap the tag to their devices" key="share_tag_with_others"}}
       </label>
     {{/unless}}
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     {{#if this.update_tag_id}}
       <button class='btn btn-primary' {{action "save"}}>{{t "Update Tag" key="update_tag"}}</button>
     {{else}}

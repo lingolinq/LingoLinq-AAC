@@ -1,25 +1,31 @@
 module ExternalTracker
+  # HubSpot consent gate per FERPA/COPPA/GDPR:
+  # 1. Only supporter accounts (non-communicators/students/patients), as defined by supporter_registration? (e.g., therapists, teachers, parents, evals, org-added supervisors) (FERPA/COPPA)
+  # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
+  # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
-    if user && user.external_email_allowed?
-      Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
-    end
+    return unless user && user.external_email_allowed? && user.supporter_registration?
+    return if user.cookies_opted_out?
+    Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
   end
-  
+
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
-    return false unless user && user.external_email_allowed?
-    return false unless ENV['HUBSPOT_TOKEN']
+    return false unless user && user.external_email_allowed? && user.supporter_registration?
+    return false if user.cookies_opted_out?
+    return false unless ENV['HUBSPOT_ACCESS_TOKEN']
     return false unless user.settings && user.settings['email']
 
     d = user.devices[0]
     ip = d && d.settings['ip_address']
     location = nil
-    if ip && ENV['IPSTACK_KEY']
-      url = "http://api.ipstack.com/#{ip}?access_key=#{ENV['IPSTACK_KEY']}"
+    if ip && ENV['IPLOCATE_API_KEY']
+      url = "https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}"
       begin
         res = Typhoeus.get(url, timeout: 5)
         location = JSON.parse(res.body)
       rescue => e
+        Rails.logger.warn("ExternalTracker: iplocate lookup failed for user #{user.global_id}: #{e.class}: #{e.message}")
       end
     end
     email = user.settings['email']
@@ -27,7 +33,7 @@ module ExternalTracker
     state = nil
     if location && (location['country_code'] == 'USA' || location['country_code'] == 'US')
       city = location['city']
-      state = location['region_name']
+      state = location['subdivision']
     end
 
 
@@ -76,13 +82,18 @@ module ExternalTracker
     end
   
     url = "https://api.hubapi.com/contacts/v1/contact/"
-    res = Typhoeus.post(url, {body: json.to_json, headers: {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{ENV['HUBSPOT_TOKEN']}"
-      }})
-    # if res.code > 299
-    #   puts res.body
-    # end
+    begin
+      res = Typhoeus.post(url, {body: json.to_json, headers: {
+        'Content-Type' => 'application/json',
+        'Authorization' => "Bearer #{ENV['HUBSPOT_ACCESS_TOKEN']}"
+        }})
+    rescue => e
+      Rails.logger.error("ExternalTracker: HubSpot POST raised for user #{user.global_id}: #{e.class}: #{e.message}")
+      return nil
+    end
+    if res.code.to_i >= 300
+      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code} body=#{res.body.to_s[0, 500]}")
+    end
     res.code
   end
 end

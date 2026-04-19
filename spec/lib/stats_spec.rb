@@ -51,6 +51,7 @@ describe Stats do
         :start_at => start_at.iso8601,
         :end_at => ((end_at.to_date + 1).to_time + offset - 1).utc.iso8601,
         :depth_counts => {},
+        :word_pairs => {},
         :word_travels => {},
         :started_at => nil,
         :ended_at => nil,
@@ -461,15 +462,15 @@ describe Stats do
       expect(ips[0][:ip_address]).to eq("0000:0000:0000:0000:0000:ffff:0102:0304")
       expect(ips[0][:readable_ip_address]).to eq("1.2.3.4")
       expect(ips[0][:total_sessions]).to eq(4)
-      expect(geos[0][:started_at]).to eq(s1.started_at.iso8601)
-      expect(geos[0][:ended_at]).to eq(s4.ended_at.iso8601)
+      expect(ips[0][:started_at]).to eq(s1.started_at.iso8601)
+      expect(ips[0][:ended_at]).to eq(s4.ended_at.iso8601)
 
       expect(ips[1][:type]).to eq('ip_address')
       expect(ips[1][:ip_address]).to eq("0000:0000:0000:0000:0000:ffff:0102:0306")
       expect(ips[1][:readable_ip_address]).to eq("1.2.3.6")
       expect(ips[1][:total_sessions]).to eq(4)
-      expect(geos[0][:started_at]).to be > ((s5.started_at - 5).iso8601)
-      expect(geos[0][:ended_at]).to eq(s8.ended_at.iso8601)
+      expect(ips[1][:started_at]).to be > ((s5.started_at - 5).iso8601)
+      expect(ips[1][:ended_at]).to eq(s8.ended_at.iso8601)
     end
     
     it "should support the mechanism provided somewhere else to allow for temporarily disabling tracking for training and modelling"

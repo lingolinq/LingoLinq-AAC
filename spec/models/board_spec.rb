@@ -972,6 +972,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -997,6 +999,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -1023,6 +1027,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       b.save
@@ -1050,6 +1056,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'pcs'}, url: 'http://www.example.com')
       bi2 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'abs'}, url: 'http://www.example.com')
@@ -1087,6 +1095,8 @@ describe Board, :type => :model do
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u2.global_id})
       u.reload
       u2.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
 
       b = Board.create(user: u)
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -4656,6 +4666,8 @@ describe Board, :type => :model do
 
     it "should use existing image if they haven't been deleted" do
       u = User.create
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {}, url: 'http://www.example.com/pic1.png')
       b.settings['buttons'] = [
@@ -4676,6 +4688,8 @@ describe Board, :type => :model do
 
     it "should restore images if they have been deleted" do
       u = User.create
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {}, url: 'http://www.example.com/pic1.png')
       b.settings['buttons'] = [

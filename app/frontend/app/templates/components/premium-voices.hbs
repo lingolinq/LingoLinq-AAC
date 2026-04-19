@@ -1,86 +1,97 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Premium Voices" key="premium_voices"}}</h3>
+  <div class="modal-header md-modal-header md-modal-header--premium-voices">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Premium Voices" key="premium_voices"}}</h3>
   </div>
-  <div class="modal-body">
-    <div class="row">
-      <div class="col-sm-12">
-        <p>{{t "%app_name% offers a set of additional voices for paid users on Android and iOS. Listen to the voice samples to find the voice that will work best for you." key="premium_voices_select"}}
-          {{#if this.premium_available}}
-            {{t "You can activate up to %{available} premium voices for use on your devices." available=this.model.user.premium_voices.allowed key="premium_voices_select_2"}}
-          {{/if}}
-        </p>
-
-        {{#unless this.premium_available}}
-          {{#if this.appState.currentUser.currently_premium}}
-            <p class="text-info">{{t "Premium voices are only available on the iOS, Android and Amazon apps. Please install from the app store and try again." key="premium_only_available_mobile"}}</p>
-          {{else}}
-            <p class="text-info">{{t "Premium voices are available to paid users. If you would like to install a premium voice during your free trial, please reach out to us and let us know." key="premium_only_available_paid"}}</p>
-          {{/if}}
-        {{else if this.voice_error}}
-          <p class='text-danger'>{{this.voice_error}}</p>
-        {{/unless}}
-        <table class="table table-hover">
-          <thead>
-            <tr>
-              <th>{{t "Voice" key="voice"}}</th>
-              <th>{{t "Details" key="gender"}}</th>
-              <th colspan="2">{{t "Preview" key="preview"}}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each this.voices as |voice|}}
-              <tr class={{if voice.active "voice_pad" "voice_pad text-muted"}}>
-                <td>
-                  {{#if voice.claimed}}
-                    <span class="glyphicon glyphicon-asterisk"></span>&nbsp;
-                  {{/if}}
-                  {{ voice.name }} -
-                  {{locale voice.locale}}
-                </td>
-                <td>
-                  {{#if voice.adult}}
-                    {{t "Adult" key="adult"}}
-                  {{else if voice.teen}}
-                    {{t "Teen" key="teen"}}
-                  {{else if voice.child}}
-                    {{t "Child" key="child"}}
-                  {{/if}}
-                  {{#if voice.male}}
-                    {{t "Male" key="male"}}
-                  {{else if voice.female}}
-                    {{t "Female" key="female"}}
-                  {{/if}}
-                </td>
-                <td>
-                  {{#if voice.voice_sample}}
-                    <a href="#" {{action "play_voice" voice}}><span class="glyphicon glyphicon-play"></span></a>
-                  {{else}}
-                    {{t "None" key="none_upper"}}
-                  {{/if}}
-                </td>
-                <td style="min-width: 80px; text-align: right;">
-                  {{#if voice.active}}
-                    <a href="#" {{action "delete_voice" voice}}><span class="glyphicon glyphicon-trash"></span></a>
-                  {{else if voice.downloading}}
-                    {{t "%{percent}%" percent=voice.download_progress}}
-                    <span class="glyphicon glyphicon-refresh spinning"></span>
-                  {{else}}
-                    {{#if this.premium_available}}
-                      <a href="#" {{action "download_voice" voice}}>{{#if voice.size}}{{t "%{size}Mb" size=voice.size key="megabytes"}} {{/if}}<span class="glyphicon glyphicon-save"></span></a>
-                    {{else}}
-                      {{#if voice.size}}
-                        {{t "%{size}Mb" size=voice.size key="megabytes"}}
-                      {{/if}}
-                    {{/if}}
-                  {{/if}}
-                </td>
-              </tr>
-            {{/each}}
-          </tbody>
-        </table>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#46505f"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#2a9d8f"/>
+          <line x1="12" y1="19" x2="12" y2="23" stroke="#46505f"/>
+          <line x1="8" y1="23" x2="16" y2="23" stroke="#46505f"/>
+        </svg>
       </div>
     </div>
+
+    <p class="md-modal-hint">{{t "%app_name% offers a set of additional voices for paid users on Android and iOS. Listen to the voice samples to find the voice that will work best for you." key="premium_voices_select"}}
+      {{#if this.premium_available}}
+        {{t "You can activate up to %{available} premium voices for use on your devices." available=this.model.user.premium_voices.allowed key="premium_voices_select_2"}}
+      {{/if}}
+    </p>
+
+    {{#unless this.premium_available}}
+      {{#if this.appState.currentUser.currently_premium}}
+        <p class="md-modal-status md-modal-status--warning">{{t "Premium voices are only available on the iOS, Android and Amazon apps. Please install from the app store and try again." key="premium_only_available_mobile"}}</p>
+      {{else}}
+        <p class="md-modal-status md-modal-status--warning">{{t "Premium voices are available to paid users. If you would like to install a premium voice during your free trial, please reach out to us and let us know." key="premium_only_available_paid"}}</p>
+      {{/if}}
+    {{else if this.voice_error}}
+      <p class="md-modal-status md-modal-status--error">{{this.voice_error}}</p>
+    {{/unless}}
+
+    <div class="md-modal-voice-list">
+      {{#each this.voices as |voice|}}
+        <div class="md-modal-voice {{unless voice.active 'md-modal-voice--inactive'}}">
+          <div class="md-modal-voice__info">
+            <div class="md-modal-voice__name">
+              {{#if voice.claimed}}
+                <span class="md-modal-voice__claimed" title={{t "Claimed" key="claimed"}} aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+              {{/if}}
+              {{voice.name}}
+              <span class="md-modal-voice__locale">{{locale voice.locale}}</span>
+            </div>
+            <div class="md-modal-voice__meta">
+              {{#if voice.adult}}
+                {{t "Adult" key="adult"}}
+              {{else if voice.teen}}
+                {{t "Teen" key="teen"}}
+              {{else if voice.child}}
+                {{t "Child" key="child"}}
+              {{/if}}
+              {{#if voice.male}}
+                · {{t "Male" key="male"}}
+              {{else if voice.female}}
+                · {{t "Female" key="female"}}
+              {{/if}}
+              {{#if voice.size}}
+                · {{t "%{size}Mb" size=voice.size key="megabytes"}}
+              {{/if}}
+            </div>
+          </div>
+          <div class="md-modal-voice__actions">
+            {{#if voice.voice_sample}}
+              <button type="button" class="md-modal-voice__btn md-modal-voice__btn--play" {{action "play_voice" voice}} title={{t "Preview" key="preview"}} aria-label={{t "Preview" key="preview"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </button>
+            {{else}}
+              <span class="md-modal-voice__none">{{t "None" key="none_upper"}}</span>
+            {{/if}}
+            {{#if voice.active}}
+              <button type="button" class="md-modal-voice__btn md-modal-voice__btn--remove" {{action "delete_voice" voice}} title={{t "Remove" key="remove"}} aria-label={{t "Remove" key="remove"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            {{else if voice.downloading}}
+              <span class="md-modal-voice__progress">
+                {{t "%{percent}%" percent=voice.download_progress}}
+                <svg class="md-modal-voice__spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              </span>
+            {{else if this.premium_available}}
+              <button type="button" class="md-modal-voice__btn md-modal-voice__btn--download" {{action "download_voice" voice}} title={{t "Download" key="download"}} aria-label={{t "Download" key="download"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+            {{/if}}
+          </div>
+        </div>
+      {{/each}}
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

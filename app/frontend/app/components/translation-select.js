@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { later as runLater } from '@ember/runloop';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
@@ -48,6 +49,10 @@ export default Component.extend({
     return res;
   }),
 
+  not_ready: computed('translate_locale', function() {
+    return !this.get('translate_locale');
+  }),
+
   existing_default_language: computed('default_language', 'translate_locale', 'model.board.locales', function() {
     const loc = this.get('translate_locale');
     const list = this.get('model.board.locales') || [];
@@ -66,10 +71,18 @@ export default Component.extend({
     });
   },
 
+  _return_to_details: function() {
+    var board = this.get('model.board');
+    if(board) {
+      runLater(function() { modal.open('board-details', { board: board }); }, 200);
+    }
+  },
+
   actions: {
     nothing() {},
     close() {
       this.get('modal').close();
+      this._return_to_details();
     },
     opening() {},
     closing() {},
@@ -101,6 +114,7 @@ export default Component.extend({
             _this.set('switch_status', null);
             _this.done_translating(true);
             modal.close({ translated: true });
+            _this._return_to_details();
           }
         });
       }, function() {

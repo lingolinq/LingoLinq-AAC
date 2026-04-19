@@ -6,6 +6,8 @@
     {{about-lingolinq}}
   {{else if (is-equal this.currentTemplate "support")}}
     {{support}}
+  {{else if (is-equal this.currentTemplate "limit-skin-tones")}}
+    {{limit-skin-tones}}
   {{else if (is-equal this.currentTemplate "intro")}}
     {{intro}}
   {{else if (is-equal this.currentTemplate "terms-agree")}}
@@ -38,6 +40,10 @@
     {{badge-awarded}}
   {{else if (is-equal this.currentTemplate "getting-started")}}
     {{getting-started}}
+  {{else if (is-equal this.currentTemplate "cloud-extras")}}
+    {{cloud-extras}}
+  {{else if (is-equal this.currentTemplate "fs-features-modal")}}
+    {{fs-features-modal}}
   {{else if (is-equal this.currentTemplate "add-to-sidebar")}}
     {{add-to-sidebar}}
   {{else if (is-equal this.currentTemplate "add-tool")}}
@@ -58,6 +64,8 @@
     {{switch-communicators}}
   {{else if (is-equal this.currentTemplate "record-note")}}
     {{record-note}}
+  {{else if (is-equal this.currentTemplate "dashboard-supervisors-modal")}}
+    {{dashboard-supervisors-modal}}
   {{else if (is-equal this.currentTemplate "sync-details")}}
     {{sync-details}}
   {{else if (is-equal this.currentTemplate "confirm-notify-user")}}
@@ -124,6 +132,10 @@
     {{sidebar-button-settings}}
   {{else if (is-equal this.currentTemplate "premium-voices")}}
     {{premium-voices}}
+  {{else if (is-equal this.currentTemplate "voice-output")}}
+    {{voice-output}}
+  {{else if (is-equal this.currentTemplate "pick-avatar")}}
+    {{pick-avatar}}
   {{else if (is-equal this.currentTemplate "modify-core-words")}}
     {{modify-core-words}}
   {{else if (is-equal this.currentTemplate "button-set")}}
@@ -142,6 +154,10 @@
     {{generate-board}}
   {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
     {{confirm-delete-board}}
+  {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
+    {{confirm-discard-changes}}
+  {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
+    {{confirm-recolor-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}
     {{speak-menu}}
   {{else if (is-equal this.currentTemplate "modals/board-intro")}}
@@ -160,6 +176,8 @@
     {{gif}}
   {{else if (is-equal this.currentTemplate "modals/choose-locale")}}
     {{choose-locale}}
+  {{else if (is-equal this.currentTemplate "new-board-folder")}}
+    {{new-board-folder}}
   {{else if (is-equal this.currentTemplate "modals/tag-board")}}
     {{tag-board}}
   {{else if (is-equal this.currentTemplate "modals/assign-lesson")}}
@@ -202,6 +220,8 @@
     {{manual-log}}
   {{else if (is-equal this.currentTemplate "modals/importing-logs")}}
     {{importing-logs}}
+  {{else if (is-equal this.currentTemplate "request-supervision")}}
+    {{request-supervision}}
   {{else if (is-equal this.currentTemplate "modals/request-supervisee")}}
     {{request-supervisee}}
   {{else if (is-equal this.currentTemplate "modals/user-status")}}
@@ -220,6 +240,8 @@
     {{push-to-cloud}}
   {{else if (is-equal this.currentTemplate "edit-unit")}}
     {{edit-unit}}
+  {{else if (is-equal this.currentTemplate "save-snapshot")}}
+    {{save-snapshot}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

@@ -1,9 +1,11 @@
 {{#modal-dialog action=(action "close") opening=(action "opening")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Import Board from HTML" key="import_board_from_html"}}</h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     <p>{{t "Paste HTML from a LingoLinq board (speak or edit view) to create a copy. Right-click on the board area, then 'Inspect' or 'Inspect Element', and copy the outer container HTML." key="import_html_instructions"}}</p>
     <div class="form-group">
       <label for="import_html_name">{{t "Board name (optional)" key="board_name_optional"}}</label>
@@ -17,7 +19,7 @@
       <div class="alert alert-danger">{{this.status.error}}</div>
     {{/if}}
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     <button {{action "importFromHtml"}} class="btn btn-primary" disabled={{this.status.saving}}>
       {{#if this.status.saving}}
         {{t "Importing..." key="importing"}}

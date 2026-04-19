@@ -1,35 +1,56 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      <span class="glyphicon glyphicon-phone"></span>
-      {{t "Add the %app_name% App" key="add_the_cough_drop_app"}}
-    </h3>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Add the %app_name% App" key="add_the_cough_drop_app"}}</h3>
   </div>
-  <div class="modal-body">
-    {{t "%app_name% works in web browsers on your computer or mobile device, but you can also find it in the app stores listed below. If you're having trouble finding or installing the app, please contact our support team and we can help figure it out." key="app_stores_option"}}
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="2" width="14" height="20" rx="2.5" ry="2.5" stroke="#46505f"/>
+          <line x1="12" y1="18" x2="12" y2="18" stroke="#2a9d8f" stroke-width="2.5"/>
+          <line x1="9" y1="6" x2="15" y2="6" stroke="#2a9d8f"/>
+        </svg>
+      </div>
+    </div>
 
-    <div style='text-align: center; margin: 50px 0;'>
+    <p class="md-modal-hint">{{t "%app_name% works in web browsers on your computer or mobile device, but you can also find it in the app stores listed below. If you're having trouble finding or installing the app, please contact our support team and we can help figure it out." key="app_stores_option"}}</p>
+
+    <div class="md-modal-app-stores">
       {{#if this.appState.domain_settings.ios_store_url}}
-        <a href={{this.appState.domain_settings.ios_store_url}}>
-          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 50px; margin-top: 5px;">
+        <a href={{this.appState.domain_settings.ios_store_url}} class="md-modal-app-store">
+          <img src={{path "images/ios_app_store.svg"}} alt="iOS App Store">
         </a>
       {{/if}}
       {{#if this.appState.domain_settings.play_store_url}}
-        <a href={{this.appState.domain_settings.play_store_url}}>
-          <img src={{path "images/google_play.png"}} alt="google play" style="height: 50px; margin-top: 5px;">
+        <a href={{this.appState.domain_settings.play_store_url}} class="md-modal-app-store">
+          <img src={{path "images/google_play.png"}} alt="Google Play">
         </a>
       {{/if}}
       {{#if this.appState.domain_settings.kindle_store_url}}
-        <a href={{this.appState.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
-          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 50px; margin-top: 5px;">
+        <a href={{this.appState.domain_settings.kindle_store_url}} target="_blank" rel="noopener" class="md-modal-app-store">
+          <img src={{path "images/amazon.png"}} alt="Amazon">
         </a>
       {{/if}}
-      <LinkTo @route="download">
-        <img src={{path "images/windows.svg"}} alt="windows" style="height: 50px; margin-top: 5px;">
+      <LinkTo @route="download" class="md-modal-app-store">
+        <img src={{path "images/windows.svg"}} alt="Windows">
       </LinkTo>
     </div>
 
-    {{t "You can also install the web version on mobile devices by hitting share or settings and selecting \"Add to Home Screen\"." key="add_to_home_screen"}}
+    <div class="md-modal-callout">
+      <div class="md-modal-callout__icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="#46505f"/>
+          <polyline points="16 6 12 2 8 6" stroke="#2a9d8f"/>
+          <line x1="12" y1="2" x2="12" y2="15" stroke="#2a9d8f"/>
+        </svg>
+      </div>
+      <p class="md-modal-callout__text">{{t "You can also install the web version on mobile devices by hitting share or settings and selecting \"Add to Home Screen\"." key="add_to_home_screen"}}</p>
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

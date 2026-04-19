@@ -2,6 +2,16 @@ module Worker
   @queue = :default
   extend BoyBand::WorkerMethods
 
+  # Clears request-scoped Thread.current caches after each background job
+  # so cached data doesn't persist across jobs in the same worker process.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def self.perform(*args)
+    super
+  ensure
+    Thread.current[:board_content_cache] = nil
+    Thread.current[:word_inflection_cache] = nil
+  end
+
   def self.method_stats(queue='default')
     list = Worker.scheduled_actions(queue); list.length
     methods = {}
@@ -37,7 +47,11 @@ module Worker
   def self.user_board_counts(queue, method_name, cutoff=25)
     hash = record_ids(queue, method_name)
     puts "found #{(hash['Board'] || []).length}"
-    Board.where(id: hash['Board']).having("COUNT(user_id) > ?", cutoff).group('user_id').count('user_id')
+    user_id_attr = Board.arel_table[:user_id]
+    Board.where(id: hash['Board'])
+         .group(:user_id)
+         .having(user_id_attr.count.gt(cutoff))
+         .count(:user_id)
   end
 
   def self.process_queues

@@ -49,6 +49,47 @@ describe Api::MessagesController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['received']).to eq(true)
     end
+
+    it "should persist beta feedback without scheduling email" do
+      orig = ENV['ALLOW_UNAUTHENTICATED_TICKETS']
+      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = 'true'
+      expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
+      post :create, params: {:message => {
+        'recipient' => 'beta_feedback',
+        'email' => 'beta@example.com',
+        'subject' => 'Something broke in Speak mode',
+        'feedback_type' => 'speak_mode',
+        'severity' => 'major',
+        'general_feedback' => 'Enough detail for the beta form to validate.',
+        'beta_feedback_hp' => ''
+      }}
+      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = orig
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['received']).to eq(true)
+    end
+
+    it "should not persist beta feedback when honeypot is filled" do
+      orig = ENV['ALLOW_UNAUTHENTICATED_TICKETS']
+      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = 'true'
+      expect(AdminMailer).not_to receive(:schedule_delivery)
+      expect {
+        post :create, params: {:message => {
+          'recipient' => 'beta_feedback',
+          'email' => 'spam@example.com',
+          'beta_feedback_hp' => 'http://spam.example',
+          'subject' => 'Spam subject',
+          'feedback_type' => 'crash',
+          'severity' => 'major',
+          'general_feedback' => 'Enough detail for the beta form to validate.'
+        }}
+      }.not_to change(ContactMessage, :count)
+      ENV['ALLOW_UNAUTHENTICATED_TICKETS'] = orig
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['received']).to eq(true)
+      expect(json['id']).to eq(nil)
+    end
     
     it "should not schedule a message delivery for a remote message" do
       orig_zendesk = ENV['ZENDESK_DOMAIN']

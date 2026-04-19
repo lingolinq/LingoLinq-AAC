@@ -1,15 +1,16 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 import Utils from '../../utils/misc';
-import lessons from '../../routes/organization/lessons';
 import { htmlSafe } from '@ember/template';
 import app_state from '../../utils/app_state';
 import capabilities from '../../utils/capabilities';
 
 export default Controller.extend({
+  store: service(),
   load_lessons: function() {
     var _this = this;
     _this.set('lessons', {loading: true});

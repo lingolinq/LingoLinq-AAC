@@ -55,16 +55,29 @@
 
  
   <%= stylesheet_link_tag "application", media: "all" %>
-  <link href="<%= @domain_overrides.to_json %>" />
+  <%# window.domain_settings must be defined in <head> so it runs before application.js (deferred or dynamically inserted in boards/index). %>
+  <% if @domain_overrides && @domain_overrides['settings'] %>
+    <script type="text/javascript">
+      window.domain_settings = <%= (@domain_overrides['settings'] || {}).to_json.html_safe %>;
+      window.domain_settings['domain'] = "<%= j((@domain_overrides['domain'].presence || @domain_overrides['host']).to_s) %>";
+    </script>
+  <% end %>
   <% if @domain_overrides && @domain_overrides['css'] %>
     <%= stylesheet_link_tag @domain_overrides['css'] %>
   <% end %>
+  <!-- Tab icon - app logo (?v=5 forces cache refresh when changing favicon) -->
+  <link rel="icon" href="/images/LL_Logo_Light_Muted_favicon.png?v=6" type="image/png" />
   <!-- rumor has it android needs absolute paths for these to work -->
-  <link href="https://www.mylingolinq.com/icons/logo-60.png" rel="apple-touch-icon" />
-  <link href="https://www.mylingolinq.com/icons/logo-76.png" rel="apple-touch-icon" sizes="76x76" />
-  <link href="https://www.mylingolinq.com/icons/logo-120.png" rel="apple-touch-icon" sizes="120x120" />
-  <link href="https://www.mylingolinq.com/icons/logo-152.png" rel="apple-touch-icon" sizes="152x152" />
+  <link href="https://www.lingolinq.com/icons/logo-60.png" rel="apple-touch-icon" />
+  <link href="https://www.lingolinq.com/icons/logo-76.png" rel="apple-touch-icon" sizes="76x76" />
+  <link href="https://www.lingolinq.com/icons/logo-120.png" rel="apple-touch-icon" sizes="120x120" />
+  <link href="https://www.lingolinq.com/icons/logo-152.png" rel="apple-touch-icon" sizes="152x152" />
   <%= javascript_include_tag "globals" %>
+  <% if @load_chart_scripts %>
+    <%# Chart.js + Sankey: before application.js; only Ember shell (boards/* that render index). See app/frontend/app/index.html for ember serve. %>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js" crossorigin="anonymous"></script>
+  <% end %>
 </head>
 <body class="<%= 'pretty_loader' if pretty_loader %>">
 <% if @meta_record && crawler? %>
@@ -84,12 +97,6 @@
       <button class='btn btn-default' id='cookies_prompt_disable'>No Thanks</button>
     </div>
   </div>
-<% end %>
-<% if @domain_overrides && @domain_overrides['settings'] %>
-  <script style='text/javascript'>
-    window.domain_settings = <%= (@domain_overrides['settings'] || {}).to_json.html_safe %>;
-    window.domain_settings['domain'] = "<%= @domain_overrides['domain'] %>";
-  </script>
 <% end %>
 <script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script>
 <script src='/mespeak/mespeak.js' async='true'></script>

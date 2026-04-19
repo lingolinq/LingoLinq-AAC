@@ -39,10 +39,68 @@ class Organization < ActiveRecord::Base
     true
   end
   
+  # Data policy: org-level privacy floor for all managed users.
+  # Stored in settings['data_policy'] as a hash.
+  # Boolean "allowed" keys: false means the org forbids it (users cannot enable).
+  # Numeric limit keys: sets a ceiling (lower = more restrictive).
+  DATA_POLICY_KEYS = %w[
+    logging_allowed geo_logging_allowed log_reports_allowed
+    log_publishing_allowed max_logging_cutoff_hours
+    retention_months research_opt_in_allowed
+  ].freeze
+
+  def data_policy
+    (self.settings || {})['data_policy'] || {}
+  end
+
+  def effective_data_policy
+    @effective_data_policy ||= begin
+      policy = data_policy.dup
+      if self.parent_organization_id
+        parent = Organization.find_by(id: self.parent_organization_id)
+        if parent
+          parent_policy = parent.effective_data_policy
+          %w[logging_allowed geo_logging_allowed log_reports_allowed
+             log_publishing_allowed research_opt_in_allowed].each do |key|
+            policy[key] = false if parent_policy[key] == false
+          end
+          %w[max_logging_cutoff_hours retention_months].each do |key|
+            if parent_policy[key] && (policy[key].nil? || parent_policy[key] < policy[key])
+              policy[key] = parent_policy[key]
+            end
+          end
+        end
+      end
+      policy
+    end
+  end
+
+  def update_data_policy(policy_params, updater)
+    self.settings ||= {}
+    self.settings['data_policy'] ||= {}
+    DATA_POLICY_KEYS.each do |key|
+      if policy_params.key?(key)
+        self.settings['data_policy'][key] = policy_params[key]
+      end
+    end
+    self.settings['data_policy']['updated_at'] = Time.now.iso8601
+    self.settings['data_policy']['updated_by'] = updater.global_id
+    self.data_policy_version = (self.data_policy_version || 0) + 1
+
+    @effective_data_policy = nil # clear memoized cache
+
+    AuditEvent.log_command(updater.global_id, {
+      'type' => 'data_policy_update',
+      'organization_id' => self.global_id,
+      'policy' => self.settings['data_policy'],
+      'version' => self.data_policy_version
+    })
+  end
+
   def self.admin
     self.where(:admin => true).first
   end
-  
+
   def log_sessions
     sessions = LogSession.where(:log_type => 'session')
     if !self.admin
@@ -1389,16 +1447,21 @@ class Organization < ActiveRecord::Base
         }, false)
       end
     end
+    # Only change parent when id is present (set or move) or explicitly cleared (id key present but blank).
+    # Partial payloads without an id key (e.g. Ember display-only {name, pending}) must not clear parent.
     if params[:parent_org]
-      if params[:parent_org]['id']
-        if params[:parent_org]['id'] != self.parent_org_id
-          org = Organization.find_by_path(params[:parent_org]['id'])
-          if org
-            self.parent_organization_id = org.id
+      parent_org = params[:parent_org]
+      parent_org = parent_org.to_unsafe_h if parent_org.respond_to?(:to_unsafe_h)
+      parent_org = parent_org.with_indifferent_access if parent_org.is_a?(Hash)
+      if parent_org.is_a?(Hash)
+        if parent_org['id'].present?
+          if parent_org['id'] != self.parent_org_id
+            org = Organization.find_by_path(parent_org['id'])
+            self.parent_organization_id = org.id if org
           end
+        elsif parent_org.key?('id') && !parent_org['id'].present?
+          self.parent_organization_id = nil
         end
-      else
-        self.parent_organization_id = nil
       end
     end
     if params[:external_auth_shortcut]
@@ -1502,20 +1565,26 @@ class Organization < ActiveRecord::Base
 
     ['communicator_profile', 'supervisor_profile'].each do |prof|
       prof_id = prof + "_id"
+      prof_type = prof.sub(/_profile$/, '')
       do_assert = false
+      incoming = params[prof_id]
+      incoming = incoming.to_s.strip if incoming.is_a?(String)
+      incoming = nil if incoming.respond_to?(:empty?) && incoming.empty?
+
       opts = {'profile_id' => params[prof_id]}
       if params[prof + "_frequency"].to_i > 0
         do_assert = (self.settings[prof] || {})['frequency'] != params[prof + "_frequency"].to_i
         opts['frequency'] = params[prof + "_frequency"].to_f 
         opts['frequency'] *= 1.month.to_i if opts['frequency'] < 300
       end
-      if params[prof_id] && (self.settings[prof] || {})['profile_id'] != params[prof_id]
+      stored_pid = (self.settings[prof] || {})['profile_id']
+      if incoming.present? && !ProfileTemplate.same_profile?(stored_pid, incoming, prof_type)
         valid = false
-        if params[prof_id] == 'default' || params[prof_id] == 'none'
+        if incoming == 'default' || incoming == 'none'
           valid = true
-          opts = nil if params[prof_id] == 'none'
+          opts = nil if incoming == 'none'
         else
-          pt = ProfileTemplate.find_by_code(params[prof_id])
+          pt = ProfileTemplate.find_by_code(incoming)
           if pt
             if pt.settings['public'] == false && pt.organization != self
               add_processing_error("#{prof_id} not authorized for this organization")
@@ -1637,6 +1706,11 @@ class Organization < ActiveRecord::Base
         return false
       end
     end
+    if params[:data_policy].is_a?(Hash) || (params[:data_policy].respond_to?(:to_unsafe_h) && params[:data_policy].to_unsafe_h.is_a?(Hash))
+      policy_hash = params[:data_policy].respond_to?(:to_unsafe_h) ? params[:data_policy].to_unsafe_h : params[:data_policy]
+      self.update_data_policy(policy_hash.stringify_keys, non_user_params['updater'])
+    end
+
     @processed = true
     true
   end

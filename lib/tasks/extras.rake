@@ -1,5 +1,8 @@
 task "extras:copy_terms" => :environment do
-  ['privacy', 'terms', 'jobs', 'privacy_practices'].each do |type|
+  # privacy and terms are now styled Ember templates maintained in
+  # app/frontend/app/templates/ — do NOT overwrite them from the Rails partials.
+  # Only 'jobs' still uses the auto-copy pattern.
+  ['jobs'].each do |type|
     str = "<!-- auto-generated app/views/shared/_#{type}.html.erb -->\n"
     str += File.read("./app/views/shared/_#{type}.html.erb")
     File.open("./app/frontend/app/templates/#{type}.hbs", 'w') do |f|
@@ -8,23 +11,49 @@ task "extras:copy_terms" => :environment do
   end
 end
 
+task "extras:generate_favicon" do
+  logo = './public/images/logo-new.png'
+  raise "Source logo not found: #{logo}" unless File.exist?(logo)
+  # Pastel favicon set
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-pastel-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
+  end
+  # Cool blue favicon set (same source logo)
+  { 16 => 16, 32 => 32 }.each do |canvas, scale|
+    out = "./public/images/favicon-cool-blue-#{canvas}.png"
+    system("convert -size #{canvas}x#{canvas} xc:transparent \\( #{logo} -resize #{scale}x \\) -gravity center -composite #{out}")
+    raise "ImageMagick failed to create #{out}" unless $?.success?
+  end
+  puts "Generated favicon-pastel-*.png and favicon-cool-blue-*.png"
+end
+
 task "extras:assert_js" do
-  `mkdir -p ./app/frontend/dist/assets`
-  `cp -n ./app/frontend/frontend-placeholder.js ./app/frontend/dist/assets/frontend.js`
+  require 'fileutils'
+  FileUtils.mkdir_p('./app/frontend/dist/assets')
+  # Copy placeholder only if dist has no frontend.js yet (do not clobber ember build output).
+  # Avoid `cp -n`: GNU coreutils warns it is non-portable; use Ruby for portability.
+  placeholder = './app/frontend/frontend-placeholder.js'
+  dest_front = './app/frontend/dist/assets/frontend.js'
+  FileUtils.cp(placeholder, dest_front) if File.exist?(placeholder) && !File.exist?(dest_front)
   `touch ./app/frontend/dist/assets/vendor.js`
-  `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/frontend.js frontend.js`
-  `cd app/assets/javascripts/ && ln -sf ../../frontend/dist/assets/vendor.js vendor.js`
-  # Also symlink CSS files for Ember frontend
-  # Create placeholder CSS files if they don't exist (they'll be replaced when Ember builds)
   `touch ./app/frontend/dist/assets/vendor.css` unless File.exist?('./app/frontend/dist/assets/vendor.css')
   `touch ./app/frontend/dist/assets/frontend.css` unless File.exist?('./app/frontend/dist/assets/frontend.css')
-  # Create symlinks for CSS files (remove existing first to avoid errors)
-  Dir.chdir('app/assets/stylesheets') do
-    File.delete('vendor.css') if File.exist?('vendor.css') || File.symlink?('vendor.css')
-    File.delete('frontend.css') if File.exist?('frontend.css') || File.symlink?('frontend.css')
-    `ln -s ../../frontend/dist/assets/vendor.css vendor.css`
-    `ln -s ../../frontend/dist/assets/frontend.css frontend.css`
+  # Copy Ember JS and CSS into Rails asset paths (symlinks break on WSL/Windows and
+  # can be checked out as text files by git when core.symlinks=false)
+  %w[frontend.js vendor.js].each do |f|
+    dest = "./app/assets/javascripts/#{f}"
+    File.delete(dest) if File.exist?(dest) || File.symlink?(dest)
   end
+  %w[vendor.css frontend.css].each do |f|
+    dest = "./app/assets/stylesheets/#{f}"
+    File.delete(dest) if File.exist?(dest) || File.symlink?(dest)
+  end
+  `cp ./app/frontend/dist/assets/frontend.js ./app/assets/javascripts/frontend.js`
+  `cp ./app/frontend/dist/assets/vendor.js   ./app/assets/javascripts/vendor.js`
+  `cp ./app/frontend/dist/assets/vendor.css  ./app/assets/stylesheets/vendor.css`
+  `cp ./app/frontend/dist/assets/frontend.css ./app/assets/stylesheets/frontend.css`
 end
 
 task "extras:jobs_list" do
@@ -341,7 +370,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
     match = str.match(/window\.app_version\s+=\s+\"([0-9\.]+\w*)\";/)
     version = match && match[1]
     message = "New version deployed to servers (#{version})"
-    message += "\n<https://github.com/swahlquist/LingoLinq-AAC/lingolinq/blob/master/CHANGELOG.md|change notes> | <https://github.com/swahlquist/LingoLinq-AAC/lingolinq/commits/master|detailed log>"
+    message += "\n<https://github.com/lingolinq/LingoLinq-AAC/blob/develop/CHANGELOG.md|change notes> | <https://github.com/lingolinq/LingoLinq-AAC/commits/develop|detailed log>"
   end
   json = {"username": "deploy-bot", "icon_emoji": ":cuttlefish:", "text":message}
   `curl -X POST -H 'Content-type: application/json' --data '#{json.to_json}' #{ENV['SLACK_NOTIFICATION_URL']}`
@@ -419,7 +448,7 @@ task "extras:desktop" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -433,8 +462,8 @@ task "extras:desktop" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else
@@ -527,7 +556,7 @@ task "extras:mobile" => :environment do
           puts "ERROR: could not retreived overrides css from #{domain_settings['css']}"
         end
       end
-      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-big.png'
+      if domain_settings['settings']['logo_url'] && domain_settings['settings']['logo_url'] != '/images/logo-new.png'
         url = domain_settings['settings']['logo_url']
         url = "//#{domain}" + url if url.match(/^\/[^\/]/)
         url = "" + url if url.match(/^\/\//)
@@ -541,8 +570,8 @@ task "extras:mobile" => :environment do
         }
         if extensions[res.headers['Content-Type'].downcase]
           ext = extensions[res.headers['Content-Type'].downcase]
-          File.write("../#{folder}/public/images/logo-big.png.#{ext}", res.body) if res.code == 200
-          `convert ../#{folder}/public/images/logo-big.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
+          File.write("../#{folder}/public/images/logo-new.png.#{ext}", res.body) if res.code == 200
+          `convert ../#{folder}/public/images/logo-new.png.#{ext} -resize 200x200 ../#{folder}/public/images/logo-big-custom.png`
           domain_settings['settings']['logo_url'] = '/images/logo-big-custom.png'
           puts "stored custom logo image"
         else

@@ -1,0 +1,127 @@
+<div class="la-wrapper la-wrapper--pricing la-wrapper--support">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--support">
+      <section id="beta-feedback-hero" class="la-section">
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge"><span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "BETA" key="beta_feedback_eyebrow"}}</span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle">
+            {{t "Help us improve LingoLinq. Tell us what broke, what confused you, or what you wish worked differently." key="beta_feedback_intro"}}
+          </p>
+        </div>
+
+        <div class="la-support-content-wrapper">
+          <article class="la-about-glass-card la-support-page-card" aria-label={{t "Beta feedback form" key="beta_feedback_form_aria"}}>
+            <div class="la-support-page-card__section">
+              <div class="la-support-page-card__body md-support-content">
+                <form class="la-contact-form la-support-form md-support-form" {{action "submit_feedback" on="submit"}} {{on "paste" (action "screenshotPaste")}} novalidate>
+                  {{!-- Honeypot: hidden from assistive tech; bots often fill “company website”. Must remain empty. --}}
+                  <div class="la-beta-feedback-hp" aria-hidden="true">
+                    <label for="beta_feedback_hp">{{t "Company website" key="beta_feedback_hp_label"}}</label>
+                    <Input @type="text" @value={{this.feedback_hp}} class="la-contact-input la-beta-feedback-hp__input" id="beta_feedback_hp" autocomplete="off" tabindex="-1" />
+                  </div>
+                  {{#if this.hasAnyError}}
+                    <div class="la-beta-feedback__validation-banner" role="alert">
+                      {{t "Please review the highlighted fields below and fix any issues before sending." key="beta_feedback_validation_banner"}}
+                    </div>
+                  {{/if}}
+                  {{#if this.prompt_user}}
+                    <div class="la-contact-form__row">
+                      <label for="beta_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
+                      <Input @value={{this.name}} class="la-contact-input" id="beta_name" placeholder={{t "Your Name" key="your_name"}} maxlength="255" />
+                    </div>
+                    <div class="la-contact-form__row">
+                      <label for="beta_email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
+                      <Input @value={{this.email}} class="la-contact-input" id="beta_email" type="email" placeholder="you@example.com" maxlength="254" />
+                    </div>
+                  {{/if}}
+                  <div class="la-contact-form__row {{if this.errors.feedback_type "la-contact-form__row--error"}}">
+                    <label for="beta_feedback_type" class="la-contact-form__label">{{t "What kind of feedback is this?" key="beta_feedback_type_label"}}</label>
+                    {{bound-select select_class=this.selectClassFeedbackType select_id="beta_feedback_type" content=this.feedbackTypeOptions selection=this.feedback_type action=(action "updateFeedbackType") }}
+                    {{#if this.errors.feedback_type}}
+                      <p class="la-contact-form__field-error" id="beta_feedback_type_error">{{t "Please choose a feedback category." key="beta_feedback_validation_type"}}</p>
+                    {{/if}}
+                  </div>
+                  <div class="la-contact-form__row {{if this.errors.severity "la-contact-form__row--error"}}">
+                    <label for="beta_severity" class="la-contact-form__label">{{t "Severity" key="beta_feedback_severity_label"}}</label>
+                    {{bound-select select_class=this.selectClassSeverity select_id="beta_severity" content=this.severityOptions selection=this.severity action=(action "updateSeverity") }}
+                    {{#if this.errors.severity}}
+                      <p class="la-contact-form__field-error" id="beta_severity_error">{{t "Please choose a severity level." key="beta_feedback_validation_severity"}}</p>
+                    {{/if}}
+                  </div>
+                  <div class="la-contact-form__row {{if this.errors.subject "la-contact-form__row--error"}}">
+                    <label for="beta_subject" class="la-contact-form__label">{{t "Short summary" key="beta_feedback_summary_label"}}</label>
+                    <Input @value={{this.subject}} class={{if this.errors.subject "la-contact-input la-contact-input--invalid" "la-contact-input"}} id="beta_subject" placeholder={{t "One line, e.g. Speak button stops after update" key="beta_feedback_summary_placeholder"}} maxlength="500" aria-invalid={{if this.errors.subject "true" "false"}} {{on "input" (action "clearFieldError" "subject")}} />
+                    {{#if this.errors.subject}}
+                      <p class="la-contact-form__field-error" id="beta_subject_error">{{t "Please add a short summary." key="beta_feedback_validation_summary"}}</p>
+                    {{/if}}
+                  </div>
+                  <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
+                    <label for="beta_steps" class="la-contact-form__label">{{t "Steps to reproduce (if reporting a bug)" key="beta_feedback_steps_label"}}</label>
+                    <Textarea @value={{this.steps_to_reproduce}} class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_steps" placeholder={{t "1. Open… 2. Tap… 3. Notice…" key="beta_feedback_steps_placeholder"}} rows={{4}} maxlength="10000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" (action "clearFieldError" "details")}} />
+                  </div>
+                  <div class="la-contact-form__row">
+                    <label for="beta_expected" class="la-contact-form__label">{{t "What did you expect to happen?" key="beta_feedback_expected_label"}}</label>
+                    <Textarea @value={{this.expected_result}} class="la-contact-input la-contact-input--textarea" id="beta_expected" placeholder="" rows={{3}} maxlength="10000" />
+                  </div>
+                  <div class="la-contact-form__row">
+                    <label for="beta_actual" class="la-contact-form__label">{{t "What actually happened?" key="beta_feedback_actual_label"}}</label>
+                    <Textarea @value={{this.actual_result}} class="la-contact-input la-contact-input--textarea" id="beta_actual" placeholder="" rows={{3}} maxlength="10000" />
+                  </div>
+                  <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
+                    <label for="beta_general" class="la-contact-form__label">{{t "General feedback" key="beta_feedback_general_label"}}</label>
+                    <Textarea @value={{this.general_feedback}} class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Anything else we should know—context, ideas, or how this affects your workflow." key="beta_feedback_general_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" (action "clearFieldError" "details")}} />
+                    {{#if this.errors.details}}
+                      <p class="la-contact-form__field-error" id="beta_details_error">{{t "Please describe what happened in “General feedback” or “Steps to reproduce” (at least a few words)." key="beta_feedback_validation_details"}}</p>
+                    {{/if}}
+                  </div>
+                  <div class="la-contact-form__row">
+                    <label for="beta_device" class="la-contact-form__label">{{t "Device and app context (optional)" key="beta_feedback_device_label"}}</label>
+                    <Input @value={{this.device_context}} class="la-contact-input" id="beta_device" placeholder={{t "e.g. iPad + Safari, Windows + Chrome, app version if known" key="beta_feedback_device_placeholder"}} maxlength="2000" />
+                    <p class="la-contact-form__hint">{{t "When you submit, we add a short summary (viewport, time zone, app route, path, and online status) after your text for troubleshooting." key="beta_feedback_device_auto_hint"}}</p>
+                  </div>
+                  <div class="la-contact-form__row">
+                    <label for="beta_feedback_screenshot" class="la-contact-form__label">{{t "Screenshot (optional)" key="beta_feedback_screenshot_label"}}</label>
+                    <div
+                      class="la-beta-feedback__dropzone {{if this.screenshotDragActive "la-beta-feedback__dropzone--active"}}"
+                      tabindex="0"
+                      role="region"
+                      aria-label={{t "Drop an image file here or paste from the clipboard" key="beta_feedback_dropzone_aria"}}
+                      {{on "dragenter" (action "screenshotDragEnter")}}
+                      {{on "dragover" (action "screenshotDragOver")}}
+                      {{on "dragleave" (action "screenshotDragLeave")}}
+                      {{on "drop" (action "screenshotDrop")}}
+                    >
+                      <p class="la-beta-feedback__dropzone-hint">{{t "Drop an image here, paste from the clipboard (when not typing in a field), or choose a file." key="beta_feedback_dropzone_hint"}}</p>
+                      <input type="file" class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_screenshot" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" {{on "change" (action "screenshotChanged")}} />
+                    </div>
+                    <p class="la-contact-form__hint">{{t "PNG, JPG, GIF, or WebP, about 1.5 MB or smaller." key="beta_feedback_screenshot_hint"}}</p>
+                    <p class="la-contact-form__hint">{{t "Screenshots may show personal or sensitive information—only attach what you are comfortable sharing." key="beta_feedback_screenshot_sensitive_hint"}}</p>
+                    {{#if this.screenshotData}}
+                      <div class="la-beta-feedback__screenshot-preview">
+                        <img src={{this.screenshotData}} alt="" class="la-beta-feedback__screenshot-img" aria-hidden="true">
+                        <button type="button" class="la-btn la-btn--ghost la-beta-feedback__clear-shot" {{action "clearScreenshot"}}>{{t "Remove image" key="beta_feedback_clear_screenshot"}}</button>
+                      </div>
+                    {{/if}}
+                  </div>
+                  {{#if this.error}}
+                    <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
+                  {{/if}}
+                  <div class="la-contact-form__actions la-support-form__actions md-support-form__actions">
+                    <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send beta feedback" key="beta_feedback_submit"}}</button>
+                    <LinkTo @route="support" class="la-btn la-btn--ghost">{{t "Go to Support" key="faq_cta_support"}}</LinkTo>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+      </div>
+    </main>
+  </div>
+</div>

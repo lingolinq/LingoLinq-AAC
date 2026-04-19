@@ -112,6 +112,18 @@ class Api::SearchController < ApplicationController
     render json: req.body
   end
     
+  def batch_parts_of_speech
+    words = (params['words'] || '').split(',').map(&:strip).reject(&:blank?).uniq.first(100)
+    results = {}
+    words.each do |word|
+      data = WordData.find_word(word)
+      if data && data['types']
+        results[word] = { 'types' => data['types'], 'word' => data['word'] }
+      end
+    end
+    render json: { results: results }
+  end
+
   def parts_of_speech
     data = WordData.find_word(params['q'])
     res = {}
@@ -310,7 +322,7 @@ class Api::SearchController < ApplicationController
         end
       end
     else
-      req = Typhoeus.get("http://translate.google.com/translate_tts?id=UTF-8&tl=#{params['locale'] || 'en'}&q=#{URI.escape(params['text'] || "")}&total=1&idx=0&textlen=#{(params['text'] || '').length}&client=tw-ob", timeout: 5, headers: {'Referer' => "https://translate.google.com/", 'User-Agent' => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"})
+      req = Typhoeus.get("https://translate.google.com/translate_tts?id=UTF-8&tl=#{params['locale'] || 'en'}&q=#{URI.escape(params['text'] || "")}&total=1&idx=0&textlen=#{(params['text'] || '').length}&client=tw-ob", timeout: 5, headers: {'Referer' => "https://translate.google.com/", 'User-Agent' => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"})
     end
     return api_error 400, {error: 'remote request failed'} unless req && !req.body.blank?
     response.headers['Content-Type'] = content_type

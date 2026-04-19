@@ -1,6 +1,6 @@
 <div style='position: fixed; z-index: 3; top: 0; left: 0; right: 0; bottom: 0; background: #fff;'>
   <div style='position: fixed; top: 0; left: 0; right: 0; height: 70px; background: #000; color: #eee;'>
-    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq"/ style='float: left; padding-right: 5px; margin-top: 10px;height: 50px; width: 50px; object-fit: contain;'>
+    <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt="LingoLinq"/ style='float: left; padding-right: 5px; margin-top: 10px;height: 50px; width: 50px; object-fit: contain;'>
     <h4 style='margin-top: 20px; margin-bottom: 0; white-space: nowrap; overflow: hidden; max-width: calc(50% - 150px);'>
       {{this.model.title}}
     </h4>
@@ -34,7 +34,7 @@
       <button {{action "new_window"}} class='btn btn-default' style='background: #444; color: #fff; border-color: #aaa;'>{{t "Open in New Window" key="open_in_new_window"}}</button>
     </div>
   </div>
-  <iframe id='lesson_embed' src={{this.model.url}} frameborder='0' style='position: fixed; width: 100%; height: calc(100% - 70px); top: 70px; bottom: 0; right: 0; lefT: 0; background: #fff;' title="Lesson content"></iframe>
+  <iframe id='lesson_embed' src={{this.model.url}} frameborder='0' style='position: fixed; width: 100%; height: calc(100% - 70px); top: 70px; bottom: 0; right: 0; left: 0; background: #fff;' title="Lesson content"></iframe>
   {{#if this.show_description}}
     <div {{action "toggle_description" on="click"}} style='position: fixed; left: 10px; top: 70px; background: #fff; min-height: 50px; width: 300px; border: 1px solid #000; border-top-width: 0; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; padding: 10px 10px 5px 10px; box-shadow: inset 0 7px 9px -7px #888, 3px 3px 15px #000;'>
       {{#if this.model.time_estimate}}

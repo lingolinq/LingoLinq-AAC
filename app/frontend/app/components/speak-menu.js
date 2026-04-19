@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
@@ -9,6 +10,7 @@ import modalUtil from '../utils/modal';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
+import i18n from '../utils/i18n';
 
 /**
  * Speak Menu Modal Component
@@ -22,6 +24,12 @@ export default Component.extend({
   stashes: service('stashes'),
   app_state: alias('appState'),
   tagName: '',
+
+  init() {
+    this._super(...arguments);
+    // Components cannot use inject.controller; owner lookup is the supported pattern.
+    this.set('applicationController', getOwner(this).lookup('controller:application'));
+  },
 
   sharing_allowed: computed(
     'appState.currentUser',
@@ -38,6 +46,34 @@ export default Component.extend({
     var res = utterance.contraction();
     return res || { clearback: 0, label: "don't" };
   }),
+
+  localeBoardModel: computed('appState.controller.model', 'applicationController.board.model', function() {
+    var c = this.get('appState.controller');
+    if (c && c.get && c.get('model')) {
+      var m = c.get('model');
+      var locs = m.get('readable_locales');
+      if (locs && locs.length) { return m; }
+    }
+    var app = this.get('applicationController');
+    if (app && app.get('board.model')) {
+      var bm = app.get('board.model');
+      if (bm && bm.get('readable_locales') && bm.get('readable_locales').length) {
+        return bm;
+      }
+    }
+    return null;
+  }),
+
+  showSpeakLocaleSection: computed(
+    'app_state.speak_mode_possible',
+    'app_state.currentBoardState.translatable',
+    'localeBoardModel',
+    function() {
+      var sm = this.get('app_state.speak_mode_possible');
+      var loc = this.get('app_state.currentBoardState.translatable') && this.get('localeBoardModel');
+      return !!(sm || loc);
+    }
+  ),
 
   actions: {
     opening() {
@@ -224,6 +260,46 @@ export default Component.extend({
     },
     close() {
       modalUtil.set('speak_menu_last_closed', Date.now());
+      this.get('modal').close();
+    },
+
+    set_board_locale(locale) {
+      this.get('applicationController').send('set_locale', locale);
+    },
+
+    speak_mode_toggle(decision) {
+      var app_state = this.get('app_state');
+      var exiting = app_state && app_state.get('speak_mode') && decision !== 'off';
+      this.get('modal').close();
+
+      if(exiting) {
+        var router = getOwner(this).lookup('service:router');
+        var routeName = (router && router.get('currentRouteName')) || '';
+        var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+
+        if(onBoardDetail) {
+          // Board-detail: send exit_to_home to the board-detail controller
+          // which navigates to the edit page
+          var detailCtrl = getOwner(this).lookup('controller:user.board-detail');
+          if(detailCtrl) {
+            detailCtrl.send('exit_to_home');
+          }
+        } else {
+          // Board-alt: default toggleSpeakMode returns to normal mode
+          this.get('applicationController').send('toggleSpeakMode', decision);
+        }
+      } else {
+        this.get('applicationController').send('toggleSpeakMode', decision);
+      }
+    },
+
+    set_speak_mode_user(id, type) {
+      this.get('applicationController').send('setSpeakModeUser', id, type);
+      this.get('modal').close();
+    },
+
+    pick_speak_mode_user(type) {
+      this.get('applicationController').send('pickSpeakModeUser', type);
       this.get('modal').close();
     }
   }

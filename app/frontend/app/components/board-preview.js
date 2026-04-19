@@ -49,7 +49,13 @@ export default Component.extend({
     },
     visit: function() {
       this.appState.set('referenced_board', {id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale')});
-      this.appState.controller.transitionToRoute('board', this.get('model.key'));
+      var key = this.get('model.key');
+      var parts = key ? key.split('/') : [];
+      if(parts.length === 2) {
+        this.appState.controller.transitionToRoute('user.board-detail', parts[0], parts[1]);
+      } else {
+        this.appState.controller.transitionToRoute('board', key);
+      }
     },
     copy: function() {
       var _this = this;

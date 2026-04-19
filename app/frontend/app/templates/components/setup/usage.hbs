@@ -1,37 +1,37 @@
 <div class='col-sm-10 col-sm-offset-1'>
   <h4>{{t "Using %app_name%" key="using_lingolinq"}}</h4>
 </div>
-<div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/aac_intro.gif"}} style='width: 100%;' >
-  {{#unless this.setup.app_state.no_linky}}
-    <div style='text-align: center; opacity: 0.8; margin-top: 10px; margin-bottom: 20px;'>
-      {{#if this.setup.app_state.domain_settings.ios_store_url}}
-        <a href={{this.setup.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
-          <img src={{path "images/ios_app_store.svg"}} alt="ios app store" style="height: 40px; margin-top: 5px;">
-        </a>
-      {{/if}}
-      {{#if this.setup.app_state.domain_settings.play_store_url}}
-        <a href={{this.setup.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
-          <img src={{path "images/google_play.png"}} alt="google play" style="height: 40px; margin-top: 5px;">
-        </a>
-      {{/if}}
-      {{#if this.setup.app_state.domain_settings.kindle_store_url}}
-        <a href={{this.setup.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
-          <img src={{path "images/amazon.png"}} alt="amazon" style="height: 40px; margin-top: 5px;">
-        </a>
-      {{/if}}
-      <a href="https://app.mylingolinq.com/download" target="_blank" rel="noopener">
-        <img src={{path "images/windows.svg"}} alt="windows" style="height: 40px; margin-top: 5px;">
+<div class='col-sm-10 col-sm-offset-1'>
+  <img src={{path "images/board.png"}} style='width: 100%; border-radius: 12px;' alt="LingoLinq board">
+</div>
+<div class='col-sm-10 col-sm-offset-1' style="margin-top: 16px;">
+  <h5 class="usage-checklist__title">{{t "Key things to know" key="usage_checklist_heading"}}</h5>
+  <ul class="usage-checklist" role="list">
+    <li class="usage-checklist__item">{{t "Tap buttons to speak words, sentences, or spell—%app_name% turns your choices into speech." key="usage_1"}}</li>
+    <li class="usage-checklist__item">{{t "%app_name% isn't only for people who don't speak. Many use it while learning or when they need a little support." key="usage_2"}}</li>
+    <li class="usage-checklist__item">{{t "Use %app_name% on any device: free in app stores, as a Windows app, or in your browser." key="usage_3"}}</li>
+    <li class="usage-checklist__item">{{t "LingoLinq supports speech development—it doesn't hold it back. Many users grow more comfortable and build spoken language skills faster." key="usage_4"}}</li>
+  </ul>
+</div>
+{{#unless this.setup.app_state.no_linky}}
+  <div class='col-sm-10 col-sm-offset-1' style="margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    {{#if this.setup.app_state.domain_settings.ios_store_url}}
+      <a href={{this.setup.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener">
+        <img src={{path "images/ios_app_store.svg"}} alt="iOS App Store" style="height: 36px;">
       </a>
-    </div>
-  {{/unless}}
-</div>
-<div class='col-sm-5'>
-  <p class='prompt'>{{t "%app_name% is a tool for generating speech. You can hit buttons to speak words or sentences, or to spell words." key="usage_1"}}</p>
-
-  <p class='prompt'>{{t "%app_name% isn't just for nonverbal communicators. Some communicators are still learning, or need help only some of the time, and having an AAC \"crutch\" like %app_name% can be a great support tool." key="usage_2"}}</p>
-
-  <p class='prompt'>{{t "%app_name% can run on any system. You can find it in the major app stores as a free download, or install the Windows app or use it in your web browser. Use whatever device you like." key="usage_3"}}</p>
-
-  <p class='prompt'>{{t "Some people worry that communicators who use AAC will never speak on their own. However, recent research has shown that many AAC users move on to vocal communication once they are more comfortable or proficient." key="usage_4"}}</p>
-</div>
+    {{/if}}
+    {{#if this.setup.app_state.domain_settings.play_store_url}}
+      <a href={{this.setup.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener">
+        <img src={{path "images/google_play.png"}} alt="Google Play" style="height: 36px;">
+      </a>
+    {{/if}}
+    {{#if this.setup.app_state.domain_settings.kindle_store_url}}
+      <a href={{this.setup.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener">
+        <img src={{path "images/amazon.png"}} alt="Amazon" style="height: 36px;">
+      </a>
+    {{/if}}
+    <a href="https://app.mylingolinq.com/download" target="_blank" rel="noopener">
+      <img src={{path "images/windows.svg"}} alt="Windows" style="height: 36px;">
+    </a>
+  </div>
+{{/unless}}

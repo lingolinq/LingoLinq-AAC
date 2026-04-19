@@ -229,6 +229,7 @@ export default Component.extend({
         _this.set('login_single_assertion', false);
         _this.set('login_followup_already_long_token', data.long_token_set);
         _this.send('login_success', false);
+        _this.router.transitionTo('login.device');
       }, function(err) {
         if (!_this.isDestroyed && !_this.isDestroying) {
           _this.set('logging_in', false);
@@ -260,6 +261,19 @@ export default Component.extend({
       return htmlSafe('col-md-offset-4 col-md-4 col-sm-offset-3 col-sm-6');
     }
   }),
+  coppaResendDisabled: computed('coppa_resend_busy', 'coppa_resend_cooldown_until', 'password', 'identification', function() {
+    if (this.get('coppa_resend_busy')) {
+      return true;
+    }
+    var until = this.get('coppa_resend_cooldown_until');
+    if (until && Date.now() < until) {
+      return true;
+    }
+    if (isEmpty(this.get('identification')) || isEmpty(this.get('password'))) {
+      return true;
+    }
+    return false;
+  }),
   willDestroyElement: function() {
     this.persistence.removeObserver('browserToken', this.browserTokenChange);
     // Cancel all pending timeouts to prevent setting properties on destroyed component
@@ -274,8 +288,11 @@ export default Component.extend({
   browserless: computed(function() {
     return capabilities.browserless;
   }),
-  noSubmit: computed('logging_in', 'logged_in', 'noSecret', 'redirecting', function() {
-    return this.get('noSecret') || this.get('redirecting') || this.get('logging_in') || this.get('logged_in') || this.get('login_followup');
+  showDeviceStep: computed('login_followup', 'deviceStep', function() {
+    return this.get('login_followup') || this.get('deviceStep');
+  }),
+  noSubmit: computed('logging_in', 'logged_in', 'noSecret', 'redirecting', 'showDeviceStep', function() {
+    return this.get('noSecret') || this.get('redirecting') || this.get('logging_in') || this.get('logged_in') || this.get('showDeviceStep');
   }),
   noSecret: computed('client_secret', function() {
     return !this.get('client_secret');
@@ -520,7 +537,7 @@ export default Component.extend({
             capabilities_token: capabilities ? (capabilities.access_token || 'undefined') : 'capabilities undefined',
             auth_settings: _this.stashes.get_object('auth_settings', true) ? 'exists' : 'missing'
           });
-          setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+          setErrorState(i18n.t('user_retrieve_failed_token', "Retrieving login preferences failed - authentication token not available"));
           return;
         }
         
@@ -554,7 +571,7 @@ export default Component.extend({
           return;
         }
         console.warn('[login-form.login_followup] Token ensure failed', error);
-        setErrorState(i18n.t('user_retrieve_failed', "Retrieving login preferences failed - authentication token not available"));
+        setErrorState(i18n.t('user_retrieve_failed_token', "Retrieving login preferences failed - authentication token not available"));
       });
     },
     logout: function() {
@@ -587,6 +604,8 @@ export default Component.extend({
       this.set('logging_in', true);
       this.appState.set('logging_in', true);
       this.set('login_error', null);
+      this.set('coppa_awaiting_parent', false);
+      this.set('coppa_resend_notice', null);
       var _this = this;
       var data = this.getProperties('identification', 'password', 'client_secret', 'long_token', 'browserless');
       console.log('[login-form] authenticate called', {
@@ -602,9 +621,9 @@ export default Component.extend({
         data.browserless = true;
       }
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
-        this.set('password', null);
         _this.set('login_followup_already_long_token', false);
         _this.session.authenticate(data).then(function(data) {
+          _this.set('password', null);
           console.log('[login-form] Authentication succeeded', {
             has_redirect: !!data.redirect,
             has_token: !!data.access_token
@@ -627,6 +646,9 @@ export default Component.extend({
           _this.appState.set('logging_in', false);
           if(err.error == "Invalid authentication attempt") {
             _this.set('login_error', i18n.t('invalid_login', "Invalid user name or password"));
+          } else if(err.error == "awaiting parental consent" || err.coppa_parental_consent_pending) {
+            _this.set('coppa_awaiting_parent', true);
+            _this.set('login_error', i18n.t('coppa_login_blocked_until_parent_consent', "This account is waiting for a parent or guardian to approve it. Ask them to check their email for the approval link."));
           } else if(err.error == "Invalid client secret") {
             _this.set('login_error', i18n.t('expired_login', "Your login token is expired, please try again"));
           } else if(err.error && err.error.match(/user name was changed/i) && err.user_name) {
@@ -655,6 +677,78 @@ export default Component.extend({
           err();
         }
       }
+    },
+    resendParentConsentEmail: function() {
+      var _this = this;
+      if (!_this.get('coppa_awaiting_parent') || _this.get('coppaResendDisabled')) {
+        return;
+      }
+      _this.set('coppa_resend_busy', true);
+      _this.set('coppa_resend_notice', null);
+      var identification = _this.get('identification');
+      var token = _this.get('client_secret');
+      _this.session.hashed_password(_this.get('password')).then(function(pw) {
+        return _this.persistence.ajax('/api/v1/users/resend_parental_consent', {
+          type: 'POST',
+          data: {
+            client_id: 'browser',
+            client_secret: token,
+            username: identification,
+            password: pw
+          }
+        });
+      }).then(function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        _this.set('coppa_resend_busy', false);
+        _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_resent', "If that email address is correct, the parent or guardian should receive another message shortly."));
+        var ms = 60 * 1000;
+        _this.set('coppa_resend_cooldown_until', Date.now() + ms);
+        var h = runLater(function() {
+          if (!_this.isDestroyed && !_this.isDestroying) {
+            _this.set('coppa_resend_cooldown_until', null);
+          }
+        }, ms);
+        _this.get('pendingTimeouts').push(h);
+      }, function(xhr) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        _this.set('coppa_resend_busy', false);
+        if (xhr && xhr.short_circuit) {
+          _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_resend_offline', "You appear to be offline. Check your connection and try again."));
+          return;
+        }
+        var json = (xhr && xhr.responseJSON) || {};
+        if (xhr && xhr.responseText && (!json || !json['error'])) {
+          try {
+            json = JSON.parse(xhr.responseText) || json;
+          } catch (e) { /* ignore */ }
+        }
+        var status = xhr && xhr.status;
+        // api_error may render HTTP 200 when X-Has-AppCache is set; body still has error + status 429.
+        var throttled = (status === 429) ||
+          json['error'] === 'parental_consent_resend_throttled' ||
+          json['status'] === 429;
+        if (throttled) {
+          var sec = parseInt(json['retry_after_seconds'], 10);
+          if (!Number.isFinite(sec) || sec < 1) {
+            sec = 180;
+          }
+          _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_resend_wait', "Please wait %{sec} seconds before requesting another email.", {sec: sec}));
+          _this.set('coppa_resend_cooldown_until', Date.now() + (sec * 1000));
+          var h2 = runLater(function() {
+            if (!_this.isDestroyed && !_this.isDestroying) {
+              _this.set('coppa_resend_cooldown_until', null);
+              _this.set('coppa_resend_notice', null);
+            }
+          }, sec * 1000);
+          _this.get('pendingTimeouts').push(h2);
+          return;
+        }
+        _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_resend_failed', "Could not resend the email. Check your username and password, then try again."));
+      });
     }
   }
 });

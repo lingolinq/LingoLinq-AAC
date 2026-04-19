@@ -1,62 +1,64 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="la-board-ideas-wrap">
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Board Ideas" key="board_ideas"}}</h3>
   </div>
-  <div class="modal-body">
-    <p>{{t "Sometimes it's hard to know what words or phrases to add. Below are some suggestions for things to add to the user's board set." key="button_suggestions_explainer"}}</p>
+  <div class="modal-body md-modal-body">
+    <p class="la-board-ideas-desc">{{t "Sometimes it's hard to know what words or phrases to add. Below are some suggestions for things to add to the user's board set." key="button_suggestions_explainer"}}</p>
+
     {{#if this.full}}
-      <p class='text-danger' style='margin-top: 10px;'>{{t "There's nowhere on the board to add buttons. You can still browse ideas, but to add ideas you'll need to add rows/columns or find another board." key="add_buttons"}}</p>
+      <div class="la-board-ideas-warning la-board-ideas-warning--danger">{{t "There's nowhere on the board to add buttons. You can still browse ideas, but to add ideas you'll need to add rows/columns or find another board." key="add_buttons"}}</div>
     {{else}}
-      <p style='margin-top: 10px;'>{{t "button" count=this.empty key="n_buttons"}} {{t "available" key="available"}}</p>
+      <div class="la-board-ideas-status">{{t "button" count=this.empty key="n_buttons"}} {{t "available" key="available"}}</div>
     {{/if}}
+
     {{#if this.has_supervisees}}
-      <div class='row' style='margin-bottom: 5px;'>
-        <div class='col-sm-3'>
-          <label for='for_user_id' style='margin-top: 5px;'>
-            {{t "Show Ideas For:" key="show_ideas_for"}}
-          </label>
-        </div>
-        <div class='col-sm-9'>
-          {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "updateForUserId") }}
-        </div>
+      <div class="la-board-ideas-user-select">
+        <label class="la-board-ideas-label">{{t "Show Ideas For:" key="show_ideas_for"}}</label>
+        {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "updateForUserId") }}
       </div>
     {{/if}}
-    <ul class="nav nav-pills" style='margin-bottom: 10px;'>
-      <li role="presentation" class={{if this.core "active"}}><a href="#" {{action "select_list" "core"}}>{{t "Core Words" key="core_words"}}</a></li>
-      <li role="presentation" class={{if this.fringe "active"}}><a href="#" {{action "select_list" "fringe"}}>{{t "Fringe Words" key="fringe_words"}}</a></li>
-      <li role="presentation" class={{if this.recordings "active"}}><a href="#" {{action "select_list" "recordings"}}>{{t "Recordings" key="recordings"}}</a></li>
-      <li role="presentation" class={{if this.requests "active"}}><a href="#" {{action "select_list" "requests"}}>{{t "Requests" key="requests"}}</a></li>
-      <li role="presentation" class={{if this.extras "active"}}><a href="#" {{action "select_list" "extras"}}>{{t "Extras" key="extras"}}</a></li>
-    </ul>
+
+    {{!-- Tab navigation --}}
+    <div class="la-board-ideas-tabs">
+      <button class="la-board-ideas-tab {{if this.core 'la-board-ideas-tab--active'}}" {{action "select_list" "core"}}>{{t "Core Words" key="core_words"}}</button>
+      <button class="la-board-ideas-tab {{if this.fringe 'la-board-ideas-tab--active'}}" {{action "select_list" "fringe"}}>{{t "Fringe Words" key="fringe_words"}}</button>
+      <button class="la-board-ideas-tab {{if this.recordings 'la-board-ideas-tab--active'}}" {{action "select_list" "recordings"}}>{{t "Recordings" key="recordings"}}</button>
+      <button class="la-board-ideas-tab {{if this.requests 'la-board-ideas-tab--active'}}" {{action "select_list" "requests"}}>{{t "Requests" key="requests"}}</button>
+      <button class="la-board-ideas-tab {{if this.extras 'la-board-ideas-tab--active'}}" {{action "select_list" "extras"}}>{{t "Extras" key="extras"}}</button>
+    </div>
+
     {{#if this.extras}}
       {{#if this.premium_ideas}}
-        {{t "Now you can search for images and pictures from Tar Heel Reader books! Just search for the book you're using and add the pictures and text from any of the pages you want to use." key="extras_explainer"}}
-        <div style='margin-top: 10px;'>
-          <span style='display: inline-block; width: 300px;'>
-            <Input @type="text" @value={{this.extras_search}} class="form-control" />
-          </span>
-          <button class='btn btn-default' {{action "search_extras"}}>{{t "Go" key="go"}}</button>
+        <p class="la-board-ideas-desc">{{t "Now you can search for images and pictures from Tar Heel Reader books! Just search for the book you're using and add the pictures and text from any of the pages you want to use." key="extras_explainer"}}</p>
+        <div class="la-board-ideas-search">
+          <Input @type="text" @value={{this.extras_search}} class="la-board-ideas-search-input" />
+          <button class='la-board-ideas-search-btn' {{action "search_extras"}}>{{t "Go" key="go"}}</button>
         </div>
       {{else}}
-        {{t "Extra Ideas is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1e"}}
-        {{#if this.user}}
-          <LinkTo @route="user.subscription" @model={{this.user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
-        {{else if this.appState.currentUser}}
-          <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
-        {{else}}
-          {{t "purchase a premium account" key="purchase_subscription_2"}}
-        {{/if}}
-        {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
+        <p class="la-board-ideas-desc">
+          {{t "Extra Ideas is a %app_name% feature that's only available to users who have a paid premium account. Please " key="purchase_subscription_1e"}}
+          {{#if this.user}}
+            <LinkTo @route="user.subscription" @model={{this.user.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
+          {{else if this.appState.currentUser}}
+            <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
+          {{else}}
+            {{t "purchase a premium account" key="purchase_subscription_2"}}
+          {{/if}}
+          {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
+        </p>
       {{/if}}
     {{/if}}
 
     {{#if this.list.loading}}
-      <p>{{t "Loading data..." key="loading_data"}}</p>
+      <p class="la-board-ideas-loading">{{t "Loading data..." key="loading_data"}}</p>
     {{else if this.list.error}}
-      <p>{{t "Error loading data" key="error_loading_data"}}</p>
+      <p class="la-board-ideas-error">{{t "Error loading data" key="error_loading_data"}}</p>
     {{else if this.list}}
-      <div style='margin-bottom: 10px;'>
+      <div class="la-board-ideas-explainer">
         {{#if this.core}}
           {{t "Core words are frequently-used words that often have multiple meanings or intents. They are useful in lots of different settings, and are valuable high-frequency words for many communicators. Browse the list for any core words that might make sense for the current board." key="core_explainer"}}
         {{else if this.fringe}}
@@ -71,79 +73,83 @@
           {{t "Communicators and supervisors can request to have words added to their vocabulary set. This list includes all the words that have been requested for a communicator. You can select any to have them added to the current board." key="requests_explainer"}}
         {{/if}}
       </div>
+
       {{#if this.category.items}}
+        {{!-- Category detail view --}}
         {{#if this.list.name}}
-          <button class='btn btn-default' {{action "select_category"}} style='float: left; margin-right: 5px; height: 50px;'><span class='glyphicon glyphicon-arrow-left'></span><span class='sr-only'>{{t "Back to %{list}" key="back_to_named_list" list=this.list.name}}</span></button>
-          <h4 style='margin-bottom: 0;'>
-            {{this.category.name}}
-          </h4>
-          <span class='text-muted' style='overflow: hidden; width: 100%;'>
-           {{this.list.name}}
-          </span>
+          <div class="la-board-ideas-nav">
+            <button class='la-board-ideas-back-btn' {{action "select_category"}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div>
+              <h4 class="la-board-ideas-cat-title">{{this.category.name}}</h4>
+              <span class="la-board-ideas-breadcrumb">{{this.list.name}}</span>
+            </div>
+          </div>
         {{/if}}
-        <div style='clear: both; margin-bottom: 10px;'></div>
+
         {{#if this.category.items.loading}}
-          <p>{{t "Loading data..." key="loading_data"}}</p>
+          <p class="la-board-ideas-loading">{{t "Loading data..." key="loading_data"}}</p>
         {{else if this.category.items.error}}
-          <p>{{t "Error loading data" key="error_loading_data"}}</p>
+          <p class="la-board-ideas-error">{{t "Error loading data" key="error_loading_data"}}</p>
         {{else}}
           {{#if this.category.total}}
-            {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.category.used total=this.category.total}}
+            <div class="la-board-ideas-progress">{{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.category.used total=this.category.total}}</div>
           {{/if}}
-          <div class='btn-group-vertical' style='width: 100%; cursor: default;'>
+          <div class='la-board-ideas-list'>
             {{#each this.category.items as |item|}}
-              <span class='btn btn-default' style={{if item.image "height: 100px; text-align: left;" "height: 50px; text-align: left;"}}>
-                <span style='float: right;'>
-                  <button class='btn btn-default' disabled={{this.full}} {{action "add_item" item}}>{{t "add" key="add_lower"}}</button>
-                </span>
+              <div class="la-board-ideas-item {{if item.image 'la-board-ideas-item--with-image'}}">
                 {{#if item.image}}
-                  <div style='height: 80px; width: 80px; overflow: hidden; float: left; margin-right: 10px;'>
-                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" style='width: 100%; max-height: 80px;' >
+                  <div class="la-board-ideas-item-image">
+                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" alt="">
                   </div>
                 {{/if}}
-                <span class={{if item.used "text-muted"}} style='font-size: 20px; white-space: normal;'>
+                <span class="la-board-ideas-item-text {{if item.used 'la-board-ideas-item-text--used'}}">
                   {{#if item.used}}
-                    <span class='glyphicon glyphicon-ok'></span>&nbsp;&nbsp;
+                    <span class="la-board-ideas-item-check">&#x2713;</span>
                   {{/if}}
                   {{item.text}}
                 </span>
-                <span style='clear: both;'></span>
-              </span>
+                <button class='la-board-ideas-add-btn' disabled={{this.full}} {{action "add_item" item}}>{{t "add" key="add_lower"}}</button>
+              </div>
             {{/each}}
           </div>
         {{/if}}
+
       {{else if this.list.categories}}
+        {{!-- Category list view --}}
         {{#if this.list.total}}
-          {{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.list.used total=this.list.total}}
+          <div class="la-board-ideas-progress">{{t "%{used} out of %{total} already used" key="n_out_of_m_already_used" used=this.list.used total=this.list.total}}</div>
         {{/if}}
-        <div class='btn-group-vertical' style='width: 100%;'>
+        <div class='la-board-ideas-list'>
           {{#each this.list.categories as |category|}}
-            <button class='btn btn-default' style={{if category.image "height: 100px; text-align: left;" "height: 50px; text-align: left;"}} {{action "select_category" category}}>
+            <button class="la-board-ideas-item {{if category.image 'la-board-ideas-item--with-image'}}" {{action "select_category" category}}>
               {{#if category.image}}
-                <span style='float: left; width: 80px; height: 80px; overflow: hidden; margin-right: 10px;'>
-                  <img src={{category.image}} style='width: 100%; max-height: 80px;' >
-                </span>
+                <div class="la-board-ideas-item-image">
+                  <img src={{category.image}} alt="">
+                </div>
               {{/if}}
-              {{#if category.sub_name}}
-                <strong>{{category.name}}</strong><br>
-                {{category.sub_name}}
-              {{else}}
-                {{category.name}}
-              {{/if}}
+              <span class="la-board-ideas-item-text">
+                {{#if category.sub_name}}
+                  <strong>{{category.name}}</strong><br>
+                  <span class="la-board-ideas-breadcrumb">{{category.sub_name}}</span>
+                {{else}}
+                  {{category.name}}
+                {{/if}}
+              </span>
               {{#if category.total}}
-                {{t "(" key="open_paren"}}{{#if category.used}}{{category.used}}{{else}}{{t "0" key="zero"}}{{/if}}
-                {{t "/" key="out_of_slash"}}
-                {{category.total}}{{t ")" key="close_paren"}}
+                <span class="la-board-ideas-item-count">{{#if category.used}}{{category.used}}{{else}}0{{/if}} / {{category.total}}</span>
               {{/if}}
-              <span style='clear: left;'></span>
             </button>
           {{/each}}
         </div>
+
       {{else}}
-        <p>{{t "No results available" key="no_results_available"}}</p>
+        <p class="la-board-ideas-loading">{{t "No results available" key="no_results_available"}}</p>
       {{/if}}
     {{else}}
-      <p>{{t "No data available" key="no_data_available"}}</p>
+      <p class="la-board-ideas-loading">{{t "No data available" key="no_data_available"}}</p>
     {{/if}}
+  </div>
   </div>
 {{/modal-dialog}}

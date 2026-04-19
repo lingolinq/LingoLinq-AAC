@@ -3,7 +3,7 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
-import editManager from '../../utils/edit_manager';
+import editManager, { fastHtmlHasRenderableContent } from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
 import { inject as service } from '@ember/service';
@@ -17,11 +17,12 @@ import { later as runLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import prefClasses from '../../mixins/pref-classes';
 
 var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
-export default Controller.extend({
+export default Controller.extend(prefClasses, {
   appState: service('app-state'),
   app_state: alias('appState'),
   stashes: service('stashes'),
@@ -43,6 +44,7 @@ export default Controller.extend({
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    if (this.appState.get('speak_mode')) { runLater(() => { this._setupSpeakBarObserver(); }, 200); }
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying'); }
     editManager.process_for_displaying(ignore_fast_html);
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() done'); }
@@ -75,7 +77,7 @@ export default Controller.extend({
   ),
   updateSuggestions: observer(
     'appState.button_list',
-    'this.appState.button_list.[]',
+    'appState.button_list.[]',
     'appState.currentUser',
     'appState.shift',
     'appState.inflection_shift',
@@ -276,16 +278,17 @@ export default Controller.extend({
     'appState.referenced_user.preferences.skin',
     'appState.referenced_user.preferences.preferred_symbols',
     function() {
-      var res = !!(this.get('model.fast_html') && this.get('model.fast_html.width') == this.get('width') 
-            && this.get('model.fast_html.height') == this.get('height') 
-            && this.get('model.current_revision') == this.get('model.fast_html.revision') 
-            && this.get('model.fast_html.label_locale') == this.appState.get('label_locale') 
-            && this.get('model.fast_html.display_level') == this.get('model.display_level') 
-            && this.appState.get('inflection_prefix') == this.get('model.fast_html.inflection_prefix') 
-            && this.appState.get('inflection_shift') == this.get('model.fast_html.inflection_shift') 
-            && this.appState.get('referenced_user.preferences.skin') == this.get('model.fast_html.skin') 
-            && this.appState.get('referenced_user.preferences.preferred_symbols') == this.get('model.fast_html.symbols') 
-            && this.get('model.focus_id') == this.get('model.fast_html.focus_id'));
+      var fast = this.get('model.fast_html');
+      var res = !!(fast && fastHtmlHasRenderableContent(fast) && fast.width == this.get('width')
+            && fast.height == this.get('height')
+            && this.get('model.current_revision') == fast.revision
+            && fast.label_locale == this.appState.get('label_locale')
+            && fast.display_level == this.get('model.display_level')
+            && this.appState.get('inflection_prefix') == fast.inflection_prefix
+            && this.appState.get('inflection_shift') == fast.inflection_shift
+            && this.appState.get('referenced_user.preferences.skin') == fast.skin
+            && this.appState.get('referenced_user.preferences.preferred_symbols') == fast.symbols
+            && this.get('model.focus_id') == fast.focus_id);
       return res;
     }
   ),
@@ -367,7 +370,7 @@ export default Controller.extend({
     'long_description',
     'appState.currentUser.preferences.word_suggestion_images',
     'text_position',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'appState.inflection_prefix',
     'appState.inflection_shift',
     'appState.flipped',
@@ -386,7 +389,7 @@ export default Controller.extend({
       this.appState.set('window_inner_width', inner_width);
       this.appState.set('window_inner_height', height);
       var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
-      var topHeight = this.appState.get('header_height') + 5;
+      var topHeight = this.appState.get('header_height') + 5 + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
@@ -451,9 +454,74 @@ export default Controller.extend({
             _thisCtrl.appState.refresh_suggestions();
           }
         });
+      } else if(this.appState.get('speak_mode') && this.get('model') && this.get('model.grid')) {
+        // First layout can run before speak bar height is final (ResizeObserver / extra_header_height).
+        // Without a re-run, fast_html/ordered_buttons may never match viewport → "Loading" until a full route refresh (e.g. Back).
+        var nw = this.get('width');
+        var nh = this.get('height');
+        if(nw > 0 && nh > 0) {
+          var layoutKey = (this.get('model.id') || '') + '|' + nw + '|' + nh;
+          if(this._lastSpeakLayoutProcessKey !== layoutKey) {
+            this._lastSpeakLayoutProcessKey = layoutKey;
+            var _dimCtrl = this;
+            runLater(function() {
+              if(_dimCtrl.isDestroyed || !_dimCtrl.get('model')) { return; }
+              editManager.process_for_displaying();
+            });
+          }
+        }
       }
     }
   ),
+  _speakBarObserver: null,
+  _watchSpeakMode: observer('appState.speak_mode', function() {
+    var _this = this;
+    if (_this.appState.get('speak_mode')) {
+      _this.set('_lastSpeakLayoutProcessKey', null);
+      runLater(function() { _this._setupSpeakBarObserver(); }, 100);
+    } else {
+      _this._teardownSpeakBarObserver();
+      _this.appState.set('extra_header_height', 0);
+      document.documentElement.style.removeProperty('--speak-bar-extra');
+    }
+  }),
+  _setupSpeakBarObserver() {
+    if (this._speakBarObserver) { return; }
+    var _this = this;
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader) { return; }
+    this._speakBarObserver = new ResizeObserver(function() {
+      _this._updateFromSpeakBarResize();
+    });
+    this._speakBarObserver.observe(innerHeader);
+    this._updateFromSpeakBarResize();
+  },
+  _teardownSpeakBarObserver() {
+    if (this._speakBarObserver) {
+      this._speakBarObserver.disconnect();
+      this._speakBarObserver = null;
+    }
+  },
+  _updateFromSpeakBarResize() {
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader || !this.appState.get('speak_mode')) { return; }
+    var actualHeight = innerHeader.offsetHeight;
+    var topbarHeight = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')
+    ) || this.appState.get('header_height') || 0;
+    var extra = Math.max(0, actualHeight - topbarHeight);
+    var prevExtra = this.appState.get('extra_header_height') || 0;
+    if (prevExtra === extra) { return; }
+    this.appState.set('extra_header_height', extra);
+    document.documentElement.style.setProperty('--speak-bar-extra', extra + 'px');
+    this.computeHeight();
+  },
+  willDestroy() {
+    this._super(...arguments);
+    this._teardownSpeakBarObserver();
+    this.appState.set('extra_header_height', 0);
+    document.documentElement.style.removeProperty('--speak-bar-extra');
+  },
   board_style: computed('height', 'model.background.color', function() {
     var str = "position: relative; height: " + (this.get('height') + 5) + "px;";
     if(this.get('model.background.color') && window.tinycolor) {
@@ -563,8 +631,12 @@ export default Controller.extend({
       this.set('model.text_size', 'normal');
       if(starting_height < 35) {
         this.set('model.text_size', 'really_small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.25), 8));
       } else if(starting_height < 75) {
         this.set('model.text_size', 'small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.3), 10));
       }
 
       var $canvas = $("#board_canvas");
@@ -687,8 +759,8 @@ export default Controller.extend({
               }
             }
           }
-          var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
-          var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
+          var image_height = (button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
+          var image_width = (button_width - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
 
           var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
           if(_this.get('model.text_size') == 'really_small_text') {
@@ -854,7 +926,7 @@ export default Controller.extend({
   }),
   current_level: computed(
     'model.default_level',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'preview_level',
     function() {
       return this.get('preview_level') || this.stashes.get('board_level') || this.get('model.default_level') || 10;
@@ -933,7 +1005,7 @@ export default Controller.extend({
       } else if(spacing == "huge") {
         return 45;
       } else {
-        return 5;
+        return 4;
       }
     }
   ),
@@ -1015,17 +1087,6 @@ export default Controller.extend({
       return "text_position_" + (position || 'top');
     }
   ),
-  symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
-    var bg = this.appState.get('currentUser.preferences.symbol_background');
-    if(!bg) {
-      if(this.appState.get('currentUser')) {
-        bg = 'white';
-      } else {
-        bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
-      }
-    }
-    return "symbol_background_" + bg;
-  }),
   border_style: computed('appState.currentUser.preferences.device.button_border', function() {
     var spacing = this.appState.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
     return "border_" + spacing;
@@ -1055,7 +1116,8 @@ export default Controller.extend({
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
-    'appState.currentUser.preferences.high_contrast',
+    'high_contrast_class',
+    'symbol_background_class',
     function() {
       var res = "board advanced_selection ";
       if(this.appState.get('edit_mode')) {
@@ -1064,8 +1126,8 @@ export default Controller.extend({
       if(!this.appState.get('currentUser.preferences.folder_icons')) {
         res = res + "colored_icons ";
       }
-      if(this.appState.get('currentUser.preferences.high_contrast')) {
-        res = res + "high_contrast ";
+      if(this.get('high_contrast_class')) {
+        res = res + this.get('high_contrast_class') + " ";
       }
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
@@ -1099,8 +1161,8 @@ export default Controller.extend({
       if(this.get('text_position')) {
         res = res + this.get('text_position') + " ";
       }
-      if(this.get('symbol_background')) {
-        res = res + this.get('symbol_background') + " ";
+      if(this.get('symbol_background_class')) {
+        res = res + this.get('symbol_background_class') + " ";
       }
       if(this.get('button_style')) {
         var style = Button.style(this.get('button_style'));
@@ -1112,6 +1174,9 @@ export default Controller.extend({
         if(style.font_class) {
           res = res + style.font_class + " ";
         }
+      }
+      if(this.appState.get('eval_mode')) {
+        res = res + 'eval_mode ';
       }
       return res;
     }
@@ -1198,8 +1263,26 @@ export default Controller.extend({
     return { id: id, event: event };
   },
 
+  boardMenuOpen: false,
+
   actions: {
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('model')});
     },
     buttonSelect: function(id, event) {

@@ -1,7 +1,7 @@
 class Api::UsersController < ApplicationController
   extend ::NewRelic::Agent::MethodTracer
 
-  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button]
+  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button, :resend_parental_consent]
   def show
     # If requesting 'self' but no authenticated user, return 401 instead of 404
     if params['id'] == 'self' && !@api_user
@@ -195,28 +195,40 @@ class Api::UsersController < ApplicationController
     user_device = (user && @api_user && @api_user.global_id == user.global_id) && Device.find_by_global_id(@api_device_id)
     return unless exists?(user)
     options = {}
+    # Build user_data from params, restricting fields based on authorization level
+    user_data = params['user'] || {}
+    user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
+    user_data = user_data.to_h if user_data.respond_to?(:to_h) && !user_data.is_a?(Hash)
     if params['reset_token'] && user.valid_reset_token?(params['reset_token'])
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('password')
+      user_data = user_data.slice('password')
       options[:allow_password_change] = true
       user.used_reset_token!(params['reset_token'])
     elsif params['reset_token'] == 'admin' && user.allows?(@api_user, 'support_actions')
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('password')
+      user_data = user_data.slice('password')
       options[:allow_password_change] = true
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
-      params['user'] ||= {}
-      params['user'] = params['user'].slice('supervisor_key')
+      user_data = user_data.slice('supervisor_key')
     else
       return unless allowed?(user, 'edit')
     end
     # we don't want to set device preferences unless the user actually changed device settings
-    user_device ||= Device.where(user: @api_user).find_by_global_id(@api_device_id) if params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated']
+    device_updated = (params['user'] && params['user']['preferences'] && params['user']['preferences']['device'] && params['user']['preferences']['device']['updated'])
+    device_updated ||= (params['user'] && params['user']['preference'] && params['user']['preference']['device'] && params['user']['preference']['device']['updated'])
+    device_updated ||= (user_data && user_data['preference'] && user_data['preference']['device'] && user_data['preference']['device']['updated'])
+    if device_updated && !user_device
+      if @api_user && @api_user.global_id == user.global_id
+        user_device = Device.where(user: @api_user).find_by_global_id(@api_device_id)
+      else
+        # Supervisor editing another user: use the target user's most recent device
+        # so preferences are stored under a key the target user will actually read
+        user_device = Device.where(user: user, user_integration_id: nil).order('updated_at DESC').first
+      end
+    end
     options['device'] = user_device
     options['updater'] = @api_user
-      
-    if user.process(params['user'], options)
+
+    if user.process(user_data, options)
       start_code_progress = user.instance_variable_get('@start_code_progress')
       json = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user, :device => user_device)
       if start_code_progress
@@ -229,36 +241,51 @@ class Api::UsersController < ApplicationController
   end
   
   def create
-    if params['user'] && params['user']['start_code']
+    user_data = params['user']
+    user_data = user_data.permit! if user_data.is_a?(ActionController::Parameters)
+    if user_data && user_data['start_code'].present?
       # Validate user.start_code if present and error before trying to create
-      code = Organization.parse_activation_code(params['user']['start_code'])
+      # (Blank string must be ignored: in Ruby "" is truthy, but optional forms submit it.)
+      code = Organization.parse_activation_code(user_data['start_code'])
       return api_error(400, {error: "invalid start code", start_code_error: true}) if !code || code[:disabled]
     end
-    user = User.process_new(params['user'], {:pending => true, :author => @api_user})
+    user = User.process_new(user_data, {:pending => true, :author => @api_user})
     start_progress = nil
     if !user || user.errored?
       return api_error(400, {error: "user creation failed", errors: user && user.processing_errors})
     end
-    if params['user']['start_code']
+    if user_data && user_data['start_code'].present?
       # Process start code actions once the user is fully created (can't add supervisors beforehand)
-      res = Organization.parse_activation_code(params['user']['start_code'], user)
+      res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
     end
-    UserMailer.schedule_delivery(:confirm_registration, user.global_id)
-    UserMailer.schedule_delivery(:new_user_registration, user.global_id)
-    ExternalTracker.track_new_user(user)
+    coppa_pending = user.coppa_parental_consent_pending?
+    unless coppa_pending
+      UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+      UserMailer.schedule_delivery(:new_user_registration, user.global_id)
+      ExternalTracker.track_new_user(user)
+    else
+      schedule_parental_consent_request_email!(user)
+    end
 
     d = Device.find_or_create_by(:user_id => user.id, :device_key => 'default', :developer_key_id => 0)
     d.settings['ip_address'] = request.remote_ip
-    d.settings['browser'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'false'
-    d.settings['app'] = true if request.headers['X-INSTALLED-COUGHDROP'] == 'true'
+    log_installed_client_signal('api/users#create')
+    apply_device_classification!(d, installed_app?)
     d.settings['user_agent'] = request.headers['User-Agent']
-    
-    d.generate_token!(!!d.settings['app'])
+    d.save
+    d.generate_token!(!!d.settings['app']) unless coppa_pending
 
     res = JsonApi::User.as_json(user, :wrapper => true, :permissions => @api_user || user)
     res['user']['start_progress'] = JsonApi::Progress.as_json(start_progress) if start_progress
-    res['meta'] = JsonApi::Token.as_json(user, d)
+    if coppa_pending
+      res['meta'] = {
+        'token_type' => 'bearer',
+        'coppa_parental_consent_pending' => true
+      }
+    else
+      res['meta'] = JsonApi::Token.as_json(user, d)
+    end
     render json: res
   end
   
@@ -292,7 +319,9 @@ class Api::UsersController < ApplicationController
     else
       code = nil
       begin
-        code = Organization.activation_code(user, params['overrides'])
+        overrides = params['overrides']
+        overrides = overrides.permit! if overrides.is_a?(ActionController::Parameters)
+        code = Organization.activation_code(user, overrides)
       rescue => e
         err = {error: e.message}
         err[:code_taken] = true if e.message == 'code is taken'
@@ -384,7 +413,9 @@ class Api::UsersController < ApplicationController
     return unless allowed?(user, 'edit')
     device = Device.find_by_global_id(params['device_id'])
     if device && device.user_id == user.id
-      device.settings['name'] = params['device']['name']
+      device_data = params['device']
+      device_data = device_data.permit(:name) if device_data.is_a?(ActionController::Parameters)
+      device.settings['name'] = device_data['name']
       device.save
       render json: JsonApi::Device.as_json(device, :current_device => Device.find_by_global_id(@api_device_id))
     else
@@ -404,6 +435,48 @@ class Api::UsersController < ApplicationController
     else
       progress = Progress.schedule(WordData, :update_activities_for, user.global_id, true)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true)
+    end
+  end
+
+  def ensure_board_tag
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'model')
+    extra = UserExtra.find_or_create_by(user: user)
+    res = extra.ensure_board_tag(params['tag'])
+    if res
+      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
+    else
+      api_error 400, {error: 'invalid tag'}
+    end
+  end
+
+  def rename_board_tag
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'model')
+    extra = UserExtra.find_or_create_by(user: user)
+    res = extra.rename_board_tag(params['old_tag'], params['new_tag'])
+    if res
+      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
+    else
+      api_error 400, {error: 'invalid rename'}
+    end
+  end
+
+  def delete_board_tag
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'model')
+    extra = UserExtra.find_or_create_by(user: user)
+    res = extra.delete_board_tag_folder(params['tag'])
+    if res
+      board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+      render json: {ok: true, board_tags: res, board_tag_map: board_tag_map}
+    else
+      api_error 400, {error: 'invalid tag'}
     end
   end
 
@@ -444,9 +517,9 @@ class Api::UsersController < ApplicationController
 
     admin = Organization.admin
     token = nil
-    if params['token'] && params['token'].respond_to?(:to_unsafe_h)
-      token = params['token'].to_unsafe_h
-    elsif params['token'] && params['token'].respond_to?(:to_h)
+    if params['token'].is_a?(ActionController::Parameters)
+      token = params['token'].permit!.to_h
+    elsif params['token'].respond_to?(:to_h)
       token = params['token'].to_h
     end
     if params['type'] == 'gift_code'
@@ -585,13 +658,20 @@ class Api::UsersController < ApplicationController
     if params['resend']
       sent = false
       if user.settings['pending'] != false
-        sent = true
-        UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        if user.coppa_parental_consent_pending?
+          sent = false
+        else
+          sent = true
+          UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+        end
       end
       render json: {sent: sent}
     else
       confirmed = !!(user && !user.settings['pending'])
       if params['code'] && user && params['code'] == user.registration_code
+        if user.coppa_parental_consent_pending?
+          return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
+        end
         confirmed = true
         user.update_setting('pending', false)
       end
@@ -632,6 +712,42 @@ class Api::UsersController < ApplicationController
         api_error 400, {email_sent: false, users: 0, error: message, message: message}
       end
     end
+  end
+
+  # Re-send parental consent email when the child cannot log in until a parent approves (same flow as signup).
+  # Requires username + password and a valid browser client_secret (same bar as /token). Rate-limited per user in Redis.
+  def resend_parental_consent
+    unless JsonApi::Json.coppa_parental_consent_enabled?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless params['client_id'].to_s == 'browser' && GoSecure.valid_browser_token?(params['client_secret'])
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    identification = (params['username'] || params['identification'] || params['user_name']).to_s.strip
+    password = params['password'].to_s
+    if identification.blank? || password.blank?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    user = User.find_for_login(identification, nil, password)
+    if !user || !user.valid_password?(password)
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless user.coppa_parental_consent_pending?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    key = parental_consent_resend_redis_key(user)
+    ttl_ms = begin
+      RedisInit.default.pttl(key)
+    rescue Redis::BaseError
+      nil
+    end
+    if ttl_ms && ttl_ms > 0
+      retry_after = [(ttl_ms / 1000.0).ceil, 1].max
+      return api_error 429, {error: 'parental_consent_resend_throttled', retry_after_seconds: retry_after}
+    end
+    Permissions.setex(RedisInit.default, key, parental_consent_resend_ttl_seconds, '1', true)
+    schedule_parental_consent_request_email!(user)
+    render json: {sent: true}
   end
   
   def password_reset
@@ -702,7 +818,17 @@ class Api::UsersController < ApplicationController
     if log
       render json: JsonApi::Log.as_json(log, :wrapper => true, :permissions => @api_user)
     else
-      return api_error 400, { error: 'No daily_use log found for this user' }
+      # No LogSession row yet — omit persisted id so the client does not push a fake
+      # record into the store (log is created when usage is first pushed via stashes).
+      render json: {
+        log: {
+          empty_daily_use_log: true,
+          type: 'daily_use',
+          user: { id: user.global_id, user_name: user.user_name },
+          author: { id: user.global_id, user_name: user.user_name },
+          daily_use: []
+        }
+      }
     end
   end
   
@@ -875,6 +1001,29 @@ class Api::UsersController < ApplicationController
     render json: nonce.encryption_result
   end
   
+  private
+
+  def schedule_parental_consent_request_email!(user)
+    # Mail goes to settings['coppa']['parent_email'] (see UserMailer#parental_consent_request).
+    # By default delivery is queued (Resque priority); without a worker the email never sends.
+    # In development, set INLINE_PARENTAL_CONSENT_EMAIL=1 to call SES immediately (still needs SES_KEY/SECRET or delivery will no-op / log).
+    if Rails.env.development? && %w[1 true yes on].include?(ENV['INLINE_PARENTAL_CONSENT_EMAIL'].to_s.strip.downcase)
+      UserMailer.deliver_message(:parental_consent_request, user.global_id)
+      Rails.logger.info("[COPPA] parental_consent_request delivered inline for user=#{user.global_id}")
+    else
+      UserMailer.schedule_delivery(:parental_consent_request, user.global_id)
+      Rails.logger.info("[COPPA] parental_consent_request queued for user=#{user.global_id} (start Resque priority worker, or set INLINE_PARENTAL_CONSENT_EMAIL=1 in development)")
+    end
+  end
+
+  def parental_consent_resend_redis_key(user)
+    "parental_consent_resend:#{user.global_id}"
+  end
+
+  def parental_consent_resend_ttl_seconds
+    180
+  end
+
   protected
   def grab_url(url)
     res = Typhoeus.get(url, timeout: 3)

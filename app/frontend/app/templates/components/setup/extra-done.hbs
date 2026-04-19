@@ -1,11 +1,15 @@
-<div class='col-sm-6 col-sm-offset-3'>
-  <h4>{{t "You're All Set (Again)!" key="youre_all_set_again"}}</h4>
-  <p>{{t "Now you should know everything you need to get started using %app_name%! If you ever get stumped, you can always hit the \"Support\" link on the dashboard to access your YouTube channel or How-To Guides. Good luck!" key="done_setup_2"}}</p>
+<div class='col-sm-12'>
+  <h4>{{t "You're All Set!" key="youre_all_set"}}</h4>
+</div>
+<div class='col-sm-12'>
+  <ul class="usage-checklist">
+    <li class="usage-checklist__item">{{t "You're ready to start using %app_name%! If you ever need help, check the \"Support\" link on your dashboard." key="done_setup_2"}}</li>
+  </ul>
 
-  <div class='setup_setting'>
-    <div class="btn-group-vertical" style="width: 100%;">
-      <a href="#" class='btn btn-lg btn-default' {{action "home" target=this.setup}}>{{t "Return to the Dashboard" key="return_to_dashboard"}}</a>
-      <a href="#" class='btn btn-lg btn-default' {{action "home" true target=this.setup}}>{{t "Watch the Training Video" key="watch_video"}}</a>
-    </div>
+  <div class="setup-done-actions" style="align-items: center; justify-content: center; min-height: 200px;">
+    <button type="button" class="setup-done-actions__btn setup-done-actions__btn--primary" {{action "home" target=this.setup}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      {{t "Return to the Dashboard" key="return_to_dashboard"}}
+    </button>
   </div>
 </div>

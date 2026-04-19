@@ -174,6 +174,18 @@ describe JsonApi::Json do
       expect(host['settings']['company_name']).to eq('Someone')
     end
 
+    it 'fills coppa_parental_consent from ENV when org host_settings omit it' do
+      orig = ENV['COPPA_PARENTAL_CONSENT']
+      ENV['COPPA_PARENTAL_CONSENT'] = '1'
+      begin
+        expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
+        host = JsonApi::Json.load_domain('bacon.com')
+        expect(host['settings']['coppa_parental_consent']).to eq(true)
+      ensure
+        ENV['COPPA_PARENTAL_CONSENT'] = orig
+      end
+    end
+
     it 'should fall back to the default domain settings' do
       expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
       host = JsonApi::Json.load_domain('bacon.net')

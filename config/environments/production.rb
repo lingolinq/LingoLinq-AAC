@@ -10,7 +10,7 @@ Rails.application.configure do
   # Rake tasks automatically ignore this option for performance.
   config.eager_load = true
 
-  config.secret_key_base = ENV["SECRET_KEY_BASE"]
+  config.secret_key_base = ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]
   
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
@@ -25,9 +25,10 @@ Rails.application.configure do
   # (they don't have nginx in front like traditional deployments)
   config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || ENV['RENDER'].present?
 
-  # Compress JavaScripts and CSS.
-  # uglifier is deprecated, JavaScript compression handled by ember-cli-terser in frontend
-  config.assets.css_compressor = :sass
+  # CSS compression disabled: SassC cannot handle modern CSS functions
+  # (clamp, calc with mixed units like px + vw). Ember frontend already
+  # outputs minified CSS, so no additional compression is needed.
+  config.assets.css_compressor = nil
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.
   config.assets.compile = false

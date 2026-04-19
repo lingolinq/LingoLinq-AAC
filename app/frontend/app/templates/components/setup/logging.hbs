@@ -1,11 +1,15 @@
-<div class='col-sm-10 col-sm-offset-1'>
+<div class='col-sm-12'>
   <h4>{{t "Usage Logging and Reports" key="usage_logging_and_reports"}}</h4>
 </div>
-<div class='col-sm-5 col-sm-offset-1'>
-  <img src={{path "walkthrough/reports.gif"}} style='width: 100%;' >
+<div class='col-sm-6'>
+  <img src={{path "images/reports.png"}} alt="" style='width: 100%;' >
 </div>
-<div class='col-sm-5'>
-  <p class='prompt'>{{t "%app_name% has powerful built-in reporting tools that allow caregivers, therapists and supporters to see things like what time of day the device is being used, most common words and progress toward goals. To use these helpful features, just enable logging." key="logging_reports_1"}}</p>
+<div class='col-sm-6'>
+  <ul class="usage-checklist">
+    <li class="usage-checklist__item">{{t "Tracks which words are used and how often they appear across sessions." key="logging_check_1"}}</li>
+    <li class="usage-checklist__item">{{t "Monitors session activity so you can see when and how the device is being used." key="logging_check_2"}}</li>
+    <li class="usage-checklist__item">{{t "Measures progress toward communication goals — giving your whole team clear, actionable insight." key="logging_check_3"}}</li>
+  </ul>
   {{#if this.setup.setup_user}}
     <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{action "set_preference" "logging" true target=this.setup}}>
       {{#if this.setup.setup_user.preferences.logging}}
@@ -14,41 +18,5 @@
         {{t "Enable Logging" key="enable_logging"}}
       {{/if}}
     </button></p>
-  {{/if}}
-</div>
-<div class='col-sm-10 col-sm-offset-1'>
-  <h4>{{t "Reporting Notifications" key="reporting_notifications"}}</h4>
-</div>
-<div class='col-sm-5 col-sm-offset-1'>
-  {{#if this.setup.setup_user.supporter_role}}
-    <p class='prompt'>{{t "As a supervisor, you'll have access to boards and usage reports for the communicators you work with. If you'd like, you can also turn on notifications, and receive regular updates on communicator progress, or even opt-in to receiving text messages from communicators that have added you as a supervisor." key="notifications_settings"}}</p>
-  {{else}}
-    <p class='prompt'>{{t "When logging is enabled, you can opt to receive regular emails with details on communication over time, including current goals and word usage. This can help keep everyone on the same page and can be a valuable tool is helping communicators make continual progress." key="communicator_notifications"}}</p>
-  {{/if}}
-  <p class='prompt'>{{t "You can change these and other notification preferences under the \"Profile\" section of \"My Account\" at any time." key="available_under_profile"}}</p>
-</div>
-<div class='col-sm-5'>
-  <div class='setup_setting' style='margin-top: 0;'>
-    <label>{{t "How often do you want summary emails?" key="summary_emails"}}</label>
-    <div class="btn-group-vertical" style="width: 100%;">
-      <a href="#" class={{if this.setup.notification.1_week "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_week" target=this.setup}}>{{t "Every Week" key="every_week"}}</a>
-      <a href="#" class={{if this.setup.notification.2_weeks "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "2_weeks" target=this.setup}}>{{t "Every Other Week" key="every_other_week"}}</a>
-      <a href="#" class={{if this.setup.notification.1_month "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "1_month" target=this.setup}}>{{t "Every Month" key="every_month"}}</a>
-      <a href="#" class={{if this.setup.notification.none "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "notification_frequency" "" target=this.setup}}>{{t "Never" key="never"}}</a>
-    </div>
-  </div>
-  {{#if this.setup.setup_user.supporter_role}}
-    <div class='setup_setting'>
-      <label>{{t "How would you like communicators to message you?" key="comm_preference"}}</label>
-      <div class="btn-group-vertical" style="width: 100%;">
-        <span class={{if this.setup.notification.text "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "text" target=this.setup}}>
-          {{t "As Text Messages" key="via_text"}}
-          <br>
-          <span style='display: inline-block; width: 300px;'><Input type="text" class="form-control input-lg" @value={{this.setup.cell}} placeholder="cell #" /></span>
-        </span>
-        <a href="#" class={{if this.setup.notification.email "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "email" target=this.setup}}>{{t "As Email Messages" key="via_email"}}</a>
-        <a href="#" class={{if this.setup.notification.app "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "share_notifications" "app" target=this.setup}}>{{t "As Dashboard Notifications" key="via_dashboard"}}</a>
-      </div>
-    </div>
   {{/if}}
 </div>

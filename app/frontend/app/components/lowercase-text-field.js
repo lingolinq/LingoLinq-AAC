@@ -5,7 +5,7 @@ export default Component.extend({
   type: 'text',
   autocapitalize: 'off',
   autocorrect: 'off',
-  attributeBindings: ['placeholder', 'value', 'autocapitalize', 'autocorrect', 'autocomplete'],
+  attributeBindings: ['id', 'placeholder', 'value', 'autocapitalize', 'autocorrect', 'autocomplete'],
   change: function() {
     this.set('value', this.get('element').value);
   }

@@ -18,6 +18,26 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'][0]['id']).to eq(b.global_id)
     end
 
+    it "should not 500 on custom_order sort when a starred board has nil settings" do
+      token_user
+      u = @user
+      u.settings['public'] = true
+      u.save
+      b = Board.create(user: u, public: true)
+      b.update_column(:settings, nil)
+      u.reload
+      u.settings['starred_board_ids'] = [b.global_id]
+      u.save
+      get :index, params: {
+        user_id: u.global_id,
+        public: 'true',
+        starred: 'true',
+        sort: 'custom_order',
+        category: 'robust'
+      }
+      expect(response).to be_successful
+    end
+
     it "should return root shallow clones for a user" do
       token_user
       u1 = User.create
@@ -1101,6 +1121,14 @@ describe Api::BoardsController, :type => :controller do
       post :create
       assert_missing_token
     end
+
+    it "should not raise when board param is omitted (legacy clients)" do
+      token_user
+      expect {
+        post :create, params: {}
+      }.not_to raise_error
+      expect(response.status).to_not eq(500)
+    end
     
     it "should create a new board" do
       token_user
@@ -1240,6 +1268,27 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
     end
+
+    it "should reject non-object JSON body" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
+  end
+
+  describe "generate_labels" do
+    it "should reject non-object JSON body" do
+      token_user
+      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
   end
   
   describe "update" do
@@ -1354,6 +1403,16 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
+    end
+
+    it "should reject non-object JSON body" do
+      token_user
+      b = Board.create(:user => @user)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
     end
     
     it "should support single-button updating" do
@@ -2133,12 +2192,14 @@ describe Api::BoardsController, :type => :controller do
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'bacon'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
+        'bacon' => [],
         'cheddar' => ['a', 'b', b.global_id, 'c']
       })
 
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'cheddar'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
+        'bacon' => [],
         'cheddar' => ['a', 'b', 'c']
       })
 
@@ -2572,6 +2633,7 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
     end
 
@@ -2604,13 +2666,15 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
 
       post :tag, params: {board_id: b.global_id, tag: 'bacon', remove: true}
       json = assert_success_json
       expect(json['tagged']).to eq(true)
-      expect(json['board_tags']).to eq([])
-      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq(nil)
+      expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => []})
+      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([])
     end
 
     it "should return a list of tags on success" do

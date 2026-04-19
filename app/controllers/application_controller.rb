@@ -8,7 +8,18 @@ class ApplicationController < ActionController::Base
   before_action :set_paper_trail_whodunnit
   after_action :log_api_call
   before_bugsnag_notify :add_user_info_to_bugsnag
-  
+  around_action :with_request_caching
+
+  # Clears request-scoped Thread.current caches after each request to prevent
+  # data leaking between requests on the same Puma thread.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def with_request_caching
+    yield
+  ensure
+    Thread.current[:board_content_cache] = nil
+    Thread.current[:word_inflection_cache] = nil
+  end
+
   def set_host
     Rails.logger.info("Request ID #{request.headers['X-Request-Id'] || request.headers['X-Request-ID'] || request.request_id} #{request.headers['X-Request-Start']} #{}")
     if request.headers['X-SILENCE-LOGGER']
@@ -51,8 +62,9 @@ class ApplicationController < ActionController::Base
 #     end
     @time = Time.now
     Time.zone = nil
-    # Rails 7: Ensure params are accessible
-    params.permit! if params.respond_to?(:permit!)
+    # NOTE: Do not globally call `params.permit!` here; keep Strong Parameters
+    # protections intact. Controllers that need nested params must explicitly
+    # permit them or use `to_unsafe_h` in a narrowly scoped way.
     token = params['access_token']
     # If token is "none" (default value from frontend), treat it as missing and check Authorization header
     token = nil if token == 'none' || token.blank?
@@ -123,7 +135,9 @@ class ApplicationController < ActionController::Base
         end
       end
     else
-      Rails.logger.debug("check_api_token: No token found for path #{request.path}, params['access_token']: #{params['access_token']}, Authorization header: #{request.headers['Authorization'] ? 'present' : 'missing'}")
+      # Never log token values; only indicate presence/absence
+      token_present = params['access_token'].present? && params['access_token'] != 'none'
+      Rails.logger.debug("check_api_token: No token found for path #{request.path}, params token: #{token_present ? 'present' : 'absent'}, Authorization header: #{request.headers['Authorization'] ? 'present' : 'missing'}")
       # Log when no token is provided for API requests
       if request.path.match(/^\/api/) && !request.path.match(/^\/api\/v1\/token/)
         Rails.logger.debug("No token provided for API request: #{request.path}")
@@ -140,35 +154,22 @@ class ApplicationController < ActionController::Base
   end
   
   def replace_helper_params
-    # Rails 7: Ensure params are permitted for modification
-    # After permit!, params should be mutable, but we need to iterate over the actual params
-    # object keys, not a copy, to ensure modifications persist
-    if params.respond_to?(:permit!)
-      params.permit!
-    end
-    
-    # Get all parameter keys as an array to iterate over (avoids modification during iteration)
-    # Use to_unsafe_h to get all parameters including unpermitted ones
-    param_keys = (params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h).keys.map(&:to_s)
-    
-    # Iterate over the keys and modify params directly
-    # This ensures we're modifying the actual params object, not a copy
-    param_keys.each do |key_str|
-      val = params[key_str]
-      
-      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
-        # Modify params directly - after permit! this should persist
+    # Iterate over routing/id params to replace 'self' and 'my_org' placeholders.
+    # We only modify simple string params (id, *_id), not nested hashes.
+    # Use to_unsafe_h for read-only iteration to find keys needing replacement.
+    raw = params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
+    raw.each do |key_str, val|
+      key_str = key_str.to_s
+      next unless val.is_a?(String)
+      next unless key_str == 'id' || key_str.match?(/_id$/)
+
+      if @api_user && val == 'self'
         params[key_str] = @api_user.global_id
-      elsif !@api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'self'
-        # If user_id=self but no @api_user, this will fail later, but don't crash here
-        # The controller will handle the authentication error
       end
-      
-      if @api_user && (key_str == 'id' || key_str.match(/_id$/)) && val == 'my_org' && Organization.manager?(@api_user)
+
+      if @api_user && val == 'my_org' && Organization.manager?(@api_user)
         org = @api_user.organization_hash.select{|o| o['type'] == 'manager' }.sort_by{|o| o['added'] || Time.now.iso8601 }[0]
-        if org
-          params[key_str] = org['id']
-        end
+        params[key_str] = org['id'] if org
       end
     end
   end
@@ -228,5 +229,60 @@ class ApplicationController < ActionController::Base
 
   def set_browser_token_header
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
+  end
+
+  # X-INSTALLED-LINGOLINQ: client declares native app vs browser.
+  # Only canonical values 'true' and 'false' (case-insensitive) are honored; other non-blank values are ignored
+  # and params['installed_app'] is used for both app and browser classification.
+  # When the effective header is 'true' or 'false', it wins over params for the corresponding signal.
+  protected
+
+  def installed_app_header
+    request.headers['X-INSTALLED-LINGOLINQ'].to_s.strip.downcase
+  end
+
+  # 'true', 'false', or nil (nil: treat like absent header — use params).
+  def installed_app_header_effective
+    h = installed_app_header
+    return nil if h.blank?
+    return h if h == 'true' || h == 'false'
+    nil
+  end
+
+  def installed_app?
+    eh = installed_app_header_effective
+    if eh
+      eh == 'true'
+    else
+      params['installed_app'].to_s == 'true'
+    end
+  end
+
+  def browser_client?
+    eh = installed_app_header_effective
+    return true if eh == 'false'
+    return false if eh == 'true'
+    params['installed_app'].to_s == 'false'
+  end
+
+  # System device (developer_key_id 0): app/browser flags via DeviceClassification + request.
+  # +native_app_device+ — password/registration: pass installed_app?; SAML: pass config['app'].
+  # +force+ — clear stored app/browser before applying (SAML ACS: authoritative refresh).
+  def apply_device_classification!(device, native_app_device, force: false)
+    device.settings ||= {}
+    DeviceClassification.apply_to_settings!(
+      device.settings,
+      native_app_device: native_app_device,
+      browser_client: browser_client?,
+      force: force
+    )
+    device
+  end
+
+  # TODO: Remove after validating device classification in production (few days).
+  def log_installed_client_signal(source)
+    h = installed_app_header
+    return if h.blank? && !params.key?('installed_app')
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} effective=#{installed_app_header_effective.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
   end
 end

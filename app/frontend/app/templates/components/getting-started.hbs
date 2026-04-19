@@ -1,106 +1,156 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Getting Started" key="getting_started"}}</h3>
-  </div>
-  <div class="modal-body">
-    {{t "Welcome to %app_name%! You should get a confirmation email in your inbox soon. In the mean time here's some easy next steps. You can get back to this list anytime from the dashboard, just hit the logo in the top corner then open this list again." key="welcome_with_steps"}}
-    <ul id="checklist" class='list-unstyled' style="margin: 20px; font-size: 16px; line-height: 16px;">
-      <li class={{if this.model.progress.intro_watched "text-muted"}} style='margin-bottom: 20px;'>
-        <span class={{this.intro_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <a href="#" {{action "intro"}}>
-          {{t "Learn about %app_name%" key="learn_about_app"}}
-        </a>
-        <br>
-        <span class="text-muted" style="font-size: 12px;">
-        {{#if this.model.progress.intro_watched}}
-          {{t "Done!" key="done_excl"}}
-        {{else}}
-          {{t "Pick up some basics about what %app_name% is and how it works." key="intro_explanation"}}
-        {{/if}}
-        </span>
-        <span style="clear: left;"></span>
-      </li>
-      <li class={{if this.model.progress.home_board_set "text-muted"}} style='margin-bottom: 20px;'>
-        <span class={{this.home_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <LinkTo @route="home-boards">
-          {{t "Pick a home board" key="pick_a_home_board"}}
-        </LinkTo>
-        <br>
-        <span class="text-muted" style="font-size: 12px;">
-        {{#if this.model.progress.home_board_set}}
-          {{t "Done!" key="done_excl"}}
-        {{else}}
-          {{t "Your home board is where you'll go by default when you want to speak." key="home_board_explanation"}}
-        {{/if}}
-        </span>
-        <span style="clear: left;"></span>
-      </li>
-      <li class={{if this.model.progress.app_added "text-muted"}} style='margin-bottom: 20px;'>
-        <span class={{this.app_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <a href="#" {{action "app_install"}}>
-          {{t "Add the app to your device" key="add_app_to_your_device"}}
-        </a>
-        <br>
-        <span class="text-muted" style="font-size: 12px;">
-        {{#if this.model.progress.app_added}}
-          {{t "Done!" key="done_excl"}}
-        {{else}}
-          {{t "%app_name% runs in web browsers, but you can also find it in the app stores" key="app_explanation"}}
-        {{/if}}
-        </span>
-        <span style="clear: left;"></span>
-      </li>
-      <li class={{if this.model.progress.preferences_edited "text-muted"}} style='margin-bottom: 20px;'>
-        <span class={{this.preferences_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}}>
-          {{t "Configure your board preferences" key="configure_your_board_preferences"}}
-        </LinkTo>
-        <br>
-        <span class="text-muted" style="font-size: 12px;">
-        {{#if this.model.progress.preferences_edited}}
-          {{t "Done!" key="done_excl"}}
-        {{else}}
-          {{t "Customize how %app_name% looks, turn on logging, etc." key="preferences_explanation"}}
-        {{/if}}
-        </span>
-        <span style="clear: left;"></span>
-      </li>
-      <li class={{if this.model.progress.profile_edited "text-muted"}} style='margin-bottom: 20px;'>
-        <span class={{this.profile_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-        <LinkTo @route="user.edit" @model={{this.appState.currentUser.user_name}}>
-          {{t "Update your profile" key="update_your_profile"}}
-        </LinkTo>
-        <br>
-        <span class="text-muted" style="font-size: 12px;">
-        {{#if this.model.progress.profile_edited}}
-          {{t "Done!" key="done_excl"}}
-        {{else}}
-          {{t "Check your name, email, notifications, and basic bio." key="profile_explanation"}}
-        {{/if}}
-        </span>
-        <span style="clear: left;"></span>
-      </li>
-      {{#if this.appState.feature_flags.subscriptions}}
-        <li class={{if this.model.progress.subscription_set "text-muted"}} style='margin-bottom: 20px;'>
-          <span class={{this.subscription_status_class}} style="font-size: 35px; vertical-align: middle; margin-right: 15px; float: left;"></span>
-          <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}}>
-            {{t "Set up a subscription" key="pick_subscription"}}
-          </LinkTo>
-          <br>
-          <span class="text-muted" style="font-size: 12px;">
-          {{#if this.model.progress.subscription_set}}
-            {{t "Done!" key="done_excl"}}
-          {{else}}
-            {{t "Purchase %app_name% to keep using it after your free preview has ended." key="subscription_explanation"}}
-          {{/if}}
+  <div class="md-getting-started-modal">
+    <div class="md-getting-started-modal__header">
+      <h3 class="md-getting-started-modal__title">{{t "Getting Started" key="getting_started"}}</h3>
+      <div class="md-getting-started-modal__header-status">
+        <div class="md-getting-started-modal__progress" role="progressbar" aria-valuenow={{this.progressPercent}} aria-valuemin="0" aria-valuemax="100">
+          <div class="md-getting-started-modal__progress-fill" style={{this.progressPercentStyle}}></div>
+          <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=this.progressPercent}}</span>
+        </div>
+        <span class="md-getting-started-modal__stage">{{t "Step %{current} of %{total}" key="step_current_of_total" current=this.currentStep total=5}}</span>
+      </div>
+      <button type="button" class="close md-getting-started-modal__close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+          <svg class="md-getting-started-modal__close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+    </div>
+    <div class="md-getting-started-modal__body">
+      <p class="md-getting-started-modal__intro">
+        {{t "We're glad you're here. To get the most out of %app_name%, work through the steps below at your own pace. You can return to this checklist anytime from your dashboard." key="welcome_with_steps"}}
+      </p>
+      <ul id="checklist" class="md-getting-started-modal__checklist list-unstyled">
+        <li class="md-getting-started-modal__item {{if this.model.progress.intro_watched "md-getting-started-modal__item--done"}}">
+          <span class="md-getting-started-modal__icon" aria-hidden="true">
+            {{#if this.model.progress.intro_watched}}
+              {{getting-started-icon name="check"}}
+            {{else}}
+              {{getting-started-icon name="learn"}}
+            {{/if}}
           </span>
-          <span style="clear: left;"></span>
+          <div class="md-getting-started-modal__item-content">
+            <a href="#" class="md-getting-started-modal__item-link" {{action "intro"}}>
+              {{t "Learn about %app_name%" key="learn_about_app"}}
+            </a>
+            <span class="md-getting-started-modal__item-hint">
+              {{#if this.model.progress.intro_watched}}
+                {{t "Done!" key="done_excl"}}
+              {{else}}
+                {{t "Pick up some basics about what %app_name% is and how it works." key="intro_explanation"}}
+              {{/if}}
+            </span>
+          </div>
         </li>
-      {{/if}}
-    </ul>
-    <button class='btn btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
-    <button class='btn btn-default' {{action "setup_done" }}>{{t "I'm Done with this Checklist" key="skip_setup"}}</button>
+        <li class="md-getting-started-modal__item {{if this.model.progress.home_board_set "md-getting-started-modal__item--done"}}">
+          <span class="md-getting-started-modal__icon" aria-hidden="true">
+            {{#if this.model.progress.home_board_set}}
+              {{getting-started-icon name="check"}}
+            {{else}}
+              {{getting-started-icon name="home"}}
+            {{/if}}
+          </span>
+          <div class="md-getting-started-modal__item-content">
+            <LinkTo @route="home-boards" class="md-getting-started-modal__item-link">
+              {{t "Pick a home board" key="pick_a_home_board"}}
+            </LinkTo>
+            <span class="md-getting-started-modal__item-hint">
+              {{#if this.model.progress.home_board_set}}
+                {{t "Done!" key="done_excl"}}
+              {{else}}
+                {{t "Your home board is where you'll go by default when you want to speak." key="home_board_explanation"}}
+              {{/if}}
+            </span>
+          </div>
+        </li>
+        <li class="md-getting-started-modal__item {{if this.model.progress.app_added "md-getting-started-modal__item--done"}}">
+          <span class="md-getting-started-modal__icon" aria-hidden="true">
+            {{#if this.model.progress.app_added}}
+              {{getting-started-icon name="check"}}
+            {{else}}
+              {{getting-started-icon name="device"}}
+            {{/if}}
+          </span>
+          <div class="md-getting-started-modal__item-content">
+            <a href="#" class="md-getting-started-modal__item-link" {{action "app_install"}}>
+              {{t "Add the app to your device" key="add_app_to_your_device"}}
+            </a>
+            <span class="md-getting-started-modal__item-hint">
+              {{#if this.model.progress.app_added}}
+                {{t "Done!" key="done_excl"}}
+              {{else}}
+                {{t "%app_name% runs in web browsers, but you can also find it in the app stores" key="app_explanation"}}
+              {{/if}}
+            </span>
+          </div>
+        </li>
+        <li class="md-getting-started-modal__item {{if this.model.progress.preferences_edited "md-getting-started-modal__item--done"}}">
+          <span class="md-getting-started-modal__icon" aria-hidden="true">
+            {{#if this.model.progress.preferences_edited}}
+              {{getting-started-icon name="check"}}
+            {{else}}
+              {{getting-started-icon name="preferences"}}
+            {{/if}}
+          </span>
+          <div class="md-getting-started-modal__item-content">
+            <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="md-getting-started-modal__item-link">
+              {{t "Configure your board preferences" key="configure_your_board_preferences"}}
+            </LinkTo>
+            <span class="md-getting-started-modal__item-hint">
+              {{#if this.model.progress.preferences_edited}}
+                {{t "Done!" key="done_excl"}}
+              {{else}}
+                {{t "Customize how %app_name% looks, turn on logging, etc." key="preferences_explanation"}}
+              {{/if}}
+            </span>
+          </div>
+        </li>
+        <li class="md-getting-started-modal__item {{if this.model.progress.profile_edited "md-getting-started-modal__item--done"}}">
+          <span class="md-getting-started-modal__icon" aria-hidden="true">
+            {{#if this.model.progress.profile_edited}}
+              {{getting-started-icon name="check"}}
+            {{else}}
+              {{getting-started-icon name="profile"}}
+            {{/if}}
+          </span>
+          <div class="md-getting-started-modal__item-content">
+            <LinkTo @route="user.edit" @model={{this.appState.currentUser.user_name}} class="md-getting-started-modal__item-link">
+              {{t "Update your profile" key="update_your_profile"}}
+            </LinkTo>
+            <span class="md-getting-started-modal__item-hint">
+              {{#if this.model.progress.profile_edited}}
+                {{t "Done!" key="done_excl"}}
+              {{else}}
+                {{t "Check your name, email, notifications, and basic bio." key="profile_explanation"}}
+              {{/if}}
+            </span>
+          </div>
+        </li>
+        {{#if this.appState.feature_flags.subscriptions}}
+          <li class="md-getting-started-modal__item {{if this.model.progress.subscription_set "md-getting-started-modal__item--done"}}">
+            <span class="md-getting-started-modal__icon" aria-hidden="true">
+              {{#if this.model.progress.subscription_set}}
+                {{getting-started-icon name="check"}}
+              {{else}}
+                {{getting-started-icon name="subscription"}}
+              {{/if}}
+            </span>
+            <div class="md-getting-started-modal__item-content">
+              <LinkTo @route="user.subscription" @model={{this.appState.currentUser.user_name}} class="md-getting-started-modal__item-link">
+                {{t "Set up a subscription" key="pick_subscription"}}
+              </LinkTo>
+              <span class="md-getting-started-modal__item-hint">
+                {{#if this.model.progress.subscription_set}}
+                  {{t "Done!" key="done_excl"}}
+                {{else}}
+                  {{t "Purchase %app_name% to keep using it after your free preview has ended." key="subscription_explanation"}}
+                {{/if}}
+              </span>
+            </div>
+          </li>
+        {{/if}}
+      </ul>
+      <div class="md-getting-started-modal__actions">
+        <button type="button" class="md-btn md-btn--ghost md-getting-started-modal__btn" {{action "close"}}>{{t "Close" key="close"}}</button>
+        <button type="button" class="md-btn md-btn--primary md-btn--pill md-getting-started-modal__btn" {{action "setup_done"}}>{{t "I'm Done with this Checklist" key="skip_setup"}}</button>
+      </div>
+    </div>
   </div>
-
 {{/modal-dialog}}

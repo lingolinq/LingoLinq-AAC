@@ -1284,6 +1284,13 @@ var pictureGrabber = EmberObject.extend({
         _this.controller.set('model.image', image);
       }
       _this.clear();
+      // Synchronously mirror the image onto board.buttons so persistence (which may
+      // serialize before afterRender fires) sees the updated image_id immediately.
+      var syncServerId = (image.get && image.get('id')) || image.id;
+      editManager.change_button(button_id, {
+        'image': image,
+        'image_id': syncServerId
+      });
       // Defer to afterRender so Ember Data has finished processing the save response.
       // This ensures we use the server-assigned id (not the client id) when the server
       // returns a different id (e.g. due to RecordIdentifier handling).
@@ -2613,7 +2620,13 @@ var boardGrabber = EmberObject.extend({
     progress.then(function(boards) {
       if(boards[0] && boards[0].key) {
         if(modal.is_open('importing-boards')) {
-          boardGrabber.transitioner.transitionTo('board', boards[0].key);
+          var importKey = boards[0].key;
+          var importParts = importKey ? importKey.split('/') : [];
+          if(importParts.length === 2) {
+            boardGrabber.transitioner.transitionTo('user.board-detail', importParts[0], importParts[1]);
+          } else {
+            boardGrabber.transitioner.transitionTo('board', importKey);
+          }
         } else {
           modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
         }

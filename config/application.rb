@@ -46,6 +46,7 @@ module LingoLinq
       "#{config.root}/app/frontend",
       "#{config.root}/lib/converters",
       "#{config.root}/lib/templates",
+      "#{config.root}/lib/obf_lingolinq_patch.rb", # loaded by initializer, patches OBF::External
       "#{config.root}/lib/seed_organization.rb",   # script defines top-level method, not constant
       "#{config.root}/lib/seed_reporting_logs.rb"  # script defines top-level method, not constant
     )

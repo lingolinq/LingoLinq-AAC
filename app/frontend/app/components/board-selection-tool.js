@@ -37,6 +37,9 @@ export default Component.extend({
     this.set('board_style', null);
     this.set('app_state', this.appState);
     this.set('skip_note', false);
+    this.set('status', { loading: true });
+    this.set('_boards_loading', true);
+    this.set('boards', null);
   },
   didInsertElement: function () {
     this.size_element();
@@ -116,6 +119,7 @@ export default Component.extend({
   load_boards: function () {
     var _this = this;
     _this.set('status', { loading: true });
+    _this.set('_boards_loading', true);
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
@@ -124,8 +128,10 @@ export default Component.extend({
       if(res && res.length > 0) {
         _this.set('boards', res);
         _this.set('status', null);
+        _this.set('_boards_loading', false);
       } else {
         _this.set('status', {error: true});
+        _this.set('_boards_loading', false);
         // Check both camelCase (loadError) and snake_case (load_error) for compatibility
         var loadError = _this.get('loadError') || _this.get('load_error');
         if (loadError && typeof loadError === 'function') {
@@ -138,6 +144,7 @@ export default Component.extend({
       }
     }, function(err) {
       _this.set('status', {error: true});
+      _this.set('_boards_loading', false);
       // Check both camelCase (loadError) and snake_case (load_error) for compatibility
       var loadError = _this.get('loadError') || _this.get('load_error');
       if (loadError && typeof loadError === 'function') {
