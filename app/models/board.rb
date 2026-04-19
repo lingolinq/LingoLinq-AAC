@@ -719,7 +719,7 @@ class Board < ActiveRecord::Base
     @edit_description = nil
 
     self.settings['buttons'] ||= []
-    self.buttons.each do |button|
+    buttons.each do |button|
       if button['load_board'] && button['load_board']['id'] && button['load_board']['id'] == self.related_global_id(self.parent_board_id) && @update_self_references == nil && !self.settings['self_references_updated']
         @update_self_references = true
       end
@@ -770,7 +770,7 @@ class Board < ActiveRecord::Base
     if grid['order'].length > grid['rows']
       grid['order'] = grid['order'].slice(0, grid['rows'])
     end
-    if grid['labels'] && self.buttons.length == 0
+    if grid['labels'] && buttons.length == 0
       self.populate_buttons_from_labels(grid.delete('labels'), grid.delete('labels_order'))
     end
     # If buttons exist but aren't placed in grid, auto-place them
@@ -1419,7 +1419,7 @@ class Board < ActiveRecord::Base
   end
 
   def buttons
-    res = BoardContent.load_content(self, 'buttons')
+    res = BoardContent.load_content(self, 'buttons') || []
     if @sub_id && @sub_global
       res.each do |button|
         if button['load_board']

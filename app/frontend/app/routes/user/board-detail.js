@@ -46,6 +46,11 @@ export default Route.extend({
     var _this = this;
     var user = this.modelFor('user');
 
+    // Reset the exit-in-progress flag each time the route is set up, so that
+    // guards inside async callbacks (e.g. _build_from_raw) don't stay "armed"
+    // after a previous exit.
+    controller.set('_exiting', false);
+
     controller.set('model', model);
     controller.set('user', user);
 

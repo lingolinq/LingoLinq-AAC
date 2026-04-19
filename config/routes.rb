@@ -138,6 +138,7 @@ LingoLinq::Application.routes.draw do
     resources :tags
     resources :words do
       get 'reachable_core' => 'words#reachable_core', on: :collection
+      post 'predict' => 'words#predict', on: :collection
     end
     
     resources :users do
@@ -249,6 +250,7 @@ LingoLinq::Application.routes.draw do
       get 'users'
       get 'supervisors'
       get 'extras'
+      get 'licenses'
       get 'logs'
       get 'stats'
       get 'admin_reports'
@@ -256,6 +258,7 @@ LingoLinq::Application.routes.draw do
       get 'blocked_cells'
       post 'extra_action'
       post 'alias'
+      post 'claim_user'
       post 'start_code' => 'organizations#start_code'
       post 'status/:user_id' => 'organizations#set_status'
       put 'data_policy' => 'organizations#update_data_policy'

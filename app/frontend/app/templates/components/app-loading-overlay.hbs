@@ -1,0 +1,10 @@
+{{! DEBUG probe — will be visible in the DOM even when overlay is hidden }}
+<div id="ll-loading-overlay-probe" data-show={{this.show}} data-msg={{this.message}} style="display:none"></div>
+{{#if this.show}}
+  <div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-loading-overlay__card">
+      <div class="ll-loading-overlay__spinner" aria-hidden="true"></div>
+      <p class="ll-loading-overlay__message">{{this.message}}</p>
+    </div>
+  </div>
+{{/if}}

@@ -175,29 +175,10 @@ LingoLinq.Board = DS.Model.extend({
         unskins[btn.image_id] = true;
       }
     });
-    if(!skin || skin == 'default') { return local_map; }
-
-    var which_skin = LingoLinq.Board.which_skinner(skin);
-
-    var res = {};
-    for(var key in local_map) {
-      if(key && local_map[key]) {
-        var url = LingoLinq.Board.skinned_url(local_map[key], which_skin);
-        // Use the un-skinned address if it's all that's in the cache
-        if(!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
-          url = local_map[key];
-        }
-        res[key] = url;
-        if(unskins[key]) {
-          url = LingoLinq.Board.skinned_url(local_map[key], which_skin, true);
-          if(!this.persistence.url_cache[url] && this.persistence.url_cache[local_map[key]] && (!this.persistence.url_uncache || !this.persistence.url_uncache[local_map[key]])) {
-            url = local_map[key];
-          }
-          res['ns_' + key] = url;
-        }
-      }
-    }
-    return res;
+    return LingoLinq.Board.skin_image_map(local_map, skin, {
+      unskins: unskins,
+      persistence: this.persistence
+    });
   },
   map_image_urls: function(map, skins, symbols) {
     map = map || {};
@@ -1830,6 +1811,42 @@ LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
   } else {
     return url;
   }
+};
+
+// Transform an image_id → URL map by applying the user's skin-tone preference
+// to each URL. Returns a new map; input is not mutated. Used by board-alt
+// (via variant_image_urls) and board-detail (via _build_from_raw) so both
+// pages perform skin substitution the same way.
+//
+// opts.unskins — { image_id: true } map; those keys also get an 'ns_' + key entry
+//   holding the unskinned URL variant (matches variant_image_urls behavior).
+// opts.persistence — when provided, falls back to the original URL if the
+//   skinned variant isn't cached locally and the original is (prevents offline
+//    404s when only the base URL has been cached).
+LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
+  image_map = image_map || {};
+  if(!skin || skin == 'default') { return image_map; }
+  opts = opts || {};
+  var unskins = opts.unskins || {};
+  var persistence = opts.persistence || null;
+  var which_skin = LingoLinq.Board.which_skinner(skin);
+  var res = {};
+  var resolve = function(base_url, unskin) {
+    var url = LingoLinq.Board.skinned_url(base_url, which_skin, unskin);
+    if(persistence && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
+      url = base_url;
+    }
+    return url;
+  };
+  for(var key in image_map) {
+    if(key && image_map[key]) {
+      res[key] = resolve(image_map[key], false);
+      if(unskins[key]) {
+        res['ns_' + key] = resolve(image_map[key], true);
+      }
+    }
+  }
+  return res;
 };
 
 export default LingoLinq.Board;

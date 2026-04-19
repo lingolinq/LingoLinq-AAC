@@ -49,6 +49,12 @@ class Api::SupervisorRelationshipsController < ApplicationController
       organization_id: rel_params['organization_id']
     )
 
+    AuditEvent.log_command(@api_user.global_id, {
+      'type' => 'supervisor_access_request',
+      'lookup_key' => lookup_key,
+      'permission_level' => permission_level,
+      'organization_id' => rel_params['organization_id']
+    })
     render json: { meta: { message: result[:message] } }.to_json
   end
 
@@ -90,7 +96,15 @@ class Api::SupervisorRelationshipsController < ApplicationController
     if result[:error]
       api_error 400, { error: result[:error] }
     else
-      render json: JsonApi::SupervisorRelationship.as_json(result[:relationship], wrapper: true).to_json
+      rel = result[:relationship]
+      AuditEvent.log_command('consent_flow', {
+        'type' => 'supervisor_consent_response',
+        'decision' => action,
+        'relationship_id' => rel&.global_id,
+        'supervisor_id' => rel&.supervisor_user&.global_id,
+        'communicator_id' => rel&.communicator_user&.global_id
+      })
+      render json: JsonApi::SupervisorRelationship.as_json(rel, wrapper: true).to_json
     end
   end
 
@@ -117,6 +131,11 @@ class Api::SupervisorRelationshipsController < ApplicationController
     if result[:error]
       api_error 400, { error: result[:error] }
     else
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'supervisor_relationship_revoked',
+        'relationship_id' => result[:relationship]&.global_id,
+        'reason' => params['reason']
+      })
       render json: JsonApi::SupervisorRelationship.as_json(result[:relationship], wrapper: true).to_json
     end
   end

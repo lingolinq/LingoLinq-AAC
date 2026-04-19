@@ -10,6 +10,7 @@ import modalUtil from '../utils/modal';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
+import i18n from '../utils/i18n';
 
 /**
  * Speak Menu Modal Component
@@ -267,8 +268,29 @@ export default Component.extend({
     },
 
     speak_mode_toggle(decision) {
-      this.get('applicationController').send('toggleSpeakMode', decision);
+      var app_state = this.get('app_state');
+      var exiting = app_state && app_state.get('speak_mode') && decision !== 'off';
       this.get('modal').close();
+
+      if(exiting) {
+        var router = getOwner(this).lookup('service:router');
+        var routeName = (router && router.get('currentRouteName')) || '';
+        var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+
+        if(onBoardDetail) {
+          // Board-detail: send exit_to_home to the board-detail controller
+          // which navigates to the edit page
+          var detailCtrl = getOwner(this).lookup('controller:user.board-detail');
+          if(detailCtrl) {
+            detailCtrl.send('exit_to_home');
+          }
+        } else {
+          // Board-alt: default toggleSpeakMode returns to normal mode
+          this.get('applicationController').send('toggleSpeakMode', decision);
+        }
+      } else {
+        this.get('applicationController').send('toggleSpeakMode', decision);
+      }
     },
 
     set_speak_mode_user(id, type) {

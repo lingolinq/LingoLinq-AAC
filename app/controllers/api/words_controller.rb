@@ -1,5 +1,5 @@
 class Api::WordsController < ApplicationController
-  before_action :require_api_token, :except => [:reachable_core, :lang]
+  before_action :require_api_token, :except => [:reachable_core, :lang, :predict]
   
   def index
     return unless allowed?(@api_user, 'admin_support_actions')
@@ -48,6 +48,19 @@ class Api::WordsController < ApplicationController
     render json: {words: WordData.reachable_core_list_for(user)}
   end
   
+  def predict
+    sentence = params['sentence'].to_s.strip
+    return api_error(400, {error: "sentence required"}) if sentence.blank?
+
+    locale = params['locale'] || 'en'
+    count = [(params['count'] || 4).to_i, 8].min
+
+    require_relative '../../lib/ai_word_predictor' unless defined?(AiWordPredictor)
+    words = AiWordPredictor.predict(sentence: sentence, locale: locale, count: count)
+
+    render json: { words: words }
+  end
+
   def update
     word = WordData.find_by_global_id(params['id'])
     return unless allowed?(@api_user, 'admin_support_actions')

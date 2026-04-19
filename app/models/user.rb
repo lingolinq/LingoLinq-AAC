@@ -18,7 +18,17 @@ class User < ActiveRecord::Base
   has_many :user_integrations
   has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
   has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
+  has_many :licenses
   has_one :user_extra
+
+  def current_sponsor
+    Organization.find_by(id: self.managing_organization_id)
+  end
+
+  def in_trial?
+    managing_organization_id.nil? && expires_at && expires_at > Time.now
+  end
+
   before_save :generate_defaults
   after_save :track_boards
   after_save :notify_of_changes
@@ -1407,6 +1417,21 @@ class User < ActiveRecord::Base
   
   def display_user_name
     (self.settings && self.settings['display_user_name']) || self.user_name
+  end
+
+  def obfuscated_name
+    name = display_user_name
+    return name if name.length < 3
+    
+    parts = name.split(/\s+/)
+    if parts.length > 1
+      # "John Doe" -> "J. Doe" or "John D."
+      # Let's do "John D."
+      "#{parts[0]} #{parts[-1][0]}."
+    else
+      # "johndoe" -> "j...e"
+      "#{name[0]}...#{name[-1]}"
+    end
   end
   
   def process_device(device, non_user_params)
