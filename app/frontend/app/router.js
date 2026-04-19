@@ -55,7 +55,6 @@ Router.map(function() {
     this.route('supervisors', { path: '/supervisors' });
   });
   this.route('caseload', { path: '/caseload' });
-  this.route('board-layout', { path: '/board-layout/*board_key' });
   this.route('create-board', { path: '/create-board' });
   this.route('about', { path: '/about' });
   this.route('landing-alt', { path: '/landing-alt' });

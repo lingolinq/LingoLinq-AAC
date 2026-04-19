@@ -56,27 +56,41 @@ export default Controller.extend(prefClasses, {
   phrase_search: '',
 
   _applyBoardSearch: function(val) {
-    var buttons = document.querySelectorAll('.md-board-detail-symbol-card');
-    if (!val || !val.trim()) {
-      buttons.forEach(function(btn) {
-        btn.style.opacity = '';
-        btn.style.pointerEvents = '';
-      });
-      return;
-    }
+    // Use the ordered_buttons data directly (works in both edit mode where
+    // labels render as <input>s and speak mode where they render as <span>s).
+    var ob = this.get('ordered_buttons');
+    if(!ob) { return; }
+    var trimmed = (val || '').trim();
     var re = null;
-    try { re = new RegExp(val.trim(), 'i'); } catch(e) { return; }
-    buttons.forEach(function(btn) {
-      var label = (btn.querySelector('.md-board-detail-symbol-card__label') || {}).textContent || '';
-      var voc = btn.getAttribute('data-vocalization') || '';
-      if (label.match(re) || voc.match(re)) {
-        btn.style.opacity = '';
-        btn.style.pointerEvents = '';
-      } else {
-        btn.style.opacity = '0.15';
-        btn.style.pointerEvents = 'none';
+    if(trimmed) {
+      try { re = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); } catch(e) { return; }
+    }
+    for(var ri = 0; ri < ob.length; ri++) {
+      var row = ob[ri] || [];
+      for(var ci = 0; ci < row.length; ci++) {
+        var btn = row[ci];
+        if(!btn) { continue; }
+        var is_empty = (btn.get && btn.get('empty')) || btn.empty;
+        // Empty cells: only hide when a search is active.
+        if(is_empty) {
+          if(btn.set) { btn.set('_filtered_out', !!re); }
+          else { btn._filtered_out = !!re; }
+          continue;
+        }
+        if(!re) {
+          if(btn.set) { btn.set('_filtered_out', false); }
+          else { btn._filtered_out = false; }
+          continue;
+        }
+        var label = (btn.get && btn.get('label')) || btn.label || '';
+        var voc = (btn.get && btn.get('vocalization')) || btn.vocalization || '';
+        var match = re.test(label) || re.test(voc);
+        if(btn.set) { btn.set('_filtered_out', !match); }
+        else { btn._filtered_out = !match; }
       }
-    });
+    }
+    // Force the grid to re-render the filter state
+    this.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
   },
 
   edit_mode: false,
@@ -92,6 +106,12 @@ export default Controller.extend(prefClasses, {
   show_options_menu: false,
   share_dropdown_open: false,
   details_dropdown_open: false,
+  display_prefs_open: false,
+  display_prefs_font_dropdown_open: false,
+  display_prefs_symbol_library_dropdown_open: false,
+  display_prefs_symbol_background_dropdown_open: false,
+  pending_display_prefs: null,
+  original_display_prefs: null,
   dark_mode: true,
   board_saving: false,
   ordered_buttons: null,
@@ -124,6 +144,14 @@ export default Controller.extend(prefClasses, {
       }
       if(_this.get('folder_dropdown_open') && !e.target.closest('.md-board-detail-edit-toolbar__dropdown-wrap--folder')) {
         _this.set('folder_dropdown_open', false);
+      }
+      // Per-button edit menu (portal-rendered). Close it when the click lands
+      // outside both the dropdown itself AND the trigger (the three-dots
+      // button) that opened it.
+      if(_this.get('button_menu_id') &&
+         !e.target.closest('#button-edit-dropdown') &&
+         !e.target.closest('.md-board-detail-symbol-card__edit-menu-trigger')) {
+        _this.set('button_menu_id', null);
       }
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
@@ -381,6 +409,16 @@ export default Controller.extend(prefClasses, {
     var skin = _this.get('app_state.referenced_user.preferences.skin');
     image_map = LingoLinq.Board.skin_image_map(image_map, skin);
     // Cache raw data for preference-triggered rebuilds
+    // Reset the row/column hide stacks when the user actually navigates to a
+    // DIFFERENT board. Same-board refetches (post-save reload, pref changes,
+    // etc) preserve the stacks so "click − to hide, save, click + to
+    // restore" works end-to-end within an edit session.
+    var prev = _this._last_raw;
+    var is_same_board = prev && raw && ((prev.id && raw.id && prev.id === raw.id) || (prev.key && raw.key && prev.key === raw.key));
+    if(!is_same_board) {
+      _this.set('_hidden_row_stack', []);
+      _this.set('_hidden_col_stack', []);
+    }
     _this._last_raw = raw;
     // Apply preferred_symbols variant URLs
     var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
@@ -779,6 +817,222 @@ export default Controller.extend(prefClasses, {
     return !!(this.get('ordered_buttons'));
   }),
 
+  // ── Display Preferences Panel (edit mode) ──
+  // Static option lists for the display preferences modal.
+  button_spacing_options: [
+    { id: 'minimal', label: 'Minimal' },
+    { id: 'extra-small', label: 'Extra Small' },
+    { id: 'small', label: 'Small' },
+    { id: 'medium', label: 'Medium' },
+    { id: 'large', label: 'Large' },
+    { id: 'huge', label: 'Huge' },
+    { id: 'none', label: 'None' }
+  ],
+  button_border_options: [
+    { id: 'none', label: 'None' },
+    { id: 'small', label: 'Small' },
+    { id: 'medium', label: 'Medium' },
+    { id: 'large', label: 'Large' },
+    { id: 'huge', label: 'Huge' }
+  ],
+  button_text_options: [
+    { id: 'small', label: 'Small' },
+    { id: 'medium', label: 'Medium' },
+    { id: 'large', label: 'Large' },
+    { id: 'huge', label: 'Huge' }
+  ],
+  button_text_position_options: [
+    { id: 'none', label: 'Default' },
+    { id: 'top', label: 'Top' },
+    { id: 'bottom', label: 'Bottom' },
+    { id: 'text_only', label: 'Text Only' }
+  ],
+  button_style_options: [
+    { id: 'default', label: 'Default' },
+    { id: 'default_caps', label: 'Default (caps)' },
+    { id: 'default_small', label: 'Default (small)' },
+    { id: 'arial', label: 'Arial' },
+    { id: 'arial_caps', label: 'Arial (caps)' },
+    { id: 'arial_small', label: 'Arial (small)' },
+    { id: 'comic_sans', label: 'Comic Sans' },
+    { id: 'comic_sans_caps', label: 'Comic Sans (caps)' },
+    { id: 'comic_sans_small', label: 'Comic Sans (small)' },
+    { id: 'open_dyslexic', label: 'Open Dyslexic' },
+    { id: 'open_dyslexic_caps', label: 'Open Dyslexic (caps)' },
+    { id: 'open_dyslexic_small', label: 'Open Dyslexic (small)' },
+    { id: 'architects_daughter', label: "Architect's Daughter" },
+    { id: 'architects_daughter_caps', label: "Architect's Daughter (caps)" },
+    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" }
+  ],
+  hidden_buttons_options: [
+    { id: 'grid', label: 'Show as Grid' },
+    { id: 'hint', label: 'Show as Hint' },
+    { id: 'hide', label: 'Hide' }
+  ],
+  stretch_buttons_options: [
+    { id: 'none', label: 'None' },
+    { id: 'prefer_tall', label: 'Prefer Tall' },
+    { id: 'prefer_wide', label: 'Prefer Wide' }
+  ],
+  preferred_symbols_options: [
+    { id: 'original', label: 'Original' },
+    { id: 'opensymbols', label: 'OpenSymbols' },
+    { id: 'arasaac', label: 'ARASAAC' },
+    { id: 'twemoji', label: 'Twemoji' },
+    { id: 'noun-project', label: 'Noun Project' },
+    { id: 'lessonpix', label: 'LessonPix (Premium)' },
+    { id: 'pcs', label: 'PCS (Premium)' },
+    { id: 'symbolstix', label: 'SymbolStix (Premium)' },
+    { id: 'tawasol', label: 'Tawasol' }
+  ],
+  // Options for the "Image Background" dropdown (parallel to
+  // `symbolBackgroundList` on the user-preferences page).
+  symbol_background_options: [
+    { id: 'clear', label: 'Colored' },
+    { id: 'white', label: 'White' },
+    { id: 'black', label: 'Black' },
+    { id: 'high_contrast', label: 'High Contrast' }
+  ],
+  // Options for the "Words Combined" dropdown (the `device.utterance_text_only`
+  // pref — stored as boolean but exposed as a select with labeled modes).
+  words_combined_options: [
+    { id: 'false', label: 'Symbol buttons' },
+    { id: 'true',  label: 'Words only' }
+  ],
+  // Mirror for template use since `utterance_text_only` is boolean but the
+  // <select> option value is a string.
+  utterance_text_only_str: computed('pending_display_prefs.utterance_text_only', function() {
+    return this.get('pending_display_prefs.utterance_text_only') ? 'true' : 'false';
+  }),
+  // Simple prefix checks for the three compound skin variants. Concrete tones
+  // (default/light/medium-light/medium/medium-dark/dark) compare directly
+  // against pending_display_prefs.skin in the template — no indirection.
+  skin_is_mix: computed('pending_display_prefs.skin', function() {
+    var s = this.get('pending_display_prefs.skin') || '';
+    return s === 'mix' || s.indexOf('mix::') === 0;
+  }),
+  skin_is_mix_only: computed('pending_display_prefs.skin', function() {
+    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_only') === 0;
+  }),
+  skin_is_mix_prefer: computed('pending_display_prefs.skin', function() {
+    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
+  }),
+
+  // Returns null when the skin isn't a mix_only/mix_prefer variant; otherwise
+  // returns the 6 sub-tone options with their checked state derived from the
+  // bitmask portion of the pref string.
+  // True while the user is in "paint hidden" mode — clicking a board button
+  // will mark it hidden. Drives the toolbar toggle's pressed state.
+  paint_mode_is_hide: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    return !!(pm && pm.hidden === true);
+  }),
+  // True while the user is in "paint shown" mode — clicking a board button
+  // will unhide it.
+  paint_mode_is_show: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    return !!(pm && pm.hidden === false);
+  }),
+
+  skin_suboptions: computed('pending_display_prefs.skin', function() {
+    var s = this.get('pending_display_prefs.skin') || '';
+    var is_only = s.indexOf('mix_only') === 0;
+    var is_prefer = s.indexOf('mix_prefer') === 0;
+    if(!is_only && !is_prefer) { return null; }
+    var bits = (s.split('limit-')[1] || '').slice(0, 6);
+    var defs = [
+      { id: 'default',       label: i18n.t('default_skin_tones',     "Original Skin Tone") },
+      { id: 'dark',          label: i18n.t('dark_skin_tone',         "Dark Skin Tone") },
+      { id: 'medium_dark',   label: i18n.t('medium_dark_skin_tone',  "Medium-Dark Skin Tone") },
+      { id: 'medium',        label: i18n.t('medium_skin_tone',       "Medium Skin Tone") },
+      { id: 'medium_light',  label: i18n.t('medium_light_skin_tone', "Medium-Light Skin Tone") },
+      { id: 'light',         label: i18n.t('light_skin_tone',        "Light Skin Tone") }
+    ];
+    for(var i = 0; i < 6; i++) {
+      var v = parseInt(bits[i] || '0', 10);
+      defs[i].checked = is_only ? v > 0 : v > 1;
+    }
+    return defs;
+  }),
+  // Computed limits for stepper buttons — disable ± when at an end
+  display_prefs_text_size_at_min: computed('pending_display_prefs.button_text', function() {
+    var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_text'));
+    return idx <= 0;
+  }),
+  display_prefs_text_size_at_max: computed('pending_display_prefs.button_text', function() {
+    var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_text'));
+    return idx >= 3;
+  }),
+  display_prefs_border_at_min: computed('pending_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+    return idx <= 0;
+  }),
+  display_prefs_border_at_max: computed('pending_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+    return idx >= 4;
+  }),
+  display_prefs_spacing_at_min: computed('pending_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+    return idx <= 0;
+  }),
+  display_prefs_spacing_at_max: computed('pending_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+    return idx >= 6;
+  }),
+  grid_rows_at_min: computed('current_grid.rows', function() {
+    return (this.get('current_grid.rows') || 0) <= 1;
+  }),
+  grid_cols_at_min: computed('current_grid.columns', function() {
+    return (this.get('current_grid.columns') || 0) <= 1;
+  }),
+
+  display_prefs_current_font_label: computed('pending_display_prefs.button_style', 'button_style_options', function() {
+    var current = this.get('pending_display_prefs.button_style');
+    var opts = this.get('button_style_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Default';
+  }),
+
+  display_prefs_current_symbol_library_label: computed('pending_display_prefs.preferred_symbols', 'preferred_symbols_options', function() {
+    var current = this.get('pending_display_prefs.preferred_symbols');
+    var opts = this.get('preferred_symbols_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Original';
+  }),
+
+  // "Image Background" dropdown combines two underlying prefs: symbol_background
+  // (clear/white/black) and high_contrast (boolean). When high_contrast is on,
+  // the dropdown displays "High Contrast" regardless of the stored
+  // symbol_background value, so the two prefs appear as a single 4-option list
+  // to the user.
+  display_prefs_current_symbol_background_id: computed('pending_display_prefs.symbol_background', 'pending_display_prefs.high_contrast', function() {
+    if(this.get('pending_display_prefs.high_contrast')) { return 'high_contrast'; }
+    return this.get('pending_display_prefs.symbol_background') || 'clear';
+  }),
+  display_prefs_current_symbol_background_label: computed('display_prefs_current_symbol_background_id', 'symbol_background_options', function() {
+    var current = this.get('display_prefs_current_symbol_background_id');
+    var opts = this.get('symbol_background_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Clear';
+  }),
+
+  // Map of pending-prefs key → user.preferences path
+  _display_prefs_paths: {
+    button_spacing:       'preferences.device.button_spacing',
+    button_border:        'preferences.device.button_border',
+    button_text:          'preferences.device.button_text',
+    button_text_position: 'preferences.device.button_text_position',
+    button_style:         'preferences.device.button_style',
+    canvas_render:        'preferences.device.canvas_render',
+    hidden_buttons:       'preferences.hidden_buttons',
+    stretch_buttons:      'preferences.stretch_buttons',
+    preferred_symbols:    'preferences.preferred_symbols',
+    symbol_background:    'preferences.symbol_background',
+    high_contrast:        'preferences.high_contrast',
+    utterance_text_only:  'preferences.device.utterance_text_only',
+    skin:                 'preferences.skin'
+  },
+
   folder_labels_on_tab: computed('folder_display_style', function() {
     return this.get('folder_display_style') === 'tab_labels';
   }),
@@ -803,9 +1057,43 @@ export default Controller.extend(prefClasses, {
     return map[size] || 18;
   }),
 
+  // Pixel values for button spacing (grid gap) and border (symbol-card outline width) — drive the
+  // live preview on board-detail when the user nudges the -/+ steppers in the settings toolbar.
+  // Keeping both computeds dependent on the live user-preferences path means set_display_pref
+  // (which applies pending changes to user.preferences.device.*) updates the rendered grid
+  // immediately, and the eventual user.save() persists the values to the single source of truth.
+  button_spacing_px: computed('app_state.referenced_user.preferences.device.button_spacing', function() {
+    var spacing = this.get('app_state.referenced_user.preferences.device.button_spacing') || 'medium';
+    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
+    return (map[spacing] != null) ? map[spacing] : 8;
+  }),
+
+  button_border_px: computed('app_state.referenced_user.preferences.device.button_border', function() {
+    var border = this.get('app_state.referenced_user.preferences.device.button_border') || 'medium';
+    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
+    return (map[border] != null) ? map[border] : 3;
+  }),
+
+  // Shape modifier class — "Square / Tall / Wide" icon picker maps to the
+  // user's stretch_buttons preference, and the grid gets a shape-* class so
+  // the symbol cards use a matching aspect-ratio for visual preview.
+  button_shape_class: computed('app_state.referenced_user.preferences.stretch_buttons', function() {
+    var pref = this.get('app_state.referenced_user.preferences.stretch_buttons') || 'none';
+    if(pref === 'prefer_tall') { return 'md-board-detail-grid--shape-tall'; }
+    if(pref === 'prefer_wide') { return 'md-board-detail-grid--shape-wide'; }
+    return 'md-board-detail-grid--shape-square';
+  }),
+
   button_text_position_class: computed('app_state.referenced_user.preferences.device.button_text_position', function() {
     var pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || 'top';
     return 'md-board-detail-grid--text-pos-' + pos;
+  }),
+
+  // Drives how hidden buttons render in non-edit (speak) mode — one of
+  // grid/hint/hide, pulled from the user's preference.
+  hidden_buttons_class: computed('app_state.referenced_user.preferences.hidden_buttons', function() {
+    var mode = this.get('app_state.referenced_user.preferences.hidden_buttons') || 'grid';
+    return 'md-board-detail-grid--hidden-' + mode;
   }),
 
   button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
@@ -1070,7 +1358,7 @@ export default Controller.extend(prefClasses, {
         { id: 'goal-tracking', label: i18n.t('nav_goal_tracking', "Goal Tracking"), icon: 'goal-tracking' }
       ],
       settings: [
-        { id: 'preferences', label: i18n.t('nav_preferences', "Preferences"), icon: 'preferences' },
+        { id: 'preferences', label: i18n.t('nav_preferences', "Settings"), icon: 'preferences' },
         { id: 'voice-output', label: i18n.t('nav_voice_output', "Voice & Output"), icon: 'voice-output' }
       ]
     };
@@ -1739,15 +2027,11 @@ export default Controller.extend(prefClasses, {
       return;
     }
 
-    // Exit edit mode
-    this.set('edit_mode', false);
-    this.set('paint_mode', null);
-    this.set('color_picker_button', null);
-    this.set('board_recolored', false);
-    this.set('_saved_recolor', null);
-    this.set('borders_matched', false);
-    this.set('_saved_border_colors', null);
-    stashes.persist('current_mode', 'default');
+    // NOTE: edit_mode and the other edit-session flags used to be cleared here
+    // (before the save started). That flipped the page to the non-edit layout
+    // immediately on click, so the "Saving Changes…" overlay appeared on the
+    // non-edit view instead of the edit view. We now defer exiting edit mode
+    // to the finish() step below, after the save + fetch round-trip resolves.
 
     // Preserve image_urls before save
     var imageUrlsBeforeSave = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
@@ -1782,17 +2066,34 @@ export default Controller.extend(prefClasses, {
         _this.get('app_state').set('vocalization_locale', update_locale);
       }
 
-      // Rebuild display from fresh saved data
+      // Rebuild display from fresh saved data. board_saving stays true for the
+      // full save + fetch round-trip so the "Saving Changes…" overlay is pinned
+      // to the edit page. Once the work is done we clear board_saving FIRST (so
+      // the overlay disappears on the edit view), then flip edit_mode + related
+      // flags and transition in the next frame — preventing a render where the
+      // non-edit page shows up with the saving overlay still stuck on.
+      var finish = function() {
+        _this.set('board_saving', false);
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this.set('edit_mode', false);
+          _this.set('paint_mode', null);
+          _this.set('color_picker_button', null);
+          _this.set('board_recolored', false);
+          _this.set('_saved_recolor', null);
+          _this.set('borders_matched', false);
+          _this.set('_saved_border_colors', null);
+          stashes.persist('current_mode', 'default');
+          _this.set('panels_collapsed', true);
+          _this.set('board_collapsed', true);
+          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+        }, 0);
+      };
       persistence.ajax('/api/v1/boards/' + board.get('key'), { type: 'GET' }).then(function(data) {
         if(data && data.board) {
           _this._build_from_raw(data.board);
         }
-        _this.set('board_saving', false);
-
-        // Transition to index subroute so edit route can be re-entered
-        _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
-        _this.set('panels_collapsed', true);
-        _this.set('board_collapsed', true);
+        finish();
 
         // Auto-rename the board key if the display name changed
         var original_name = _this.get('_original_board_name');
@@ -1804,10 +2105,7 @@ export default Controller.extend(prefClasses, {
           modal.success(i18n.t('board_saved', "Board saved!"));
         }
       }, function() {
-        _this.set('board_saving', false);
-        _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
-        _this.set('panels_collapsed', true);
-        _this.set('board_collapsed', true);
+        finish();
         modal.success(i18n.t('board_saved', "Board saved!"));
       });
     }, function(err) {
@@ -2293,7 +2591,7 @@ export default Controller.extend(prefClasses, {
         var current_boardname = this.get('boardname');
         var current_user = this.get('user.user_name');
         if(current_boardname === entry.boardname && current_user === entry.user_name) {
-          modal.notice(i18n.t('no_home_board_set', "You haven't selected a home board yet. You can set one in your user preferences."));
+          modal.notice(i18n.t('no_home_board_set', "You haven't selected a home board yet. You can set one in your user settings."));
           return;
         }
         this.set('app_state.board_detail_nav_history', []);
@@ -2301,7 +2599,7 @@ export default Controller.extend(prefClasses, {
         return;
       }
       // No entry board either
-      modal.notice(i18n.t('no_home_board_set', "You haven't selected a home board yet. You can set one in your user preferences."));
+      modal.notice(i18n.t('no_home_board_set', "You haven't selected a home board yet. You can set one in your user settings."));
     },
 
     // button-listener dispatches events here for scanning/gaze/dwell support
@@ -2357,6 +2655,218 @@ export default Controller.extend(prefClasses, {
         state_prop: 'details_dropdown_open',
         item_sel: '.md-board-detail-share-dropdown__item',
         toggle_action: 'toggle_details_dropdown'
+      });
+    },
+
+    // ── Display Preferences Panel ──
+    toggle_display_font_dropdown: function() {
+      this.toggleProperty('display_prefs_font_dropdown_open');
+    },
+
+    close_display_font_dropdown: function() {
+      this.set('display_prefs_font_dropdown_open', false);
+    },
+
+    pick_display_font: function(font_id) {
+      this.send('set_display_pref', 'button_style', font_id);
+      this.set('display_prefs_font_dropdown_open', false);
+    },
+
+    toggle_display_symbol_library_dropdown: function() {
+      this.toggleProperty('display_prefs_symbol_library_dropdown_open');
+    },
+    close_display_symbol_library_dropdown: function() {
+      this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+    pick_display_symbol_library: function(id) {
+      this.send('set_display_pref', 'preferred_symbols', id);
+      this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+
+    toggle_display_symbol_background_dropdown: function() {
+      this.toggleProperty('display_prefs_symbol_background_dropdown_open');
+    },
+    close_display_symbol_background_dropdown: function() {
+      this.set('display_prefs_symbol_background_dropdown_open', false);
+    },
+    pick_display_symbol_background: function(id) {
+      // High-contrast is a two-field setting — mirrors the board-layout page's
+      // "Black with High Contrast" option: symbol_background='black' +
+      // high_contrast=true. Picking any other option turns HC off and sets
+      // symbol_background to the chosen value.
+      if(id === 'high_contrast') {
+        this.send('set_display_pref', 'high_contrast', true);
+        this.send('set_display_pref', 'symbol_background', 'black');
+      } else {
+        this.send('set_display_pref', 'high_contrast', false);
+        this.send('set_display_pref', 'symbol_background', id);
+      }
+      this.set('display_prefs_symbol_background_dropdown_open', false);
+    },
+
+    toggle_display_settings: function() {
+      if(this.get('display_prefs_open')) {
+        this.send('close_display_preferences');
+      } else {
+        this.send('open_display_preferences');
+      }
+    },
+
+    open_display_preferences: function() {
+      this.set('details_dropdown_open', false);
+      var prefs = this.get('app_state.currentUser.preferences') || {};
+      var device = prefs.device || {};
+      // Seed pending + original (deep copy) with current values
+      var snapshot = {
+        button_spacing:       device.button_spacing       || 'medium',
+        button_border:        device.button_border        || 'medium',
+        button_text:          device.button_text          || 'medium',
+        button_text_position: device.button_text_position || 'bottom',
+        button_style:         device.button_style         || 'default',
+        canvas_render:        !!device.canvas_render,
+        hidden_buttons:       prefs.hidden_buttons        || 'grid',
+        stretch_buttons:      prefs.stretch_buttons       || 'none',
+        preferred_symbols:    prefs.preferred_symbols     || 'original',
+        symbol_background:    prefs.symbol_background     || 'clear',
+        high_contrast:        !!prefs.high_contrast,
+        utterance_text_only:  !!device.utterance_text_only,
+        skin:                 prefs.skin                  || 'default'
+      };
+      this.set('pending_display_prefs', JSON.parse(JSON.stringify(snapshot)));
+      this.set('original_display_prefs', JSON.parse(JSON.stringify(snapshot)));
+      this.set('display_prefs_open', true);
+    },
+
+    close_display_preferences: function() {
+      // Restore original values to the live user model so any unsaved changes revert
+      var user = this.get('app_state.currentUser');
+      var orig = this.get('original_display_prefs');
+      var paths = this._display_prefs_paths;
+      if(user && orig) {
+        Object.keys(orig).forEach(function(k) {
+          user.set(paths[k], orig[k]);
+        });
+      }
+      this.set('display_prefs_open', false);
+      this.set('pending_display_prefs', null);
+      this.set('original_display_prefs', null);
+      this.set('display_prefs_save_error', false);
+    },
+
+    set_display_pref: function(key, value) {
+      var pending = this.get('pending_display_prefs');
+      if(!pending) { return; }
+      this.set('pending_display_prefs.' + key, value);
+      // Apply live to user preferences for instant preview on the board
+      var user = this.get('app_state.currentUser');
+      var path = this._display_prefs_paths[key];
+      if(user && path) {
+        user.set(path, value);
+      }
+    },
+
+    toggle_display_pref: function(key) {
+      var pending = this.get('pending_display_prefs');
+      if(!pending) { return; }
+      var next = !pending[key];
+      this.set('pending_display_prefs.' + key, next);
+      // Apply live to user preferences for instant preview
+      var user = this.get('app_state.currentUser');
+      var path = this._display_prefs_paths[key];
+      if(user && path) {
+        user.set(path, next);
+      }
+    },
+
+    // Wrapper used by the "Words combined" <select> — the option values are
+    // the literal strings "true"/"false" because a native <select>'s value is
+    // always a string. Convert to a real boolean before persisting.
+    set_utterance_text_only: function(value) {
+      var bool = (value === 'true' || value === true);
+      this.send('set_display_pref', 'utterance_text_only', bool);
+    },
+
+    // Composes and persists a mix / mix_only / mix_prefer skin string.
+    // Only called for those three ids — concrete tones use plain set_display_pref.
+    set_compound_skin: function(id) {
+      // Toggle-off: clicking the active mix_only/mix_prefer swatch again
+      // reverts to Original.
+      if(id === 'mix_only' && this.get('skin_is_mix_only')) {
+        return this.send('set_display_pref', 'skin', 'default');
+      }
+      if(id === 'mix_prefer' && this.get('skin_is_mix_prefer')) {
+        return this.send('set_display_pref', 'skin', 'default');
+      }
+      var user_id = this.get('app_state.currentUser.id');
+      var skin = id + (user_id ? '::' + user_id : '');
+      if(id === 'mix_only' || id === 'mix_prefer') {
+        skin = skin + '::limit-';
+        var subs = this.get('skin_suboptions') || [];
+        subs.forEach(function(opt) {
+          if(opt.checked) { skin += (id === 'mix_only' ? '1' : '3'); }
+          else            { skin += (id === 'mix_only' ? '0' : '1'); }
+        });
+      }
+      this.send('set_display_pref', 'skin', skin);
+    },
+
+    // Fired by a sub-option checkbox's onchange after Ember's two-way
+    // @checked binding has flipped `option.checked`. Re-composes the skin.
+    refresh_skin_suboptions: function() {
+      if(this.get('skin_is_mix_only'))   { this.send('set_compound_skin', 'mix_only'); }
+      if(this.get('skin_is_mix_prefer')) { this.send('set_compound_skin', 'mix_prefer'); }
+    },
+
+    step_display_pref: function(key, direction) {
+      var pending = this.get('pending_display_prefs');
+      if(!pending) { return; }
+      var ladders = {
+        button_text:     ['small', 'medium', 'large', 'huge'],
+        button_border:   ['none', 'small', 'medium', 'large', 'huge'],
+        button_spacing:  ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge']
+      };
+      var ladder = ladders[key];
+      if(!ladder) { return; }
+      var current = pending[key];
+      var idx = ladder.indexOf(current);
+      if(idx < 0) { idx = Math.floor(ladder.length / 2); }
+      var dir = direction > 0 ? 1 : -1;
+      var next_idx = dir > 0 ? Math.min(idx + 1, ladder.length - 1) : Math.max(idx - 1, 0);
+      if(next_idx === idx) { return; }
+      this.send('set_display_pref', key, ladder[next_idx]);
+    },
+
+    save_display_preferences: function() {
+      var user = this.get('app_state.currentUser');
+      var pending = this.get('pending_display_prefs');
+      var orig = this.get('original_display_prefs');
+      if(!user || !pending || !orig) { return; }
+
+      // Values are already applied live — we just need to diff to know if anything changed and persist.
+      var changed = Object.keys(orig).some(function(k) { return pending[k] !== orig[k]; });
+
+      if(!changed) {
+        this.send('close_display_preferences');
+        return;
+      }
+
+      user.set('preferences.device.updated', true);
+      var _this = this;
+      this.set('display_prefs_saving', true);
+      user.save().then(function(saved) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('display_prefs_saving', false);
+        if(saved && saved.get('id') === _this.get('app_state.currentUser.id')) {
+          _this.set('app_state.currentUser', saved);
+        }
+        // Close without reverting — the user accepted the changes
+        _this.set('display_prefs_open', false);
+        _this.set('pending_display_prefs', null);
+        _this.set('original_display_prefs', null);
+      }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('display_prefs_saving', false);
+        _this.set('display_prefs_save_error', true);
       });
     },
 
@@ -2902,6 +3412,9 @@ export default Controller.extend(prefClasses, {
     },
 
     save_board: function() {
+      if(this.get('display_prefs_open')) {
+        this.send('save_display_preferences');
+      }
       this.saveButtonChanges();
     },
 
@@ -2909,6 +3422,9 @@ export default Controller.extend(prefClasses, {
       var _this = this;
       modal.open('confirm-discard-changes', {}).then(function(result) {
         if(result === 'discard') {
+          if(_this.get('display_prefs_open')) {
+            _this.send('close_display_preferences');
+          }
           _this.set('edit_mode', false);
           _this.set('paint_mode', null);
           _this.set('color_picker_button', null);
@@ -2941,12 +3457,6 @@ export default Controller.extend(prefClasses, {
 
     // ── Paint Mode ──
 
-    open_board_layout: function() {
-      var board_key = this.get('user.user_name') + '/' + this.get('boardname');
-      this.get('app_state').set('skip_edit_exit_check', true);
-      this.get('router').transitionTo('board-layout', board_key);
-    },
-
     set_paint_mode: function(fill, border, part_of_speech) {
       this.set('show_paint_dropdown', false);
       if(fill === 'hide') {
@@ -2965,6 +3475,26 @@ export default Controller.extend(prefClasses, {
       // Also set on editManager if available
       if(editManager.controller === this) {
         editManager.set_paint_mode(fill, border, part_of_speech);
+      }
+    },
+
+    // Toggle "paint hidden" mode: activates paint_mode so clicks on board
+    // buttons flip btn.hidden = true. Clicking the toggle again exits paint.
+    toggle_paint_hide: function() {
+      if(this.get('paint_mode_is_hide')) {
+        this.send('clear_paint_mode');
+      } else {
+        this.send('set_paint_mode', 'hide');
+      }
+    },
+
+    // Toggle "paint shown" mode: activates paint_mode so clicks on board
+    // buttons flip btn.hidden = false (reveal).
+    toggle_paint_show: function() {
+      if(this.get('paint_mode_is_show')) {
+        this.send('clear_paint_mode');
+      } else {
+        this.send('set_paint_mode', 'show');
       }
     },
 
@@ -3470,9 +4000,75 @@ export default Controller.extend(prefClasses, {
     },
 
     // ── Grid Configuration ──
-
+    //
+    // modify_size is used by the toolbar's Rows/Columns −/+ buttons.
+    //
+    // Remove semantics: we DO NOT actually delete the row/column. Instead the
+    // last row/column is popped off `ordered_buttons` and stashed on
+    // `_hidden_row_stack` / `_hidden_col_stack` (LIFO). Buttons inside stay
+    // alive and re-appear when the user adds a row/column back. The stacks
+    // are session-local: they live across save during the same edit session
+    // (user can click −, save, then + to get it back), but a fresh page load
+    // starts with empty stacks (anything saved-out stays saved-out).
+    //
+    // Add semantics: if the corresponding hidden stack has an entry, pop and
+    // re-attach it (normalising its length to match the current opposing
+    // dimension). Only when the stack is empty do we delegate to
+    // editManager.modify_size, which appends a row/column of fake buttons.
     modify_size: function(type, action, index) {
-      editManager.modify_size(type, action, index);
+      var ob = this.get('ordered_buttons');
+      if(!ob || !ob.length) { return; }
+
+      if(type === 'row') {
+        if(action === 'remove') {
+          if(ob.length <= 1) { return; }
+          var rstack = this.get('_hidden_row_stack') || [];
+          rstack = [].concat(rstack, [ob[ob.length - 1]]);
+          this.set('_hidden_row_stack', rstack);
+          this.set('ordered_buttons', ob.slice(0, -1).map(function(r) { return [].concat(r); }));
+          return;
+        }
+        if(action === 'add') {
+          var rstack = this.get('_hidden_row_stack') || [];
+          if(rstack.length > 0) {
+            var row = rstack[rstack.length - 1];
+            var cols = (ob[0] || []).length;
+            while(row.length < cols) { row.push(editManager.fake_button()); }
+            if(row.length > cols) { row = row.slice(0, cols); }
+            this.set('_hidden_row_stack', rstack.slice(0, -1));
+            this.set('ordered_buttons', ob.concat([row]).map(function(r) { return [].concat(r); }));
+            return;
+          }
+          editManager.modify_size(type, action, index);
+          return;
+        }
+      }
+
+      if(type === 'column') {
+        if(action === 'remove') {
+          var first = ob[0] || [];
+          if(first.length <= 1) { return; }
+          var cstack = this.get('_hidden_col_stack') || [];
+          var col = ob.map(function(r) { return r[r.length - 1]; });
+          cstack = [].concat(cstack, [col]);
+          this.set('_hidden_col_stack', cstack);
+          this.set('ordered_buttons', ob.map(function(r) { return r.slice(0, -1); }));
+          return;
+        }
+        if(action === 'add') {
+          var cstack = this.get('_hidden_col_stack') || [];
+          if(cstack.length > 0) {
+            var col = cstack[cstack.length - 1];
+            while(col.length < ob.length) { col.push(editManager.fake_button()); }
+            if(col.length > ob.length) { col = col.slice(0, ob.length); }
+            this.set('_hidden_col_stack', cstack.slice(0, -1));
+            this.set('ordered_buttons', ob.map(function(r, ri) { return [].concat(r, [col[ri]]); }));
+            return;
+          }
+          editManager.modify_size(type, action, index);
+          return;
+        }
+      }
     },
 
     // ── Level Preview ──

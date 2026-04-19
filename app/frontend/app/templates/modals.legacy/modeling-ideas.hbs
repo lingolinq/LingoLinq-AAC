@@ -47,7 +47,7 @@
               <td style='color: #666;'>
                 {{word.text_reasons}}
                 {{#if word.matching_users}}
-                  <div class='text-muted' style='font-size: 13px;'>
+                  <div class='text-muted' style='font-size: 14px;'>
                     {{t "for" key="for_lower"}} {{t "user" count=word.matching_users key="n_users"}}
                   </div>
                 {{/if}}
@@ -131,7 +131,7 @@
       {{else if current_activity.dismissed}}
         <div class='alert alert-info' style='font-size: 14px; margin-top: 10px;'>{{t "Thank you for the feedback, we'll keep adding new ideas!" key="thank_you_for_feedback"}}</div>
       {{else if current_activity.matching_users}}
-        <div style='font-size: 13px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key="activity_match_for"}} {{t "user" count=current_activity.matching_users key="n_users"}}</div>
+        <div style='font-size: 14px; margin-top: 15px; margin-bottom: -15px;' class='text-muted'>{{t "activity a match for" key="activity_match_for"}} {{t "user" count=current_activity.matching_users key="n_users"}}</div>
       {{/if}}
     {{else if current_activity}}
       <img src={{path "images/modeling_ideas.svg"}} style='width: 150px; float: left; margin-right: 10px;'>

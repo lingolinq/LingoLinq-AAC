@@ -35,7 +35,7 @@
         <button id='board_done' class='btn btn-default' {{action "back_to_from_route" target=@controller}}>
           <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
           <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
-          <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
+          <span style='font-size: 14px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
         </button>
         <div class="nav-header__board-bar-right">
         <span id="normal_mode">
@@ -117,13 +117,13 @@
                               <b>{{t "Level" key="level"}} {{@controller.board.current_level}}</b>
                             {{/if}}
                             {{#if @controller.level_buttons}}
-                              <div style='font-size: 12px;'>{{t "visible button" key="n_visible_buttons" count=@controller.level_buttons}}</div>
+                              <div style='font-size: 14px;'>{{t "visible button" key="n_visible_buttons" count=@controller.level_buttons}}</div>
                             {{/if}}
                           </span>
                           <button class='skippy btn btn-default' {{action "adjust_level" "plus" target=@controller}}><span class='glyphicon glyphicon-plus'></span></button>
                         </li>
                         <li>
-                          <div style='width: calc(100% - 10px); font-size: 12px; white-space: normal; margin: 15px 10px 5px;'>
+                          <div style='width: calc(100% - 10px); font-size: 14px; white-space: normal; margin: 15px 10px 5px;'>
                             {{t "Some boards are built with progressive levels in mind, so you can start basic and grow the vocabulary over time without having to rebuild everything. Find a level that works for your communicator, you can easily change it later." key="board_levels_explainer"}}
                           </div>
                         </li>
@@ -908,7 +908,7 @@
                 {{/if}}
               {{/unless}}
               {{#if @controller.app_state.currentUser.permissions.delete}}
-                <li><LinkTo @route="user.preferences" @model={{@controller.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+                <li><LinkTo @route="user.preferences" @model={{@controller.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
                 <li><LinkTo @route="user.logs" @model={{@controller.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                   {{#if @controller.app_state.currentUser.unread_messages}}
                     <span class="label label-danger" style="border-radius: 5px;">{{@controller.app_state.currentUser.unread_messages}}</span>

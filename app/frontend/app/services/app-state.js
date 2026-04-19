@@ -2374,7 +2374,7 @@ export default Service.extend({
           var noticed = false;
           if(this.stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), false);
+            this.show_toast(i18n.t('logging_enabled', "Logging is enabled"), 'success');
           }
           if(this.get('currentBoardState.has_fallbacks')) {
             modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);
@@ -2725,6 +2725,31 @@ export default Service.extend({
       _this.set('loading_overlay_message', null);
       _this._loading_overlay_shown_at = null;
     }, remaining);
+  },
+
+  // Modern toast notification — slides in from top, auto-dismisses.
+  // kind: 'info' (default), 'success', 'warning', 'error'
+  // duration_ms: how long before auto-dismiss (default 3500)
+  show_toast: function(message, kind, duration_ms) {
+    var _this = this;
+    if(!message) { return; }
+    if(this._toast_timer) { runCancel(this._toast_timer); this._toast_timer = null; }
+    this.set('toast', {
+      message: message,
+      kind: kind || 'info',
+      id: Date.now()
+    });
+    var duration = duration_ms || 3500;
+    this._toast_timer = runLater(function() {
+      if(_this.isDestroyed) { return; }
+      _this.set('toast', null);
+      _this._toast_timer = null;
+    }, duration);
+  },
+
+  hide_toast: function() {
+    if(this._toast_timer) { runCancel(this._toast_timer); this._toast_timer = null; }
+    this.set('toast', null);
   },
 
   _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
@@ -3474,7 +3499,7 @@ export default Service.extend({
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
         this.launch_url(button, null, obj.board);
       }
@@ -3483,7 +3508,7 @@ export default Service.extend({
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
         if((!this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
           modal.open('confirm-external-app', {apps: button.apps});

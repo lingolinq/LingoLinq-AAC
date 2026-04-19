@@ -47,7 +47,7 @@
                       {{#if supervisee.goal}}
                         <div style='padding-left: 33px; margin-top: -5px;'>
                           {{supervisee.user_name}}
-                          <div class='text-muted' style='font-size: 12px; margin-top: -2px; margin-bottom: -4px;'>{{supervisee.goal.summary}}</div>
+                          <div class='text-muted' style='font-size: 14px; margin-top: -2px; margin-bottom: -4px;'>{{supervisee.goal.summary}}</div>
                         </div>
                       {{else}}
                         <div style='padding-left: 33px; margin-top: 3px;'>
@@ -383,11 +383,11 @@
               </div>
             </div>
           {{else}}
-            <button class='btn btn-primary btn-lg' style='width: 100%;' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
+            <button class='btn btn-primary btn-lg' style='width: 100%;' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 14px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
           {{/unless}}
         {{/if}}
       {{else}}
-        <button class='btn btn-primary' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 12px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
+        <button class='btn btn-primary' {{action "new_dashboard"}}>{{t "Switch to the New Dashboard<br><span style='font-size: 14px;'>(this one will be disabled soon)</span>" key="switch_to_the_new_dashboard"}}</button>
       {{/if}}
       <h4>{{t "Notifications" key="notifications"}}</h4>
       <div style="margin-left: 20px;">
@@ -428,7 +428,7 @@
           {{#unless this.app_state.currentUser.parsed_notifications}}
             {{#unless this.app_state.currentUser.pending_board_shares}}
               {{#if this.show_notifications_explanation}}
-                <em style="font-size: 11px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
+                <em style="font-size: 14px;">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</em>
               {{else}}
                 {{t "You have no new messages" key="no_new_messages"}}
                 <a href="#" {{action "show_explanation" "notifications"}}>
@@ -471,12 +471,12 @@
                 </span>
               {{/if}}
               <br>
-              <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
+              <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
             </p>
           {{/each}}
         {{else}}
           {{#if this.show_sessions_explanation}}
-            <p><em style="font-size: 11px;">{{t "When logging is enabled in your account preferences, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
+            <p><em style="font-size: 14px;">{{t "When logging is enabled in your account settings, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</em></p>
           {{else}}
             <p>
               {{t "No sessions currently available" key="no_sessions_found"}}

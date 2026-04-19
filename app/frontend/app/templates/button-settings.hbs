@@ -53,7 +53,7 @@
                   {{/if}}
                 </button>
                 {{#if this.paint_hide_reminder}}
-                  <em class='text-muted' style='font-size: 12px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key="hide_and_show_using_paint"}}</em>
+                  <em class='text-muted' style='font-size: 14px;'>{{t "Remember, you can hide/show multiple buttons more quickly using the Paint tool!" key="hide_and_show_using_paint"}}</em>
                 {{/if}}
               </div>
             </div>
@@ -94,7 +94,7 @@
                 <Input @value={{this.model.background_color}} class="form-control" id="fill" />
               </span>
               <br>
-              <em style="font-size: 12px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
+              <em style="font-size: 14px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
             </div>
           </div>
           <div class="form-group">
@@ -139,12 +139,12 @@
         <div class={{if this.pictureState "active" "hidden"}}>
   {{#if this.show_libraries}}
     {{#if this.image_libraries}}
-      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
+      <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
         {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(action (mut this.image_library)) }}
       </div>
     {{else}}
-      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
+      <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
     {{#if this.appState.feature_flags.skin_tones}}
       <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
@@ -157,7 +157,7 @@
         </div>
       {{/if}}
     {{/if}}
-    <div style='font-size: 12px; margin-top: 5px;' class='text-muted'>
+    <div style='font-size: 14px; margin-top: 5px;' class='text-muted'>
       <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
     </div>
   {{/if}}
@@ -438,7 +438,7 @@
 <span class="names" title={{board.long_preview}}>
   <span class="name">
     {{#unless board.public}}<span class="glyphicon glyphicon-lock"></span>{{/unless}}
-    {{board.name}}{{#if board.copy_version}} <span style='color: #666; font-size: 10px;'>({{board.copy_version}})</span>{{/if}}
+    {{board.name}}{{#if board.copy_version}} <span style='color: #666; font-size: 14px;'>({{board.copy_version}})</span>{{/if}}
   </span><br>
   <span class="labels">{{board.labels}}</span>
 </span><br>

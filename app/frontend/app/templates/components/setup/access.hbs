@@ -30,7 +30,7 @@
               <span class="setup-access__display-icon glyphicon glyphicon-hand-up" aria-hidden="true"></span>
               {{t "In %app_name%, touch or tap is the standard way to use boards: move between boards and select words or phrases for the app to speak." key="touch_1"}}
             </p>
-            <p class="setup-access__display-p">{{t "You can customize the experience in Preferences—selection on finger lift, larger text, and spacing between buttons are all available." key="touch_2"}}</p>
+            <p class="setup-access__display-p">{{t "You can customize the experience in Settings—selection on finger lift, larger text, and spacing between buttons are all available." key="touch_2"}}</p>
           </div>
         {{else if this.setup.access.scanning}}
           <div class="setup-access__display">
@@ -41,7 +41,7 @@
               <span class="setup-access__display-icon glyphicon glyphicon-th" aria-hidden="true"></span>
               {{t "When small buttons are hard to use, %app_name% can use a switch or a tap on the screen instead. The app breaks the board into smaller chunks and scans through them one at a time—you select with your switch." key="scanning_1"}}
             </p>
-            <p class="setup-access__display-p">{{t "You can scan by row, column, or custom region, and adjust voice or volume for scanning. External switches, a full-screen button, or two buttons are all available in Preferences." key="scanning_2"}}</p>
+            <p class="setup-access__display-p">{{t "You can scan by row, column, or custom region, and adjust voice or volume for scanning. External switches, a full-screen button, or two buttons are all available in Settings." key="scanning_2"}}</p>
           </div>
         {{else}}
           <div class="setup-access__display">
@@ -62,7 +62,7 @@
   {{! Bottom card: What happens when the communicator selects a button? — question, text, radio options }}
   <div class="setup-access__card">
     <h3 class="setup-access__question">{{t "What happens when the communicator selects a button?" key="access_selection_action"}}</h3>
-    <p class="setup-access__prompt">{{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Preferences." key="home_return_1"}}</p>
+    <p class="setup-access__prompt">{{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Settings." key="home_return_1"}}</p>
     <div class="setup-access__radios" role="radiogroup" aria-label={{t "What happens when the communicator selects a button?" key="access_selection_action"}}>
       <button type="button" class="setup-access__radio {{if this.setup.home_return.auto_return "is-selected"}}" role="radio" aria-checked={{this.setup.home_return.auto_return}} {{action "set_preference" "home_return" "auto_return" target=this.setup}}>
         <span class="setup-access__radio-dot" aria-hidden="true"></span>

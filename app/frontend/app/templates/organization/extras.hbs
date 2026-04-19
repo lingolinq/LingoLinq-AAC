@@ -104,7 +104,7 @@
                 {{t "$" key="dollar_sign"}}{{delimit gift.amount "full"}}
                 {{t "license" count=gift.licenses key="n_licenses"}}
               </a>
-              <div class='text-muted' style='font-size: 12px; margin-left: 15px;'>
+              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
                 {{#if gift.active}}
                   {{t "pending," key="pending_comma"}}
                 {{else}}
@@ -121,7 +121,7 @@
                   {{t "(org-connected)" key="org_connected"}}
                 {{/if}}
               </a>
-              <div class='text-muted' style='font-size: 12px; margin-left: 15px;'>
+              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
                 {{#if gift.active}}
                   {{gift.redeemed_codes}} {{t "redeemed" key="redeemed_lower"}}
                 {{else}}
@@ -137,7 +137,7 @@
                 {{#if gift.discount}}{{gift.discount_hundred}}% {{t "off" key="off"}}{{/if}}
                 {{#if gift.expires}}{{t "exp" key="expires_abbreviated"}} {{date gift.expires "day"}}{{/if}}
               </a>
-              <div class='text-muted' style='font-size: 12px; margin-left: 15px;'>
+              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
                 {{#if gift.active}}
                   {{gift.activated_discounts}}{{#if gift.limit}} / {{gift.limit}}{{/if}} {{t "redeemed" key="redeemed_lower"}}
                 {{else}}
@@ -149,7 +149,7 @@
             {{else}}
               {{#if gift.gift_name}}{{gift.gift_name}}{{else}}{{t "User-generated Gift" key="user_generated_gift"}}{{/if}}<br>
               {{gift.code}} - {{gift.duration}}
-              <div class='text-muted' style='font-size: 12px; margin-left: 15px;'>
+              <div class='text-muted' style='font-size: 14px; margin-left: 15px;'>
                 {{#if gift.active}}
                   {{t "pending," key="pending_comma"}}
                 {{else}}

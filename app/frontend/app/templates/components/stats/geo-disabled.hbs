@@ -1,6 +1,6 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
   <h3>{{t "Location-Based Reports" key="location_based_reports"}}</h3>
-  <p>{{t "%app_name% can show awesome map data on how this user is communicating across different locations, but only if geo-logging is enabled. Right now it's turned off, but you can enable it in your preferences." key="geo_logging_disabled"}}</p>
+  <p>{{t "%app_name% can show awesome map data on how this user is communicating across different locations, but only if geo-logging is enabled. Right now it's turned off, but you can enable it in your settings." key="geo_logging_disabled"}}</p>
   {{#if this.model.permissions.edit}}
     <button {{action "enable_geo_logging"}} type="button" class='btn btn-default'>{{t "Enable Geolocation Logging & Reports" key="enable_geo_logging"}}</button>
   {{/if}}

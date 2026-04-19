@@ -12,7 +12,7 @@
         <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-pillnav__pill {{if (or (is-equal this.app_state.current_route 'user.index') (is-equal this.app_state.current_route 'user.account')) 'is-active'}}">{{t "Account" key="account_lower"}}</LinkTo>
         {{#if this.model.permissions.edit}}
           <LinkTo @route="user.edit" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.edit') 'is-active'}}">{{t "Profile" key="profile_lower"}}</LinkTo>
-          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Preferences" key="preferences_lower"}}</LinkTo>
+          <LinkTo @route="user.preferences" @model={{this.model.user_name}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.preferences') 'is-active'}}">{{t "Settings" key="preferences_lower"}}</LinkTo>
         {{/if}}
         <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="all"}} class="md-pillnav__pill {{if (is-equal this.app_state.current_route 'user.logs') 'is-active'}}">{{t "Logs" key="logs"}}</LinkTo>
       </nav>

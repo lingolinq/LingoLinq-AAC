@@ -1,6 +1,7 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 {{app-loading-overlay}}
+{{app-toast}}
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -167,7 +168,7 @@
             <!-- TODO: these popups should be dwellable, but if opened via dwell they should auto-close after like ten seconds -->
             <button id='speak_mode_notification' class='btn btn-default' {{action "speak_mode_notification"}}>
               {{#if this.stashes.board_level}}
-                <span style='color: #ddd; font-size: 12px; position: absolute; top: 3px; text-align: right;'>L{{this.stashes.board_level}}</span>
+                <span style='color: #ddd; font-size: 14px; position: absolute; top: 3px; text-align: right;'>L{{this.stashes.board_level}}</span>
               {{/if}}
               {{#if this.app_state.speak_mode_modeling_ideas.enabled}}
                 <span class='notification' style='height: 100%; position: absolute; top: 5px; left: 0; right: 0; bottom: 5px; height: auto;'>
@@ -255,7 +256,7 @@
           {{else}}
             <span style='font-size: 30px; line-height: 14px; vertical-align: bottom; padding-right: 5px;'>&times;</span>
             <span style='font-size: 16px;'>{{t "Done" key="done"}}</span>
-            <span style='font-size: 11px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
+            <span style='font-size: 14px; display: block; padding-left: 27px; margin-top: -4px;'>{{t "with boards" key="with_boards"}}</span>
           {{/if}}
         </button>
         <div class="nav-header__board-bar-right">
@@ -338,13 +339,13 @@
                               <b>{{t "Level" key="level"}} {{this.board.current_level}}</b>
                             {{/if}}
                             {{#if this.level_buttons}}
-                              <div style='font-size: 12px;'>{{t "visible button" key="n_visible_buttons" count=this.level_buttons}}</div>
+                              <div style='font-size: 14px;'>{{t "visible button" key="n_visible_buttons" count=this.level_buttons}}</div>
                             {{/if}}
                           </span>
                           <button class='skippy btn btn-default' {{action "adjust_level" "plus"}}><span class='glyphicon glyphicon-plus'></span></button>
                         </li>
                         <li>
-                          <div style='width: calc(100% - 10px); font-size: 12px; white-space: normal; margin: 15px 10px 5px;'>
+                          <div style='width: calc(100% - 10px); font-size: 14px; white-space: normal; margin: 15px 10px 5px;'>
                             {{t "Some boards are built with progressive levels in mind, so you can start basic and grow the vocabulary over time without having to rebuild everything. Find a level that works for your communicator, you can easily change it later." key="board_levels_explainer"}}
                           </div>
                         </li>
@@ -865,6 +866,16 @@
         </span>
       {{/if}}
       {{#unless (is-equal this.app_state.current_route "landing")}}
+      {{!-- Settings shortcut — hidden on board-alt and board-detail pages (those have their own settings access) --}}
+      {{#if this.app_state.currentUser.user_name}}
+        {{#unless (or this.on_board_alt this.on_board_detail)}}
+          <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </LinkTo>
+        {{/unless}}
+      {{/if}}
       <span style="display: inline-block;" class={{if this.app_state.super_no_linky "dropdown hidden" "dropdown"}}>
         <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id='identity_button' href="#" data-toggle="dropdown">
           {{#if this.app_state.speak_mode}}
@@ -1137,7 +1148,7 @@
                 {{/if}}
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
-                <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+                <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
                 <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                   {{#if this.app_state.currentUser.unread_messages}}
                     <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
@@ -1187,19 +1198,27 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link">
+    {{#if this.on_board_alt}}
+      <span class="app-navbar__large-only app-navbar__style-switcher-wrap">{{style-switcher}}</span>
+    {{/if}}
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       {{t "Beta feedback" key="beta_feedback_nav"}}
     </LinkTo>
-    {{/if}}
-    {{style-switcher}}
-    {{#if this.app_state.currentUser}}
-    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
+    <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
           <svg class="ll-bento-help-btn__nav-icon ll-bento-help-btn__support-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
         </span>
       </div>
+    </LinkTo>
+    <LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}} class="ll-header-settings-btn app-navbar__large-only" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </LinkTo>
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
+      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
     </LinkTo>
     {{/if}}
     <span style="display: inline-block;" class="dropdown">
@@ -1230,7 +1249,7 @@
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
         <li><LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
-        <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+        <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
         <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
           {{#if this.app_state.currentUser.unread_messages}}
             <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
@@ -1238,6 +1257,9 @@
           {{t "Messages" key="messages"}}
         </LinkTo></li>
         <li><a href="#" {{action "support" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
+        {{#if this.app_state.currentBoardState.key}}
+        <li class="dropdown-menu__try-new-style-item"><a href="#" {{action "goToNewStyle" preventDefault=true}}>{{t "Try New Style" key="try_new_style"}}</a></li>
+        {{/if}}
         <li class="app-navbar__beta-feedback-menu-item"><LinkTo @route="beta-feedback">{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo></li>
         {{#if this.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>

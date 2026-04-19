@@ -26,9 +26,9 @@
       {{/if}}
     </LinkTo>
   </td>
-  <td style="font-size: 12px; width: 100%;">
+  <td style="font-size: 14px; width: 100%;">
     {{#if @log.note_type}}
-      <div style="font-size: 10px; color: #888;">
+      <div style="font-size: 14px; color: #888;">
         {{t "Note by" key="note_by"}}
         {{#if @log.author.contact.name}}
           {{@log.author.contact.name}}
@@ -42,14 +42,14 @@
       </div>
       <span style="white-space: pre-line;">{{@log.note.text}}</span>
     {{else if @log.assessment_type}}
-      <div style="font-size: 10px; color: #888;">
+      <div style="font-size: 14px; color: #888;">
         {{t "Assessment by" key="assessment_by"}}
         {{@log.author.user_name}}
       </div>
       {{@log.assessment.description}}<br>
       {{@log.assessment.summary}}
     {{else if @log.journal_type}}
-      <div style="font-size: 10px; color: #888;">
+      <div style="font-size: 14px; color: #888;">
         {{t "Journal Entry" key="journal_entry"}}
       </div>
       {{@log.journal.sentence}}

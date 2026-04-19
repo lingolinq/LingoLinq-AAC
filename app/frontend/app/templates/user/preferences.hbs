@@ -960,7 +960,7 @@
           </div>
           <div style='margin-top: 12px;'>
             <button type='button' {{action 'modify_core'}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
-            <span style='padding-left: 12px; font-size: 1.1rem; color: #5a6a85;'>
+            <span style='padding-left: 12px; font-size: 14px; color: #5a6a85;'>
               {{t "core word" count=this.core_lists.for_user.length}}
               {{t "listed" key='listed'}}
             </span>
@@ -1000,7 +1000,7 @@
                   <div style='padding-left: 10px; margin-bottom: 4px;'>
                     {{#if phrase.used}}<span class='glyphicon glyphicon-ok'></span>{{/if}}
                     {{phrase.text}}
-                    <a href="#" {{action 'remove_phrase' phrase.text}} style='padding-left: 8px; font-size: 13px;'>{{t "remove" key='remove_lower'}}</a>
+                    <a href="#" {{action 'remove_phrase' phrase.text}} style='padding-left: 8px; font-size: 14px;'>{{t "remove" key='remove_lower'}}</a>
                   </div>
                 {{/each}}
               {{else}}

@@ -2,12 +2,12 @@
 <div class={{if this.pictureState "active" "hidden"}}>
   {{#if this.show_libraries}}
     {{#if this.image_libraries}}
-      <div style='float: left; width: 55px; font-size: 12px;'>{{t "Library: " key="library_colon"}}</div>
+      <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
         {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(action (mut this.image_library)) }}
       </div>
     {{else}}
-      <div style='float: left; width: 255px; font-size: 12px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
+      <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
     {{/if}}
     {{#if this.app_state.feature_flags.skin_tones}}
       <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button class='btn btn-sm btn-default' {{action "library_options"}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
@@ -20,7 +20,7 @@
         </div>
       {{/if}}
     {{/if}}
-    <div style='font-size: 12px; margin-top: 5px;' class='text-muted'>
+    <div style='font-size: 14px; margin-top: 5px;' class='text-muted'>
       <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
     </div>
   {{/if}}

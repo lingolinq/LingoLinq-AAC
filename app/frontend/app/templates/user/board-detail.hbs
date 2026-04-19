@@ -444,13 +444,32 @@
             {{/if}}
             <div>
               <div class="md-board-detail-header__title-row">
-                <h1 class="md-board-detail-header__title">{{this.title}}</h1>
+                <h2 class="md-board-detail-header__title">{{this.title}}</h2>
                 {{#if this.edit_mode}}
-                  <span class="md-board-detail-edit-pill" role="status">{{t "Edit Mode" key="board_detail_edit_mode"}}</span>
+                  <span class="md-board-detail-header__sub-badge md-board-detail-header__sub-badge--inline-title">{{t "Editing" key="editing"}}</span>
                 {{/if}}
               </div>
               {{#if this.edit_mode}}
-                <p class="md-board-detail-header__sub">{{t "You are editing this board. Click on buttons to modify them, or use the toolbar to paint, recolor, and rearrange." key="board_detail_editing_message"}}</p>
+                <ul class="md-board-detail-header__sub md-board-detail-header__sub--checklist">
+                  <li class="md-board-detail-header__sub-item">
+                    <span class="md-board-detail-header__sub-check" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    <span class="md-board-detail-header__sub-text">{{t "Modify buttons & layout" key="board_detail_editing_action_modify"}}</span>
+                  </li>
+                  <li class="md-board-detail-header__sub-item">
+                    <span class="md-board-detail-header__sub-check" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    <span class="md-board-detail-header__sub-text">{{t "Paint, recolor, rearrange" key="board_detail_editing_action_paint"}}</span>
+                  </li>
+                  <li class="md-board-detail-header__sub-item">
+                    <span class="md-board-detail-header__sub-check" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                    <span class="md-board-detail-header__sub-text">{{t "Change display settings" key="board_detail_editing_action_settings"}}</span>
+                  </li>
+                </ul>
               {{else}}
                 <p class="md-board-detail-header__sub {{unless this.description_expanded 'md-board-detail-header__sub--collapsed'}}">{{this.subtitle}}</p>
                 {{#if this.subtitle_is_long}}
@@ -467,7 +486,6 @@
           </div>
           {{#if this.edit_mode}}
             <div class="md-board-detail-board-actions-wrap">
-            <span class="md-board-detail-edit-pill md-board-detail-edit-pill--mobile" role="status">{{t "Edit Mode" key="board_detail_edit_mode"}}</span>
             <div class="md-board-detail-board-actions">
               <div class="md-board-detail-details-dropdown-wrap" style="position: relative;" {{action "details_dropdown_keydown" on="keyDown" preventDefault=false}}>
                 <button type="button" class="md-board-detail-board-actions__btn {{if this.details_dropdown_open 'md-board-detail-board-actions__btn--active'}}" title={{t "Details & Actions" key="details_and_actions"}} aria-expanded={{if this.details_dropdown_open "true" "false"}} aria-haspopup="menu" {{action "toggle_details_dropdown"}}>
@@ -599,9 +617,79 @@
         {{/if}}
       </header>
 
-      {{!-- Edit Mode Toolbar --}}
+      {{!-- Edit Mode Toolbar — two mutually-exclusive content sets share one
+           toolbar container: normal edit controls when the settings gear is
+           off, and the display-settings controls when it's on. The
+           over-arching actions (Settings/Save/Cancel) render in a centered
+           dock ABOVE the toolbar. --}}
       {{#if this.edit_mode}}
-        <div class="md-board-detail-edit-toolbar" role="toolbar" aria-label={{t "Edit tools" key="board_detail_edit_tools"}}>
+        {{!-- Over-arching action cluster: Settings + Save/Cancel visually
+             grouped so they read as toolbar-level actions, distinct from
+             the per-section edit controls. Centered above the toolbar. --}}
+        <div class="md-board-detail-edit-toolbar__actions-dock">
+          {{#unless this.display_prefs_open}}
+            <div class="md-board-detail-edit-toolbar__actions-cluster md-board-detail-edit-toolbar__actions-cluster--filter">
+              <div class="md-board-detail-edit-toolbar__section">
+                <div class="md-board-detail-edit-toolbar__section-buttons">
+                  <button type="button"
+                    class="md-board-detail-edit-toolbar__btn {{if this.show_categories 'md-board-detail-edit-toolbar__btn--active'}}"
+                    data-tooltip={{t "Categories" key="board_detail_categories_label"}}
+                    {{action "toggle_categories"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="7" height="7" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" stroke="#4C86D8"/><rect x="3" y="14" width="7" height="7" stroke="#46505F"/>
+                    </svg>
+                    <span class="md-board-detail-edit-toolbar__label">{{t "Categories" key="board_detail_categories_label"}}</span>
+                  </button>
+                  <div class="md-board-detail-edit-toolbar__search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" fill="none" stroke="#2A9D8F"/>
+                    </svg>
+                    <input
+                      id="board-detail-search"
+                      type="text"
+                      class="md-board-detail-edit-toolbar__search-input"
+                      placeholder={{t "Search buttons..." key="search_buttons"}}
+                      value={{this.board_search_string}}
+                      {{on "input" (action "update_board_search")}}
+                    />
+                    {{#if this.board_search_string}}
+                      <button type="button" class="md-board-detail-edit-toolbar__search-clear" {{action "clear_board_search"}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    {{/if}}
+                  </div>
+                </div>
+              </div>
+            </div>
+          {{/unless}}
+          <div class="md-board-detail-edit-toolbar__actions-cluster">
+
+            {{!-- ── Save / Cancel ── --}}
+            <div class="md-board-detail-edit-toolbar__section md-board-detail-edit-toolbar__section--actions">
+              <div class="md-board-detail-edit-toolbar__section-buttons">
+                <button type="button"
+                  class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--save {{if this.board_saving 'md-board-detail-edit-toolbar__btn--saving'}}"
+                  data-tooltip={{t "Save Board" key="board_detail_save_board"}}
+                  disabled={{this.board_saving}}
+                  {{action "save_board"}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor"/><polyline points="7 3 7 8 15 8" stroke="currentColor"/></svg>
+                  <span class="md-board-detail-edit-toolbar__label">{{t "Save" key="board_detail_save"}}</span>
+                </button>
+                <button type="button"
+                  class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--cancel"
+                  data-tooltip={{t "Cancel Changes" key="board_detail_cancel_changes"}}
+                  disabled={{this.board_saving}}
+                  {{action "cancel_edit"}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor"/></svg>
+                  <span class="md-board-detail-edit-toolbar__label">{{t "Cancel" key="board_detail_cancel"}}</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="md-board-detail-edit-toolbar {{if this.display_prefs_open 'md-board-detail-edit-toolbar--expanded'}}" role="toolbar" aria-label={{t "Edit tools" key="board_detail_edit_tools"}}>
           {{!-- ── History ── --}}
           <div class="md-board-detail-edit-toolbar__section">
             <span class="md-board-detail-edit-toolbar__section-label">{{t "History" key="board_detail_history_label"}}</span>
@@ -677,7 +765,7 @@
                                 oninput={{action "update_custom_paint_color" value="target.value"}}
                                 onchange={{action "update_custom_paint_color" value="target.value"}}>
                               <label for="bd-paint-hex-input" class="sr-only">{{t "Paint color hex value" key="board_detail_paint_hex"}}</label>
-                              <Input @id="bd-paint-hex-input" @value={{this.custom_paint_color}} placeholder="#hex" class="md-board-detail-paint-picker__hex" autocomplete="off" />
+                              <Input id="bd-paint-hex-input" @value={{this.custom_paint_color}} placeholder="#hex" class="md-board-detail-paint-picker__hex" autocomplete="off" />
                               <button type="button" class="md-board-detail-paint-picker__apply" {{action "apply_custom_paint_color"}}>
                                 {{t "Apply" key="board_detail_apply"}}
                               </button>
@@ -737,51 +825,51 @@
                   </div>
                 {{/if}}
               </div>
-              {{!-- Board Layout --}}
-              <button type="button"
-                class="md-board-detail-edit-toolbar__btn"
-                data-tooltip={{t "Change button appearance, symbols, skin tones, and display preferences" key="board_layout_explainer"}}
-                {{action "open_board_layout"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" stroke="#2A9D8F"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="#46505F"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="#2A9D8F"/></svg>
-              </button>
             </div>
           </div>
 
           <div class="md-board-detail-edit-toolbar__divider"></div>
 
-          {{!-- ── Layout ── --}}
-          <div class="md-board-detail-edit-toolbar__section">
-            <span class="md-board-detail-edit-toolbar__section-label">{{t "Layout" key="board_detail_layout_label"}}</span>
-            <div class="md-board-detail-edit-toolbar__section-buttons">
-              <div class="md-board-detail-edit-toolbar__stepper">
-                <button type="button"
-                  class="md-board-detail-edit-toolbar__stepper-btn"
-                  data-tooltip={{t "Remove Row" key="board_detail_remove_row"}}
-                  {{action "modify_size" "row" "remove"}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                </button>
-                <span class="md-board-detail-edit-toolbar__stepper-label">{{t "Rows" key="board_detail_rows"}}</span>
-                <button type="button"
-                  class="md-board-detail-edit-toolbar__stepper-btn"
-                  data-tooltip={{t "Add Row" key="board_detail_add_row"}}
-                  {{action "modify_size" "row" "add"}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                </button>
+          {{!-- ── Layout (Rows + Columns grouped in one outer section) ── --}}
+          <div class="md-board-detail-edit-toolbar__section md-board-detail-edit-toolbar__section--layout">
+            <div class="md-board-detail-edit-toolbar__layout-item">
+              <span class="md-board-detail-edit-toolbar__section-label">{{t "Rows" key="board_detail_rows"}}</span>
+              <div class="md-board-detail-edit-toolbar__section-buttons">
+                <div class="md-board-detail-edit-toolbar__stepper">
+                  <button type="button"
+                    class="md-board-detail-edit-toolbar__stepper-btn"
+                    disabled={{this.grid_rows_at_min}}
+                    data-tooltip={{t "Remove Row" key="board_detail_remove_row"}}
+                    {{action "modify_size" "row" "remove"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-edit-toolbar__stepper-btn"
+                    data-tooltip={{t "Add Row" key="board_detail_add_row"}}
+                    {{action "modify_size" "row" "add"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                </div>
               </div>
-              <div class="md-board-detail-edit-toolbar__stepper">
-                <button type="button"
-                  class="md-board-detail-edit-toolbar__stepper-btn"
-                  data-tooltip={{t "Remove Column" key="board_detail_remove_col"}}
-                  {{action "modify_size" "column" "remove"}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                </button>
-                <span class="md-board-detail-edit-toolbar__stepper-label">{{t "Cols" key="board_detail_cols"}}</span>
-                <button type="button"
-                  class="md-board-detail-edit-toolbar__stepper-btn"
-                  data-tooltip={{t "Add Column" key="board_detail_add_col"}}
-                  {{action "modify_size" "column" "add"}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                </button>
+            </div>
+            <div class="md-board-detail-edit-toolbar__layout-item">
+              <span class="md-board-detail-edit-toolbar__section-label">{{t "Columns" key="board_detail_columns"}}</span>
+              <div class="md-board-detail-edit-toolbar__section-buttons">
+                <div class="md-board-detail-edit-toolbar__stepper">
+                  <button type="button"
+                    class="md-board-detail-edit-toolbar__stepper-btn"
+                    disabled={{this.grid_cols_at_min}}
+                    data-tooltip={{t "Remove Column" key="board_detail_remove_col"}}
+                    {{action "modify_size" "column" "remove"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                  <button type="button"
+                    class="md-board-detail-edit-toolbar__stepper-btn"
+                    data-tooltip={{t "Add Column" key="board_detail_add_col"}}
+                    {{action "modify_size" "column" "add"}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -849,65 +937,313 @@
             </div>
           {{/if}}
 
+          {{!-- Expand/collapse toggle — sits at the bottom-right of the toolbar, toggles display-prefs expansion. --}}
+          <button type="button"
+            class="md-board-detail-edit-toolbar__expand-btn {{if this.display_prefs_open 'md-board-detail-edit-toolbar__expand-btn--open'}}"
+            aria-expanded={{if this.display_prefs_open "true" "false"}}
+            aria-label={{if this.display_prefs_open (t "Hide Display Settings" key="board_detail_hide_display_settings") (t "Show Display Settings" key="board_detail_show_display_settings")}}
+            {{action "toggle_display_settings"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+
+          {{!-- ── Display Settings content (expands BELOW the edit controls when open) ── --}}
+          {{#if this.display_prefs_open}}
+          <div class="md-board-detail-edit-toolbar__display-prefs">
+
+          {{!-- ── Text Size ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
+            <div class="md-board-detail-edit-toolbar__section-buttons">
+
+              {{!-- Font size stepper --}}
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Text Size" key="board_detail_settings_text_size_label"}}</span>
+                <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_min}} data-tooltip={{t "Smaller" key="board_detail_settings_smaller"}} {{action "step_display_pref" "button_text" -1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_max}} data-tooltip={{t "Larger" key="board_detail_settings_larger"}} {{action "step_display_pref" "button_text" 1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              {{!-- Font style custom dropdown --}}
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Type" key="board_detail_settings_type"}}</span>
+              <div class="md-settings-dropdown-wrap">
+                <button type="button" class="md-settings-select md-settings-select--trigger {{if this.display_prefs_font_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_font_dropdown_open "true" "false"}} data-tooltip={{t "Font style" key="board_detail_prefs_font_style"}} {{action "toggle_display_font_dropdown"}}>
+                  <span class="md-settings-select__value">{{this.display_prefs_current_font_label}}</span>
+                </button>
+                {{#if this.display_prefs_font_dropdown_open}}
+                  <div class="md-settings-dropdown-backdrop" {{action "close_display_font_dropdown"}} aria-hidden="true"></div>
+                  <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Font style" key="board_detail_prefs_font_style"}}>
+                    {{#each this.button_style_options as |opt|}}
+                      <li role="option" aria-selected={{if (is-equal this.pending_display_prefs.button_style opt.id) "true" "false"}}>
+                        <button type="button" class="md-settings-dropdown-item {{if (is-equal this.pending_display_prefs.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{action "pick_display_font" opt.id}}>
+                          {{#if (is-equal this.pending_display_prefs.button_style opt.id)}}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                          {{else}}
+                            <span class="md-settings-dropdown-item__spacer" aria-hidden="true"></span>
+                          {{/if}}
+                          <span>{{opt.label}}</span>
+                        </button>
+                      </li>
+                    {{/each}}
+                  </ul>
+                {{/if}}
+              </div>
+              </div>
+
+              {{!-- Text position --}}
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Position" key="board_detail_settings_position"}}</span>
+              <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Text position" key="board_detail_prefs_text_position"}}>
+                <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.button_text_position "top") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.button_text_position 'top') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} {{action "set_display_pref" "button_text_position" "top"}}>
+                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--top">Aa</span><span class="md-settings-btnmock__img"></span></span>
+                </button>
+                <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.button_text_position "bottom") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.button_text_position 'bottom') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} {{action "set_display_pref" "button_text_position" "bottom"}}>
+                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
+                </button>
+                <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.button_text_position "text_only") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.button_text_position 'text_only') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} {{action "set_display_pref" "button_text_position" "text_only"}}>
+                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
+                </button>
+              </div>
+              </div>
+
+            </div>
+          </div>
+
           <div class="md-board-detail-edit-toolbar__divider"></div>
 
-          {{!-- ── Filter ── --}}
+          {{!-- ── Speak Bar ── --}}
           <div class="md-board-detail-edit-toolbar__section">
-            <span class="md-board-detail-edit-toolbar__section-label">{{t "Filter" key="board_detail_filter_label"}}</span>
             <div class="md-board-detail-edit-toolbar__section-buttons">
-              <button type="button"
-                class="md-board-detail-edit-toolbar__btn {{if this.show_categories 'md-board-detail-edit-toolbar__btn--active'}}"
-                data-tooltip={{t "Categories" key="board_detail_categories_label"}}
-                {{action "toggle_categories"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" stroke="#4C86D8"/><rect x="3" y="14" width="7" height="7" stroke="#46505F"/>
-                </svg>
-                <span class="md-board-detail-edit-toolbar__label">{{t "Categories" key="board_detail_categories_label"}}</span>
-              </button>
-              <div class="md-board-detail-edit-toolbar__search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" fill="none" stroke="#2A9D8F"/>
-                </svg>
-                <input
-                  id="board-detail-search"
-                  type="text"
-                  class="md-board-detail-edit-toolbar__search-input"
-                  placeholder={{t "Search buttons..." key="search_buttons"}}
-                  value={{this.board_search_string}}
-                  {{on "input" (action "update_board_search")}}
-                />
-                {{#if this.board_search_string}}
-                  <button type="button" class="md-board-detail-edit-toolbar__search-clear" {{action "clear_board_search"}} aria-label={{t "Clear filter" key="clear_filter"}}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#46505F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Speak Bar" key="board_detail_settings_speak_bar"}}</span>
+                <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Speak bar appearance" key="board_detail_prefs_speak_bar"}}>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.utterance_text_only_str "false") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.utterance_text_only_str 'false') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Show on Speak Bar as... symbol buttons (image with text below)" key="board_detail_settings_speak_bar_symbols"}} {{action "set_utterance_text_only" "false"}}>
+                    <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
                   </button>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.utterance_text_only_str "true") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.utterance_text_only_str 'true') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Show on Speak Bar as... words only (text, no symbols)" key="board_detail_settings_speak_bar_words"}} {{action "set_utterance_text_only" "true"}}>
+                    <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          {{!-- ── Spacing Gap ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
+            <div class="md-board-detail-edit-toolbar__section-buttons">
+
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Gap" key="board_detail_settings_gap"}}</span>
+                <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_spacing_at_min}} data-tooltip={{t "Tighter" key="board_detail_settings_tighter"}} {{action "step_display_pref" "button_spacing" -1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_spacing_at_max}} data-tooltip={{t "Looser" key="board_detail_settings_looser"}} {{action "step_display_pref" "button_spacing" 1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Border" key="board_detail_settings_border_label"}}</span>
+                <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_border_at_min}} data-tooltip={{t "Thinner" key="board_detail_settings_thinner"}} {{action "step_display_pref" "button_border" -1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                  <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_border_at_max}} data-tooltip={{t "Thicker" key="board_detail_settings_thicker"}} {{action "step_display_pref" "button_border" 1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          {{!-- ── Shape ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
+            <div class="md-board-detail-edit-toolbar__section-buttons">
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Shape" key="board_detail_settings_shape"}}</span>
+                <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Stretch buttons" key="board_detail_prefs_stretch"}}>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.stretch_buttons "none") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.stretch_buttons 'none') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Square" key="board_detail_settings_square"}} {{action "set_display_pref" "stretch_buttons" "none"}}>
+                    <span class="md-settings-stretch-icon md-settings-stretch-icon--square"></span>
+                  </button>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.stretch_buttons "prefer_tall") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.stretch_buttons 'prefer_tall') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Tall" key="board_detail_settings_tall"}} {{action "set_display_pref" "stretch_buttons" "prefer_tall"}}>
+                    <span class="md-settings-stretch-icon md-settings-stretch-icon--tall"></span>
+                  </button>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.stretch_buttons "prefer_wide") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.stretch_buttons 'prefer_wide') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Wide" key="board_detail_settings_wide"}} {{action "set_display_pref" "stretch_buttons" "prefer_wide"}}>
+                    <span class="md-settings-stretch-icon md-settings-stretch-icon--wide"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          {{!-- ── Symbols ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
+            <div class="md-board-detail-edit-toolbar__section-buttons">
+
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Symbols" key="board_detail_settings_symbols"}}</span>
+                <div class="md-settings-dropdown-wrap">
+                  <button type="button" class="md-settings-select md-settings-select--trigger {{if this.display_prefs_symbol_library_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_symbol_library_dropdown_open "true" "false"}} data-tooltip={{t "Symbol library" key="board_detail_prefs_symbol_library"}} {{action "toggle_display_symbol_library_dropdown"}}>
+                    <span class="md-settings-select__value">{{this.display_prefs_current_symbol_library_label}}</span>
+                  </button>
+                  {{#if this.display_prefs_symbol_library_dropdown_open}}
+                    <div class="md-settings-dropdown-backdrop" {{action "close_display_symbol_library_dropdown"}} aria-hidden="true"></div>
+                    <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Symbol library" key="board_detail_prefs_symbol_library"}}>
+                      {{#each this.preferred_symbols_options as |opt|}}
+                        <li role="option" aria-selected={{if (is-equal this.pending_display_prefs.preferred_symbols opt.id) "true" "false"}}>
+                          <button type="button" class="md-settings-dropdown-item {{if (is-equal this.pending_display_prefs.preferred_symbols opt.id) 'md-settings-dropdown-item--active'}}" {{action "pick_display_symbol_library" opt.id}}>
+                            {{#if (is-equal this.pending_display_prefs.preferred_symbols opt.id)}}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            {{else}}
+                              <span class="md-settings-dropdown-item__spacer" aria-hidden="true"></span>
+                            {{/if}}
+                            <span>{{opt.label}}</span>
+                          </button>
+                        </li>
+                      {{/each}}
+                    </ul>
+                  {{/if}}
+                </div>
+              </div>
+
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Background" key="board_detail_settings_image_background"}}</span>
+                <div class="md-settings-dropdown-wrap">
+                  <button type="button" class="md-settings-select md-settings-select--trigger md-settings-select--img-bg {{if this.display_prefs_symbol_background_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_symbol_background_dropdown_open "true" "false"}} data-tooltip={{t "Background color behind symbol images" key="board_detail_prefs_image_background_tooltip"}} {{action "toggle_display_symbol_background_dropdown"}}>
+                    <span class="md-settings-select__value">{{this.display_prefs_current_symbol_background_label}}</span>
+                  </button>
+                  {{#if this.display_prefs_symbol_background_dropdown_open}}
+                    <div class="md-settings-dropdown-backdrop" {{action "close_display_symbol_background_dropdown"}} aria-hidden="true"></div>
+                    <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Image background color" key="board_detail_prefs_image_background"}}>
+                      {{#each this.symbol_background_options as |opt|}}
+                        <li role="option" aria-selected={{if (is-equal this.display_prefs_current_symbol_background_id opt.id) "true" "false"}}>
+                          <button type="button" class="md-settings-dropdown-item {{if (is-equal this.display_prefs_current_symbol_background_id opt.id) 'md-settings-dropdown-item--active'}}" {{action "pick_display_symbol_background" opt.id}}>
+                            {{#if (is-equal this.display_prefs_current_symbol_background_id opt.id)}}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            {{else}}
+                              <span class="md-settings-dropdown-item__spacer" aria-hidden="true"></span>
+                            {{/if}}
+                            <span>{{opt.label}}</span>
+                          </button>
+                        </li>
+                      {{/each}}
+                    </ul>
+                  {{/if}}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="md-board-detail-edit-toolbar__divider"></div>
+
+          {{!-- ── Skin-Tones ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
+            <div class="md-board-detail-edit-toolbar__section-buttons">
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Skin-Tones" key="board_detail_settings_skin_tones"}}</span>
+                <div class="md-settings-skin-group" aria-label={{t "Skin tone" key="board_detail_prefs_skin"}}>
+                  <button type="button" class="md-settings-skin md-settings-skin--original {{if (is-equal this.pending_display_prefs.skin 'default') 'md-settings-skin--active'}}" data-tooltip={{t "Original" key="board_detail_settings_skin_original"}} {{action "set_display_pref" "skin" "default"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--light {{if (is-equal this.pending_display_prefs.skin 'light') 'md-settings-skin--active'}}" data-tooltip={{t "Light" key="board_detail_settings_skin_light"}} {{action "set_display_pref" "skin" "light"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--medium-light {{if (is-equal this.pending_display_prefs.skin 'medium-light') 'md-settings-skin--active'}}" data-tooltip={{t "Medium Light" key="board_detail_settings_skin_medium_light"}} {{action "set_display_pref" "skin" "medium-light"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--medium {{if (is-equal this.pending_display_prefs.skin 'medium') 'md-settings-skin--active'}}" data-tooltip={{t "Medium" key="board_detail_settings_skin_medium"}} {{action "set_display_pref" "skin" "medium"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--medium-dark {{if (is-equal this.pending_display_prefs.skin 'medium-dark') 'md-settings-skin--active'}}" data-tooltip={{t "Medium Dark" key="board_detail_settings_skin_medium_dark"}} {{action "set_display_pref" "skin" "medium-dark"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--dark {{if (is-equal this.pending_display_prefs.skin 'dark') 'md-settings-skin--active'}}" data-tooltip={{t "Dark" key="board_detail_settings_skin_dark"}} {{action "set_display_pref" "skin" "dark"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--mix {{if this.skin_is_mix 'md-settings-skin--active'}}" data-tooltip={{t "Mix of tones" key="board_detail_settings_skin_mix"}} {{action "set_compound_skin" "mix"}}></button>
+                  <button type="button" class="md-settings-skin md-settings-skin--mix-only {{if this.skin_is_mix_only 'md-settings-skin--active'}}" data-tooltip={{t "Restrict to only the tones you choose" key="board_detail_settings_skin_mix_only"}} {{action "set_compound_skin" "mix_only"}}>
+                    <span class="md-settings-skin__glyph" aria-hidden="true">&#10003;</span>
+                  </button>
+                  <button type="button" class="md-settings-skin md-settings-skin--mix-prefer {{if this.skin_is_mix_prefer 'md-settings-skin--active'}}" data-tooltip={{t "Favor certain tones (shows them more often while still mixing others)" key="board_detail_settings_skin_mix_prefer"}} {{action "set_compound_skin" "mix_prefer"}}>
+                    <svg class="md-settings-skin__glyph-svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <rect x="3"  y="14" width="4" height="7"  rx="1"/>
+                      <rect x="10" y="8"  width="4" height="13" rx="1"/>
+                      <rect x="17" y="11" width="4" height="10" rx="1"/>
+                    </svg>
+                  </button>
+                </div>
+                {{#if this.skin_suboptions}}
+                  <div class="md-settings-skin-suboptions">
+                    {{#each this.skin_suboptions as |option|}}
+                      <label class="md-settings-skin-suboption md-settings-skin-suboption--{{option.id}} {{if option.checked 'md-settings-skin-suboption--checked'}}" data-tooltip={{option.label}}>
+                        <Input id={{concat "bd-skin-sub-" option.id}} name={{concat "bd-skin-sub-" option.id}} @type="checkbox" @checked={{option.checked}} onchange={{action "refresh_skin_suboptions"}} class="md-settings-skin-suboption__input" />
+                        <span class="md-settings-skin-suboption__swatch md-settings-skin--{{option.id}}" aria-hidden="true"></span>
+                      </label>
+                    {{/each}}
+                  </div>
                 {{/if}}
               </div>
             </div>
           </div>
 
-          <div class="md-board-detail-edit-toolbar__spacer"></div>
+          <div class="md-board-detail-edit-toolbar__divider"></div>
 
-          {{!-- ── Save / Cancel ── --}}
-          <div class="md-board-detail-edit-toolbar__section md-board-detail-edit-toolbar__section--actions">
+          {{!-- ── Hidden ── --}}
+          <div class="md-board-detail-edit-toolbar__section">
             <div class="md-board-detail-edit-toolbar__section-buttons">
-              <button type="button"
-                class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--save"
-                data-tooltip={{t "Save Board" key="board_detail_save_board"}}
-                {{action "save_board"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor"/><polyline points="7 3 7 8 15 8" stroke="currentColor"/></svg>
-                <span class="md-board-detail-edit-toolbar__label">{{t "Save" key="board_detail_save"}}</span>
+
+              <div class="md-settings-sublabel-wrap">
+                <span class="md-settings-sublabel">{{t "Hidden" key="board_detail_settings_hidden"}}</span>
+                <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Hidden buttons" key="board_detail_prefs_hidden_buttons"}}>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.hidden_buttons "grid") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.hidden_buttons 'grid') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Show as Placeholder on Grid" key="board_detail_settings_hidden_grid"}} {{action "set_display_pref" "hidden_buttons" "grid"}}>
+                    <svg width="25" height="25" viewBox="0 0 24 24" stroke="none" aria-hidden="true">
+                      <rect x="3"  y="3"  width="8" height="8" fill="currentColor" stroke="#000" stroke-width="0.75"/>
+                      <rect x="13" y="3"  width="8" height="8" fill="#6b7280"      stroke="#000" stroke-width="0.75"/>
+                      <rect x="3"  y="13" width="8" height="8" fill="#6b7280"      stroke="#000" stroke-width="0.75"/>
+                      <rect x="13" y="13" width="8" height="8" fill="currentColor" stroke="#000" stroke-width="0.75"/>
+                    </svg>
+                  </button>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.hidden_buttons "hint") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.hidden_buttons 'hint') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Show as hint" key="board_detail_settings_hidden_hint"}} {{action "set_display_pref" "hidden_buttons" "hint"}}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/></svg>
+                  </button>
+                  <button type="button" role="radio" aria-checked={{if (is-equal this.pending_display_prefs.hidden_buttons "hide") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.pending_display_prefs.hidden_buttons 'hide') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Hide completely" key="board_detail_settings_hidden_hide"}} {{action "set_display_pref" "hidden_buttons" "hide"}}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9"/>
+                      <line x1="5.64" y1="5.64" x2="18.36" y2="18.36"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <button type="button" class="md-settings-toggle-btn {{if this.paint_mode_is_hide 'md-settings-toggle-btn--active'}}" aria-pressed={{if this.paint_mode_is_hide "true" "false"}} data-tooltip={{t "Paint buttons as hidden (click buttons on the board to mark them hidden)" key="board_detail_settings_paint_hide"}} {{action "toggle_paint_hide"}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                  <line x1="3" y1="3" x2="21" y2="21"/>
+                </svg>
               </button>
-              <button type="button"
-                class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--cancel"
-                data-tooltip={{t "Cancel Changes" key="board_detail_cancel_changes"}}
-                {{action "cancel_edit"}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor"/></svg>
-                <span class="md-board-detail-edit-toolbar__label">{{t "Cancel" key="board_detail_cancel"}}</span>
+
+              <button type="button" class="md-settings-toggle-btn {{if this.paint_mode_is_show 'md-settings-toggle-btn--active'}}" aria-pressed={{if this.paint_mode_is_show "true" "false"}} data-tooltip={{t "Paint buttons as visible (click hidden buttons on the board to reveal them)" key="board_detail_settings_paint_show"}} {{action "toggle_paint_show"}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
               </button>
+
+              <button type="button" class="md-settings-toggle-btn {{if this.pending_display_prefs.canvas_render 'md-settings-toggle-btn--active'}}" aria-pressed={{if this.pending_display_prefs.canvas_render "true" "false"}} data-tooltip={{t "Canvas rendering (faster for large boards)" key="board_detail_settings_canvas_short"}} {{action "toggle_display_pref" "canvas_render"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </button>
+
             </div>
           </div>
+
+          </div>
+          {{/if}}
         </div>
       {{/if}}
+
 
       {{!-- Toolbar row: Quick Phrases + Category Filter --}}
       <div class="md-board-detail-toolbar">
@@ -1002,9 +1338,9 @@
 
       {{!-- Loading indicator --}}
       {{#if this.board_saving}}
-        <div class="md-board-detail-loading">
+        <div class="md-board-detail-loading md-board-detail-loading--saving" role="status" aria-live="polite">
           <div class="md-board-detail-loading__spinner"></div>
-          <span class="md-board-detail-loading__text">{{t "Saving..." key="board_detail_saving"}}</span>
+          <span class="md-board-detail-loading__text">{{t "Saving Changes..." key="board_detail_saving_changes"}}</span>
         </div>
       {{/if}}
 
@@ -1026,6 +1362,8 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
               <Input
+                id="bd-phrase-builder-search"
+                name="bd-phrase-builder-search"
                 @type="text"
                 @value={{this.phrase_search}}
                 class="md-board-detail-phrase-builder__input"
@@ -1161,10 +1499,10 @@
       {{!-- Symbol Grid (wrapped in button-listener for scanning/gaze/dwell support) --}}
       {{#button-listener buttonEvent=(action "button_event")}}
       {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folder_colored_corner 'md-board-detail-grid--folder-colored-corner'}} {{this.button_text_size_class}} {{this.button_text_position_class}} {{this.symbol_background_class}} {{this.high_contrast_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+      <div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.board_saving 'md-board-detail-grid--hidden'}} {{if this.folder_labels_on_tab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folder_colored_corner 'md-board-detail-grid--folder-colored-corner'}} {{this.button_text_size_class}} {{this.button_text_position_class}} {{this.hidden_buttons_class}} {{this.symbol_background_class}} {{this.high_contrast_class}} {{this.button_shape_class}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
         data-id={{this.model.id}}
         data-filter={{this.active_category}}
-        style={{safe-style (concat this.grid_style ";--bd-button-text-size:" this.button_text_size_px "px" (if this.button_font_style.family (concat ";--bd-button-font:" this.button_font_style.family)) (if this.button_font_style.transform (concat ";--bd-button-text-transform:" this.button_font_style.transform)))}}>
+        style={{safe-style (concat this.grid_style ";--bd-button-text-size:" this.button_text_size_px "px" ";--bd-button-gap:" this.button_spacing_px "px" ";--bd-button-border:" this.button_border_px "px" (if this.button_font_style.family (concat ";--bd-button-font:" this.button_font_style.family)) (if this.button_font_style.transform (concat ";--bd-button-text-transform:" this.button_font_style.transform)))}}>
         {{#each this.ordered_buttons as |row|}}
           {{#each row as |btn|}}
           <div class="md-board-detail-grid__cell {{if btn.load_board 'md-board-detail-grid__cell--folder'}} {{if btn._filtered_out 'md-board-detail-grid__cell--filtered-out'}}"
@@ -1263,6 +1601,14 @@
                 <span class="md-board-detail-symbol-card__folder-badge" aria-label={{t "Folder" key="folder"}}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                     <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+                  </svg>
+                </span>
+              {{/if}}
+              {{#if (and this.edit_mode btn.hidden)}}
+                <span class="md-board-detail-symbol-card__hidden-badge" aria-label={{t "Hidden button" key="board_detail_hidden_badge"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
                   </svg>
                 </span>
               {{/if}}
@@ -1430,3 +1776,4 @@
     </aside>
   </div>
 </div>
+

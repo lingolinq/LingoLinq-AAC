@@ -10,7 +10,7 @@
   <div class='setup_setting'>
     <label>{{t "What happens when the communicator selects a button?" key="access_selection_action"}}</label>
     <p class='prompt'>
-      {{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Preferences." key="home_return_1"}}
+      {{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Settings." key="home_return_1"}}
     </p>
     <div class="btn-group-vertical" style="width: 100%;">
       <a href="#" class={{if home_return.auto_return "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "home_return" "auto_return"}}>{{t "Return to the Home Board" key="return_to_the_home_board"}}</a>
@@ -27,7 +27,7 @@
       <span class='glyphicon glyphicon-hand-up' style='font-size: 40px; float: left; margin-right: 15px; margin-bottom: 5px;'></span>
       {{t "In %app_name%, touch or tap is the standard way to use boards: move between boards and select words or phrases for the app to speak." key="touch_1"}}
     </p>
-    <p>{{t "You can customize the experience in Preferences—selection on finger lift, larger text, and spacing between buttons are all available." key="touch_2"}}</p>
+    <p>{{t "You can customize the experience in Settings—selection on finger lift, larger text, and spacing between buttons are all available." key="touch_2"}}</p>
   {{else if access.scanning}}
     <div style='text-align: center;'>
       <img src={{path "images/board-small.png"}} alt={{t "scanning access in %app_name%" key="scanning_access"}} style='width: 70%; margin: 10px auto;'>

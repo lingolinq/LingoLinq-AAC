@@ -29,7 +29,7 @@
           <div class='col-sm-8'>
             <button class='btn btn-lg btn-default' {{action "select" phrase}} style='width: 100%; text-align: left; white-space: normal; max-height: 70px; overflow: hidden;'>
               {{#if journaling}}
-                <div class='text-muted' style='font-size: 12px; font-style: italic; margin-top: -7px;'>{{date phrase.date}}</div>
+                <div class='text-muted' style='font-size: 14px; font-style: italic; margin-top: -7px;'>{{date phrase.date}}</div>
               {{/if}}
               {{#if phrase.stash}}
                 {{#unless recent_category}}
@@ -38,7 +38,7 @@
               {{/if}}
               "{{phrase.sentence}}"
               {{#if recent_category}}
-                <div class='text-muted' style='font-size: 12px; font-style: italic; margin-top: -7px;'>{{date_ago phrase.date}}</div>
+                <div class='text-muted' style='font-size: 14px; font-style: italic; margin-top: -7px;'>{{date_ago phrase.date}}</div>
               {{/if}}
             </button>
           </div>

@@ -367,7 +367,7 @@ export default modal.ModalController.extend({
           var last_button = btn;
           [btn].concat(btn.sequence.buttons).forEach(function(btn) {
             var last = (last_button == btn);
-            var style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 12px;";
+            var style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 14px;";
             var big_style = "vertical-align: middle; position: relative; display: inline-block; border-radius: 5px; height: 100px; text-align: center; min-width: 100px; max-width: 120px; overflow: hidden; font-size: 16px;";
             var mini_style = "display: inline-block; padding: 5px 10px; border: 1px solid #888; border-radius: 5px; font-weight: bold; margin-right: 5px; min-width: 30px; text-align: center;"
             var print_style = "position: absolute; top: 0; left: 0; width: 100%;"

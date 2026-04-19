@@ -26,7 +26,7 @@
       {{#each this.model.webhook.testing.result as |result|}}
         <div style='width: 100%; white-space: nowrap; overflow: hidden;'>{{result.url}}</div>
         {{t "Status: %{status}" status=result.response_code key="status_code"}}<br>
-        <div style='font-size: 11px; white-space: pre-line;'>{{result.response_body}}</div><br><br>
+        <div style='font-size: 14px; white-space: pre-line;'>{{result.response_body}}</div><br><br>
       {{/each}}
     {{/if}}
   </div>
