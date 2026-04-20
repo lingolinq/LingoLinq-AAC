@@ -2335,8 +2335,34 @@ export default Controller.extend(prefClasses, {
       runLater(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         if (!was_open) {
-          var first_item = document.querySelector('.md-board-detail-actions-menu .md-board-detail-actions-menu__item');
+          var menu = document.querySelector('.md-board-detail-actions-menu');
+          if (!menu) { return; }
+          var first_item = menu.querySelector('.md-board-detail-actions-menu__item');
           if (first_item) { first_item.focus(); }
+          // The Ember {{action on="keyDown"}} on the menu div does not reliably
+          // fire for ArrowUp/Down when a child button has focus. Attach native
+          // keydown listeners to each item (same pattern as paint dropdown).
+          var items = Array.prototype.slice.call(menu.querySelectorAll('.md-board-detail-actions-menu__item'))
+            .filter(function(el) { return el.offsetParent !== null; });
+          items.forEach(function(item) {
+            if (item._optionsKeydownBound) { return; }
+            item._optionsKeydownBound = true;
+            item.addEventListener('keydown', function(e) {
+              var key = e.key || e.keyCode;
+              if (key === 'ArrowDown' || key === 40) {
+                e.preventDefault(); e.stopPropagation();
+                var idx = items.indexOf(document.activeElement);
+                items[(idx + 1) % items.length].focus();
+              } else if (key === 'ArrowUp' || key === 38) {
+                e.preventDefault(); e.stopPropagation();
+                var idx2 = items.indexOf(document.activeElement);
+                items[(idx2 - 1 + items.length) % items.length].focus();
+              } else if (key === 'Escape' || key === 'Esc' || key === 27) {
+                e.preventDefault(); e.stopPropagation();
+                if (_this.get('show_options_menu')) { _this.send('toggle_options_menu'); }
+              }
+            });
+          });
         } else {
           var trigger = document.querySelector('.md-board-detail-actions-toggle');
           if (trigger) { trigger.focus(); }

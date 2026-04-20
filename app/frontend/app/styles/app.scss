@@ -7143,6 +7143,12 @@ body > .popover.bottom {
   max-height: 100dvh;
   box-sizing: border-box;
 }
+/* In speak mode the top topbar is hidden, so the large top padding the edit
+   view uses leaves a dead strip above the board. Reduce by 24px only when
+   the speak sentence-bar is present (`#speak` exists only in speak mode). */
+#within_ember.board-alt-view:has(#speak) #content {
+  padding-top: calc(34px + var(--speak-bar-extra, 0px));
+}
 /* Narrow viewports: bump the top padding by 6px so the board grid doesn't
    sit under the header action buttons that wrap/stack on smaller screens.
    Applied at both <=1200px and <=1024px (1024 inherits the same value). */
@@ -10915,16 +10921,51 @@ video.button_image {
 }
 /* ── Find a Button modal ── */
 .modal .modal-dialog:has(.la-find-button-wrap) {
-  max-width: 520px;
+  /* 30% wider than the original 520px, and fills the viewport height minus
+     a 4px gutter top + bottom. Use flex so the intermediate <span>
+     touch-listener + .modal-content chain stretch to the full dialog
+     height — otherwise the inline span breaks height:100% propagation. */
+  max-width: 676px;
+  height: calc(100vh - 8px);
+  max-height: calc(100vh - 8px);
+  margin: 4px auto;
+  display: flex;
+  flex-direction: column;
+}
+.modal .modal-dialog:has(.la-find-button-wrap) > * {
+  /* touch-listener span sits between .modal-dialog and .modal-content */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .modal-content:has(.la-find-button-wrap) {
   border: none;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba($brand-blue-black, 0.18), 0 8px 24px rgba($brand-blue-black, 0.10);
+  flex: 1 1 auto;
+  min-height: 0;
+  /* modal-dialog.js unconditionally sets inline max-height: window.height()-50px
+     on .modal-content for all modals. Our modal-dialog reaches nearly the
+     viewport edge (calc(100vh - 8px)), so that 50px cap leaves ~42px of dead
+     space below the footer. Override it for this modal. */
+  max-height: none !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .la-find-button-wrap {
   background: #fff;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.la-find-button-wrap .la-find-button-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .la-find-button-wrap .la-modal-header {
   display: flex;
@@ -10994,8 +11035,6 @@ video.button_image {
 }
 .la-find-button-results {
   margin-top: 16px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 .la-find-button-result {
   /* Now a <button> element (was <div>) per WCAG 2.1.1.
