@@ -6,7 +6,7 @@ module Uploader
   CONTENT_LENGTH_RANGE=200.megabytes.to_i
 
   def self.s3_region
-    ENV['AWS_REGION'].presence || 'us-east-1'
+    ENV['AWS_REGION'].presence || 'us-west-2'
   end
 
   def self.s3_client(config)
@@ -726,6 +726,14 @@ module Uploader
   end
   
   def self.find_resources(query, source, user)
+    if (source == 'tarheel' || source == 'tarheel_book') && !FeatureFlags.feature_enabled_for?('tarheel_reader', user)
+      # Tarheel Reader was acquired by Building Wings and moved to Monarch Reader
+      # (Sept 2024). The tarheelreader.org JSON endpoints now 301-redirect to a
+      # closed SPA, so live calls return HTML that fails to parse. Gated behind
+      # the 'tarheel_reader' feature flag (off by default) until a partnership
+      # or alternate book source is in place.
+      return []
+    end
     tarheel_prefix = "https://tarheelreader.org" #ENV['TARHEEL_PROXY'] || "https://images.weserv.nl/?url=tarheelreader.org"
     if source == 'tarheel'
       url = "https://tarheelreader.org/find/?search=#{CGI.escape(query)}&category=&reviewed=R&audience=E&language=en&page=1&json=1"

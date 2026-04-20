@@ -291,6 +291,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["library", "locale"], name: "index_library_caches_on_library_and_locale", unique: true
   end
 
+  create_table "licenses", force: :cascade do |t|
+    t.integer "organization_id", null: false
+    t.integer "user_id"
+    t.string "seat_type", default: "student"
+    t.string "status", default: "active"
+    t.datetime "granted_at"
+    t.datetime "expires_at"
+    t.string "external_reference"
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "status"], name: "index_licenses_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_licenses_on_organization_id"
+    t.index ["user_id"], name: "index_licenses_on_user_id"
+  end
+
   create_table "log_mergers", id: :serial, force: :cascade do |t|
     t.datetime "merge_at", precision: nil
     t.boolean "started"
