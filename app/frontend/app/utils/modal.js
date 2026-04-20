@@ -39,6 +39,26 @@ var modal = EmberObject.extend({
     }
     return null;
   },
+
+  // Looks up the app-state service so simple flash notifications can be routed
+  // through the modern ll-toast component instead of the legacy flash-message
+  // outlet. Sticky / action-bearing flashes still use the legacy path.
+  _getAppState: function() {
+    try {
+      if (this.route) {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var service = owner.lookup('service:app-state');
+          if (service) { return service; }
+        }
+      }
+      if (typeof window !== 'undefined' && window.LingoLinq) {
+        var owner = getOwner(window.LingoLinq);
+        if (owner) { return owner.lookup('service:app-state'); }
+      }
+    } catch(e) {}
+    return null;
+  },
   
   setup: function(route) {
     if(this.last_promise) { this.last_promise.reject('closing due to setup'); }
@@ -411,6 +431,20 @@ var modal = EmberObject.extend({
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
     type = type || 'notice';
     opts = opts || {};
+    // Route simple (non-sticky, no-action, no-redirect) flashes through the
+    // modern ll-toast component so every lightweight "Saved!" / "Failed" /
+    // "Heads up!" notice matches the logging-enabled toast style.
+    if(!sticky && !opts.action && !opts.redirect) {
+      var appState = this._getAppState();
+      if(appState && typeof appState.show_toast === 'function') {
+        // Map legacy flash type → toast kind.
+        var kind = type;
+        if(kind === 'notice') { kind = 'info'; }
+        var duration = opts.timeout || (below_header ? 3500 : 3000);
+        appState.show_toast(text, kind, duration);
+        return;
+      }
+    }
     this.settings_for['flash'] = {type: type, text: text, sticky: sticky, action: opts.action};
     if(below_header) {
       this.settings_for['flash'].below_header = below_header;

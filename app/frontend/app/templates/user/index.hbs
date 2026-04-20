@@ -138,7 +138,7 @@
                 {{t "Liked Boards" key="liked_boards"}}
               </div>
               {{#if this.model.preferences.home_board.key}}
-                <div style='font-size: 12px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
+                <div style='font-size: 14px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
               {{/if}}
             </div>
           </a>
@@ -191,7 +191,7 @@
                   {{/if}}
                 </div>
               </div>
-              <div style='font-size: 12px; color: #888; margin-top: -7px;'>
+              <div style='font-size: 14px; color: #888; margin-top: -7px;'>
                 {{#if this.model.profile_due.overdue}}
                   {{t "overdue" key="overdue"}}
                 {{else if this.model.profile_due.soon}}
@@ -625,17 +625,17 @@
                   {{#each this.filtered_devices as |device|}}
                     <tr>
                       <td>{{device.name}}
-                        <div style='font-size: 12px; color: #888;'>{{device.ref_id}}</div>
+                        <div style='font-size: 14px; color: #888;'>{{device.ref_id}}</div>
                       </td>
                       <td>
                         {{device.app_version}}<br>
                         {{device.token_type}}
                       </td>
-                      <td style='width: 30%; font-size: 10px;'>{{device.user_agent}}</td>
+                      <td style='width: 30%; font-size: 14px;'>{{device.user_agent}}</td>
                       <td>{{device.ip_address}}</td>
                       <td>
                         {{date device.last_used}}
-                        <div style='font-size: 12px;'>
+                        <div style='font-size: 14px;'>
                           {{t "expires after" key="expires_after"}}
                           {{device.token_timeout}}{{t ", or" key="comma_or"}}
                           {{device.inactivity_timeout}} 

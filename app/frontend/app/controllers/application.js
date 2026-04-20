@@ -468,6 +468,13 @@ export default Controller.extend({
     support: function() {
       this.get('router').transitionTo('support');
     },
+    goToNewStyle: function() {
+      var key = this.appState.get('currentBoardState.key');
+      if(key && key.indexOf('/') !== -1) {
+        var parts = key.split('/');
+        this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      }
+    },
     getting_started: function() {
       this.get('modalService').open('getting-started', { progress: this.appState.get('currentUser.preferences.progress') });
     },
@@ -1949,7 +1956,6 @@ export default Controller.extend({
       (route === 'search' && cu) ||
       (route === 'offline_boards' && cu) ||
       (route === 'caseload' && cu) ||
-      (route === 'board-layout' && cu) ||
       route === 'support' ||
       route === 'faq' ||
       route === 'beta-feedback' ||

@@ -344,7 +344,7 @@
                 <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
                 <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
               {{/unless}}
-              <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+              <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
               <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                 {{#if this.app_state.currentUser.unread_messages}}
                   <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>

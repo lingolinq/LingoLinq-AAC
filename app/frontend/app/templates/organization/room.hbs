@@ -117,7 +117,7 @@
             <div class="panel-heading">
               {{t "Goal Words" key="goal_words"}}
             </div>
-            <div class="panel-body" style='max-height: 90px; font-size: 13px; overflow: auto; white-space: normal;'>
+            <div class="panel-body" style='max-height: 90px; font-size: 14px; overflow: auto; white-space: normal;'>
 
               {{#if this.log_stats.goal_word_counts}}
                 {{#each this.log_stats.goal_word_counts as |wrd|}}
@@ -127,9 +127,9 @@
                 {{/each}}
               {{else if this.model.goal}}
               {{else if this.model.user_counts.goal_set}}
-                <em style='font-size: 12px;'>{{t "No words targeted in user goals" key="no_words_targeted_in_user_goals"}}</em>
+                <em style='font-size: 14px;'>{{t "No words targeted in user goals" key="no_words_targeted_in_user_goals"}}</em>
               {{else}}
-                <em style='font-size: 12px;'>{{t "No user goals set" key="no_user_goals_set"}}</em>
+                <em style='font-size: 14px;'>{{t "No user goals set" key="no_user_goals_set"}}</em>
               {{/if}}
 
               {{#if this.organization.premium}}
@@ -145,7 +145,7 @@
                   <div style='text-align: right; margin-top: 10px;'>
                     {{#if this.model.goal}}
                     {{else}}
-                      <a href="#" {{action "set_goal"}} style='font-size: 12px;'>{{t "set goal" key="set_goal"}}</a>
+                      <a href="#" {{action "set_goal"}} style='font-size: 14px;'>{{t "set goal" key="set_goal"}}</a>
                     {{/if}}
                   </div>
                 {{/if}}
@@ -160,7 +160,7 @@
             <div class="panel-heading">
               {{t "Curriculum & Training" key="training_and_curriculum"}}
             </div>
-            <div class="panel-body" style='max-height: 90px; font-size: 13px; overflow: auto; white-space: normal;'>
+            <div class="panel-body" style='max-height: 90px; font-size: 14px; overflow: auto; white-space: normal;'>
               {{#if this.lesson_or_topics}}
                 {{#if this.model.topics}}
                   {{#each this.model.topics as |topic|}}
@@ -284,7 +284,7 @@
               {{t "button" count=log.button_count key="button_count"}}
             </LinkTo>
             <br>
-            <span style="color: #888; font-size: 10px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
+            <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">{{log.summary}}</span>
           </p>
         </li>
       {{/each}}

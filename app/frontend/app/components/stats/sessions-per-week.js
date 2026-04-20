@@ -23,7 +23,7 @@ export default Component.extend({
         stats.forEach(function(s, index) {
           var m = window.moment(new Date(s.timestamp * 1000));
           var hours = Math.round((s.session_seconds || 0) * 100 / 3600) / 100;
-          var tip = '<div style="padding:8px 12px;font-size:13px;line-height:1.5;white-space:nowrap;pointer-events:none;">' +
+          var tip = '<div style="padding:8px 12px;font-size:14px;line-height:1.5;white-space:nowrap;pointer-events:none;">' +
             '<strong>week of ' + m.format('MMM Do') + '</strong><br>' +
             'Sessions: ' + s.sessions + '<br>' +
             'Hours: ' + hours + '</div>';

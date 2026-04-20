@@ -20,9 +20,9 @@
       </div>
     {{else}}
       {{#if this.model.user}}
-        <p class="md-modal-hint" style="margin-bottom: 16px;">{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically see you added as a supervisor. You can also optionally set some preferences for them, like a default starting board." key="start_codes_user_explainer"}}</p>
+        <p class="md-modal-hint" style="margin-bottom: 16px;">{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically see you added as a supervisor. You can also optionally set some settings for them, like a default starting board." key="start_codes_user_explainer"}}</p>
       {{else}}
-        <p class="md-modal-hint" style="margin-bottom: 16px;">{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically be added to your organization. You can also optionally set some preferences for them, like a default starting board, and these settings will be set for each user who uses the start code." key="start_codes_org_explainer"}}</p>
+        <p class="md-modal-hint" style="margin-bottom: 16px;">{{t "Start codes are unique codes you can share with users who are new to LingoLinq. When they sign up they can optionally enter a start code, and if they do, then they will automatically be added to your organization. You can also optionally set some settings for them, like a default starting board, and these settings will be set for each user who uses the start code." key="start_codes_org_explainer"}}</p>
       {{/if}}
 
       <h4 class="md-org-settings-card__title" style="font-size: 15px;">
@@ -40,7 +40,7 @@
                 {{else}}
                   <a href="#" class="md-sc-row__code-text" {{action "copy" code.code}}>{{code.code}}</a>
                   {{#if code.to_delete}}
-                    <button class="md-modal-btn md-modal-btn--cancel" style="padding: 4px 10px; font-size: 12px; margin-top: 4px;" {{action "delete" code}}>
+                    <button class="md-modal-btn md-modal-btn--cancel" style="padding: 4px 10px; font-size: 14px; margin-top: 4px;" {{action "delete" code}}>
                       {{#if code.status.deleting}}
                         {{t "deleting..." key="deleting"}}
                       {{else if code.status.error}}

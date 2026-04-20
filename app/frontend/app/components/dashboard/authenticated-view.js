@@ -1146,7 +1146,7 @@ export default Component.extend({
       var user = this.appState.get('currentUser');
       user.set('preferences.new_index', true);
       user.save().then(null, function() { });
-      modal.success(i18n.t('revert_new_dashboard', "Welcome to the new, cleaner dashboard! If you're not a fan you can switch back on your Preferences page."));
+      modal.success(i18n.t('revert_new_dashboard', "Welcome to the new, cleaner dashboard! If you're not a fan you can switch back on your Settings page."));
     },
     set_goal: function(user) {
       var _this = this;
