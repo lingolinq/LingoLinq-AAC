@@ -370,6 +370,9 @@ async function sync(services, source, apply) {
     }
   }
 
+  // Track changes across all environments for end-of-run notification
+  const appliedChanges = {};  // { KEY_NAME: Set<envName> }
+
   // Compare and update each service
   for (const [envName, svc] of Object.entries(services)) {
     console.log(`\n--- ${envName.toUpperCase()} (${svc.name}) ---`);
@@ -433,6 +436,14 @@ async function sync(services, source, apply) {
       try {
         await updateRenderEnvVars(svc.id, mergedVars);
         console.log(`  Applied ${additions.length + updates.length} changes.`);
+        for (const a of additions) {
+          if (!appliedChanges[a.key]) appliedChanges[a.key] = new Set();
+          appliedChanges[a.key].add(envName);
+        }
+        for (const u of updates) {
+          if (!appliedChanges[u.key]) appliedChanges[u.key] = new Set();
+          appliedChanges[u.key].add(envName);
+        }
       } catch (err) {
         console.error(`  Error updating ${svc.name}: ${err.message}`);
       }
@@ -441,7 +452,66 @@ async function sync(services, source, apply) {
     }
   }
 
+  if (apply && Object.keys(appliedChanges).length > 0) {
+    await notifyKeyRotation(appliedChanges);
+  }
+
   console.log('\nDone.\n');
+}
+
+// ---------------------------------------------------------------------------
+// Google Chat notification on key rotation
+// ---------------------------------------------------------------------------
+
+async function notifyKeyRotation(appliedChanges) {
+  const webhookUrl = process.env.GOOGLE_CHAT_WEBHOOK_KEY_ROTATION;
+  if (!webhookUrl) {
+    console.log('\n(No GOOGLE_CHAT_WEBHOOK_KEY_ROTATION set -- skipping Chat notification)');
+    return;
+  }
+
+  const keyLines = Object.entries(appliedChanges)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, envs]) => `• *${key}* (${[...envs].sort().join(', ')})`)
+    .join('\n');
+
+  const message = {
+    text: [
+      '🔑 *Key rotation pushed to Render*',
+      '',
+      keyLines,
+      '',
+      '_If you have any of these in your local `LingoLinq-AAC/.env`, pull the new value from 1Password (Shared Dev or Prod vault) and restart your dev server/MCP clients._',
+      '',
+      `Runbook: \`LingoLinq-AAC/docs/ROTATING_KEYS.md\``,
+      `Pushed at ${new Date().toISOString()}`,
+    ].join('\n'),
+  };
+
+  try {
+    await new Promise((resolve, reject) => {
+      const url = new URL(webhookUrl);
+      const body = JSON.stringify(message);
+      const req = https.request({
+        method: 'POST',
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, res => {
+        let data = '';
+        res.on('data', chunk => (data += chunk));
+        res.on('end', () => (res.statusCode >= 200 && res.statusCode < 300)
+          ? resolve(data)
+          : reject(new Error(`HTTP ${res.statusCode}: ${data}`)));
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+    console.log(`\nPosted rotation notice to Google Chat (${Object.keys(appliedChanges).length} keys changed).`);
+  } catch (err) {
+    console.error(`\nWarning: Could not post Chat notification: ${err.message}`);
+  }
 }
 
 async function exportToOp() {
