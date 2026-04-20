@@ -48,7 +48,9 @@ class Api::BadgesController < ApplicationController
     badge = UserBadge.find_by_path(params['id'])
     return unless exists?(badge, params['id'])
     return unless allowed?(badge, 'edit')
-    if badge.process(params['badge'])
+    badge_data = params['badge']
+    badge_data = badge_data.permit! if badge_data.is_a?(ActionController::Parameters)
+    if badge.process(badge_data)
       render json: JsonApi::Badge.as_json(badge, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "badge update failed", errors: badge.processing_errors})

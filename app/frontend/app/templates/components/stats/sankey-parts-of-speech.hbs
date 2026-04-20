@@ -1,0 +1,6 @@
+<div class={{this.elem_class}} style={{this.elem_style}}>
+  <h3>{{t "Parts of Speech Flow" key="parts_of_speech"}}</h3>
+  <div style="height: 300px; position: relative;">
+    {{chart-sankey-parts-of-speech data=this.usage_stats.parts_of_speech_combinations}}
+  </div>
+</div>

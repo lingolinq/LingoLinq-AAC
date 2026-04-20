@@ -1084,4 +1084,52 @@ describe Exporter do
       expect(res[0].data['events'][1]['percent_y']).to eq(nil)
     end
   end
+
+  describe 'add_local_file' do
+    it 'should use add_file for zippers that support streaming and delete the source file' do
+      tmp = Tempfile.new(['test-board', '.obz'])
+      tmp.write('fake zip contents')
+      tmp.close
+      tmp_path = tmp.path
+      expect(File.exist?(tmp_path)).to eq(true)
+
+      zipper = double('streaming_zipper')
+      expect(zipper).to receive(:add_file).with('board.obz', tmp_path)
+
+      Exporter.add_local_file(zipper, 'board.obz', tmp_path)
+
+      expect(File.exist?(tmp_path)).to eq(false)
+    end
+
+    it 'should fall back to binread for zippers without add_file and delete the source file' do
+      tmp = Tempfile.new(['test-board', '.obz'])
+      tmp.write('fake zip contents')
+      tmp.close
+      tmp_path = tmp.path
+      expect(File.exist?(tmp_path)).to eq(true)
+
+      zipper = double('legacy_zipper')
+      expect(zipper).not_to receive(:add_file)
+      expect(zipper).to receive(:add).with('board.obz', 'fake zip contents')
+      allow(zipper).to receive(:respond_to?).with(:add_file).and_return(false)
+
+      Exporter.add_local_file(zipper, 'board.obz', tmp_path)
+
+      expect(File.exist?(tmp_path)).to eq(false)
+    end
+
+    it 'should delete the source file even if the zipper raises an error' do
+      tmp = Tempfile.new(['test-board', '.obz'])
+      tmp.write('fake zip contents')
+      tmp.close
+      tmp_path = tmp.path
+
+      zipper = double('error_zipper')
+      allow(zipper).to receive(:respond_to?).with(:add_file).and_return(true)
+      expect(zipper).to receive(:add_file).and_raise('zip write failed')
+
+      expect { Exporter.add_local_file(zipper, 'board.obz', tmp_path) }.to raise_error('zip write failed')
+      expect(File.exist?(tmp_path)).to eq(false)
+    end
+  end
 end

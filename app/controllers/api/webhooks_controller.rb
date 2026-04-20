@@ -11,10 +11,12 @@ class Api::WebhooksController < ApplicationController
   end
   
   def create
-    user = User.find_by_path(params['webhook']['user_id'])
-    return unless exists?(user, params['webhook']['user_id'])
+    wh_data = params['webhook']
+    wh_data = wh_data.permit! if wh_data.is_a?(ActionController::Parameters)
+    user = User.find_by_path(wh_data['user_id'])
+    return unless exists?(user, wh_data['user_id'])
     return unless allowed?(user, 'supervise')
-    webhook = Webhook.process_new(params['webhook'], {user: user})
+    webhook = Webhook.process_new(wh_data, {user: user})
     if webhook.errored?
       api_error(400, {error: "webhook creation failed", errors: webhook && webhook.processing_errors})      
     else
@@ -34,7 +36,9 @@ class Api::WebhooksController < ApplicationController
     webhook = Webhook.find_by_path(params['id'])
     return unless exists?(webhook, params['id'])
     return unless allowed?(webhook, 'edit')
-    if webhook.process(params['webhook'], {user: @api_user})
+    wh_update = params['webhook']
+    wh_update = wh_update.permit! if wh_update.is_a?(ActionController::Parameters)
+    if webhook.process(wh_update, {user: @api_user})
       render json: JsonApi::Webhook.as_json(webhook, {wrapper: true, permissions: @api_user})
     else
       api_error(400, {error: "webhook update failed", errors: webhook.processing_errors})

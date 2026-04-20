@@ -3,6 +3,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
+import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import progress_tracker from '../utils/progress_tracker';
@@ -30,6 +31,10 @@ export default Component.extend({
     this.set('existing_user', true);
     this.set('new_user', false);
     this.set('start_code', false);
+    this.set('consent_request', false);
+    this.set('consent_submitted', false);
+    this.set('consent_submitting', false);
+    this.set('owner_email', '');
     const sup = this.get('store').createRecord('user', {
       preferences: {
         registration_type: 'manually-added-supervisor'
@@ -51,10 +56,10 @@ export default Component.extend({
 
   supervisor_types: computed(function() {
     return [
-      { name: i18n.t('choose_access_level', "[ Choose Access Level ]"), id: '' },
-      { name: i18n.t('edit_access', "Can modify boards and settings, and see reports"), id: 'edit' },
-      { name: i18n.t('read_only_access', "Can see boards, settings and reports, but not modify"), id: 'read_only' },
-      { name: i18n.t('modeling_access', "Can see boards, and model only"), id: 'modeling_only' }
+      { name: i18n.t('choose_access_level', "( Choose Supervisor Access )"), id: '' },
+      { name: i18n.t('edit_access', "[Modify] boards and settings, and [View] reports"), id: 'edit' },
+      { name: i18n.t('read_only_access', "[View Only] boards, settings, and reports"), id: 'read_only' },
+      { name: i18n.t('modeling_access', "[View Only] boards and model"), id: 'modeling_only' }
     ];
   }),
 
@@ -65,22 +70,54 @@ export default Component.extend({
     opening() {},
     closing() {},
     set_user_type(type) {
+      this.set('start_code', false);
+      this.set('existing_user', false);
+      this.set('new_user', false);
+      this.set('consent_request', false);
       if (type === 'new') {
-        this.set('start_code', false);
-        this.set('existing_user', false);
         this.set('new_user', true);
       } else if (type === 'start_code') {
         this.set('start_code', true);
-        this.set('existing_user', false);
-        this.set('new_user', false);
+      } else if (type === 'consent_request') {
+        this.set('consent_request', true);
       } else {
-        this.set('start_code', false);
         this.set('existing_user', true);
-        this.set('new_user', false);
       }
     },
     updateSupervisorPermission(value) {
       this.set('supervisor_permission', value);
+    },
+    send_consent_request() {
+      var _this = this;
+      var lookup_key = (_this.get('owner_email') || '').trim();
+      var uiPermission = _this.get('supervisor_permission');
+      if (!lookup_key || !uiPermission) { return; }
+      var permission_level = 'view_only';
+      if (uiPermission === 'edit') {
+        permission_level = 'edit_boards';
+      } else if (uiPermission === 'modeling_only') {
+        permission_level = 'modeling_only';
+      } else if (uiPermission === 'read_only') {
+        permission_level = 'view_only';
+      }
+      _this.set('consent_submitting', true);
+      _this.set('error', null);
+      persistence.ajax('/api/v1/supervisor_relationships', {
+        type: 'POST',
+        data: {
+          supervisor_relationship: {
+            lookup_key: lookup_key,
+            permission_level: permission_level
+          }
+        }
+      }).then(function() {
+        _this.set('consent_submitting', false);
+        _this.set('consent_submitted', true);
+      }, function() {
+        _this.set('consent_submitting', false);
+        // Show success regardless to prevent user enumeration
+        _this.set('consent_submitted', true);
+      });
     },
     add() {
       const controller = this;

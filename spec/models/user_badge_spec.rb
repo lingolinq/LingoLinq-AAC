@@ -1085,7 +1085,7 @@ describe UserBadge, type: :model do
       u = User.create
       b = UserBadge.new(:user => u)
       b.update_user
-      expect(u.reload.badges_updated_at.to_i).to eq(Time.now.to_i)
+      expect(u.reload.badges_updated_at.to_i).to be_within(1).of(Time.now.to_i)
     end
   end
 

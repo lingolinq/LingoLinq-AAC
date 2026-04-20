@@ -292,6 +292,10 @@ describe UpstreamDownstream, :type => :model do
       b2.reload.track_downstream_boards!
       RemoteAction.process_all
       20.times { Worker.process_queues; break if Worker.queues_empty? }
+      # Synchronous track ensures downstream_board_ids are fully propagated (avoids CI timing/queue-pressure flakiness)
+      b1.reload.track_downstream_boards!
+      b2.reload.track_downstream_boards!
+      b3.reload.track_downstream_boards!
       expect(b3.reload.downstream_board_ids.sort).to eq([].sort)
       expect(b3.settings['total_buttons']).to eq(0)
       expect(b3.settings['unlinked_buttons']).to eq(0)

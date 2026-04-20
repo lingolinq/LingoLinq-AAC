@@ -60,6 +60,14 @@ describe ProfileTemplate, :type => :model do
     end
   end
 
+  describe "same_profile?" do
+    it "should treat public_profile_id and global id as the same template" do
+      pt = ProfileTemplate.create(public_profile_id: 'bacon', settings: {'public' => true, 'profile' => {}})
+      expect(ProfileTemplate.same_profile?('bacon', pt.global_id, 'communicator')).to eq(true)
+      expect(ProfileTemplate.same_profile?(pt.global_id, 'bacon', 'communicator')).to eq(true)
+    end
+  end
+
   describe "permissions" do
     it "should allow anyone to view a public template" do
       pt = ProfileTemplate.create(settings: {'public' => true})

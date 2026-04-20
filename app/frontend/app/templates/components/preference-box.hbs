@@ -1,20 +1,55 @@
-<fieldset style='border: 1px solid #ddd; padding: 0 10px 5px; border-radius: 10px; margin-bottom: 5px; overflow: hidden;'>
-    <div class='form-group' style='background: #fafafa; border-bottom: 1px solid #ddd; cursor: pointer;' {{action "toggle" on="click"}}>
-      <div class='col-sm-3' style='text-align: right;'>
+<fieldset class="md-pref-box">
+    <button type="button" class='md-pref-box__header' {{action "toggle"}} aria-expanded={{if this.open "true" "false"}}>
+      <div class="md-pref-box__chevron">
         {{#if this.open}}
-          <span class='glyphicon glyphicon-chevron-down' style='font-size: 25px; margin-top: 8px;'></span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         {{else}}
-          <span class='glyphicon glyphicon-chevron-right text-muted' style='font-size: 25px; margin-top: 5px;'></span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         {{/if}}
       </div>
-      <div class='col-sm-5'>
-        <h4>{{#if this.glyph}}<span class={{this.glyph}}></span> {{/if}}{{t this.title key=this.title_key}}</h4>
+      <div class="md-pref-box__icon" aria-hidden="true">
+        {{#if (is-equal this.glyph "glyphicon glyphicon-picture")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="#2A9D8F"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#46505F"/><polyline points="21 15 16 10 5 21" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-hand-up")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1" stroke="#46505F"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" stroke="#2A9D8F"/><line x1="6" y1="1" x2="6" y2="4" stroke="#46505F"/><line x1="10" y1="1" x2="10" y2="4" stroke="#46505F"/><line x1="14" y1="1" x2="14" y2="4" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-refresh")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-play-circle")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><polygon points="10 8 16 12 10 16 10 8" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-comment")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#2A9D8F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-link")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="#4C86D8"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-th")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" stroke="#2A9D8F"/><rect x="14" y="3" width="7" height="7" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-menu-hamburger")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12" stroke="#46505F"/><line x1="3" y1="6" x2="21" y2="6" stroke="#2A9D8F"/><line x1="3" y1="18" x2="21" y2="18" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-eye-open")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#2A9D8F"/><circle cx="12" cy="12" r="3" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-lock")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#46505F"/><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#2A9D8F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-user")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="12" cy="7" r="4" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-edit")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="#2A9D8F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-share")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4C86D8"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-wrench")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="#2A9D8F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-bell")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#2A9D8F"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-cog")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#46505F"/></svg>
+        {{else if (is-equal this.glyph "glyphicon glyphicon-volume-up")}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="#46505F"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="#2A9D8F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#2A9D8F"/></svg>
+        {{/if}}
       </div>
-    </div>
+      <h3 class="md-pref-box__title">{{t this.title key=this.title_key}}</h3>
+    </button>
     {{#if this.open}}
       {{yield}}
     {{else}}
-      <div style='height: 15px; opacity: 0.5; overflow: hidden;' {{action "toggle" on="click"}}>
+      <button type="button" class='md-pref-box__collapsed' {{action "toggle"}} aria-label={{t "Expand %{title}" key="expand_named" title=(t this.title key=this.title_key)}}>
         <div class='form-group'>
           <div class='col-sm-5 col-sm-offset-3'>
             {{#if this.closed_text}}
@@ -24,6 +59,6 @@
             {{/if}}
           </div>
         </div>
-      </div>
+      </button>
     {{/if}}
 </fieldset>

@@ -42,7 +42,7 @@ export default modal.ModalController.extend({
   avatar_options: computed(
     'model.user.prior_avatar_urls',
     'model.user.fallback_avatar_url',
-    'mode.user.avatar_url',
+    'model.user.avatar_url',
     function() {
       var res = [];
       if(this.get('model.user.avatar_url')) {

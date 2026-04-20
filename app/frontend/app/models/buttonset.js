@@ -23,6 +23,12 @@ LingoLinq.Buttonset = DS.Model.extend({
   persistence: service('persistence'),
   stashes: service('stashes'),
   appState: service('app-state'),
+  /** When loaded by board key, API id is global_id; serializer stores it here (see application serializer). */
+  _actual_id: DS.attr('string'),
+  /** Global board id for comparisons with button.board_id and app state (see Board#global_id). */
+  global_id: computed('id', '_actual_id', function() {
+    return this.get('_actual_id') || this.get('id');
+  }),
   key: DS.attr('string'),
   root_url: DS.attr('string'),
   buttons: DS.attr('raw'),
@@ -84,7 +90,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     // and retrieves the button list for that set. Will
     // error if the button set needs to be generated first.
     var bs = this;
-    var board_id = bs.get('id');
+    var board_id = bs.get('global_id');
     return new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -169,7 +175,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             store_anyway(true);
           });
         }
-      } else if(bs.get('buttons')) {
+      } else if(bs.get('buttons') && bs.get('buttons').length) {
         resolve(bs);
       } else {
         reject({error: 'root url not available'});
@@ -270,7 +276,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     button_sets.forEach(function(bs, idx) {
       var button_set_buttons = bs.get('buttons');
       if(bs == _this) {
-        button_set_buttons = _this.redepth(bs.get('id'));
+        button_set_buttons = _this.redepth(bs.get('global_id'));
       }
       (button_set_buttons || []).forEach(function(button) {
         if(button && locale && button.locale && button.locale.split(/-|_/)[0] != locale.split(/-|_/)[0]) {
@@ -615,7 +621,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     var buttons = res.all_buttons || [];
     var map = res.map;
     var full = (words || []).join(' ').toLowerCase();
-    if(from_board_id && from_board_id != _this.get('id')) {
+    if(from_board_id && from_board_id != _this.get('global_id')) {
       // re-depthify all the buttons based on the starting board
       buttons = _this.redepth(from_board_id);
     }
@@ -808,7 +814,7 @@ LingoLinq.Buttonset = DS.Model.extend({
       var re = new RegExp("\\b" + str, 'i');
       var all_buttons_enabled = _this.stashes.get('all_buttons_enabled');
       var buttons = _this.get('buttons') || [];
-      if(from_board_id && from_board_id != _this.get('id')) {
+      if(from_board_id && from_board_id != _this.get('global_id')) {
         // re-depthify all the buttons based on the starting board
         buttons = _this.redepth(from_board_id);
       }
@@ -920,7 +926,7 @@ LingoLinq.Buttonset = DS.Model.extend({
                     'pre': is_home ? 'home' : 'sidebar',
                     'board_id': is_home ? 'home' : 'sidebar',
                     'board_key': is_home ? 'home' : 'sidebar',
-                    'linked_board_id': button_set.get('id'),
+                    'linked_board_id': button_set.get('global_id'),
                     'linked_board_key': button_set.get('key'),
                     'home_lock': button_set.get('home_lock_set'),
                     'label': is_home ? i18n.t('home', "Home") : i18n.t('sidebar_board', "Sidebar, %{board_name}", {hash: {board_name: button_set.get('name')}})
@@ -1017,6 +1023,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
 LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   // use promises to make this call idempotent
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
+  if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
   var promise = LingoLinq.Buttonset.pending_promises[id];
   if(promise) { return promise; }
   if(id && (id.match(/^b/) || id.match(/^i/))) {
@@ -1038,8 +1045,8 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   if(found) {
     var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
-      if(found.get('buttons') || found.get('root_url')) {
-        found.load_buttons(force); 
+      if((found.get('buttons') && found.get('buttons').length) || found.get('root_url')) {
+        found.load_buttons(force);
         return RSVP.resolve(found);
       }
     }
@@ -1101,7 +1108,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
       if(!button_set.get('root_url') && button_set.get('remote_enabled')) {
         // if root_url not available for the user, try to build one
         return generate(id);
-      } else if(button_set.get('buttons') || button_set.get('root_url')) {
+      } else if((button_set.get('buttons') && button_set.get('buttons').length) || button_set.get('root_url')) {
         // otherwise you should be good to go
         return button_set.load_buttons(force);
       } else {

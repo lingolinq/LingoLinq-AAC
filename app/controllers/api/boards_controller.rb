@@ -228,7 +228,7 @@ class Api::BoardsController < ApplicationController
             boards = boards.order(home_popularity: :desc, id: :desc)
           end
         elsif params['sort'] == 'custom_order'
-          boards = boards[0, 100].sort_by{|b| b.settings['custom_order'] || b.id }
+          boards = boards[0, 100].sort_by { |b| (b.settings || {})['custom_order'] || b.id }
         end
       else
         boards = boards.order(popularity: :desc, any_upstream: :asc, id: :desc)
@@ -370,13 +370,14 @@ class Api::BoardsController < ApplicationController
   end
   
   def from_html
-    html = params['html'].to_s
+    permitted = params.permit(:html, :name, :key, :locale)
+    html = permitted[:html].to_s
     return api_error(400, { error: 'html required' }) if html.blank?
 
     board_opts = {
-      name: params['name'].presence || 'Imported Board',
-      key: params['key'].presence,
-      locale: params['locale'].presence || 'en'
+      name: permitted[:name].presence || 'Imported Board',
+      key: permitted[:key].presence,
+      locale: permitted[:locale].presence || 'en'
     }.compact
 
     board = Converters::HtmlBoard.create_from_html(html, @api_user, board_opts)
@@ -394,7 +395,10 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
-    processed_params = request.content_type == 'application/json' ? JSON.parse(request.body.read) : params
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
+    end
     prompt = (processed_params['prompt'] || '').to_s.strip
     return api_error(400, { error: 'prompt required' }) if prompt.blank?
 
@@ -411,7 +415,8 @@ class Api::BoardsController < ApplicationController
       rows: rows,
       columns: columns,
       locale: locale_param,
-      include_core_words: include_core_words
+      include_core_words: include_core_words,
+      user: @api_user
     )
     if result[:error]
       return api_error(503, { error: result[:error] })
@@ -432,14 +437,25 @@ class Api::BoardsController < ApplicationController
 
   def create
     @board_user = @api_user
-    processed_params = params
-    # Necessary because by default Rails is stripping out nil references in an array, which
-    # messes up grid.order
-    if request.content_type == 'application/json'
-      processed_params = JSON.parse(request.body.read)
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
     end
+    is_json_request = json_body_source == :json_hash
     # Use a single source for board params: parsed JSON body for JSON requests, params otherwise.
-    board_params = (request.content_type == 'application/json' ? (processed_params['board'] || {}) : (params['board'] || {}))
+    # JSON-parsed params are plain hashes; Rails params need permit! since models do their own filtering.
+    board_params = if is_json_request
+      processed_params['board'] || {}
+    else
+      raw_board = params['board']
+      if raw_board.is_a?(ActionController::Parameters)
+        raw_board.permit!.to_unsafe_h
+      elsif raw_board.is_a?(Hash)
+        raw_board
+      else
+        {}
+      end
+    end
     if board_params['for_user_id'] && board_params['for_user_id'] != 'self'
       user = User.find_by_path(board_params['for_user_id'])
       if !user
@@ -542,19 +558,20 @@ class Api::BoardsController < ApplicationController
     end    
     return unless exists?(board, params['id'])
     return unless allowed?(board, 'edit')
-    processed_params = params
-    # Necessary because by default Rails is stripping out nil references in an array, which
-    # messes up grid.order
-    if request.content_type == 'application/json'
-      processed_params = JSON.parse(request.body.read)
+    processed_params, json_body_source = board_json_body_params_source
+    if json_body_source == :invalid_json_root
+      return api_error(400, { error: 'JSON body must be an object' })
     end
     res = false
     if processed_params['button']
-      res = board.process_button(processed_params['button'])
+      button_data = processed_params['button'].is_a?(ActionController::Parameters) ? processed_params['button'].permit! : processed_params['button']
+      res = board.process_button(button_data)
     else
+      board_data = processed_params['board']
+      board_data = board_data.permit! if board_data.is_a?(ActionController::Parameters)
       version_date = Date.parse(request.headers['X-LingoLinq-Version']) rescue nil
       add_voc_error = version_date && version_date < Date.parse('August 3, 2021')
-      new_board = board.process(processed_params['board'], {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
+      new_board = board.process(board_data, {:allow_clone => true, :user => @api_user, :updater => @api_user, add_voc_error: add_voc_error})
       board = new_board if new_board.is_a?(Board)
       res = !!new_board
     end
@@ -636,7 +653,8 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'view')
     extra = UserExtra.find_or_create_by(user: @api_user)
     res = extra.tag_board(board, params['tag'], params['remove'], params['downstream'])
-    render json: {tagged: !!res, board_tags: res}
+    board_tag_map = (extra.settings['board_tags'] || {}).transform_values { |v| v || [] }
+    render json: {tagged: !!res, board_tags: res, board_tag_map: board_tag_map}
   end
   
   def unstar
@@ -727,6 +745,7 @@ class Api::BoardsController < ApplicationController
     ids = params['board_ids_to_translate'] || []
     ids << board.global_id
     translations = params['translations']
+    translations = translations.permit! if translations.is_a?(ActionController::Parameters)
     translations = translations.to_unsafe_h if translations.respond_to?(:to_unsafe_h)
     set_as_default = true
     set_as_default = false if params['set_as_default'] == false || params['set_as_default'] == 'false' || params['set_as_default'] == 0 || params['set_as_default'] == '0'
@@ -760,6 +779,25 @@ class Api::BoardsController < ApplicationController
     ids << board.global_id
     progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
+  end
+
+  private
+
+  # Re-parse JSON from raw_post for application/json because Rails drops nil entries in arrays
+  # (e.g. grid.order). On JSON::ParserError, fall back to params (same as before). On valid JSON
+  # whose root is not an object, returns :invalid_json_root so callers can respond with 400.
+  def board_json_body_params_source
+    unless request.media_type == 'application/json'
+      return params, :rails_params
+    end
+    begin
+      parsed = JSON.parse(request.raw_post)
+    rescue JSON::ParserError
+      return params, :rails_params
+    end
+    return parsed, :json_hash if parsed.is_a?(Hash)
+
+    [nil, :invalid_json_root]
   end
 
   protected

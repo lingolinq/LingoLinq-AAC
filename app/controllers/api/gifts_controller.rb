@@ -21,19 +21,21 @@ class Api::GiftsController < ApplicationController
   
   def create
     return unless allowed?(@api_user, 'admin_support_actions')
-    code = params['gift']['code']
+    gift_data = params['gift']
+    gift_data = gift_data.permit! if gift_data.is_a?(ActionController::Parameters)
+    code = gift_data['code']
     if code && GiftPurchase.find_by(code: code)
       api_error 400, {error: 'code is taken'}
       return
     end
     gift = GiftPurchase.process_new(
-    params['gift'].slice('licenses', 'total_codes', 'amount', 
-          'expires', 'limit', 'code', 'memo', 'email', 'organization', 
-          'org_id', 'gift_type', 'gift_name', 'discount', 'include_extras', 'include_supporters'), 
+    gift_data.slice('licenses', 'total_codes', 'amount',
+          'expires', 'limit', 'code', 'memo', 'email', 'organization',
+          'org_id', 'gift_type', 'gift_name', 'discount', 'include_extras', 'include_supporters'),
     {
       'giver' => @api_user,
       'email' => @api_user.settings['email'],
-      'seconds' => params['gift']['seconds'].to_i
+      'seconds' => gift_data['seconds'].to_i
     })
     
     if gift.errored?

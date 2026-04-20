@@ -65,6 +65,14 @@ include Replicate
   def generate_defaults
     self.data ||= {}
     self.cluster_type ||= 'ip_address'
+    if self.user_id && self.geo? && self.data['geo']
+      geo = self.data['geo']
+      if geo.is_a?(Array) && geo.length >= 2 && geo[0].respond_to?(:to_f) && geo[1].respond_to?(:to_f)
+        self.data['geo'] = [geo[0].to_f, geo[1].to_f, (geo[2].respond_to?(:to_f) ? geo[2].to_f : 0)]
+      elsif !geo.is_a?(Array) || geo[0].nil? || geo[1].nil?
+        self.data['geo'] = nil
+      end
+    end
     if self.user_id && self.ip_address? && self.data['ip_address']
       self.cluster_hash = GoSecure.sha512(self.user_id.to_s + "::" + self.data['ip_address'], self.cluster_type)
     elsif self.user_id && self.geo? && self.data['geo']
@@ -295,7 +303,10 @@ include Replicate
       id, sessions = nearbies.max_by{|a, b| b.length }
       sessions ||= []
       if sessions.length >= self.frequency_tolerance
-        cluster = ClusterLocation.find_or_create_by_cluster(user, 'geo', {ts: Time.now.to_i, r: rand})
+        geos = sessions.map { |s| s.data && s.data['geo'] }.compact
+        median = geos.any? ? self.median_geo(geos) : nil
+        next unless median && median[0] && median[1]
+        cluster = ClusterLocation.find_or_create_by_cluster(user, 'geo', median)
         LogSession.where(id: sessions.map(&:id)).update_all(geo_cluster_id: cluster.id)
         # sessions.each do |session|
         #   session.geo_cluster_id = cluster.id
@@ -350,8 +361,12 @@ include Replicate
     geos = []
     events = session.data['events'] || []
     events.each do |event|
-      if event['geo']
-        geos << event['geo'].map(&:to_f)
+      if event['geo'].is_a?(Array) && event['geo'].length >= 2
+        lat = event['geo'][0].respond_to?(:to_f) ? event['geo'][0].to_f : nil
+        lng = event['geo'][1].respond_to?(:to_f) ? event['geo'][1].to_f : nil
+        next if lat.nil? || lng.nil?
+        alt = event['geo'][2].respond_to?(:to_f) ? event['geo'][2].to_f : 0
+        geos << [lat, lng, alt]
       end
     end
     res['geo'] = self.median_geo(geos)

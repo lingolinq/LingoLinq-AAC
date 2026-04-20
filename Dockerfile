@@ -39,8 +39,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # Set environment
 ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development test" \
-    BUNDLE_DEPLOYMENT="1" \
-    SKIP_OFFLINE_MANIFEST="1"
+    BUNDLE_DEPLOYMENT="1"
 
 # Install gems
 COPY Gemfile Gemfile.lock ./
@@ -68,6 +67,13 @@ RUN export SECRET_KEY_BASE=dummy_key_at_least_30_characters_long_for_build && \
 # Entrypoint script
 COPY bin/docker-entrypoint /usr/bin/
 RUN chmod +x /usr/bin/docker-entrypoint
+
+# Non-root runtime user (least privilege)
+RUN groupadd --gid 1000 app && \
+    useradd --uid 1000 --gid app --home-dir /app --no-create-home --shell /usr/sbin/nologin app && \
+    chown -R app:app /app
+USER app
+
 ENTRYPOINT ["docker-entrypoint"]
 
 EXPOSE 3000

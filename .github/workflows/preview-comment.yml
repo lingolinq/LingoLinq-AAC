@@ -1,0 +1,56 @@
+name: Comment Preview URL
+
+on:
+  deployment_status:
+
+jobs:
+  comment-preview-url:
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      contains(github.event.deployment_status.environment_url, 'onrender.com')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      deployments: read
+    steps:
+      - name: Find PR number from deployment environment
+        id: find-pr
+        env:
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+        run: |
+          PR_NUM=$(echo "$ENVIRONMENT" | grep -oP 'PR #\K[0-9]+')
+          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: steps.find-pr.outputs.pr_number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt("${{ steps.find-pr.outputs.pr_number }}");
+            const previewUrl = "${{ github.event.deployment_status.environment_url }}";
+            const marker = "<!-- render-preview-comment -->";
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+            const body = `${marker}\n## Preview Deployment Ready\n\nYour preview is live and ready for testing:\n\n**${previewUrl}**\n\nAnyone with this link can view and test the changes. The preview will be automatically removed when this PR is merged or closed.\n\n---\n*Posted by Render Preview Bot*`;
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }

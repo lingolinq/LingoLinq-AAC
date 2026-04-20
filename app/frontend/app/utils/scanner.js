@@ -23,9 +23,22 @@ import frame_listener from './frame_listener';
 class JShim {
   constructor(arg) {
     this.elements = [];
+    this._filterVisible = false;
     if (arg) {
       if (typeof arg === 'string') {
-        this.elements = Array.from(document.querySelectorAll(arg));
+        var sel = arg;
+        var filterVis = false;
+        if (sel.indexOf(':visible') !== -1) {
+          sel = sel.replace(/:visible/g, function() { filterVis = true; return ''; });
+          sel = sel.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }).join(',');
+          if (!sel) { sel = '*'; }
+        }
+        this.elements = Array.from(document.querySelectorAll(sel));
+        if (filterVis) {
+          this.elements = this.elements.filter(function(el) {
+            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+          });
+        }
       } else if (arg instanceof Element || arg === window || arg === document) {
         this.elements = [arg];
       } else if (Array.isArray(arg)) {
@@ -46,12 +59,23 @@ class JShim {
     return this;
   }
   find(sel) {
+    // Handle jQuery :visible pseudo-selector by stripping it and filtering in JS
+    var filterVisible = false;
+    var cleanSel = sel.replace(/:visible/g, function() { filterVisible = true; return ''; });
+    // Clean up empty selectors from stripping (e.g. "button:visible" becomes "button")
+    cleanSel = cleanSel.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }).join(',');
+    if(!cleanSel) { cleanSel = '*'; }
     let res = [];
     this.elements.forEach(el => {
       if(el.querySelectorAll) {
-        res = res.concat(Array.from(el.querySelectorAll(sel)));
+        res = res.concat(Array.from(el.querySelectorAll(cleanSel)));
       }
     });
+    if(filterVisible) {
+      res = res.filter(function(el) {
+        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+      });
+    }
     return new JShim(res);
   }
   attr(name, val) {
@@ -143,7 +167,7 @@ var scanner = EmberObject.extend({
     return new JShim(search);
   },
   make_elem: function(tag, opts) {
-    var el = document.createElement(tag.replace(/[<>]/g, ''));
+    var el = document.createElement(tag.replace(/[<>\/]/g, ''));
     if(opts) {
       for(var key in opts) {
         if(key === 'id') el.id = opts[key];
@@ -159,12 +183,14 @@ var scanner = EmberObject.extend({
     }
     scanner.current_element = null;
     scanner.ref = Math.random();
-    if(scanner.find_elem("header #speak").length === 0) {
-      console.debug("scanning currently only works in speak mode...");
+    // Look for #speak directly. On board-alt the #speak element lives inside
+    // the application <header>; on board-detail the existing sentence-bar div
+    // is given id="speak" without any wrapper. Either form works.
+    if(scanner.find_elem("#speak").length === 0) {
       scanner.stop();
       return;
-    } else if(!this.get('appState.currentUser.preferences.device.scanning')) {
-      console.debug("scanning not enabled for the current user");
+    }
+    if(!this.get('appState.currentUser.preferences.device.scanning')) {
       scanner.stop();
       return;
     }
@@ -214,13 +240,20 @@ var scanner = EmberObject.extend({
     } else {
       var row = {};
       if(!options.skip_header) {
+        // On board-detail, #speak is the sentence-row div itself (not inside
+        // the application <header>). When that's the case, scan the sentence
+        // row as the header row and intentionally skip the global app header
+        // (#identity menu, etc.) so the off-screen app header is not included.
+        var $speakElem = scanner.find_elem("#speak");
+        var isBoardDetailSpeak = $speakElem.length > 0 && $speakElem.hasClass('md-board-detail-sentence-row');
+
         row = {
           children: [],
-          dom: scanner.find_elem("header"),
+          dom: isBoardDetailSpeak ? $speakElem : scanner.find_elem("header"),
           header: true,
           label: i18n.t('header', "Header")
         };
-        scanner.find_elem("header #speak").find("button:visible,#button_list,a.btn").each(function() {
+        scanner.find_elem("#speak").find("button:visible,#button_list,a.btn").each(function() {
           var id_labels = {
             'home_button': i18n.t('home', "Home"),
             'back_button': i18n.t('back', "Back"),
@@ -230,35 +263,37 @@ var scanner = EmberObject.extend({
             'clear_button': i18n.t('clear', "Clear")
           };
           var $elem = scanner.find_elem(this);
-          if($elem.attr('id') != 'speak_options') {
-            var label = id_labels[$elem.attr('id')] || "";
-            row.children.push({
-              dom: $elem,
-              label: label
-            });
-          }
+          var label = id_labels[$elem.attr('id')] || "";
+          row.children.push({
+            dom: $elem,
+            label: label
+          });
         });
 
-        var menu = {
-          dom: scanner.find_elem("#identity a.btn"),
-          label: i18n.t('menu', "Menu"),
-          children: [],
-          reload_children: function() {
-            var res = [];
-            scanner.find_elem("#identity .dropdown-menu a:visible").each(function() {
-              var $option = scanner.find_elem(this);
-              res.push({
-                dom: $option,
-                label: $option.text()
+        // Only include the application-header #identity menu on non-board-detail
+        // pages. On board-detail, the global app header is intentionally skipped.
+        if(!isBoardDetailSpeak) {
+          var menu = {
+            dom: scanner.find_elem("#identity a.btn"),
+            label: i18n.t('menu', "Menu"),
+            children: [],
+            reload_children: function() {
+              var res = [];
+              scanner.find_elem("#identity .dropdown-menu a:visible").each(function() {
+                var $option = scanner.find_elem(this);
+                res.push({
+                  dom: $option,
+                  label: $option.text()
+                });
               });
-            });
-            return res;
-          } 
-        };
+              return res;
+            }
+          };
 
 
-        menu.children = menu.reload_children();
-        row.children.push(menu);
+          menu.children = menu.reload_children();
+          row.children.push(menu);
+        }
 
         // TODO: figure out sidebar, when teaser is visible and also when the
         // whole sidebar is visible, including toggling between the two
@@ -476,18 +511,27 @@ var scanner = EmberObject.extend({
       });
       return res;
     } else {
-      var grid = editManager.controller.get('model.grid');
+      var grid = editManager.controller && editManager.controller.get('model.grid');
+      if(!grid) { return { rows: 0, columns: 0, order: [] }; }
       var res = {};
       res.rows = grid.rows;
       res.columns = grid.columns;
       res.order = [];
+      // Buttons may be Ember objects (board-alt: editManager.Button) or plain
+      // JS objects (board-detail speak mode: _make_btn). Read properties via
+      // a helper that supports both forms so scan_content doesn't throw.
+      var _read = function(obj, key) {
+        if(!obj) { return null; }
+        if(obj.get && typeof obj.get === 'function') { return obj.get(key); }
+        return obj[key];
+      };
       for(var idx = 0; idx < grid.order.length; idx++) {
         res.order[idx] = [];
         for(var jdx = 0; jdx < grid.order[idx].length; jdx++) {
           var $button = scanner.find_elem(".button[data-id='" + grid.order[idx][jdx] + "']:not(.hidden_button):not(.clone)");
           var button = editManager.find_button(grid.order[idx][jdx]);
-          $button.label = (button && (button.get('label') || button.get('vocalization'))) || "";
-          $button.sound = (button && button.get('sound')) || null;
+          $button.label = (button && (_read(button, 'label') || _read(button, 'vocalization'))) || "";
+          $button.sound = (button && _read(button, 'sound')) || null;
           res.order[idx][jdx] = $button;
         }
       }
@@ -510,9 +554,13 @@ var scanner = EmberObject.extend({
     runCancel(scanner.interval);
     scanner.interval = null;
     scanner.scanning = false;
+    scanner.current_element = null;
     this.keyboard_tried_to_show = false;
     this.last_options = null;
     modal.close_highlight();
+    // Also remove any leftover highlight/scanning CSS from the DOM
+    document.querySelectorAll('.highlight').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('.scanning_highlight').forEach(function(el) { el.classList.remove('scanning_highlight'); });
     scanner.scan_axes('clear');
     scanner.scanning_distances = {x: 0, y: 0};
   },
@@ -563,11 +611,11 @@ var scanner = EmberObject.extend({
   pick: function(ref) {
     var elem = scanner.current_element;
     if(scanner.options && scanner.options.scan_mode != 'axes') {
-      if((!modal.highlight_controller || !elem) && scanner.options && !scanner.options.auto_start) {
+      if(!elem && scanner.options && !scanner.options.auto_start) {
         scanner.next();
         return;
       }
-      if(!modal.highlight_controller || !elem) { return; }
+      if(!elem) { return; }
       var now = (new Date()).getTime();
       if(scanner.ignore_until && now < scanner.ignore_until) { return; }
     }
@@ -622,27 +670,55 @@ var scanner = EmberObject.extend({
       scanner.next_element();
     });
   },
+  // Escape handler. On board-detail, when the user has drilled into the
+  // sentence-row's children, escape should level back up to row scanning
+  // instead of stopping entirely. On board-alt (and at the top level),
+  // escape stops scanning as before.
+  escape: function() {
+    var els = scanner.elements;
+    if(els && els.length) {
+      // Find the trailing parent stub appended by load_children — its
+      // `higher_level` array points back to the previous level.
+      var parent = els[els.length - 1];
+      if(parent && parent.higher_level && parent.dom && parent.dom.hasClass && parent.dom.hasClass('md-board-detail-sentence-row')) {
+        scanner.level_up(parent);
+        return;
+      }
+    }
+    scanner.stop();
+  },
   pick_elem: function(dom) {
-    var $closest = scanner.find_elem(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button');
+    var $closest = scanner.find_elem(dom).closest('.button,.integration_target,.button_list,.btn,a,.speak_menu_button,.md-speak-menu__btn,.md-speak-menu__bottom-btn');
     if($closest.length > 0) { dom = $closest; }
     scanner.element_index = 0;
     scanner.element_index_advanced = false;
     scanner.last_spoken_elem = null;
     var reset_now = true;
 
-    if(dom && dom.hasClass('speak_menu_button')) {
+    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn') || dom.hasClass('md-speak-menu__bottom-btn'))) {
       var e = new CustomEvent( 'speakmenuselect', { bubbles: true, cancelable: true } );
       e.button_id = dom.attr('id');
       dom[0].dispatchEvent(e);
     } else if(dom.hasClass('button') && dom.attr('data-id')) {
       var id = dom.attr('data-id');
       var button = editManager.find_button(id);
-      var app = this.controller;
-      var board = app.get('board.model');
-      // if button links to something else, don't resume scanning 
-      // until board jumping has completed
-      reset_now = false;
-      app.activateButton(button, {board: board, trigger_source: 'switch'});
+      var appState = scanner.appState || (window.LingoLinq && window.LingoLinq.appState);
+      var appController = appState && appState.controller;
+      var board = editManager.controller && editManager.controller.get('model');
+      // If the button links to another board, don't resume scanning
+      // until the board jump has completed; otherwise reset immediately.
+      reset_now = !(button && (button.load_board || button.url || (button.get && (button.get('load_board') || button.get('url')))));
+      // board-alt path: button is an Ember Button with .get() — use the
+      // application controller's activateButton (this is the working flow).
+      if(appController && appController.activateButton && button && button.get && board) {
+        appController.activateButton(button, {board: board, trigger_source: 'switch'});
+      } else if(editManager.controller && typeof editManager.controller.send === 'function') {
+        // board-detail path: ordered_buttons in speak mode are plain JS
+        // objects (no .get()), so activateButton would fail. Delegate to the
+        // route controller's buttonSelect action which handles speak-mode
+        // activation correctly for board-detail.
+        editManager.controller.send('buttonSelect', id, {trigger_source: 'switch'});
+      }
     } else if(dom.hasClass('integration_target')) {
       frame_listener.trigger_target(dom[0]);
     } else if(dom.hasClass('button_list')) {
@@ -653,14 +729,20 @@ var scanner = EmberObject.extend({
       e.pass_through = true;
       scanner.find_elem(dom)[0].dispatchEvent(e);
     }
-    scanner.reset(true);
-    var ref = scanner.ref;
+    // Clear scanner internal state but DO NOT destroy the highlight DOM/outlet —
+    // modal.highlight in the next next_element call will reposition the existing
+    // highlight controller's model. If we destroy the outlet here, the controller
+    // object reference is preserved but its view is gone, so model updates render
+    // nothing and scanning visually fails to resume.
+    runCancel(scanner.interval);
+    scanner.interval = null;
+    scanner.current_element = null;
+    scanner.element_index = null;
+    scanner.scanning_distances = {x: 0, y: 0};
+
     var cutoff = reset_now ? 0 : Math.max(scanner.options.interval, 500);
-    scanner.reset_until = (new Date()).getTime() + cutoff;
     runLater(function() {
-      if(ref == scanner.ref) {
-        scanner.reset();
-      }
+      scanner.start();
     }, cutoff);
   },
   hide_input: function(force) {

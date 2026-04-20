@@ -5,14 +5,20 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 export default {
   name: 'color_keys',
   initialize: function(applicationInstance) {
-    window.LingoLinq.keyed_colors.forEach(function(r) {
-      if(!emberGet(r, 'border')) {
-        var fill = window.tinycolor(r.fill);
-        var border = fill.darken(30);
-        emberSet(r, 'border', border.toHexString());
-      }
-      emberSet(r, 'style', htmlSafe("border-color: " + r.border + "; background: " + r.fill + ";"));
-    });
+    var processColors = function(colors) {
+      colors.forEach(function(r) {
+        if(!emberGet(r, 'border')) {
+          var fill = window.tinycolor(r.fill);
+          var border = fill.darken(30);
+          emberSet(r, 'border', border.toHexString());
+        }
+        emberSet(r, 'style', htmlSafe("border-color: " + r.border + "; background: " + r.fill + ";"));
+      });
+    };
+    processColors(window.LingoLinq.keyed_colors);
+    if(window.LingoLinq.board_detail_keyed_colors) {
+      processColors(window.LingoLinq.board_detail_keyed_colors);
+    }
     // Ensure app-state service is created/looked up
     var appState = applicationInstance.lookup('service:app-state');
     if(appState) {

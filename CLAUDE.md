@@ -268,6 +268,10 @@ rake extras:desktop
 - Translation files: `public/locales/*.json`
 - Generation script: `i18n_generator.rb`
 
+**CSS / SCSS:**
+- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` — SassC cannot evaluate mixed units at compile time
+- CSS compression is disabled in production (`config.assets.css_compressor = nil`) — do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
+
 **Platform-Specific Code:**
 - Extract platform-specific code or wrap in `capabilities` library
 - Use capability checks to enable features conditionally

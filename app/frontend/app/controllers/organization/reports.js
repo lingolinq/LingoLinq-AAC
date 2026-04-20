@@ -5,10 +5,24 @@ import modal from '../../utils/modal';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
+import { debounce as runDebounce, cancel as runCancel } from '@ember/runloop';
 import LingoLinq from '../../app';
 
 export default Controller.extend({
-  queryParams: ['current_report'],
+  _filterDebounceTimer: null,
+  willDestroy() {
+    this._super(...arguments);
+    if (this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+      this._filterDebounceTimer = null;
+    }
+  },
+  queryParams: ['current_report', 'per_page', 'sort_by', 'sort_order', 'filter'],
+  current_report: null,
+  per_page: 25,
+  sort_by: null,
+  sort_order: null,
+  filter: null,
   available_reports: computed('model.permissions.edit', 'model.admin', function() {
     if(this.get('model.permissions.edit')) {
       var list = [{id: 'select', name: i18n.t('select_report_prompt', "[ Select a Report ]")}];
@@ -56,7 +70,7 @@ export default Controller.extend({
     var parts = (this.get('current_report') || '').split(/-/);
     parts.shift();
     var str = parts.join('-');
-    if(!rep) { return "N/A"; }
+    if(!rep) { return null; }
     if(rep.match(/^status-/)) {
       var code = rep.replace(/^status-/, '');
       var status = LingoLinq.user_statuses.find(function(r) { return r.id == code; });
@@ -75,85 +89,160 @@ export default Controller.extend({
       return i18n.t('grid_sizes_colon', "Grid Sizes: ") + lower + "-" + (lower + 29) + " cells";
     }
   }),
-  get_report: observer('current_report', 'model.id', function() {
-    if(this.get('current_report') && this.get('current_report') != 'select' && this.get('model.id')) {
-      var _this = this;
-      _this.set('results', {loading: true});
-      var list = [];
-      var next_page = function(url, limit) {
-        persistence.ajax(url, {type: 'GET'}).then(function(data) {
-          _this.set('results.loading', false);
-          if(data.user) {
-            list = list.concat(data.user);
-          } else if(data.users) {
-            list = list.concat(data.users);
-          } else if(data.log) {
-            list = list.concat(data.log);
-          }
-          if(data.meta && data.meta.next_url && (!limit || list.length < limit)) {
-            next_page(data.meta.next_url, limit);
-            _this.set('results.more', true);
-          } else {
-            _this.set('results.more', false);
-          }
-          if(data.stats) {
-            list = [];
-            var max = 1;
-            for(var key in data.stats) {
-              max = Math.max(max, data.stats[key]);
-            }
-            for(var key in data.stats) {
-              var obj = {key: key, value: parseInt(data.stats[key], 10), label_class: 'label label-default'};
-              if((obj.value / max) > 0.67) {
-                obj.label_class = 'label label-danger';
-              } else if((obj.value / max) > 0.33) {
-                obj.label_class = 'label label-warning';
-              }
-              list.push(obj);
-            }
-            var sort_by_key = _this.get('sort_by_key');
-            list.sort(function(a, b) { 
-              if(sort_by_key && a.key != b.key) {
-                return a.key.localeCompare(b.key);
-              }
-              return b.value - a.value; 
-            });
-            _this.set('results.count', list.length);
-            _this.set('results.stats', list);
-          } else {
-            _this.set('results.count', list.length);
-            var two_weeks_ago = window.moment().add(-14, 'day').toISOString();
-            list.forEach(function(u) {
-              if(u && u.goal && u.goal.last_tracked) {
-                emberSet(u.goal, 'recently_tracked', u.goal.last_tracked > two_weeks_ago);
-              }
-              if(u.org_status) {
-                emberSet(u, 'org_status_class', 'glyphicon glyphicon-' + u.org_status.state);
-              }
-            });
-            _this.set('results.list', list);
-          }
-        }, function(err) {
-          _this.set('results.loading', false);
-          _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
-        });
-      };
-      _this.set('sort_by_key', false);
-      if(this.get('current_report') == 'recent_sessions') {
-        next_page('/api/v1/organizations/' + _this.get('model.id') + '/logs', 100);
-      } else if(this.get('current_report') == 'all_users') {
-        next_page('/api/v1/organizations/' + _this.get('model.id') + '/users');
-      } else if(this.get('current_report') == 'all_supervisors') {
-        next_page('/api/v1/organizations/' + _this.get('model.id') + '/supervisors');
-      } else if(this.get('current_report') == 'all_evals') {
-        next_page('/api/v1/organizations/' + _this.get('model.id') + '/evals');
-      } else {
-        _this.set('sort_by_key', ['premium_voices', 'extras', 'protected_sources', 'subscriptions'].indexOf(_this.get('current_report')) != -1);
-        next_page('/api/v1/organizations/' + _this.get('model.id') + '/admin_reports?report=' + _this.get('current_report'));
-      }
-    } else {
-      this.set('results', null);
+  has_more: computed('results.meta.next_url', function() {
+    return !!(this.get('results.meta') && this.get('results.meta.next_url'));
+  }),
+  show_list_controls: computed('results.list', 'results.stats', function() {
+    return this.get('results.list') && !this.get('results.stats');
+  }),
+  per_page_options: computed(function() {
+    return [
+      {id: 10, name: '10'},
+      {id: 25, name: '25'},
+      {id: 50, name: '50'}
+    ];
+  }),
+  sort_by_options: computed('current_report', function() {
+    var report = this.get('current_report');
+    if(report === 'recent_sessions') {
+      return [{id: 'date', name: i18n.t('date', "Date")}];
     }
+    return [
+      {id: 'user_name', name: i18n.t('user_name', "User name")},
+      {id: 'joined', name: i18n.t('joined', "Joined")}
+    ];
+  }),
+  show_sort_by: computed('current_report', function() {
+    return this.get('current_report') !== 'recent_sessions';
+  }),
+  show_filter: computed('current_report', function() {
+    return this.get('current_report') !== 'recent_sessions';
+  }),
+  sort_order_options: computed(function() {
+    return [
+      {id: 'asc', name: i18n.t('ascending', "Ascending")},
+      {id: 'desc', name: i18n.t('descending', "Descending")}
+    ];
+  }),
+  build_report_url: function(useNextUrl) {
+    var orgId = this.get('model.id');
+    var base = '/api/v1/organizations/' + orgId;
+    var report = this.get('current_report');
+    var params = [];
+    var addParam = function(k, v) { if(v != null && v !== '') { params.push(encodeURIComponent(k) + '=' + encodeURIComponent(v)); } };
+    if(useNextUrl && this.get('results.meta.next_url')) {
+      return this.get('results.meta.next_url');
+    }
+    var perPage = parseInt(this.get('per_page'), 10) || 25;
+    perPage = Math.min(50, Math.max(1, perPage));
+    addParam('per_page', perPage);
+    if(this.get('sort_order')) { addParam('sort_order', this.get('sort_order')); }
+    addParam('filter', this.get('filter'));
+    if(report === 'recent_sessions') {
+      return base + '/logs' + (params.length ? '?' + params.join('&') : '');
+    }
+    if(this.get('sort_by')) { addParam('sort_by', this.get('sort_by')); }
+    if(report === 'all_users') {
+      return base + '/users' + (params.length ? '?' + params.join('&') : '');
+    }
+    if(report === 'all_supervisors') {
+      return base + '/supervisors' + (params.length ? '?' + params.join('&') : '');
+    }
+    if(report === 'all_evals') {
+      return base + '/evals' + (params.length ? '?' + params.join('&') : '');
+    }
+    params.unshift('report=' + encodeURIComponent(report));
+    return base + '/admin_reports?' + params.join('&');
+  },
+  process_list_response: function(data, append) {
+    var _this = this;
+    var list = [];
+    if(data.user) {
+      list = data.user;
+    } else if(data.users) {
+      list = data.users;
+    } else if(data.log) {
+      list = data.log;
+    }
+    if(data.stats) {
+      var max = 1;
+      for(var key in data.stats) {
+        max = Math.max(max, data.stats[key]);
+      }
+      var sortByKey = _this.get('sort_by_key');
+      for(var key in data.stats) {
+        var obj = {key: key, value: parseInt(data.stats[key], 10), label_class: 'label label-default'};
+        if((obj.value / max) > 0.67) {
+          obj.label_class = 'label label-danger';
+        } else if((obj.value / max) > 0.33) {
+          obj.label_class = 'label label-warning';
+        }
+        list.push(obj);
+      }
+      list.sort(function(a, b) {
+        if(sortByKey && a.key != b.key) {
+          return a.key.localeCompare(b.key);
+        }
+        return b.value - a.value;
+      });
+      _this.set('results.count', list.length);
+      _this.set('results.stats', list);
+      _this.set('results.list', null);
+    } else {
+      var twoWeeksAgo = window.moment().add(-14, 'day').toISOString();
+      list.forEach(function(u) {
+        if(u && u.goal && u.goal.last_tracked) {
+          emberSet(u.goal, 'recently_tracked', u.goal.last_tracked > twoWeeksAgo);
+        }
+        if(u && u.org_status) {
+          emberSet(u, 'org_status_class', 'glyphicon glyphicon-' + u.org_status.state);
+        }
+      });
+      if(append && _this.get('results.list')) {
+        list = _this.get('results.list').concat(list);
+      }
+      _this.set('results.count', list.length);
+      _this.set('results.list', list);
+    }
+    _this.set('results.meta', data.meta || {});
+    _this.set('results.more', !!(data.meta && data.meta.next_url));
+  },
+  fetch_report: function() {
+    var _this = this;
+    if(!this.get('current_report') || this.get('current_report') === 'select' || !this.get('model.id')) {
+      this.set('results', null);
+      return;
+    }
+    _this.set('results', {loading: true});
+    _this.set('sort_by_key', ['premium_voices', 'extras', 'protected_sources', 'subscriptions'].indexOf(_this.get('current_report')) >= 0);
+    var url = _this.build_report_url(false);
+    persistence.ajax(url, {type: 'GET'}).then(function(data) {
+      _this.set('results.loading', false);
+      _this.process_list_response(data, false);
+    }, function(err) {
+      _this.set('results.loading', false);
+      _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
+    });
+  },
+  get_report: observer('current_report', 'model.id', 'per_page', 'sort_by', 'sort_order', function() {
+    if(this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+      this._filterDebounceTimer = null;
+    }
+    this.fetch_report();
+  }),
+  get_report_filter: observer('filter', function() {
+    if(this._filterDebounceTimer) {
+      runCancel(this._filterDebounceTimer);
+    }
+    var _this = this;
+    this._filterDebounceTimer = runDebounce(this, function() {
+      _this._filterDebounceTimer = null;
+      if (_this.isDestroying || _this.isDestroyed) {
+        return;
+      }
+      _this.fetch_report();
+    }, 300);
   }),
   removable_report: computed('current_report', function() {
     return ['all_users', 'all_supervisors'].indexOf(this.get('current_report')) >= 0;
@@ -162,6 +251,19 @@ export default Controller.extend({
     return true;
   }),
   actions: {
+    load_more: function() {
+      var _this = this;
+      var nextUrl = this.get('results.meta') && this.get('results.meta.next_url');
+      if(!nextUrl) { return; }
+      _this.set('results.loading_more', true);
+      persistence.ajax(nextUrl, {type: 'GET'}).then(function(data) {
+        _this.set('results.loading_more', false);
+        _this.process_list_response(data, true);
+      }, function(err) {
+        _this.set('results.loading_more', false);
+        _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
+      });
+    },
     download_list: function() {
       var element = document.createElement('a');
       var rows = [];

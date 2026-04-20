@@ -56,6 +56,12 @@ task :transcode_errored_records => :environment do
   puts "done, #{count} scheduled"
 end
 
+task :expire_stale_supervisor_consent_requests => :environment do
+  puts "Expiring stale supervisor consent requests..."
+  count = SupervisorConsentExpirationWorker.perform
+  puts "done, #{count} expired."
+end
+
 desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
 task "scheduler:dispatch" => :environment do
   run_task = Proc.new do |name, &block|
@@ -123,6 +129,17 @@ task "scheduler:dispatch" => :environment do
       count = DeletedBoard.flush_old_records
       JobStash.flush_old_records
       "#{count} deleted"
+    end
+
+    run_task.call("enforce_data_retention_policies") do
+      require_relative '../data_policy_enforcer'
+      count = DataPolicyEnforcer.enforce_retention!
+      "#{count} stale sessions purged"
+    end
+
+    run_task.call("expire_stale_supervisor_consent_requests") do
+      count = SupervisorConsentExpirationWorker.perform
+      "#{count} expired"
     end
   end
 

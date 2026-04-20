@@ -1,10 +1,12 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <h3>{{t "Level Modifications" key="level_modifications"}}
     </h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     <p>{{t "%app_name% boards can have levels of development built-in, so you can start basic and gradually add vocabulary and resources as the communicator develops. You can use the paint tool to make defining growth levels easier by updating multiple buttons at the same time." key="paint_levels_explainer"}}</p>
     <p>{{t "NOTE: The level descriptions are an optional suggestion, you may want to define your own levels based on the target audience you are working with. In general it is better to skip middle levels and at least use Level 1 and Level 10 as progression points." key="levels_are_suggestions"}}</p>
     <form class="form-horizontal" {{action "nothing" on="submit"}}>
@@ -24,7 +26,7 @@
       {{/if}}
     </form>
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     <a href="#" class="btn btn-primary" {{action "paint"}}>{{t "Paint" key="paint"}}</a>
     <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>

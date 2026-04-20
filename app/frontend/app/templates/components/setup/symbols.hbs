@@ -1,389 +1,257 @@
 <div class='col-sm-10 col-sm-offset-1'>
-  <p class='prompt'>{{t "In addition to selecting a board, there are some other settings that can change based on the communicator's situation. Keep in mind that you can always change these settings later under \"Preferences\"." key="start_deciding"}}</p>
+  {{#if (is-equal this.setup.mode "layout")}}
+    <p class='setup-symbols-subheader'>{{t "Board Layout" key="board_layout"}}</p>
+  {{else}}
+    <p class='setup-symbols-subheader'>{{t "Set Starter Preferences" key="setup_symbols_subheader"}}</p>
+    <p class='prompt'>{{t "In addition to selecting a board, there are some other settings that can change based on the communicator's situation. Keep in mind that you can always change these settings later under \"Preferences\"." key="start_deciding"}}</p>
+  {{/if}}
 </div>
-<div class='row'>
-  <div class='col-sm-5 col-sm-offset-1'>
-    <div class='setup_setting'>
-      <label>{{t "How do you want buttons to appear?" key="text_placement"}}</label>
-      <div class="btn-group-vertical" style="width: 100%;">
-        <a href="#" class={{if this.setup.text_position.text_on_top "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.button_text_position" "top" target=this.setup}} >{{t "Pictures with text above" key="text_above_pictures"}}</a>
-        <a href="#" class={{if this.setup.text_position.text_only "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.button_text_position" "text_only" target=this.setup}} >{{t "Text only (no pictures)" key="no_pictures"}}</a>
-        <a href="#" class={{if this.setup.text_position.text_on_bottom "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.button_text_position" "bottom" target=this.setup}} >{{t "Pictures with text below" key="text_below_pictures"}}</a>
+<div class='col-sm-10 col-sm-offset-1'>
+  <div class="setup-symbols-card-row">
+    <div class="setup-symbols-preference-card">
+      <div class="setup-symbols-rows">
+        {{!-- 1. How do you want buttons to appear? --}}
+        <div class="setup-symbols-row">
+          <span class="setup-symbols-row__label">
+            <span class="setup-symbols-row__icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#2A9D8F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="21" x2="9" y2="9" stroke="#46505F"/></svg>
+            </span>
+            {{t "How do you want buttons to appear?" key="text_placement"}}
+          </span>
+          <div class="setup-symbols-options-group">
+            <div class="setup-symbols-pills" role="group" aria-label={{t "How do you want buttons to appear?" key="text_placement"}}>
+            <button type="button" class="setup-symbols-pill {{if this.setup.text_position.text_on_top "is-active"}}" {{action "selectButtonAppearance" "top"}}>{{t "Text above" key="text_above_pictures"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.text_position.text_on_bottom "is-active"}}" {{action "selectButtonAppearance" "bottom"}}>{{t "Text below" key="text_below_pictures"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.text_position.text_only "is-active"}}" {{action "selectButtonAppearance" "text_only"}}>{{t "Text only" key="no_pictures"}}</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  <div class='col-sm-5' style='padding-top: 50px;'>
-    <div style='width: 200px; height: 200px; border-radius: 10px; border: 3px solid rgb(0, 98, 246); text-align: center; margin: 0 auto; background-color: rgb(144, 189, 255); float: left; margin-right: 15px;'>
-      {{#if this.setup.text_position.text_only}}
-        <div style='font-size: 25px; text-align: center; margin-top: 80px;'>
-          {{t "happy" key="happy"}}
-        </div>
-      {{else}}
-        {{#if this.setup.text_position.text_on_top}}
-          <div style='font-size: 25px; text-align: center;'>
-            {{t "happy" key="happy"}}
-          </div>
-        {{/if}}
-        <span class={{this.setup.image_preview_class}}>
-          {{#if this.setup.symbols.twemoji}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f60a.svg' >
-          {{else if this.setup.symbols.noun_project}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Happy_213_g.svg' >
-          {{else if this.setup.symbols.tawasol}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/Happy%20(M).png' >
-          {{else if this.setup.symbols.pcs}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/00047/5fc50fd308c61df38e26e426845a6c055b9b900f2fec0936f916bf104172ab020da82c0a598c7df0d834310223644d93ffb2e802e0df75b6a6c0dcb61a6fe3f0/00047.svg' >
-          {{else if this.setup.symbols.symbolstix}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00002700/de1f3688edc80e746edce198f0fc089edd738d2af559ada9f3195a5956ade1e404ec43a21af72003fc0ab5366d58cbad76f090a7b39eba1ed01305b9a3eafa9a/c-descriptives-feelings-symbol00002700.png' >
-          {{else if this.setup.symbols.lessonpix}}
-            <img src='https://lessonpix.com/drawings/13748/150x150/13748.png' >
+    <div class="setup-symbols-card-sample">
+      <div class="setup-symbols-preview" style="max-width: 200px; margin-bottom: 0;">
+        <span class="setup-symbols-sample-pill">{{t "Sample" key="sample_label"}}</span>
+        <div style='width: 120px; height: 120px; border-radius: 10px; border: 3px solid rgba(0, 98, 246, 0.6); text-align: center; background-color: rgba(144, 189, 255, 0.4);'>
+          {{#if this.setup.text_position.text_only}}
+            <div style='font-size: 18px; text-align: center; margin-top: 48px;'>{{t "happy" key="happy"}}</div>
           {{else}}
-            <img src='https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png' >
+            {{#if this.setup.text_position.text_on_top}}
+              <div style='font-size: 16px; text-align: center;'>{{t "happy" key="happy"}}</div>
+            {{/if}}
+            <span class={{this.setup.image_preview_class}}>
+              {{#if this.setup.symbols.twemoji}}
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f60a.svg' style="max-width: 60px; max-height: 60px;">
+              {{else if this.setup.symbols.noun_project}}
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Happy_213_g.svg' style="max-width: 60px; max-height: 60px;">
+              {{else if this.setup.symbols.tawasol}}
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/Happy%20(M).png' style="max-width: 60px; max-height: 60px;">
+              {{else if this.setup.symbols.pcs}}
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/00047/5fc50fd308c61df38e26e426845a6c055b9b900f2fec0936f916bf104172ab020da82c0a598c7df0d834310223644d93ffb2e802e0df75b6a6c0dcb61a6fe3f0/00047.svg' style="max-width: 60px; max-height: 60px;">
+              {{else if this.setup.symbols.symbolstix}}
+                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00002700/de1f3688edc80e746edce198f0fc089edd738d2af559ada9f3195a5956ade1e404ec43a21af72003fc0ab5366d58cbad76f090a7b39eba1ed01305b9a3eafa9a/c-descriptives-feelings-symbol00002700.png' style="max-width: 60px; max-height: 60px;">
+              {{else if this.setup.symbols.lessonpix}}
+                <img src='https://lessonpix.com/drawings/13748/150x150/13748.png' style="max-width: 60px; max-height: 60px;">
+              {{else}}
+                <img src='https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png' style="max-width: 60px; max-height: 60px;">
+              {{/if}}
+              {{#if this.setup.text_position.text_on_bottom}}
+                <div style='font-size: 16px; text-align: center;'>{{t "happy" key="happy"}}</div>
+              {{/if}}
+            </span>
           {{/if}}
-          {{#if this.setup.text_position.text_on_bottom}}
-            <div style='font-size: 25px; text-align: center;'>
-              {{t "happy" key="happy"}}
-            </div>
-          {{/if}}
-        </span>
-      {{/if}}
+        </div>
+      </div>
     </div>
-    <p style='font-size: 16px;'>{{t "If you're not sure, having text above is a good option for starting with pictures but learning to read words over time." key="text_above_suggestion"}}</p>
   </div>
 </div>
 {{#unless this.setup.text_position.text_only}}
-<div class='row'>
-  <div class='col-sm-5 col-sm-offset-1'>
-    <div class='setup_setting'>
-      <label>{{t "Which symbols do you prefer?" key="which_symbols"}}</label>
-      <div class="btn-group-vertical" style="width: 100%; text-align: left;">
-        <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.original "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "original" target=this.setup}} >
-          <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2b50.svg" style='height: 40px; width: 40px; margin: -20px 0;'>
-          {{t "Use the board's original symbols" key="use_original_symbols"}}
-        </a>
-        <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.opensymbols "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "opensymbols" target=this.setup}} >
-          <img src="https://www.opensymbols.org/find.png" style='height: 40px; width: 40px; margin: -20px 0;'>
-          {{t "Opensymbols.org free symbol libraries" key="opensymbols"}}
-        </a>
-        {{#if this.setup.setup_user}}
-          {{#if this.setup.setup_user.subscription.extras_enabled}}
-            <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.lessonpix "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "lessonpix" target=this.setup}} >
-              <img src="https://s3.amazonaws.com/lingolinq/icons/lessonpix.png" style='width: 40px; height: 40px; margin: -20px 0;' >
-              {{t "LessonPix symbol library" key="lessonpix_library"}}
-              {{#if this.setup.setup_user.subscription.grace_trial_period}}
-                <div class='sub_note'>{{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}</div>
+<div class='col-sm-10 col-sm-offset-1'>
+  <div class="setup-symbols-card-row">
+    <div class="setup-symbols-preference-card">
+      <div class="setup-symbols-rows">
+        <div class="setup-symbols-row">
+          <span class="setup-symbols-row__label">
+            <span class="setup-symbols-row__icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><circle cx="12" cy="12" r="6" stroke="#46505F"/><circle cx="12" cy="12" r="2" stroke="#4C86D8"/></svg>
+            </span>
+            {{t "Which symbols do you prefer?" key="which_symbols"}}
+          </span>
+          <div class="setup-symbols-options-group">
+            <div class="setup-symbols-pills" role="group" aria-label={{t "Which symbols do you prefer?" key="which_symbols"}}>
+            {{#each this.setup.symbol_library_options as |opt|}}
+              {{#if opt.expand}}
+                <button type="button" class="setup-symbols-pill setup-symbols-pill--expand" {{action "showMoreSymbols"}}>{{opt.label}}</button>
+              {{else}}
+                <button type="button" class="setup-symbols-pill {{if (is-equal this.setup.current_symbol_value opt.value) "is-active"}}" {{action "selectSymbolLibrary" opt.value}}>
+                  {{opt.label}}{{#if opt.subNote}} <span class="setup-symbols-pill__subnote">{{opt.subNote}}</span>{{/if}}
+                </button>
               {{/if}}
-            </a>
-            <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.symbolstix "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "symbolstix" target=this.setup}} >
-              <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00002179/37435d6da02be17899925a5d98edf9e3c1974bb4f1d016ddd548af90d3b071f5a8eca4971ac0d563076ea3f8b205f88b8e5fd818fea4468292da60a4348e8e43/c-communication-greetings_Wrap_ups-hello.png" style='width: 40px; height: 40px; margin: -20px 0; object-fit: contain;' >
-              {{t "SymbolStix Symbols" key="symbolstix_images"}}
-              {{#if this.setup.setup_user.subscription.grace_trial_period}}
-                <div class='sub_note'>{{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}</div>
-              {{/if}}
-            </a>
-            <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.pcs "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "pcs" target=this.setup}} >
-              <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03601/773cfc7cdbfa6770803a334b3089deff6eafca6d003d81bb21b08ae6ea75665c898bccbb25e46eed03592ca2d9b3e471bcd54fc7b4395e06984357e1a0bd976e/03601.svg" style='width: 40px; height: 40px; margin: -20px 0;' >
-              {{t "PCS Symbols by Tobii Dynavox" key="pcs"}}
-              {{#if this.setup.setup_user.subscription.grace_trial_period}}
-                <div class='sub_note'>{{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}</div>
-              {{/if}}
-            </a>
-          {{/if}}
-        {{/if}}
-        {{#unless this.setup.showing_more_symbols}}
-          <a href="#" style='text-align: left; padding: 14px 20px;' class='btn btn-lg btn-default' {{action "show_more_symbols" target=this.setup}} >
-            <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/chevron-down_213_730207.svg" style='width: 40px; height: 40px; margin: -20px 0;' >
-            {{t "Show more libraries" key="show_more_libraries"}}
-          </a>
-        {{else}}
-          <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.twemoji "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "twemoji" target=this.setup}} >
-            <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f33c.svg" style='height: 40px; width: 40px; margin: -20px 0;' >
-            {{t "Emoji icons (authored by Twitter)" key="twemoji"}}
-          </a>
-          <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.noun_project "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "noun-project" target=this.setup}} >
-            <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/News-a876209382.svg" style='width: 40px; height: 40px; margin: -20px 0;' >
-            {{t "The Noun Project black outlines" key="noun_project"}}
-          </a>
-          <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.arasaac "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "arasaac" target=this.setup}} >
-            <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/hello_1.png" style='width: 40px; height: 40px; margin: -20px 0;' >
-            {{t "ARASAAC free symbols" key="arasaac"}}
-          </a>
-          <a href="#" style='text-align: left; padding: 14px 20px;' class={{if this.setup.symbols.tawasol "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "preferred_symbols" "tawasol" target=this.setup}} >
-            <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/142-to%20hug.png" style='width: 40px; height: 40px; margin: -20px 0;' >
-            {{t "Tawasol symbol library" key="tawasol_library"}}
-          </a>
-        {{/unless}}
+            {{/each}}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  <div class='col-sm-5' style='padding-top: 50px;'>
-    <div style='width: 200px; height: 200px; border-radius: 10px; border: 3px solid rgb(102, 221, 0); text-align: center; margin: 0 auto; background-color: rgb(204, 255, 170); float: left; margin-right: 15px;'>
-      {{#if this.setup.text_position.text_only}}
-        <div style='font-size: 25px; text-align: center; margin-top: 80px;'>
-          {{t "like" key="like"}}
-        </div>
-      {{else}}
-        {{#if this.setup.text_position.text_on_top}}
-          <div style='font-size: 25px; text-align: center;'>
-            {{t "like" key="like"}}
-          </div>
-        {{/if}}
-        <span class={{this.setup.image_preview_class}}>
-          {{#if this.setup.symbols.twemoji}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f499.svg' >
-          {{else if this.setup.symbols.noun_project}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/like_9767_dd14ee88-7789-43b7-958d-c8d44a3e1458.svg' >
-          {{else if this.setup.symbols.tawasol}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/65-Play.png' >
-          {{else if this.setup.symbols.pcs}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/03250/1d9b330d61e2802a0ba74277fadf21c73d0454e943b1d2bed18f262066feba269e190591f375152e82a0041642988c930e06b370474aef29d375643af1c92d1b/03250.svg' >
-          {{else if this.setup.symbols.symbolstix}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00000329/57ee5c33759037ccf2602884e3d7a0c355aed1f4756af032d1a970322098cae87d5c58f49f18cdb9fdd8ed6303da47f74ad14d73493c866ca4e93e762f655344/c-actions-like.png' >
-          {{else if this.setup.symbols.lessonpix}}
-            <img src='https://lessonpix.com/drawings/113947/150x150/113947.png' >
-          {{else}}
-            <img src='https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20like.png' >
-          {{/if}}
-          {{#if this.setup.text_position.text_on_bottom}}
-            <div style='font-size: 25px; text-align: center;'>
-              {{t "like" key="like"}}
-            </div>
-          {{/if}}
-        </span>
-      {{/if}}
+    <div class="setup-symbols-card-sample" aria-hidden="true">
     </div>
-    {{#if this.setup.premium_but_not_allowed}}
-      <p class='text-warning' style='font-size: 16px;'>{{t "NOTE: You will need to purchase the premium symbols upgrade on your billing page before you can use these symbols." key="premium_upgrade_required"}}</p>
-    {{else if this.setup.lessonpix_but_not_allowed}}
-      <p class='text-warning' style='font-size: 16px;'>{{t "NOTE: You will need to connect your LessonPix account to your %app_name% account on your Profile page before you can use these symbols." key="lessonpix_upgrade_required"}}</p>
-    {{else}}
-      <p style='font-size: 16px;'>{{t "Some communicators already know a symbol library or can benefit from a certain style, and %app_name% can be set to use they're familiar with. Using the board's original symbols is also fine." key="symbols_suggestion"}}</p>
-    {{/if}}
   </div>
 </div>
+<div class='col-sm-10 col-sm-offset-1'>
+  {{#if this.setup.premium_but_not_allowed}}
+    <p class='text-warning' style='font-size: 14px; margin-bottom: 1rem;'>{{t "NOTE: You will need to purchase the premium symbols upgrade on your billing page before you can use these symbols." key="premium_upgrade_required"}}</p>
+  {{else if this.setup.lessonpix_but_not_allowed}}
+    <p class='text-warning' style='font-size: 14px; margin-bottom: 1rem;'>{{t "NOTE: You will need to connect your LessonPix account to your %app_name% account on your Profile page before you can use these symbols." key="lessonpix_upgrade_required"}}</p>
+  {{/if}}
+</div>
+{{/unless}}
 {{#if this.setup.app_state.feature_flags.skin_tones}}
-<div class='row'>
-  <div class='col-sm-5 col-sm-offset-1'>
-    <div class='setup_setting'>
-      <label>{{t "What skin tone(s) would you like to see on people-based pictures?" key="symbol_skin_question"}}</label>
-      <div class="btn-group-vertical" style="width: 100%;">
-        <a href="#" class={{if this.setup.skin.default "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "default" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-varxxxUNI-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Original Skin Tone" key="default_skin_tones"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.mix "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "mix" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f308.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Mix of Skin Tones" key="mix_of_skin_tones"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.dark "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "dark" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3ff-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Dark Skin Tone" key="dark_skin_tone"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.medium-dark "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "medium-dark" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fe-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Medium-Dark Skin Tone" key="medium_dark_skin_tone"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.medium "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "medium" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fd-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Medium Skin Tone" key="medium_skin_tone"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.medium-light "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "medium-light" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fc-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Medium-Light Skin Tone" key="medium_light_skin_tone"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.light "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "light" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f468-1f3fb-200d-1f9b2.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Light Skin Tone" key="light_skin_tone"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.limit "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "mix_only::limit-000000" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/2705.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Limit Tones To..." key="limit_tones_to"}}
-        </a>
-        <a href="#" class={{if this.setup.skin.prefer "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "skin" "mix_prefer::limit-000000" target=this.setup}} style='text-align: left;'>
-          <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f49f.svg' style='width: 40px; height: 40px; margin: -20px 0;'>
-          {{t "Show Preference For..." key="show_tones_preference_for"}}
-        </a>
-      </div>
-    </div>
-
-  </div>
-  <div class='col-sm-5' style='padding-top: 50px;'>
-    <div style='width: 200px; height: 200px; border-radius: 10px; border: 3px solid rgb(246, 98, 0); text-align: center; margin: 0 auto; background-color: rgb(255, 189, 144); float: left; margin-right: 15px;'>
-      {{#if this.setup.text_position.text_only}}
-        <div style='font-size: 25px; text-align: center; margin-top: 80px;'>
-          {{t "hello" key="hello"}}
+<div class='col-sm-10 col-sm-offset-1'>
+  <div class="setup-symbols-card-row setup-symbols-card-row--skin-tone">
+    <div class="setup-symbols-preference-card">
+      <div class="setup-symbols-rows">
+        <div class="setup-symbols-row">
+          <span class="setup-symbols-row__label">
+            <span class="setup-symbols-row__icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4" stroke="#4C86D8"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/></svg>
+            </span>
+            {{t "What skin tone(s) would you like to see on people-based pictures?" key="symbol_skin_question"}}
+          </span>
+          <div class="setup-symbols-options-group">
+            <div class="setup-symbols-pills setup-symbols-pills--skin" role="group" aria-label={{t "What skin tone(s) would you like to see on people-based pictures?" key="symbol_skin_question"}}>
+            {{#each this.setup.skin_option_list as |opt|}}
+              <button type="button" class="setup-symbols-pill setup-symbols-pill--with-image {{if (is-equal opt.value "limit") "setup-symbols-pill--optional"}} {{if (get this.setup.skin opt.value) "is-active"}}" {{action "selectSkin" opt.value}}>
+                <img src={{opt.image_url}} alt="" class="setup-symbols-pill__img {{opt.image_class}}" width="28" height="28">
+                <span class="setup-symbols-pill__text">{{opt.label}}</span>
+              </button>
+            {{/each}}
+            </div>
+          </div>
         </div>
-      {{else}}
-        {{#if this.setup.text_position.text_on_top}}
-          <div style='font-size: 25px; text-align: center;'>
-            {{t "hello" key="hello"}}
-          </div>
-        {{/if}}
-        <span class={{this.setup.image_preview_class}}>
-          <img src={{this.setup.hello_skin_url}} >
-          {{#if this.setup.text_position.text_on_bottom}}
-            <div style='font-size: 25px; text-align: center;'>
-              {{t "hello" key="hello"}}
-            </div>
-          {{/if}}
-        </span>
-      {{/if}}
-    </div>
-    {{#if this.setup.skin.options}}
-      <div style='margin-left: 15px; clear: left;'>
-        {{#each this.setup.skin.options as |option|}}
-          <div style='margin-bottom: -15px;'>
-            <div class='checkbox big_checkbox'>
-              <label>
-                <Input type="checkbox" @checked={{option.checked}} />
-                <img src={{option.image_url}} style='width: 30px; height: 30px;'>
-                {{option.label}}
-              </label>
-            </div>
-          </div>
-        {{/each}}
       </div>
-    {{/if}}
+    </div>
+    <div class="setup-symbols-card-sample">
+      <div class="setup-symbols-preview" style="max-width: 200px; margin-bottom: 0;">
+        <span class="setup-symbols-sample-pill">{{t "Sample" key="sample_label"}}</span>
+        <div style="width: 120px; height: 120px; border-radius: 10px; border: 3px solid rgba(246, 98, 0, 0.5); text-align: center; background-color: rgba(255, 189, 144, 0.35); display: flex; align-items: center; justify-content: center;">
+          {{#if this.setup.text_position.text_only}}
+            <span style="font-size: 16px;">{{t "hello" key="hello"}}</span>
+          {{else}}
+            <img src={{this.setup.hello_skin_url}} alt="" style="max-width: 86px; max-height: 86px; object-fit: contain;">
+          {{/if}}
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {{/if}}
-<div class='row'>
-  <div class='col-sm-5 col-sm-offset-1'>
-    <div class='setup_setting'>
-      <label>{{t "How do you want to see words combined?" key="utterance_layout"}}</label>
-      <div class="btn-group-vertical" style="width: 100%;">
-        <a href="#" class={{if this.setup.utterance_layout.text_only "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.utterance_text_only" true target=this.setup}} >{{t "Show word text in combined sentences" key="show_words"}}</a>
-        <a href="#" class={{if this.setup.utterance_layout.text_with_symbols "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.utterance_text_only" false target=this.setup}} >{{t "Show each button with symbols" key="show_symbols"}}</a>
-      </div>
-    </div>
-  </div>
-  <div class='col-sm-5' style='padding-top: 50px;'>
-    <div style='width: 70px; height: 100px; border-radius: 10px; border: 3px solid #888; text-align: center; margin-right: 5px; float: left; background: #fff; font-size: 40px; padding-top: 24px; color: #777;'>
-      <span class='glyphicon glyphicon-home'></span>
-    </div>
-    <div style='width: calc(100% - 150px); height: 100px; border-radius: 10px; border: 3px solid #888; text-align: left; padding: 10px 20px; margin: 0 auto; background-color:#fff; float: left; overflow: hidden;'>
-      {{#if this.setup.utterance_layout.text_only}}
-        This is what the sentence box will look like
-      {{else}}
-        <div style='width: 70px; height: 70px; text-align: center; margin: 0 auto; float: left; margin-right: 15px;'>
-          {{#if this.setup.symbols.twemoji}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f44d.svg' style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.noun_project}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/good_274_g.svg'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.tawasol}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/great.jpg'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.pcs}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/10180/480905273ecca528b3312edee90bc54a514591e90461d6431529644d56284ab48302ccfe76060398468d5b9207541278ea53722300ef47f281b6571d7d081cc7/10180.svg'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.symbolstix}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00002688/1778b2858583568b64c6bb323e12ef1dc4b5df913f9a3c31097d8014e9733f4c0a36cfa2063fcab05b111c75d05fa95ccf8e6d486520e195c7620c464d9d9720/c-descriptives-feelings-good.png'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.lessonpix}}
-            <img src='https://lessonpix.com/drawings/20335/100x100/20335.png'  style='width: 50px; height: 50px;'>
-          {{else}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/good.png'  style='width: 50px; height: 50px;'>
-          {{/if}}
-          <div style='font-size: 20px; text-align: center;'>
-            {{t "good" key="good"}}
-          </div>
-        </div>
-        <div style='width: 70px; height: 70px; text-align: center; margin: 0 auto; float: left; margin-right: 15px;'>
-          {{#if this.setup.symbols.twemoji}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f305.svg' style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.noun_project}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/sunrise_856_g.svg'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.tawasol}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/morning.png'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.pcs}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/00629/2f0db3eae97b8c2c4569cfbd6ab1c60c6c3f21d03180dd3dd66fa70e09e8e47e3dfd2d60de3e12e96513f87748bd2e33dd6e1a8fb62350e592a4045b592fa4bb/00629.svg'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.symbolstix}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00001528/d84a4610a8ceaf632c8ae0fab8c93c860d2dfb287934ed217d3024072b4a797cf533a89a006e8233c483025edb6a526b69f00c731c49267c83b10675cc226ede/c-calendar_time-morning.png'  style='width: 50px; height: 50px;'>
-          {{else if this.setup.symbols.lessonpix}}
-            <img src='https://lessonpix.com/drawings/10646/100x100/10646.png'  style='width: 50px; height: 50px;'>
-          {{else}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/morning.png'  style='width: 50px; height: 50px;'>
-          {{/if}}
-          <div style='font-size: 20px; text-align: center;'>
-            {{t "morning" key="morning"}}
-          </div>
-        </div>
-      {{/if}}
-    </div>
-    <div style='width: 70px; height: 100px; border-radius: 10px; border: 3px solid #888; text-align: center; margin-left: 5px; float: left; background: #fff; font-size: 40px; padding-top: 24px; color: #777;'>
-      <span class='glyphicon glyphicon-remove'></span>
-    </div>
-    <div style='clear: left;'></div>
-    <p style='font-size: 16px; margin-top: 10px;'>{{t "Text-only can help communicators learn how words combine into sentences and help promote literacy as they see the emphasis on words, but it may not be the best fit for all users." key="utterance_suggestion"}}</p>
-  </div>
-</div>
-<div class='row'>
-  <div class='col-sm-5 col-sm-offset-1'>
-    <div class='setup_setting'>
-      <label>{{t "How do you want pictures to display?" key="symbol_background_question"}}</label>
-      <div class="btn-group-vertical" style="width: 100%;">
-        <a href="#" class={{if this.setup.background.clear "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.symbol_background" "clear" target=this.setup}} style='text-align: left;'>
-          <span style='vertical-align: middle; display: inline-block; width: 32px; height: 32px; border-radius: 3px; border: 5px solid rgb(255, 189, 144); background: rgb(255, 189, 144);'>
-            <span style='display: inline-block; width: 16px; height: 16px; margin: 3px; border-radius: 20px; border: 3px solid #800; background: #ffc;'></span>
-          </span> 
-          {{t "With a background matching the button" key="clear_background"}}
-        </a>
-        <a href="#" class={{if this.setup.background.white "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.symbol_background" "white" target=this.setup}} style='text-align: left;' >
-          <span style='vertical-align: middle; display: inline-block; width: 32px; height: 32px; border-radius: 3px; border: 5px solid rgb(255, 189, 144); background:#fff;'>
-            <span style='display: inline-block; width: 16px; height: 16px; margin: 3px; border-radius: 20px; border: 3px solid #800; background: #ffc;'></span>
-          </span> 
-          {{t "Always with a white background" key="always_white_background"}}
-        </a>
-        <a href="#" class={{if this.setup.background.black "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.symbol_background" "black" target=this.setup}} style='text-align: left;' >
-          <span style='vertical-align: middle; display: inline-block; width: 32px; height: 32px; border-radius: 3px; border: 5px solid rgb(255, 189, 144); background: #000;'>
-            <span style='display: inline-block; width: 16px; height: 16px; margin: 3px; border-radius: 20px; border: 3px solid #800; background: #ffc;'></span>
-          </span> 
-          {{t "Always with a black background" key="always_black_background"}}
-        </a>
-        <a href="#" class={{if this.setup.background.black_with_high_contrast "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{action "set_preference" "device.symbol_background" "black_with_high_contrast" target=this.setup}} style='text-align: left;' >
-          <span style='vertical-align: middle; display: inline-block; width: 32px; height: 32px; border-radius: 3px; border: 5px solid rgb(255, 189, 144); background: #000;'>
-            <span style='display: inline-block; width: 16px; height: 16px; margin: 3px; border-radius: 20px; border: 3px solid #f00; background: #f8fc03;'></span>
-          </span> 
-          {{t "High contrast with a black background" key="high_contrast_black_background"}}
-        </a>
-      </div>
-    </div>
-
-  </div>
-  <div class='col-sm-5' style='padding-top: 50px;'>
-    <div style='width: 200px; height: 200px; border-radius: 10px; border: 3px solid rgb(246, 98, 0); text-align: center; margin: 0 auto; background-color: rgb(255, 189, 144); float: left; margin-right: 15px;'>
-      {{#if this.setup.text_position.text_only}}
-        <div style='font-size: 25px; text-align: center; margin-top: 80px;'>
-          {{t "frog" key="frog"}}
-        </div>
-      {{else}}
-        {{#if this.setup.text_position.text_on_top}}
-          <div style='font-size: 25px; text-align: center;'>
-            {{t "frog" key="frog"}}
-          </div>
-        {{/if}}
-        <span class={{this.setup.image_preview_class}}>
-          {{#if this.setup.symbols.twemoji}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f438.svg' >
-          {{else if this.setup.symbols.noun_project}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Green-frog_582_g.svg' >
-          {{else if this.setup.symbols.tawasol}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/tawasol/Frog.png' >
-          {{else if this.setup.symbols.pcs}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/02086/70f88a99a243736c9f554808cbff30c26a8b74a25f06d58e31dd392a89f6586ebe03d6ff2d617e71e98c3901689c833d56e96e5e48dbb1cf51da8336d46b5728/02086.svg' >
-          {{else if this.setup.symbols.symbolstix}}
-            <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00001114/fabde031d3fb14205b35670fc5b66ddfe187344c73f1edcbc756525c6d6834bcad0b4791eebec7f38367ac3369282156ab08ba1e92b155930b8e4dcc14142add/c-animals-symbol00001114.png' >
-          {{else if this.setup.symbols.lessonpix}}
-            <img src='https://lessonpix.com/drawings/1283/150x150/1283.png' >
-          {{else}}
-            <img src='https://opensymbols.s3.amazonaws.com/libraries/arasaac/frog.png' >
-          {{/if}}
-          {{#if this.setup.text_position.text_on_bottom}}
-            <div style='font-size: 25px; text-align: center;'>
-              {{t "frog" key="frog"}}
+{{#unless this.setup.text_position.text_only}}
+<div class='col-sm-10 col-sm-offset-1'>
+  <div class="setup-symbols-card-row">
+    <div class="setup-symbols-preference-card">
+      <div class="setup-symbols-rows">
+        <div class="setup-symbols-row">
+          <span class="setup-symbols-row__label">
+            <span class="setup-symbols-row__icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6" stroke="#2A9D8F"/><polyline points="8 6 2 12 8 18" stroke="#46505F"/></svg>
+            </span>
+            {{t "How do you want to see words combined?" key="utterance_layout"}}
+          </span>
+          <div class="setup-symbols-options-group">
+            <div class="setup-symbols-pills" role="group" aria-label={{t "How do you want to see words combined?" key="utterance_layout"}}>
+            <button type="button" class="setup-symbols-pill {{if this.setup.utterance_layout.text_only "is-active"}}" {{action "selectUtteranceLayout" true}}>{{t "Words only" key="show_words"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.utterance_layout.text_with_symbols "is-active"}}" {{action "selectUtteranceLayout" false}}>{{t "Symbol buttons" key="show_symbols"}}</button>
             </div>
-          {{/if}}
-        </span>
-      {{/if}}
+          </div>
+        </div>
+      </div>
     </div>
-    <p style='font-size: 16px;'>{{t "For most users, matching the button color works well, but for some communicators having a white background can help with contrast and recognition." key="background_suggestion"}}</p>
+    <div class="setup-symbols-card-sample">
+      <div class="setup-symbols-preview-section">
+        <span class="setup-symbols-sample-pill">{{t "Sample" key="sample_label"}}</span>
+        <div class="setup-symbols-utterance-sample">
+          <div class="setup-symbols-utterance-sample__box">
+            {{#if this.setup.utterance_layout.text_only}}
+              <span class="setup-symbols-utterance-sample__text">{{t "This is what the sentence box will look like" key="sentence_box_preview_text"}}</span>
+            {{else}}
+              <div class="setup-symbols-utterance-sample__chip">
+                {{#if this.setup.symbols.twemoji}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f44d.svg" style="width: 36px; height: 36px;" alt="">
+                {{else if this.setup.symbols.noun_project}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/good_274_g.svg" style="width: 36px; height: 36px;" alt="">
+                {{else if this.setup.symbols.pcs}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/10180/480905273ecca528b3312edee90bc54a514591e90461d6431529644d56284ab48302ccfe76060398468d5b9207541278ea53722300ef47f281b6571d7d081cc7/10180.svg" style="width: 36px; height: 36px;" alt="">
+                {{else if this.setup.symbols.symbolstix}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00002688/1778b2858583568b64c6bb323e12ef1dc4b5df913f9a3c31097d8014e9733f4c0a36cfa2063fcab05b111c75d05fa95ccf8e6d486520e195c7620c464d9d9720/c-descriptives-feelings-good.png" style="width: 36px; height: 36px;" alt="">
+                {{else if this.setup.symbols.lessonpix}}
+                  <img src="https://lessonpix.com/drawings/20335/100x100/20335.png" style="width: 36px; height: 36px;" alt="">
+                {{else}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/good.png" style="width: 36px; height: 36px;" alt="">
+                {{/if}}
+                <div class="setup-symbols-utterance-sample__label">{{t "good" key="good"}}</div>
+              </div>
+              <div class="setup-symbols-utterance-sample__chip">
+                {{#if this.setup.symbols.twemoji}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f305.svg" style="width: 36px; height: 36px;" alt="">
+                {{else if this.setup.symbols.noun_project}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/sunrise_856_g.svg" style="width: 36px; height: 36px;" alt="">
+                {{else}}
+                  <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/morning.png" style="width: 36px; height: 36px;" alt="">
+                {{/if}}
+                <div class="setup-symbols-utterance-sample__label">{{t "morning" key="morning"}}</div>
+              </div>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="setup-symbols-card-row setup-symbols-card-row--picture-display">
+    <div class="setup-symbols-preference-card">
+      <div class="setup-symbols-rows">
+        <div class="setup-symbols-row">
+          <span class="setup-symbols-row__label">
+            <span class="setup-symbols-row__icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#46505F"/><circle cx="8.5" cy="8.5" r="1.5" stroke="#2A9D8F"/><path d="M21 15l-5-5L5 21" stroke="#7693B9"/></svg>
+            </span>
+            {{t "How do you want pictures to display?" key="symbol_background_question"}}
+          </span>
+          <div class="setup-symbols-options-group">
+            <div class="setup-symbols-pills" role="group" aria-label={{t "How do you want pictures to display?" key="symbol_background_question"}}>
+            <button type="button" class="setup-symbols-pill {{if this.setup.background.clear "is-active"}}" {{action "selectSymbolBackground" "clear"}}>{{t "Color background" key="clear_background"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.background.white "is-active"}}" {{action "selectSymbolBackground" "white"}}>{{t "White background" key="always_white_background"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.background.black "is-active"}}" {{action "selectSymbolBackground" "black"}}>{{t "Black background" key="always_black_background"}}</button>
+            <button type="button" class="setup-symbols-pill {{if this.setup.background.black_with_high_contrast "is-active"}}" {{action "selectSymbolBackground" "black_with_high_contrast"}}>{{t "High contrast" key="high_contrast_black_background"}}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="setup-symbols-card-sample">
+      <div class="setup-symbols-preview" style="max-width: 200px; margin-bottom: 0;">
+        <span class="setup-symbols-sample-pill">{{t "Sample" key="sample_label"}}</span>
+        <div class="setup-symbols-preview-bg {{if this.setup.background.white 'setup-symbols-preview-bg--white'}} {{if this.setup.background.black 'setup-symbols-preview-bg--black'}} {{if this.setup.background.black_with_high_contrast 'setup-symbols-preview-bg--black'}} {{if this.setup.background.black_with_high_contrast 'setup-symbols-preview-bg--high-contrast'}}">
+          {{#if this.setup.text_position.text_only}}
+            <span class="setup-symbols-preview-bg__text {{if this.setup.background.black_with_high_contrast 'setup-symbols-preview-bg__text--high-contrast'}}">{{t "frog" key="frog"}}</span>
+          {{else}}
+            <span class="symbol_preview {{if this.setup.background.white 'white'}} {{if this.setup.background.black 'black'}} {{if this.setup.background.black_with_high_contrast 'black'}}">
+              {{#if this.setup.symbols.twemoji}}
+                <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f438.svg" style="max-width: 84px; max-height: 84px;" alt="">
+              {{else if this.setup.symbols.noun_project}}
+                <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Green-frog_582_g.svg" style="max-width: 84px; max-height: 84px;" alt="">
+              {{else if this.setup.symbols.pcs}}
+                <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/pcs/02086/70f88a99a243736c9f554808cbff30c26a8b74a25f06d58e31dd392a89f6586ebe03d6ff2d617e71e98c3901689c833d56e96e5e48dbb1cf51da8336d46b5728/02086.svg" style="max-width: 84px; max-height: 84px;" alt="">
+              {{else if this.setup.symbols.symbolstix}}
+                <img src="https://d18vdu4p71yql0.cloudfront.net/libraries/symbolstix/00001114/fabde031d3fb14205b35670fc5b66ddfe187344c73f1edcbc756525c6d6834bcad0b4791eebec7f38367ac3369282156ab08ba1e92b155930b8e4dcc14142add/c-animals-symbol00001114.png" style="max-width: 84px; max-height: 84px;" alt="">
+              {{else if this.setup.symbols.lessonpix}}
+                <img src="https://lessonpix.com/drawings/1283/150x150/1283.png" style="max-width: 84px; max-height: 84px;" alt="">
+              {{else}}
+                <img src="https://opensymbols.s3.amazonaws.com/libraries/arasaac/frog.png" style="max-width: 84px; max-height: 84px;" alt="">
+              {{/if}}
+            </span>
+          {{/if}}
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {{/unless}}

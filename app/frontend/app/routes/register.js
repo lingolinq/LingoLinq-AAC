@@ -7,6 +7,7 @@ export default Route.extend({
   store: service('store'),
   persistence: service('persistence'),
   appState: service('app-state'),
+  session: service('session'),
   model: function(params) {
     var res = this.store.createRecord('user', {preferences: {}, referrer: LingoLinq.referrer, ad_referrer: LingoLinq.ad_referrer});
     res.set('watch_user_name_and_cookies', true);
@@ -16,6 +17,9 @@ export default Route.extend({
   setupController: function(controller, model) {
     controller.set('model', model);
     controller.set('user', model);
+    controller.set('coppaWaitingParent', false);
+    controller.set('coppa_age_group', null);
+    controller.set('parent_consent_email', '');
     if(model.get('reg_params.code') && model.get('reg_params.v')) {
       controller.start_code_lookup();
     }
@@ -33,8 +37,20 @@ export default Route.extend({
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave')) {
         return;
+      }
+      if(controller.get('showCoppaConsent')) {
+        if(controller.get('coppa_age_group') === 'under_13') {
+          user.set('coppa_under_13', true);
+          user.set('parent_consent_email', (controller.get('parent_consent_email') || '').trim());
+        } else {
+          user.set('coppa_under_13', false);
+          user.set('parent_consent_email', null);
+        }
+      } else {
+        user.set('coppa_under_13', false);
+        user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
       user.save().then(function(user) {
@@ -42,6 +58,12 @@ export default Route.extend({
         user.set('password', null);
         controller.set('triedToSave', false);
         var meta = _this.persistence.meta('user', null);
+        var coppaPending = (meta && meta.coppa_parental_consent_pending) || user.get('coppa_parental_consent_pending');
+        if(coppaPending) {
+          controller.set('registering', null);
+          controller.set('coppaWaitingParent', true);
+          return;
+        }
         var save_done = function() {
           controller.set('registering', null);
           _this.appState.return_to_index();

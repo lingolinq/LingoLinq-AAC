@@ -3,7 +3,7 @@ class AiApiLog < ApplicationRecord
   validates :ai_provider, presence: true
   validates :request_type, presence: true
   validates :ai_provider, inclusion: {
-    in: %w[claude],
+    in: %w[claude gemini],
     allow_blank: false,
     message: "%{value} is not a recognized AI provider"
   }

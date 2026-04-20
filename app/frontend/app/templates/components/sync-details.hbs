@@ -1,131 +1,136 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Sync Details" key="sync_details"}}</h3>
-  </div>
-  <div class="modal-body">
-    <div style='float: right;'>
-      {{#if (persistence-value 'syncing')}}
-        <button class='btn btn-lg btn-default' {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
-      {{/if}}
-      <button class='btn btn-lg btn-default' {{action "sync"}}>
-        <span class={{this.refreshing_class}}></span>
-        {{#if (persistence-value 'syncing')}}
-          {{t "Syncing..." key="syncing_ellipsis"}}
-        {{else}}
-          {{t "Sync Now" key="sync_now"}}
-        {{/if}}
-      </button>
+  <div class="la-sync-details-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--sync" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="#46505F"/><path d="M3 3v5h5" stroke="#2A9D8F"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="#46505F"/><path d="M16 21h5v-5" stroke="#2A9D8F"/></svg>
+      </div>
+      <h3 class="la-modal-header-label">{{t "Sync Details" key="sync_details"}}</h3>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
-    <h3>
-      <span>
-      {{#if (persistence-value 'sync_succeeded')}}
-        {{#if this.session.invalid_token}}
-          {{t "Please re-login and sync again" key="please_resync"}}
-        {{else}}
-          {{t "Sync Done!" key="sync_done"}}
-        {{/if}}
-      {{else if (persistence-value 'sync_finished')}}
-        {{t "Done with " key="done_with"}}
-        {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
-        {{t "(see log)" key="see_log"}}
-      {{else}}
-        {{#if (persistence-value 'sync_failed')}}
-          {{t "Sync Failed, see details below" key="sync_failed"}}
-          {{#if (persistence-value 'sync_status_error')}}
-            <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
-          {{/if}}
-        {{else}}
+    <div class="la-sync-details-modal-body">
+      <div class="la-sync-details-toolbar">
+        <div class="la-sync-details-toolbar-actions">
           {{#if (persistence-value 'syncing')}}
-            {{t "Syncing..." key="syncing_ellipsis"}}
-            {{#if (persistence-value 'sync_progress')}}
-              {{#if (persistence-value 'sync_progress.total')}}
-                {{persistence-value 'sync_progress.visited'}} /
-                {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-              {{else}}
-                {{t "initializing..." key="initializing_lower"}}
-              {{/if}}
+            <button type="button" class="la-sync-details-secondary-btn" {{action "cancel_sync"}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
+          {{/if}}
+          <button type="button" class="la-sync-details-primary-btn" {{action "sync"}}>
+            <svg class="la-sync-details-btn-refresh {{if (persistence-value 'syncing') 'la-sync-details-btn-refresh--spinning'}}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            {{#if (persistence-value 'syncing')}}
+              {{t "Syncing..." key="syncing_ellipsis"}}
+            {{else}}
+              {{t "Sync Now" key="sync_now"}}
+            {{/if}}
+          </button>
+        </div>
+      </div>
+      <p class="la-sync-details-lead">
+        {{#if (persistence-value 'sync_succeeded')}}
+          {{#if this.session.invalid_token}}
+            {{t "Please re-login and sync again" key="please_resync"}}
+          {{else}}
+            {{t "Sync Done!" key="sync_done"}}
+          {{/if}}
+        {{else if (persistence-value 'sync_finished')}}
+          {{t "Done with " key="done_with"}}
+          {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
+          {{t "(see log)" key="see_log"}}
+        {{else}}
+          {{#if (persistence-value 'sync_failed')}}
+            {{t "Sync Failed, see details below" key="sync_failed"}}
+            {{#if (persistence-value 'sync_status_error')}}
+              <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
             {{/if}}
           {{else}}
-            {{#if this.needs_sync}}
-              {{#if this.appState.installed_app}}
-                {{t "Sync before going offline!" key="needs_update"}}
-              {{else}}
-                {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
+            {{#if (persistence-value 'syncing')}}
+              {{t "Syncing..." key="syncing_ellipsis"}}
+              {{#if (persistence-value 'sync_progress')}}
+                {{#if (persistence-value 'sync_progress.total')}}
+                  {{persistence-value 'sync_progress.visited'}} /
+                  {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
+                {{else}}
+                  {{t "initializing..." key="initializing_lower"}}
+                {{/if}}
               {{/if}}
             {{else}}
-              {{t "Synced and ready for offline" key="up_to_date"}}
+              {{#if this.needs_sync}}
+                {{#if this.appState.installed_app}}
+                  {{t "Sync before going offline!" key="needs_update"}}
+                {{else}}
+                  {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
+                {{/if}}
+              {{else}}
+                {{t "Synced and ready for offline" key="up_to_date"}}
+              {{/if}}
             {{/if}}
           {{/if}}
         {{/if}}
-      {{/if}}
-      </span>
-    </h3>
-
-    {{#if this.details}}
-      {{#each this.details as |sync|}}
-        <h3>
-          {{#if sync.errored}}
-            <span class='text-danger'>{{date_ago sync.finished}}</span>
-          {{else if sync.issues}}
-            <span class='text-warning'>{{date_ago sync.finished}}</span>
-          {{else}}
-            <span class='text-success'>{{date_ago sync.finished}}</span>
-          {{/if}}
-        </h3>
-        {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
-        {{sync.summary}}
-        {{#if sync.statuses}}
-          <br>
-          {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
-          {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
-          {{t "%{num} cached" num=sync.cached key="n_cached"}}
-          <a href='#'{{action "toggle_statuses" sync}}>{{t "see details" key="see_details"}}</a>
-          {{#if sync.toggled}}
-            {{#if sync.reason}}
-              <p>{{t "sync trigger:" key="sync_trigger"}} {{sync.reason}}</p>
-            {{/if}}
-            <div style='max-height: 60vh; overflow: auto;'>
-              <table class='table table-striped table-hover'>
-                <tbody>
-                  {{#each sync.sorted_statuses as |status|}}
-                    <tr>
-                      <td>
-                        {{status.key}}
-                        {{#if status.error}}
-                          <div class='text-danger' style='margin-left: 10px;'><em>{{status.error}}</em></div>
-                        {{/if}}
-                      </td>
-                      <td>
-                        {{#if status.downloaded}}
-                          {{t "downloaded" key="downloaded"}}
-                        {{else if status.re_downloaded}}
-                          {{t "updated" key="re_downloaded"}}
-                        {{else if status.cached}}
-                          {{t "cached (no change)" key="cached_no_change"}}
-                        {{/if}}
-                      </td>
-                    </tr>
-                  {{/each}}
-                </tbody>
-              </table>
-            </div>
-          {{/if}}
-        {{/if}}
-      {{/each}}
-    {{else}}
-      <p style='margin-top: 20px;'>{{t "No sync details to show" key="no_sync_details"}}</p>
-    {{/if}}
-    {{#if this.stashes}}
-      {{#if this.stashes.usage_log.length}}
-      <p style='margin-top: 20px;'>
-        {{this.stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
-        {{date this.first_log_date}}
       </p>
+
+      {{#if this.details}}
+        {{#each this.details as |sync|}}
+          <h3 class="la-sync-details-log-heading">
+            {{#if sync.errored}}
+              <span class="text-danger">{{date_ago sync.finished}}</span>
+            {{else if sync.issues}}
+              <span class="text-warning">{{date_ago sync.finished}}</span>
+            {{else}}
+              <span class="text-success">{{date_ago sync.finished}}</span>
+            {{/if}}
+          </h3>
+          {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
+          {{sync.summary}}
+          {{#if sync.statuses}}
+            <br>
+            {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
+            {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
+            {{t "%{num} cached" num=sync.cached key="n_cached"}}
+            <a href="#" class="la-sync-details-see-link" {{action "toggle_statuses" sync}}>{{t "see details" key="see_details"}}</a>
+            {{#if sync.toggled}}
+              {{#if sync.reason}}
+                <p>{{t "sync trigger:" key="sync_trigger"}} {{sync.reason}}</p>
+              {{/if}}
+              <div class="la-sync-details-table-scroll">
+                <table class="table table-striped table-hover la-sync-details-table">
+                  <tbody>
+                    {{#each sync.sorted_statuses as |status|}}
+                      <tr>
+                        <td>
+                          {{status.key}}
+                          {{#if status.error}}
+                            <div class="text-danger la-sync-details-status-error"><em>{{status.error}}</em></div>
+                          {{/if}}
+                        </td>
+                        <td>
+                          {{#if status.downloaded}}
+                            {{t "downloaded" key="downloaded"}}
+                          {{else if status.re_downloaded}}
+                            {{t "updated" key="re_downloaded"}}
+                          {{else if status.cached}}
+                            {{t "cached (no change)" key="cached_no_change"}}
+                          {{/if}}
+                        </td>
+                      </tr>
+                    {{/each}}
+                  </tbody>
+                </table>
+              </div>
+            {{/if}}
+          {{/if}}
+        {{/each}}
+      {{else}}
+        <p class="la-sync-details-muted-block">{{t "No sync details to show" key="no_sync_details"}}</p>
       {{/if}}
-    {{/if}}
-  </div>
-  <div class="modal-footer">
-    <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
+      {{#if this.stashes}}
+        {{#if this.stashes.usage_log.length}}
+          <p class="la-sync-details-muted-block">
+            {{this.stashes.usage_log.length}} {{t "log items waiting to be synced starting" key="pending_log_items_from"}}
+            {{date this.first_log_date}}
+          </p>
+        {{/if}}
+      {{/if}}
+    </div>
+    <div class="la-sync-details-modal-footer">
+      <button type="button" class="la-record-note-cancel-btn" {{action "close"}}>{{t "Close" key="close"}}</button>
+    </div>
   </div>
 {{/modal-dialog}}

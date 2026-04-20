@@ -56,6 +56,23 @@ var modal = EmberObject.extend({
     this.route = null;
   },
   open: function(template, options) {
+    // On dashboard (index route), show supervision content inline in bento instead of popup
+    if (template === 'supervision-settings' && this.route) {
+      try {
+        var owner = getOwner(this.route);
+        if (owner) {
+          var appState = owner.lookup('service:app-state');
+          var router = owner.lookup('router:main');
+          if (appState && router && router.get('currentRouteName') === 'index') {
+            appState.set('requestedSupervisorsView', true);
+            return RSVP.resolve();
+          }
+        }
+      } catch (e) {
+        // fall through to open modal
+      }
+    }
+
     var service = this._getService();
     var outlet = template;
     var render_template = template;
@@ -68,19 +85,21 @@ var modal = EmberObject.extend({
       options.secondary_highlight = true;
       options.clear_overlay = true;
     }
-    
+
     // All modals use component-based rendering via the service (no outlet)
     var useComponentRendering = service && outlet == 'modal';
-    
+
     // For modal outlet, handle entirely via service and skip outlet-based rendering
     // and skip all outlet-based rendering logic
     if (useComponentRendering) {
       // Update service state
       service.set('settingsFor', service.get('settingsFor') || {});
       service.settingsFor[render_template] = options;
-      service.set('currentTemplate', template);
+      // Do NOT set currentTemplate here — service.open() will set it.
+      // Setting it twice to the same value causes Ember to skip the re-render
+      // because computed properties don't fire when a value doesn't change.
       service.set('currentOptions', options);
-      
+
       // Handle scanner integration
       if(template != 'highlight' && template != 'highlight-secondary') {
         this.resume_scanning = true;
@@ -200,7 +219,7 @@ var modal = EmberObject.extend({
   },
   scannable_targets: function() {
     if(modal.is_open()) {
-      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button");
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn");
     } else {
       return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }
@@ -282,6 +301,9 @@ var modal = EmberObject.extend({
       modal.close(null, 'highlight');
       modal.close(null, 'highlight-secondary');
     }
+    // Clear highlight settings even without controller
+    this.highlight_settings = null;
+    this.highlight2_settings = null;
   },
   close: function(success, outlet) {
     outlet = outlet || 'modal';
@@ -407,13 +429,13 @@ var modal = EmberObject.extend({
       if(!sticky) {
         runLater(function() {
           _this.fade_flash();
-        }, below_header ? 500 : (opts.timeout || 1500));
+        }, below_header ? 3500 : (opts.timeout || 1500));
       }
       return;
     }
     var _this = this;
     runLater(function() {
-      var timeout = below_header ? 500 : 1500;
+      var timeout = below_header ? 3500 : 1500;
       if(opts.timeout) { timeout = opts.timeout; }
       modal.route.render('flash-message', { into: 'application', outlet: 'flash-message'});
       if(!sticky) {

@@ -103,70 +103,7 @@ module Supervising
   end
   
   def process_supervisor_key(key)
-    return false unless key && key.is_a?(String) && key.length > 0
-    action, key = key.split(/-/, 2)
-    return false unless action && action.length > 0
-    action_parts = action.split(/_/)
-    if action_parts[0] == 'add'
-      return false unless self.any_premium_or_grace_period? && self.id
-      supervisor = User.find_by_path(key)
-      if key.match(/@/)
-        users = User.find_by_email(key)
-        if users.length == 1
-          supervisor = users[0]
-        end
-      end
-      return false if !supervisor || self == supervisor
-      grant_code = nil
-      grant_code = 'granted' if action_parts.include?('premium') && self.premium_supporter_grants > 0
-      type = nil
-      type = 'edit' if action_parts.include?('edit')
-      type = 'modeling_only' if action_parts.include?('modeling')
-      self.class.link_supervisor_to_user(supervisor, self, nil, type, grant_code)
-      return true
-    elsif action == 'approve' && key == 'org'
-      self.settings['pending'] = false
-      self.update_subscription_organization(self.managing_organization(true).global_id, false, nil, nil)
-      true
-    elsif action == 'approve_supervision'
-      org = Organization.find_by_global_id(key)
-      if org.pending_supervisor?(self)
-        org.approve_supervisor(self)
-        true
-      elsif org.supervisor?(self)
-        true
-      else
-        false
-      end
-    elsif action == 'remove_supervision'
-      org = Organization.find_by_global_id(key)
-      org.reject_supervisor(self)
-      true
-    elsif action == 'remove_supervisor'
-      if key.match(/^org/)
-        org_id = key.split(/-/)[1]
-        org_id ||= self.managing_organization && self.managing_organization.global_id
-        self.update_subscription_organization("r#{org_id}") if org_id
-      else
-        supervisor = User.find_by_path(key)
-        user = self
-        return false unless supervisor && user
-        self.class.unlink_supervisor_from_user(supervisor, user)
-      end
-      true
-    elsif action == 'remove_supervisee'
-      supervisor = self
-      user = User.find_by_path(key)
-      return false unless supervisor && user
-      self.class.unlink_supervisor_from_user(supervisor, user)
-    elsif action == 'start'
-      res = Organization.parse_activation_code(key, self)
-      return false if !res || res[:disabled]
-      @start_code_progress = res[:progress]
-      return true
-    else
-      return false
-    end
+    SupervisorKeyProcessor.new(self, key).call
   end
   
   def remove_supervisors!

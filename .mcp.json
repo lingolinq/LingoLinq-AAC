@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.deepwiki.com/mcp",
       "metadata": {
-        "repository": "swahlquist/LingoLinq-AAC",
+        "repository": "lingolinq/LingoLinq-AAC",
         "description": "Semantic code search and architecture understanding for LingoLinq-AAC"
       }
     },

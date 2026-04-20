@@ -139,6 +139,12 @@ export default Component.extend({
     setForUserId(userId) {
       this.set('for_user_id', userId);
     },
+    setLocale(value) {
+      this.set('locale', value);
+    },
+    setLabelsOrder(value) {
+      this.set('labels_order', value);
+    },
     grid_event(action, row, col) {
       this.send(action, row, col);
     },
@@ -194,15 +200,14 @@ export default Component.extend({
         _this.set('labels', labels);
         if (res && res.name) { _this.set('name', res.name); }
         if (res && res.description) { _this.set('description', res.description); }
-      }, function(xhr) {
+      }, function(err) {
         var msg = i18n.t('generate_failed', 'Generation failed');
-        if (xhr && xhr.responseJSON && xhr.responseJSON.error) {
-          msg = xhr.responseJSON.error;
-        } else if (xhr && xhr.responseText) {
-          try {
-            var j = JSON.parse(xhr.responseText);
-            if (j && j.error) { msg = j.error; }
-          } catch (e) {}
+        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
+          try { return JSON.parse(err.responseText); } catch (e) { return null; }
+        })() : null);
+        if (resp && resp.error) {
+          msg = resp.error;
+          if (resp.error_detail) { msg += ' (' + resp.error_detail + ')'; }
         }
         _this.set('status', { error: msg });
       });
@@ -256,7 +261,12 @@ export default Component.extend({
           modalUtil.close(true);
           editManager.auto_edit(board.id);
           _this.appState.set('referenced_board', { id: board.id, key: board.key });
-          _this.get('router').transitionTo('board', board.key);
+          var parts = (board.key || '').split('/');
+          if (parts.length >= 2) {
+            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          } else {
+            _this.get('router').transitionTo('board', board.key);
+          }
         } else {
           _this.set('status', {
             error: (res && res.error) || i18n.t('create_failed', 'Board creation failed')

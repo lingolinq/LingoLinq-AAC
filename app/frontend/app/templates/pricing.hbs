@@ -1,20 +1,197 @@
-<div class="row">
-  <div class="col-sm-9 col-sm-offset-3">
-    <h2>{{t "%app_name% Pricing Options" key="app_pricing_options"}}</h2>
-    <div class="row">
-    <div class='col-sm-7'>
-      <span class='glyphicon glyphicon-info-sign' style="float: left; font-size: 30px; margin-right: 10px;"></span>
-      <p style='padding-bottom: 20px;'>
-        {{t "We want %app_name% to be accessible to as many people as possible, so we offer multiple purchasing options. After the 2-month trial if you need a little more time, or don't have the resources to make a large up-front purchase, you can pay monthly for a %app_name% subscription, or for a hefty discount you can purchase a full %app_name% license." key="multiple_pricing_options"}}
-      </p>
-      <div style="clear: left;"></div>
-      {{#if this.show_bulk_purchase}}
-        <p class="explanation" style="margin-top: 10px;">
-          {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
-        </p>
-      {{/if}}
-    </div>
-    </div>
-    {{subscription-form subscription=this.subscription pricing_only=true subscription_success="subscription_success"}}
+<div class="la-wrapper la-wrapper--pricing">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+
+      {{!-- ── Pricing (header + plan cards) ── --}}
+      <section class="la-section">
+        <div class="la-section-header" style="display: block; text-align: center;">
+          <span class="la-section-eyebrow-badge">
+            {{t "Pricing" key="pricing"}}
+          </span>
+          <div class="la-hero-title-wrap">
+            <h1 class="la-hero-title">
+              {{t "Simple, honest" key="pricing_hero_title_1"}} {{t "pricing" key="pricing_hero_title_2"}}
+            </h1>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+          <p class="la-pricing-hero-subtitle">
+            {{t "We believe everyone deserves access to great communication tools. Start with a free 2-month trial—no credit card required—then choose the plan that fits your needs." key="pricing_hero_subtitle"}}
+          </p>
+        </div>
+        <div class="la-pricing-cloud-extras-cta">
+          <button type="button" class="la-btn la-btn--ghost la-btn--lg" {{action "openCloudExtras"}}>
+            {{t "Learn about cloud extras" key="pricing_cloud_extras_learn_more"}}
+          </button>
+        </div>
+        <div class="pricing-wrapper la-pricing-preview-grid">
+          {{!-- Communicator (Recommended) --}}
+          <div class="pricing-card pricing-card--communicator featured la-about-glass-card la-pricing-card">
+            <div class="badge pricing-card__badge">{{t "Most Popular" key="most_popular"}}</div>
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon la-about-glass-card__icon--communicator" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <h2 class="la-about-glass-card__title pricing-card__title">{{t "Communicator" key="communicator"}}</h2>
+            </div>
+            <p class="plan-subtitle la-about-glass-card__text">
+              {{t "Full communication system for one user across multiple devices." key="pricing_communicator_summary"}}
+            </p>
+            <div class="price-block la-pricing-card__prices">
+              {{#unless this.subscription.app_pricing_override_no_monthly}}
+                <div class="price-option la-pricing-card__price-row">
+                  <span class="price la-pricing-card__amount">
+                    {{#if this.subscription.app_pricing_override}}
+                      {{this.subscription.monthly_app_price}} {{this.subscription.app_currency}}
+                    {{else}}
+                      <span class="la-pricing-card__currency">US$</span>9
+                    {{/if}}
+                  </span>
+                  <span class="price-detail la-pricing-card__term">{{t "per month" key="per_month_lower"}}</span>
+                </div>
+                <div class="or-divider"><span class="la-pricing-card__or">{{t "or" key="or"}}</span></div>
+              {{/unless}}
+              <div class="price-option la-pricing-card__price-row">
+                <span class="price la-pricing-card__amount">
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.long_term_app_price}} {{this.subscription.app_currency}}
+                  {{else if this.subscription.user.lapsed}}
+                    <span class="la-pricing-card__currency">US$</span>50
+                  {{else if this.subscription.much_cheaper_offer}}
+                    <span class="sale">{{t "sale! 50% off" key="save_50_percent"}}</span>
+                    <span class="price-strikethrough">$295</span> <span class="la-pricing-card__currency">US$</span>145
+                  {{else if this.subscription.cheaper_offer}}
+                    <span class="sale">{{t "save 25%" key="save_25_percent"}}</span>
+                    <span class="price-strikethrough">$295</span> <span class="la-pricing-card__currency">US$</span>150
+                  {{else}}
+                    <span class="la-pricing-card__currency">US$</span>295
+                  {{/if}}
+                </span>
+                <span class="price-detail la-pricing-card__term">
+                  {{#if this.subscription.user.lapsed}}
+                    {{t "cloud re-purchase" key="cloud_re_purchase"}}
+                  {{else}}
+                    {{t "lifetime purchase" key="lifetime_purchase"}}
+                  {{/if}}
+                </span>
+              </div>
+            </div>
+            <ul class="feature-list la-pricing-card__features">
+              <li>✔ {{t "Run on multiple devices" key="run_on_multiple_devices"}}</li>
+              <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
+              <li>✔ {{t "Premium voices & reporting" key="premium_voices_reporting"}}</li>
+              <li>✔ {{t "Modeling ideas & usage insights" key="modeling_ideas_usage"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "included in subscription" key="included_in_subscription_suffix"}}</li>
+              <li>✔ {{t "Free modeling-only accounts are available for supporting paid communicators" key="free_modeling_only_accounts_communicator"}}</li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
+              <li>➕ {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}</li>
+            </ul>
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Start Communicator Plan" key="start_communicator_plan"}}</LinkTo>
+          </div>
+
+          {{!-- Supporter --}}
+          <div class="pricing-card pricing-card--supporter la-about-glass-card la-pricing-card">
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon la-about-glass-card__icon--supporter" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <h2 class="la-about-glass-card__title pricing-card__title">{{t "Supporter" key="supporter"}}</h2>
+            </div>
+            <p class="plan-subtitle la-about-glass-card__text">
+              {{t "Tools for supporting and modeling with communicators." key="pricing_supporter_summary"}}
+            </p>
+            <div class="price-block single la-pricing-card__prices">
+              <div class="price-option la-pricing-card__price-row">
+                <span class="price la-pricing-card__amount">
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.supporter_app_price}} {{this.subscription.app_currency}}
+                  {{else}}
+                    <span class="la-pricing-card__currency">US$</span>25
+                  {{/if}}
+                </span>
+                <span class="price-detail la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+              </div>
+            </div>
+            <ul class="feature-list la-pricing-card__features">
+              <li>✔ {{t "Run on multiple devices" key="run_on_multiple_devices"}}</li>
+              <li>✔ {{t "Support, edit & model boards" key="works_for_communicators"}}</li>
+              <li>✔ {{t "Track usage & receive alerts" key="track_for_communicators"}}</li>
+              <li>✔ {{t "Modify linked communicator boards" key="modify_linked_communicator_boards"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "for communicators" key="for_supported_communicators_suffix"}}</li>
+              <li>✔ {{t "Free modeling-only accounts available" key="free_modeling_only_available"}}</li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
+            </ul>
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Get Supporter Access" key="get_supporter_access"}}</LinkTo>
+          </div>
+
+          {{!-- Eval --}}
+          <div class="pricing-card pricing-card--eval la-about-glass-card la-pricing-card">
+            <div class="la-about-glass-card__header">
+              <span class="la-about-glass-card__icon la-about-glass-card__icon--eval" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+              </span>
+              <h2 class="la-about-glass-card__title pricing-card__title">{{t "Eval" key="eval"}}</h2>
+            </div>
+            <p class="plan-subtitle la-about-glass-card__text">
+              {{t "Ideal for loaner and evaluation devices." key="pricing_eval_summary"}}
+            </p>
+            <div class="price-block single la-pricing-card__prices">
+              <div class="price-option la-pricing-card__price-row">
+                <span class="price la-pricing-card__amount">
+                  {{#if this.subscription.app_pricing_override}}
+                    {{this.subscription.eval_app_price}} {{this.subscription.app_currency}}
+                  {{else}}
+                    <span class="la-pricing-card__currency">US$</span>25
+                  {{/if}}
+                </span>
+                <span class="price-detail la-pricing-card__term">{{t "one-time purchase" key="one_time_purchase"}}</span>
+              </div>
+            </div>
+            <ul class="feature-list la-pricing-card__features">
+              <li>✔ {{t "Full communication system" key="full_communication_system"}}</li>
+              <li>✔ {{t "Runs on one device" key="run_on_one_device"}}</li>
+              <li>✔ {{t "Premium voices on request" key="premium_voices_on_request"}}</li>
+              <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{action "openCloudExtras"}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset per evaluation" key="eval_cloud_extras_reset"}}</li>
+              <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
+            </ul>
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
+          </div>
+        </div>
+
+        {{!-- Org management + Bulk purchase: above buttons, displayed horizontally --}}
+        <div class="la-pricing-extra-links">
+          <div class="la-pricing-org-management la-pricing-extra-link">
+            <p>
+              {{t "User management tools are available for organizations." key="org_tools_available"}}
+              <LinkTo @route="contact" class="la-pricing-bulk-link">{{t "Contact us!" key="contact_us_excl"}}</LinkTo>
+            </p>
+          </div>
+          <div class="la-pricing-bulk la-pricing-extra-link">
+            <p>
+              <a href="#" {{action "show_bulk_purchase"}} class="la-pricing-bulk-link">{{t "Are you interested in a bulk purchase or PO/PCard purchase?" key="bulk_purchase_interested_question"}}</a>
+            </p>
+            {{#if this.show_bulk_purchase}}
+              <p class="la-pricing-bulk-explainer">
+                {{t "We love working with school districts and organizations who want to support multiple communicators! If you're interested in purchasing multiple licenses or using a PCard or PO to purchase, please <a href='/contact?to=sales'>contact our sales team</a> for more information." key="bulk_information"}}
+              </p>
+            {{/if}}
+          </div>
+        </div>
+
+        {{#if this.app_state.domain_settings.full_domain}}
+          <div class="la-pricing-actions" style="margin-top: 2rem;">
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
+            {{#unless this.subscription.app_pricing_override}}
+              <LinkTo @route="gift_purchase" class="la-btn la-btn--badge la-btn--lg">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
+            {{/unless}}
+          </div>
+        {{/if}}
+        <div class="la-cta-buttons" style="margin-top: 2rem; text-align: center;">
+          <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
+          <LinkTo @route="contact" class="la-btn la-btn--ghost la-btn--lg">{{t "Contact Us" key="contact_us"}}</LinkTo>
+        </div>
+      </section>
+
+
+    </main>
   </div>
 </div>

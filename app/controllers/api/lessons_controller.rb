@@ -39,27 +39,29 @@ class Api::LessonsController < ApplicationController
   end
 
   def create
+    lesson_data = params['lesson']
+    lesson_data = lesson_data.permit! if lesson_data.is_a?(ActionController::Parameters)
     initial_target = nil
-    if params['lesson']['organization_id']
-      org = Organization.find_by_path(params['lesson']['organization_id'])
-      return unless exists?(org, params['lesson']['organization_id'])
+    if lesson_data['organization_id']
+      org = Organization.find_by_path(lesson_data['organization_id'])
+      return unless exists?(org, lesson_data['organization_id'])
       return unless allowed?(org, 'edit')
       initial_target = org
-    elsif params['lesson']['organization_unit_id']
-      unit = OrganizationUnit.find_by_path(params['lesson']['organization_unit_id'])
-      return unless exists?(unit, params['lesson']['organization_unit_id'])
+    elsif lesson_data['organization_unit_id']
+      unit = OrganizationUnit.find_by_path(lesson_data['organization_unit_id'])
+      return unless exists?(unit, lesson_data['organization_unit_id'])
       return unless allowed?(unit, 'edit')
       initial_target = unit
-    elsif params['lesson']['user_id']
-      user = User.find_by_path(params['lesson']['user_id'])
-      return unless exists?(user, params['lesson']['user_id'])
+    elsif lesson_data['user_id']
+      user = User.find_by_path(lesson_data['user_id'])
+      return unless exists?(user, lesson_data['user_id'])
       return unless allowed?(user, 'supervise')
       initial_target = user
     else
       return allowed?(@api_user, 'never_allow')
     end
-    lesson = Lesson.process_new(params['lesson'], {'author' => @api_user, 'target' => initial_target})
-    Lesson.assign(lesson, initial_target, params['lesson']['target_types'], @api_user) if initial_target
+    lesson = Lesson.process_new(lesson_data, {'author' => @api_user, 'target' => initial_target})
+    Lesson.assign(lesson, initial_target, lesson_data['target_types'], @api_user) if initial_target
     render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user})
   end
 
@@ -81,7 +83,9 @@ class Api::LessonsController < ApplicationController
     lesson = Lesson.find_by_path(params['id'])
     return unless exists?(lesson, params['id'])
     return unless allowed?(lesson, 'edit')
-    lesson.process(params['lesson'], {'author' => @api_user})
+    lesson_update = params['lesson']
+    lesson_update = lesson_update.permit! if lesson_update.is_a?(ActionController::Parameters)
+    lesson.process(lesson_update, {'author' => @api_user})
     render json: JsonApi::Lesson.as_json(lesson, {wrapper: true, permissions: @api_user})
   end
 

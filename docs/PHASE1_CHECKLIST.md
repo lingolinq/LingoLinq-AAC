@@ -3,7 +3,7 @@
 ## Current State
 - **Current Version**: Ember 3.12.0
 - **Target Version**: Ember 3.16
-- **Node Version**: >= 18.0.0 ✅
+- **Node Version**: >= 20.0.0 ✅
 
 ## Pre-Upgrade Assessment
 

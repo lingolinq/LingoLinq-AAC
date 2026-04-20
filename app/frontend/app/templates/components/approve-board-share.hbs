@@ -1,28 +1,46 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>{{t "Approve Board Share" key="approve_board_share"}}</h3>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Approve Board Share" key="approve_board_share"}}</h3>
   </div>
-  <div class="modal-body">
-    <p>{{t "This board, %{board_key} has been shared with you. Would you like to accept this share? Keep in mind that anyone with the same share level as you will be able to see any boards you have created that are linked from this board as well." key="share_warning" board_key=this.model.board.key}}</p>
-    <p>
-    <strong>{{t "Shared by:" key="shared_by"}}</strong>
-    <ul>
-      {{#each this.model.shares as |share|}}
-        <li>{{share.user_name}}{{t ", editing permission on this and downstream boards by any author" key="includes_downstream_editing"}}</li>
-      {{/each}}
-    </ul>
-    </p>
-    <div style='margin-top: 20px;'>
-      {{#if this.pending}}
-        {{t "Updating share status..." key="updating_share_status"}}
-      {{else}}
-        <button class='btn btn-primary' {{action "approve"}}>{{t "Approve This Share" key="approve_share"}}</button>
-        <button class='btn btn-default' {{action "reject"}}>{{t "Reject This Share" key="reject_share"}}</button>
-        {{#if this.error}}
-          <p class='text-danger'>{{t "There was an unexpected problem updating the share status" key="error_updating_share"}}</p>
-        {{/if}}
-      {{/if}}
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3" stroke="#2a9d8f"/><circle cx="6" cy="12" r="3" stroke="#46505f"/><circle cx="18" cy="19" r="3" stroke="#2a9d8f"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#46505f"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#46505f"/>
+        </svg>
+      </div>
     </div>
+
+    <p class="md-modal-hint">{{t "Someone has shared the board <b>%{board_key}</b> with you. Accepting will give them access to any of your linked boards at the same share level." key="share_warning" board_key=this.model.board.key}}</p>
+
+    <div class="md-modal-field">
+      <h4 class="md-modal-section-title">{{t "Shared by:" key="shared_by"}}</h4>
+      <div class="md-modal-shared-users-list">
+        {{#each this.model.shares as |share|}}
+          <div class="md-modal-shared-user">
+            <div class="md-modal-shared-user__info">
+              <div class="md-modal-shared-user__name">{{share.user_name}}</div>
+              <div class="md-modal-shared-user__detail">
+                <span class="md-modal-shared-user__badge">{{t "editing permission on this and downstream boards" key="includes_downstream_editing"}}</span>
+              </div>
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{#if this.pending}}
+      <p class="md-modal-status md-modal-status--info">{{t "Updating share status..." key="updating_share_status"}}</p>
+    {{else}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "approve"}}>{{t "Approve This Share" key="approve_share"}}</button>
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "reject"}}>{{t "Reject This Share" key="reject_share"}}</button>
+      {{#if this.error}}
+        <p class="md-modal-status md-modal-status--error" role="alert">{{t "There was an unexpected problem updating the share status" key="error_updating_share"}}</p>
+      {{/if}}
+    {{/if}}
   </div>
 {{/modal-dialog}}

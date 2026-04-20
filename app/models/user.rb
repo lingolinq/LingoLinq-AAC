@@ -16,6 +16,8 @@ class User < ActiveRecord::Base
   has_many :boards
   has_many :devices
   has_many :user_integrations
+  has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
+  has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
   has_one :user_extra
   before_save :generate_defaults
   after_save :track_boards
@@ -108,7 +110,14 @@ class User < ActiveRecord::Base
   def supporter_registration?
     !['unspecified', 'communicator'].include?(self.registration_type)
   end
-  
+
+  # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
+  # legacy rows may still have the string 'false'.
+  def cookies_opted_out?
+    c = settings&.dig('preferences', 'cookies')
+    c == false || c == 'false'
+  end
+
   def log_session_duration
     (self.settings['preferences'] && self.settings['preferences']['log_session_duration']) || User.default_log_session_duration
   end
@@ -339,6 +348,46 @@ class User < ActiveRecord::Base
     end
     self.settings['registration_code']
   end
+
+  def coppa_parental_consent_pending?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    !!c['pending_parent_consent']
+  end
+
+  # Parent completes email link with token. Returns true when consent is newly recorded or already granted.
+  def grant_parental_consent!(token)
+    return false if token.blank?
+    self.settings ||= {}
+    c = self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    return false unless c['pending_parent_consent']
+    stored = c['parent_consent_token'].to_s
+    tok = token.to_s
+    return false if stored.blank?
+    return false if stored.bytesize != tok.bytesize
+    return false unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+    exp = c['parent_consent_expires_at']
+    if exp.present?
+      begin
+        return false if Time.iso8601(exp) < Time.now.utc
+      rescue ArgumentError
+        return false
+      end
+    end
+    c['parent_consent_granted_at'] = Time.now.utc.iso8601
+    c.delete('parent_consent_token')
+    c.delete('parent_consent_expires_at')
+    c.delete('pending_parent_consent')
+    self.settings['coppa'] = c
+    res = self.save
+    if res
+      devices.each(&:invalidate_cached_keys)
+    end
+    res
+  end
   
   def anonymized_identifier(str=nil)
     str ||= ""
@@ -377,7 +426,7 @@ class User < ActiveRecord::Base
         'battery_sounds' => true,
         'default_sidebar_boards' => default_sidebar_boards,
         'blank_status' => false,
-        'preferred_symbols' => 'original',
+        'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
         'hidden_buttons' => 'grid',
         'symbol_background' => 'clear',
@@ -425,7 +474,7 @@ class User < ActiveRecord::Base
         self.settings['preferences']['devices'][key][attr] = val if self.settings['preferences']['devices'][key][attr] == nil
       end
     end
-    if self.settings['preferences']['cookies'] == false
+    if cookies_opted_out?
       self.settings['preferences']['protected_user'] = true
     end
     self.settings['preferences']['disable_quick_sidebar'] = false if self.settings['preferences']['quick_sidebar']
@@ -554,8 +603,13 @@ class User < ActiveRecord::Base
       fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
     end
 
-    # In development mode, always use local fallback unless explicitly overridden
+    # In development, use local /avatars/ paths for the default image, but still expose a
+    # custom settings['avatar_url'] (https or same-origin path) so profile edits persist in JSON.
     if Rails.env.development? && !override_url
+      url = self.settings && self.settings['avatar_url']
+      if url.present? && url != 'default'
+        return url if url.match(/^https?:\/\//o) || url.match(/^\//o)
+      end
       return fallback
     end
 
@@ -827,7 +881,7 @@ class User < ActiveRecord::Base
       'canvas_render', 'blank_status', 'share_notifications', 'notification_frequency',
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
       'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
-      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'allow_log_reports', 'allow_log_publishing', 
+      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
       'new_index', 'debounce', 'cookies', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
@@ -882,9 +936,42 @@ class User < ActiveRecord::Base
       end
       self.settings['email'] = process_string(new_email)
     end
+    # Use blank? so empty string from the client does not skip COPPA (!"" is false in Ruby).
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored_organization_id'].blank?
+      # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
+      minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
+      wants_minor = [true, 'true', '1', 1].include?(minor_flag)
+      if wants_minor
+        parent = (
+          params['parent_consent_email'] ||
+          params['parent-consent-email'] ||
+          params['parentConsentEmail'] ||
+          ''
+        ).to_s.strip
+        child_email = (self.settings['email'] || '').to_s.strip.downcase
+        if parent.blank?
+          add_processing_error('parent consent email required for under-13 registration')
+          return false
+        end
+        if parent !~ URI::MailTo::EMAIL_REGEXP
+          add_processing_error('invalid parent consent email format')
+          return false
+        end
+        if parent.downcase == child_email
+          add_processing_error('parent consent email must be different from the account email')
+          return false
+        end
+        self.settings['coppa'] = {
+          'pending_parent_consent' => true,
+          'parent_email' => process_string(parent),
+          'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
+        }
+      end
+    end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
-    if params['authored_organization_id'] && !self.id
+    if params['authored_organization_id'].present? && !self.id
       org = Organization.find_by_global_id(params['authored_organization_id'])
       if org && non_user_params[:author] && org.allows?(non_user_params[:author], 'edit')
         self.settings['authored_organization_id'] = org.global_id
@@ -938,8 +1025,9 @@ class User < ActiveRecord::Base
             'setting' => key,
             'timestamp' => Time.now.utc.iso8601
           }
-          if self.id && key == 'cookies' && params['preferences'] && params['preferences']['cookies'] == false && self.settings['preferences']['cookies'] == true
-            @opt_out = 'disabled'
+          if self.id && key == 'cookies' && params['preferences'] && !params['preferences']['cookies'].nil?
+            old_enabled = self.settings['preferences']['cookies'].nil? || process_boolean(self.settings['preferences']['cookies'])
+            @opt_out = 'disabled' if !process_boolean(params['preferences']['cookies']) && old_enabled
           end
         end
       end
@@ -958,7 +1046,17 @@ class User < ActiveRecord::Base
     inflections_were_set = self.settings['preferences']['activation_location'] == 'swipe' || self.settings['preferences']['inflections_overlay']
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
     PREFERENCE_PARAMS.each do |attr|
-      self.settings['preferences'][attr] = params['preferences'][attr] if params['preferences'] && params['preferences'][attr] != nil
+      if params['preferences'] && params['preferences'][attr] != nil
+        val = params['preferences'][attr]
+        # Form-encoded requests send booleans as strings ("true"/"false").
+        # Convert them back to actual booleans.
+        val = true if val == 'true'
+        val = false if val == 'false'
+        self.settings['preferences'][attr] = val
+      end
+    end
+    if params['preferences'] && !params['preferences']['cookies'].nil?
+      self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
     end
     if params['preferences']
       self.settings['preferences']['clear_vocalization_history'] = process_boolean(params['preferences']['clear_vocalization_history']) if params['preferences'] && params['preferences']['clear_vocalization_history'] != nil
@@ -1082,7 +1180,7 @@ class User < ActiveRecord::Base
         end
       end
     end
-    if params['preferences'] && params['preferences']['cookies'] == true
+    if params['preferences'] && !params['preferences']['cookies'].nil? && process_boolean(params['preferences']['cookies'])
       self.settings['preferences']['protected_user'] = false
     end
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'
@@ -1233,6 +1331,57 @@ class User < ActiveRecord::Base
     end
   end
 
+  # Org data policy floor enforcement.
+  # Returns the org's effective data policy, or empty hash if no org.
+  # Memoized per instance to avoid repeated DB lookups during a single
+  # request (LogSession save calls this multiple times).
+  def effective_data_policy
+    @effective_data_policy ||= begin
+      org = self.managing_organization
+      org ? org.effective_data_policy : {}
+    end
+  end
+
+  def clear_effective_data_policy_cache
+    @effective_data_policy = nil
+  end
+
+  def effective_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['logging'])
+  end
+
+  def effective_geo_logging_allowed?
+    policy = effective_data_policy
+    return false if policy['geo_logging_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['geo_logging'])
+  end
+
+  def effective_log_reports_allowed?
+    policy = effective_data_policy
+    return false if policy['log_reports_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_reports'])
+  end
+
+  def effective_log_publishing_allowed?
+    policy = effective_data_policy
+    return false if policy['log_publishing_allowed'] == false
+    !!(self.settings && self.settings['preferences'] && self.settings['preferences']['allow_log_publishing'])
+  end
+
+  def effective_logging_cutoff_for(user, code)
+    base_cutoff = logging_cutoff_for(user, code)
+    policy = effective_data_policy
+    max_hours = policy['max_logging_cutoff_hours']
+    return base_cutoff unless max_hours
+    if base_cutoff.nil?
+      max_hours
+    else
+      [base_cutoff, max_hours].min
+    end
+  end
+
   def update_home_board_inflections
     board = Board.find_by_path(self.settings['preferences']['home_board']['id']) if self.settings['preferences'] && self.settings['preferences']['home_board']
     if board
@@ -1300,12 +1449,27 @@ class User < ActiveRecord::Base
       end
 
       self.settings['preferences']['devices'][device_key] ||= {}
+      # Form-encoded requests send booleans as strings ("true"/"false").
+      # Convert them back to actual booleans so the frontend (where "false"
+      # is truthy in JavaScript) reads the correct value.
       device.each do |key, val|
-#         if self.settings['preferences']['devices']['default'][key] == device[key]
-#           self.settings['preferences']['devices'][device_key].delete(key)
-#         else
+          val = true if val == 'true'
+          val = false if val == 'false'
           self.settings['preferences']['devices'][device_key][key] = val
-#         end
+      end
+      # When no specific device was provided (supervisor editing another user),
+      # propagate device preferences to all existing device keys so the value
+      # is found regardless of which device the user reads from
+      if !non_user_params['device']
+        self.settings['preferences']['devices'].each do |existing_key, hash|
+          next if existing_key == device_key
+          device.each do |key, val|
+            next if key == 'name' || key == 'id' || key == 'long_token'
+            val = true if val == 'true'
+            val = false if val == 'false'
+            self.settings['preferences']['devices'][existing_key][key] = val
+          end
+        end
       end
     end
   end

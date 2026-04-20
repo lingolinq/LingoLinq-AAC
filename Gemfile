@@ -14,10 +14,13 @@ group :development, :test do
   gem 'rails-controller-testing'
   gem 'drb'
   gem 'irb'
-  gem 'ruby-lsp', require: false
+  # CVE-2026-34060 (GHSA-c4r5-fxqw-vh93); bundler-audit minimum
+  gem 'ruby-lsp', '>= 0.26.9', require: false
   gem 'ruby-lsp-rails', require: false
   gem 'rubocop', require: false
   gem 'rubocop-rails', require: false
+  gem 'brakeman', require: false
+  gem 'bundler-audit', require: false
 end
 
 gem 'benchmark'
@@ -29,7 +32,16 @@ gem 'matrix'
 gem 'concurrent-ruby', '~> 1.3'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
-gem 'rails', '~> 7.2.0'
+# 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
+gem 'rails', '>= 7.2.3.1', '< 7.3'
+# CVE-2026-33210 (format string); bundler-audit advisory minimum
+gem 'json', '>= 2.19.2'
+# oj is a faster JSON parser/generator (5-10x faster than stdlib json).
+# Used via Oj.mimic_JSON in config/initializers/oj.rb to transparently
+# replace the JSON module across the app, including Rails internals.
+gem 'oj', '~> 3.16'
+# GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
+gem 'loofah', '>= 2.25.1'
 gem 'pg', '~> 1.5'
 gem 'sass-rails', '~> 6.0'
 gem 'sprockets-rails', '~> 3.5'
@@ -37,28 +49,27 @@ gem 'sprockets-rails', '~> 3.5'
 # mimemagic is deprecated, Rails 7 uses marcel/mini_mime internally
 
 gem 'typhoeus'
-gem 'coffee-rails'
 gem 'aws-sdk-rails'
 gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
+gem 'aws-sdk-s3', '~> 1'
 gem 'http-2'
-gem 'resque'
-gem 'rails_12factor', group: :production
-# gem 'heroku-deflater', :group => :production # Removed - incompatible with Rails 6.1+ (causes NoMethodError: undefined method 'match?')
+gem 'resque', '~> 3.0'
 gem 'puma'
-gem 'rack-offline'
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
+# zip_kit handles all ZIP writing (streaming, flat memory).
 gem 'rubyzip', '~> 2.3'
+gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
-gem 's3'
 gem 'bugsnag'
 gem 'stripe'
-gem 'rack', '~> 2.2.22' # Pin to 2.2.x to avoid Rack 3.x incompatibilities
+# Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
+gem 'rack', '>= 3.0'
 gem 'rack-attack'
 gem 'newrelic_rpm'
 gem 'rack-timeout'
@@ -71,9 +82,12 @@ gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
 
-gem 'sinatra'
+gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
+
+gem 'sinatra', '~> 4.2'
 gem 'sanitize'
 gem 'anthropic', '~> 1.23'
+gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

@@ -37,7 +37,7 @@
     </div>
   {{else}}
     {{#if this.sound_recording.ready}}
-      <button id="recording_status" {{action "toggle_recording_sound"}} class={{if this.sound_recording.recording "recording"}} style='outline: none;'>
+      <button id="recording_status" type="button" {{action "toggle_recording_sound"}} class={{if this.sound_recording.recording "recording"}} aria-pressed={{if this.sound_recording.recording "true" "false"}}>
         <span class="sub_status">
           <span>
             {{#if this.sound_recording.recording}}

@@ -1,0 +1,6 @@
+<p><%= t('parental_consent_mailer.greeting') %></p>
+<p><%= t('parental_consent_mailer.intro', app_name: app_name) %></p>
+<p><%= t('parental_consent_mailer.action_prompt') %></p>
+<p><a href="<%= @consent_url %>"><%= @consent_url %></a></p>
+<p><%= t('parental_consent_mailer.footer') %></p>
+<p><%= email_signature %></p>

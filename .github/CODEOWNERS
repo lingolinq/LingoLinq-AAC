@@ -1,0 +1,3 @@
+# CODEOWNERS - These users are required reviewers for all PRs
+# All files require review from swahlquist or MelissaOneil before merging
+* @swahlquist @MelissaOneil

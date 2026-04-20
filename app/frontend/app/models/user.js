@@ -38,6 +38,8 @@ LingoLinq.User = DS.Model.extend({
   sync_stamp: DS.attr('string'),
   settings: DS.attr('raw'),
   is_admin: DS.attr('boolean'),
+  /** True when User#admin? on the server (settings admin or Admin org full manager). */
+  admin: DS.attr('boolean'),
   authored_organization_id: DS.attr('string'),
   terms_agree: DS.attr('boolean'),
   name: DS.attr('string'),
@@ -57,10 +59,16 @@ LingoLinq.User = DS.Model.extend({
   external_nonce: DS.attr('raw'),
   state_2fa: DS.attr('raw'),
   board_tags: DS.attr('raw'),
+  /** Tag name -> global_id[] for folder UI (same as server user_extra.board_tags). */
+  board_tag_map: DS.attr('raw'),
   focus_words: DS.attr('raw'),
   access_methods: DS.attr('raw'),
   start_codes: DS.attr('raw'),
   start_code: DS.attr('string'),
+  coppa_under_13: DS.attr('boolean'),
+  parent_consent_email: DS.attr('string'),
+  /** Set by API on create when parental consent is still required (COPPA). */
+  coppa_parental_consent_pending: DS.attr('boolean'),
   unread_messages: DS.attr('number'),
   unread_alerts: DS.attr('number'),
   external_device: DS.attr('raw'),
@@ -105,6 +113,7 @@ LingoLinq.User = DS.Model.extend({
   contacts: DS.attr('raw'),
   goal: DS.attr('raw'),
   pending_board_shares: DS.attr('raw'),
+  pending_supervisor_requests: DS.attr('raw'),
   edit_permission: DS.attr('boolean'),
   cell_phone: DS.attr('string'),
   next_notification_delay: DS.attr('string'),
@@ -293,10 +302,10 @@ LingoLinq.User = DS.Model.extend({
     }
   ),
   stats: DS.attr('raw'),
-  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', function() {
+  avatar_url_with_fallback: computed('avatar_url', 'avatar_data_uri', 'fallback_avatar_url', function() {
     var url = this.get('avatar_data_uri') || this.get('avatar_url');
     if(!url) {
-      url = templateHelpers.path('images/action.png');
+      url = this.get('fallback_avatar_url') || templateHelpers.path('avatars/avatar-0.png');
     }
     return url;
   }),
@@ -907,12 +916,33 @@ LingoLinq.User = DS.Model.extend({
       if(res.tagged) {
         if(res.board_tags) {
           _this.set('board_tags', res.board_tags);
-          _this.reload();
         }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        _this.reload();
         return true;
       } else {
         return RSVP.reject({error: 'tag failed'});
       }
+    });
+  },
+  ensureBoardTag: function(tag) {
+    var _this = this;
+    return this.persistence.ajax('/api/v1/users/' + this.get('id') + '/board_tags/ensure', {
+      type: 'POST',
+      data: { tag: tag }
+    }).then(function(res) {
+      if(res.ok) {
+        if(res.board_tags) {
+          _this.set('board_tags', res.board_tags);
+        }
+        if(res.board_tag_map) {
+          _this.set('board_tag_map', res.board_tag_map);
+        }
+        return true;
+      }
+      return RSVP.reject({ error: 'ensure tag failed' });
     });
   },
   copy_home_board: function(board, swap_images, home_level) {
@@ -1098,8 +1128,11 @@ LingoLinq.User = DS.Model.extend({
     }
   }),
   toggle_cookies: observer('watch_user_name_and_cookies', 'preferences.cookies', function() {
-    if(this.get('watch_user_name_and_cookies') && this.get('preferences.cookies') != undefined) {
-      this.appState.toggle_cookies(!!this.get('preferences.cookies'));
+    if(this.get('watch_user_name_and_cookies')) {
+      var val = this.get('preferences.cookies');
+      if(val !== undefined && val !== null) {
+        this.appState.toggle_cookies(val === true || val === 'true');
+      }
     }
   }),
   load_word_activities: function() {

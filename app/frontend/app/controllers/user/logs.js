@@ -10,6 +10,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { reads } from '@ember/object/computed';
 import LingoLinq from '../../app';
+import evaluation from '../../utils/eval';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
@@ -56,18 +57,24 @@ export default Controller.extend({
   all_logs: computed('type', 'filtered_results', 'highlighted', function() {
     return !this.get('filtered_results') && (!this.get('type') || this.get('type') == 'all') && this.get('highlighted') != '1';
   }),
-  pending_eval: computed(function() {
+  pending_eval: computed('logs', 'model.id', function() {
     var user_id = this.get('model.id');
-    var assessment = app_state.get('last_assessment_for_' + user_id) || {};
+    var user_name = this.get('model.user_name');
+    var assessment = evaluation.last_assessment_from_memory(user_id, user_name) || {};
     var saved = false;
     var _this = this;
-    (_this.get('logs') || []).forEach(function(log) {
-      if(assessment.uid && log.get('eval.uid') == assessment.uid) {
+    var logs = _this.get('logs');
+    if (!Array.isArray(logs)) {
+      logs = [];
+    }
+    logs.forEach(function(log) {
+      var evalData = log.get('evaluation');
+      if (assessment.uid && evalData && evalData.uid == assessment.uid) {
         saved = true;
-        app_state.set('last_assessment_for_' + user_id, null);
+        evaluation.clear_last_assessment_memory(user_id, user_name);
       }
     });
-    if(!saved && assessment.uid) {
+    if (!saved && assessment.uid) {
       return assessment;
     }
   }),

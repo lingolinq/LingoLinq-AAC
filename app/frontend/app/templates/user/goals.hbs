@@ -1,12 +1,16 @@
 {{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if this.model.currently_premium}}
-  <h2>{{t "Communication Goals" key="communication_goals"}}</h2>
-
+<div class="md-goals">
+  <div class="md-goals__header">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#2A9D8F"/></svg>
+    <h2 class="md-goals__title">{{t "Communication Goals" key="communication_goals"}}</h2>
+  </div>
+  <div class="md-goals__card">
   {{#if this.goals.loading}}
-    {{t "Loading goals..." key="loading_goals"}}
+    <p class="md-goals__loading">{{t "Loading goals..." key="loading_goals"}}</p>
   {{else if this.goals.error}}
-    {{t "Goals failed to load" key="goals_failed_to_load"}}
+    <p class="md-goals__loading">{{t "Goals failed to load" key="goals_failed_to_load"}}</p>
   {{else}}
     {{#if this.primary_goal}}
       {{#let this.primary_goal as |goal|}}
@@ -86,10 +90,9 @@
       <p>{{t "No primary goal set" key="no_primary_goal_set"}}</p>
     {{else}}
       <div style='max-width: 600px;'>
-        <p>{{t "Goals are a way to help the communicator and their support team keep their current strategies top of mind. They can be general like \"Remember to use core words!\" or specific like \"Use greetings when entering a new setting\". Remember, these can be goals for the communicator (\"Answer questions with yes or no\"), <strong>or</strong> for the support team around the communicator (\"Use a prompting hierarchy\")." key="goals_explainer1"}}</p>
-        <p>{{t "Goals can be tracked for each communicator using assessments, or when making notes on a user's logs. These status updates are then used to show a general report of how the goal is progessing over time." key="goals_explainer2"}}</p>
-        <p>{{t "You can start using goals at any time by creating a goal for a communicator. Then use notes and assessments to track progress toward the goal over time. Users can have multiple goals, but only one \"primary\" goal at a time." key="goals_explainer_3"}}</p>
-        <p>{{t "For more information on choosing good goals, <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank' rel='noopener'>please check out</a> these <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank' rel='noopener'>great resources</a> from PrAACtical AAC." key="goals_explainer_4"}}</p>
+        <p>{{t "Goals keep strategies top of mind for communicators and their support teams — whether it's a communicator goal like \"Answer questions with yes or no\" or a team goal like \"Use a prompting hierarchy.\"" key="goals_explainer1"}}</p>
+        <p>{{t "Track progress through notes and assessments, and view how each goal develops over time. Users can have multiple goals, but only one primary goal at a time." key="goals_explainer2"}}</p>
+        <p>{{t "For tips on choosing effective goals, explore these <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank' rel='noopener'>helpful resources</a> from <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank' rel='noopener'>PrAACtical AAC</a>." key="goals_explainer_4"}}</p>
       </div>
       <!--
       things we could programmatically track:
@@ -273,6 +276,11 @@
       {{/if}}
     {{/if}}
   {{/if}}
+  </div>
+  <div class="md-goals__back-row">
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
+  </div>
+</div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>

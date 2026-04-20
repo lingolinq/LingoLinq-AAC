@@ -16,7 +16,31 @@ import i18n from './i18n';
 var handlers = {};
 var obf = EmberObject.extend({
   parse: function(json, fallback_key) {
-    var hash = JSON.parse(json);
+    var hash;
+    try {
+      if (typeof json === 'string') {
+        if (!json.trim()) {
+          throw new Error(i18n.t('obf_parse_failed', "Couldn't parse as JSON") + ': empty input');
+        }
+        if (json.trim().charAt(0) === '<') {
+          throw new Error(i18n.t('obf_parse_failed', "Couldn't parse as JSON") + ': received HTML instead of JSON (check URL)');
+        }
+        hash = JSON.parse(json);
+      } else if (json && typeof json === 'object') {
+        hash = json;
+      } else {
+        throw new Error(i18n.t('obf_parse_failed', "Couldn't parse as JSON") + ': invalid input type');
+      }
+    } catch (e) {
+      var msg = i18n.t('obf_parse_failed', "Couldn't parse as JSON");
+      if (e && e.message && e.message.indexOf(msg) !== 0) {
+        msg = msg + ': ' + e.message;
+      }
+      throw new Error(msg);
+    }
+    if (!hash || typeof hash !== 'object') {
+      throw new Error(i18n.t('obf_parse_failed', "Couldn't parse as JSON"));
+    }
     var id = (hash['id'] || 'b123') + 'b' + (new Date()).getTime() + "x" + Math.round(Math.random() * 9999);
     var board = LingoLinq.store.push({data: {
       id: id,
@@ -38,17 +62,17 @@ var obf = EmberObject.extend({
       board.set('public', true);
     }
     board.set('license', hash['license'] || {});
-    hash['background'] = hash['background'] || {};
+    var bg = hash['background'] || hash['ext_lingolinq_background'] || {};
     board.set('background', {
-      image: hash['background']['image'] || hash['background']['image_url'],
-      image_exclusion: hash['background']['ext_lingolinq_image_exclusion'],
-      color: hash['background']['color'],
-      position: hash['background']['position'],
-      text: hash['background']['text'],
-      prompt: hash['background']['prompt'] || hash['background']['prompt_text'],
-      prompt_timeout: hash['background']['prompt_timeout'] || hash['background']['prompt_text'],
-      delay_prompts: hash['background']['delay_prompts'] || hash['background']['delayed_prompts'],
-      delay_prompt_timeout: hash['background']['delay_prompt_timeout']
+      image: bg['image'] || bg['image_url'],
+      image_exclusion: bg['ext_lingolinq_image_exclusion'],
+      color: bg['color'],
+      position: bg['position'],
+      text: bg['text'],
+      prompt: bg['prompt'] || bg['prompt_text'],
+      prompt_timeout: bg['prompt_timeout'] || bg['prompt_text'],
+      delay_prompts: bg['delay_prompts'] || bg['delayed_prompts'],
+      delay_prompt_timeout: bg['delay_prompt_timeout']
     });
     board.set('text_only', hash['text_only']);
     board.set('hide_empty', true);

@@ -728,11 +728,29 @@ class WordData < ActiveRecord::Base
   def self.inflection_locations_for(words, locale)
     hash = {}
     return hash if words.blank? || !locale || locale.blank?
+
+    # Request/job-scoped cache to avoid redundant DB queries when the same words
+    # are looked up repeatedly within a single request or background job.
+    Thread.current[:word_inflection_cache] ||= {}
+    Thread.current[:word_inflection_cache][locale] ||= {}
+
+    words_to_query = []
+    words.each do |word|
+      w = word.to_s.downcase
+      if Thread.current[:word_inflection_cache][locale].has_key?(w)
+        hash[word] = Thread.current[:word_inflection_cache][locale][w]
+      else
+        words_to_query << w
+      end
+    end
+
+    return hash if words_to_query.empty?
+
     locales = [locale.downcase, locale.split(/-|_/)[0].downcase]
     known_types = ['adjective', 'noun', 'verb', 'adverb', 'pronoun']
     rules = Setting.get_cached("rules/#{locale}") || Setting.get_cached("rules/#{locale.split(/-|_/)[0]}")
     infl_rules = rules && rules['inflection_locations']
-    WordData.where(locale: locales, word: words.map(&:downcase)).each do |word_data|
+    WordData.where(locale: locales, word: words_to_query).each do |word_data|
       data = word_data.data || {}
       types = data['types'] || []
       overrides = {}.merge(data['inflection_overrides'] || {})
@@ -928,6 +946,8 @@ class WordData < ActiveRecord::Base
       locations['types'] = types
       words.select{|w| w.downcase == word_data.word}.each do |match|
         hash[match] = locations
+        # Store in request-scoped cache
+        Thread.current[:word_inflection_cache][locale][match.to_s.downcase] = locations
       end
     end
     hash

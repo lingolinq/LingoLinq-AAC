@@ -1,107 +1,96 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Find a Button" key="find_a_button"}}
-    </h3>
-  </div>
-  <div class="modal-body">
-    {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="form-control" select="pick_result" placeholder="Word or phrase you're looking for"}}
-    {{#if this.searchString}}
-      <div class="row" id="button_results">
-        {{#if this.results}}
-          {{#each this.results as |result|}}
-            <div {{action "pick_result" result}} class="result col-sm-12">
-              {{#if result.sequence}}
-                <div class='img_holder'>
-                  {{#each result.steps as |step|}}
-                    <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" >
-                  {{/each}}
-                </div>
-                {{result.text}}
-                <div class='location'>
-                  {{#if result.extra_steps}}
-                    {{t "Get there through: " key="get_there_through"}}
+  <div class="la-find-button-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">{{t "Find a Button" key="find_a_button"}}</span>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
+    </div>
+    <div class="la-find-button-body">
+      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder="Word or phrase you're looking for"}}
+      {{#if this.searchString}}
+        <div class="la-find-button-results">
+          {{#if this.results}}
+            {{#each this.results as |result|}}
+              <div {{action "pick_result" result}} class="la-find-button-result">
+                {{#if result.sequence}}
+                  <div class="la-find-button-result__images">
                     {{#each result.steps as |step|}}
-                      {{#if step.sequence.pre}}
-                        <span class='link_list'>{{t "Home" key="home"}}</span>
-                      {{/if}}
-                      {{#each step.sequence.buttons as |btn|}}
-                        <span class='link_list'>
-                          {{#if btn.label}}
-                            {{btn.label}}
-                          {{else}}
-                            {{btn.vocaliationl}}
+                      <img src={{step.button.image}} data-fallback={{step.button.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img">
+                    {{/each}}
+                  </div>
+                  <div class="la-find-button-result__info">
+                    <span class="la-find-button-result__label">{{result.text}}</span>
+                    <span class="la-find-button-result__path">
+                      {{#if result.extra_steps}}
+                        {{t "Get there through: " key="get_there_through"}}
+                        {{#each result.steps as |step|}}
+                          {{#if step.sequence.pre}}
+                            <span class="la-find-button-result__crumb">{{t "Home" key="home"}}</span>
                           {{/if}}
-                        </span>
-                      {{/each}}
-                      <span class='link_list'><em>
-                        {{#if step.button.label}}
-                          {{step.button.label}}
-                        {{else}}
-                          {{step.button.vocaliationl}}
+                          {{#each step.sequence.buttons as |btn|}}
+                            <span class="la-find-button-result__crumb">
+                              {{#if btn.label}}{{btn.label}}{{else}}{{btn.vocaliationl}}{{/if}}
+                            </span>
+                          {{/each}}
+                          <span class="la-find-button-result__crumb la-find-button-result__crumb--current">
+                            {{#if step.button.label}}{{step.button.label}}{{else}}{{step.button.vocaliationl}}{{/if}}
+                          </span>
+                        {{/each}}
+                      {{else}}
+                        {{t "On this board" key="on_this_board"}}
+                      {{/if}}
+                    </span>
+                  </div>
+                {{else}}
+                  <div class="la-find-button-result__images">
+                    <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" class="la-find-button-result__img">
+                  </div>
+                  <div class="la-find-button-result__info">
+                    <span class="la-find-button-result__label">{{result.label}}</span>
+                    <span class="la-find-button-result__path">
+                      {{#if result.on_this_board}}
+                        {{t "On this board" key="on_this_board"}}
+                      {{else}}
+                        {{t "Get there through: " key="get_there_through"}}
+                        {{#if result.pre_action}}
+                          <span class="la-find-button-result__crumb">{{t "Home" key="home"}}</span>
                         {{/if}}
-                      </em></span>
-                    {{/each}}
-                  {{else}}
-                    {{t "On this board" key="on_this_board"}}
-                  {{/if}}
-                </div>
+                        {{#each result.pre_buttons as |pre|}}
+                          <span class="la-find-button-result__crumb">
+                            {{#if pre.label}}{{pre.label}}{{else}}{{pre.vocalization}}{{/if}}
+                          </span>
+                        {{/each}}
+                      {{/if}}
+                    </span>
+                  </div>
+                {{/if}}
+              </div>
+            {{/each}}
+          {{else}}
+            <div class="la-find-button-empty">
+              {{#if this.loading}}
+                {{t "Loading..." key="loading"}}
               {{else}}
-                <div class="img_holder">
-                  <img src={{result.image}} data-fallback={{result.fallback_image}} onerror="button_broken_image(this);" >
-                </div>
-                {{result.label}}
-                <div class="location">
-                  {{#if result.on_this_board}}
-                    {{t "On this board" key="on_this_board"}}
+                {{#if this.error}}
+                  {{this.error}}
+                {{else}}
+                  {{#if this.button_set.buttons.length}}
+                    {{t "No buttons found" key="no_buttons_found"}}
+                  {{else if this.button_set}}
+                    {{t "No buttons loaded" key="no_buttons_loaded"}}
+                  {{else if this.model.board}}
+                    {{t "Couldn't load button set" key="couldnt_load_button_set"}}
                   {{else}}
-                    {{t "Get there through: " key="get_there_through"}}
-                    {{#if result.pre_action}}
-                      <span class="link_list">{{t "Home" key="home"}}</span>
-                    {{/if}}
-                    {{#each result.pre_buttons as |pre|}}
-                      <span class="link_list">
-                        {{#if pre.label}}
-                          {{pre.label}}
-                        {{else}}
-                          {{pre.vocalization}}
-                        {{/if}}
-                      </span>
-                    {{/each}}
+                    {{t "No board found for searching" key="no_board_found"}}
                   {{/if}}
-                </div>
+                {{/if}}
               {{/if}}
             </div>
-          {{/each}}
-        {{else}}
-          <div class="col-sm-12">
-            {{#if this.loading}}
-              {{t "Loading..." key="loading"}}
-            {{else}}
-              {{#if this.error}}
-                {{this.error}}
-              {{else}}
-                {{#if this.button_set.buttons.length}}
-                  {{t "No buttons found" key="no_buttons_found"}}
-                {{else if this.button_set}}
-                  {{t "No buttons loaded" key="no_buttons_loaded"}}
-                {{else if this.model.board}}
-                  {{t "Couldn't load button set" key="couldnt_load_button_set"}}
-                {{else}}
-                  {{t "No board found for searching" key="no_board_found"}}
-                {{/if}}
-                <div style='margin-top: 30px; display: none;'>
-                  <a href="#" {{action "request_button"}}>{{t "Request this phrase as a new button" key="request_as_a_new_button"}}</a>
-                </div>
-              {{/if}}
-            {{/if}}
-          </div>
-        {{/if}}
-      </div>
-    {{/if}}
-  </div>
-  <div class="modal-footer">
-    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+          {{/if}}
+        </div>
+      {{/if}}
+    </div>
+    <div class="la-find-button-footer">
+      <button type="button" class="la-find-button-cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    </div>
   </div>
 {{/modal-dialog}}

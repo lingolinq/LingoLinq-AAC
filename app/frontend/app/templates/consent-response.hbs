@@ -1,0 +1,86 @@
+<div style='max-width: 600px; margin: 40px auto 0;'>
+  {{#if this.result.loading}}
+    <h2>{{t "Loading consent request..." key="loading_consent_request"}}</h2>
+  {{else if this.result.error}}
+    {{#if this.result.not_found}}
+      <div class="alert alert-warning">
+        <h3>{{t "Request Not Found" key="consent_not_found"}}</h3>
+        <p>{{t "This consent request could not be found. It may have already been responded to or the link may be invalid." key="consent_not_found_detail"}}</p>
+      </div>
+    {{else if this.result.expired}}
+      <div class="alert alert-warning">
+        <h3>{{t "Request Expired" key="consent_expired_title"}}</h3>
+        <p>{{t "This consent request has expired. The requester will need to send a new request." key="consent_expired_detail"}}</p>
+      </div>
+    {{else}}
+      <div class="alert alert-danger">
+        <h3>{{t "Error" key="error"}}</h3>
+        <p>{{t "There was an error loading this consent request. Please try again later." key="consent_load_error"}}</p>
+      </div>
+    {{/if}}
+  {{else if this.needs_login}}
+    <div class="alert alert-info">
+      <h3>{{t "Login Required" key="login_required"}}</h3>
+      <p>{{t "You need to log in to respond to this supervision consent request." key="consent_login_required_detail"}}</p>
+      <button class="btn btn-primary" {{action "login_and_return"}}>
+        {{t "Log In" key="log_in"}}
+      </button>
+    </div>
+  {{else if this.submitted}}
+    <div class="alert alert-success">
+      {{#if (is-equal this.submitted_action "approve")}}
+        <h3>{{t "Access Approved" key="consent_access_approved"}}</h3>
+        <p>{{t "You have approved supervision access. The requester now has access to the specified account." key="consent_approved_detail"}}</p>
+      {{else}}
+        <h3>{{t "Request Denied" key="consent_request_denied"}}</h3>
+        <p>{{t "You have denied this supervision request." key="consent_denied_detail"}}</p>
+      {{/if}}
+    </div>
+  {{else}}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">{{t "Supervision Access Request" key="supervision_access_request"}}</h3>
+      </div>
+      <div class="panel-body">
+        <p>
+          <strong>{{this.result.requester_name}}</strong>
+          {{t "is requesting supervision access to" key="is_requesting_access_to"}}
+          <strong>{{this.result.communicator_name}}</strong>.
+        </p>
+        <dl class="dl-horizontal">
+          <dt>{{t "Access Level:" key="access_level_colon"}}</dt>
+          <dd>{{this.result.permission_level_description}}</dd>
+          <dt>{{t "Requested:" key="requested_colon"}}</dt>
+          <dd>{{this.result.requested_at}}</dd>
+          {{#if this.result.expires_at}}
+            <dt>{{t "Expires:" key="expires_colon"}}</dt>
+            <dd>{{this.result.expires_at}}</dd>
+          {{/if}}
+        </dl>
+
+        {{#if this.submit_error}}
+          <div class="alert alert-danger">
+            {{this.submit_error}}
+          </div>
+        {{/if}}
+
+        <div style="margin-top: 20px;">
+          <button class="btn btn-success" {{action "approve"}} disabled={{this.submitting}}>
+            {{#if this.submitting}}
+              {{t "Processing..." key="processing"}}
+            {{else}}
+              {{t "Approve Access" key="approve_access"}}
+            {{/if}}
+          </button>
+          <button class="btn btn-danger" style="margin-left: 10px;" {{action "deny"}} disabled={{this.submitting}}>
+            {{#if this.submitting}}
+              {{t "Processing..." key="processing"}}
+            {{else}}
+              {{t "Deny Request" key="deny_request"}}
+            {{/if}}
+          </button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+</div>

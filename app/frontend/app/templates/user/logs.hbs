@@ -1,7 +1,10 @@
 {{#if this.app_state.currentUser.modeling_only}}
   {{modeling-only-notice}}
 {{else if this.model.currently_premium_or_premium_supporter}}
-  <h2>
+<div class="md-logs">
+  <div class="md-logs__header">
+    <h2 class="md-logs__title">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 10px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/><polyline points="10 9 9 9 8 9" stroke="#46505F"/></svg>
     {{#if this.messages_only}}
       {{t "Messages about" key="messages_about"}} {{this.model.user_name}}
     {{else}}
@@ -30,29 +33,27 @@
         {{/if}}
       </span>
     {{/if}}
-  {{#if this.messages_only}}
-  {{else if this.filtered_results}}
-  {{else if this.model.external_device}}
+  </h2>
+  </div>
+  {{#if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
-      <div class='row big_buttons' style='margin-top: 20px;'>
-        <div class='col-sm-3 col-xs-6 big_button_holder'>
-          <button class='btn big_button btn-default lesser_button' {{action "generate"}} style='height: 100px;'>
-            Manual Log<br>Session
-          </button>
-        </div>
-        <div class='col-sm-3 col-xs-6 big_button_holder'>
-          <button class='btn big_button btn-default secondary_button' {{action "recordNote" "text"}} style='height: 100px;'>
-            New Note
-          </button>
-        </div>
+      <div class="md-logs__action-pills">
+        <button class="md-logs__action-pill" {{action "generate"}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          {{t "Manual Log Session" key="manual_log_session"}}
+        </button>
+        <button class="md-logs__action-pill" {{action "recordNote" "text"}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          {{t "New Note" key="new_note"}}
+        </button>
       </div>
     {{/if}}
   {{/if}}
-  </h2>
+  <div class="md-logs__card">
   {{#if this.logs.loading}}
-    <p>{{t "Loading..." key="loading..."}}</p>
+    <p class="md-logs__loading">{{t "Loading..." key="loading..."}}</p>
   {{else if this.logs.error}}
-    <p>{{t "Failed to load" key="failed_to_load"}}</p>
+    <p class="md-logs__loading">{{t "Failed to load" key="failed_to_load"}}</p>
   {{else if this.logs}}
     {{#if this.meta.logging_cutoffs}}
       <div class='alert alert-warning'>
@@ -161,6 +162,11 @@
       {{/if}}
     {{/if}}
   {{/if}}
+  </div>
+  <div class="md-logs__back-row">
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
+  </div>
+</div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>

@@ -21,10 +21,28 @@ describe('speecher', function() {
   beforeEach(function() {
     speecher.audio = {};
     speecher.scope = window;
+    // Reset deduplication state
+    speecher.last_spoken_audio_url = null;
+    speecher.last_spoken_audio_time = 0;
+    speecher.last_spoken_text = null;
+    speecher.last_spoken_text_time = 0;
+    speecher.speak_pending_text = null;
+    speecher.speak_pending_time = 0;
+    speecher.last_utterance = null;
   });
 
   afterEach(function() {
     speecher.scope = window;
+  });
+
+  describe('stop', function() {
+    it('marks the current utterance cancelled before speechSynthesis.cancel so error handlers do not retry', function() {
+      var u = { text: 'hello' };
+      speecher.last_utterance = u;
+      stub(window.speechSynthesis, 'cancel', function() { });
+      speecher.stop('text');
+      expect(u._cancelled).toEqual(true);
+    });
   });
 
   describe("speak_text", function() {
@@ -265,6 +283,43 @@ describe('speecher', function() {
       expect(cancelled).toEqual(true);
       expect(audio3.pauseCalled).not.toEqual(true);
       expect(audio3.listenersRemoved).not.toEqual(true);
+    });
+    it("should skip duplicate audio URL within 1 second", function() {
+      speecher.speak_audio("http://sound.com/hello.mp3");
+      waitsFor(function() { return audio.playCalled; });
+      runs(function() {
+        // Reset the fake audio to detect a second play attempt
+        audio.playCalled = false;
+        speecher.speak_audio("http://sound.com/hello.mp3");
+        // The second call should be suppressed by the dedup guard
+        expect(audio.playCalled).toEqual(false);
+      });
+    });
+    it("should allow same audio URL after dedup window expires", function() {
+      speecher.speak_audio("http://sound.com/hello.mp3");
+      waitsFor(function() { return audio.playCalled; });
+      runs(function() {
+        // Simulate the dedup window having expired
+        speecher.last_spoken_audio_time = Date.now() - 1500;
+        audio.playCalled = false;
+        speecher.speak_audio("http://sound.com/hello.mp3");
+      });
+      waitsFor(function() { return audio.playCalled; });
+      runs(function() {
+        expect(audio.playCalled).toEqual(true);
+      });
+    });
+    it("should allow a different audio URL within 1 second", function() {
+      speecher.speak_audio("http://sound.com/hello.mp3");
+      waitsFor(function() { return audio.playCalled; });
+      runs(function() {
+        audio.playCalled = false;
+        speecher.speak_audio("http://sound.com/goodbye.mp3");
+      });
+      waitsFor(function() { return audio.playCalled; });
+      runs(function() {
+        expect(audio.playCalled).toEqual(true);
+      });
     });
   });
 

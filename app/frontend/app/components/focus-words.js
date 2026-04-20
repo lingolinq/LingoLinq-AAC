@@ -149,7 +149,7 @@ export default Component.extend({
           res.push(item);
         }
       });
-      persistence.ajax('/api/v1/search/focus?locale=' + (app_state.get('label_locale') || 'en').split(/-|_/)[0] + '&q=' + encodeURIComponent(_this.get('search_term')), { type: 'GET' }).then(function(list) {
+      persistence.ajax('/api/v1/search/focus?locale=' + (app_state.get('label_locale') || 'en').split(/-|_/)[0] + '&q=' + encodeURIComponent(_this.get('search.term') || ''), { type: 'GET' }).then(function(list) {
         _this.set('search.loading', false);
         res = res.concat(list);
         _this.set('search.results', res.slice(0, 20));
@@ -180,8 +180,13 @@ export default Component.extend({
     return this.get('search') || this.get('browse');
   }),
 
+  // Split on whitespace, strip punctuation per token. Use \p{L}\p{N} so non-ASCII words count
+  // (ASCII-only \w left "Set Focus Words" permanently disabled for many locales).
   words_list: computed('words', function() {
-    return (this.get('words') || '').replace(/[^\s\n\w]/g, '').split(/[\n\s]+/).filter(function(s) { return s.length > 0; });
+    return (this.get('words') || '')
+      .split(/[\n\s]+/)
+      .map(function(s) { return s.replace(/[^\p{L}\p{N}_]/gu, ''); })
+      .filter(function(s) { return s.length > 0; });
   }),
 
   browse_categories: computed('model', function() {
@@ -340,8 +345,15 @@ export default Component.extend({
       if (_this.get('focus_id') && app_state.get('currentUser')) {
         persistence.ajax('/api/v1/focus/usage', { type: 'POST', data: { focus_id: _this.get('focus_id') } }).then(function() {}, function() {});
       }
-      app_state.set('focus_words', { list: words, focus_id: Math.random() });
-      editManager.controller.model.set('focus_id', 'force_refresh');
+      // Same focus_id on app_state and board so contextualized_buttons / fast_html caches invalidate.
+      // A constant 'force_refresh' on the board matched fast_html.focus_id and caused process_for_displaying
+      // to return early without refreshing board-detail's ordered_buttons or focus dim/highlight.
+      const focusRevision = Math.random();
+      app_state.set('focus_words', { list: words, focus_id: focusRevision });
+      const boardController = editManager.controller;
+      if (boardController && boardController.get && boardController.get('model')) {
+        boardController.get('model').set('focus_id', focusRevision);
+      }
       this.get('modal').close();
       editManager.process_for_displaying();
       if (app_state.get('pairing') || app_state.get('followers.allowed')) {
@@ -351,6 +363,16 @@ export default Component.extend({
     analyze_focus_words() {
       const _this = this;
       const words = _this.get('words_list');
+      const model = _this.get('model');
+      if (!model) {
+        modal.error(i18n.t('focus_words_analyze_needs_user', "User information is not available. Try opening this screen again or signing in."));
+        return;
+      }
+      const rootBoardId = _this.get('model.root_board_id');
+      if (!rootBoardId) {
+        modal.error(i18n.t('focus_words_analyze_needs_home_board', "Set or open a home board first. Analysis looks up each word on that board."));
+        return;
+      }
       if (_this.get('reuse')) {
         if (!_this.get('title')) { return; }
         _this.save_set();
@@ -360,7 +382,7 @@ export default Component.extend({
       const locale = app_state.get('label_locale');
       _this.set('analysis', { loading: true });
       let board = null;
-      const find_board = LingoLinq.store.findRecord('board', _this.get('model.root_board_id'));
+      const find_board = LingoLinq.store.findRecord('board', rootBoardId);
       const load_buttons = find_board.then(function(brd) {
         board = brd;
         return board.load_button_set();

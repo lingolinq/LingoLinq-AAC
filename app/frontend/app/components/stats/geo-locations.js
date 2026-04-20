@@ -34,13 +34,18 @@ export default Component.extend({
         if(elem) {
           var map = new window.google.maps.Map(elem, {
             scrollwheel: false,
-            maxZoom: 16
+            maxZoom: 16,
+            center: { lat: 20, lng: 0 },
+            zoom: 2
           });
           var markers = [];
-          stats.get('geo_locations').forEach(function(location) {
+          var geoLocations = stats.get('geo_locations').filter(function(loc) {
+            return loc.geo && loc.geo.latitude != null && loc.geo.longitude != null;
+          });
+          geoLocations.forEach(function(location) {
             var title = i18n.t('session_count', "session", {count: location.total_sessions});
             var marker = new window.google.maps.Marker({
-              position: new window.google.maps.LatLng(location.geo.latitude, location.geo.longitude),
+              position: new window.google.maps.LatLng(parseFloat(location.geo.latitude), parseFloat(location.geo.longitude)),
               // TODO: https://developers.google.com/maps/documentation/javascript/examples/marker-animations-iteration
               // animation: window.google.maps.Animation.DROP,
               title: title
@@ -76,11 +81,16 @@ export default Component.extend({
               info.open(map, marker);
             });
           });
-          var bounds = new window.google.maps.LatLngBounds();
-          for(var i=0;i<markers.length;i++) {
-           bounds.extend(markers[i].getPosition());
+          if(markers.length > 0) {
+            var bounds = new window.google.maps.LatLngBounds();
+            for(var i=0;i<markers.length;i++) {
+              bounds.extend(markers[i].getPosition());
+            }
+            map.fitBounds(bounds);
           }
-          map.fitBounds(bounds);
+          setTimeout(function() {
+            window.google.maps.event.trigger(map, 'resize');
+          }, 100);
         }
       }
     });

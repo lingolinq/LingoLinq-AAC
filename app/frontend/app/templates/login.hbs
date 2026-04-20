@@ -1,3 +1,12 @@
-<div style='margin-top: calc(50vh - 110px - 70px); margin-bottom: calc(50vh - 100px - 70px - 20px);'>
-{{login-form identification=this.login_id password=this.login_password tmp_token=this.tmp_token}}
+<div class="login-page-bg">
+  {{!-- Same background orbs as landing-alt --}}
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="login-page">
+    {{outlet}}
+  </div>
 </div>

@@ -1,0 +1,9 @@
+{{#if @isOpen}}
+  <div class="la-mobile-drawer">
+    <button type="button" class="la-mobile-drawer__backdrop" {{action @onClose}} aria-label={{t "Close menu" key="fsa_close_menu"}}></button>
+    <div class="la-mobile-drawer__panel">
+      <button class="la-mobile-drawer__close" type="button" aria-label={{t "Close menu" key="fsa_close_menu"}} {{action @onClose}}>&times;</button>
+      {{yield}}
+    </div>
+  </div>
+{{/if}}

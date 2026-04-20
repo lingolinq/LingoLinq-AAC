@@ -1329,6 +1329,12 @@ describe('editManager', function() {
   });
 
   describe("find_button", function() {
+    beforeEach(function() {
+      board.get('model').contextualized_buttons = function() {
+        return [];
+      };
+    });
+
     it("should find matching button in the ordered_buttons list", function() {
       editManager.setup(board);
       board.set('ordered_buttons', [
@@ -1341,10 +1347,10 @@ describe('editManager', function() {
       ]);
       var b = editManager.find_button(1234);
       expect(b).not.toEqual(null);
-      expect(b.label).toEqual("chicken");
+      expect(b.get('label')).toEqual("chicken");
       b = editManager.find_button(2345);
       expect(b).not.toEqual(null);
-      expect(b.label).toEqual("ham");
+      expect(b.get('label')).toEqual("ham");
     });
 
     it("should find first empty button if specified", function() {
@@ -1359,7 +1365,7 @@ describe('editManager', function() {
       ]);
       var b = editManager.find_button('empty');
       expect(b).not.toEqual(null);
-      expect(b.id).toEqual(999);
+      expect(b.get('id')).toEqual(999);
     });
   });
 

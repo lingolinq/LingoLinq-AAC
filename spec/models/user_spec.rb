@@ -525,6 +525,15 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
+    it "should coerce preferences cookies to boolean" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'cookies' => 'false'}}, {})
+      expect(u.settings['preferences']['cookies']).to eq(false)
+      u.process_params({'preferences' => {'cookies' => 'true'}}, {})
+      expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
     it "should remove spaces from email" do
       u = User.new
       u.process({'email' => 'bob@ example.com '})
@@ -1405,18 +1414,12 @@ describe User, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u3)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(opts[:authorized_user]).to eq(u2)
-        expect(user).to eq(u3)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(b1a.global_id)
-        expect(action).to eq('update_inline')
+      expect(BoardSetCopier).to receive(:new).and_wrap_original do |m, **kwargs|
+        expect(kwargs[:user]).to eq(u3)
+        expect(kwargs[:starting_old_board]).to eq(b1)
+        expect(kwargs[:starting_new_board]).to eq(b2)
+        expect(kwargs[:opts][:authorized_user]).to eq(u2)
+        m.call(**kwargs)
       end
       u3.copy_board_links(old_board_id: b1.global_id, new_board_id: b2.global_id, ids_to_copy: [], make_public: false, user_for_paper_trail: "user:#{u2.global_id}")
     end
@@ -3662,6 +3665,96 @@ describe User, :type => :model do
       expect(u).to receive(:supervisors).and_return([u2])
       expect(u2).to receive(:save_with_sync).with('supervisee update')
       u.save_sync_supervisors(true)
+    end
+  end
+
+  describe "effective data policy preferences" do
+    it "should return true when user enables logging and no org policy" do
+      u = User.create
+      u.settings['preferences'] = {'logging' => true}
+      expect(u.effective_logging_allowed?).to eq(true)
+    end
+
+    it "should return false when user disables logging regardless of org" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging' => false}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "should return false when org disallows logging even if user enables it" do
+      o = Organization.create
+      o.settings['data_policy'] = {'logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging' => true}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_logging_allowed?).to eq(false)
+    end
+
+    it "should return false for geo when org disallows geo logging" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => false}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'geo_logging' => true}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_geo_logging_allowed?).to eq(false)
+    end
+
+    it "should allow user to be more private than org policy" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => true}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'geo_logging' => false}
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(u.effective_geo_logging_allowed?).to eq(false)
+    end
+
+    it "should enforce org max logging cutoff" do
+      o = Organization.create
+      o.settings['data_policy'] = {'max_logging_cutoff_hours' => 48}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      u.settings['preferences'] = {'logging_cutoff' => nil}
+      o.add_user(u.user_name, false, true)
+      u.reload
+
+      supervisor = User.create
+      expect(u.effective_logging_cutoff_for(supervisor, nil)).to eq(48)
+    end
+
+    it "should use user cutoff when more restrictive than org" do
+      o = Organization.create
+      o.settings['data_policy'] = {'max_logging_cutoff_hours' => 48}
+      o.settings['total_licenses'] = 1
+      o.save
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      u.settings['preferences']['logging_cutoff'] = 24
+      u.save
+
+      supervisor = User.create
+      expect(u.effective_logging_cutoff_for(supervisor, nil)).to eq(24)
+    end
+
+    it "should return empty policy for users without an org" do
+      u = User.create
+      expect(u.effective_data_policy).to eq({})
     end
   end
 end

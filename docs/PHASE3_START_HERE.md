@@ -155,7 +155,7 @@ npm install
 - Check error messages
 - Review addon compatibility
 - Update incompatible addons
-- Check Node version (need >= 18.0.0)
+- Check Node version (need >= 20.0.0)
 
 ### Issue: Tests Fail
 **Solution**:

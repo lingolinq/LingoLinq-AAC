@@ -1,0 +1,125 @@
+# -----------------------------
+# Node / Frontend
+# -----------------------------
+node_modules/
+dist/
+build/
+tmp/
+.cache/
+coverage/
+.npm/
+.pnpm-store/
+
+# Ember
+ember-cli-build.js.tmp
+/tmp/
+vendor/assets/
+
+# -----------------------------
+# Rails
+# -----------------------------
+log/
+tmp/
+storage/
+public/assets/
+public/packs/
+public/packs-test/
+node_modules/
+
+# Rails ActiveStorage / uploads
+storage/*
+!storage/.keep
+
+# Rails credentials (never needed for indexing)
+config/credentials.yml.enc
+config/master.key
+
+# -----------------------------
+# Git / VCS
+# -----------------------------
+.git/
+.gitignore
+.gitattributes
+
+# -----------------------------
+# Environment / Secrets
+# -----------------------------
+.env
+.env.*
+*.key
+*.pem
+*.crt
+
+# -----------------------------
+# Databases / Dumps
+# -----------------------------
+*.sqlite3
+*.sqlite3-*
+*.db
+*.sql
+*.dump
+
+# -----------------------------
+# OS / Editor junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# -----------------------------
+# Test artifacts
+# -----------------------------
+coverage/
+test-results/
+spec/tmp/
+
+# -----------------------------
+# Large binaries / media
+# -----------------------------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.zip
+*.tar
+*.gz
+*.pdf
+*.psd
+*.ai
+
+# -----------------------------
+# Build / compiled output
+# -----------------------------
+*.log
+*.out
+*.class
+*.o
+*.so
+*.dll
+
+# -----------------------------
+# Docker
+# -----------------------------
+docker-data/
+*.tar
+
+# -----------------------------
+# AI / Cursor heavy indexing prevention
+# -----------------------------
+vendor/bundle/
+.bundle/
+.yarn/
+.parcel-cache/
+
+# -----------------------------
+# Temporary exports
+# -----------------------------
+exports/
+backups/
+snapshots/

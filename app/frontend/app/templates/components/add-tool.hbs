@@ -1,7 +1,9 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-      <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
+  <div class="modal-header md-modal-header">
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">
       {{#if this.selected_tool}}
         {{t "Add %{tool}" tool=this.selected_tool.name key="add_tool"}}
       {{else}}
@@ -9,7 +11,7 @@
       {{/if}}
     </h3>
   </div>
-  <div class="modal-body">
+  <div class="modal-body md-modal-body">
     {{#if this.selected_tool}}
       <h3>
         <img src={{this.selected_tool.icon_url}} style='height: 50px; max-width: 70px; padding-right: 10px;'>
@@ -58,9 +60,9 @@
       {{/if}}
     {{/if}}
   </div>
-  <div class="modal-footer">
+  <div class="modal-footer md-modal-footer">
     {{#if this.selected_tool}}
-      <button {{action "install"}} disabled={{this.not_ready}} class='btn btn-primary'>
+      <button type="button" {{action "install"}} disabled={{this.not_ready}} class="btn md-modal-btn md-modal-btn--primary">
         {{#if this.selected_tool.installing}}
           {{t "Installing Tool..." key="installing_tool"}}
         {{else if this.selected_tool.error}}
@@ -70,10 +72,10 @@
         {{/if}}
       </button>
       {{#unless this.hide_list}}
-        <button {{action "browse"}} class='btn btn-default'>{{t "Back to List" key="back_to_list"}}</button>
+        <button type="button" {{action "browse"}} class="btn md-modal-btn md-modal-btn--cancel">{{t "Back to List" key="back_to_list"}}</button>
       {{/unless}}
     {{/if}}
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+    <button type="button" {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
     {{#if this.selected_tool.error}}
       <div>
         {{#if this.selected_tool.error.bad_credentials}}

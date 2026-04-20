@@ -15,7 +15,7 @@ describe AiApiLog, :type => :model do
     end
 
     it "should only accept recognized ai_provider values" do
-      %w[claude].each do |provider|
+      %w[claude gemini].each do |provider|
         log = AiApiLog.new(ai_provider: provider, request_type: 'board_generation')
         log.valid?
         expect(log.errors[:ai_provider]).to be_empty, "Expected #{provider} to be valid"

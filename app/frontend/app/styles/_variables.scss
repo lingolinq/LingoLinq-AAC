@@ -1,0 +1,380 @@
+// =============================================================================
+// LingoLinq-AAC — Design Token Variables
+// =============================================================================
+//
+// All top-level SCSS variables used throughout app.scss live here. This file
+// is imported into app.scss via `@use "variables" as *;` so the variables are
+// available globally without a namespace prefix (matching the legacy usage).
+//
+// Sections:
+//   1. Sass module imports (color, list)
+//   2. Brand colors
+//   3. Landing CTA / hero gradients
+//   4. Page-footer responsive breakpoints
+//   5. Legacy nav colors
+//   6. Bento helpers
+//   7. AAC speech-page design tokens (palette, typography, spacing, radius,
+//      shadow, layout, transitions, z-index)
+//   8. Landing-alt color tokens & shadows
+//   9. Landing hero badge
+//  10. Landing mockup category colors
+//
+// IMPORTANT: Variables that depend on other variables must be defined AFTER
+// their dependencies. The order in this file matches the order they
+// originally appeared in app.scss to preserve correctness.
+// =============================================================================
+
+@use "sass:color";
+@use "sass:list";
+
+// -----------------------------------------------------------------------------
+// Brand colors
+// -----------------------------------------------------------------------------
+
+$brand-navy: #120380;
+$brand-teal: #147F82;
+
+// Non-brand teal accent (formerly used as $brand-teal)
+$teal-light: #4DB8C4;
+
+// Main brand palette (canonical swatches)
+$brand-honey-bronze:       #F2B95A;
+$brand-soft-fawn:          #C9AD7A;
+$brand-blue-grey:          #7693B9;
+$brand-dusty-denim:        #4C86D8;
+$brand-smart-blue:         #3A6BC7;
+$brand-verdigris:          #2A9D8F;
+$brand-stormy-teal:        #316F70;
+$brand-charcoal-blue:      #46505F;
+$brand-charcoal-dark:      #374151;
+$brand-slate-gray:         #6B7280;
+$brand-slate-blue:         #5A6A85;
+$brand-cool-steel:         #9CA3AF;
+$brand-danger:             #C0392B;
+
+$brand-blue-black:         #111A2E;
+
+// AA-compliant darker variants for accent colors when used as text on
+// light backgrounds (WCAG 1.4.3 fix — added 2026-04-11 per WCAG audit).
+// Use these instead of $brand-verdigris / $brand-dusty-denim for body
+// text and links on white/light backgrounds, where the brand swatches
+// only achieve ~3.1-3.5:1 contrast.
+$brand-verdigris-aa:       #1A7B7A;  // 4.73:1 on white
+$brand-dusty-denim-aa:     #2860C9;  // 4.65:1 on white
+
+// Stone scale (warm neutral background gradient — used by hero/landing-alt)
+$brand-stone-100:          #F4F3F0;
+$brand-stone-200:          #EBE8E4;
+$brand-stone-300:          #E0DCD6;
+
+// Surface scale (cool blue-gray backgrounds for cards, modals, hover states)
+$surface-100:              #F8F9FA;
+$surface-200:              #F0F4F8;
+$surface-300:              #E8ECF1;
+$surface-400:              #D4DAE2;
+
+// Bento dark-mode ink (light text color used on dark/midday bento bg)
+$bento-ink-light:          #E8ECF2;
+
+// -----------------------------------------------------------------------------
+// Landing CTA / hero gradients
+// -----------------------------------------------------------------------------
+
+// CTA gradient (coral → soft yellow) used by landing-alt; slightly higher saturation so hero feels less pale
+$la-cta-gradient: linear-gradient(135deg, #{color.adjust(#e87a6f, $saturation: 12%)} 0%, #{color.adjust(#f0a078, $saturation: 12%)} 40%, #fef3c7 100%);
+// Hero "Try LingoLinq" / "Try Free" button when wave is not showing
+$la-hero-cta-bg: #F2B95A;
+// Lightest color in hero background gradient (top of gradient)
+$la-hero-bg-lightest: color.adjust(#f4f3f0, $lightness: 10%);
+// "every student" and matching em gradients — teal to blue
+$la-highlight-gradient: linear-gradient(90deg, #2A9D8F, #4C86D8);
+
+// -----------------------------------------------------------------------------
+// Page-footer responsive breakpoints
+// -----------------------------------------------------------------------------
+
+$page-footer-breakpoint-md: 768px;
+$page-footer-breakpoint-sm: 640px;
+$page-footer-breakpoint-xs: 480px;
+
+// -----------------------------------------------------------------------------
+// Legacy nav colors (used by .secondary_button and related rules)
+// -----------------------------------------------------------------------------
+
+$nav_primary: #337ab7;
+$nav_secondary: #fffbbc;
+$nav_secondary_bottom_row: #ffd7a8;
+$nav_secondary_middle_row: #eac8ff;
+$nav_secondary_emergency: #90ff7a;
+
+// -----------------------------------------------------------------------------
+// Bento helpers
+// -----------------------------------------------------------------------------
+
+// Help me… buttons: 20% lighter than #3A6BC7 (used by Getting Started + Home board card)
+$ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
+
+// -----------------------------------------------------------------------------
+// Fitzgerald Color Coding (board-detail symbol cards by part of speech)
+// Each category has a background swatch and a paired dark text color.
+// -----------------------------------------------------------------------------
+
+// Pronouns — Yellow
+$fitzgerald-pronoun-yellow:           #FAFAAA;
+$fitzgerald-pronoun-yellow-text:      #4A4A00;
+
+// Verbs — Soft Green
+$fitzgerald-verb-green:               #C0E8C8;
+$fitzgerald-verb-green-text:          #1A4028;
+
+// Adjectives/Descriptors — Blue
+$fitzgerald-adjective-blue:           #B9D0F6;
+$fitzgerald-adjective-blue-text:      #1B2D5C;
+
+// Nouns / Nominative — Orange
+$fitzgerald-noun-orange:              #FDCF98;
+$fitzgerald-noun-orange-text:         #5A2018;
+
+// Social / Social Phrase — Pink
+$fitzgerald-social-pink:              #E8B5DC;
+$fitzgerald-social-pink-text:         #3E1838;
+
+// Negation / Expletive / Interjection — Red
+$fitzgerald-negation-red:             #F5A0A0;
+$fitzgerald-negation-red-text:        #5C1510;
+
+// Questions — Purple
+$fitzgerald-question-purple:          #D0B8E8;
+$fitzgerald-question-purple-text:     #2D1F5E;
+
+// Prepositions — Muted Pink
+$fitzgerald-preposition-pink:         #F5DCEA;
+$fitzgerald-preposition-pink-text:    #5A2838;
+
+// Adverbs — Brown
+$fitzgerald-adverb-brown:             #D4B896;
+$fitzgerald-adverb-brown-text:        #4A3C1C;
+
+// Articles / Determiners — Gray
+$fitzgerald-determiner-gray:          #DCDCDC;
+$fitzgerald-determiner-gray-text:     #2A2A2A;
+
+// Conjunctions / Numbers — White
+$fitzgerald-conjunction-white:        #FFFFFF;
+$fitzgerald-conjunction-white-text:   #333333;
+
+// Other — Sky Blue
+$fitzgerald-other-blue:               #73CCFF;
+$fitzgerald-other-blue-text:          #0A3A5C;
+
+// Contrast — Black
+$fitzgerald-contrast-black:           #000000;
+$fitzgerald-contrast-black-text:      #FFFFFF;
+
+// =============================================================================
+// AAC SPEECH PAGE — Design Tokens
+// =============================================================================
+
+// Base Palette
+// Sage tints/shades (NOTE: $color-sage and $color-sage-light were removed —
+// use $brand-smart-blue. The pale/dark variants below are different colors
+// and remain in use for hover backgrounds and dark accents.)
+$color-sage-pale:      #E8F2EB;
+$color-sage-dark:      #4E8060;
+
+// Sand (accent — warm, welcoming; aliased to $brand-honey-bronze)
+$color-sand:           $brand-honey-bronze;
+$color-sand-light:     $brand-honey-bronze;
+$color-sand-dark:      #A07850;
+
+// Neutrals
+$color-warm-white:     #FAFAF7;
+$color-cream:          #F4F1EB;
+$color-linen:          #EDE9E0;
+$color-linen-dark:     #D8D2C5;
+
+// Indigo (deep brand ink)
+$indigo:               #1b2a4a;
+
+// Semantic Aliases
+$color-accent:         $color-sand;
+
+$color-background:     $color-warm-white;
+$color-surface:        $color-cream;
+$color-border:         $color-linen;
+$color-border-strong:  $color-linen-dark;
+
+$color-text:           $indigo;
+$color-text-mid:       $indigo;
+$color-text-muted:     $brand-slate-gray;
+$color-text-ghost:     $brand-slate-gray;
+
+// AAC Symbol Category Colors
+$cat-people-base:      #7BAE8C;
+$cat-people-bg:        #E8F2EB;
+$cat-people-text:      #4A8C60;
+
+$cat-actions-base:     #6B95B8;
+$cat-actions-bg:       #E3EEF6;
+$cat-actions-text:     #3A6A8A;
+
+$cat-feelings-base:    #C98B8B;
+$cat-feelings-bg:      #F5E8E8;
+$cat-feelings-text:    #9A5050;
+
+$cat-food-base:        #C9A858;
+$cat-food-bg:          #F6F0DC;
+$cat-food-text:        #8A6A20;
+
+$cat-places-base:      #8B95C9;
+$cat-places-bg:        #ECEEF8;
+$cat-places-text:      #5060A0;
+
+$cat-objects-base:     #95B8C9;
+$cat-objects-bg:       #E5EFF3;
+$cat-objects-text:     #386A80;
+
+$cat-descriptors-base: #B89BC9;
+$cat-descriptors-bg:   #F3EEF8;
+$cat-descriptors-text: #7050A0;
+
+$cat-social-base:      #C9B88B;
+$cat-social-bg:        #F5F0E3;
+$cat-social-text:      #806830;
+
+// Map for iteration
+$categories: (
+  'people':      ($cat-people-base,      $cat-people-bg,      $cat-people-text),
+  'actions':     ($cat-actions-base,     $cat-actions-bg,     $cat-actions-text),
+  'feelings':    ($cat-feelings-base,    $cat-feelings-bg,    $cat-feelings-text),
+  'food':        ($cat-food-base,        $cat-food-bg,        $cat-food-text),
+  'places':      ($cat-places-base,      $cat-places-bg,      $cat-places-text),
+  'objects':     ($cat-objects-base,     $cat-objects-bg,     $cat-objects-text),
+  'descriptors': ($cat-descriptors-base, $cat-descriptors-bg, $cat-descriptors-text),
+  'social':      ($cat-social-base,      $cat-social-bg,      $cat-social-text),
+);
+
+// Typography
+$aac-font-display:   'Maitree', serif;
+$aac-font-body:      'Nunito', 'Segoe UI', sans-serif;
+
+$aac-font-size-xs:   11px;
+$aac-font-size-sm:   13px;
+$aac-font-size-base: 15px;
+$aac-font-size-md:   18px;
+$aac-font-size-lg:   22px;
+$aac-font-size-xl:   26px;
+$aac-font-size-2xl:  32px;
+
+// LA panel font sizes (left + right panels) — 8% larger than base scale
+$la-panel-font-size-xs:   12px;
+$la-panel-font-size-sm:   14px;
+$la-panel-font-size-base: 16px;
+
+$aac-font-weight-light:   300;
+$aac-font-weight-regular: 400;
+$aac-font-weight-medium:  500;
+$aac-font-weight-semi:    600;
+$aac-font-weight-bold:    700;
+$aac-font-weight-black:   800;
+
+$aac-line-height-tight: 1.2;
+$aac-line-height-base:  1.5;
+$aac-line-height-loose: 1.7;
+
+$aac-letter-spacing-tight:  -0.01em;
+$aac-letter-spacing-base:    0.01em;
+$aac-letter-spacing-wide:    0.06em;
+$aac-letter-spacing-wider:   0.12em;
+
+// Spacing
+$aac-spacing-2:  2px;
+$aac-spacing-4:  4px;
+$aac-spacing-6:  6px;
+$aac-spacing-8:  8px;
+$aac-spacing-10: 10px;
+$aac-spacing-12: 12px;
+$aac-spacing-14: 14px;
+$aac-spacing-16: 16px;
+$aac-spacing-20: 20px;
+$aac-spacing-24: 24px;
+$aac-spacing-28: 28px;
+$aac-spacing-32: 32px;
+$aac-spacing-40: 40px;
+$aac-spacing-48: 48px;
+$aac-spacing-64: 64px;
+
+// Border Radius
+$aac-radius-sm:     6px;
+$aac-radius-md:     10px;
+$aac-radius-lg:     14px;
+$aac-radius-xl:     16px;
+$aac-radius-2xl:    20px;
+$aac-radius-pill:   999px;
+$aac-radius-circle: 50%;
+
+// Shadows
+$aac-shadow-sm:    0 1px 4px rgba($indigo, 0.06);
+$aac-shadow-md:    0 4px 12px rgba($indigo, 0.08);
+$aac-shadow-lg:    0 8px 24px rgba($indigo, 0.10);
+$aac-shadow-xl:    0 16px 40px rgba($indigo, 0.12);
+$aac-shadow-focus: 0 0 0 3px rgba($brand-smart-blue, 0.35);
+
+// Layout
+$aac-topbar-height: 64px;
+$aac-sidebar-width: 220px;
+$aac-panel-width:   300px;
+
+$aac-breakpoint-xs: 375px;
+$aac-breakpoint-sm: 640px;
+$aac-breakpoint-md: 768px;
+$aac-breakpoint-lg: 1024px;
+$aac-breakpoint-xl: 1280px;
+
+// Transitions
+$aac-transition-fast: 0.12s ease;
+$aac-transition-base: 0.18s ease;
+$aac-transition-slow: 0.30s ease;
+
+// Z-index Scale
+$aac-z-base:     1;
+$aac-z-dropdown: 100;
+$aac-z-modal:    200;
+$aac-z-toast:    300;
+$aac-z-topbar:   400;
+
+// =============================================================================
+// LANDING-ALT — Color tokens (re-use landing palette)
+// =============================================================================
+
+$la-navy:      #1B365D;
+$la-teal:      #4ECDC4;
+$la-white:     #FFFFFF;
+// Warmer, AA-compliant hero blue for landing-alt
+$la-hero-blue:     #3d5266; // warmer slate blue (was #415a75), white text passes AA
+// Two-tone logo: left = hero 20% darker, right = same as Ready to start CTA
+$la-logo-left: color.adjust($la-hero-blue, $lightness: -20%);
+$la-logo-right: color.adjust($la-hero-blue, $lightness: 5%, $saturation: 8%);
+
+// Unified elevation: shadow-sm (hero), shadow-md (cards), shadow-lg (modal) — tighter = more modern
+$la-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+$la-shadow-md: 0 10px 25px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.04);
+$la-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+
+// -----------------------------------------------------------------------------
+// Landing hero badge icon background
+// -----------------------------------------------------------------------------
+
+// Cloud-based / 90% Lower Cost / Real Classrooms badge icon bg (one source of truth)
+$la-hero-badge-icon-bg: color.adjust(#fef3c7, $lightness: 6%, $saturation: -70%);
+
+// -----------------------------------------------------------------------------
+// Landing mockup category colors
+// -----------------------------------------------------------------------------
+
+// Mockup category colors (switched for landing): actions→teal, objects→orange, people→purple, questions→red, descriptors→blue
+$la-mockup-teal-bg:    color.adjust(#3F7F7B, $lightness: 50%);
+$la-mockup-orange-bg:  #F5E8DC;
+$la-mockup-purple-bg:  #EDE8F5;
+$la-mockup-red-bg:     $cat-feelings-bg;
+$la-mockup-blue-bg:    $cat-actions-bg;

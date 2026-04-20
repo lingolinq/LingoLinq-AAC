@@ -15,8 +15,9 @@ export default modal.ModalController.extend({
   opening: function() {
     this.set('saving_translations', null);
     this.set('error_saving_translations', null);
-    if(persistence.get('online') && this.get('model.button_set')) {
-      this.get('model.button_set').reload();
+    var buttonSet = this.get('model.button_set');
+    if (persistence.get('online') && buttonSet && typeof buttonSet.reload === 'function') {
+      buttonSet.reload();
     }
     this.set('translating', null);
 

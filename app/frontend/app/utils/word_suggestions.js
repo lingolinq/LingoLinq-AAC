@@ -129,7 +129,17 @@ var word_suggestions = EmberObject.extend({
           }
           var find_or_store = persistenceService.find('settings', store_key).then(null, function() {
             if(is_dev) {
-              return { suggestions: {} };
+              // In dev, try loading from local public/ directory first
+              return $.ajax({
+                url: '/language/ngrams.arpa.' + idx + '.' + _this.pieces + '.json',
+                type: 'GET',
+                dataType: data_type
+              }).then(function(res) {
+                if(data_type == 'text') { res = JSON.parse(res.text); }
+                return res;
+              }, function() {
+                return { suggestions: {} };
+              });
             }
             return $.ajax({
               url: remote_url,
@@ -165,6 +175,7 @@ var word_suggestions = EmberObject.extend({
       var res = RSVP.all(promises).then(function() {
         _this.loading = false;
         _this.ngrams = ngrams;
+        _this.ngrams[''] = _this.ngrams[''] || [];
         if(_this.watchers) {
           _this.watchers.forEach(function(d) {
             d.resolve();
@@ -327,7 +338,7 @@ var word_suggestions = EmberObject.extend({
         // find the most common next-words
         find_lookups(_this.ngrams[last_finished_word]);
         // if not enough found, add in the most common starting words
-        if(result.length < max_results) { find_lookups(_this.ngrams['']); }
+        if(result.length < max_results && _this.ngrams[''] && _this.ngrams[''].length) { find_lookups(_this.ngrams['']); }
         // if still not enough found, find the closest spelling
         if(result.length < max_results) {
           var edits = [];
@@ -337,7 +348,7 @@ var word_suggestions = EmberObject.extend({
             min = word_in_progress.length - 5;
             max = word_in_progress.length + 5; 
           }
-          _this.ngrams[''].forEach(function(str) {
+          (_this.ngrams[''] || []).forEach(function(str) {
             if(str[0] && (str[0].length > min && str[0].length < max)) {
               if(!_this.filtered_words[str[0].toLowerCase()]) {
                 var dist = _this.edit_distance(word_in_progress, str[0]);

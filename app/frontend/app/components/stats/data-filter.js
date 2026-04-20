@@ -5,9 +5,11 @@ import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
+  customFilterPendingApply: false,
   elem_class: computed('side_by_side', function() {
+    /* Compare row uses flex (left | art | right); col-xs-6 is 50% of full row and misaligns Period 1 */
     if(this.get('side_by_side')) {
-      return htmlSafe('col-xs-6');
+      return htmlSafe('');
     } else {
       return htmlSafe('col-xs-12');
     }
@@ -32,7 +34,6 @@ export default Component.extend({
     res.push({name: i18n.t('2_4_months_ago', "2-4 Months Ago"), id: "2_4_months_ago"});
     res.push({name: i18n.t('custom_filter', "Custom Filter"), id: "custom"});
     if(this.get('snapshots')) {
-      res.push({name: '----------------', id: '', disabled: true});
       this.get('snapshots').forEach(function(snap) {
         res.push({name: i18n.t('snapshot_dash', "Snapshot - ") + snap.get('name'), id: 'snapshot_' + snap.get('id')});
       });
@@ -47,6 +48,21 @@ export default Component.extend({
     }
   ),
   actions: {
+    onPeriodChange: function(id) {
+      this.set('usage_stats.filter', id);
+      if (id === 'custom') {
+        this.set('customFilterPendingApply', true);
+      } else {
+        this.set('customFilterPendingApply', false);
+        var fn = this.get('update_filter');
+        if (typeof fn === 'function') { fn('date'); }
+      }
+    },
+    applyCustomFilter: function() {
+      this.set('customFilterPendingApply', false);
+      var fn = this.get('update_filter');
+      if (typeof fn === 'function') { fn('date'); }
+    },
     compare_to: function() {
       var fn = this.get('compare_to');
       if (typeof fn === 'function') { fn(); }

@@ -1,0 +1,267 @@
+{{!-- =============================================================================
+  Speech Page — AAC Symbol Board (static layout)
+  app/templates/speech.hbs
+============================================================================= --}}
+
+<div class="speech-page-wrapper">
+  <div class="app-shell">
+
+    {{!-- ======== TOPBAR ======== --}}
+    <nav class="topbar">
+      <div class="logo">{{app-logo showImage=false showName=true nameStyle="branded"}}</div>
+      <input class="topbar-search" type="search" placeholder={{t "Search symbols, phrases…" key='search_placeholder'}} aria-label={{t "Search symbols and phrases" key='search_aria_label'}} />
+      <div class="topbar-right">
+        <span class="topbar-badge">{{t "Clinical" key='clinical'}}</span>
+        <div class="avatar" aria-label={{t "User menu" key='user_menu'}}>JM</div>
+      </div>
+    </nav>
+
+    {{!-- ======== SIDEBAR ======== --}}
+    <aside class="sidebar" role="navigation" aria-label={{t "Main navigation" key='main_navigation'}}>
+
+      <div class="sidebar-section-label">{{t "Communicate" key='communicate'}}</div>
+      <div class="nav-item active" role="menuitem" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">🗣️</span>{{t "Symbol Board" key='symbol_board'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">💬</span>{{t "Phrase Builder" key='phrase_builder'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">⭐</span>{{t "Favorites" key='favorites'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">🕐</span>{{t "Recent" key='recent'}}
+      </div>
+
+      <div class="sidebar-section-label">{{t "Clinical" key='clinical'}}</div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">📊</span>{{t "Progress Reports" key='progress_reports'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">📅</span>{{t "Sessions" key='sessions_lower'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">👤</span>{{t "Profiles" key='profiles_lower'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">🎯</span>{{t "Goal Tracking" key='goal_tracking'}}
+      </div>
+
+      <div class="sidebar-section-label">{{t "Settings" key='settings_lower'}}</div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">⚙️</span>{{t "preferences" key='preferences_lower'}}
+      </div>
+      <div class="nav-item" role="menuitem">
+        <span class="nav-icon" aria-hidden="true">🔊</span>{{t "Voice & Output" key='voice_output'}}
+      </div>
+
+    </aside>
+
+    {{!-- ======== MAIN CONTENT ======== --}}
+    <main class="main" id="speech-main" role="main">
+
+      {{!-- Phrase Bar --}}
+      <div class="phrase-bar">
+        <div class="phrase-text">
+          <span>{{t "I want " key='demo_i_want'}}</span><span class="phrase-highlight">{{t "water" key='demo_water'}}</span><span>{{t " please" key='demo_please'}}</span>
+        </div>
+        <button class="btn-clear" type="button">{{t "× Clear" key='btn_clear'}}</button>
+        <button class="btn-speak" type="button">{{t "🔊 Speak" key='btn_speak'}}</button>
+      </div>
+
+      <div class="section-title">{{t "Symbol Board" key='symbol_board'}}</div>
+      <div class="section-sub">{{t "Tap symbols to build your message" key='tap_symbols_hint'}}</div>
+
+      {{!-- Quick Phrases --}}
+      <div class="quick-row" role="toolbar" aria-label={{t "Quick phrases" key='quick_phrases'}}>
+        <button class="quick-btn" type="button">{{t "✅ Yes" key='quick_yes'}}</button>
+        <button class="quick-btn" type="button">{{t "❌ No" key='quick_no'}}</button>
+        <button class="quick-btn" type="button">{{t "🙏 Please" key='quick_please'}}</button>
+        <button class="quick-btn" type="button">{{t "😊 Thank you" key='quick_thankyou'}}</button>
+        <button class="quick-btn" type="button">{{t "🆘 Help me" key='quick_help'}}</button>
+        <button class="quick-btn" type="button">{{t "⏸️ Wait" key='quick_wait'}}</button>
+      </div>
+
+      {{!-- Category Chips --}}
+      <div class="category-row" role="tablist" aria-label={{t "Symbol categories" key='symbol_categories'}}>
+        <div class="cat-chip all active" role="tab" aria-selected="true">{{t "All" key='cat_all'}}</div>
+        <div class="cat-chip people" role="tab" aria-selected="false">{{t "People" key='cat_people'}}</div>
+        <div class="cat-chip actions" role="tab" aria-selected="false">{{t "Actions" key='cat_actions'}}</div>
+        <div class="cat-chip feelings" role="tab" aria-selected="false">{{t "Feelings" key='cat_feelings'}}</div>
+        <div class="cat-chip food" role="tab" aria-selected="false">{{t "Food & Drink" key='cat_food'}}</div>
+        <div class="cat-chip places" role="tab" aria-selected="false">{{t "Places" key='cat_places'}}</div>
+        <div class="cat-chip descr" role="tab" aria-selected="false">{{t "Descriptors" key='cat_descriptors'}}</div>
+      </div>
+
+      {{!-- Symbol Grid --}}
+      <div class="symbol-grid" role="grid" aria-label={{t "All symbols" key='all_symbols'}}>
+
+        <div class="symbol-card people" role="gridcell" tabindex="0" aria-label={{t "Mom" key='sym_mom'}}>
+          <div class="symbol-icon bg-people">👩</div>
+          <div class="symbol-label">{{t "Mom" key='sym_mom'}}</div>
+        </div>
+        <div class="symbol-card people" role="gridcell" tabindex="0" aria-label={{t "Doctor" key='sym_doctor'}}>
+          <div class="symbol-icon bg-people">👩‍⚕️</div>
+          <div class="symbol-label">{{t "Doctor" key='sym_doctor'}}</div>
+        </div>
+        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Want" key='sym_want'}}>
+          <div class="symbol-icon bg-actions">🤲</div>
+          <div class="symbol-label">{{t "Want" key='sym_want'}}</div>
+        </div>
+        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Go" key='sym_go'}}>
+          <div class="symbol-icon bg-actions">🚶</div>
+          <div class="symbol-label">{{t "Go" key='sym_go'}}</div>
+        </div>
+        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Sleep" key='sym_sleep'}}>
+          <div class="symbol-icon bg-actions">😴</div>
+          <div class="symbol-label">{{t "Sleep" key='sym_sleep'}}</div>
+        </div>
+        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Happy" key='sym_happy'}}>
+          <div class="symbol-icon bg-feelings">😊</div>
+          <div class="symbol-label">{{t "Happy" key='sym_happy'}}</div>
+        </div>
+        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Sad" key='sym_sad'}}>
+          <div class="symbol-icon bg-feelings">😢</div>
+          <div class="symbol-label">{{t "Sad" key='sym_sad'}}</div>
+        </div>
+        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Pain" key='sym_pain'}}>
+          <div class="symbol-icon bg-feelings">😣</div>
+          <div class="symbol-label">{{t "Pain" key='sym_pain'}}</div>
+        </div>
+        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Water" key='sym_water'}}>
+          <div class="symbol-icon bg-food">💧</div>
+          <div class="symbol-label">{{t "Water" key='sym_water'}}</div>
+        </div>
+        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Apple" key='sym_apple'}}>
+          <div class="symbol-icon bg-food">🍎</div>
+          <div class="symbol-label">{{t "Apple" key='sym_apple'}}</div>
+        </div>
+        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Breakfast" key='sym_breakfast'}}>
+          <div class="symbol-icon bg-food">🥣</div>
+          <div class="symbol-label">{{t "Breakfast" key='sym_breakfast'}}</div>
+        </div>
+        <div class="symbol-card places" role="gridcell" tabindex="0" aria-label={{t "Home" key='sym_home'}}>
+          <div class="symbol-icon bg-places">🏠</div>
+          <div class="symbol-label">{{t "Home" key='sym_home'}}</div>
+        </div>
+        <div class="symbol-card places" role="gridcell" tabindex="0" aria-label={{t "Hospital" key='sym_hospital'}}>
+          <div class="symbol-icon bg-places">🏥</div>
+          <div class="symbol-label">{{t "Hospital" key='sym_hospital'}}</div>
+        </div>
+        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "Hot" key='sym_hot'}}>
+          <div class="symbol-icon bg-descr">🔴</div>
+          <div class="symbol-label">{{t "Hot" key='sym_hot'}}</div>
+        </div>
+        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "Cold" key='sym_cold'}}>
+          <div class="symbol-icon bg-descr">🔵</div>
+          <div class="symbol-label">{{t "Cold" key='sym_cold'}}</div>
+        </div>
+        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "More" key='sym_more'}}>
+          <div class="symbol-icon bg-descr">➕</div>
+          <div class="symbol-label">{{t "More" key='sym_more'}}</div>
+        </div>
+
+      </div>
+    </main>
+
+    {{!-- ======== RIGHT PANEL ======== --}}
+    <aside class="panel" role="complementary" aria-label={{t "Activity panel" key='activity_panel'}}>
+
+      {{!-- Recent Phrases --}}
+      <div class="panel-card">
+        <div class="panel-card-title">{{t "Recent Phrases" key='recent_phrases'}}</div>
+        <div class="recent-phrase">
+          <div class="recent-dot" style="background:#7BAE8C;"></div>
+          <div class="recent-text">{{t "I am tired" key='demo_phrase_1'}}</div>
+        </div>
+        <div class="recent-phrase">
+          <div class="recent-dot" style="background:#C98B8B;"></div>
+          <div class="recent-text">{{t "I feel happy today" key='demo_phrase_2'}}</div>
+        </div>
+        <div class="recent-phrase">
+          <div class="recent-dot" style="background:#C9A858;"></div>
+          <div class="recent-text">{{t "I want apple juice" key='demo_phrase_3'}}</div>
+        </div>
+        <div class="recent-phrase">
+          <div class="recent-dot" style="background:#8B95C9;"></div>
+          <div class="recent-text">{{t "Go to the park" key='demo_phrase_4'}}</div>
+        </div>
+        <div class="recent-phrase">
+          <div class="recent-dot" style="background:#7BAE8C;"></div>
+          <div class="recent-text">{{t "Thank you Mom" key='demo_phrase_5'}}</div>
+        </div>
+      </div>
+
+      {{!-- Weekly Goals --}}
+      <div class="panel-card">
+        <div class="panel-card-title">{{t "Weekly Goals" key='weekly_goals'}}</div>
+        <div class="progress-row">
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>{{t "Initiating phrases" key='goal_initiating'}}</span>
+              <span>14 / 20</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-fill" style="width:70%; background:#7BAE8C;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>{{t "Feelings vocab" key='goal_feelings'}}</span>
+              <span>8 / 10</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-fill" style="width:80%; background:#C98B8B;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>{{t "2-word combos" key='goal_combos'}}</span>
+              <span>5 / 15</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-fill" style="width:33%; background:#7BAE8C;"></div>
+            </div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-label">
+              <span>{{t "Session attendance" key='goal_attendance'}}</span>
+              <span>3 / 3</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-fill" style="width:100%; background:#C9A858;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{!-- Today's Schedule --}}
+      <div class="panel-card">
+        <div class="panel-card-title">{{t "Today's Schedule" key='todays_schedule'}}</div>
+        <div class="schedule-item">
+          <div class="schedule-time">9:00</div>
+          <div>
+            <div class="schedule-label">{{t "Speech Therapy" key='schedule_speech_therapy'}}</div>
+            <div class="schedule-tag clinical">{{t "Clinical" key='clinical'}}</div>
+          </div>
+        </div>
+        <div class="schedule-item">
+          <div class="schedule-time">11:30</div>
+          <div>
+            <div class="schedule-label">{{t "Free Communication" key='schedule_free_comm'}}</div>
+            <div class="schedule-tag practice">{{t "Practice" key='practice'}}</div>
+          </div>
+        </div>
+        <div class="schedule-item">
+          <div class="schedule-time">2:00</div>
+          <div>
+            <div class="schedule-label">{{t "Group Session" key='schedule_group_session'}}</div>
+            <div class="schedule-tag social">{{t "Social" key='social'}}</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+</div>

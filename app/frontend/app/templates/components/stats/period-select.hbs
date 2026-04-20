@@ -1,0 +1,13 @@
+<span id={{this.triggerId}} class="md-stats-period-select__trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded={{this.isOpen}} {{action "toggle"}}>
+  <span class="md-stats-period-select__label">{{this.selectedItem.name}}</span>
+  <span class="md-stats-period-select__caret" aria-hidden="true"></span>
+</span>
+{{#if this.isOpen}}
+  <div class="md-stats-period-select__menu" role="listbox">
+    {{#each this.contentForList as |item|}}
+      <button type="button" role="option" aria-selected={{is-equal this.selection item.id}} disabled={{item.disabled}} class="md-stats-period-select__option {{if (is-equal this.selection item.id) "md-stats-period-select__option--selected"}}" {{action "choose" item}}>
+        {{item.name}}
+      </button>
+    {{/each}}
+  </div>
+{{/if}}

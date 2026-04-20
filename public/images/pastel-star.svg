@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="starGrad" cx="42%" cy="35%" r="62%">
+      <stop offset="0%"   stop-color="#F8DFA0"/>
+      <stop offset="100%" stop-color="#D4A24A"/>
+    </radialGradient>
+  </defs>
+  <polygon
+    points="50,5 61,35 93,35 68,56 77,87 50,69 23,87 32,56 7,35 39,35"
+    fill="url(#starGrad)"
+  />
+</svg>

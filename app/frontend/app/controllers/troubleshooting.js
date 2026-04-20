@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import $ from 'jquery';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
@@ -15,6 +15,14 @@ import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  _persistenceStorageTimer: null,
+  willDestroy() {
+    this._super(...arguments);
+    if (this._persistenceStorageTimer) {
+      runCancel(this._persistenceStorageTimer);
+      this._persistenceStorageTimer = null;
+    }
+  },
   tests: [
     {key: 'javascript', name: i18n.t('javascript', "JavaScript"), description: i18n.t('javscript_info', "This page wouldn't even load without a relatively-modern JavaScript engine.")},
     {key: 'local_storage', name: i18n.t('local_storage', "localStorage"), description: i18n.t('local_storage_info', "localStorage is used instead of cookies to remember whether a user is already logged in, what board they were on, etc.")},
@@ -326,11 +334,34 @@ export default Controller.extend({
   }),
   check_persistence_data: function() {
     var _this = this;
+    if (_this._persistenceStorageTimer) {
+      runCancel(_this._persistenceStorageTimer);
+      _this._persistenceStorageTimer = null;
+    }
     _this.set('storage', {pending: true});
+    _this._persistenceStorageTimer = runLater(function() {
+      _this._persistenceStorageTimer = null;
+      if (_this.isDestroying || _this.isDestroyed) {
+        return;
+      }
+      if (_this.get('storage.pending')) {
+        _this.set('storage', {size: -1});
+      }
+    }, 8000);
     capabilities.storage.all_files().then(function(res) {
-      _this.set('storage', {size: Math.round(res.size * 10 / 1024 / 1024) / 10});
+      runCancel(_this._persistenceStorageTimer);
+      _this._persistenceStorageTimer = null;
+      if (_this.isDestroying || _this.isDestroyed) {
+        return;
+      }
+      _this.set('storage', {size: Math.round((res.size || 0) * 10 / 1024 / 1024) / 10});
     }, function(err) {
-      _this.set('storage', {size: 'unknown'});
+      runCancel(_this._persistenceStorageTimer);
+      _this._persistenceStorageTimer = null;
+      if (_this.isDestroying || _this.isDestroyed) {
+        return;
+      }
+      _this.set('storage', {size: -1});
     });
 
     _this.set('local_storage', false);
@@ -354,8 +385,14 @@ export default Controller.extend({
     if(lingoLinqExtras.storage) {
       var user_name = app_state.get('currentUser.user_name');
       lingoLinqExtras.storage.find_all('board').then(function(list) {
+        if (_this.isDestroying || _this.isDestroyed) {
+          return;
+        }
         _this.set('local_boards', list.filter(function(d) { return d.data && d.data.raw && d.data.raw.user_name == user_name; }).length);
       }, function(err) {
+        if (_this.isDestroying || _this.isDestroyed) {
+          return;
+        }
         _this.set('local_boards', null);
       })
     }

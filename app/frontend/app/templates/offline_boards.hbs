@@ -1,24 +1,39 @@
-<div class='row'>
-  <div class='col-xl-4 col-xl-offset-4 col-lg-6 col-lg-offset-3 col-sm-8 col-sm-offset-2'>
-    <h2>{{t "Always-Available Boards" key="always_available_boards"}}</h2>
-    <p>{{t "Below is a collection of free and always-available emergency and critical-use boards that we provide along with our partners. Anyone who downloads the %app_name% app will have access to these boards, with or without an Internet connection." key="offline_boards_explainer"}}</p>
-    <form class="form-horizontal">
-      {{#each this.locales as |loc|}}
-        <div style='margin-bottom: 20px;'>
-          {{#preference-box title=loc.locale_text glyph=loc.icon_class title_key=loc.locale closed_text=loc.tally open=loc.open}}
-            {{#if loc.credit}}
-              <p class='text-muted' style='font-style: italic;'>{{t "translations provided by" key="translations_by"}} {{loc.credit}}</p>
-            {{/if}}
-            <div class="list-group">
-              {{#each loc.boards as |board|}}
-                {{#if board.starter}}
-                  <a href="#" class={{if board.chosen "list-group-item active" "list-group-item"}} {{action "pick" board}}>{{board.name}}</a>
-                {{/if}}
-              {{/each}}
-            </div>
-          {{/preference-box}}
+<div class="md-shell">
+  <div class="md-workspace">
+    <header class="md-hero md-hero--dashboard md-hero--dashboard-user">
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Always-Available Boards" key="always_available_boards"}}</span></h1>
+      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Free emergency and" key="offline_boards_sub_pre"}} <em class="md-hero__gradient-text">{{t "critical-use boards" key="offline_boards_sub_em"}}</em></span></p>
+    </header>
+
+    <main class="md-main">
+      <div class="md-offline-boards">
+        <div class="md-offline-boards__card">
+          <p class="md-offline-boards__intro">{{t "Below is a collection of free and always-available emergency and critical-use boards that we provide along with our partners. Anyone who downloads the %app_name% app will have access to these boards, with or without an Internet connection." key="offline_boards_explainer"}}</p>
+          <form class="form-horizontal md-preferences__form">
+            {{#each this.locales as |loc|}}
+              <div style='margin-bottom: 12px;'>
+                {{#preference-box title=loc.locale_text glyph=loc.icon_class title_key=loc.locale closed_text=loc.tally open=loc.open}}
+                  {{#if loc.credit}}
+                    <p class='md-offline-boards__credit'>{{t "translations provided by" key="translations_by"}} {{loc.credit}}</p>
+                  {{/if}}
+                  <ul class="md-offline-boards__list">
+                    {{#each loc.boards as |board|}}
+                      {{#if board.starter}}
+                        <li class="md-offline-boards__item {{if board.chosen 'md-offline-boards__item--chosen'}}" {{action "pick" board}}>
+                          {{board.name}}
+                          {{#if board.chosen}}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          {{/if}}
+                        </li>
+                      {{/if}}
+                    {{/each}}
+                  </ul>
+                {{/preference-box}}
+              </div>
+            {{/each}}
+          </form>
         </div>
-      {{/each}}
-    </form>
+      </div>
+    </main>
   </div>
 </div>

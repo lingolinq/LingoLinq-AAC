@@ -17,12 +17,12 @@ class UserMailer < ActionMailer::Base
     d = @user.devices[0]
     ip = d && d.settings['ip_address']
     @location = nil
-    if ip && ENV['IPSTACK_KEY']
-      url = "http://api.ipstack.com/#{ip}?access_key=#{ENV['IPSTACK_KEY']}"
+    if ip && ENV['IPLOCATE_API_KEY']
+      url = "https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}"
       begin
         res = Typhoeus.get(url, timeout: 5)
         json = JSON.parse(res.body)
-        @location = json && "#{json['city']}, #{json['region_name']}, #{json['country_code']}"
+        @location = json && "#{json['city']}, #{json['subdivision']}, #{json['country_code']}"
       rescue => e
       end
     end
@@ -265,6 +265,30 @@ class UserMailer < ActionMailer::Base
   def valet_password_used(user_id)
     @user = User.find_by_global_id(user_id)
     mail_message(@user, "Valet Login Used") if @user
+  end
+
+  # Sends the approval link to the parent/guardian address collected at signup (settings['coppa']['parent_email']),
+  # not the child's account email. Delivery is normally via UserMailer.schedule_delivery -> Resque.
+  def parental_consent_request(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['coppa'] : nil
+    subject = I18n.t('parental_consent_mailer.subject', app_name: app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_token'].present?
+      Rails.logger.warn("Skipping parental_consent_request for user #{user_id}: missing COPPA parent_email or parent_consent_token")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    esc_tok = CGI.escape(c['parent_consent_token'].to_s)
+    @consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @child_name = @user.settings['name']
+    @parent_email = c['parent_email']
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
   end
 
 end

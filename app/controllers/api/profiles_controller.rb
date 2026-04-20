@@ -33,7 +33,13 @@ class Api::ProfilesController < ApplicationController
     sessions = sessions.to_a
     if params['include_suggestions']
       original_sessions = [] + sessions
-      Organization.attached_orgs(user).each do |org|
+      # UserLink order for org_user vs org_supervisor is DB-dependent; sort so suggestions are stable
+      # (communicator org profile before supervisor org profile when both exist).
+      profile_org_rank = {'user' => 0, 'supervisor' => 1, 'manager' => 2}
+      attached = Organization.attached_orgs(user).sort_by do |org|
+        [profile_org_rank[org['type']] || 99, org['id'].to_s]
+      end
+      attached.each do |org|
         if org['profile']
           # For every profile-configured org, check for frequency
           # and update any actual sessions with frequency data
@@ -42,7 +48,6 @@ class Api::ProfilesController < ApplicationController
           if org['profile']['frequency']
             shown_sessions.each do |session|
               session.data['expected'] = [session.data['expected'], session.started_at + org['profile']['frequency']].compact.min
-              puts session.data['expected']
             end
           end
           # If there are no sessions for the org's desired profile,

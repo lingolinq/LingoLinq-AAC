@@ -38,6 +38,7 @@ import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from '../utils/sync';
+import config from '../config/environment';
 
 // tracks:
 // current mode (edit mode, speak mode, default)
@@ -53,12 +54,20 @@ export default Service.extend({
   router: service('router'),
   session: service('session'),
   contentGrabbers: service('content-grabbers'),
+
+  /** Set true to show GitHub links in footers (Developers, API Docs, Open Source). */
+  showFooterGithubLinks: false,
+
   init() {
     LingoLinq.appState = this;
     // Expose globally for utilities
     window.appState = this;
     if (typeof window !== 'undefined') {
-      window.LingoLinq = window.LingoLinq || {};
+      // Never assign `{}` here: it is truthy and would replace the real namespace
+      // (including `Lessons`) if something created an empty `window.LingoLinq` early.
+      if (!window.LingoLinq || !window.LingoLinq.Lessons) {
+        window.LingoLinq = LingoLinq;
+      }
       window.LingoLinq.appState = this;
     }
     // Also assign to buttonTracker as it's used in raw_events
@@ -199,6 +208,41 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
+    var _domainSync = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var w = window.domain_settings || {};
+      _this.set('domain_settings', Object.assign({}, w));
+      if (config.environment === 'development') {
+        // eslint-disable-next-line no-console
+        console.info('[LingoLinq] domain_settings synced: coppa_parental_consent=', w.coppa_parental_consent, 'full_domain=', w.full_domain);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lingolinq-domain-settings-sync', _domainSync);
+      runLater(_domainSync, 500);
+    }
+    // Bento dashboard theme: light | midDay | dark | default - persisted in localStorage (gold palette renamed to default)
+    var theme = 'light';
+    try {
+      var storedTheme = localStorage.getItem('ll_bento_theme_mode');
+      if (storedTheme === 'flat' || storedTheme === 'pastel') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'gold') {
+        theme = 'default';
+        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'coolBlue') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default') {
+        theme = storedTheme;
+      } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
+        theme = 'dark';
+      }
+      // else: light (first visit or invalid stored value)
+    } catch (e) { /* ignore */ }
+    this.set('themeMode', theme);
+    this.updateFaviconForTheme(theme);
     // Ensure window.user_preferences.any_user exists to prevent TypeError
     window.user_preferences = window.user_preferences || {};
     window.user_preferences.any_user = window.user_preferences.any_user || {};
@@ -578,7 +622,7 @@ export default Service.extend({
     }
     this.set('from_url', from_url);
     var from = [transition.from_route].concat(transition.from_params);
-    if(from[0] && from[0] != 'board.index') {
+    if(from[0] && from[0] != 'board.index' && from[0] != 'user.board-alt.index') {
       this.set('from_route', from);
     }
     this.set('latest_board_id', null);
@@ -594,7 +638,7 @@ export default Service.extend({
     if(capabilities.mobile) {
       this.set('index_view', transition.to_route == 'index');
     }
-    if(transition.to_route == 'board.index') {
+    if(transition.to_route == 'board.index' || transition.to_route == 'user.board-alt.index') {
       boundClasses.setup();
       var delay = this.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
       LingoLinq.log.track('global transition handled');
@@ -614,13 +658,14 @@ export default Service.extend({
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
-    if(transition.to_route != 'board.index') {
+    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index' && transition.to_route != 'user.board-detail.index' && transition.to_route != 'user.board-detail.edit') {
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
       this.refresh_session_user();
     }
     this.set('current_route', transition.to_route);
+    this.updateFavicon();
   },
   finish_global_transition: function() {
     var _this = this;
@@ -628,20 +673,16 @@ export default Service.extend({
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
+      // footer is now a computed on application controller (from currentBoardState)
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+        try {
+          _this.controller.set('setup_footer', false);
+          _this.controller.set('simple_board_header', false);
+          _this.set('setup_user', null);
+          _this.controller.set('setup_user_id', null);
+        } catch(e) { }
+      }
     });
-    // footer was showing up too quickly and looking weird when the rest of the page hadn't
-    // re-rendered yet.
-    if(!this.get('currentBoardState')) {
-      try {
-        this.controller.set('footer', true);
-        if(this.get('to_target') && this.get('to_target') != 'setup' && this.get('to_target') != 'home-boards') {
-          this.controller.set('setup_footer', false);
-          this.controller.set('simple_board_header', false);
-          this.set('setup_user', null);
-          this.controller.set('setup_user_id', null);
-        }
-      } catch(e) { }
-    }
     if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
         window.top.location.replace(window.location);
@@ -655,6 +696,15 @@ export default Service.extend({
     }
     LingoLinq.protected_user = protect_user;
     this.stashes.persist('protected_user', protect_user);
+  }),
+  _persist_last_board_for_user: observer('stashes.root_board_state', function() {
+    var state = this.stashes.get('root_board_state');
+    var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    if(state && state.name && userName) {
+      try {
+        localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
+      } catch(e) { }
+    }
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
@@ -679,19 +729,31 @@ export default Service.extend({
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
     return this.get('domain_settings.board_user_name') || 'example';
   }),
-  h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
+  darkMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'dark';
+  }),
+  midDayMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'midDay';
+  }),
+  defaultMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'default';
+  }),
+  lightMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'light';
+  }),
+  h1_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "";
     if(this.get('currentBoardState.id')) {
       res = res + "with_board " ;
-      if(this.get('from_route') && !this.get('edit_mode')) {
+      if(!this.get('edit_mode')) {
         res = res + "sr-only ";
       }
     }
     return htmlSafe(res);
   }),
-  nav_header_class: computed('currentBoardState.id', 'from_route', function() {
+  nav_header_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "no_beta ";
-    if(this.get('currentBoardState.id') && this.get('from_route') && !this.get('edit_mode')) {
+    if(this.get('currentBoardState.id') && !this.get('edit_mode')) {
       res = res + "board_done ";
     }
     return htmlSafe(res);
@@ -739,7 +801,12 @@ export default Service.extend({
   return_to_index: function() {
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      router.transitionTo('index');
+      var cu = this.get('currentUser');
+      if (cu && cu.get('user_name')) {
+        router.transitionTo('user.home', cu.get('user_name'));
+      } else {
+        router.transitionTo('index');
+      }
     } else {
       console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
@@ -1051,6 +1118,15 @@ export default Service.extend({
     }
   },
   toggle_speak_mode: function(decision) {
+    // If we're currently in speak mode and the user is triggering any exit
+    // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
+    // or no decision at all), show the loading overlay until the home board
+    // renders. 'off' is already-off; skip.
+    console.log('[LOADING-OVERLAY] toggle_speak_mode called; speak_mode=', this.get('speak_mode'), 'decision=', decision);
+    var exitingSpeakMode = this.get('speak_mode') && decision !== 'off';
+    if(exitingSpeakMode) {
+      this.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+    }
     if(decision) {
       modal.close(true);
     }
@@ -1093,13 +1169,60 @@ export default Service.extend({
     } else {
       this.controller.send('pickWhichHome');
     }
+    if(exitingSpeakMode) {
+      // Release the overlay — hide_loading_overlay enforces the minimum
+      // display time, so fast transitions still show it for ~700ms.
+      this.hide_loading_overlay();
+    }
+  },
+  /**
+   * Board model for the current screen.
+   * `setup_controller` always passes the application controller, not child routes.
+   * Classic board UI uses application.board.model; board-detail keeps the board on
+   * controller:user.board-detail only.
+   */
+  resolve_board_from_controller: function() {
+    var c = this.controller;
+    if(!c || typeof c.get !== 'function') { return null; }
+    var board = c.get('board.model');
+    if(board) { return board; }
+    var routeName = this.get('router.currentRouteName') || '';
+    if(routeName.indexOf('board-detail') !== -1) {
+      var owner = getOwner(this);
+      if(owner) {
+        var detailCtrl = owner.lookup('controller:user.board-detail') ||
+          owner.lookup('controller:user/board-detail');
+        if(detailCtrl) {
+          var m = detailCtrl.get('model');
+          if(m && m.get && !m.get('error') && (m.get('key') || m.get('id'))) {
+            return m;
+          }
+        }
+      }
+    }
+    return null;
+  },
+  /**
+   * True when the board-detail symbol grid should get speak-mode-style long-press scheduling
+   * (inflections overlay) even if global speak_mode is off. Board-detail uses Ember actions
+   * for taps, so it must not use the .advanced_selection click trap on the grid.
+   */
+  board_detail_inflections_active: function() {
+    var routeName = this.get('current_route') || '';
+    if(routeName.indexOf('board-detail') === -1) { return false; }
+    var owner = getOwner(this);
+    if(!owner) { return false; }
+    var detailCtrl = owner.lookup('controller:user.board-detail') ||
+      owner.lookup('controller:user/board-detail');
+    if(!detailCtrl || typeof detailCtrl.get !== 'function') { return false; }
+    return !detailCtrl.get('edit_mode');
   },
   assert_source: function() {
     var _this = this;
     if(!_this.controller || typeof _this.controller.get !== 'function') {
       return RSVP.reject({error: 'no board controller'});
     }
-    var board = _this.controller.get('board.model');
+    var board = _this.resolve_board_from_controller();
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
       if(board.get('locale') && !this.get('speak_mode')) {
@@ -1133,6 +1256,7 @@ export default Service.extend({
     }
   },
   toggle_edit_mode: function(decision) {
+    if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
     this.assert_source().then(function() {
@@ -1291,6 +1415,9 @@ export default Service.extend({
         this.stashes.persist('current_mode', this.stashes.get('last_mode'));
       } else {
         this.stashes.persist('current_mode', 'default');
+      }
+      if(mode == 'edit') {
+        this.set('board_layout_mode', null);
       }
       if(mode == 'speak' && this.get('currentBoardState')) {
         this.set('currentBoardState.reload_token', Math.random());
@@ -1468,8 +1595,8 @@ export default Service.extend({
         user_preferred = speak_mode_user.get('preferences.home_board');
       }
     }
-    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || {key: 'example/yesno'};
-    if(preferred.locale) {
+    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
+    if(preferred && preferred.locale) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }
@@ -1551,12 +1678,12 @@ export default Service.extend({
       if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
         buttonTracker.scanning_enabled = true;
         buttonTracker.any_select = _this.get('currentUser.preferences.device.scanning_select_on_any_event');
-        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode');
+        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode') || 32; // default: spacebar
         buttonTracker.skip_header = _this.get('currentUser.preferences.device.scanning_skip_header');
         buttonTracker.scan_modeling = _this.get('currentUser.preferences.device.scan_modeling');
-        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode');
+        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode') || 13; // default: Enter
         buttonTracker.prev_keycode = _this.get('currentUser.preferences.device.scanning_prev_keycode');
-        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode');
+        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode') || 27; // default: Escape
         buttonTracker.left_screen_action = _this.get('currentUser.preferences.device.scanning_left_screen_action');
         buttonTracker.right_screen_action = _this.get('currentUser.preferences.device.scanning_right_screen_action');
         if(capabilities.system == 'iOS' && !capabilities.installed_app && !buttonTracker.left_screen_action && !buttonTracker.right_screen_action) {
@@ -1564,6 +1691,10 @@ export default Service.extend({
         }
         if(modal.is_open() && (!modal.highlight_settings || modal.highlight_settings.highlight_type != 'button_search')) {
           modal.close();
+        }
+        // Ensure scanner has a reference to appState for preference checks
+        if(!scanner.get('appState')) {
+          scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
         scanner.start({
@@ -1953,9 +2084,7 @@ export default Service.extend({
       $('html,body').css('overflow', '');
     } else if(!this.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
-      try {
-        this.controller.set('footer', false);
-      } catch(e) { }
+      // footer is now a computed on application controller (from currentBoardState)
     }
   }),
   update_button_tracker: observer(
@@ -2081,6 +2210,10 @@ export default Service.extend({
     });
     return res;
   }),
+  index_or_landing_view: computed('index_view', 'current_route', function() {
+    var route = this.get('current_route');
+    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento';
+  }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
   }),
@@ -2122,6 +2255,7 @@ export default Service.extend({
       return size;
     }
   ),
+  extra_header_height: 0,
   header_height: computed('header_size', 'speak_mode', function() {
     if(this.get('speak_mode')) {
       var size = this.get('header_size');
@@ -2240,7 +2374,7 @@ export default Service.extend({
           var noticed = false;
           if(this.stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
+            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), false);
           }
           if(this.get('currentBoardState.has_fallbacks')) {
             modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);
@@ -2564,6 +2698,51 @@ export default Service.extend({
         i.src = img.getAttribute('rel-url');
       }
     })
+  }),
+  // When the loading overlay becomes active, wait for the next router
+  // routeDidChange event (destination route fully rendered) and then clear it.
+  // This keeps the overlay visible for the full transition duration on slow
+  // networks, instead of clearing on a fixed 450ms timer.
+  // Minimum time the overlay stays on screen once shown, so fast synchronous
+  // transitions still let the user see it (and don't flash-and-disappear).
+  LOADING_OVERLAY_MIN_MS: 700,
+
+  show_loading_overlay: function(message) {
+    console.log('[LOADING-OVERLAY] show_loading_overlay called; message =', message);
+    this.set('loading_overlay_message', message);
+    this._loading_overlay_shown_at = Date.now();
+  },
+
+  hide_loading_overlay: function() {
+    var _this = this;
+    var shown_at = this._loading_overlay_shown_at || 0;
+    var elapsed = Date.now() - shown_at;
+    var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
+    var remaining = Math.max(0, min - elapsed);
+    console.log('[LOADING-OVERLAY] hide_loading_overlay called; elapsed =', elapsed, 'delay =', remaining);
+    runLater(function() {
+      if(_this.isDestroyed) { return; }
+      _this.set('loading_overlay_message', null);
+      _this._loading_overlay_shown_at = null;
+    }, remaining);
+  },
+
+  _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
+    console.log('[LOADING-OVERLAY] observer fired; loading_overlay_message =', this.get('loading_overlay_message'));
+  }),
+  // Safety net — in case the speak_mode transition fails or stalls, never leave
+  // the overlay on-screen for more than ~4 seconds.
+  _loading_overlay_timeout_guard: observer('loading_overlay_message', function() {
+    if(this.get('loading_overlay_message')) {
+      var _this = this;
+      if(this._loading_overlay_guard_timer) { return; }
+      this._loading_overlay_guard_timer = runLater(function() {
+        _this._loading_overlay_guard_timer = null;
+        if(!_this.isDestroyed) { _this.set('loading_overlay_message', null); }
+      }, 15000);
+    } else if(this._loading_overlay_guard_timer) {
+      this._loading_overlay_guard_timer = null;
+    }
   }),
   auto_exit_speak_mode: observer('speak_mode_started', 'medium_refresh_stamp', function() {
     var now = (new Date()).getTime();
@@ -3141,7 +3320,7 @@ export default Service.extend({
     var skip_auto_return = false;
     // check if the button is part of a board that has a custom handler,
     // and skip the other actions if handled
-    if(button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
+    if(button.board && button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
       var button_handled = button.board.get('button_handler')(button, obj);
       if(button_handled) { 
         if(button_handled.highlight === false) { skip_highlight = true; }
@@ -3195,7 +3374,10 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
+            var speakDone = false;
             var doSpeak = function() {
+              if(speakDone) { return; }
+              speakDone = true;
               if (typeof console !== 'undefined' && console.log) {
                 console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
               }
@@ -3342,6 +3524,53 @@ export default Service.extend({
       }, 100);
     } else if(!skip_auto_return) {
       this.possible_auto_home(obj);
+    }
+    // Board-detail sentence bar uses sentence_parts; overlay inflections only update utterance
+    // via add_button. Mirror the chosen label into the last matching token (or append if none).
+    if(obj.source === 'overlay' && this.board_detail_inflections_active() && obj.label) {
+      var owner = getOwner(this);
+      var detailCtrl = owner && (owner.lookup('controller:user.board-detail') ||
+        owner.lookup('controller:user/board-detail'));
+      if(detailCtrl && typeof detailCtrl.get === 'function') {
+        var bid = button.get ? button.get('id') : button.id;
+        var sparts = (detailCtrl.get('sentence_parts') || []).slice();
+        var replaced = false;
+        for(var spi = sparts.length - 1; spi >= 0; spi--) {
+          if(String((sparts[spi] || {}).id) === String(bid)) {
+            sparts[spi] = Object.assign({}, sparts[spi], { label: obj.label });
+            replaced = true;
+            break;
+          }
+        }
+        if(!replaced && bid != null) {
+          var imgUrl = button.get && (button.get('local_image_url') || button.get('image_url'));
+          if(!imgUrl) {
+            imgUrl = button.local_image_url || button.image_url;
+          }
+          sparts.push({ id: bid, label: obj.label, image_url: imgUrl });
+        }
+        detailCtrl.set('sentence_parts', sparts);
+      }
+    }
+    // Speak menu punctuation (.,?! etc.) updates utterance; board-detail bar uses sentence_parts.
+    if(obj.source === 'speak_menu' && this.board_detail_inflections_active() && obj.label) {
+      var ownerSm = getOwner(this);
+      var detailSm = ownerSm && (ownerSm.lookup('controller:user.board-detail') ||
+        ownerSm.lookup('controller:user/board-detail'));
+      if(detailSm && typeof detailSm.get === 'function') {
+        var smParts = (detailSm.get('sentence_parts') || []).slice();
+        var punct = String(obj.label);
+        var gluePunct = /^[.!?,;:]$/.test(punct);
+        if(smParts.length > 0 && gluePunct) {
+          var lastPart = smParts[smParts.length - 1];
+          smParts[smParts.length - 1] = Object.assign({}, lastPart, {
+            label: (lastPart.label || '') + punct
+          });
+        } else {
+          smParts.push({ id: 'punct_' + Date.now(), label: punct, image_url: null });
+        }
+        detailSm.set('sentence_parts', smParts);
+      }
     }
     frame_listener.notify_of_button(button, obj);
     return true;
@@ -3610,6 +3839,36 @@ export default Service.extend({
   eval_mode: computed('currentBoardState.key', function() {
     return (this.get('currentBoardState.key') || '').match(/^obf\/eval/);
   }),
+  /**
+   * Eval boards require speak mode: fast_html path, eval.js handlers, and the speak header
+   * (eval toolbar lives inside {{#if speak_mode}} in application.hbs).
+   * Dashboard "Run evaluation" uses set_speak_mode_user(..., 'obf/eval') → home_in_speak_mode
+   * → toggle_mode('speak'), which already enables speak mode. This catches jump_to_board,
+   * deep links, or any path that lands on obf/eval without speak mode.
+   */
+  ensure_speak_mode_for_eval: observer('currentBoardState.key', 'stashes.current_mode', function() {
+    if(isTesting()) { return; }
+    var key = this.get('currentBoardState.key') || '';
+    if(!key.match(/^obf\/eval/)) { return; }
+    if(this.get('speak_mode')) { return; }
+    if(this.get('sessionUser.eval_ended')) { return; }
+    var board_state = this.get('currentBoardState');
+    if(!board_state || !board_state.key) { return; }
+    var _this = this;
+    if(this._ensureSpeakForEvalScheduled) { return; }
+    this._ensureSpeakForEvalScheduled = true;
+    runLater(function() {
+      _this._ensureSpeakForEvalScheduled = false;
+      if(!_this || (_this.isDestroyed !== undefined && _this.isDestroyed)) { return; }
+      var k = _this.get('currentBoardState.key') || '';
+      if(!k.match(/^obf\/eval/)) { return; }
+      if(_this.get('speak_mode')) { return; }
+      if(_this.get('sessionUser.eval_ended')) { return; }
+      var bs = _this.get('currentBoardState');
+      if(!bs || !bs.key) { return; }
+      _this.toggle_mode('speak', {force: true, override_state: bs});
+    }, 1);
+  }),
   launch_url: function(button, force, board) {
     var _this = this;
     if(!force && _this.get('currentUser.preferences.external_links') == 'confirm_all') {
@@ -3856,6 +4115,49 @@ export default Service.extend({
         }
       }, 500);
     }
+  },
+
+  toggleDarkMode: function() {
+    var modes = ['light', 'midDay', 'dark', 'default'];
+    var current = this.get('themeMode') || 'light';
+    var idx = modes.indexOf(current);
+    var next = modes[(idx + 1) % modes.length];
+    this.setThemeMode(next);
+  },
+
+  setThemeMode: function(mode) {
+    // Pastel removed: treat as 'light'. Gold renamed to default: treat legacy 'gold' as 'default'
+    if (mode === 'pastel') {
+      mode = 'light';
+    } else if (mode === 'gold') {
+      mode = 'default';
+    }
+    this.set('themeMode', mode);
+    try {
+      localStorage.setItem('ll_bento_theme_mode', mode);
+      localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
+    } catch (e) { /* ignore */ }
+    this.updateFavicon();
+  },
+
+  updateFavicon: function() {
+    try {
+      var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
+      var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
+      if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
+      var base = rootURL + 'images/';
+      var faviconHref = base + 'logo-new.png?v=3';
+      for (var i = 0; i < links.length; i++) {
+        var href = links[i].getAttribute('href') || '';
+        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('logo-big') !== -1) {
+          links[i].setAttribute('href', faviconHref);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  },
+
+  updateFaviconForTheme: function(mode) {
+    this.updateFavicon();
   }
 });
 

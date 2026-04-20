@@ -57,8 +57,6 @@ class JobStash < ApplicationRecord
     if content_type == 'anonymized_summary' && args[:user_integration] && self.data['user_id']
       user = User.find_by_path(self.data['user_id'])
       if user
-        puts user.global_id
-        puts user.anonymized_identifier
         return {
           'uid' => args[:user_integration].user_token(user),
           'anon_id' => user.anonymized_identifier,

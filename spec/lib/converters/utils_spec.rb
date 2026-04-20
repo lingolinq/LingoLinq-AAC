@@ -100,7 +100,7 @@ describe Converters::Utils do
     end
     
     it "should download and process an obf file" do
-      shell = Converters::Utils.obf_shell
+      shell = OBF::Utils.obf_shell
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
 
@@ -113,7 +113,7 @@ describe Converters::Utils do
     end
     
     it "should download and process and obz file" do
-      shell = Converters::Utils.obf_shell
+      shell = OBF::Utils.obf_shell
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
 

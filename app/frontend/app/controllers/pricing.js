@@ -8,6 +8,9 @@ import progress_tracker from '../utils/progress_tracker';
 export default Controller.extend({
   update_classes: Subscription.update_classes_observer,
   actions: {
+    openCloudExtras() {
+      modal.open('cloud-extras');
+    },
     reset: function() {
       this.get('subscription').reset();
     },

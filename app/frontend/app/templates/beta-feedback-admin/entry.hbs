@@ -1,0 +1,119 @@
+<div class="la-wrapper la-wrapper--pricing la-wrapper--support">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--support">
+        <section class="la-section la-beta-feedback-detail" aria-labelledby="beta-feedback-entry-heading">
+          <div class="la-support-content-wrapper">
+            <article class="la-about-glass-card la-support-page-card">
+              <div class="la-support-page-card__body md-support-content la-beta-feedback-detail__body">
+                {{#if this.loadError}}
+                  <p role="alert">{{t "Could not load this submission." key="beta_feedback_admin_detail_error"}}</p>
+                {{else if this.detail}}
+                  <h1 id="beta-feedback-entry-heading" class="la-beta-feedback-detail__title">{{this.detail.subject}}</h1>
+                  <dl class="la-beta-feedback-detail__meta">
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Date" key="beta_feedback_admin_col_date"}}</dt>
+                      <dd>{{this.detail.date_short}}</dd>
+                    </div>
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Type" key="beta_feedback_admin_type"}}</dt>
+                      <dd>{{this.detail.feedback_type}}</dd>
+                    </div>
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Severity" key="beta_feedback_admin_severity"}}</dt>
+                      <dd>{{this.detail.severity}}</dd>
+                    </div>
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Submitted (UTC)" key="beta_feedback_admin_submitted_utc"}}</dt>
+                      <dd>{{this.detail.created_at}}</dd>
+                    </div>
+                    {{#if this.detail.user_id}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "User account" key="beta_feedback_admin_user_id"}}</dt>
+                        <dd>{{this.detail.user_id}}</dd>
+                      </div>
+                    {{/if}}
+                    {{#if this.detail.name}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "Name" key="name"}}</dt>
+                        <dd>{{this.detail.name}}</dd>
+                      </div>
+                    {{/if}}
+                    {{#if this.detail.email}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "Email" key="email"}}</dt>
+                        <dd>{{this.detail.email}}</dd>
+                      </div>
+                    {{/if}}
+                    {{#if this.detail.version}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "App version" key="beta_feedback_admin_app_version"}}</dt>
+                        <dd>{{this.detail.version}}</dd>
+                      </div>
+                    {{/if}}
+                    {{#if this.detail.ip_address}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "IP address" key="beta_feedback_admin_ip"}}</dt>
+                        <dd>{{this.detail.ip_address}}</dd>
+                      </div>
+                    {{/if}}
+                    {{#if this.detail.user_agent}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "Browser / user agent" key="beta_feedback_admin_user_agent"}}</dt>
+                        <dd class="la-beta-feedback-detail__wrap">{{this.detail.user_agent}}</dd>
+                      </div>
+                    {{/if}}
+                  </dl>
+
+                  {{#if this.detail.general_feedback}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-gf">
+                      <h2 id="bfd-gf" class="la-beta-feedback-detail__block-title">{{t "Details" key="beta_feedback_admin_details"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.general_feedback}}</div>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.steps_to_reproduce}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-steps">
+                      <h2 id="bfd-steps" class="la-beta-feedback-detail__block-title">{{t "Steps to reproduce" key="beta_feedback_admin_heading_steps"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.steps_to_reproduce}}</div>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.expected_result}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-exp">
+                      <h2 id="bfd-exp" class="la-beta-feedback-detail__block-title">{{t "Expected result" key="beta_feedback_admin_heading_expected"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.expected_result}}</div>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.actual_result}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-act">
+                      <h2 id="bfd-act" class="la-beta-feedback-detail__block-title">{{t "Actual result" key="beta_feedback_admin_heading_actual"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.actual_result}}</div>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.device_context}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-dev">
+                      <h2 id="bfd-dev" class="la-beta-feedback-detail__block-title">{{t "Device context" key="beta_feedback_admin_heading_device"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.device_context}}</div>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.screenshot_data_url}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-shot">
+                      <h2 id="bfd-shot" class="la-beta-feedback-detail__block-title">{{t "Screenshot" key="beta_feedback_admin_heading_screenshot"}}</h2>
+                      <p class="la-beta-feedback-detail__screenshot-wrap">
+                        <img src={{this.detail.screenshot_data_url}} alt="" class="la-beta-feedback-detail__screenshot" />
+                      </p>
+                    </section>
+                  {{/if}}
+                {{else}}
+                  <p>{{t "Submission not found." key="beta_feedback_admin_not_found"}}</p>
+                {{/if}}
+                <p class="la-beta-feedback-detail__back">
+                  <LinkTo @route="beta-feedback-admin" class="btn btn-default">{{t "Back to list" key="beta_feedback_admin_back_list"}}</LinkTo>
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>

@@ -4,14 +4,38 @@ import { inject as service } from '@ember/service';
 
 export default Route.extend({
   appState: service('app-state'),
+  router: service('router'),
   title: "Search",
   model: function(params) {
     var q = params.q;
     if(q == '_') { q = ''; }
     this.set('q', q);
     this.set('queryString', decodeURIComponent(q));
-    this.set('locale', params.locale || params.l || (i18n.langs || {}).preferred || window.navigator.language);
+    var localeParam = params.locale || params.l;
+    var locale;
+    if (localeParam === 'any' || !localeParam) {
+      // Default to user's language picker preference instead of "Any Language"
+      var preferred = (i18n.langs || {}).preferred || window.navigator.language;
+      var list = i18n.get('translatable_locales') || {};
+      var normalized = (preferred || 'en').replace(/-/g, '_');
+      if (list[normalized]) {
+        locale = normalized;
+      } else {
+        var base = normalized.split(/_/)[0];
+        locale = list[base] ? base : 'en';
+      }
+    } else {
+      locale = localeParam;
+    }
+    this.set('locale', locale);
+    this.set('_searchParams', params);
     return {};
+  },
+  afterModel: function(model, transition) {
+    var params = this.get('_searchParams');
+    if (params && (params.l === 'any' || !params.l) && this.get('locale') !== 'any') {
+      this.router.replaceWith('search', this.get('locale'), params.q || '_');
+    }
   },
   setupController: function(controller) {
     controller.set('model', {});

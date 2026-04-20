@@ -56,8 +56,11 @@ export default class BoardActionsController extends modal.ModalController {
     if(!_this || !_this.model || !_this.model.board || !_this.appState) { return; }
     _this.appState.assert_source().then(function() {
       if(!_this.model || !_this.model.board) { return; }
-      var has_links = _this.model.board.linked_boards.length > 0;
-      modal.open('download-board', {type: 'obf', has_links: has_links, id: _this.model.board.id});
+      var brd = _this.model.board;
+      var linked = brd.get && brd.get('linked_boards');
+      var has_links = !!(linked && linked.length > 0);
+      var board_id = (brd.get && (brd.get('key') || brd.get('id'))) || brd.id;
+      modal.open('download-board', {type: 'obf', has_links: has_links, id: board_id});
     }, function() { });
   }
 

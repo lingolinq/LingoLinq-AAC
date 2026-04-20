@@ -19,7 +19,9 @@ export default Service.extend({
     this._super(...arguments);
     LingoLinq.session = this;
     if (typeof window !== 'undefined') {
-      window.LingoLinq = window.LingoLinq || {};
+      if (!window.LingoLinq || !window.LingoLinq.Lessons) {
+        window.LingoLinq = LingoLinq;
+      }
       window.LingoLinq.session = this;
     }
   },

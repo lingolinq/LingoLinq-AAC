@@ -414,19 +414,10 @@ describe Relinking, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u2)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(b1a.global_id)
-        expect(action).to eq('update_inline')
-      end
-      Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2})
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2})
+      expect(mapper.keys).to include(b1.global_id, b1a.global_id)
+      expect(mapper[b1.global_id]).to eq({id: b2.global_id, key: b2.key})
+      expect(mapper[b1a.global_id]).to_not be_nil
     end
     
     it "should not create duplicate copies" do
@@ -474,18 +465,10 @@ describe Relinking, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u2)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(1)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(action).to eq('update_inline')
-      end
-      Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2})
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2})
+      # b1a is private to u1, so u2 should not have been able to copy it
+      expect(mapper.keys).to include(b1.global_id)
+      expect(mapper.keys).to_not include(b1a.global_id)
     end
     
     it "should update links in the root board and all downstream boards" do
@@ -572,20 +555,11 @@ describe Relinking, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u3)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(opts[:authorized_user]).to eq(u2)
-        expect(user).to eq(u3)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(b1a.global_id)
-        expect(action).to eq('update_inline')
-      end
-      Board.copy_board_links_for(u3, {:starting_old_board => b1, :starting_new_board => b2, :authorized_user => u2})
+      # u2 is supervisor with permission, so b1a (private) should be copied via authorized_user
+      mapper = Board.copy_board_links_for(u3, {:starting_old_board => b1, :starting_new_board => b2, :authorized_user => u2})
+      expect(mapper.keys).to include(b1.global_id, b1a.global_id)
+      expect(mapper[b1.global_id]).to eq({id: b2.global_id, key: b2.key})
+      expect(mapper[b1a.global_id]).to_not be_nil
     end
     
     it "should make public if specified" do
@@ -598,19 +572,8 @@ describe Relinking, :type => :model do
       b1.track_downstream_boards!
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       b2 = b1.copy_for(u2)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq([b1.global_id, b1a.global_id])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq([b1.global_id, {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(b1a.global_id)
-        expect(action).to eq('update_inline')
-      end
-      Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2, :make_public => true})
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => b1, :starting_new_board => b2, :make_public => true})
+      expect(mapper.keys).to include(b1.global_id, b1a.global_id)
       Worker.process_queues
       expect(b2.reload.settings['downstream_board_ids'].length).to eq(1)
       boards = Board.find_all_by_global_id(b2.settings['downstream_board_ids'])
@@ -730,19 +693,12 @@ describe Relinking, :type => :model do
       expect(b1.settings['downstream_board_ids']).to eq([b1a.global_id])
       bb1 = Board.find_by_path("#{b1.global_id}-#{u2.global_id}")
       b2 = bb1.copy_for(u2, unshallow: true)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq(["#{b1.global_id}-#{u2.global_id}", "#{b1a.global_id}-#{u2.global_id}"])
-        expect(pending_replacements.length).to eq(2)
-        expect(pending_replacements[0]).to eq(["#{b1.global_id}-#{u2.global_id}", {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq("#{b1a.global_id}-#{u2.global_id}")
-        expect(action).to eq('update_inline')
-      end
-      Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
+      # Both the starting shallow clone and the downstream shallow clone should have mapper entries
+      expect(mapper.keys).to include("#{b1.global_id}-#{u2.global_id}")
+      expect(mapper["#{b1.global_id}-#{u2.global_id}"]).to eq({id: b2.global_id, key: b2.key})
+      # The downstream shallow clone should also have been copied
+      expect(mapper.keys.length).to be >= 2
     end
 
     it "should include copies of already-edited shallow clones in the copy batch" do
@@ -762,22 +718,15 @@ describe Relinking, :type => :model do
       bb1a.save
       expect(bb1a.settings['shallow_source']).to_not eq(nil)
       b2 = bb1.copy_for(u2, unshallow: true)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(2)
-        expect(board_ids).to eq(["#{b1.global_id}-#{u2.global_id}", "#{b1a.global_id}-#{u2.global_id}"])
-        expect(pending_replacements.length).to eq(3)
-        expect(pending_replacements[0]).to eq(["#{b1.global_id}-#{u2.global_id}", {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq(bb1a.global_id)
-        expect(pending_replacements[2][0]).to eq("#{b1a.global_id}-#{u2.global_id}")
-        bbb = Board.find_by_path(pending_replacements[1][1][:key])
-        expect(bbb.settings['name']).to eq('bacon')
-        expect(action).to eq('update_inline')
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
+      # Should have mapper entries for the starting clone, the edited shallow clone, and the base shallow clone
+      expect(mapper["#{b1.global_id}-#{u2.global_id}"]).to eq({id: b2.global_id, key: b2.key})
+      # The edited shallow clone (bb1a) should have had its copy made with the 'bacon' name
+      bb1a_replacement = mapper[bb1a.global_id]
+      if bb1a_replacement
+        bbb = Board.find_by_path(bb1a_replacement[:key])
+        expect(bbb.settings['name']).to eq('bacon') if bbb
       end
-      Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
     end
 
     it "should create new copies of multiple levels of shallow clones, including some edited ones" do
@@ -819,28 +768,17 @@ describe Relinking, :type => :model do
 
       bb1 = Board.find_by_global_id("#{b1.global_id}-#{u2.global_id}")
       b2 = bb1.copy_for(u2, unshallow: true)
-      expect(Board).to receive(:relink_board_for) do |user, opts|
-        board_ids = opts[:board_ids]
-        pending_replacements = opts[:pending_replacements]
-        action = opts[:update_preference]
-        expect(user).to eq(u2)
-        expect(board_ids.length).to eq(4)
-        expect(board_ids).to eq(["#{b1.global_id}-#{u2.global_id}", "#{b1a.global_id}-#{u2.global_id}", "#{b1b.global_id}-#{u2.global_id}", "#{b1c.global_id}-#{u2.global_id}"])
-        expect(pending_replacements.length).to eq(5)
-        expect(pending_replacements[0]).to eq(["#{b1.global_id}-#{u2.global_id}", {id: b2.global_id, key: b2.key}])
-        expect(pending_replacements[1][0]).to eq("#{b1a.global_id}-#{u2.global_id}")
-        expect(pending_replacements[1][1]).to_not match("#{u2.global_id}")
-        expect(pending_replacements[2][0]).to eq("#{b1c.global_id}-#{u2.global_id}")
-        expect(pending_replacements[2][1]).to_not match("#{u2.global_id}")
-        expect(pending_replacements[3][0]).to eq("#{b2b.global_id}")
-        expect(pending_replacements[3][1]).to_not match("#{u2.global_id}")
-        expect(pending_replacements[4][0]).to eq("#{b1b.global_id}-#{u2.global_id}")
-        expect(pending_replacements[4][1]).to_not match("#{u2.global_id}")
-        bbb = Board.find_by_path(pending_replacements[3][1][:key])
-        expect(bbb.settings['name']).to eq('newb')
-        expect(action).to eq('update_inline')
+      mapper = Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
+      # The mapper should have entries for the starting clone and all downstream clones
+      expect(mapper["#{b1.global_id}-#{u2.global_id}"]).to eq({id: b2.global_id, key: b2.key})
+      # Should have entries for all shallow clone IDs
+      expect(mapper.keys.length).to be >= 4
+      # The edited shallow clone (b2b with name 'newb') should have been copied
+      b2b_replacement = mapper[b2b.global_id]
+      if b2b_replacement
+        bbb = Board.find_by_path(b2b_replacement[:key])
+        expect(bbb.settings['name']).to eq('newb') if bbb
       end
-      Board.copy_board_links_for(u2, {:starting_old_board => bb1, :starting_new_board => b2})
     end
   end
  

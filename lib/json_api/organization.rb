@@ -31,6 +31,8 @@ module JsonApi::Organization
     json['status_overrides'] = org.settings['status_overrides']
     
     if json['permissions'] && json['permissions']['edit']
+      json['data_policy'] = org.effective_data_policy
+      json['data_policy_version'] = org.data_policy_version
       json['extra_colors'] = org.settings['extra_colors']
       json['note_templates'] = org.note_templates
       json['support_target'] = org.settings['support_target']

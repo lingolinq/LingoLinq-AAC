@@ -140,8 +140,8 @@ export default Component.extend({
   },
   rearrange: function(event) {
     if(this.appState.get('edit_mode')) {
-      var dragId = $(event.target).data('drag_id');
-      var dropId = $(event.target).data('drop_id');
+      var dragId = $(event.target).data('drag_id') || (event.target.dataset && event.target.dataset.drag_id);
+      var dropId = $(event.target).data('drop_id') || (event.target.dataset && event.target.dataset.drop_id);
       var buttonEvent = this.get('buttonEvent') || this.get('button_event');
       if (buttonEvent && typeof buttonEvent === 'function') {
         buttonEvent('rearrangeButtons', dragId, dropId);

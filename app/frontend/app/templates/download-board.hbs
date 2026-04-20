@@ -104,16 +104,16 @@
           {{#if this.progress}}
           {{else}}
             {{#if this.multi_download_type}}
-              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Download full board set" key="download_all_boards"}}</button>
-              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Download just this board" key="download_just_this_board"}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-primary" title={{t "Download this board and all linked sub-boards as a single archive" key="download_all_boards_tooltip"}}>{{t "Download full board set" key="download_all_boards"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-default" title={{t "Download only this board as a single file, without linked sub-boards" key="download_just_this_board_tooltip"}}>{{t "Download just this board" key="download_just_this_board"}}</button>
             {{else if this.single_download_type}}
-              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Download this board" key="download_this_board"}}</button>
-              <button {{action "startDownload" "all"}} class="btn btn-default">{{t "Download as .obz" key="download_as_obz"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-primary" title={{t "Single file format. Downloads just this board." key="download_obf_tooltip"}}>{{t "Download as .obf" key="download_as_obf"}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-default" title={{t "Archive format. Same content as .obf, packaged as a zip for compatibility with other AAC apps." key="download_obz_tooltip"}}>{{t "Download as .obz" key="download_as_obz"}}</button>
             {{else if this.model.has_links}}
-              <button {{action "startDownload" "all"}} class="btn btn-primary">{{t "Print full board set" key="print_all_boards"}}</button>
-              <button {{action "startDownload" "this"}} class="btn btn-default">{{t "Print just this board" key="print_just_this_board"}}</button>
+              <button {{action "startDownload" "all"}} class="btn btn-primary" title={{t "Print this board and all linked sub-boards" key="print_all_boards_tooltip"}}>{{t "Print full board set" key="print_all_boards"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-default" title={{t "Print only this board, without linked sub-boards" key="print_just_this_board_tooltip"}}>{{t "Print just this board" key="print_just_this_board"}}</button>
             {{else}}
-              <button {{action "startDownload" "this"}} class="btn btn-primary">{{t "Print this board" key="print_this_board"}}</button>
+              <button {{action "startDownload" "this"}} class="btn btn-primary" title={{t "Print this board" key="print_this_board_tooltip"}}>{{t "Print this board" key="print_this_board"}}</button>
             {{/if}}
           {{/if}}
         {{/if}}

@@ -13,6 +13,8 @@ import scanner from './scanner';
 // import stashes from './_stashes';
 import utterance from './utterance';
 import frame_listener from './frame_listener';
+
+
 // TODO: change scanning options to allow multiple buttons
 // for each action if desired
 
@@ -42,6 +44,22 @@ import frame_listener from './frame_listener';
 // - touch events for buttons inside modals need to work in speak mode
 // - find a button needs to work for touch and eye gaze
 // - select text in a button's text box when editing a button
+
+// Ember uses native event dispatch (jquery-integration off). jQuery $.trigger('click')
+// does not reach Ember actions; native MouseEvent does. Custom pass_through must be
+// readable from jQuery's delegated handler (see originalEvent below).
+function dispatchPassThroughClick(dom, clientX, clientY) {
+  if (!dom) { return; }
+  var evt = new MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: clientX != null ? clientX : 0,
+    clientY: clientY != null ? clientY : 0
+  });
+  evt.pass_through = true;
+  dom.dispatchEvent(evt);
+}
 
 var $board_canvas = null;
 
@@ -75,6 +93,7 @@ window.addEventListener('touchforcechange', function() {
 });
 document.addEventListener('touchstart', eat_events, {passive: false});
 document.addEventListener('mousedown', eat_events, {passive: false});
+
 $(document).on('mousedown touchstart', function(event) {
   var now = (new Date()).getTime();
   if(event.type == 'touchstart') {
@@ -144,6 +163,21 @@ $(document).on('mousedown touchstart', function(event) {
   var dwell_key = buttonTracker.check('dwell_enabled') && (event.keyCode == select_code || event.code == select_code) && buttonTracker.check('dwell_selection') == 'button';
   if(event.isComposing || event.keyCode == 229 || event.key == 'Unidentified' || event.key == 'Dead') { return; }
   if(special_keys.indexOf(event.key) != -1) { return; }
+  // When a board-detail symbol card is focused, Space/Enter should activate
+  // the button (populate sentence bar + speak) rather than type a character.
+  var focusedCard = event.target && (
+    event.target.classList.contains('md-board-detail-symbol-card') ?
+      event.target :
+      (event.target.closest ? event.target.closest('.md-board-detail-symbol-card[role="button"]') : null)
+  );
+  if(focusedCard && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    // Don't activate blank/empty buttons — keep focus in place
+    if(focusedCard.classList.contains('md-board-detail-symbol-card--empty')) { return; }
+    // Simulate a click on the card — this triggers the Ember {{action "select_button"}}
+    focusedCard.click();
+    return;
+  }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open()) {
     // add letter to the sentence box
     var key = "+" + event.key;
@@ -280,7 +314,7 @@ $(document).on('mousedown touchstart', function(event) {
     scanner.prev();
     event.preventDefault();
   } else if((event.keyCode || -1) == buttonTracker.check('cancel_keycode') || (event.code || -1) == buttonTracker.check('cancel_keycode')) { // esc key
-    scanner.stop();
+    scanner.escape();
     event.preventDefault();
   }
 }).on('facechange', function(event) {
@@ -400,10 +434,25 @@ var buttonTracker = EmberObject.extend({
     $("#within_ember").on('click', '.advanced_selection', function(event) {
       // we're basically replacing all click events by tracking up and down explicitly,
       // so we don't want any unintentional double-triggers
-      if(event.pass_through) { return; }
+      var passThrough = event.pass_through || (event.originalEvent && event.originalEvent.pass_through);
+      if (passThrough) { return; }
 
       // allow dropdown menu item clicks to propagate so Ember actions run
       if($(event.target).closest('.dropdown-menu').length > 0) {
+        return;
+      }
+      // allow sidebar clicks (board links, pin, close) to propagate so Ember actions run
+      if($(event.target).closest('#sidebar').length > 0 || $(event.target).closest('#sidebar_tease').length > 0) {
+        return;
+      }
+
+      // allow dark mode toggle and theme picker to propagate so Ember actions run
+      if($(event.target).closest('.ll-bento-dark-toggle, .bento-dark-toggle-wrap, .ll-bento-theme-picker, .ll-bento-theme-picker__row, .ll-bento-theme-picker__options, .ll-bento-theme-picker-wrap, .ll-bento-theme-picker-backdrop').length > 0) {
+        return;
+      }
+
+      // allow landing nav links to propagate so Ember actions run
+      if($(event.target).closest('.landing-nav, .landing-nav-drawer__panel, .landing-nav-hamburger').length > 0) {
         return;
       }
 
@@ -654,6 +703,42 @@ var buttonTracker = EmberObject.extend({
       return;
     }
 
+    // Speak-mode long-press (inflections overlay) must schedule before the scanning block below.
+    // Otherwise touchstart/mousedown returns early from scanner.pick/next and longPressEvent is never set.
+    if(buttonTracker.buttonDown && !editManager.paint_mode && (event.type == 'touchstart' || event.type == 'mousedown') && (buttonTracker.appState.get('speak_mode') || (typeof buttonTracker.appState.board_detail_inflections_active === 'function' && buttonTracker.appState.board_detail_inflections_active()))) {
+      event.long_press_target = event.target;
+      if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
+        if(!buttonTracker.ignored_region(event)) {
+          buttonTracker.ignoredPressEvent = event;
+          event.preventDefault();
+        }
+      } else {
+        buttonTracker.lastLastPressEvent = buttonTracker.lastPressEvent;
+        buttonTracker.lastPressEvent = event;
+        buttonTracker.longPressEvent = event;
+        if(buttonTracker.check('short_press_delay')) {
+          buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
+        }
+        runLater(function() {
+          if(buttonTracker.track_long_press.later) {
+            runCancel(buttonTracker.track_long_press.later);
+            buttonTracker.track_long_press.later = null;
+          }
+          if(buttonTracker.track_short_press.later) {
+            runCancel(buttonTracker.track_short_press.later);
+            buttonTracker.track_short_press.later = null;
+          }
+          var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
+          if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
+            buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
+          }
+          if(buttonTracker.check('short_press_delay')) {
+            buttonTracker.track_short_press.later = runLater(buttonTracker, buttonTracker.track_short_press, buttonTracker.short_press_delay);
+          }
+        });
+      }
+    }
+
     if(buttonTracker.buttonDown && buttonTracker.check('any_select') && buttonTracker.check('scanning_enabled')) {
       var skip_screen_touch = $(event.target).closest("#identity").length > 0;
       skip_screen_touch = skip_screen_touch || (buttonTracker.check('skip_header') && $(event.target).closest('header').length > 0);
@@ -715,47 +800,7 @@ var buttonTracker = EmberObject.extend({
       }
     } else if(buttonTracker.buttonDown) {
       var elem_wrap = buttonTracker.track_drag(event);
-      if(event.type == 'touchstart' || event.type == 'mousedown') {
-        if(buttonTracker.appState.get('speak_mode')) {
-          event.long_press_target = event.target;
-          if(buttonTracker.lastPressEvent && buttonTracker.lastPressEvent.type == 'touchstart' && event.type == 'mousedown' && Math.abs((buttonTracker.lastPressEvent.timeStamp || 0) - (event.timeStamp || 0)) < 300) {
-            // TODO: I think this is only required as long as we use UIWekView
-            // instead of WKWebView. Once we switch, if you set touches to
-            // select after 100ms and you can hit blank spaces without it
-            // hitting somewhere else then you should be good
-            if(!buttonTracker.ignored_region(event)) {
-              buttonTracker.ignoredPressEvent = event;
-              event.preventDefault();  
-            }
-          } else {
-            buttonTracker.lastLastPressEvent = buttonTracker.lastPressEvent;
-            buttonTracker.lastPressEvent = event;
-            buttonTracker.longPressEvent = event;
-            if(buttonTracker.check('short_press_delay')) {
-              buttonTracker.short_press_delay = Math.max(buttonTracker.short_press_delay || 100, buttonTracker.short_press_delay);
-            }
-            // INFLECTIONS OVERLAY: Schedule long-press handler when inflections_overlay is enabled.
-            // track_long_press fires after long_press_delay and calls editManager.long_press_mode.
-            runLater(function() {
-              if(buttonTracker.track_long_press.later) {
-                runCancel(buttonTracker.track_long_press.later);
-                buttonTracker.track_long_press.later = null;
-              }
-              if(buttonTracker.track_short_press.later) {
-                runCancel(buttonTracker.track_short_press.later);
-                buttonTracker.track_short_press.later = null;
-              }
-              var inflectionsUser = buttonTracker.appState.get('speak_mode') ? buttonTracker.appState.get('referenced_user') : buttonTracker.appState.get('currentUser');
-              if(buttonTracker.check('long_press_delay') || buttonTracker.appState.get('default_mode') || (inflectionsUser && inflectionsUser.get && inflectionsUser.get('preferences.inflections_overlay'))) {
-                buttonTracker.track_long_press.later = runLater(buttonTracker, buttonTracker.track_long_press, buttonTracker.long_press_delay);
-              }
-              if(buttonTracker.check('short_press_delay')) {
-                buttonTracker.track_short_press.later = runLater(buttonTracker, buttonTracker.track_short_press, buttonTracker.short_press_delay);
-              }  
-            });
-          }
-        }
-      } else {
+      if(event.type != 'touchstart' && event.type != 'mousedown') {
         if(event.type == 'touchend' || event.type == 'mouseup' || !buttonTracker.longPressEvent || event.target != buttonTracker.longPressEvent.long_press_target) {
           buttonTracker.longPressEvent = null;
           buttonTracker.shortPressEvent = null;
@@ -846,6 +891,19 @@ var buttonTracker = EmberObject.extend({
               left: $elem.css('left')
             });
             $elem.hide().after($overClone);
+            // On board-detail, style the placeholder as a neutral gray
+            // (must run after insertion so closest() can find the grid)
+            if($overClone.closest('.md-board-detail-grid').length > 0 && elem_wrap.dom != buttonTracker.drag.data('elem')) {
+              $overClone.find('.md-board-detail-symbol-card').addBack('.md-board-detail-symbol-card').css({
+                'background': 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(235,237,240,0.95) 100%)',
+                'outline-color': 'rgba(27, 54, 93, 0.12)',
+                'box-shadow': 'inset 0 2px 4px rgba(255,255,255,0.7), inset 0 -1px 3px rgba(27, 42, 74, 0.06)',
+                'border-color': 'transparent'
+              });
+              $overClone.find('img, .md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, .md-board-detail-symbol-card__folder-badge').css({'opacity': '0.3', 'filter': 'grayscale(100%)'});
+              $overClone.find('.md-board-detail-symbol-card__edit-actions').css('visibility', 'hidden');
+              $overClone.css('opacity', 0.85);
+            }
           }
         }
       }
@@ -955,6 +1013,7 @@ var buttonTracker = EmberObject.extend({
         $over.css('opacity', 1.0);
       }
       $(buttonTracker.drag.data('elem')).css('opacity', 1.0).show();
+      $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
       buttonTracker.drag.remove();
       // if it's on a different button, trigger the swap event
       var button_wrap = buttonTracker.find_button_under_event(event);
@@ -1173,21 +1232,16 @@ var buttonTracker = EmberObject.extend({
             }
           } else if(elem_wrap.dom.id == 'identity' || elem_wrap.dom.id == 'identity_button') {
             event.preventDefault();
-            // click events are eaten by our listener above, unless you
-            // explicitly tell it to pass them through
-            var e = $.Event( "click" );
-            e.clientX = event.clientX;
-            e.clientY = event.clientY;
-            e.pass_through = true;
-      
-            if(elem_wrap.wait) {
+            var cx = event.clientX;
+            var cy = event.clientY;
+            if (elem_wrap.wait) {
               runLater(function() {
-                if($("#identity .dropdown-menu:visible").length == 0) {
-                  $(elem_wrap.dom).trigger(e);
+                if ($("#identity .dropdown-menu:visible").length === 0) {
+                  dispatchPassThroughClick(elem_wrap.dom, cx, cy);
                 }
               }, 500);
             }
-            $(elem_wrap.dom).trigger(e);
+            dispatchPassThroughClick(elem_wrap.dom, cx, cy);
           } else if(elem_wrap.dom.id == 'button_list') {
             event.preventDefault();
             var $elem = $(elem_wrap.dom);
@@ -1199,37 +1253,29 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.tagName == 'A' && $(elem_wrap.dom).closest('#pin').length > 0) {
             event.preventDefault();
             $(elem_wrap.dom).trigger('select');
-          } else if(elem_wrap.dom.classList.contains('speak_menu_button')) {
-            var e = $.Event( 'speakmenuselect' );
-            e.button_id = elem_wrap.dom.id;
-            e.swipe_direction = swipe_direction;
-            $(elem_wrap.dom).trigger(e);
+          } else if(
+            elem_wrap.dom.classList.contains('speak_menu_button') ||
+            elem_wrap.dom.classList.contains('md-speak-menu__btn') ||
+            elem_wrap.dom.classList.contains('md-speak-menu__bottom-btn')
+          ) {
+            // Native CustomEvent so Ember's event dispatcher receives it (jquery-integration is off).
+            var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
+            speakMenuEvent.button_id = elem_wrap.dom.id;
+            speakMenuEvent.swipe_direction = swipe_direction;
+            elem_wrap.dom.dispatchEvent(speakMenuEvent);
           } else if((elem_wrap.dom.className || "").match(/button/) || elem_wrap.virtual_button) {
             event.swipe_direction = swipe_direction;
             buttonTracker.button_release(elem_wrap, event, event_source);
           } else if(elem_wrap.dom.classList.contains('integration_target')) {
             frame_listener.trigger_target(elem_wrap.dom);
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
-            var stashes = buttonTracker.stashes;
-            if(stashes && stashes.get) {
-              var hiddenAt = stashes.get('sidebar_hidden_at');
-              if(hiddenAt && (Date.now() - hiddenAt) < 400) {
-                stashes.set('sidebar_hidden_at', null);
-              } else {
-                stashes.persist('sidebarEnabled', !stashes.get('sidebarEnabled'));
-              }
-            }
-            buttonTracker.ignoreUp = true;
-            buttonTracker.buttonDown = false;
+            // Synthetic native click so Ember actions (e.g. toggleSidebar) run
+            event.preventDefault();
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else {
             event.preventDefault();
-            // click events are eaten by our listener above, unless you
-            // explicitly tell it to pass them through
-            var e = $.Event( "click" );
-            e.clientX = event.clientX;
-            e.clientY = event.clientY;
-            e.pass_through = true;
-            $(elem_wrap.dom).trigger(e);
+            // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           }
         }
 
@@ -2079,9 +2125,10 @@ var buttonTracker = EmberObject.extend({
       } else if(region.id == 'sidebar_tease') {
         return buttonTracker.element_wrap(region);
       } else if(region.id == 'sidebar') {
-        return buttonTracker.element_wrap($target.closest(".btn,a")[0]);
+        var sidebarTarget = $target[0] && $target[0].closest ? $target[0].closest('.btn,a') : $target.closest('.btn,a')[0];
+        return buttonTracker.element_wrap(sidebarTarget);
       } else if(region.id == 'speak_menu') {
-        return buttonTracker.element_wrap($target.closest("a,.speak_menu_button")[0]);
+        return buttonTracker.element_wrap($target.closest("a,.speak_menu_button,.md-speak-menu__btn,.md-speak-menu__close,.md-speak-menu__bottom-btn,.md-speak-menu__sidebar-btn,button")[0]);
       } else if(region.tagName == 'HEADER') {
         var $elem = $target.closest(".btn:not(.pass_through),#button_list,.extra-btn")
         if($elem.hasClass('pass_to_btn_list') && allow_dwell === false) {
@@ -2194,6 +2241,11 @@ var buttonTracker = EmberObject.extend({
           var e = $.Event( event );
           e.trigger_source = source;
           $e.trigger(e);
+          // Also dispatch native DOM event for Ember's custom event system
+          // (needed when jquery-integration is disabled)
+          var nativeEvent = new CustomEvent(event, { bubbles: true, cancelable: true });
+          nativeEvent.trigger_source = source;
+          elem.dispatchEvent(nativeEvent);
         },
         trigger_special: function(event, args, source) {
           var e = $.Event( event );
@@ -2202,6 +2254,13 @@ var buttonTracker = EmberObject.extend({
             e[idx] = args[idx];
           }
           $e.trigger(e);
+          // Also dispatch native DOM event
+          var nativeEvent = new CustomEvent(event, { bubbles: true, cancelable: true });
+          nativeEvent.trigger_source = source;
+          for(var idx in args) {
+            nativeEvent[idx] = args[idx];
+          }
+          elem.dispatchEvent(nativeEvent);
         },
         loose_bounds: function() {
           if(res.cached_loose_bounds) { return res.cached_loose_bounds; }
@@ -2216,6 +2275,10 @@ var buttonTracker = EmberObject.extend({
           return res.cached_loose_bounds;
         },
         data: function(attr, val) {
+          if(arguments.length >= 2) {
+            // Store in both jQuery data and DOM dataset for native event compatibility
+            elem.dataset[attr] = val;
+          }
           return $e.data(attr, val);
         }
       };
@@ -2388,6 +2451,8 @@ var buttonTracker = EmberObject.extend({
     // buttonTracker.drag.find('.button').css('background', '#fff');
     buttonTracker.drag.data('elem', $elem[0]);
     $('body').append(buttonTracker.drag);
+    // Mark the source cell as having its button dragged away
+    $elem.closest('.md-board-detail-grid__cell').addClass('md-board-detail-grid__cell--drag-source');
 
     editManager.set_drag_mode(true);
     var offset = $elem.offset();
@@ -2399,6 +2464,7 @@ var buttonTracker = EmberObject.extend({
     this.measureAdjustY = (this.initialButtonY + (height / 2)) - event.pageY;
   },
   stop_dragging: function() {
+    $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
     editManager.set_drag_mode(false);
     this.startEvent = null;
     this.initialButtonX = 0;
@@ -2430,13 +2496,15 @@ var buttonTracker = EmberObject.extend({
   },
   ignored_region: function(event) {
     var target = event && event.target;
+    var $target = target && $(target);
     var result = !!(target && (
                       target.tagName == 'INPUT' ||
                       target.tagName == 'SELECT' ||
                       target.tagName == 'LABEL' ||
 //                      target.className == 'dropdown-backdrop' ||
                       target.className == 'modal' ||
-                      target.className == 'modal-dialog'
+                      target.className == 'modal-dialog' ||
+                      ($target && $target.closest('.md-board-detail-symbol-card__edit-actions, .md-board-detail-symbol-card__edit-dropdown, .md-board-detail-color-picker, .md-folder-tab__label-input').length > 0)
                     ));
     return result;
   },

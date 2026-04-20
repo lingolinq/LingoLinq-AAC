@@ -695,7 +695,7 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
   def self.reconcile(start_id = 0)
     wasted = 0
     destroyed = 0
-    BoardDownstreamButtonSet.where("id > ?", start_id).find_in_batches(batch_size: 10) do |batch|
+    BoardDownstreamButtonSet.where(BoardDownstreamButtonSet.arel_table[:id].gt(start_id)).find_in_batches(batch_size: 10) do |batch|
       batch.each do |button_set|
         button_set.assert_extra_data
         if button_set.data['buttons']

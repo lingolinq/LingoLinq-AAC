@@ -35,11 +35,9 @@ export default Component.extend({
         ];
         var slice_idx = 0;
         var slices = {};
-        var color_check = function(c) { return c.types.indexOf(idx) >= 0; };
         for(var idx in parts) {
           table.push([idx, parts[idx]]);
-          var color = LingoLinq.keyed_colors.find(color_check);
-          slices[slice_idx] = {color: window.tinycolor((color || {fill: "#ccc"}).fill).saturate(10).darken(20).toHexString()};
+          slices[slice_idx] = {color: LingoLinq.stats_colors.partsOfSpeechColor(idx)};
           slice_idx++;
         }
         var data = window.google.visualization.arrayToDataTable(table);

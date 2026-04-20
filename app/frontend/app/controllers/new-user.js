@@ -84,8 +84,8 @@ export default modal.ModalController.extend({
   }),
   symbols_list: computed(function() {
     var list = [
-      {name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'},
-      {name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'},
+      {name: i18n.t('original_symbols', "Default symbols"), id: 'original'},
+      {name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'},
 
       {name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'},
       {name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix'},
@@ -94,7 +94,7 @@ export default modal.ModalController.extend({
       {name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'},
       {name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'},
       {name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'},
-      {name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'},
+      {name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'},
     ];
     return list;
   }),

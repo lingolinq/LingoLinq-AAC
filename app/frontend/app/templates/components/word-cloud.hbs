@@ -1,43 +1,86 @@
 {{#modal-dialog stretch_ratio=this.stretch_ratio action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{#if this.model.stats}}
-        {{#if this.model.stats.modeling}}
-          <span class='glyphicon glyphicon-hand-up'></span>
-          {{t "Modeled Word Cloud" key="modeled word_cloud"}}
+  <div class="la-support-modal-wrap la-word-cloud-modal-wrap">
+    <div class="la-modal-header">
+      <span class="la-modal-header-label">
+        {{#if this.model.stats}}
+          {{#if this.model.stats.modeling}}
+            {{t "Modeled Word Cloud" key="modeled word_cloud"}}
+          {{else}}
+            {{t "Word Cloud" key="word_cloud"}}
+          {{/if}}
         {{else}}
           {{t "Word Cloud" key="word_cloud"}}
         {{/if}}
-      {{else}}
-        {{t "Word Cloud" key="word_cloud"}}
-      {{/if}}
-      <span style="margin-left: 10px;">
-        <button class='btn btn-default' {{action "refresh"}}><span class="glyphicon glyphicon-refresh" title={{t "redraw" key="redraw"}}></span></button>
-        <button class='btn btn-default' {{action "zoom" "in"}}><span class="glyphicon glyphicon-plus" title={{t "zoom in" key="zoom_in"}}></span></button>
-        <button class='btn btn-default' {{action "zoom" "out"}}><span class="glyphicon glyphicon-minus" title={{t "zoom out" key="zoom_out"}}></span></button>
       </span>
-    </h3>
-  </div>
-  <div class="modal-body" id="button_settings">
-    {{#if this.model.stats}}
-    <div class="row">
-      <div class={{if this.model.stats2 "col-sm-6" "col-sm-12"}}>
-        {{#if this.model.stats2}}
-          <strong>{{this.model.stats.label}}</strong>
-        {{/if}}
-        {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+      <div class="la-support-modal-header-meta">
+        <span class="la-word-cloud-modal-actions">
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "refresh"}} title={{t "redraw" key="redraw"}} aria-label={{t "redraw" key="redraw"}}>↻</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "zoom" "in"}} title={{t "zoom in" key="zoom_in"}} aria-label={{t "zoom in" key="zoom_in"}}>+</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon" {{action "zoom" "out"}} title={{t "zoom out" key="zoom_out"}} aria-label={{t "zoom out" key="zoom_out"}}>−</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon {{if this.shuffle "active"}}" {{action "toggleShuffle"}} title={{t "Shuffle layout for different arrangement each time" key="word_cloud_shuffle"}} aria-label={{t "Shuffle layout for different arrangement each time" key="word_cloud_shuffle"}}>⇄</button>
+          <button type="button" class="la-btn la-btn--ghost la-btn--icon {{if this.allowDuplicates "active"}}" {{action "toggleDuplicates"}} title={{t "Allow same word to appear multiple times" key="word_cloud_duplicates"}} aria-label={{t "Allow same word to appear multiple times" key="word_cloud_duplicates"}}>⧉</button>
+        </span>
+        <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>✕</button>
       </div>
-      {{#if this.model.stats2}}
-        <div class='col-sm-6'>
-          <strong>{{this.model.stats2.label}}</strong>
-          {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id}}
+    </div>
+    <div class="la-support-modal-body">
+      <div class="row la-word-cloud-options" style="margin-bottom: 12px;">
+        <div class="col-sm-4">
+          <label for="word-cloud-shape">{{t "Shape" key="word_cloud_shape_label"}}</label>
+          <select id="word-cloud-shape" class="form-control la-contact-input" onchange={{action "updateShape" value="target.value"}}>
+            {{#each this.shapeOptions as |opt|}}
+              {{#if (is-equal this.shape opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
         </div>
+        <div class="col-sm-4">
+          <label for="word-cloud-color">{{t "Color" key="word_cloud_color_label"}}</label>
+          <select id="word-cloud-color" class="form-control la-contact-input" onchange={{action "updateColor" value="target.value"}}>
+            {{#each this.colorOptions as |opt|}}
+              {{#if (is-equal this.color opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label for="word-cloud-spacing">{{t "Spacing" key="word_cloud_spacing_label"}}</label>
+          <select id="word-cloud-spacing" class="form-control la-contact-input" onchange={{action "updateGridSize" value="target.value"}}>
+            {{#each this.gridSizeOptions as |opt|}}
+              {{#if (is-equal this.gridSize opt.value)}}
+                <option value={{opt.value}} selected>{{t opt.label key=opt.labelKey}}</option>
+              {{else}}
+                <option value={{opt.value}}>{{t opt.label key=opt.labelKey}}</option>
+              {{/if}}
+            {{/each}}
+          </select>
+        </div>
+      </div>
+      {{#if this.model.stats}}
+        <div class="row">
+          <div class={{if this.model.stats2 "col-sm-6" "col-sm-12"}}>
+            {{#if this.model.stats2}}
+              <strong>{{this.model.stats.label}}</strong>
+            {{/if}}
+            {{stats/word-cloud stats=this.model.stats ref_stats=this.model.stats2 zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
+          </div>
+          {{#if this.model.stats2}}
+            <div class="col-sm-6">
+              <strong>{{this.model.stats2.label}}</strong>
+              {{stats/word-cloud stats=this.model.stats2 ref_stats=this.model.stats zoom=this.zoom word_cloud_id=this.word_cloud_id shape=this.shape color=this.color gridSize=this.gridSize shuffle=this.shuffle allowDuplicates=this.allowDuplicates}}
+            </div>
+          {{/if}}
+        </div>
+        <p class="la-word-cloud-modal-hint">{{t "Right-click or long-press for options on saving this image" key="press_to_save"}}</p>
+      {{else}}
+        <p class="text-muted">{{t "No word data available for this report period." key="no_word_data_for_period"}}</p>
       {{/if}}
     </div>
-    <em>{{t "Right-click or long-press for options on saving this image" key="press_to_save"}}</em>
-    {{else}}
-    <p class="text-muted">{{t "No word data available for this report period." key="no_word_data_for_period"}}</p>
-    {{/if}}
   </div>
 {{/modal-dialog}}

@@ -7,7 +7,7 @@ export default Component.extend({
     if(this.get('side_by_side')) {
       return htmlSafe('col-sm-6');
     } else {
-      return htmlSafe('col-sm-2');
+      return htmlSafe('col-sm-4');
     }
   }),
   elem_style: computed('right_side', function() {

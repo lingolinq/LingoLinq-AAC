@@ -103,6 +103,107 @@ describe ContactMessage, :type => :model do
     })
   end
 
+  it "should not email beta feedback messages" do
+    expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
+    ContactMessage.process_new({
+      'name' => 'Beta User',
+      'email' => 'beta@example.com',
+      'subject' => 'Short summary ok',
+      'recipient' => 'beta_feedback',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'Detailed feedback here ok'
+    })
+  end
+
+  it "should accept beta feedback without email" do
+    expect(AdminMailer).not_to receive(:schedule_delivery).with(:beta_feedback_sent, anything)
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Summary',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(false)
+    expect(m.recipient).to eq('beta_feedback')
+  end
+
+  it "should reject beta feedback without subject" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Summary is required for beta feedback'])
+  end
+
+  it "should reject invalid beta screenshot" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'general_feedback' => 'x' * 12,
+      'screenshot_data' => 'not valid'
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid screenshot format'])
+  end
+
+  it "should reject beta feedback with invalid email" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'not-an-email',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid email address'])
+  end
+
+  it "should reject beta feedback with invalid feedback type" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'injection_attempt',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid feedback type'])
+  end
+
+  it "should reject beta feedback with invalid severity" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'critical',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid severity'])
+  end
+
+  it "should reject beta feedback when a field is too long" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'device_context' => 'y' * 3000
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['One or more fields are too long'])
+  end
+
   it "should handle custom author_id correctly" do
     u1 = User.create(settings: {'name' => 'Bob Jones', 'email' => 'bob@example.com'})
     u2 = User.create(settings: {'name' => 'Alice Rider', 'email' => 'alice@example.com'})

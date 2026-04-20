@@ -3541,4 +3541,97 @@ describe Organization, :type => :model do
       end
     end
   end
+
+  describe "data_policy" do
+    it "should return empty hash by default" do
+      o = Organization.create
+      expect(o.data_policy).to eq({})
+    end
+
+    it "should return stored data policy" do
+      o = Organization.create
+      o.settings['data_policy'] = {'geo_logging_allowed' => false}
+      o.save
+      expect(o.data_policy).to eq({'geo_logging_allowed' => false})
+    end
+
+    it "should update data policy with audit trail" do
+      o = Organization.create
+      u = User.create
+      o.update_data_policy({
+        'geo_logging_allowed' => false,
+        'retention_months' => 24
+      }, u)
+      o.save
+
+      expect(o.data_policy['geo_logging_allowed']).to eq(false)
+      expect(o.data_policy['retention_months']).to eq(24)
+      expect(o.data_policy['updated_by']).to eq(u.global_id)
+      expect(o.data_policy['updated_at']).to_not be_nil
+      expect(o.data_policy_version).to eq(1)
+
+      audit = AuditEvent.last
+      expect(audit.data['type']).to eq('data_policy_update')
+      expect(audit.data['organization_id']).to eq(o.global_id)
+    end
+
+    it "should increment version on each update" do
+      o = Organization.create
+      u = User.create
+      o.update_data_policy({'geo_logging_allowed' => false}, u)
+      o.save
+      expect(o.data_policy_version).to eq(1)
+
+      o.update_data_policy({'retention_months' => 12}, u)
+      o.save
+      expect(o.data_policy_version).to eq(2)
+    end
+
+    it "should only accept valid policy keys" do
+      o = Organization.create
+      u = User.create
+      o.update_data_policy({
+        'geo_logging_allowed' => false,
+        'evil_key' => 'injected',
+        'retention_months' => 12
+      }, u)
+      o.save
+
+      expect(o.data_policy['geo_logging_allowed']).to eq(false)
+      expect(o.data_policy['retention_months']).to eq(12)
+      expect(o.data_policy['evil_key']).to be_nil
+    end
+
+    it "should merge parent org policy with most restrictive winning" do
+      parent = Organization.create
+      parent.settings['data_policy'] = {
+        'geo_logging_allowed' => false,
+        'retention_months' => 12
+      }
+      parent.save
+
+      child = Organization.create(parent_organization_id: parent.id)
+      child.settings['data_policy'] = {
+        'geo_logging_allowed' => true,
+        'retention_months' => 24,
+        'log_publishing_allowed' => false
+      }
+      child.save
+
+      policy = child.effective_data_policy
+      expect(policy['geo_logging_allowed']).to eq(false)
+      expect(policy['retention_months']).to eq(12)
+      expect(policy['log_publishing_allowed']).to eq(false)
+    end
+
+    it "should accept data_policy through process_params" do
+      o = Organization.create
+      u = User.create
+      o.process({'data_policy' => {'geo_logging_allowed' => false}}, {'updater' => u})
+      o.save
+
+      expect(o.data_policy['geo_logging_allowed']).to eq(false)
+      expect(o.data_policy_version).to eq(1)
+    end
+  end
 end

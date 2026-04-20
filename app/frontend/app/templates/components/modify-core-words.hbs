@@ -1,48 +1,46 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
-      {{t "Modify Core Word List" key="modify_core_word_list"}}
-    </h3>
-  </div>
-  <div class="modal-body">
-    <p>{{t "Select from one of the precompiled core word lists below, or customize one, or create your own. %app_name% uses this list to track which button pressed are core vs. fringe to help with long-term language development." key="choose_a_word_list"}}
-      <a href="https://praacticalaac.org/strategy/join-together-core-fringe-vocabulary/" target="_blank" rel="noopener">{{t "Learn more about core/fringe words." key="learn_more_about_core_fringe_words"}}</a>
-    </p>
-    <div class='row'>
-      <div class='col-sm-6'>
-        {{bound-select select_class="form-control" select_id="core_list" content=this.core_lists selection=this.core_list action=(action "updateCoreList") }}
+  <div class="la-modify-core-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--core" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke="#2A9D8F"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke="#46505F"/></svg>
       </div>
-      <div class='col-sm-6'>
+      <h3 class="la-modal-header-label">{{t "Modify Core Word List" key="modify_core_word_list"}}</h3>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>&times;</button>
+    </div>
+    <div class="la-modify-core-modal-body">
+      <p class="la-modify-core-intro">
+        {{t "Select from one of the precompiled core word lists below, or customize one, or create your own. %app_name% uses this list to track which button pressed are core vs. fringe to help with long-term language development." key="choose_a_word_list"}}
+        <a href="https://praacticalaac.org/strategy/join-together-core-fringe-vocabulary/" target="_blank" rel="noopener" class="la-modify-core-learn-link">{{t "Learn more about core/fringe words." key="learn_more_about_core_fringe_words"}}</a>
+      </p>
+      <div class="la-modify-core-row">
+        <div class="la-modify-core-select-wrap">
+          {{bound-select select_class="la-modify-core-select" select_id="core_list" content=this.core_lists selection=this.core_list action=(action "updateCoreList") }}
+        </div>
         {{#if this.default_core_list}}
-          <button class='btn btn-default' {{action "modify_list"}}>{{t "Customize This List" key="customize_this_list"}}</button>
+          <button type="button" class="la-modify-core-customize-btn" {{action "modify_list"}}>{{t "Customize This List" key="customize_this_list"}}</button>
         {{/if}}
       </div>
-    </div>
-    <div style='margin-top: 10px; margin-bottom: 20px;'>
-      {{#if this.editing}}
-        <Textarea @value={{this.word_lines}} class="form-control" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows={{6}} />
-      {{else}}
-        <div style='max-height: 150px; overflow: auto; padding: 5px 15px; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc;'>
-          {{this.raw_words_list}}
-        </div>
-      {{/if}}
-      <div style='text-align: right;'>
-        {{t "word" count=this.parsed_words.length key="n_words"}}
+      <div class="la-modify-core-list-area">
+        {{#if this.editing}}
+          <Textarea @value={{this.word_lines}} class="la-modify-core-textarea" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows={{6}} />
+        {{else}}
+          <div class="la-modify-core-words-preview">{{this.raw_words_list}}</div>
+        {{/if}}
+        <div class="la-modify-core-word-count">{{t "word" count=this.parsed_words.length key="n_words"}}</div>
       </div>
+      <p class="la-modify-core-note"><em>{{t "Keep in mind that changes to the core word list will only affect new logs, past logs will still use the same core list they were configured for." key="core_update_only_affects_new_logs"}}</em></p>
     </div>
-    <p><em>{{t "Keep in mind that changes to the core word list will only affect new logs, past logs will still use the same core list they were configured for." key="core_update_only_affects_new_logs"}}</em></p>
-  </div>
-  <div class='modal-footer'>
-    <button class='btn btn-primary' disabled={{this.save_disabled}} {{action "save"}}>
-      {{#if this.state.saving}}
-        {{t "Updating Core Word List..." key="updating_core_word_list"}}
-      {{else if this.state.error}}
-        {{t "Error Updating Core Word List" key="error_updating_core_word_list"}}
-      {{else}}
-        {{t "Update Core Word List" key="update_core_word_list"}}
-      {{/if}}
-    </button>
-    <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <div class="la-modify-core-modal-footer">
+      <button type="button" class="la-modify-core-save-btn" disabled={{this.save_disabled}} {{action "save"}}>
+        {{#if this.state.saving}}
+          {{t "Updating Core Word List..." key="updating_core_word_list"}}
+        {{else if this.state.error}}
+          {{t "Error Updating Core Word List" key="error_updating_core_word_list"}}
+        {{else}}
+          {{t "Update Core Word List" key="update_core_word_list"}}
+        {{/if}}
+      </button>
+      <button type="button" class="la-modify-core-cancel-btn" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    </div>
   </div>
 {{/modal-dialog}}

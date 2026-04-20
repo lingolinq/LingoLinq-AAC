@@ -666,7 +666,9 @@ class Board < ActiveRecord::Base
         if !url
           raise Progress::ProgressError, "No URL generated"
         end
-        res = {:download_url => Uploader.fronted_url(url)}
+        # Prefer presigned URL so downloads work when S3 bucket blocks public access
+        download_url = Uploader.presigned_url_for_uploads(url) || Uploader.fronted_url(url)
+        res = {:download_url => download_url}
       else
         raise Progress::ProgressError, "Unexpected download type, #{type}"
       end
@@ -1715,9 +1717,10 @@ class Board < ActiveRecord::Base
   end
   
   def categories
-    res = (self.settings['categories'] || [])
-    res << 'layout' if self.settings['layout_category']
-    res << 'layouts' if self.settings['layout_category'] || self.settings['secondary_layout_category']
+    s = self.settings || {}
+    res = (s['categories'] || [])
+    res << 'layout' if s['layout_category']
+    res << 'layouts' if s['layout_category'] || s['secondary_layout_category']
     res
   end
     

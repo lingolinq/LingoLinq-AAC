@@ -16,7 +16,9 @@ class Api::TagsController < ApplicationController
   def create
     return unless allowed?(@api_user, 'supervise')
 
-    @tag = NfcTag.process_new(params['tag'], {:user => @api_user})
+    tag_data = params['tag']
+    tag_data = tag_data.permit! if tag_data.is_a?(ActionController::Parameters)
+    @tag = NfcTag.process_new(tag_data, {:user => @api_user})
     if @tag.errored?
       api_Error(400, {error: 'tag creation failed', errors: @tag.processing_errors})
     else
@@ -47,7 +49,9 @@ class Api::TagsController < ApplicationController
     @tag = NfcTag.find_by_global_id(params['id'])
     return unless exists?(@tag, params['id'])
     return unless allowed?(@tag.user, 'supervise')
-    if @tag.process(params['tag'], {user: @api_user})
+    tag_update = params['tag']
+    tag_update = tag_update.permit! if tag_update.is_a?(ActionController::Parameters)
+    if @tag.process(tag_update, {user: @api_user})
       render json: JsonApi::Tag.as_json(@tag, :wrapper => true, :permissions => @api_user)
     else
       api_error(400, {error: "tag update failed", errors: @tag.processing_errors})

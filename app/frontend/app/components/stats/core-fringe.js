@@ -39,12 +39,7 @@ export default Component.extend({
           var str = key;
           if(str == 'not_core') { str = 'fringe'; }
           table.push([str, parts[key] || 0]);
-          var color = '#ccc;';
-          if(key == 'core') {
-            color = '#49c7e8';
-          } else if(key == 'not_core') {
-            color = '#e5cea2';
-          }
+          var color = key == 'core' ? LingoLinq.stats_colors.core : LingoLinq.stats_colors.fringe;
           slices[slice_idx] = {color: color};
           slice_idx++;
         });

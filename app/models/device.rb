@@ -17,7 +17,7 @@ class Device < ActiveRecord::Base
   def generate_defaults
     self.settings ||= {}
     self.settings['name'] ||= 'Web browser for Desktop' if self.default_device?
-    self.settings['name'] ||= self.device_key.split(/\s/, 2)[1] if self.system_generated?
+    self.settings['name'] ||= (self.device_key || 'default').to_s.split(/\s/, 2)[1] if self.system_generated?
     true
   end
 
@@ -224,8 +224,8 @@ class Device < ActiveRecord::Base
   
   def unique_device_key
     raise "must be saved first" unless self.global_id
-    return device_key if self.system_generated?
-    raise "missing developer_key_id" unless self.developer_key_id
+    # Treat nil as 0 for legacy devices (e.g. from seeds) that were created without developer_key_id
+    return (device_key || 'default') if self.developer_key_id.nil? || self.system_generated?
     "#{self.device_key}_#{self.developer_key_id}"
   end
   

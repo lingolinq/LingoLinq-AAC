@@ -16,7 +16,7 @@ import { computed } from '@ember/object';
 export default Controller.extend({
   title: computed('model.user_name', function() {
     if(this.get('model.user_name')) {
-      return "Usage Reports for " + this.get('model.user_name');
+      return this.get('model.user_name') + "'s Activity";
     }
   }),
   queryParams: ['start', 'end', 'location_id', 'device_id', 'snapshot_id', 'split', 'start2', 'end2', 'location_id2', 'device_id2', 'snapshot_id2'],
@@ -69,6 +69,22 @@ export default Controller.extend({
   display_words_per_minute2: computed('usage_stats2', 'usage_stats2.words_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_minute') : undefined; }),
   display_utterances_per_minute2: computed('usage_stats2', 'usage_stats2.utterances_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('utterances_per_minute') : undefined; }),
   display_buttons_per_minute2: computed('usage_stats2', 'usage_stats2.buttons_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('buttons_per_minute') : undefined; }),
+  wordPairsForSankey: computed('usage_stats.word_pairs', function() {
+    var pairs = this.get('usage_stats.word_pairs') || {};
+    var arr = Object.keys(pairs).map(function(k) {
+      var p = pairs[k];
+      return { from: p.a, to: p.b, flow: p.count || 0 };
+    }).filter(function(d) { return d.from && d.to && d.flow > 0; });
+    return arr.sort(function(a, b) { return (b.flow || 0) - (a.flow || 0); }).slice(0, 50);
+  }),
+  wordPairsForSankey2: computed('usage_stats2.word_pairs', function() {
+    var pairs = this.get('usage_stats2.word_pairs') || {};
+    var arr = Object.keys(pairs).map(function(k) {
+      var p = pairs[k];
+      return { from: p.a, to: p.b, flow: p.count || 0 };
+    }).filter(function(d) { return d.from && d.to && d.flow > 0; });
+    return arr.sort(function(a, b) { return (b.flow || 0) - (a.flow || 0); }).slice(0, 50);
+  }),
   refresh_left_on_type_change: observer(
     'start',
     'end',
@@ -301,6 +317,19 @@ export default Controller.extend({
     });
   },
   actions: {
+    reset_to_default: function() {
+      var _this = this;
+      _this.set('usage_stats', null);
+      _this.set('usage_stats2', null);
+      _this.set('left_pending', null);
+      _this.set('right_pending', null);
+      _this.set('status', null);
+      _this.set('status2', null);
+      this.get('queryParams').forEach(function(param) {
+        _this.set(param, null);
+      });
+      this.load_left_charts();
+    },
     compare_to: function() {
       this.set('split', 1);
     },
