@@ -1023,7 +1023,6 @@ export default Controller.extend(prefClasses, {
     button_text:          'preferences.device.button_text',
     button_text_position: 'preferences.device.button_text_position',
     button_style:         'preferences.device.button_style',
-    canvas_render:        'preferences.device.canvas_render',
     hidden_buttons:       'preferences.hidden_buttons',
     stretch_buttons:      'preferences.stretch_buttons',
     preferred_symbols:    'preferences.preferred_symbols',
@@ -2307,6 +2306,23 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  // Builds and persists the compound skin string for mix_only / mix_prefer,
+  // bypassing set_compound_skin's toggle-off path so sub-option changes just
+  // re-compose the limit bitmap.
+  _rebuild_compound_skin: function(id) {
+    var user_id = this.get('app_state.currentUser.id');
+    var skin = id + (user_id ? '::' + user_id : '');
+    if(id === 'mix_only' || id === 'mix_prefer') {
+      skin = skin + '::limit-';
+      var subs = this.get('skin_suboptions') || [];
+      subs.forEach(function(opt) {
+        if(opt.checked) { skin += (id === 'mix_only' ? '1' : '3'); }
+        else            { skin += (id === 'mix_only' ? '0' : '1'); }
+      });
+    }
+    this.send('set_display_pref', 'skin', skin);
+  },
+
   actions: {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
@@ -2706,7 +2722,10 @@ export default Controller.extend(prefClasses, {
 
     toggle_display_settings: function() {
       if(this.get('display_prefs_open')) {
-        this.send('close_display_preferences');
+        // Just collapse the panel — keep pending changes in memory so the
+        // user can re-expand and see them. Full discard happens via
+        // cancel_edit or a no-op save.
+        this.set('display_prefs_open', false);
       } else {
         this.send('open_display_preferences');
       }
@@ -2714,6 +2733,13 @@ export default Controller.extend(prefClasses, {
 
     open_display_preferences: function() {
       this.set('details_dropdown_open', false);
+      // Reuse the existing pending state if the panel was previously
+      // collapsed without committing — don't stomp the user's in-progress
+      // edits by re-snapshotting.
+      if(this.get('pending_display_prefs')) {
+        this.set('display_prefs_open', true);
+        return;
+      }
       var prefs = this.get('app_state.currentUser.preferences') || {};
       var device = prefs.device || {};
       // Seed pending + original (deep copy) with current values
@@ -2723,7 +2749,6 @@ export default Controller.extend(prefClasses, {
         button_text:          device.button_text          || 'medium',
         button_text_position: device.button_text_position || 'bottom',
         button_style:         device.button_style         || 'default',
-        canvas_render:        !!device.canvas_render,
         hidden_buttons:       prefs.hidden_buttons        || 'grid',
         stretch_buttons:      prefs.stretch_buttons       || 'none',
         preferred_symbols:    prefs.preferred_symbols     || 'original',
@@ -2797,24 +2822,19 @@ export default Controller.extend(prefClasses, {
       if(id === 'mix_prefer' && this.get('skin_is_mix_prefer')) {
         return this.send('set_display_pref', 'skin', 'default');
       }
-      var user_id = this.get('app_state.currentUser.id');
-      var skin = id + (user_id ? '::' + user_id : '');
-      if(id === 'mix_only' || id === 'mix_prefer') {
-        skin = skin + '::limit-';
-        var subs = this.get('skin_suboptions') || [];
-        subs.forEach(function(opt) {
-          if(opt.checked) { skin += (id === 'mix_only' ? '1' : '3'); }
-          else            { skin += (id === 'mix_only' ? '0' : '1'); }
-        });
-      }
-      this.send('set_display_pref', 'skin', skin);
+      this._rebuild_compound_skin(id);
     },
 
-    // Fired by a sub-option checkbox's onchange after Ember's two-way
-    // @checked binding has flipped `option.checked`. Re-composes the skin.
-    refresh_skin_suboptions: function() {
-      if(this.get('skin_is_mix_only'))   { this.send('set_compound_skin', 'mix_only'); }
-      if(this.get('skin_is_mix_prefer')) { this.send('set_compound_skin', 'mix_prefer'); }
+    // Fired by a sub-option checkbox's onchange. Reads the new checked state
+    // from the event target (ground truth from the DOM) and explicitly sets
+    // it on the option POJO before rebuilding the compound skin string —
+    // avoids listener-order races where the rebuild would otherwise read a
+    // stale `option.checked` on first click.
+    toggle_skin_suboption: function(option, event) {
+      var checked = event && event.target ? !!event.target.checked : !option.checked;
+      emberSet(option, 'checked', checked);
+      if(this.get('skin_is_mix_only'))   { this._rebuild_compound_skin('mix_only'); }
+      if(this.get('skin_is_mix_prefer')) { this._rebuild_compound_skin('mix_prefer'); }
     },
 
     step_display_pref: function(key, direction) {

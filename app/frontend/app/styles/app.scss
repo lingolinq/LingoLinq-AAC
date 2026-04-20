@@ -7383,11 +7383,23 @@ body.pretty_loader #loading_box {
 .board.edit.paint .button, .board.edit.paint .button * {
   cursor: crosshair;
 }
-.board.edit .button.hidden_button {
+.board.edit:not(.hide_hidden_buttons) .button.hidden_button {
   visibility: visible;
   opacity: 0.5;
   .action_container .action {
     display: block;
+  }
+}
+/* When the user has chosen "Hide completely", preview the end-user view even
+   while editing — hidden buttons render as dark placeholders in the grid so
+   the user can still see their position without any content showing. */
+.board.edit.hide_hidden_buttons .button.hidden_button {
+  visibility: visible;
+  opacity: 1;
+  background: #1b2838 !important;
+  border-color: #2a3a4e !important;
+  * {
+    visibility: hidden;
   }
 }
 .board.edit .button.empty {
@@ -49849,7 +49861,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-toolbar [data-tooltip] {
   position: relative;
 }
-.md-board-detail-edit-toolbar [data-tooltip]:hover::after {
+.md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::after {
   content: attr(data-tooltip);
   position: absolute;
   top: calc(100% + 8px);
@@ -49870,7 +49882,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   pointer-events: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
-.md-board-detail-edit-toolbar [data-tooltip]:hover::before {
+.md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::before {
   content: '';
   position: absolute;
   top: calc(100% + 3px);
@@ -49922,9 +49934,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Emphasize the settings-toggle button's active state with a subtle ring
    so it reads as the currently-active control when the toolbar is showing
    the Display Settings content. The template-level `btn--active` rule
-   already gives it a verdigris gradient fill; this adds the outer halo. */
+   already gives it a blue-grey gradient fill; this adds the outer halo. */
 .md-board-detail-edit-toolbar__section--settings-toggle .md-board-detail-edit-toolbar__btn--active {
-  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.35);
+  box-shadow: 0 0 0 3px rgba($brand-charcoal-blue, 0.35);
 }
 .md-board-detail-edit-toolbar__section {
   display: flex;
@@ -49951,6 +49963,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-edit-toolbar__section--actions {
   margin-left: auto;
+}
+/* On narrow viewports, the initial (always-visible) toolbar sections wrap to
+   multiple lines; give each pill a bottom margin so wrapped rows don't feel
+   cramped against the next row. */
+@media (max-width: 820px) {
+  .md-board-detail-edit-toolbar__section:not(.md-board-detail-edit-toolbar__section--actions) {
+    margin-bottom: 14px;
+  }
 }
 .md-board-detail-edit-toolbar__section-label {
   font-size: 14px;
@@ -49995,12 +50015,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: flex-end;
   justify-content: center;
   gap: 18px 14px;
-  padding-top: 14px;
-  margin-top: 10px;
-  border-top: 1px solid rgba($la-navy, 0.12);
 }
-.md-board-detail--dark .md-board-detail-edit-toolbar__display-prefs {
-  border-top-color: rgba(255, 255, 255, 0.14);
+/* On wider viewports, widen the side padding on the edit toolbar so the
+   display-prefs row runs out of horizontal space sooner and Gap/Border,
+   Skin-Tones, and Hidden wrap onto a second line together. */
+@media (min-width: 1201px) {
+  .md-board-detail-edit-toolbar {
+    padding-left: 140px;
+    padding-right: 140px;
+  }
 }
 /* Hide the vertical dividers inside the expanded display-prefs row — the
    per-section pills are already visually distinct and the dividers muddy
@@ -50117,6 +50140,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      anchors to the left of the dock row. */
   margin-right: auto;
 }
+/* Narrow viewports: let the dock wrap and center the Save / Cancel cluster
+   on its own line instead of pinning to the right edge. */
+@media (max-width: 820px) {
+  .md-board-detail-edit-toolbar__actions-dock {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .md-board-detail-edit-toolbar__actions-dock > .md-board-detail-edit-toolbar__actions-cluster:only-child,
+  .md-board-detail-edit-toolbar__actions-dock > .md-board-detail-edit-toolbar__actions-cluster--filter {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
 /* Over-arching action cluster: visually groups the Settings gear + Save +
    Cancel into a single pill that sits above the toolbar as the global
    page-level actions. Uses a deeper contrast tone (lighter in light mode, darker
@@ -50184,12 +50220,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: none;
 }
 .md-board-detail-edit-toolbar__btn--active {
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
+  background: $brand-blue-grey;
   color: #fff;
-  border-color: transparent;
+  border-color: rgba($brand-charcoal-blue, 0.3);
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
 .md-board-detail-edit-toolbar__btn--active:hover {
-  background: linear-gradient(135deg, #238b7f, #3e74c0);
+  background: $brand-blue-grey;
+  box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
 .md-board-detail-edit-toolbar__btn--save {
   background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
@@ -50478,7 +50516,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     gap: 4px;
     padding: 8px;
   }
-  .md-board-detail-edit-toolbar__label {
+  /* Save / Cancel keep their word labels at every width — the rest of the
+     toolbar buttons collapse to icon-only on narrow viewports. */
+  .md-board-detail-edit-toolbar__btn:not(.md-board-detail-edit-toolbar__btn--save):not(.md-board-detail-edit-toolbar__btn--cancel) .md-board-detail-edit-toolbar__label {
     display: none;
   }
   .md-board-detail-edit-toolbar__section-label {
@@ -50706,16 +50746,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
 }
 .md-settings-icon-btn--active {
-  /* Active / highlighted settings share the Save button's blue-grey gradient
-     so selected settings read as primary-action chrome. */
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  /* Active / highlighted settings use the Save button's lighter blue-grey
+     so selected settings read as primary-action chrome. Dark text on the
+     mid-luminance blue-grey bg passes WCAG AA (#111A2E on #7693B9 ≈ 5.48:1). */
+  background: $brand-blue-grey;
   border-color: rgba($brand-charcoal-blue, 0.3);
-  color: #fff;
+  color: $brand-blue-black;
   box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
 .md-settings-icon-btn--active:hover {
-  background: linear-gradient(135deg, #8aa3c9, $brand-charcoal-blue);
-  color: #fff;
+  background: $brand-blue-grey;
+  color: $brand-blue-black;
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
 .md-settings-icon-btn:focus-visible {
@@ -50828,7 +50869,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    (including the mix-prefer inset rings or any dark-mode override) can
    possibly knock it off when the active class is present. */
 #within_ember .md-settings-skin-group .md-settings-skin.md-settings-skin--active {
-  box-shadow: 0 0 0 2px $brand-verdigris, 0 0 0 4px rgba($brand-verdigris, 0.25) !important;
+  box-shadow: 0 0 0 4px $brand-blue-grey !important;
 }
 /* "Original" / default — Fitzgerald-neutral yellow of base emoji */
 .md-settings-skin--default,
@@ -51062,15 +51103,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-settings-dropdown-item:hover {
   background: rgba($la-navy, 0.06);
 }
-/* Active dropdown item — matches the Save button's blue-grey gradient so
+/* Active dropdown item — solid blue-grey matching the Save button so
    selected settings read as primary-action chrome. */
 .md-settings-dropdown-item--active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   color: #fff;
   font-weight: 600;
 }
 .md-settings-dropdown-item--active:hover {
-  background: linear-gradient(135deg, #8aa3c9, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   color: #fff;
 }
 .md-settings-dropdown-item--active svg {
@@ -51117,13 +51158,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
 }
 .md-settings-toggle-btn--active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   border-color: rgba($brand-charcoal-blue, 0.3);
   color: #fff;
   box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
 .md-settings-toggle-btn--active:hover {
-  background: linear-gradient(135deg, #8aa3c9, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   color: #fff;
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
@@ -51162,8 +51203,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-settings-icon-btn--active,
 .md-board-detail--dark .md-settings-icon-btn--active:hover {
-  color: #000;
-  background: $brand-verdigris;
+  color: $brand-blue-black;
+  background: $brand-blue-grey;
+  border-color: rgba($brand-charcoal-blue, 0.3);
 }
 .md-board-detail--dark .md-settings-select {
   background-color: rgba(255, 255, 255, 0.06);
@@ -51197,11 +51239,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba(255, 255, 255, 0.08);
 }
 .md-board-detail--dark .md-settings-dropdown-item--active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   color: #fff;
 }
 .md-board-detail--dark .md-settings-dropdown-item--active:hover {
-  background: linear-gradient(135deg, #8aa3c9, $brand-charcoal-blue);
+  background: $brand-blue-grey;
   color: #fff;
 }
 .md-board-detail--dark .md-settings-dropdown-menu::-webkit-scrollbar-thumb {
@@ -51221,9 +51263,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-settings-toggle-btn--active,
 .md-board-detail--dark .md-settings-toggle-btn--active:hover {
-  background: $brand-verdigris;
-  border-color: $brand-verdigris;
-  color: #000;
+  background: $brand-blue-grey;
+  border-color: rgba($brand-charcoal-blue, 0.3);
+  color: #fff;
 }
 
 /* ── Edit-mode layout overrides ──────────────────────── */
@@ -51570,6 +51612,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-shell--board-detail-edit .md-board-detail-symbol-card--hidden > * {
   visibility: visible !important;
 }
+/* "Hide completely" preview: paint hidden buttons almost-black so the user
+   can see which positions will disappear on the live board, while the cell
+   stays visible + editable for un-hiding. */
+.md-shell--board-detail-edit .md-board-detail-grid--hidden-hide .md-board-detail-symbol-card--hidden {
+  background: #0b1220 !important;
+  --btn-bg: #0b1220 !important;
+}
 .md-board-detail-symbol-card--swapping {
   outline: 3px dashed $brand-verdigris;
   outline-offset: -3px;
@@ -51653,9 +51702,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-grid--folder-tab-labels .md-folder-tab {
   cursor: pointer;
 }
-.md-board-detail-grid--folder-tab-labels .md-folder-tab:hover {
-  background: #5d6878;
-}
 .md-board-detail-grid--folder-tab-labels .md-folder-tab__label,
 .md-board-detail-grid--folder-tab-labels .md-folder-tab__label-input {
   display: block;
@@ -51695,7 +51741,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
   flex: 0 0 auto !important;
-  height: calc(100% - 21px);
+  height: calc(100% - 18px);
+  transform: translateY(0.7rem);
+}
+/* Non-folder buttons in tab-labels mode match the folder front dimensions so
+   the grid rows line up with the folder cards. Folder cells have padding-top
+   12px (reserved for the tab), so non-folder cells need the same reserve
+   before the calc(100% - 18px) height math produces the same value. */
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
+  padding-top: 12px;
+  justify-content: flex-end;
+}
+.md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) > .md-board-detail-symbol-card {
+  flex: 0 0 auto !important;
+  height: calc(100% - 18px);
+  transform: translateY(-0.15rem);
 }
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label,
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label-input {
@@ -51768,6 +51828,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
   font-weight: 600;
 }
+/* In default folder mode, non-folder cells pick up the same 12px top reserve
+   the folder cells use for their tab — so non-folder buttons render the same
+   visual height as the folder fronts, keeping the grid rows aligned. */
+.md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
+  padding-top: 12px;
+}
+/* In default folder mode, tighten the top reveal area and make the folder
+   back 2px taller on the top and bottom for a chunkier folder silhouette. */
+.md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back {
+  top: 8px;
+  bottom: -3px;
+}
+/* Default folder tab is taller than the base 6px to fill the top reveal area. */
+.md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-tab {
+  top: -9px;
+  height: 9px;
+}
 /* Card sits on top — elevated above folder */
 .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
   position: relative;
@@ -51781,24 +51858,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 3px rgba(0, 0, 0, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
-}
-/* Hover: card lifts dramatically, folder shadow deepens */
-.md-board-detail-grid__cell--folder:hover > .md-board-detail-symbol-card {
-  transform: translateY(-3.5px);
-  box-shadow:
-    0 12px 32px rgba($la-navy, 0.18),
-    0 16px 48px rgba(27, 42, 65, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
-}
-.md-board-detail-grid__cell--folder:hover .md-folder-back {
-  box-shadow:
-    0 6px 24px rgba(27, 42, 65, 0.25),
-    0 12px 48px rgba(27, 42, 65, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
-}
-.md-board-detail-grid__cell--folder:hover .md-folder-tab {
-  background: #5d6878;
 }
 /* Folder badge icon — small, modern */
 .md-board-detail-symbol-card__folder-badge {
@@ -51815,10 +51874,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: rgba($brand-charcoal-blue, 0.45);
   z-index: 2;
   transition: background 0.15s ease, color 0.15s ease;
-}
-.md-board-detail-grid__cell--folder:hover .md-board-detail-symbol-card__folder-badge {
-  background: rgba($brand-charcoal-blue, 0.14);
-  color: rgba($brand-charcoal-blue, 0.65);
 }
 /* Folder label styling */
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__label {
@@ -52154,17 +52209,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-board-detail-actions-toggle {
     width: 32px;
   }
-  .md-board-detail-grid__cell--folder {
-    padding-top: 7px;
-  }
-  .md-folder-back {
-    top: 5px;
-  }
-  .md-folder-tab {
-    top: -5px;
-    height: 6px;
-    border-radius: 4px 4px 0 0;
-  }
   .md-board-detail-header__row {
     flex-direction: column;
     align-items: center;
@@ -52227,8 +52271,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-folder-back {
     left: calc(-1px + 2.5%);
     right: calc(-1px + 2.5%);
-    top: 2px;
-    bottom: -2px;
   }
   .md-folder-tab {
     width: 28%;
@@ -52242,7 +52284,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     top: -16px;
   }
   .md-board-detail-grid__cell--folder {
-    padding-top: 5px;
     margin-bottom: 0.25rem;
   }
   .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
@@ -52620,6 +52661,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    symbol card all darken together. */
 .md-board-detail--dark .md-board-detail-grid__cell--folder {
   filter: brightness(0.98);
+}
+/* Lighter folder-back in dark mode so the folder body reads against the
+   darker panel background. */
+.md-board-detail--dark .md-folder-back {
+  background: color.adjust($brand-charcoal-blue, $lightness: 15%);
 }
 .md-board-detail--dark .md-board-detail-board-actions {
   background: linear-gradient(135deg, #1f2937, $brand-charcoal-dark);
@@ -55783,8 +55829,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    Anything on an ancestor that drops opacity/filter would bleed through the
    ::after pseudo. Isolate the tooltip into its own stacking context with a
    fully-opaque fill that nothing else can undercut. */
-#within_ember .md-board-detail-edit-toolbar [data-tooltip]:hover::after,
-.md-board-detail--dark .md-board-detail-edit-toolbar [data-tooltip]:hover::after {
+#within_ember .md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::after,
+.md-board-detail--dark .md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::after {
   background: #1b2a4a !important;
   background-color: #1b2a4a !important;
   opacity: 1 !important;
@@ -55796,8 +55842,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   z-index: 9999 !important;
   box-shadow: 0 0 0 1px #1b2a4a, 0 4px 16px rgba(0, 0, 0, 0.35) !important;
 }
-#within_ember .md-board-detail-edit-toolbar [data-tooltip]:hover::before,
-.md-board-detail--dark .md-board-detail-edit-toolbar [data-tooltip]:hover::before {
+#within_ember .md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::before,
+.md-board-detail--dark .md-board-detail-edit-toolbar [data-tooltip]:hover:not(:active)::before {
   border-bottom-color: #1b2a4a !important;
   opacity: 1 !important;
   filter: none !important;

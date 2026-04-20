@@ -1143,6 +1143,8 @@ export default Controller.extend(prefClasses, {
           res = res + 'hint_hidden_buttons ';
         } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'grid' && !this.get('model.hide_empty')) {
           res = res + 'grid_hidden_buttons ';
+        } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'hide' && !this.get('model.hide_empty')) {
+          res = res + 'hide_hidden_buttons ';
         }
       }
       var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
