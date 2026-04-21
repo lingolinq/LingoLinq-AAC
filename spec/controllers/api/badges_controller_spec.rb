@@ -42,6 +42,22 @@ describe Api::BadgesController, :type => :controller do
       expect(json['badge'].length).to eq(1)
       expect(json['badge'][0]['id']).to eq(b.global_id)
     end
+
+    it "should let a read-only supervisor list badges for a supervisee goal by goal_id" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      g = UserGoal.create(:user => comm)
+      b = UserBadge.create(:user => comm, :user_goal => g)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'badge_goal_read')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      get 'index', params: {:user_id => comm.global_id, :goal_id => g.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['badge'].length).to eq(1)
+      expect(json['badge'][0]['id']).to eq(b.global_id)
+    end
     
     it "should require a valid goal" do
       token_user
@@ -49,7 +65,7 @@ describe Api::BadgesController, :type => :controller do
       assert_not_found('asdf')
     end
     
-    it "should require goal editing permission" do
+    it "should require goal visibility when filtering by goal_id" do
       token_user
       u = User.create
       g = UserGoal.create(:user => u)
@@ -167,6 +183,20 @@ describe Api::BadgesController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['badge']['id']).to eq(b.global_id)
       expect(json['badge']['highlighted']).to eq(true)
+      expect(b.reload.highlighted).to eq(true)
+    end
+
+    it "should allow a read-only supervisor with set_goals to update a supervisee badge" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      g = UserGoal.create(:user => comm)
+      b = UserBadge.create(:user => comm, :user_goal => g)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'badge_put_sup')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      put 'update', params: {:id => b.global_id, :badge => {'highlighted' => true}}
+      expect(response).to be_successful
       expect(b.reload.highlighted).to eq(true)
     end
   end
