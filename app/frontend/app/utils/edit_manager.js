@@ -2458,12 +2458,16 @@ var editManager = EmberObject.extend({
             }
           }).then(function(data) {
             progress_tracker.track(data.progress, function(event) {
-              if(event.status == 'finished') {
+              if(event.status == 'finished' || event.finished_at) {
                 runLater(function() {
                   user.reload();
                   editManager.get_app_state().refresh_session_user();
                 }, 100);
-                done_callback(event.result);
+                var res = event.result;
+                if(typeof res === 'string') {
+                  try { res = JSON.parse(res) || {}; } catch(e) { }
+                }
+                done_callback(res);
               } else if(event.status == 'errored') {
                 if(event.result) {
                   reject(i18n.t('re_linking_failed_custom', "Board re-linking failed: ") + event.result);
@@ -2486,7 +2490,7 @@ var editManager = EmberObject.extend({
             progress_tracker.track(res.progress, function(event) {
               if(event.status == 'errored') {
                 reject(i18n.t('swap_imaged_failed2', "Swapping images for new board failed unexpectedly"));
-              } else if(event.status == 'finished') {
+              } else if(event.status == 'finished' || event.finished_at) {
                 board.reload(true).then(function() {
                   editManager.get_app_state().set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
                   done_callback();

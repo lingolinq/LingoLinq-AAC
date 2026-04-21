@@ -33,7 +33,10 @@ export default Component.extend({
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
       _this.start_copying();
     } else {
-      BoardHierarchy.load_with_button_set(board).then(function(hierarchy) {
+      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true }).then(function(hierarchy) {
+        // #region agent log
+        fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H3',location:'copying-board.js:runOpening',message:'hierarchy load settled',data:{hasRoot:!!(hierarchy&&hierarchy.get('root'))},timestamp:Date.now()})}).catch(function(){});
+        // #endregion
         _this.set('loading', false);
         if (hierarchy && hierarchy.get('root')) {
           _this.set('hierarchy', hierarchy);
@@ -41,6 +44,9 @@ export default Component.extend({
           _this.start_copying();
         }
       }, function(err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H4',location:'copying-board.js:runOpening',message:'hierarchy load rejected',data:{errKey:err&&(err.error||err.message)||'unknown'},timestamp:Date.now()})}).catch(function(){});
+        // #endregion
         _this.set('loading', false);
         _this.set('error', err);
       });

@@ -1103,7 +1103,40 @@ var persistence = EmberObject.extend({
     var message_id = Math.random() + "." + (new Date()).getTime();
     persistence.bg_parser.callbacks[message_id] = defer;
     if(persistence.bg_parser.worker && persistence.bg_parser.worker.postMessage) {
-      persistence.bg_parser.worker.postMessage({id: message_id, str: str});
+      // Fallback in case worker crashes or hangs for a very long time
+      var fallbackTimeout = setTimeout(function() {
+        if(persistence.bg_parser.callbacks[message_id]) {
+          console.warn("Worker JSON parse timed out, falling back to sync parse.");
+          delete persistence.bg_parser.callbacks[message_id];
+          try {
+            var json = JSON.parse(str);
+            defer.resolve(json);
+          } catch(e) {
+            defer.reject({error: "exception parsing JSON on async timeout fallback", details: e});
+          }
+        }
+      }, 15000); // 15 seconds
+
+      var originalResolve = defer.resolve;
+      var originalReject = defer.reject;
+      defer.resolve = function(res) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        originalResolve.call(defer, res);
+      };
+      defer.reject = function(err) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        originalReject.call(defer, err);
+      };
+
+      try {
+        persistence.bg_parser.worker.postMessage({id: message_id, str: str});
+      } catch(e) {
+        clearTimeout(fallbackTimeout);
+        delete persistence.bg_parser.callbacks[message_id];
+        try { defer.resolve(JSON.parse(str)); } catch(ee) { defer.reject(ee); }
+      }
       return defer.promise;  
     } else {
       try {
@@ -1624,6 +1657,7 @@ var persistence = EmberObject.extend({
               xhr_reject({e:e, cors: true, error: 'URL lookup error'});
             });
             xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); });
+            xhr.addEventListener('timeout', function() { xhr_reject({cors: true, error: 'URL lookup timeout'}); });
 //            console.log("trying CORS request for " + url);
             // Adding the query parameter because I suspect that if a URL has already
             // been retrieved by the browser, it's not sending CORS headers on the
@@ -1632,6 +1666,7 @@ var persistence = EmberObject.extend({
             // TODO: xhr.open('GET', encodeURI(url) + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.open('GET', url + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.responseType = 'blob';
+            xhr.timeout = 45000;
             xhr.send(null);
           });
         });
@@ -3715,6 +3750,11 @@ var persistence = EmberObject.extend({
   },
   ajax: function() {
     var ajax_args = arguments;
+    if (ajax_args.length === 2 && typeof ajax_args[1] === 'object' && !ajax_args[1].timeout) {
+      ajax_args[1].timeout = 45000;
+    } else if (ajax_args.length === 1 && typeof ajax_args[0] === 'object' && !ajax_args[0].timeout) {
+      ajax_args[0].timeout = 45000;
+    }
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
     if(this.get('online') || local_request) {
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on

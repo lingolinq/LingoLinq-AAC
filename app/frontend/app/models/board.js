@@ -1142,7 +1142,7 @@ LingoLinq.Board = DS.Model.extend({
     res.list = Object.keys(res);
     return res;
   }),
-  load_button_set: function(force) {
+  load_button_set: function(force, skipEmberRecordReload) {
     var _this = this;
     var sync_buttons_from_set = function(button_set) {
       var buttons = button_set && button_set.redepth(_this.get('id'));
@@ -1153,7 +1153,7 @@ LingoLinq.Board = DS.Model.extend({
       }
       return button_set;
     };
-    if(this.get('button_set_needs_reload')) {
+    if(this.get('button_set_needs_reload') && !skipEmberRecordReload) {
       force = true;
       this.set('button_set_needs_reload', null);
     }
@@ -1191,8 +1191,12 @@ LingoLinq.Board = DS.Model.extend({
         } else{
         }
       }
-      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision')).then(function(button_set) {
+      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
         _this.set('button_set', button_set);
+        if(skipEmberRecordReload) {
+          // Buttonset.load_button_set already finished load_buttons on this record.
+          return RSVP.resolve(button_set);
+        }
         if((_this.get('fresh') || force) && !button_set.get('fresh')) {
           return button_set.reload().then(function(bs) { return bs.load_buttons(force); });
         } else {
