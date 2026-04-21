@@ -63,14 +63,23 @@ export default Controller.extend({
     var lastSync = persistenceService.get('last_sync_at') || 0;
     return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
-  check_daily_use: observer('model.user_name', 'model.permissions.admin_support_actions', function() {
+  check_daily_use: observer('model.user_name', 'model.id', 'model.permissions', 'appState.sessionUser.id', function() {
     var current_user_name = this.get('daily_use.user_name');
     var user_name = this.get('model.user_name');
     // Don't make request if user_name is undefined or empty
     if(!user_name) {
       return;
     }
-    if((user_name && current_user_name != user_name && this.get('model.permissions.admin_support_actions')) || !this.get('daily_use')) {
+    var session_id = this.get('appState.sessionUser.id');
+    var is_self = session_id && this.get('model.id') === session_id;
+    var is_admin_support = !!this.get('model.permissions.admin_support_actions');
+    var can_supervise = !!this.get('model.permissions.supervise');
+    // Match Api::UsersController#daily_use: own profile, site admin, or supervisor with +supervise+.
+    if(!is_self && !is_admin_support && !can_supervise) {
+      this.set('daily_use', null);
+      return;
+    }
+    if(!this.get('daily_use') || current_user_name !== user_name) {
       var _this = this;
       _this.set('daily_use', {loading: true});
       _this.persistence.ajax('/api/v1/users/' + user_name + '/daily_use', {type: 'GET'}).then(function(data) {
@@ -561,6 +570,13 @@ export default Controller.extend({
     var model_id = this.get('model.id');
     // Skip if user_id is 'cache' or starts with 'cache:' (from boards cache endpoint)
     if(model_id && (model_id == 'cache' || model_id.toString().match(/^cache:/))) {
+      return;
+    }
+    var perms = this.get('model.permissions');
+    if(perms && !perms.supervise) {
+      if(this.get('model')) {
+        this.set('model.logs', []);
+      }
       return;
     }
     if(!(_this.get('model.logs') || {}).length) {
