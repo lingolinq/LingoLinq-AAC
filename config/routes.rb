@@ -100,6 +100,15 @@ LingoLinq::Application.routes.draw do
   get 'api/v1/status/heartbeat' => 'session#heartbeat'
   get 'api/v1/health' => 'session#health'
 
+  # CSP violation reports (browser -> Rails). Lives under Api::V1:: rather
+  # than Api:: to keep the security surface cleanly separable from the
+  # legacy Api:: controllers mounted via `scope 'api/v1', module: 'api'` below.
+  namespace :api do
+    namespace :v1 do
+      post 'csp-reports' => 'csp_reports#create'
+    end
+  end
+
   scope 'api/v1', module: 'api' do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
