@@ -2152,6 +2152,7 @@ var editManager = EmberObject.extend({
     if(lookup > (now - (15 * 60 * 1000) && !(editManager.get_stashes().get('last_image_library') || "").match(/required/))) {
       library = editManager.get_stashes().get('last_image_library');
     }
+    var posColorItems = [];
     ids.forEach(function(id) {
       var board_id = _this.controller.get('model.id');
       var button = _this.find_button(id);
@@ -2161,11 +2162,12 @@ var editManager = EmberObject.extend({
         button.set('pending_image', true);
         // Don't set pending directly - it's a computed property based on pending_image/pending_sound
       }
-      // Always add colors when button has label but no colors - regardless of image.
-      // Previously we only called this when !button.image, which meant buttons with
-      // images (e.g. from backend process_suggested_symbols) never got part-of-speech colors.
+      // Batch part-of-speech lookups below — per-button GETs hit Rack::Attack (429) on large boards.
       if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
-        button.check_for_parts_of_speech(editManager.get_keyed_colors());
+        var posText = (button.get('vocalization') || button.get('label') || '').trim();
+        if(posText) {
+          posColorItems.push({ id: id, text: posText });
+        }
       }
       if(needs_check) {
         var locale = _this.controller.get('model.locale') || 'en';
@@ -2255,6 +2257,42 @@ var editManager = EmberObject.extend({
         });
       }
     });
+    if(posColorItems.length > 0) {
+      var keyedColors = editManager.get_keyed_colors();
+      var uniqueTexts = [];
+      var seenText = {};
+      posColorItems.forEach(function(item) {
+        if(!seenText[item.text]) {
+          seenText[item.text] = true;
+          uniqueTexts.push(item.text);
+        }
+      });
+      var fetchPosBatches = function(start, acc) {
+        acc = acc || {};
+        var chunk = uniqueTexts.slice(start, start + 100);
+        if(chunk.length === 0) {
+          return RSVP.resolve(acc);
+        }
+        return editManager.get_persistence().ajax('/api/v1/search/batch_parts_of_speech', {
+          type: 'GET',
+          data: { words: chunk.join(',') }
+        }).then(function(res) {
+          Object.assign(acc, (res && res.results) || {});
+          return fetchPosBatches(start + 100, acc);
+        }, function() {
+          return fetchPosBatches(start + 100, acc);
+        });
+      };
+      fetchPosBatches(0, {}).then(function(results) {
+        posColorItems.forEach(function(item) {
+          var btn = _this.find_button(item.id);
+          var data = results[item.text];
+          if(btn && data) {
+            btn.check_for_parts_of_speech(keyedColors, data);
+          }
+        });
+      }, function() { });
+    }
   },
   lucky_symbol: function(id) {
     if(!this.controller || !editManager.get_app_state().get('edit_mode')) {

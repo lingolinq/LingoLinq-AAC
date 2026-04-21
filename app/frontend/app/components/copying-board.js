@@ -48,6 +48,9 @@ export default Component.extend({
   },
 
   start_copying() {
+    // keep_links/remove_links skip hierarchy load — still clear loading so the modal
+    // shows the in-progress copy message instead of staying on "Loading...".
+    this.set('loading', false);
     let board_ids_to_include = null;
     const include_missing = this.get('hierarchy.include_missing');
     if (include_missing) {
@@ -99,29 +102,47 @@ export default Component.extend({
             });
           });
         }
-        return board.reload(true);
+        // Do not block closing the copying modal on reload — a stuck reload() left the UI
+        // on "Loading..." / copying forever even after button-set progress finished.
+        board.reload(true).then(null, function() {});
+        return RSVP.resolve(null);
       });
       next.then(function(res) {
-        if (modal.is_open('copying-board') || (res && res.translated)) {
-          board.reload();
+        const modalSvc = _this.get('modal');
+        const translatedResult = !!(res && res.translated === true);
+        const copyingOpen =
+          modal.is_open('copying-board') ||
+          (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
+        if (copyingOpen || translatedResult) {
           board.set('should_reload', true);
           _this.get('appState').jump_to_board({
             id: board.get('id'),
             key: board.get('key')
           });
           modal.close({ copied: true, id: board.get('id'), key: board.get('key') });
+          if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
+            modalSvc.close({ copied: true, id: board.get('id'), key: board.get('key') });
+          }
         } else {
           modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
         }
       }, function(err) {
-        if (modal.is_open('copying-board')) {
+        const modalSvc = _this.get('modal');
+        const copyingOpen =
+          modal.is_open('copying-board') ||
+          (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
+        if (copyingOpen) {
           _this.set('error', err);
         } else {
           modal.error(err);
         }
       });
     }, function(err) {
-      if (modal.is_open('copying-board')) {
+      const modalSvc = _this.get('modal');
+      const copyingOpen =
+        modal.is_open('copying-board') ||
+        (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
+      if (copyingOpen) {
         _this.set('error', err);
       } else {
         modal.error(err);

@@ -1083,7 +1083,13 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
             if(event.status == 'errored') {
               reject({error: 'error while generating button set'});
             } else if(event.status == 'finished') {
-              found_url(event.result.url);
+              var res = event.result;
+              var resultUrl = res && (res.url || res['url']);
+              if(resultUrl) {
+                found_url(resultUrl);
+              } else {
+                reject({error: 'progress finished without button set url', result: res});
+              }
             }
           });  
         }
