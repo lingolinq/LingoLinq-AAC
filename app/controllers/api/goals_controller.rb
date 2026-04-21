@@ -59,8 +59,14 @@ class Api::GoalsController < ApplicationController
     return unless allowed?(user, 'set_goals')
 
     admin_org = Organization.admin
-    if goal_data['template_header']
-      return unless allowed?(admin_org, 'edit')
+    # Clients may accidentally send template_header: true (e.g. from serialize() after browsing
+    # community templates). Only org managers may create admin template headers; otherwise strip
+    # the flag so goal creation still succeeds as a normal user goal.
+    if ActiveModel::Type::Boolean.new.cast(goal_data['template_header'])
+      scopes = api_permission_scopes
+      unless admin_org&.allows?(@api_user, 'edit', scopes)
+        goal_data['template_header'] = false
+      end
     end
 
     goal = UserGoal.process_new(goal_data, {:user => user, :author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
