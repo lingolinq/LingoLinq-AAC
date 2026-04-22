@@ -21,9 +21,9 @@ The browser emits `Content-Security-Policy-Report-Only` headers. Violations gene
 
 **Exit criteria for Phase 1:**
 
-- Deployed to staging for at least 7 days.
+- Deployed to staging for at least 2 full weeks.
 - Manual walkthrough of every major surface: login, dashboard, communicator, board editor, admin, organization pages, SSO flows (Clever, Microsoft, Google, generic SAML).
-- Violation reports reviewed and allowlist updated as needed.
+- Staging violation reports remain clean during that period, with the allowlist reviewed and updated as needed.
 
 ### Phase 2: Add a report collector
 
