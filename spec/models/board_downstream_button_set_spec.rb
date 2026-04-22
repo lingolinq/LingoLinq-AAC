@@ -1664,12 +1664,12 @@ describe BoardDownstreamButtonSet, :type => :model do
       BoardDownstreamButtonSet.update_for(b.global_id, true)
       bs = b.reload.board_downstream_button_set
       bs.data['remote_paths'] = {
-        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 4.weeks.from_now.to_i},
-        'jkl' => {'path' => 'jkl.jkl', 'generated' => 12345, 'expires' => 3.weeks.ago.to_i}
+        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 5.weeks.ago.to_i, 'checksum' => 'chk-asdf'},
+        'jkl' => {'path' => 'jkl.jkl', 'generated' => 12345, 'expires' => 3.weeks.ago.to_i, 'checksum' => 'chk-jkl'}
       }
       bs.save
-      expect(Uploader).to receive(:remote_remove).with('asdf.asdf').and_return(true)
-      expect(Uploader).to receive(:remote_remove).with('jkl.jkl').and_return(true)
+      expect(Uploader).to receive(:remote_remove).with('asdf.asdf', 'chk-asdf').and_return(true)
+      expect(Uploader).to receive(:remote_remove).with('jkl.jkl', 'chk-jkl').and_return(true)
       BoardDownstreamButtonSet.flush_caches([b.global_id], Time.now.to_i)
     end
 
@@ -1682,12 +1682,12 @@ describe BoardDownstreamButtonSet, :type => :model do
       BoardDownstreamButtonSet.update_for(b.global_id, true)
       bs = b.reload.board_downstream_button_set
       bs.data['remote_paths'] = {
-        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 4.weeks.from_now.to_i},
-        'jkl' => {'path' => 'jkl.jkl', 'generated' => 12345, 'expires' => 3.weeks.ago.to_i}
+        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 5.weeks.ago.to_i, 'checksum' => 'chk-asdf'},
+        'jkl' => {'path' => 'jkl.jkl', 'generated' => 12345, 'expires' => 3.weeks.ago.to_i, 'checksum' => 'chk-jkl'}
       }
       bs.save
-      expect(Uploader).to receive(:remote_remove).with('asdf.asdf').and_return(true)
-      expect(Uploader).to receive(:remote_remove).with('jkl.jkl').and_return(true)
+      expect(Uploader).to receive(:remote_remove).with('asdf.asdf', 'chk-asdf').and_return(true)
+      expect(Uploader).to receive(:remote_remove).with('jkl.jkl', 'chk-jkl').and_return(true)
       BoardDownstreamButtonSet.flush_caches([b.global_id], Time.now.to_i)
       bs.reload
       expect(bs.data['remote_paths'].keys).to eq([])
@@ -1702,15 +1702,35 @@ describe BoardDownstreamButtonSet, :type => :model do
       BoardDownstreamButtonSet.update_for(b.global_id, true)
       bs = b.reload.board_downstream_button_set
       bs.data['remote_paths'] = {
-        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 4.weeks.from_now.to_i},
-        'jkl' => {'path' => 'jkl.jkl', 'generated' => 3.hours.from_now.to_i, 'expires' => 3.weeks.ago.to_i}
+        'asdf' => {'path' => 'asdf.asdf', 'generated' => 1234, 'expires' => 5.weeks.ago.to_i, 'checksum' => 'chk-asdf'},
+        'jkl' => {'path' => 'jkl.jkl', 'generated' => 3.hours.from_now.to_i, 'expires' => 3.weeks.ago.to_i, 'checksum' => 'chk-jkl'}
       }
       bs.save
-      expect(Uploader).to receive(:remote_remove).with('asdf.asdf').and_return(true)
-      expect(Uploader).to_not receive(:remote_remove).with('jkl.jkl')
+      expect(Uploader).to receive(:remote_remove).with('asdf.asdf', 'chk-asdf').and_return(true)
+      expect(Uploader).to_not receive(:remote_remove).with('jkl.jkl', anything)
       BoardDownstreamButtonSet.flush_caches([b.global_id], Time.now.to_i)
       bs.reload
       expect(bs.data['remote_paths'].keys).to eq(['jkl'])
+    end
+
+    it "should NOT flush entries still within their expires window even when generated is old" do
+      u = User.create
+      b = Board.create(user: u)
+      b.process({'buttons' => [
+        {'id' => 1, 'label' => 'jump'}
+      ]})
+      BoardDownstreamButtonSet.update_for(b.global_id, true)
+      bs = b.reload.board_downstream_button_set
+      bs.data['remote_paths'] = {
+        'live' => {'path' => 'live.json', 'generated' => 1234, 'expires' => 5.months.from_now.to_i, 'checksum' => 'chk-live'},
+        'stale' => {'path' => 'stale.json', 'generated' => 5678, 'expires' => 1.day.ago.to_i, 'checksum' => 'chk-stale'}
+      }
+      bs.save
+      expect(Uploader).to_not receive(:remote_remove).with('live.json', anything)
+      expect(Uploader).to receive(:remote_remove).with('stale.json', 'chk-stale').and_return(true)
+      BoardDownstreamButtonSet.flush_caches([b.global_id], Time.now.to_i)
+      bs.reload
+      expect(bs.data['remote_paths'].keys).to eq(['live'])
     end
   end
 end
