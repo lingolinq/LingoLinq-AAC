@@ -9,6 +9,10 @@ import capabilities from '../../utils/capabilities';
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
+import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
+import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import Button from '../../utils/button';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
@@ -54,26 +58,7 @@ export default Controller.extend(prefClasses, {
     'appState.currentUser.pending_board_shares',
     'appState.default_mode',
     'appState.speak_mode',
-    function() {
-      var board_id = this.get('model.id');
-      var _this = this;
-      if(board_id && _this.appState.get('currentBoardState')) {
-        var shares = _this.appState.get('currentUser.pending_board_shares') || [];
-        var matching_shares = shares.filter(function(s) { return s.board_id && s.board_id == board_id; });
-        if(matching_shares.length > 0) {
-          // If not in Speak Mode, or just barely launched into Speak Mode
-          if(_this.appState.get('default_mode') || (_this.appState.get('speak_mode') && _this.stashes.get('boardHistory.length') > 0)) {
-            // Only prompt once if in Speak Mode
-            var already = (_this.appState.get('speak_mode') && this.get('already_checked_boards')) || {};
-            if(!already[board_id]) {
-              already[board_id] = true;
-              this.set('already_checked_boards', already);
-              modal.open('approve-board-share', {board: _this.get('model'), shares: matching_shares});
-            }
-          }
-        }
-      }
-    }
+    function() { runShareApprovalCheck(this, this.appState); }
   ),
   updateSuggestions: observer(
     'appState.button_list',
@@ -346,15 +331,7 @@ export default Controller.extend(prefClasses, {
     'model.integration_name',
     'model.locale',
     'model.locales',
-    function() {
-      if(this.get('model.id') && this.appState.get('currentBoardState.id') == (this.get('model.global_id') || this.get('model.id'))) {
-        this.appState.setProperties({
-          'currentBoardState.integration_name': this.get('model.integration') && this.get('model.integration_name'),
-          'currentBoardState.text_direction': i18n.text_direction(this.get('model.locale')),
-          'currentBoardState.translatable': (this.get('model.locales') || []).length > 1
-        });
-      }
-    }
+    function() { runBoardStateSync(this, this.appState); }
   ),
   height: 400,
   computeHeight: observer(
@@ -533,12 +510,7 @@ export default Controller.extend(prefClasses, {
     return htmlSafe(str);
   }),
   bg_class: computed('model.background.position', function() {
-    var pos = (this.get('model.background.position') || '').split(',');
-    var fit = 'stretch';
-    if(pos[0] == 'center') {
-      fit = 'contain';
-    }
-    return htmlSafe(fit);
+    return computeBgClass(this.model);
   }),
   bg_style: computed(
     'model.background.image',
@@ -546,44 +518,14 @@ export default Controller.extend(prefClasses, {
     'model.grid.columns',
     'model.background.position',
     'model.background.color',
-    function() {
-      var rows = this.get('model.grid.rows');
-      var cols = this.get('model.grid.columns');
-      var pos = (this.get('model.background.position') || '').split(',');
-      var xmin = Math.max(parseInt(pos[1], 10) || 0, 0), xmax = Math.min(parseInt(pos[3], 10) || cols - 1, cols - 1) + 1,
-          ymin = Math.max(parseInt(pos[2], 10) || 0, 0), ymax = Math.min(parseInt(pos[4], 10) || rows - 1, rows - 1) + 1;
-
-      var width = 100 * (xmax - xmin) / cols;
-      var height = 100 * (ymax - ymin) / rows;
-      var left = 100 * xmin / cols;
-      var top = 100 * ymin / rows;
-      
-      var str = 'position: absolute; top: ' + top + '%; left: ' + left + '%; width: ' + width + '%; height: ' + height + '%; overflow: hidden;'
-      if(this.get('model.background.color') && window.tinycolor) {
-        var clr = window.tinycolor(this.get('model.background.color'));
-        if(clr && clr.toRgbString()) {
-          str = str + ' background: ' + clr.toRgbString();
-        }
-      }
-      return htmlSafe(str);
-    }
+    function() { return computeBgStyle(this.model); }
   ),
   bg_img_style: computed(
     'model.background.image',
     'model.grid.rows',
     'model.grid.columns',
     'model.background.position',
-    function() {
-      var pos = (this.get('model.background.position') || '').split(',');
-      // center, stretch, cover, or pos,x%,y%,w%,h% as row/col units
-      var fit = 'fill';
-      if(pos[0] == 'center') {
-        fit = 'contain';
-      } else if(pos[0] == 'cover') {
-        fit = 'cover';
-      }
-      return htmlSafe('object-fit: ' + fit + '; object-position: center;');
-    }
+    function() { return computeBgImgStyle(this.model); }
   ),
   redraw_if_needed: function() {
     var now = (new Date()).getTime();
@@ -1097,8 +1039,8 @@ export default Controller.extend(prefClasses, {
   editModeNormalText: computed('appState.edit_mode', 'model.text_size', function() {
     return this.appState.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
   }),
-  nothing_visible_not_edit: computed('nothing_visible', 'appState.edit_mode', function() {
-    return this.get('nothing_visible') && !this.appState.get('edit_mode');
+  nothing_visible_not_edit: computed('model.nothing_visible', 'appState.edit_mode', function() {
+    return this.get('model.nothing_visible') && !this.appState.get('edit_mode');
   }),
   display_class: computed(
     'stashes.all_buttons_enabled',
@@ -1243,18 +1185,7 @@ export default Controller.extend(prefClasses, {
     }
   ),
   reload_on_connect: observer('persistence.online', function() {
-    if(!this || typeof this.get !== 'function') { return; }
-    var persistenceService = this.get('persistence') || this.persistence;
-    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && !this.get('model.id')) {
-      try {
-        this.send('refreshData');
-      } catch(e) { }
-//       var _this = this;
-//       var obj = this.store.findRecord('board', editManager.get('last_board_key'));
-//       return obj.then(function(data) {
-//         _this.set('model', data);
-//       }, function() { });
-    }
+    runReloadOnConnect(this, this.persistence);
   }),
 
   _extractButtonId: function(id, event) {

@@ -50,6 +50,9 @@ export default Route.extend({
     // guards inside async callbacks (e.g. _build_from_raw) don't stay "armed"
     // after a previous exit.
     controller.set('_exiting', false);
+    // Reset retrying flag — fresh model load means any prior "Trying again..."
+    // state is resolved.
+    controller.set('retrying', false);
 
     controller.set('model', model);
     controller.set('user', user);
@@ -125,6 +128,7 @@ export default Route.extend({
       has_fallbacks: model.get('has_fallbacks'),
       default_locale: model.get('locale'),
       copy_version: model.get('copy_version'),
+      integration_name: model.get('integration') && model.get('integration_name'),
       parent_key: model.get('parent_board_key'),
       text_direction: i18n.text_direction(model.get('locale')),
       translatable: board_langs.length > 1
@@ -197,6 +201,17 @@ export default Route.extend({
         _this.appState.check_scanning();
       }
     }, 500);
+  },
+
+  actions: {
+    refreshData: function() {
+      this.refresh();
+    },
+    re_transition: function() {
+      var controller = this.controllerFor('user.board-detail');
+      if(controller) { controller.set('retrying', true); }
+      this.refresh();
+    }
   },
 
   resetController: function(controller, isExiting) {

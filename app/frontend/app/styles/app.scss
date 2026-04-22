@@ -2016,6 +2016,22 @@ header:has(#normal_mode) #inner_header {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
 }
 
+/* Tiny header (viewport height < 400px → header_size=='tiny' → header height 50px).
+   The 90px identity button defined above would overflow the 50px band and visually
+   shift up. Shrink the button + avatar to fit inside the tiny header. */
+header.speaking.tiny #inner_header:has(#speak) #identity #identity_button.btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 4px !important;
+}
+header.speaking.tiny #inner_header:has(#speak) #identity .user_holder,
+header.speaking.tiny #inner_header:has(#speak) #identity img.user {
+  width: 32px !important;
+  height: 32px !important;
+}
+
 /* Avatar circle: neutral slate (modern, professional) */
 #inner_header:has(#speak) #identity .user_holder {
   background: #e2e8f0 !important;
@@ -15610,15 +15626,28 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
     display: inline-flex !important;
   }
 }
-/* Close the gap between the settings gear and the identity dropdown — the settings button is the
-   last item before the avatar, and the default flex gap on #identity (12px) plus the button's own
-   6px margin-right were creating visible breathing room. Negative margin offsets both. */
-#identity .ll-header-settings-btn,
-#identity.identity-with-dark-toggle .ll-header-settings-btn,
-#inner_header #identity .ll-header-settings-btn,
-.ll-header-settings-btn {
-  margin-right: -20px !important;
+/* Exception: the beta-feedback collapse (full pill → circular β) at ≤1200px is only intended for
+   the board-alt page, whose header cluster is tight. On every other page, restore the full pill
+   and keep the circular variant hidden. Scoped to min-width: 768px so the ≤767px rule (which
+   hides both nav variants and moves the link into the dropdown) continues to take effect. */
+@media (min-width: 768px) and (max-width: 1200px) {
+  #within_ember:not(.board-alt-view) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  #within_ember:not(.board-alt-view) #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  #within_ember:not(.board-alt-view) #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  #within_ember:not(.board-alt-view) .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only {
+    display: inline-flex !important;
+  }
+  #within_ember:not(.board-alt-view) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
+  #within_ember:not(.board-alt-view) #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
+  #within_ember:not(.board-alt-view) #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
+  #within_ember:not(.board-alt-view) #inner_header:has(#nav_header) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
+  #within_ember:not(.board-alt-view) .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only {
+    display: none !important;
+  }
 }
+/* Settings gear sits between the help icon and the identity dropdown. Keep its trailing margin at
+   the default 6px (see .ll-header-settings-btn base rule) so the gap to the avatar matches the gaps
+   between the other header actions (Upgrade → help → gear). No override needed. */
 
 /* "Try New Style" dropdown item: mirrors the style-switcher icon on the navbar — the icon is shown
    on wide screens (>1200px), the dropdown item is shown on narrow screens (<=1200px). */
@@ -15642,16 +15671,16 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   height: 25px !important;
 }
 
-/* Settings gear color: dark on light backgrounds (default), light on dark header backgrounds. */
+/* Settings gear color: dark on light backgrounds (default), light on dark header backgrounds.
+   Only board-detail (has #nav_header) and board-alt / speak mode (has #speak) have a dark
+   inner_header. All other authenticated pages default to a light $surface-100 #inner_header
+   (see line 1439), where the default dark navy color applies. */
 header:has(#nav_header) .ll-header-settings-btn,
-#within_ember > header.header-index-with-dark-toggle .ll-header-settings-btn,
 #inner_header:has(#speak) .ll-header-settings-btn {
   color: rgba(255, 255, 255, 0.9) !important;
 }
 header:has(#nav_header) .ll-header-settings-btn:hover,
 header:has(#nav_header) .ll-header-settings-btn:focus,
-#within_ember > header.header-index-with-dark-toggle .ll-header-settings-btn:hover,
-#within_ember > header.header-index-with-dark-toggle .ll-header-settings-btn:focus,
 #inner_header:has(#speak) .ll-header-settings-btn:hover,
 #inner_header:has(#speak) .ll-header-settings-btn:focus {
   color: #fff !important;
@@ -17949,14 +17978,15 @@ header.header--unauthenticated ~ #content .la-topbar {
   border: 1px solid rgba(210, 214, 224, 0.6);
 }
 
-/* Header settings shortcut — sits to the left of the identity dropdown */
+/* Header settings shortcut — sits to the left of the identity dropdown.
+   No trailing margin: siblings (help icon, upgrade pill) have none either, so the gap to the
+   avatar is driven by the flex container's natural spacing and matches the other action gaps. */
 .ll-header-settings-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 38px;
   height: 38px;
-  margin-right: 6px;
   padding: 0;
   border-radius: 10px;
   color: rgba($la-navy, 0.75);
@@ -46388,6 +46418,128 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 8px;
 }
 
+/* ── Empty-board state: shown when board has no visible buttons (not in edit mode) ───────── */
+.md-board-detail-empty-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 200px;
+  padding: 40px 20px;
+  text-align: center;
+
+  p {
+    font-size: 18px;
+    color: rgba($la-navy, 0.72);
+    margin: 0;
+    max-width: 480px;
+  }
+
+  .btn {
+    font-size: 16px;
+    padding: 10px 20px;
+  }
+}
+
+/* ── Error/retry state: shown when the board fails to load ───────── */
+.md-board-detail-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 240px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.md-board-detail-error__message {
+  font-size: 18px;
+  color: rgba($la-navy, 0.85);
+  margin: 0;
+  max-width: 520px;
+}
+.md-board-detail-error__retrying {
+  font-size: 15px;
+  color: rgba($la-navy, 0.6);
+  margin: 0;
+  font-style: italic;
+}
+.md-board-detail-error__retry {
+  font-size: 16px;
+  padding: 10px 24px;
+}
+
+/* ── Board background layer (VSD / scene display): scoped via :has(#board_bg)
+   so boards without a background get zero new style rules. ─────────────── */
+.md-board-detail-grid.board:has(#board_bg) {
+  position: relative;
+}
+.md-board-detail-grid.board:has(#board_bg) .md-board-detail-grid__cell {
+  position: relative;
+  z-index: 10;
+}
+
+/* ── Integration mode: single-column, full-viewport iframe ─────────── */
+.md-shell--board-detail-integration .md-board-detail-layout {
+  grid-template-columns: 1fr;
+  padding: 0;
+  gap: 0;
+}
+.md-shell--board-detail-integration .md-board-detail-main {
+  padding: 0;
+  min-height: calc(100vh - var(--topbar-height, 68px));
+  display: flex;
+  flex-direction: column;
+}
+.md-shell--board-detail-integration .md-board-detail-integration-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba($la-navy, 0.06);
+  border-bottom: 1px solid rgba($la-navy, 0.1);
+}
+.md-shell--board-detail-integration .md-board-detail-integration-header__title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: $la-navy;
+}
+.md-shell--board-detail-integration .md-board-detail-integration-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $la-navy;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.md-shell--board-detail-integration .md-board-detail-integration-exit:hover,
+.md-shell--board-detail-integration .md-board-detail-integration-exit:focus-visible {
+  background: rgba($la-navy, 0.08);
+  outline: none;
+}
+.md-shell--board-detail-integration .integration_container {
+  flex: 1 1 auto;
+  width: 100%;
+  display: block;
+  position: relative;
+}
+.md-shell--board-detail-integration #integration_frame {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  display: block;
+  border: 0;
+}
+
 /* ── Left sidebar ─────────────────────────────────────── */
 
 .md-board-detail-sidebar {
@@ -47013,6 +47165,90 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $indigo;
   margin: 10px 0 1px;
 }
+
+/* ── Title info-toggle: chevron that expands the board description/icons panel ───────── */
+.md-board-detail-header__info-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* WCAG 2.5.5 AAA touch target */
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 50%;
+  background: #fff;
+  color: rgba($la-navy, 0.72);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+.md-board-detail-header__info-toggle:hover,
+.md-board-detail-header__info-toggle:focus-visible {
+  background: rgba($brand-verdigris, 0.08);
+  color: $la-navy;
+  border-color: rgba($brand-verdigris, 0.3);
+  outline: none;
+}
+.md-board-detail-header__info-toggle--open svg {
+  transform: rotate(180deg);
+}
+.md-board-detail-header__info-toggle svg {
+  transition: transform 0.2s ease;
+}
+
+/* ── Expansion panel: description text + privacy/license icons ─────────────────── */
+.md-board-detail-header__info-panel {
+  margin: 10px 0 12px;
+  padding: 12px 14px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.md-board-detail-header__info-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.md-board-detail-header__info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: rgba($la-navy, 0.72);
+}
+.md-board-detail-header__info-icon--lock {
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $la-navy;
+}
+.md-board-detail-header__info-icon--private {
+  background: rgba($la-navy, 0.08);
+  color: rgba($la-navy, 0.85);
+}
+.md-board-detail-header__license-icon {
+  height: 22px;
+  width: auto;
+  opacity: 0.85;
+}
+.md-board-detail-header__info-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.85);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.md-board-detail-header__info-description--empty {
+  font-style: italic;
+  color: rgba($la-navy, 0.55);
+}
+
 .md-board-detail-info-btn {
   display: flex;
   align-items: center;
@@ -47301,6 +47537,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 12px;
   background: $brand-blue-grey;
   color: #fff;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
@@ -50616,6 +50853,55 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-symbol-card__edit-btn--danger:hover {
   color: $brand-danger;
+}
+
+/* ── Non-edit context menu (Stash / Word Data) on symbol cards ───────── */
+.md-board-detail-symbol-card__context-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.md-board-detail-symbol-card:hover .md-board-detail-symbol-card__context-actions,
+.md-board-detail-symbol-card:focus-within .md-board-detail-symbol-card__context-actions,
+.md-board-detail-symbol-card__context-actions:has(button[aria-expanded="true"]),
+.md-board-detail-symbol-card__context-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Touch devices (no hover): show with subtle opacity so users can find it. */
+@media (hover: none) {
+  .md-board-detail-symbol-card__context-actions {
+    opacity: 0.6;
+    pointer-events: auto;
+  }
+  .md-board-detail-symbol-card__context-actions:focus-within {
+    opacity: 1;
+  }
+}
+.md-board-detail-symbol-card__edit-menu-trigger--context {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: rgba($la-navy, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-detail-symbol-card__edit-menu-trigger--context:hover,
+.md-board-detail-symbol-card__edit-menu-trigger--context:focus-visible {
+  background: #fff;
+  color: $la-navy;
+  border-color: rgba($brand-verdigris, 0.3);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.12);
+  outline: none;
 }
 
 /* ── Inline vs dropdown edit actions (container query) ── */

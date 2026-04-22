@@ -10,6 +10,10 @@ import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
+import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
+import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
+import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
@@ -24,6 +28,7 @@ export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
   router: service('router'),
+  persistence: service('persistence'),
 
   is_board_detail: true,
   folder_display_style: 'default',
@@ -742,6 +747,72 @@ export default Controller.extend(prefClasses, {
       }
     }
   ),
+
+  check_for_share_approval: observer(
+    'model.id',
+    'app_state.currentUser.pending_board_shares',
+    'app_state.default_mode',
+    'app_state.speak_mode',
+    function() { runShareApprovalCheck(this, this.app_state); }
+  ),
+
+  update_current_board_state: observer(
+    'model.id',
+    'model.global_id',
+    'model.integration',
+    'model.integration_name',
+    'model.locale',
+    'model.locales',
+    function() { runBoardStateSync(this, this.app_state); }
+  ),
+
+  reload_on_connect: observer('persistence.online', function() {
+    runReloadOnConnect(this, this.persistence);
+  }),
+
+  bg_class: computed('model.background.position', function() {
+    return computeBgClass(this.model);
+  }),
+  bg_style: computed(
+    'model.background.image',
+    'model.grid.rows',
+    'model.grid.columns',
+    'model.background.position',
+    'model.background.color',
+    function() { return computeBgStyle(this.model); }
+  ),
+  bg_img_style: computed(
+    'model.background.image',
+    'model.grid.rows',
+    'model.grid.columns',
+    'model.background.position',
+    function() { return computeBgImgStyle(this.model); }
+  ),
+
+  nothing_visible_not_edit: computed('model.nothing_visible', 'edit_mode', function() {
+    return this.get('model.nothing_visible') && !this.get('edit_mode');
+  }),
+
+  retrying: false,
+  error_message: computed('model.id', 'model.error', 'persistence.online', function() {
+    if(this.get('model.id')) { return null; }
+    if(this.persistence && this.persistence.get('online')) {
+      return i18n.t('error_not_available', "This board is not currently available.");
+    } else {
+      return i18n.t('error_no_local', "This board is not available offline.");
+    }
+  }),
+
+  description_info_expanded: false,
+  cc_license: computed('model.license.type', function() {
+    return (this.get('model.license.type') || '').match(/^CC\s/);
+  }),
+  pd_license: computed('model.license.type', function() {
+    return this.get('model.license.type') == 'public domain';
+  }),
+  has_info_icons: computed('model.public', 'cc_license', 'pd_license', function() {
+    return !this.get('model.public') || this.get('cc_license') || this.get('pd_license');
+  }),
 
   // No-ops: board-detail uses CSS grid, not computed height or canvas
   computeHeight: function() { },
@@ -2478,37 +2549,67 @@ export default Controller.extend(prefClasses, {
     },
 
     enter_edit_mode: function() {
-      this.set('show_options_menu', false);
-      this.set('show_color_legend', false);
-      this.set('board_collapsed', false);
-      this.set('panels_collapsed', true);
-      this.get('router').transitionTo('user.board-detail.edit', this.get('user.user_name'), this.get('boardname'));
+      var _this = this;
+      var app_state = this.get('app_state');
+      // Gate on the speak-mode PIN when configured — same pattern as
+      // switch_communicators below and the app-wide toggleEditMode.
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
+      }
+      ready.then(function(res) {
+        if(res && res.correct_pin) {
+          _this.set('show_options_menu', false);
+          _this.set('show_color_legend', false);
+          _this.set('board_collapsed', false);
+          _this.set('panels_collapsed', true);
+          _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
+        }
+      }, function() { });
     },
 
     exit_to_home: function() {
-      console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
-      // Signal any in-flight async work on this controller to bail.
-      // _build_from_raw and its callers check this flag and return early.
-      this.set('_exiting', true);
-      // Cancel known scheduled timers on this controller.
-      if(this._phrase_search_timer) {
-        try { runCancel(this._phrase_search_timer); } catch(e) {}
-        this._phrase_search_timer = null;
-      }
-      this.set('show_options_menu', false);
-      this.set('app_state.board_detail_nav_history', []);
-      this.set('app_state.board_detail_entry_board', null);
+      var _this = this;
       var app_state = this.get('app_state');
-      app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
-      var transition = this.get('router').transitionTo('index');
-      if(transition && typeof transition.then === 'function') {
-        transition.then(
-          function() { app_state.hide_loading_overlay(); },
-          function() { app_state.hide_loading_overlay(); }
-        );
-      } else {
-        app_state.hide_loading_overlay();
+      // Gate on the speak-mode PIN when configured. Without this the button
+      // lets a communicator leave the locked session by navigating home.
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
       }
+      ready.then(function(res) {
+        if(!res || !res.correct_pin) { return; }
+        console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
+        // Signal any in-flight async work on this controller to bail.
+        // _build_from_raw and its callers check this flag and return early.
+        _this.set('_exiting', true);
+        // Cancel known scheduled timers on this controller.
+        if(_this._phrase_search_timer) {
+          try { runCancel(_this._phrase_search_timer); } catch(e) {}
+          _this._phrase_search_timer = null;
+        }
+        _this.set('show_options_menu', false);
+        _this.set('app_state.board_detail_nav_history', []);
+        _this.set('app_state.board_detail_entry_board', null);
+        app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+        var transition = _this.get('router').transitionTo('index');
+        if(transition && typeof transition.then === 'function') {
+          transition.then(
+            function() { app_state.hide_loading_overlay(); },
+            function() { app_state.hide_loading_overlay(); }
+          );
+        } else {
+          app_state.hide_loading_overlay();
+        }
+      }, function() { });
     },
 
     exit_speak_mode: function() {
@@ -2600,6 +2701,10 @@ export default Controller.extend(prefClasses, {
 
     toggle_description: function() {
       this.toggleProperty('description_expanded');
+    },
+
+    toggle_description_info: function() {
+      this.toggleProperty('description_info_expanded');
     },
 
     speak_phrase: function(phrase) {
