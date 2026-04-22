@@ -46411,7 +46411,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
   padding: 2px;
-  height: calc(100vh - var(--topbar-height, 68px));
+  /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
+     — Android Chrome's URL bar eats into the viewport but isn't reflected in
+     100vh. dvh keeps the layout flush to the visible bottom so the button grid
+     never clips and no empty gutter appears when the URL bar shows/hides. */
+  height: calc(100dvh - var(--topbar-height, 68px));
   box-sizing: border-box;
 }
 .md-shell--board-detail-edit .md-board-detail-layout {
@@ -46490,7 +46494,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-shell--board-detail-integration .md-board-detail-main {
   padding: 0;
-  min-height: calc(100vh - var(--topbar-height, 68px));
+  min-height: calc(100dvh - var(--topbar-height, 68px));
   display: flex;
   flex-direction: column;
 }
@@ -49354,7 +49358,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
   min-width: 0;
   width: 100%;
-  height: calc(100vh - 120px);
+  /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
+     Android Chrome/Edge where 100vh extends past the actual visible viewport. */
+  height: calc(100dvh - 120px);
 }
 
 /* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
@@ -52401,7 +52407,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-columns: 1fr;
     padding: 14px 16px 20px;
     height: auto;
-    min-height: calc(100vh - var(--topbar-height, 68px));
+    min-height: calc(100dvh - var(--topbar-height, 68px));
   }
   // Default: hide both sidebars and backdrop
   .md-board-detail-sidebar,
