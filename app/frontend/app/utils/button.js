@@ -701,14 +701,19 @@ var Button = EmberObject.extend({
       promises.forEach(function(p) { p.then(null, function() { }); });
     });
   }),
-  check_for_parts_of_speech: function(keyed_colors) {
-    var appState = this.appState || app_state;
-    var persistenceService = this.persistence || persistence;
+  check_for_parts_of_speech: function(keyed_colors, prefetchedRes) {
+    var self = this;
+    if(!self || typeof self.get !== 'function') { return; }
+    var appState = self.appState || Button.get_app_state();
+    if(!appState || typeof appState.get !== 'function') { return; }
+    var persistenceService = self.persistence || persistence;
     var colors = keyed_colors || LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
-    if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
-      var text = this.get('vocalization') || this.get('label');
-      var _this = this;
-      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+    if(appState.get('edit_mode') && !self.get('empty') && self.get('label')) {
+      var text = self.get('vocalization') || self.get('label');
+      var _this = self;
+      var apply = function(res) {
+        if(!_this || !_this.get) { return; }
+        if(!colors || !colors.forEach) { return; }
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
           var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
@@ -728,7 +733,12 @@ var Button = EmberObject.extend({
             }
           });
         }
-      }, function() { });
+      };
+      if(prefetchedRes) {
+        apply(prefetchedRes);
+        return;
+      }
+      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(apply, function() { });
     }
   },
   raw: function() {

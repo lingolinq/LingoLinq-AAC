@@ -20,7 +20,22 @@ class Api::LogsController < ApplicationController
     # Validate user exists before proceeding
     user = User.find_by_path(user_id_param)
     return unless exists?(user, user_id_param)
-    return unless allowed?(user, 'supervise')
+    # Full log history requires supervise. Scoped tokens (e.g. basic_supervision) can
+    # grant set_goals without supervise — use allows? here so we never double-render
+    # (allowed? always renders on failure). Goal-scoped reads keep goal pages working.
+    scopes = api_permission_scopes
+    if @api_user && user.allows?(@api_user, 'supervise', scopes)
+      logs_ok = true
+    elsif params['goal_id'].present? && @api_user && user.allows?(@api_user, 'set_goals', scopes)
+      goal = UserGoal.find_by_global_id(params['goal_id'])
+      logs_ok = goal.present? && goal.user_id == user.id
+    else
+      logs_ok = false
+    end
+    unless logs_ok
+      allowed?(user, 'supervise')
+      return
+    end
     if user.modeling_only?
       return unless allowed?(user, 'never_allow')
     elsif user.private_logging? && (@true_user || @api_user) != user

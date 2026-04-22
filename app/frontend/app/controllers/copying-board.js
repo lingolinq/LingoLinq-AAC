@@ -14,7 +14,7 @@ export default modal.ModalController.extend({
     if(this.get('model.action') == 'keep_links' || this.get('model.action') == 'remove_links') {
       _this.start_copying();
     } else {
-      BoardHierarchy.load_with_button_set(board).then(function(hierarchy) {
+      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true }).then(function(hierarchy) {
         _this.set('loading', false);
         if(hierarchy && hierarchy.get('root')) {
           _this.set('hierarchy', hierarchy);
@@ -28,6 +28,7 @@ export default modal.ModalController.extend({
     }
   },
   start_copying: function() {
+    this.set('loading', false);
     var board_ids_to_include = null;
     var include_missing = this.get('hierarchy.include_missing');
     if(include_missing) {
@@ -83,16 +84,16 @@ export default modal.ModalController.extend({
             });
           });
         } else if(_this.get('model.symbol_library') && _this.get('model.symbol_library') != 'original') {
-          return board.reload(true);
+          board.reload(true).then(null, function() {});
+          return RSVP.resolve(null);
         } else {
-          return board.reload(true);
-          // return RSVP.resolve();
+          board.reload(true).then(null, function() {});
+          return RSVP.resolve(null);
         }
       });
 
       next.then(function(res) {
-        if(modal.is_open('copying-board') || (res && res.translated)) {
-          board.reload();
+        if(modal.is_open('copying-board') || (res && res.translated === true)) {
           board.set('should_reload', true);
           app_state.jump_to_board({
             id: board.get('id'),

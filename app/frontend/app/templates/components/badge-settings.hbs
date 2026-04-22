@@ -1,7 +1,7 @@
 {{#if this.in_list}}
   <div class="form-group" style='border-top: 1px solid #ddd; padding-top: 10px;'>
     <label class="col-sm-2 control-label">
-      {{t "Level %{level}" key="level_n" level=index increment="level" }}
+      {{t "Level %{level}" key="level_n" level=this.index increment="level" }}
       <div style='margin-top: 5px;'>
         <button class='btn btn-default' type='button' {{action "delete_badge"}}><span class='glyphicon glyphicon-trash'></span></button>
       </div>

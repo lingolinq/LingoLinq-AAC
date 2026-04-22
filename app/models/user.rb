@@ -49,7 +49,7 @@ class User < ActiveRecord::Base
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'edit', 'edit_boards', 'manage_supervision', 'delete', 'view_deleted_boards', 'link_auth') {|user| user.id == self.id && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'view_word_map', 'model', ['modeling']) {|user| user.id == self.id && user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', ['*']) { self.settings && self.settings['public'] == true }
-  add_permissions('set_goals', ['basic_supervision']) {|user| user.id == self.id && !user.valet_mode? }
+  add_permissions('set_goals', ['basic_supervision', 'read_profile']) {|user| user.id == self.id && !user.valet_mode? }
 
   add_permissions('edit', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, true) && !user.valet_mode? }
   add_permissions('edit', 'edit_boards', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, false) && !user.valet_mode? }
@@ -57,6 +57,14 @@ class User < ActiveRecord::Base
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals') {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   add_permissions('view_detailed', 'model', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
   add_permissions('view_detailed', 'view_deleted_boards', 'model', 'set_goals', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
+  # Billing-only modeling supporters (subscription lapsed) could lose set_goals even though they
+  # still supervise and model; per-link "modeling only" supervision still must not set goals.
+  add_permissions('set_goals', ['full', 'basic_supervision']) {|user|
+    next false unless user.supervisor_for?(self) && !user.valet_mode?
+    next false if user.modeling_only_for?(self) && !user.modeling_only?
+
+    true
+  }
   add_permissions('view_word_map', ['*']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
   add_permissions('manage_supervision', 'support_actions', 'link_auth') {|user| Organization.manager_for?(user, self) && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals', 'link_auth') {|user| Organization.manager_for?(user, self, true) && !user.valet_mode? }

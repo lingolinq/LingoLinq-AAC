@@ -67,6 +67,13 @@ var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
   if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
+  // board-detail relies on Ember {{action "select_button"}} which fires on
+  // browser-synthesized click events. preventDefault()'ing touchstart here
+  // suppresses click synthesis on Android, so taps in speak mode silently
+  // do nothing. The original board page dispatches selection via raw_events'
+  // own frame_event and doesn't need the synthesized click, which is why
+  // this handler has always been safe there.
+  if($(event.target).closest('.md-board-detail-grid').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();

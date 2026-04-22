@@ -13,6 +13,45 @@ describe Api::LogsController, :type => :controller do
       get :index, params: {:user_id => u.global_id}
       assert_unauthorized
     end
+
+    it "allows basic_supervision token to list logs when filtered by goal_id" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'bacon')
+      dev.settings['permission_scopes'] = ['basic_supervision']
+      dev.save!
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+
+      goal = UserGoal.create(:user => comm)
+      goal.settings['summary'] = 'scoped goal'
+      goal.save!
+      d = Device.create(:user => comm)
+      LogSession.process_new({
+        'note' => {'text' => 'goal note', 'timestamp' => 5.minutes.ago.to_i},
+        'goal_id' => goal.global_id
+      }, {:user => comm, :author => comm, :device => d, :ip_address => '1.2.3.4'})
+
+      get :index, params: {:user_id => comm.global_id, :goal_id => goal.global_id, :type => 'note'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log'].length).to eq(1)
+    end
+
+    it "still rejects basic_supervision token for unrestricted log index" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'bacon')
+      dev.settings['permission_scopes'] = ['basic_supervision']
+      dev.save!
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+
+      get :index, params: {:user_id => comm.global_id, :per_page => 4}
+      assert_unauthorized
+    end
     
     it "should not be allowed in valet mode" do
       valet_token_user

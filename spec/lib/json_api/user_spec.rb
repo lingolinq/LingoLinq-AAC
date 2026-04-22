@@ -853,5 +853,38 @@ describe JsonApi::User do
         expect(hash['feature_flags']['slide']).to eq(nil)
       end
     end
+
+    describe "supervisee limited_identity can_set_goals" do
+      it "is true for a supervisor with edit supervision" do
+        sup = User.create
+        comm = User.create
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        json = JsonApi::User.build_json(comm, limited_identity: true, supervisor: sup.reload)
+        expect(json['can_set_goals']).to eq(true)
+      end
+
+      it "is false for a modeling_only supervision link" do
+        sup = User.create
+        comm = User.create
+        User.link_supervisor_to_user(sup, comm, nil, 'modeling_only')
+        json = JsonApi::User.build_json(comm, limited_identity: true, supervisor: sup.reload)
+        expect(json['can_set_goals']).to eq(false)
+      end
+
+      it "is true for a billing modeling_only supporter with an edit supervision link" do
+        sup = User.create
+        comm = User.create
+        sup.settings['preferences'] ||= {}
+        sup.settings['preferences']['role'] = 'supporter'
+        sup.save!
+        sup.expires_at = 2.days.ago
+        sup.save!
+        sup.reload
+        expect(sup.modeling_only?).to eq(true)
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        json = JsonApi::User.build_json(comm, limited_identity: true, supervisor: sup.reload)
+        expect(json['can_set_goals']).to eq(true)
+      end
+    end
   end
 end

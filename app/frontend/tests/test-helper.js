@@ -52,5 +52,11 @@ QUnit.on('runEnd', function(runEnd) {
   }
 });
 
+// Explicit imports for new-style QUnit acceptance tests. The requirejs-based
+// auto-loader above misses modules due to AMD registration timing on this Ember
+// version; importing them here guarantees they're pulled into the bundle and
+// their `module()`/`test()` calls fire before `start()` below.
+import 'frontend/tests/acceptance/board-detail-empty-state-test';
+
 // loadTests: false — we already pre-loaded all test modules above
 start({ loadTests: false });

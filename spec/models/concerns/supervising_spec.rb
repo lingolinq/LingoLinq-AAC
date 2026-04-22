@@ -55,6 +55,7 @@ describe Supervising, :type => :model do
         'view_detailed' => true,
         'view_word_map' => true,
         'model' => true,
+        'set_goals' => true,
       })
       User.link_supervisor_to_user(u2, u, nil, true)
 
@@ -64,11 +65,45 @@ describe Supervising, :type => :model do
         'view_existence' => true,
         'view_detailed' => true,
         'view_word_map' => true,
-        'model' => true
+        'model' => true,
+        'set_goals' => true
       })
       expect(u2).to receive(:modeling_only?).and_return(false)
       expect(u2.edit_permission_for?(u)).to eq(true)
     end
+
+    it "treats an approved SupervisorRelationship as supervision for set_goals when UserLink is absent" do
+      sup = User.create
+      comm = User.create
+      SupervisorRelationship.create!(
+        supervisor_user: sup,
+        communicator_user: comm,
+        status: 'approved',
+        permission_level: 'edit_boards',
+        initiated_by: 'communicator',
+        creation_method: 'test'
+      )
+      expect(sup.supervisor_for?(comm)).to eq(true)
+      expect(sup.edit_permission_for?(comm)).to eq(true)
+      expect(comm.allows?(sup, 'set_goals')).to eq(true)
+    end
+
+    it "treats modeling_only SupervisorRelationship as modeling-only for set_goals" do
+      sup = User.create
+      comm = User.create
+      SupervisorRelationship.create!(
+        supervisor_user: sup,
+        communicator_user: comm,
+        status: 'approved',
+        permission_level: 'modeling_only',
+        initiated_by: 'communicator',
+        creation_method: 'test'
+      )
+      expect(sup.supervisor_for?(comm)).to eq(true)
+      expect(sup.modeling_only_for?(comm)).to eq(true)
+      expect(comm.allows?(sup, 'set_goals')).to eq(false)
+    end
+
     it "should error on supervisee failure when editing" do
       res = User.process_new({:supervisee_code => "1_1"})
       expect(res.errored?).to eq(true)
@@ -428,6 +463,7 @@ describe Supervising, :type => :model do
       expect(u.reload.settings['supervisees']).to eq(nil)
       expect(u.modeling_only_for?(u2)).to eq(true)
       perms = u2.permissions_for(u)
+      expect(perms['set_goals']).to eq(nil)
       expect(perms['edit']).to eq(nil)
       expect(perms['edit_boards']).to eq(nil)
       expect(perms['delete']).to eq(nil)

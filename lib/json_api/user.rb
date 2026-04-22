@@ -332,6 +332,9 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
       if args[:supervisor]
         json['edit_permission'] = args[:supervisor].edit_permission_for?(user)
         json['modeling_only'] = args[:supervisor].modeling_only_for?(user)
+        # Match Api::GoalsController#create: same scope normalization as ApplicationController#allowed?
+        scopes = PermissionScopesNormalize.for_api(args[:supervisor].permission_scopes || [])
+        json['can_set_goals'] = user.allows?(args[:supervisor], 'set_goals', scopes)
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']

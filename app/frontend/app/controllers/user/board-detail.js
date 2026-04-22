@@ -10,6 +10,10 @@ import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
+import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
+import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
+import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
@@ -24,6 +28,7 @@ export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
   router: service('router'),
+  persistence: service('persistence'),
 
   is_board_detail: true,
   folder_display_style: 'default',
@@ -743,6 +748,72 @@ export default Controller.extend(prefClasses, {
     }
   ),
 
+  check_for_share_approval: observer(
+    'model.id',
+    'app_state.currentUser.pending_board_shares',
+    'app_state.default_mode',
+    'app_state.speak_mode',
+    function() { runShareApprovalCheck(this, this.app_state); }
+  ),
+
+  update_current_board_state: observer(
+    'model.id',
+    'model.global_id',
+    'model.integration',
+    'model.integration_name',
+    'model.locale',
+    'model.locales',
+    function() { runBoardStateSync(this, this.app_state); }
+  ),
+
+  reload_on_connect: observer('persistence.online', function() {
+    runReloadOnConnect(this, this.persistence);
+  }),
+
+  bg_class: computed('model.background.position', function() {
+    return computeBgClass(this.model);
+  }),
+  bg_style: computed(
+    'model.background.image',
+    'model.grid.rows',
+    'model.grid.columns',
+    'model.background.position',
+    'model.background.color',
+    function() { return computeBgStyle(this.model); }
+  ),
+  bg_img_style: computed(
+    'model.background.image',
+    'model.grid.rows',
+    'model.grid.columns',
+    'model.background.position',
+    function() { return computeBgImgStyle(this.model); }
+  ),
+
+  nothing_visible_not_edit: computed('model.nothing_visible', 'edit_mode', function() {
+    return this.get('model.nothing_visible') && !this.get('edit_mode');
+  }),
+
+  retrying: false,
+  error_message: computed('model.id', 'model.error', 'persistence.online', function() {
+    if(this.get('model.id')) { return null; }
+    if(this.persistence && this.persistence.get('online')) {
+      return i18n.t('error_not_available', "This board is not currently available.");
+    } else {
+      return i18n.t('error_no_local', "This board is not available offline.");
+    }
+  }),
+
+  description_info_expanded: false,
+  cc_license: computed('model.license.type', function() {
+    return (this.get('model.license.type') || '').match(/^CC\s/);
+  }),
+  pd_license: computed('model.license.type', function() {
+    return this.get('model.license.type') == 'public domain';
+  }),
+  has_info_icons: computed('model.public', 'cc_license', 'pd_license', function() {
+    return !this.get('model.public') || this.get('cc_license') || this.get('pd_license');
+  }),
+
   // No-ops: board-detail uses CSS grid, not computed height or canvas
   computeHeight: function() { },
   redraw_if_needed: function() { },
@@ -1245,21 +1316,49 @@ export default Controller.extend(prefClasses, {
     });
     if(!unknowns.length) { return; }
 
+    var jobs = [];
+    var allWords = [];
+    var seenWord = {};
     unknowns.forEach(function(btn) {
       var label = btn.get ? btn.get('label') : btn.label;
-      var words = label.split(/\s+/);
-      var lookup_promises = words.map(function(word) {
-        return persistence.ajax('/api/v1/search/parts_of_speech', {
-          type: 'GET',
-          data: { q: word }
-        }).then(function(res) {
-          return res;
-        }, function() {
-          return null;
-        });
+      var words = label.split(/\s+/).filter(function(w) { return !!w; });
+      words.forEach(function(w) {
+        if(!seenWord[w]) {
+          seenWord[w] = true;
+          allWords.push(w);
+        }
       });
+      jobs.push({ btn: btn, words: words });
+    });
 
-      RSVP.all(lookup_promises).then(function(results) {
+    var fetchWordMap = function(start, acc) {
+      acc = acc || {};
+      var chunk = allWords.slice(start, start + 100);
+      if(chunk.length === 0) {
+        return RSVP.resolve(acc);
+      }
+      return persistence.ajax('/api/v1/search/batch_parts_of_speech', {
+        type: 'GET',
+        data: { words: chunk.join(',') }
+      }).then(function(res) {
+        var results = (res && res.results) || {};
+        Object.keys(results).forEach(function(k) {
+          acc[k] = results[k];
+        });
+        return fetchWordMap(start + 100, acc);
+      }, function() {
+        return fetchWordMap(start + 100, acc);
+      });
+    };
+
+    fetchWordMap(0, {}).then(function(wordMap) {
+      jobs.forEach(function(job) {
+        var btn = job.btn;
+        var words = job.words;
+        var results = words.map(function(w) {
+          return wordMap[w] || null;
+        });
+
         var cls = null;
 
         if(words.length === 1) {
@@ -1292,9 +1391,6 @@ export default Controller.extend(prefClasses, {
           } else {
             emberSet(btn, 'suggested_part_of_speech', cls);
           }
-          // _make_btn builds new plain objects from _last_raw.buttons; without this, the next
-          // _build_from_raw (preferred_symbols, focus dim, etc.) drops suggestions and every
-          // button is "default" again — re-hitting parts_of_speech and risking 429.
           var btnId = btn.get ? btn.get('id') : btn.id;
           var rawList = (_this._last_raw && _this._last_raw.buttons) || [];
           for(var rbi = 0; rbi < rawList.length; rbi++) {
@@ -1307,7 +1403,7 @@ export default Controller.extend(prefClasses, {
           _this.notifyPropertyChange('ordered_buttons');
         }
       });
-    });
+    }, function() { });
   },
 
   // Filter buttons by active category
@@ -2335,8 +2431,34 @@ export default Controller.extend(prefClasses, {
       runLater(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         if (!was_open) {
-          var first_item = document.querySelector('.md-board-detail-actions-menu .md-board-detail-actions-menu__item');
+          var menu = document.querySelector('.md-board-detail-actions-menu');
+          if (!menu) { return; }
+          var first_item = menu.querySelector('.md-board-detail-actions-menu__item');
           if (first_item) { first_item.focus(); }
+          // The Ember {{action on="keyDown"}} on the menu div does not reliably
+          // fire for ArrowUp/Down when a child button has focus. Attach native
+          // keydown listeners to each item (same pattern as paint dropdown).
+          var items = Array.prototype.slice.call(menu.querySelectorAll('.md-board-detail-actions-menu__item'))
+            .filter(function(el) { return el.offsetParent !== null; });
+          items.forEach(function(item) {
+            if (item._optionsKeydownBound) { return; }
+            item._optionsKeydownBound = true;
+            item.addEventListener('keydown', function(e) {
+              var key = e.key || e.keyCode;
+              if (key === 'ArrowDown' || key === 40) {
+                e.preventDefault(); e.stopPropagation();
+                var idx = items.indexOf(document.activeElement);
+                items[(idx + 1) % items.length].focus();
+              } else if (key === 'ArrowUp' || key === 38) {
+                e.preventDefault(); e.stopPropagation();
+                var idx2 = items.indexOf(document.activeElement);
+                items[(idx2 - 1 + items.length) % items.length].focus();
+              } else if (key === 'Escape' || key === 'Esc' || key === 27) {
+                e.preventDefault(); e.stopPropagation();
+                if (_this.get('show_options_menu')) { _this.send('toggle_options_menu'); }
+              }
+            });
+          });
         } else {
           var trigger = document.querySelector('.md-board-detail-actions-toggle');
           if (trigger) { trigger.focus(); }
@@ -2452,37 +2574,67 @@ export default Controller.extend(prefClasses, {
     },
 
     enter_edit_mode: function() {
-      this.set('show_options_menu', false);
-      this.set('show_color_legend', false);
-      this.set('board_collapsed', false);
-      this.set('panels_collapsed', true);
-      this.get('router').transitionTo('user.board-detail.edit', this.get('user.user_name'), this.get('boardname'));
+      var _this = this;
+      var app_state = this.get('app_state');
+      // Gate on the speak-mode PIN when configured — same pattern as
+      // switch_communicators below and the app-wide toggleEditMode.
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
+      }
+      ready.then(function(res) {
+        if(res && res.correct_pin) {
+          _this.set('show_options_menu', false);
+          _this.set('show_color_legend', false);
+          _this.set('board_collapsed', false);
+          _this.set('panels_collapsed', true);
+          _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
+        }
+      }, function() { });
     },
 
     exit_to_home: function() {
-      console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
-      // Signal any in-flight async work on this controller to bail.
-      // _build_from_raw and its callers check this flag and return early.
-      this.set('_exiting', true);
-      // Cancel known scheduled timers on this controller.
-      if(this._phrase_search_timer) {
-        try { runCancel(this._phrase_search_timer); } catch(e) {}
-        this._phrase_search_timer = null;
-      }
-      this.set('show_options_menu', false);
-      this.set('app_state.board_detail_nav_history', []);
-      this.set('app_state.board_detail_entry_board', null);
+      var _this = this;
       var app_state = this.get('app_state');
-      app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
-      var transition = this.get('router').transitionTo('index');
-      if(transition && typeof transition.then === 'function') {
-        transition.then(
-          function() { app_state.hide_loading_overlay(); },
-          function() { app_state.hide_loading_overlay(); }
-        );
-      } else {
-        app_state.hide_loading_overlay();
+      // Gate on the speak-mode PIN when configured. Without this the button
+      // lets a communicator leave the locked session by navigating home.
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
       }
+      ready.then(function(res) {
+        if(!res || !res.correct_pin) { return; }
+        console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
+        // Signal any in-flight async work on this controller to bail.
+        // _build_from_raw and its callers check this flag and return early.
+        _this.set('_exiting', true);
+        // Cancel known scheduled timers on this controller.
+        if(_this._phrase_search_timer) {
+          try { runCancel(_this._phrase_search_timer); } catch(e) {}
+          _this._phrase_search_timer = null;
+        }
+        _this.set('show_options_menu', false);
+        _this.set('app_state.board_detail_nav_history', []);
+        _this.set('app_state.board_detail_entry_board', null);
+        app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+        var transition = _this.get('router').transitionTo('index');
+        if(transition && typeof transition.then === 'function') {
+          transition.then(
+            function() { app_state.hide_loading_overlay(); },
+            function() { app_state.hide_loading_overlay(); }
+          );
+        } else {
+          app_state.hide_loading_overlay();
+        }
+      }, function() { });
     },
 
     exit_speak_mode: function() {
@@ -2574,6 +2726,10 @@ export default Controller.extend(prefClasses, {
 
     toggle_description: function() {
       this.toggleProperty('description_expanded');
+    },
+
+    toggle_description_info: function() {
+      this.toggleProperty('description_info_expanded');
     },
 
     speak_phrase: function(phrase) {
@@ -2908,14 +3064,26 @@ export default Controller.extend(prefClasses, {
         modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
         return;
       }
+      // copy-board closes with { action, user, shares, ... } — not { board }.
+      // Chain into application.copy_board (same as classic board UI) so copying-board
+      // runs and create_copy POST succeeds; otherwise we stay on the source board and
+      // save hits PUT /boards/:id without edit permission ("Not authorized").
+      var appController = _this.get('app_state.controller');
+      if(!appController || typeof appController.copy_board !== 'function') {
+        appController = getOwner(_this).lookup('controller:application');
+      }
+      if(!appController || typeof appController.copy_board !== 'function') {
+        modal.error(i18n.t('app_not_ready', "App is not ready. Please try again."));
+        return;
+      }
       modal.open('copy-board', {board: board}).then(function(opts) {
-        if(opts && opts.board) {
-          _this.get('app_state').jump_to_board({
-            id: opts.board.get('id'),
-            key: opts.board.get('key')
-          });
+        if(opts === false) { return RSVP.resolve(); }
+        return appController.copy_board(opts, false);
+      }).then(function(res) {
+        if(res && res.id && res.key && !_this.isDestroyed && !_this.isDestroying) {
+          _this.get('app_state').jump_to_board({ id: res.id, key: res.key });
         }
-      });
+      }, function() { });
     },
 
     set_as_home: function() {

@@ -9,13 +9,28 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import stashes from '../utils/_stashes';
 
+function goalSaveErrorKeyFromRejection(err) {
+  var xhr = err && (err.fakeXHR || err.jqXHR);
+  var json = xhr && xhr.responseJSON;
+  if (!json && err && err.errors && err.errors[0]) {
+    json = err.errors[0];
+  }
+  if (json && json.device_scopes_none) {
+    return 'device_scopes_none';
+  }
+  if (json && json.valet_blocked) {
+    return 'valet_blocked';
+  }
+  return 'generic';
+}
+
 export default modal.ModalController.extend({
   opening: function() {
     this.set('goal', this.get('model.goal') || this.store.createRecord('goal'));
     if(!this.get('goal.id') && window.moment) {
       this.set('goal.expires', window.moment().add(2, 'month').format('YYYY-MM-DD'));
     }
-    this.set('error', false);
+    this.set('save_error_key', null);
     this.set('saving', false);
     this.set('browse_goals', false);
     this.set('selected_goal', null);
@@ -134,6 +149,29 @@ export default modal.ModalController.extend({
       _this.set('goals', {error: true});
     });
   },
+  serializedGoalAttributesForNewSave: function(goal) {
+    var raw =
+      goal && typeof goal.serialize === 'function'
+        ? goal.serialize({ includeId: false })
+        : {};
+    var attrs =
+      raw && typeof raw === 'object' && raw.goal && typeof raw.goal === 'object'
+        ? Object.assign({}, raw.goal)
+        : Object.assign({}, raw);
+    if (attrs.id === null || attrs.id === undefined) {
+      delete attrs.id;
+    }
+    delete attrs.template_header;
+    delete attrs.template;
+    var exp = goal.get('expires');
+    if (exp && window.moment) {
+      var m = window.moment(exp);
+      if (m.isValid()) {
+        attrs.expires = m.format('YYYY-MM-DD');
+      }
+    }
+    return attrs;
+  },
   actions: {
     save_goal: function() {
       var _this = this;
@@ -202,13 +240,11 @@ export default modal.ModalController.extend({
         }
       }
       goal.set('active', true);
-      if(goal.get('expires')) {
-        goal.set('expires', window.moment(goal.get('expires'))._d);
-      }
+      var goalAttrs = _this.serializedGoalAttributesForNewSave(goal);
       stashes.track_daily_event('goals');
       var promises = [];
       users.forEach(function(u) {
-        var g = _this.store.createRecord('goal', goal.toJSON());
+        var g = _this.store.createRecord('goal', goalAttrs);
         g.set('user_id', emberGet(u, 'id'));
         promises.push(g.save());
       });
@@ -219,13 +255,13 @@ export default modal.ModalController.extend({
       goal.set('user_id', this.get('model.user.id'));
       // TODO: something about attaching the video
       _this.set('saving', true);
-      _this.set('error', false);
+      _this.set('save_error_key', null);
       RSVP.all_wait(promises).then(function() {
         _this.set('saving', false);
         modal.close(goal);
-      }, function() {
+      }, function(err) {
         _this.set('saving', false);
-        _this.set('error', true);
+        _this.set('save_error_key', goalSaveErrorKeyFromRejection(err));
       });
     },
     video_ready: function(id) {

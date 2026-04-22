@@ -19,6 +19,9 @@ class UserBadge < ActiveRecord::Base
   add_permissions('view') { self.highlighted && self.user && self.user.settings['public'] }
   add_permissions('view') {|user| self.user && self.user.allows?(user, 'model') }
   add_permissions('view', 'edit', 'delete') {|user| self.user && self.user.allows?(user, 'edit') }
+  # Goal flows create/update badge rows; supervisors (and edge self cases) may have set_goals
+  # without satisfying the stricter User#edit checks used above.
+  add_permissions('edit', 'delete') {|user| self.user && self.user.allows?(user, 'set_goals') }
 
   secure_serialize :data
   
@@ -204,6 +207,22 @@ class UserBadge < ActiveRecord::Base
     end
   end
 
+  # JSON/clients sometimes send badge lists as objects with numeric keys
+  # ({ "0" => {...}, "1" => {...} }), which parses as HashWithIndifferentAccess
+  # instead of Array — normalize so Array#+ never receives a Hash.
+  def self.normalize_goal_badges_param(badges)
+    return [] if badges.nil?
+    return badges if badges.is_a?(Array)
+    if badges.is_a?(Hash)
+      string_keys = badges.keys.map(&:to_s)
+      if string_keys.any? && string_keys.all? { |k| k.match?(/\A\d+\z/) }
+        return string_keys.sort_by(&:to_i).map { |k| badges[k] }
+      end
+      return [badges]
+    end
+    []
+  end
+
   def self.process_goal_badges(badges, assessment_badge=nil)
     res = []
     all_badges = []
@@ -212,8 +231,9 @@ class UserBadge < ActiveRecord::Base
       assessment_badge['assessment'] = true
       all_badges << assessment_badge
     end
-    if badges
-      all_badges += badges
+    normalized_badges = normalize_goal_badges_param(badges)
+    if normalized_badges.any?
+      all_badges += normalized_badges
     end
     level = 0
     all_badges.each_with_index do |badge, idx|
