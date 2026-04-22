@@ -231,7 +231,19 @@ class Api::SearchController < ApplicationController
       Rails.logger.error("Proxy exception for #{url}: #{e.class.name} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
     end
-    
+
+    # If fetching a button_set_cache URL failed, the DB pointer is stale:
+    # regenerate the button_set and retry the fetch against the new URL.
+    # Without this, a single missing S3 object leaves users stuck with a
+    # spinning "Loading..." forever (observed 2026-04-20..22, staging).
+    if error && @api_user
+      retried = attempt_button_set_regenerate(url)
+      if retried
+        content_type, body = retried
+        error = nil
+      end
+    end
+
     if !error
       str = "data:" + content_type
       str += ";base64," + Base64.strict_encode64(body)
@@ -241,6 +253,48 @@ class Api::SearchController < ApplicationController
       api_error 400, {error: error}
     end
   end
+
+  private
+
+  def attempt_button_set_regenerate(url)
+    match = url.to_s.match(%r{/button_set_cache/([^/]+)/})
+    return nil unless match
+    button_set_gid = match[1]
+
+    cooldown_key = "proxy_regen/#{button_set_gid}"
+    if RedisInit.default && RedisInit.default.get(cooldown_key)
+      Rails.logger.warn("Proxy regen cooldown active for #{button_set_gid}, skipping")
+      return nil
+    end
+    RedisInit.default.setex(cooldown_key, 60, '1') if RedisInit.default
+
+    button_set = BoardDownstreamButtonSet.find_by_global_id(button_set_gid)
+    return nil unless button_set
+
+    if button_set.data['remote_paths'].is_a?(Hash)
+      button_set.data['remote_paths'].each do |hash, obj|
+        if obj.is_a?(Hash) && obj['path'] && url.to_s.include?(obj['path'])
+          button_set.data['remote_paths'].delete(hash)
+        end
+      end
+      button_set.save
+    end
+
+    board_id = button_set.related_global_id(button_set.board_id)
+    Rails.logger.warn("Proxy regenerating button_set #{button_set_gid} (board #{board_id}) after miss on #{url}")
+    result = BoardDownstreamButtonSet.generate_for(board_id, @api_user.global_id) rescue nil
+    return nil unless result && result[:success] && result[:url]
+    return nil if result[:url] == url
+
+    retry_request = Typhoeus::Request.new(result[:url], followlocation: true)
+    content_type, body = get_url_in_chunks(retry_request)
+    [content_type, body]
+  rescue => e
+    Rails.logger.error("Proxy regenerate-and-retry failed for #{url}: #{e.class.name} - #{e.message}")
+    nil
+  end
+
+  public
   
   def apps
     res = AppSearcher.find(params['q'], params['os'])

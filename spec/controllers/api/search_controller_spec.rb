@@ -365,6 +365,62 @@ describe Api::SearchController, :type => :controller do
       expect(json['content_type']).to eq('image/png')
       expect(json['data']).to eq('data:image/png;base64,MTIzNDU=')
     end
+
+    it "should regenerate and retry when a button_set_cache URL misses" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      bs.data['remote_paths'] = {'h1' => {'path' => "button_set_cache/#{bs.global_id}/h1.json", 'generated' => Time.now.to_i}}
+      bs.save
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      fresh_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/chksm12345/h1.json"
+
+      # First fetch (stale URL) raises BadFileError; retry (fresh URL) succeeds
+      call_count = 0
+      expect(controller).to receive(:get_url_in_chunks).twice do |req|
+        call_count += 1
+        if call_count == 1
+          raise Api::SearchController::BadFileError, "File not retrieved, status 403 for #{req.url}"
+        else
+          expect(req.url).to eq(fresh_url)
+          ['text/json', '{"buttons":[]}']
+        end
+      end
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).with(b.global_id, @user.global_id).and_return({success: true, state: 'uploaded', url: fresh_url})
+
+      get :proxy, params: {:url => stale_url}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['content_type']).to eq('text/json')
+      expect(json['data']).to eq("data:text/json;base64,#{Base64.strict_encode64('{"buttons":[]}')}")
+
+      # Stale remote_paths entry is cleared
+      bs.reload
+      expect(bs.data['remote_paths']['h1']).to be_nil
+    end
+
+    it "should return original error if button_set_cache URL miss cannot be regenerated" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'File not retrieved, status 403')
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).and_return({success: false, error: 'whatever'})
+
+      get :proxy, params: {:url => stale_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('File not retrieved, status 403')
+    end
+
+    it "should NOT attempt regenerate for non-cache URLs" do
+      token_user
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'something bad')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => 'http://www.example.com/pic.png'}
+      expect(response).not_to be_successful
+    end
   end
   
   describe "apps" do
