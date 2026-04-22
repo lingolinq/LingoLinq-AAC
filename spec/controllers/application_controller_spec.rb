@@ -371,6 +371,10 @@ describe ApplicationController, :type => :controller do
       d = Device.create(:user => u)
       get :index, params: {:id => u2.id, :access_token => d.tokens[0], :check_token => true}
       assert_unauthorized
+      json = JSON.parse(response.body)
+      expect(json['permission']).to eq('edit')
+      expect(json['effective_scopes']).to eq(['full'])
+      expect(json['resource_class']).to eq('User')
     end
     
     it "should error gracefully with nil object" do

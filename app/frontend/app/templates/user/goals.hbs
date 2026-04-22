@@ -111,10 +111,11 @@
       - link to report on goals within reports summary email
       -->
     {{/if}}
-    {{#if this.model.permissions.edit}}
+    {{!-- +edit+ is stricter than +set_goals+ (e.g. read-only supervision can still set goals). --}}
+    {{#unless (is-equal this.model.permissions.set_goals false)}}
       <button {{action "add_goal"}} class='btn btn-default'>{{t "Set a New Goal" key="set_a_new_goal"}}</button>
       <button {{action "find_goal"}} class='btn btn-default'>{{t "Browse Community Goals" key="browse_community_goals"}}</button>
-    {{/if}}
+    {{/unless}}
     <LinkTo @route="user.badges" @model={{this.model.user_name}} class="btn btn-default">{{t "See User Badges" key="see_user_badges"}}</LinkTo>
 
     {{#if this.any_goal}}

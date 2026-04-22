@@ -314,7 +314,7 @@ class Device < ActiveRecord::Base
     if cached
       user_id, device_id, scopes_string, valet_mode = cached.split(/::/)
       valet_mode = (valet_mode == 'true')
-      scopes = (scopes_string || "").split(',')
+      scopes = PermissionScopesNormalize.for_api((scopes_string || '').split(','))
       res[:cached] = true
     else
       id = token.split(/~/)[0]
@@ -350,7 +350,7 @@ class Device < ActiveRecord::Base
         res[:invalid_token] = true
       end
       valet_mode = true if device && device.settings['valet']
-      scopes = device && device.permission_scopes
+      scopes = PermissionScopesNormalize.for_api(device && device.permission_scopes)
     end
     if user_id
       users_lookup = User
@@ -373,7 +373,7 @@ class Device < ActiveRecord::Base
       if user && device_id
         user.permission_scopes = scopes
 
-        store = [user_id, device_id, scopes.join(','), valet_mode].join("::")
+        store = [user_id, device_id, PermissionScopesNormalize.for_api(scopes).join(','), valet_mode].join("::")
         Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store) if !res[:error]
         res[:user] = user
         user.assert_valet_mode! if valet_mode

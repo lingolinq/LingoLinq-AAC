@@ -1316,21 +1316,49 @@ export default Controller.extend(prefClasses, {
     });
     if(!unknowns.length) { return; }
 
+    var jobs = [];
+    var allWords = [];
+    var seenWord = {};
     unknowns.forEach(function(btn) {
       var label = btn.get ? btn.get('label') : btn.label;
-      var words = label.split(/\s+/);
-      var lookup_promises = words.map(function(word) {
-        return persistence.ajax('/api/v1/search/parts_of_speech', {
-          type: 'GET',
-          data: { q: word }
-        }).then(function(res) {
-          return res;
-        }, function() {
-          return null;
-        });
+      var words = label.split(/\s+/).filter(function(w) { return !!w; });
+      words.forEach(function(w) {
+        if(!seenWord[w]) {
+          seenWord[w] = true;
+          allWords.push(w);
+        }
       });
+      jobs.push({ btn: btn, words: words });
+    });
 
-      RSVP.all(lookup_promises).then(function(results) {
+    var fetchWordMap = function(start, acc) {
+      acc = acc || {};
+      var chunk = allWords.slice(start, start + 100);
+      if(chunk.length === 0) {
+        return RSVP.resolve(acc);
+      }
+      return persistence.ajax('/api/v1/search/batch_parts_of_speech', {
+        type: 'GET',
+        data: { words: chunk.join(',') }
+      }).then(function(res) {
+        var results = (res && res.results) || {};
+        Object.keys(results).forEach(function(k) {
+          acc[k] = results[k];
+        });
+        return fetchWordMap(start + 100, acc);
+      }, function() {
+        return fetchWordMap(start + 100, acc);
+      });
+    };
+
+    fetchWordMap(0, {}).then(function(wordMap) {
+      jobs.forEach(function(job) {
+        var btn = job.btn;
+        var words = job.words;
+        var results = words.map(function(w) {
+          return wordMap[w] || null;
+        });
+
         var cls = null;
 
         if(words.length === 1) {
@@ -1363,9 +1391,6 @@ export default Controller.extend(prefClasses, {
           } else {
             emberSet(btn, 'suggested_part_of_speech', cls);
           }
-          // _make_btn builds new plain objects from _last_raw.buttons; without this, the next
-          // _build_from_raw (preferred_symbols, focus dim, etc.) drops suggestions and every
-          // button is "default" again — re-hitting parts_of_speech and risking 429.
           var btnId = btn.get ? btn.get('id') : btn.id;
           var rawList = (_this._last_raw && _this._last_raw.buttons) || [];
           for(var rbi = 0; rbi < rawList.length; rbi++) {
@@ -1378,7 +1403,7 @@ export default Controller.extend(prefClasses, {
           _this.notifyPropertyChange('ordered_buttons');
         }
       });
-    });
+    }, function() { });
   },
 
   // Filter buttons by active category
@@ -3039,14 +3064,26 @@ export default Controller.extend(prefClasses, {
         modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
         return;
       }
+      // copy-board closes with { action, user, shares, ... } — not { board }.
+      // Chain into application.copy_board (same as classic board UI) so copying-board
+      // runs and create_copy POST succeeds; otherwise we stay on the source board and
+      // save hits PUT /boards/:id without edit permission ("Not authorized").
+      var appController = _this.get('app_state.controller');
+      if(!appController || typeof appController.copy_board !== 'function') {
+        appController = getOwner(_this).lookup('controller:application');
+      }
+      if(!appController || typeof appController.copy_board !== 'function') {
+        modal.error(i18n.t('app_not_ready', "App is not ready. Please try again."));
+        return;
+      }
       modal.open('copy-board', {board: board}).then(function(opts) {
-        if(opts && opts.board) {
-          _this.get('app_state').jump_to_board({
-            id: opts.board.get('id'),
-            key: opts.board.get('key')
-          });
+        if(opts === false) { return RSVP.resolve(); }
+        return appController.copy_board(opts, false);
+      }).then(function(res) {
+        if(res && res.id && res.key && !_this.isDestroyed && !_this.isDestroying) {
+          _this.get('app_state').jump_to_board({ id: res.id, key: res.key });
         }
-      });
+      }, function() { });
     },
 
     set_as_home: function() {

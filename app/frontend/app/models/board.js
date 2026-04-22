@@ -1142,7 +1142,7 @@ LingoLinq.Board = DS.Model.extend({
     res.list = Object.keys(res);
     return res;
   }),
-  load_button_set: function(force) {
+  load_button_set: function(force, skipEmberRecordReload) {
     var _this = this;
     var sync_buttons_from_set = function(button_set) {
       var buttons = button_set && button_set.redepth(_this.get('id'));
@@ -1153,7 +1153,7 @@ LingoLinq.Board = DS.Model.extend({
       }
       return button_set;
     };
-    if(this.get('button_set_needs_reload')) {
+    if(this.get('button_set_needs_reload') && !skipEmberRecordReload) {
       force = true;
       this.set('button_set_needs_reload', null);
     }
@@ -1191,8 +1191,12 @@ LingoLinq.Board = DS.Model.extend({
         } else{
         }
       }
-      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision')).then(function(button_set) {
+      var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
         _this.set('button_set', button_set);
+        if(skipEmberRecordReload) {
+          // Buttonset.load_button_set already finished load_buttons on this record.
+          return RSVP.resolve(button_set);
+        }
         if((_this.get('fresh') || force) && !button_set.get('fresh')) {
           return button_set.reload().then(function(bs) { return bs.load_buttons(force); });
         } else {
@@ -1233,10 +1237,10 @@ LingoLinq.Board = DS.Model.extend({
     var trans = this.get('translations') || {};
     var loc = this.appState.get('label_locale') == this.appState.get('vocalization_locale') ? this.appState.get('label_locale') : null;
     buttons.forEach(function(button) {
-      var cap = this.appState.get('shift');
+      var cap = _this.appState.get('shift');
       if((button.vocalization || '').match(/^:/)) {
       } else if(button.tweaked) {
-        var revert = (history.length == 0 && !this.appState.get('inflection_shift'));
+        var revert = (history.length == 0 && !_this.appState.get('inflection_shift'));
         var str = revert ? button.original_label : button.label;
         if(cap) {
           str = utterance.capitalize(str);
@@ -1316,7 +1320,7 @@ LingoLinq.Board = DS.Model.extend({
       if(last_button && !last_button.modified && act && act.types.indexOf(last_button.part_of_speech) != -1 && act.alter) {
         var res = {};
         act.alter(null, last_button.label, last_button.label, res);
-        if(this.appState.get('shift')) {
+        if(_this.appState.get('shift')) {
           res.label = utterance.capitalize(res.label);
         }
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
@@ -1334,7 +1338,7 @@ LingoLinq.Board = DS.Model.extend({
       (result || []).forEach(function(sugg, idx) {
         if(suggested_buttons[idx]) {
           var suggestion_button = suggested_buttons[idx];
-          if(sugg.word && this.appState.get('shift')) {
+          if(sugg.word && _this.appState.get('shift')) {
             sugg = $.extend({}, sugg);
             sugg.word = utterance.capitalize(sugg.word);
           }

@@ -200,11 +200,12 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
     @unviewable_ids = button_set.data['board_ids'].select{|id| !allowed_ids[id] }
     revision_match = full_set_revision && button_set_revision == full_set_revision
     if @unviewable_ids.blank? && revision_match && !button_set.data['source_id']
-      # Cache the CDN URL for 24 hours
+      # Cache the CDN URL for 10 minutes (was 24h -- reduced 2026-04-21 so a
+      # deleted S3 object doesn't pin users on a stale URL for a full day).
       if button_set.data['private_cdn_url']
         button_set.data['private_cdn_url_checked'] ||= Time.now.to_i
       end
-      if button_set.data['private_cdn_url'] && button_set.data['private_cdn_revision'] == button_set_revision && (button_set.data['private_cdn_url_checked'] || Time.now.to_i) > (24.hours.ago.to_i)
+      if button_set.data['private_cdn_url'] && button_set.data['private_cdn_revision'] == button_set_revision && (button_set.data['private_cdn_url_checked'] || Time.now.to_i) > (10.minutes.ago.to_i)
         return button_set.data['private_cdn_url']
       end
       private_path = button_set.extra_data_private_url
@@ -220,10 +221,18 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
         button_set.data['private_cdn_revision'] = button_set_revision
         button_set.save
         return url
-      elsif button_set.data['buttons']
-        button_set.schedule_once(:detach_extra_data, 'force')
       else
-        BoardDownstreamButtonSet.schedule_once(:update_for, self.related_global_id(self.board_id))
+        if button_set.data['private_cdn_url']
+          button_set.data.delete('private_cdn_url')
+          button_set.data.delete('private_cdn_url_checked')
+          button_set.data.delete('private_cdn_revision')
+          button_set.save
+        end
+        if button_set.data['buttons']
+          button_set.schedule_once(:detach_extra_data, 'force')
+        else
+          BoardDownstreamButtonSet.schedule_once(:update_for, self.related_global_id(self.board_id))
+        end
       end
     end
 
@@ -346,7 +355,13 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
           RemoteAction.create(path: "#{board_id}::#{user_id}", act_at: 5.minutes.from_now, action: 'upload_extra_data')
         elsif res && res[:path] && res[:path] != remote_path
           RemoteAction.where(path: res[:path], action: 'delete').delete_all
-          Uploader.remote_remove_later(remote_path, old_checksum)
+          # Skip scheduling deletion when remote_path already carries a
+          # /chksmXXXXX/ segment. On stable content the new upload resolves
+          # to the same chksm path, so the scheduled delete would wipe the
+          # just-uploaded object (observed in prod 2026-04-13..2026-04-20).
+          unless remote_path.to_s.match?(%r{/chksm[^/]+/})
+            Uploader.remote_remove_later(remote_path, old_checksum)
+          end
           button_set.data['remote_paths'][remote_hash]['path'] = res[:path]
           button_set.data['remote_paths'][remote_hash]['checksum'] = new_checksum
         elsif res && res[:path]

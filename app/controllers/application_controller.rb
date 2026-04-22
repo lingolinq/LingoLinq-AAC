@@ -189,12 +189,30 @@ class ApplicationController < ActionController::Base
   # Returns true if authorized. On failure, renders api_error(400, {...}) and returns false.
   # Callers must return after checking: "return unless allowed?(obj, 'permission')"
   def allowed?(obj, permission)
-    scopes = ['*']
-    if @api_user && @api_device_id
-      scopes = @api_user.permission_scopes || []
-    end
+    # Permissable grants an action only when (rule's allowed_scopes & relevant_scopes) is non-empty.
+    # Rules for supervision use ['full'] or ['full', 'basic_supervision'] — never the string '*'.
+    # Defaulting to ['*'] therefore blocked valid calls. Some devices (integrations / dev keys)
+    # omit permission_scopes and yield [] — treat blank like a normal browser session (full).
+    # Redis token cache can also store a lone '*' (legacy wildcard) which still does not intersect
+    # with 'full' in Permissable — normalize that to full as well. Preserve explicit 'none'.
+    scopes = api_permission_scopes
     if !obj || !obj.allows?(@api_user, permission, scopes)
-      res = {error: "Not authorized", unauthorized: true}
+      res = {
+        error: "Not authorized",
+        unauthorized: true,
+        permission: permission.to_s,
+        effective_scopes: scopes
+      }
+      if obj
+        res[:resource_class] = obj.class.name
+        res[:resource_id] = obj.respond_to?(:global_id) ? obj.global_id : obj.id
+      end
+      if scopes.include?('none')
+        res[:device_scopes_none] = true
+      end
+      if @api_user && @api_user.respond_to?(:valet_mode?) && @api_user.valet_mode?
+        res[:valet_blocked] = true
+      end
       if permission.instance_variable_get('@scope_rejected')
         res[:scope_limited] = true
         res[:scopes] = scopes
@@ -229,6 +247,16 @@ class ApplicationController < ActionController::Base
 
   def set_browser_token_header
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
+  end
+
+  # Normalized token scopes for Permissable (same rules as +allowed?+).
+  def api_permission_scopes
+    scopes = ['full']
+    if @api_user && @api_device_id
+      raw = @api_user.permission_scopes || []
+      scopes = PermissionScopesNormalize.for_api(raw)
+    end
+    scopes
   end
 
   # X-INSTALLED-LINGOLINQ: client declares native app vs browser.

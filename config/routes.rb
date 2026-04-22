@@ -193,9 +193,12 @@ LingoLinq::Application.routes.draw do
       get 'upload_success'
     end
     
-    get "buttonsets/:id" => "button_sets#show"
+    # Board keys are "username/slug" (slash). :id must use the same constraint as
+    # resources :boards — otherwise only the first segment matches and
+    # POST .../buttonsets/user/slug/generate 404s.
+    get "buttonsets/:id" => "button_sets#show", :constraints => {:id => board_id_regex}
     get "buttonsets" => "button_sets#index"
-    post "buttonsets/:id/generate" => "button_sets#generate"
+    post "buttonsets/:id/generate" => "button_sets#generate", :constraints => {:id => board_id_regex}
     get "boardversions" => "boards#history"
     get "userversions" => "users#history"
     

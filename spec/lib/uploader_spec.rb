@@ -267,11 +267,11 @@ describe Uploader do
     it "should return data from environment variables" do
       Uploader.instance_variable_set('@remote_upload_config', nil)
       expect(Uploader.remote_upload_config).to eq({
-        :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/",
-        :access_key => ENV['AWS_KEY'],
-        :secret => ENV['AWS_SECRET'],
-        :bucket_name => ENV['UPLOADS_S3_BUCKET'],
-        :static_bucket_name => ENV['STATIC_S3_BUCKET']
+        :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET'].to_s.strip}.s3.amazonaws.com/",
+        :access_key => Uploader.aws_access_key,
+        :secret => Uploader.aws_secret_key,
+        :bucket_name => ENV['UPLOADS_S3_BUCKET'].to_s.strip,
+        :static_bucket_name => ENV['STATIC_S3_BUCKET'].to_s.strip
       })
     end
   end

@@ -189,6 +189,19 @@ describe UserGoal, type: :model do
       expect(g.settings['stats']['weighted_average_status']).to eq(4)
       expect(g.settings['stats']['weighted_percent_positive']).to eq(46.902654867256636)
     end
+
+    it "coerces string goal positives/negatives from log data when generating stats" do
+      u = User.create
+      g = UserGoal.create(:user => u)
+      session = double('log_session',
+        :started_at => 5.days.ago,
+        :data => {'goal' => {'positives' => '2', 'negatives' => '1', 'status' => 3}}
+      )
+      expect(LogSession).to receive(:where).with({:user_id => g.user_id, :goal_id => g.id}).and_return([session])
+      expect { g.generate_stats }.not_to raise_error
+      expect(g.settings['stats']['monthly']['totals']['positives']).to eq(2)
+      expect(g.settings['stats']['monthly']['totals']['negatives']).to eq(1)
+    end
     
     it "should generate template stats" do
       u = User.create
@@ -517,7 +530,7 @@ describe UserGoal, type: :model do
       g = UserGoal.process_new({
         unit_id: ou.global_id,
       }, {user: u, author: u, allow_global: true})
-      expect(g.template).to eq(true)
+      expect(g.template).not_to eq(true)
       expect(g.settings['organization_unit_id']).to eq(nil)
 
       ou.reload.add_supervisor(u.user_name, true)
@@ -642,6 +655,7 @@ describe UserGoal, type: :model do
         template_id: template.global_id
       }, {user: u, author: u})
       expect(g.settings['template_id']).to eq(template.global_id)
+      expect(g.template).to eq(false)
       expect(g.settings['description']).to eq('this is a really important thing')
       expect(g.summary).to eq('hey ya')
       expect(g.advance_at.to_i).to eq((Time.now + 3.weeks.to_i).to_i)

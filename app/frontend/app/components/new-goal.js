@@ -7,6 +7,21 @@ import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import stashes from '../utils/_stashes';
 
+function goalSaveErrorKeyFromRejection(err) {
+  const xhr = err && (err.fakeXHR || err.jqXHR);
+  let json = xhr && xhr.responseJSON;
+  if (!json && err && err.errors && err.errors[0]) {
+    json = err.errors[0];
+  }
+  if (json && json.device_scopes_none) {
+    return 'device_scopes_none';
+  }
+  if (json && json.valet_blocked) {
+    return 'valet_blocked';
+  }
+  return 'generic';
+}
+
 /**
  * New Goal modal (Phase 2).
  */
@@ -31,7 +46,7 @@ export default Component.extend({
     if (!this.get('goal.id') && window.moment) {
       this.set('goal.expires', window.moment().add(2, 'month').format('YYYY-MM-DD'));
     }
-    this.set('error', false);
+    this.set('save_error_key', null);
     this.set('saving', false);
     this.set('browse_goals', false);
     this.set('selected_goal', null);
@@ -158,6 +173,37 @@ export default Component.extend({
     });
   },
 
+  /**
+   * Attributes for createRecord copies of `goal`. Uses serialize() instead of deprecated
+   * Model#toJSON(). Keeps expires as yyyy-MM-dd for the API without assigning a Date to the
+   * bound date field (type date requires yyyy-MM-dd).
+   */
+  serializedGoalAttributesForNewSave(goal) {
+    const raw =
+      goal && typeof goal.serialize === 'function'
+        ? goal.serialize({ includeId: false })
+        : {};
+    const attrs =
+      raw && typeof raw === 'object' && raw.goal && typeof raw.goal === 'object'
+        ? Object.assign({}, raw.goal)
+        : Object.assign({}, raw);
+    if (attrs.id === null || attrs.id === undefined) {
+      delete attrs.id;
+    }
+    // Never send admin template_header from this modal; serialize() can pick it up from the
+    // store after browsing community goals and would trigger Organization admin checks on create.
+    delete attrs.template_header;
+    delete attrs.template;
+    const exp = goal.get('expires');
+    if (exp && window.moment) {
+      const m = window.moment(exp);
+      if (m.isValid()) {
+        attrs.expires = m.format('YYYY-MM-DD');
+      }
+    }
+    return attrs;
+  },
+
   actions: {
     close() {
       this.get('modal').close();
@@ -171,11 +217,10 @@ export default Component.extend({
       const _this = this;
       let goal = this.get('goal');
       let users = [];
-      if (this.get('model.user')) {
-        users = [this.get('model.user')];
-      }
       if (this.get('model.users')) {
         users = this.get('model.users').filter(function(u) { return emberGet(u, 'add_goal'); });
+      } else if (this.get('model.user')) {
+        users = [this.get('model.user')];
       }
       if (this.get('selected_goal')) {
         goal = this.get('store').createRecord('goal');
@@ -233,29 +278,41 @@ export default Component.extend({
         }
       }
       goal.set('active', true);
-      if (goal.get('expires')) {
-        goal.set('expires', window.moment(goal.get('expires'))._d);
-      }
+      const goalAttrs = _this.serializedGoalAttributesForNewSave(goal);
       stashes.track_daily_event('goals');
       const promises = [];
+      const savedRecords = [];
       users.forEach(function(u) {
-        const g = _this.get('store').createRecord('goal', goal.toJSON());
+        const g = _this.get('store').createRecord('goal', goalAttrs);
         g.set('user_id', emberGet(u, 'id'));
-        promises.push(g.save());
+        promises.push(
+          g.save().then(function(rec) {
+            savedRecords.push(rec);
+            return rec;
+          })
+        );
       });
       if (_this.get('model.unit')) {
         goal.set('unit_id', _this.get('model.unit.id'));
-        promises.push(goal.save());
+        promises.push(
+          goal.save().then(function(rec) {
+            savedRecords.push(rec);
+            return rec;
+          })
+        );
       }
-      goal.set('user_id', this.get('model.user.id'));
+      if (this.get('model.user')) {
+        goal.set('user_id', this.get('model.user.id'));
+      }
       _this.set('saving', true);
-      _this.set('error', false);
+      _this.set('save_error_key', null);
       RSVP.all_wait(promises).then(function() {
         _this.set('saving', false);
-        modal.close(goal);
-      }, function() {
+        const toClose = savedRecords[savedRecords.length - 1] || goal;
+        modal.close(toClose);
+      }, function(err) {
         _this.set('saving', false);
-        _this.set('error', true);
+        _this.set('save_error_key', goalSaveErrorKeyFromRejection(err));
       });
     },
     video_ready(id) {

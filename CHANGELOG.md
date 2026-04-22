@@ -1,6 +1,11 @@
 # App Changelog
 
 ## Master
+### 2026-04-20
+- Speak mode: **Auto return to home** on the board-detail grid no longer sends you to the wrong user or the legacy `board` URL. Transitions now follow the current UI (`board-detail` vs `board-alt` vs glob `board`), and when **auto home return** is evaluated in speak mode, the app prefers **`referenced_user`** (the communicator when modeling) if that preference is set, otherwise the signed-in user.
+- **`home_in_speak_mode`**: If there is no home board to open, show the existing warning modal instead of only logging to the console; guard when `preferences.home_board` is missing before comparing ids.
+- **`toggle_mode` (speak)**: Avoid comparing home board id when launch `state` is missing.
+
 ### 2020-09-30
 - Head and gaze tracking in ARKit/ARCore
 - Switch to WKWebView for iOS app
