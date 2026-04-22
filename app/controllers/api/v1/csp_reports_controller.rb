@@ -114,13 +114,15 @@ class Api::V1::CspReportsController < ApplicationController
   end
 
   def strip_url_sensitive_parts(value)
-    return value unless value.is_a?(String) && value =~ /\A https?:/x
+    return value unless value.is_a?(String) && value =~ /\Ahttps?:/
 
     uri = URI.parse(value)
-    URI::Generic.build(scheme: uri.scheme, host: uri.host, port: uri.port, path: uri.path).to_s
+    default_port = { 'http' => 80, 'https' => 443 }[uri.scheme]
+    port = uri.port == default_port ? nil : uri.port
+    URI::Generic.build(scheme: uri.scheme, host: uri.host, port: port, path: uri.path).to_s
   rescue URI::InvalidURIError
-    # Return origin only (scheme + host) as a safe fallback
-    value.split('?').first
+    # Return origin only (scheme + host) as a safe fallback; strip query and fragment
+    value.split(/[?#]/).first
   end
 
   def sentry_available?

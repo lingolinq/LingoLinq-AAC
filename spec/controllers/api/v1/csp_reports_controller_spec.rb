@@ -3,8 +3,10 @@ require 'spec_helper'
 describe Api::V1::CspReportsController, :type => :controller do
   describe 'create' do
     def post_report(body, content_type: 'application/csp-report')
+      json = body.is_a?(String) ? body : body.to_json
       request.headers['Content-Type'] = content_type
-      post 'create', body: body.is_a?(String) ? body : body.to_json
+      request.env['RAW_POST_DATA'] = json
+      post 'create'
     end
 
     it 'returns 204 for a valid legacy csp-report payload' do
@@ -36,13 +38,15 @@ describe Api::V1::CspReportsController, :type => :controller do
 
     it 'returns 204 for malformed JSON without raising' do
       request.headers['Content-Type'] = 'application/csp-report'
-      post 'create', body: 'this is not json at all {{{'
+      request.env['RAW_POST_DATA'] = 'this is not json at all {{{'
+      post 'create'
       expect(response.status).to eq(204)
     end
 
     it 'returns 204 for an empty body' do
       request.headers['Content-Type'] = 'application/csp-report'
-      post 'create', body: ''
+      request.env['RAW_POST_DATA'] = ''
+      post 'create'
       expect(response.status).to eq(204)
     end
 
@@ -55,7 +59,7 @@ describe Api::V1::CspReportsController, :type => :controller do
         }
       }
       expect(Rails.logger).to receive(:warn).with(/\[CSP\] violation/)
-      hide_const('Sentry') if defined?(Sentry)
+      allow(subject).to receive(:sentry_available?).and_return(false)
       post_report(payload)
       expect(response.status).to eq(204)
     end
@@ -102,7 +106,7 @@ describe Api::V1::CspReportsController, :type => :controller do
     it 'strips query strings from URLs before logging to prevent PII leakage' do
       warned = nil
       allow(Rails.logger).to receive(:warn) { |msg| warned = msg }
-      hide_const('Sentry') if defined?(Sentry)
+      allow(subject).to receive(:sentry_available?).and_return(false)
 
       payload = {
         'csp-report' => {
@@ -117,11 +121,12 @@ describe Api::V1::CspReportsController, :type => :controller do
     end
 
     it 'rejects oversized payloads and returns 204 without parsing' do
-      large_body = 'x' * (Api::V1::CspReportsController::MAX_REPORT_BYTES + 1)
+      large_body = ('x' * (Api::V1::CspReportsController::MAX_REPORT_BYTES + 1))
       allow(request).to receive(:content_length).and_return(large_body.bytesize)
       expect(Rails.logger).to receive(:warn).with(/oversized/)
       request.headers['Content-Type'] = 'application/csp-report'
-      post 'create', body: large_body
+      request.env['RAW_POST_DATA'] = large_body
+      post 'create'
       expect(response.status).to eq(204)
     end
   end
