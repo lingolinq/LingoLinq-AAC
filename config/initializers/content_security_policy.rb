@@ -17,7 +17,7 @@
 #
 # Out of scope for this commit: removing :unsafe_inline / :unsafe_eval from
 # script-src. That requires per-request nonces plumbed through the Ember
-# index.html served by Rails and is tracked as a separate Phase 2 change.
+# index.html served by Rails and is tracked as a separate Phase 4 change.
 
 Rails.application.config.content_security_policy do |policy|
   policy.default_src :self
@@ -94,7 +94,8 @@ Rails.application.config.content_security_policy do |policy|
   #   - External link preview iframe (confirm-external-link.hbs, sandboxed)
   # Lesson and confirm-external-link iframes legitimately load arbitrary
   # external URLs, so frame-src stays broad (:https) until Phase 2 narrows
-  # it. No embedded HubSpot form / Vimeo currently in templates.
+  # it based on collected violation reports. No embedded HubSpot form / Vimeo
+  # currently in templates.
   policy.frame_src   :self,
                      :https,
                      'https://www.opensymbols.org',
