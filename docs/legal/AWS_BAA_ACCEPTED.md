@@ -13,9 +13,9 @@
 
 ## What This Means
 
-✅ **HIPAA Compliance Enabled**: This AWS account is now designated as a HIPAA Account  
-✅ **Legal Protection**: AWS is now legally bound as a Business Associate under HIPAA  
-✅ **PHI Allowed**: You can now legally store and process Protected Health Information (PHI) in this account  
+✅ **BAA Active**: This AWS account is designated as a HIPAA Account — AWS is now legally bound as a Business Associate under HIPAA  
+✅ **Legal Foundation**: A signed BAA is a necessary (but not sufficient) condition for HIPAA compliance  
+⚠️ **PHI May Only Be Processed If**: (1) you use exclusively HIPAA-eligible AWS services, AND (2) all required technical safeguards (encryption, access controls, logging) are in place, AND (3) the required administrative and physical safeguards are also implemented  
 ✅ **Service Restrictions Apply**: Must only use HIPAA-eligible services with PHI  
 ✅ **Encryption Required**: Must encrypt all PHI in-transit and at-rest  
 

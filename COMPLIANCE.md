@@ -117,7 +117,7 @@ This table maps every external service to the data it receives, its BAA status, 
 
 | Service              | What Data Does It Receive?                          | BAA Status                  | Action Required                                |
 |----------------------|-----------------------------------------------------|-----------------------------|------------------------------------------------|
-| **Render.com**       | Hosts PostgreSQL and Redis with all user records    | **BAA DEFERRED (pre-MVP gate)** | Render BAA requires Team plan upgrade. Strategic decision to execute before first institutional contract (paying school/clinic). Pilot-scope DSA engagements proceed without it. |
+| **Render.com**       | Hosts PostgreSQL and Redis with all user records    | **BAA DEFERRED (pre-MVP gate)** | Render BAA requires Team plan upgrade. Strategic decision to execute before first institutional contract (paying school/clinic). **No PHI, HIPAA-regulated, or FERPA-regulated data may be processed or stored on Render until a Render BAA is fully executed.** Any pilot or DSA engagements are strictly limited to non-HIPAA/non-FERPA scenarios only. |
 | **AWS S3**           | User-uploaded images, symbols, board exports        | **BAA SIGNED (2026-02-07)** | Accepted on AWS account 2390-4478-5114 via AWS Artifact. See `docs/legal/AWS_BAA_ACCEPTED.md` and `docs/legal/AWS_BAA_2026-02.pdf`. HIPAA-eligible services only; bucket encryption enforced. |
 | **Anthropic (Claude)** | Developer queries only; code assistance           | No BAA needed               | Max plan; no user data ever sent; dev use only  |
 | **Google (Gemini)**  | Developer queries only; code assistance             | No BAA needed               | No user data ever sent; dev use only            |
@@ -500,7 +500,7 @@ Perform an immediate review when:
 | Automated security scanning via `security-hotfix` skill (run before deploys) | Done (2026-02-22) |
 | React migration plan in progress — incremental, feature-by-feature | In progress |
 | Build pipeline runs in isolated CI environment, not on user-facing servers | Already in place |
-| Content Security Policy (CSP) headers limit what scripts can execute in browser | Planned (not yet deployed; report-only initializer in progress on `feat/csp-headers-report-only`) |
+| Content Security Policy (CSP) headers limit what scripts can execute in browser | Planned (not yet deployed; report-only initializer in progress on `feat/csp-headers-report-only-v2`) |
 
 **What would change this assessment:**
 - A CVE is discovered in `ember-source 3.28` or `ember-data 3.28` (the runtime packages) — would trigger an emergency patch or accelerated migration of affected features.
