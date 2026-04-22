@@ -46,6 +46,9 @@
 # Ignore local settings for claude
 /.claude
 
+# Ignore GSD (get-shit-done) runtime artifacts — plans, task todos, execution state
+/.planning
+
 # antigravity-mcp is a separate git repository
 /antigravity-mcp
 
