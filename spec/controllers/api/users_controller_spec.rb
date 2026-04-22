@@ -131,7 +131,7 @@ describe Api::UsersController, :type => :controller do
         "edit"=>false, 
         'edit_boards' => false,
         "manage_supervision"=>false, 
-        'set_goals' => false,
+        'set_goals' => true,
         "delete"=>false
       })
 
