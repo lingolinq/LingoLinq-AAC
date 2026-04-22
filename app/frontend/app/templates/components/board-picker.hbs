@@ -64,6 +64,27 @@
           </div>
         {{/if}}
       </div>
+      {{#unless this.category.mine}}
+        <div class="md-home-boards-picker__search">
+          {{#if this.used_category_fallback}}
+            <p class="md-home-boards-picker__fallback-note" role="status">
+              {{t "No boards are tagged for this category in the catalog yet. Here are popular public boards you can start from—pick any home board you like, or search below." key="home_board_category_fallback_note"}}
+            </p>
+          {{/if}}
+          <form class="md-home-boards-picker__search-form" {{action "go_search_boards" on="submit"}}>
+            <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
+            <Input
+              id="board-picker-search-q"
+              @type="search"
+              @value={{this.boardSearchQuery}}
+              @enter={{action "go_search_boards"}}
+              class="form-control md-home-boards-picker__search-input"
+              placeholder={{t "Search public boards by name" key="board_picker_search_placeholder"}}
+            />
+            <button type="submit" class="md-btn md-btn--secondary md-home-boards-picker__search-submit">{{t "Search" key="search"}}</button>
+          </form>
+        </div>
+      {{/unless}}
     {{/if}}
   </div>
 </div>

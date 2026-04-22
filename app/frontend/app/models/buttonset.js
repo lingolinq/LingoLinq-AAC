@@ -91,10 +91,20 @@ LingoLinq.Buttonset = DS.Model.extend({
     // error if the button set needs to be generated first.
     var bs = this;
     var board_id = bs.get('global_id');
-    return new RSVP.Promise(function(resolve, reject) {
+    // Serialize concurrent load_buttons on the same record (e.g. board-detail background
+    // load_button_set() without force racing copy-modal load_button_set(true,...)).
+    // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
+    var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
+    // #region agent log
+    fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H6',location:'buttonset.js:load_buttons',message:'load_buttons queued after prior tail',data:{force:!!force,id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
+    // #endregion
+    var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
       if(bs.get('root_url') && (!bs.get('buttons_loaded') || hash_mismatch || (force && !bs.get('buttons_force_loaded')))) {
+        // #region agent log
+        fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H1',location:'buttonset.js:load_buttons',message:'enter load_buttons branch',data:{force:!!force,hash_mismatch:!!hash_mismatch,buttons_loaded:!!bs.get('buttons_loaded'),id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
+        // #endregion
         var regenerate = function(missing) {
           return bs.persistence.ajax('/api/v1/buttonsets/' + bs.get('id') + '/generate', {
             type: 'POST',
@@ -104,41 +114,98 @@ LingoLinq.Buttonset = DS.Model.extend({
               return RSVP.resolve(data.url);
             } else {
               return new RSVP.Promise(function(gen_res, gen_rej) {
-                progress_tracker.track(data.progress, function(event) {
-                  if(event.status == 'errored') {
-                    gen_rej({error: 'error while generating button set'});
-                  } else if(event.status == 'finished') {
-                    gen_res(event.result.url);
+                try {
+                  if(!data.progress || !data.progress.status_url) {
+                    gen_rej({error: 'generate response missing progress'});
+                    return;
                   }
-                });  
+                  progress_tracker.track(data.progress, function(event) {
+                    try {
+                      if(event.status == 'errored') {
+                        gen_rej({error: 'error while generating button set'});
+                      } else if(event.status == 'finished' || event.finished_at) {
+                        var r = event && event.result;
+                        if(typeof r === 'string') {
+                          try { r = JSON.parse(r) || {}; } catch(e) { }
+                        }
+                        var u = r && (r.url || r['url']);
+                        if(u) {
+                          gen_res(u);
+                        } else {
+                          gen_rej({error: 'progress finished without button set url', result: r});
+                        }
+                      }
+                    } catch(e) {
+                      gen_rej({error: 'exception handling button set progress', details: e});
+                    }
+                  });  
+                } catch(e) {
+                  gen_rej({error: 'exception setting up progress track', details: e});
+                }
               });
             }
           });
         };
         var process_buttons = function(buttons) {
-          if(buttons && buttons.find) {
-            bs.set('buttons_loaded', true);
-            if(force) { bs.set('buttons_force_loaded', true); }
-            bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
-            bs.set('buttons', buttons);
-            if(!buttons.find(function(b) { return b.board_id == board_id; })) {
-              regenerate();
-            } else if(!buttons.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
-              bs.set('buttons', bs.redepth(board_id));
+          try {
+            if(buttons && buttons.find) {
+              bs.set('buttons_loaded', true);
+              if(force) { bs.set('buttons_force_loaded', true); }
+              bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+              bs.set('buttons', buttons);
+              if(!buttons.find(function(b) { return b.board_id == board_id; })) {
+                // #region agent log
+                fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H2',location:'buttonset.js:process_buttons',message:'regenerate path (missing board_id in buttons)',data:{board_id:board_id},timestamp:Date.now()})}).catch(function(){});
+                // #endregion
+                return regenerate(true).then(function(url) {
+                  bs.set('root_url', url);
+                  return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                    bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                    bs.set('buttons', res);
+                    if(res && res.find && !res.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                      bs.set('buttons', bs.redepth(board_id));
+                    }
+                    resolve(bs);
+                  }, function(err) {
+                    resolve(bs);
+                  });
+                }, function(err) {
+                  resolve(bs);
+                });
+              } else if(!buttons.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                bs.set('buttons', bs.redepth(board_id));
+              }
+            } else if(buttons && !buttons.find) {
+              if(!bs.get('buttons') || bs.get('buttons.length') == 0) {
+                bs.set('buttons', []);
+                return regenerate(true).then(function(url) {
+                  bs.set('root_url', url);
+                  return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                    bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                    bs.set('buttons', res);
+                    resolve(bs);
+                  }, function(err) {
+                    reject({error: "not a valid buttonset result"});
+                  });
+                }, function(err) {
+                  reject({error: "not a valid buttonset result"});
+                });
+              } else {
+                LingoLinq.track_error("buttons has no find ", buttons);
+                return reject({error: "not a valid buttonset result"});
+              }
             }
-          } else if(buttons && !buttons.find) {
-            if(!bs.get('buttons') || bs.get('buttons.length') == 0) {
-              bs.set('buttons', []);
-              regenerate();
-            }
-            LingoLinq.track_error("buttons has no find ", buttons);
-            return reject({error: "not a valid buttonset result"});
+            // #region agent log
+            fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H1',location:'buttonset.js:process_buttons',message:'process_buttons resolve(bs) sync path',data:{id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
+            // #endregion
+            resolve(bs);
+          } catch(e) {
+            reject({error: "exception in process_buttons", details: e});
           }
-          resolve(bs);
         };
         var store_anyway = function(already_tried_local) {
-          bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
-            process_buttons(res);
+          return bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
+            return process_buttons(res);
           }, function(err) {
             var fallback = function() {
               if(already_tried_local) {
@@ -147,30 +214,34 @@ LingoLinq.Buttonset = DS.Model.extend({
                 // Something local is better than nothing,
                 // even if we suspect it is out of date
                 bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
-                  process_buttons(buttons);
+                  return process_buttons(buttons);
                 }, function() {
                   reject(err);
                 });
               }  
             };
-            // Try re-generating before giving up
-            regenerate(true).then(function(url) {
-              bs.set('root_url', url)
-              bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
-                process_buttons(res);
+            try {
+              // Try re-generating before giving up
+              regenerate(true).then(function(url) {
+                bs.set('root_url', url);
+                return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                  return process_buttons(res);
+                }, function(err) {
+                  fallback();
+                });
               }, function(err) {
                 fallback();
               });
-            }, function(err) {
+            } catch(e) {
               fallback();
-            });
+            }
           });
         };
         if(force) {
-          store_anyway(false);          
+          store_anyway(false);
         } else {
           bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
-            process_buttons(buttons);
+            return process_buttons(buttons);
           }, function() {
             store_anyway(true);
           });
@@ -181,6 +252,8 @@ LingoLinq.Buttonset = DS.Model.extend({
         reject({error: 'root url not available'});
       }
     });
+    bs.__loadButtonsSerialTail = prev.then(function() { return work; }, function() { return work; });
+    return work;
   },
   redepth: function(from_board_id) {
     var buttons = this.get('buttons') || [];
@@ -1020,7 +1093,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
   }
   return RSVP.resolve();
 };
-LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
+LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, skipEmberRecordReload) {
   // use promises to make this call idempotent
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
   if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
@@ -1046,8 +1119,9 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
       if((found.get('buttons') && found.get('buttons').length) || found.get('root_url')) {
-        found.load_buttons(force);
-        return RSVP.resolve(found);
+        // Must return load_buttons' promise — resolving found immediately races callers
+        // (e.g. board.load_button_set skipEmberRecordReload) that chain another load_buttons.
+        return found.load_buttons(force).then(function() { return found; });
       }
     }
   }
@@ -1062,7 +1136,9 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
             var reload = RSVP.resolve();
             if(!button_set.get('root_url') || button_set.get('root_url') != url) {
               force = true;
-              reload = button_set.reload().then(null, function() { return RSVP.resolve(); });
+              if(!skipEmberRecordReload) {
+                reload = button_set.reload().then(null, function() { return RSVP.resolve(); });
+              }
               button_set.set('root_url', url);
             }
             reload.then(function() {
@@ -1078,12 +1154,27 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
         };
         if(data.exists && data.url) {
           found_url(data.url); 
+        } else if(!data.progress || !data.progress.status_url) {
+          reject({error: 'generate response missing progress'});
         } else {
           progress_tracker.track(data.progress, function(event) {
-            if(event.status == 'errored') {
-              reject({error: 'error while generating button set'});
-            } else if(event.status == 'finished') {
-              found_url(event.result.url);
+            try {
+              if(event.status == 'errored') {
+                reject({error: 'error while generating button set'});
+              } else if(event.status == 'finished' || event.finished_at) {
+                var res = event.result;
+                if(typeof res === 'string') {
+                  try { res = JSON.parse(res) || {}; } catch(e) { }
+                }
+                var resultUrl = res && (res.url || res['url']);
+                if(resultUrl) {
+                  found_url(resultUrl);
+                } else {
+                  reject({error: 'progress finished without button set url', result: res});
+                }
+              }
+            } catch(e) {
+              reject({error: "exception tracking progress", details: e});
             }
           });  
         }
@@ -1099,7 +1190,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     var wrong_revision = full_set_revision && button_set.get('full_set_revision') != full_set_revision;
     // try to reload before checking for root_url 
     // to ensure we have the freshest result
-    if(persistence.get('online') && (!button_set.get('fresh') || force || wrong_revision)) {
+    if(!skipEmberRecordReload && persistence.get('online') && (!button_set.get('fresh') || force || wrong_revision)) {
       reload = button_set.reload().then(null, function(err) {
         return RSVP.resolve(button_set) 
       });
@@ -1144,8 +1235,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     if(isNotFound && errorId && errorId.match(/^\d/)) {
       return generate(errorId);
     } else if(found) {
-      found.load_buttons(force); 
-      return RSVP.resolve(found); 
+      return found.load_buttons(force).then(function() { return found; });
     } else {
       return RSVP.reject(err);
     }

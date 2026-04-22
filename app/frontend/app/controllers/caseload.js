@@ -4,32 +4,113 @@ import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 
+function resolveSuperviseeHomeBoardKey(s) {
+  if (!s || typeof s !== 'object') {
+    return null;
+  }
+  return (
+    s.home_board_key ||
+    s.homeBoardKey ||
+    (s.home_board && typeof s.home_board === 'object' && s.home_board.key) ||
+    (s.preferences && s.preferences.home_board && s.preferences.home_board.key) ||
+    null
+  );
+}
+
+function decorateSuperviseeForCaseload(s) {
+  var copy = Object.assign({}, s);
+  copy.resolved_home_board_key = resolveSuperviseeHomeBoardKey(s);
+  return copy;
+}
+
 export default Controller.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   router: service('router'),
+  store: service(),
 
-  supervisees: computed('model.known_supervisees.[]', function() {
-    return this.get('model.known_supervisees') || [];
+  supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
+    var list = this.get('model.known_supervisees') || [];
+    return list.map(decorateSuperviseeForCaseload);
   }),
 
-  actions: {
-    homeInSpeakMode: function(userId, asModeling) {
-      var user = this.get('model');
-      if (!user) { return; }
-      var supervisees = user.get('known_supervisees') || [];
-      var supervisee = null;
-      supervisees.forEach(function(s) {
-        if (s.id === userId) { supervisee = s; }
-      });
-      if (!supervisee || !supervisee.home_board_key) { return; }
-      var app_state = this.get('appState');
-      if (asModeling) {
-        app_state.set('modeling_for_user', supervisee);
-      } else {
-        app_state.set('speak_as_user', supervisee);
+  // When a communicator's home is the eval board (obf/eval…), opening "Model for" would
+  // land on the same eval UI as "Run evaluation". Prefer starred boards or a non-eval
+  // sidebar board — same idea as home_in_speak_mode's obf/stars-{id} for sync_starred_boards.
+  _modelingEntryBoardKeyAvoidingEval: function(u) {
+    if (!u || typeof u.get !== 'function') {
+      return null;
+    }
+    if (u.get('preferences.sync_starred_boards')) {
+      var starredLen = (u.get('stats.starred_board_refs') || []).length;
+      var starredCount = u.get('stats.starred_boards');
+      if (starredLen > 0 || starredCount) {
+        return 'obf/stars-' + u.get('id');
       }
-      this.get('router').transitionTo('board', supervisee.home_board_key);
+    }
+    var side = u.get('preferences.sidebar_boards') || [];
+    for (var i = 0; i < side.length; i++) {
+      var brd = side[i];
+      var k = brd && (brd.key || (typeof brd === 'string' ? brd : null));
+      if (k && !String(k).match(/^obf\/eval/)) {
+        return k;
+      }
+    }
+    return null;
+  },
+
+  _enterSpeakModeForSuperviseeId: function(boardUserId, modeling, superviseeForModelingOnlyCheck) {
+    if (!boardUserId) {
+      return;
+    }
+    if (superviseeForModelingOnlyCheck && superviseeForModelingOnlyCheck.modeling_only && !modeling) {
+      return;
+    }
+    var appState = this.get('appState');
+    var _this = this;
+    if (!modeling) {
+      appState.set_speak_mode_user(boardUserId, true, false);
+      return;
+    }
+    this.get('store').findRecord('user', boardUserId).then(function(u) {
+      var homeKey = u.get('preferences.home_board.key');
+      var forceKey = null;
+      if (homeKey && String(homeKey).match(/^obf\/eval/)) {
+        forceKey = _this._modelingEntryBoardKeyAvoidingEval(u);
+      }
+      if (forceKey) {
+        appState.set_speak_mode_user(u.get('id'), true, true, forceKey);
+      } else {
+        appState.set_speak_mode_user(u.get('id'), true, true);
+      }
+    }, function() {
+      modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
+    });
+  },
+
+  actions: {
+    // Same API as index route / dashboard: set_speak_mode_user(id, true, keep_as_self).
+    // Modeling uses findRecord first so we can avoid opening obf/eval (eval tools) when
+    // that is only the communicator's eval placeholder home — same symptom as Run evaluation.
+    caseload_model_for: function(supervisee) {
+      if (!supervisee) {
+        return;
+      }
+      var boardUserId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if (boardUserId == null && supervisee.user_name) {
+        boardUserId = supervisee.user_name;
+      }
+      this._enterSpeakModeForSuperviseeId(boardUserId, true, supervisee);
+    },
+    caseload_speak_as: function(supervisee) {
+      if (!supervisee) {
+        return;
+      }
+      var boardUserId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if (boardUserId == null && supervisee.user_name) {
+        boardUserId = supervisee.user_name;
+      }
+      this._enterSpeakModeForSuperviseeId(boardUserId, false, supervisee);
     },
 
     stats: function(userName) {
@@ -37,15 +118,54 @@ export default Controller.extend({
     },
 
     modeling_ideas: function(userName) {
-      this.get('router').transitionTo('user.goals', userName);
+      var users = [];
+      var model = this.get('model');
+      if (!model) {
+        return;
+      }
+      if (!userName) {
+        if ((model.get('supervisees') || []).length > 0) {
+          (model.get('known_supervisees') || []).forEach(function(u) {
+            if (u.premium) {
+              users.push(u);
+            }
+          });
+        } else {
+          users.push(model);
+        }
+      } else {
+        (model.get('known_supervisees') || []).forEach(function(u) {
+          if (u.user_name === userName) {
+            users.push(u);
+          }
+        });
+      }
+      if (users.length > 0) {
+        modal.open('modals/modeling-ideas', { users: users });
+      }
     },
 
     set_goal: function(supervisee) {
-      modal.open('set-goal', { user_name: supervisee.user_name });
+      if (!supervisee) {
+        return;
+      }
+      var rawId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if (rawId == null) {
+        return;
+      }
+      this.get('store').findRecord('user', rawId).then(function(user_model) {
+        modal.open('new-goal', { user: user_model });
+      }, function() {
+        modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
+      });
     },
 
     record_note: function(supervisee) {
-      modal.open('record-note', { user: { user_name: supervisee.user_name, id: supervisee.id } });
+      if (!supervisee) {
+        return;
+      }
+      var uid = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      modal.open('record-note', { user: { user_name: supervisee.user_name, id: uid } });
     },
 
     quick_assessment: function(supervisee) {
@@ -53,19 +173,51 @@ export default Controller.extend({
     },
 
     run_eval: function(supervisee) {
-      modal.open('run-eval', { user_name: supervisee.user_name });
+      var _this = this;
+      if (!supervisee) {
+        return;
+      }
+      var rawId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if (rawId == null) {
+        return;
+      }
+      this.get('store').findRecord('user', rawId).then(function(user_model) {
+        _this.get('appState').check_for_currently_premium(user_model, 'eval', false, true).then(function() {
+          _this.get('appState').set_speak_mode_user(user_model.get('id'), false, false, 'obf/eval');
+        });
+      }, function() {
+        modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
+      });
     },
 
-    intro: function(userId) {
-      var user = this.get('model');
-      var supervisees = user.get('known_supervisees') || [];
-      var supervisee = null;
-      supervisees.forEach(function(s) {
-        if (s.id === userId) { supervisee = s; }
-      });
-      if (supervisee) {
+    intro: function(supervisee) {
+      if (supervisee && supervisee.user_name) {
         this.get('router').transitionTo('user', supervisee.user_name);
       }
+    },
+
+    // Opens the standard home-board picker for this communicator (setup wizard
+    // `board_category` with `user_id`), same path as account setup for another user.
+    caseload_set_home_board: function(supervisee) {
+      var _this = this;
+      if (!supervisee || supervisee.modeling_only) {
+        return;
+      }
+      var rawId = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      if (rawId == null) {
+        return;
+      }
+      this.get('store').findRecord('user', rawId).then(function(user_model) {
+        if (!user_model.get('permissions.edit')) {
+          modal.error(i18n.t('not_allowed_user_long', "It appears you don't have permission to access this user's information"));
+          return;
+        }
+        _this.get('router').transitionTo('setup', {
+          queryParams: { page: 'board_category', user_id: user_model.get('id') }
+        });
+      }, function() {
+        modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
+      });
     },
 
     // Keyboard navigation for the per-supervisee "extras" dropdown.

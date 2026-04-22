@@ -103,7 +103,6 @@ var BoardHierarchy = EmberObject.extend({
     }
     this.set('boards_missing', !!any_missing);
     this.set('boards_meta_missing', !!any_missing && !!any_meta);
-    if(this.get('boards_missing'))
     if(any_missing && !this.get('tried_button_set_reload')) {
       this.set('tried_button_set_reload', true);
       var _this = this;
@@ -148,17 +147,28 @@ var BoardHierarchy = EmberObject.extend({
   }
 });
 BoardHierarchy.load_with_button_set = function(board, opts) {
-  var reload_board = board.reload().then(null, function() {
-  }, function(err) {
-    return RSVP.reject(i18n.t('loading_board_failed', "Failed loading board for copying"));
-  });
+  opts = opts || {};
+  // Copy-board modal (links_copy): board.reload() can hang indefinitely on board-detail,
+  // leaving "Loading..." forever. Callers pass skipBoardReloadForCopyModal when the
+  // board is already the live editor model. All other flows keep reload for freshness.
+  var reload_board = opts.skipBoardReloadForCopyModal
+    ? RSVP.resolve(board)
+    : board.reload().then(null, function() {
+    }, function(err) {
+      return RSVP.reject(i18n.t('loading_board_failed', "Failed loading board for copying"));
+    });
 
   var downstream = reload_board.then(function() {
-//     if(board.get('downstream_boards') > 0) {
-      return board.load_button_set(true);
-//     } else {
-//       return RSVP.resolve();
-//     }
+    var copyModal = !!opts.skipBoardReloadForCopyModal;
+    // Always force:true here so LingoLinq.Buttonset.load_button_set clears pending_promises[id].
+    // With force:false, a prior stuck promise can be returned and no new XHR runs ("no calls").
+    // skipBoardReloadForCopyModal still skips board.reload + Ember buttonset reload noise.
+    return board.load_button_set(true, copyModal).then(function(bs) {
+      // #region agent log
+      fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H5',location:'board_hierarchy.js:load_with_button_set',message:'board.load_button_set settled',data:{hasBs:!!bs,copyModal:copyModal},timestamp:Date.now()})}).catch(function(){});
+      // #endregion
+      return bs;
+    });
   });
 
   var load_hierarchy = downstream.then(function(button_set) {

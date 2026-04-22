@@ -172,7 +172,7 @@ describe User, :type => :model do
       expect(perms['edit_boards']).to eq(nil)
       expect(perms['manage_supervision']).to eq(nil)
       expect(perms['model']).to eq(true)
-      expect(perms['set_goals']).to eq(nil)
+      expect(perms['set_goals']).to eq(true)
       expect(perms['view_deleted_boards']).to eq(nil)
       expect(perms['view_word_map']).to eq(true)
       expect(perms['view_detailed']).to eq(true)

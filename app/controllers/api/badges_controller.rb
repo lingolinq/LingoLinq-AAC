@@ -19,7 +19,9 @@ class Api::BadgesController < ApplicationController
       if params['goal_id']
         goal = UserGoal.find_by_path(params['goal_id'])
         return unless exists?(goal, params['goal_id'])
-        return unless allowed?(goal, 'edit')
+        # Listing badges is read-only; require goal visibility (owner, supervisor with
+        # model/edit/set_goals on the communicator, etc.) — not UserGoal#edit, which is stricter.
+        return unless allowed?(goal, 'view')
         # TODO: sharding
         badges = badges.where(:user_goal_id => goal.id)
       else

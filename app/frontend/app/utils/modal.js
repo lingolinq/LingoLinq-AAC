@@ -222,15 +222,20 @@ var modal = EmberObject.extend({
     });
   },
   is_open: function(template) {
+    var service = this._getService();
     if(template == 'highlight') {
       return !!this.highlight_controller;
     } else if(template == 'highlight-secondary') {
       return !!this.highlight2_controller;
     } else if(template) {
-      // Check both outlet-based and component-based modals
-      return this.last_template == template || this._component_based_template == template;
+      // Outlet-based, legacy component flag, and service-backed modals
+      return this.last_template == template ||
+        this._component_based_template == template ||
+        !!(service && service.get('currentTemplate') === template);
     } else {
-      return !!this.last_template || !!this._component_based_template;
+      return !!this.last_template ||
+        !!this._component_based_template ||
+        !!(service && service.get('currentTemplate'));
     }
   },
   is_closeable: function() {
@@ -327,9 +332,12 @@ var modal = EmberObject.extend({
   },
   close: function(success, outlet) {
     outlet = outlet || 'modal';
-    if(!this.route) { return; }
-    
     var service = this._getService();
+    // Component-based modals run through the modal service; allow closing even if
+    // the legacy route hook is missing so we still resolve promises and clear state.
+    if (!this.route && !service) {
+      return;
+    }
     
     if(this.last_promise && outlet != 'highlight' && outlet != 'highlight-secondary') {
       // Treat null, undefined, or any truthy value as success
@@ -353,6 +361,16 @@ var modal = EmberObject.extend({
         service.set('currentComponent', null);
         service.set('currentController', null);
         service.set('currentPromise', null);
+      }
+    } else if (service && outlet != 'highlight' && outlet != 'highlight-secondary' && (outlet === 'modal' || !outlet)) {
+      // Service-backed modal is open but legacy last_promise was cleared (race / partial
+      // migration). Still resolve so modal.open() callers and the service unmount cleanly.
+      if (service.get('currentTemplate') && service.get('currentPromise')) {
+        service._resolveCurrentPromise(success === false ? false : success);
+        service.set('currentPromise', null);
+        service.set('currentOptions', null);
+        service.set('currentComponent', null);
+        service.set('currentController', null);
       }
     }
     if(this.highlight_promise && outlet == 'highlight') {

@@ -5,6 +5,20 @@ module Uploader
   S3_EXPIRATION_TIME=60*60
   CONTENT_LENGTH_RANGE=200.megabytes.to_i
 
+  # Strip whitespace — a trailing space in .env breaks S3 (InvalidAccessKeyId on the literal key).
+  # Also accept standard AWS env names for local dev convenience.
+  def self.aws_access_key
+    (ENV['AWS_KEY'].presence || ENV['AWS_ACCESS_KEY_ID']).to_s.strip
+  end
+
+  def self.aws_secret_key
+    (ENV['AWS_SECRET'].presence || ENV['AWS_SECRET_ACCESS_KEY']).to_s.strip
+  end
+
+  def self.aws_credentials
+    Aws::Credentials.new(aws_access_key, aws_secret_key)
+  end
+
   def self.s3_region
     ENV['AWS_REGION'].presence || 'us-west-2'
   end
@@ -12,7 +26,7 @@ module Uploader
   def self.s3_client(config)
     Aws::S3::Client.new(
       region: s3_region,
-      credentials: Aws::Credentials.new(config[:access_key], config[:secret]),
+      credentials: Aws::Credentials.new(config[:access_key].to_s.strip, config[:secret].to_s.strip),
       http_open_timeout: 3,
       http_read_timeout: 3
     )
@@ -73,7 +87,7 @@ module Uploader
 
   def self.invalidate_cdn(remote_path)
     remote_path = "/" + remote_path unless remote_path.match(/^\//)
-    cred = Aws::Credentials.new(ENV['AWS_KEY'], ENV['AWS_SECRET'])
+    cred = aws_credentials
     client = Aws::CloudFront::Client.new(
       region: ENV['UPLOADS_S3_CDN_REGION'],
       credentials: cred
@@ -292,11 +306,11 @@ module Uploader
   
   def self.remote_upload_config
     @remote_upload_config ||= {
-      :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/",
-      :access_key => ENV['AWS_KEY'],
-      :secret => ENV['AWS_SECRET'],
-      :bucket_name => ENV['UPLOADS_S3_BUCKET'],
-      :static_bucket_name => ENV['STATIC_S3_BUCKET']
+      :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET'].to_s.strip}.s3.amazonaws.com/",
+      :access_key => aws_access_key,
+      :secret => aws_secret_key,
+      :bucket_name => ENV['UPLOADS_S3_BUCKET'].to_s.strip,
+      :static_bucket_name => ENV['STATIC_S3_BUCKET'].to_s.strip
     }
   end
   

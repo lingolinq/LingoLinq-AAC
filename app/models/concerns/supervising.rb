@@ -39,7 +39,28 @@ module Supervising
   end
   
   def supervisor_for?(user)
-    user.supervisor_user_ids.include?(self.global_id) || Organization.manager_for?(self, user)
+    user.supervisor_user_ids.include?(self.global_id) ||
+      Organization.manager_for?(self, user) ||
+      supervisor_relationship_active_as_supervisor?(user)
+  end
+
+  # Approved consent-flow relationship (may exist alongside or without a fully-synced UserLink).
+  def supervisor_relationship_active_as_supervisor?(communicator)
+    return false unless self.id && communicator&.id
+
+    SupervisorRelationship.active.exists?(
+      supervisor_user_id: self.id,
+      communicator_user_id: communicator.id
+    )
+  end
+
+  def approved_supervisor_relationship_to(communicator)
+    return nil unless self.id && communicator&.id
+
+    SupervisorRelationship.active.find_by(
+      supervisor_user_id: self.id,
+      communicator_user_id: communicator.id
+    )
   end
   
   def supervisors
@@ -88,13 +109,20 @@ module Supervising
   
   def edit_permission_for?(supervisee, include_admin_managers=true)
     return false if self.valet_mode?
-    sup = !self.modeling_only? && supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['edit_permission'] } 
-    sup || Organization.manager_for?(self, supervisee, include_admin_managers)
+    sup = !self.modeling_only? && supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['edit_permission'] }
+    return true if sup
+    rel = approved_supervisor_relationship_to(supervisee)
+    if rel && %w[edit_boards manage_devices full].include?(rel.permission_level)
+      return true unless self.modeling_only?
+    end
+    Organization.manager_for?(self, supervisee, include_admin_managers)
   end
 
   def modeling_only_for?(supervisee, include_admin_managers=true)
     return true if self.modeling_only?
-    supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] } 
+    rel = approved_supervisor_relationship_to(supervisee)
+    return true if rel&.permission_level == 'modeling_only'
+    supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] }
   end
 
   def org_units_for_supervising(supervisee)

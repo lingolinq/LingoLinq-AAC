@@ -123,16 +123,36 @@ export default Component.extend({
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
-    LingoLinq.store.query('board', {public: true, starred: true, user_id: _this.appState.get('currentUser.id') || 'self', per_page: 20, category: 'layouts'}).then(function(data) {
-      var res = data.map(function(b) { return b; });
-      if(res && res.length > 0) {
+    var userId = _this.appState.get('currentUser.id') || 'self';
+    LingoLinq.store.query('board', { public: true, starred: true, user_id: userId, per_page: 20, category: 'layouts' }).then(function(data) {
+      var res = (data || []).map(function(b) { return b; });
+      if (res && res.length > 0) {
         _this.set('boards', res);
         _this.set('status', null);
         _this.set('_boards_loading', false);
-      } else {
-        _this.set('status', {error: true});
+        return;
+      }
+      return LingoLinq.store.query('board', { public: true, sort: 'home_popularity', per_page: 20, category: 'layouts' }).then(function(pub) {
+        var list = (pub || []).map(function(b) { return b; });
+        if (list && list.length > 0) {
+          _this.set('boards', list);
+          _this.set('status', null);
+          _this.set('_boards_loading', false);
+        } else {
+          _this.set('status', { error: true });
+          _this.set('_boards_loading', false);
+          var loadError = _this.get('loadError') || _this.get('load_error');
+          if (loadError && typeof loadError === 'function') {
+            loadError();
+          } else if (loadError && typeof loadError === 'string') {
+            _this.sendAction(loadError);
+          } else {
+            _this.sendAction('load_error');
+          }
+        }
+      }, function() {
+        _this.set('status', { error: true });
         _this.set('_boards_loading', false);
-        // Check both camelCase (loadError) and snake_case (load_error) for compatibility
         var loadError = _this.get('loadError') || _this.get('load_error');
         if (loadError && typeof loadError === 'function') {
           loadError();
@@ -141,7 +161,7 @@ export default Component.extend({
         } else {
           _this.sendAction('load_error');
         }
-      }
+      });
     }, function(err) {
       _this.set('status', {error: true});
       _this.set('_boards_loading', false);

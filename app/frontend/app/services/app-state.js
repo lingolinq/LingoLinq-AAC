@@ -811,6 +811,43 @@ export default Service.extend({
       console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
   },
+  /**
+   * Prefer the same URL style as the current screen: `user/board/…` (board-alt),
+   * `user/board-detail/…`, or legacy glob `board` for obf/integrations/single-segment keys.
+   */
+  transitionToBoardForCurrentUiStyle: function(router, boardKey) {
+    if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
+    var routeName = '';
+    try {
+      routeName = this.get('current_route') || '';
+      var r = this.get('router') || this.router;
+      if(r && r.get) { routeName = routeName || (r.get('currentRouteName') || ''); }
+    } catch(e) {
+      routeName = '';
+    }
+    var parts = String(boardKey).split('/');
+    if(parts.length < 2 || !parts[0]) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    if(boardKey.indexOf('obf/') === 0 || boardKey.indexOf('integrations/') === 0) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    var userName = parts[0];
+    var boardSlug = parts.slice(1).join('/');
+    if(!boardSlug) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    if(routeName.indexOf('board-detail') !== -1) {
+      router.transitionTo('user.board-detail', userName, boardSlug);
+    } else if(routeName.indexOf('board-alt') !== -1) {
+      router.transitionTo('user.board-alt', userName, boardSlug);
+    } else {
+      router.transitionTo('board', boardKey);
+    }
+  },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
@@ -864,7 +901,7 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          router.transitionTo('board', new_state.key);
+          _this.transitionToBoardForCurrentUiStyle(router, new_state.key);
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -1031,7 +1068,7 @@ export default Service.extend({
     this.set('referenced_board', state);
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      router.transitionTo('board', state.key);
+      this.transitionToBoardForCurrentUiStyle(router, state.key);
     } else {
       console.warn('[APP-STATE] Cannot transition to board route: router not available');
     }
@@ -1040,7 +1077,6 @@ export default Service.extend({
     options = options || {};
     var index_as_fallback = options.index_as_fallback;
     var auto_home = options.auto_home;
-
 
     this.set_history([]);
     var current = this.get('currentBoardState');
@@ -1068,7 +1104,7 @@ export default Service.extend({
         this.set('referenced_board', state);
         var router = this.get('router') || this.router;
         if(router && typeof router.transitionTo === 'function') {
-          router.transitionTo('board', state.key);
+          this.transitionToBoardForCurrentUiStyle(router, state.key);
         } else {
           console.warn('[APP-STATE] Cannot transition to board route: router not available');
         }
@@ -1313,16 +1349,18 @@ export default Service.extend({
         // check if it's the user's home or sidebar board, and override
         // the user's preferred level
         // TODO: save level as part of starring a board
-        if(user.get('preferences.home_board.id') == state.id) {
-          level.preferred = user.get('preferences.home_board.level');
-          level.source = 'home';
-        } else {
-          (user.get('preferences.sidebar_boards') || []).forEach(function(board) {
-            if(board && board.id == state.id) {
-              level.preferred = board.level;
-              level.source = 'sidebar';
-            }
-          });
+        if(state) {
+          if(user.get('preferences.home_board.id') == state.id) {
+            level.preferred = user.get('preferences.home_board.level');
+            level.source = 'home';
+          } else {
+            (user.get('preferences.sidebar_boards') || []).forEach(function(board) {
+              if(board && board.id == state.id) {
+                level.preferred = board.level;
+                level.source = 'sidebar';
+              }
+            });
+          }
         }
         var save_user = false;
         if(user == speak_mode_user) {
@@ -1608,8 +1646,24 @@ export default Service.extend({
         this.home_in_speak_mode(opts);
       });
     }
-    if(preferred && speak_mode_user && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
+    if(preferred && speak_mode_user && speak_mode_user.get('preferences.home_board') && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
       preferred = speak_mode_user.get('preferences.home_board') || preferred;
+    }
+    if(!preferred) {
+      if(!this.get('speak_mode')) {
+        this.set('speakModeUser', null);
+        this.set('referenced_speak_mode_user', null);
+        this.stashes.persist('speak_mode_user_id', null);
+        this.stashes.persist('referenced_speak_mode_user_id', null);
+      }
+      var msg;
+      if(speak_mode_user && this.get('sessionUser') && speak_mode_user.get('id') != this.get('sessionUser.id')) {
+        msg = i18n.t('speak_mode_communicator_needs_home_board', "%{name} does not have a home board set yet. Set a home board for this communicator, then try Model for or Speak as again.", { name: speak_mode_user.get('user_name') || speak_mode_user.get('id') });
+      } else {
+        msg = i18n.t('no_home_board_yet', "You haven't selected a home board yet.");
+      }
+      modal.warning(msg);
+      return;
     }
     // Resolve board key for URL (route uses key, e.g. example/yesno)
     var boardKey = preferred && (preferred.key || (preferred.get && preferred.get('key')));
@@ -1651,7 +1705,7 @@ export default Service.extend({
     }
     if(boardKey && router && typeof router.transitionTo === 'function') {
       try {
-        router.transitionTo('board', boardKey);
+        this.transitionToBoardForCurrentUiStyle(router, boardKey);
       } catch(e) {
         console.error('[APP-STATE] Error transitioning to board route:', e);
       }
@@ -3842,7 +3896,14 @@ export default Service.extend({
     if(obj.prevent_return) {
       // integrations and configured buttons can explicitly prevent navigating away when activated
       runLater(function() { _this.check_scanning(); }, 200);
-    } else if(this.get('speak_mode') && ((!this.get('currentUser') && window.user_preferences.any_user.auto_home_return) || this.get('currentUser.preferences.auto_home_return'))) {
+    } else if(this.get('speak_mode') && (function(_this) {
+      if(!_this.get('currentUser') && window.user_preferences.any_user.auto_home_return) { return true; }
+      var ru = _this.get('referenced_user');
+      if(ru && ru.get && typeof ru.get('preferences.auto_home_return') !== 'undefined') {
+        return !!ru.get('preferences.auto_home_return');
+      }
+      return !!_this.get('currentUser.preferences.auto_home_return');
+    })(this)) {
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
         var current = this.get('currentBoardState');

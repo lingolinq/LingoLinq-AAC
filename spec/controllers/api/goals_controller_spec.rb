@@ -149,16 +149,26 @@ describe Api::GoalsController, type: :controller do
       expect(json['goal']['summary']).to eq('cool goal')
     end
     
-    it "should require admin permission to create a template header" do
+    it "should ignore template_header for non-admins and still create the goal" do
       token_user
-      post :create, params: {:goal => {'template_header' => true, 'summary' => 'template goal'}}
-      assert_unauthorized
+      post :create, params: {:goal => {'template_header' => true, 'summary' => 'not a template'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['id']).to_not be_nil
+      g = UserGoal.find_by_global_id(json['goal']['id'])
+      expect(g.template_header).to eq(false)
+    end
+
+    it "should allow an org manager to create a template header goal" do
+      token_user
       o = Organization.create(:admin => true, :settings => {'total_licenses' => 1})
       o.add_manager(@user.user_name, true)
       post :create, params: {:goal => {'template_header' => true, 'summary' => 'template goal'}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['goal']['id']).to_not be_nil
+      g = UserGoal.find_by_global_id(json['goal']['id'])
+      expect(g.template_header).to eq(true)
     end
     
     it "should default to the api_user when creating a goal" do
@@ -170,10 +180,36 @@ describe Api::GoalsController, type: :controller do
       expect(json['goal']['author']['id']).to eq(@user.global_id)
     end
     
-    it "should not allow a basic api token to create a goal" do
+    it "should allow a read_profile api token to create a goal for self" do
       token_user(['read_profile'])
       post :create, params: {:goal => {'summary' => 'cool goal'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['id']).to_not be_nil
+    end
+
+    it "should not allow a read_profile api token to create a goal for another user" do
+      token_user(['read_profile'])
+      u = User.create
+      post :create, params: {:goal => {'user_id' => u.global_id, 'summary' => 'cool goal'}}
       assert_unauthorized
+    end
+
+    it "should include device_scopes_none when the device is pending 2FA" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(:user => u, :developer_key_id => 0, :device_key => 'pending2fa')
+      d.settings['2fa'] ||= {}
+      d.settings['2fa']['pending'] = true
+      d.save
+      request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      post :create, params: {:goal => {'summary' => 'goal while locked'}}
+      assert_unauthorized
+      json = JSON.parse(response.body)
+      expect(json['device_scopes_none']).to eq(true)
+      expect(json['permission']).to eq('set_goals')
+      expect(json['effective_scopes']).to eq(['none'])
     end
 
     it "should allow a supervising token to create a goal" do
@@ -182,6 +218,58 @@ describe Api::GoalsController, type: :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['goal']['id']).to_not be_nil
+    end
+
+    it "should allow a supervisor to create a goal for a supervisee when device scopes are unset" do
+      sup = User.create
+      comm = User.create
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'bacon')
+      expect(dev.permission_scopes).to eq([])
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      post :create, params: {:goal => {'user_id' => comm.global_id, 'summary' => 'supervised goal'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['id']).to_not be_nil
+      expect(json['goal']['summary']).to eq('supervised goal')
+    end
+
+    it "should allow a billing modeling-only supporter to create a goal for their supervisee" do
+      sup = User.create
+      comm = User.create
+      sup.settings['preferences'] ||= {}
+      sup.settings['preferences']['role'] = 'supporter'
+      sup.save
+      sup.reload
+      sup.expires_at = 2.days.ago
+      sup.save
+      sup.reload
+      expect(sup.modeling_only?).to eq(true)
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'hippo')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      post :create, params: {:goal => {'user_id' => comm.global_id, 'summary' => 'goal from modeling-only billing sup'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['summary']).to eq('goal from modeling-only billing sup')
+    end
+
+    it "should allow a supervisor to create a goal when redis token cache stores a lone star scope" do
+      sup = User.create
+      comm = User.create
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'hippo')
+      token = dev.tokens[0]
+      cache_line = "#{sup.global_id}::#{dev.global_id}::*::false"
+      RedisInit.permissions.setex("user_token/#{token}", 12.hours.to_i, cache_line)
+      request.headers['Authorization'] = "Bearer #{token}"
+      request.headers['Check-Token'] = 'true'
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      post :create, params: {:goal => {'user_id' => comm.global_id, 'summary' => 'from star cache'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['summary']).to eq('from star cache')
     end
     
     it "should auto-expire a token with the same external_id" do
