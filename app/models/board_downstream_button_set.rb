@@ -391,11 +391,21 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
       if bs && bs.data['remote_paths']
         changed = false
         bs.data['remote_paths'].each do |hash, obj|
-          if obj['generated'] < timestamp && obj['path']
+          # Only flush entries that are stale per the requested timestamp AND
+          # also past their own `expires` window. `url_for` trusts entries
+          # until `expires` regardless of `generated`, so flushing a
+          # generated-old / expires-fresh entry deletes the S3 object out
+          # from under live users (observed in prod 2026-04-21..22 as an
+          # upload-then-delete race on board_copy hot path).
+          expires = obj['expires'] || 0
+          if obj['generated'] < timestamp && expires < Time.now.to_i && obj['path']
             changed = true
             path = obj['path']
-            # Uploader.invalidate_cdn(path)            
-            Uploader.remote_remove(path)
+            # Uploader.invalidate_cdn(path)
+            # Pass the stored checksum so remote_remove's safety check aborts
+            # if the current S3 version doesn't match what we think we're
+            # cleaning up. Belt-and-suspenders against the above race.
+            Uploader.remote_remove(path, obj['checksum'])
             bs.data['remote_paths'].delete(hash)
           end
         end
