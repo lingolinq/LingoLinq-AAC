@@ -508,12 +508,12 @@ LingoLinq.Buttonset = DS.Model.extend({
     });
 
     var sort_results = button_sweep.then(function() {
-      partial_matches = partial_matches.sort(function(a, b) { 
+      partial_matches = partial_matches.sort(function(a, b) {
         if(a.total_edit_distance == b.total_edit_distance) {
           return a.button.depth - b.button.depth;
         }
-        return a.total_edit_distance - b.total_edit_distance; 
-      });  
+        return a.total_edit_distance - b.total_edit_distance;
+      });
       console.log("SRCH: sorted partial", partial_matches);
     });
 
@@ -550,8 +550,10 @@ LingoLinq.Buttonset = DS.Model.extend({
               var dup = $.extend({}, combo);
               dup.steps = [].concat(dup.steps);
               var pre_id = (dup.steps[dup.steps.length - 1] || {}).board_id || from_board_id;
-              // remember to expect auto-home if enabled for user and a prior button exists
-              if(dup.steps.length > 0 && user && user.get('preferences.auto_home_return')) { pre_id = combo.current_sticky_board_id; }
+              // remember to expect auto-home if enabled for user and a prior button exists.
+              // Only override when we actually have a sticky board — otherwise pre_id becomes
+              // undefined and button_steps silently drops every combo built on the current board.
+              if(dup.steps.length > 0 && user && user.get('preferences.auto_home_return') && combo.current_sticky_board_id) { pre_id = combo.current_sticky_board_id; }
               var button_steps = _this.button_steps(pre_id, starter.button.board_id, board_map, home_board_id, combo.current_sticky_board_id);
               if(button_steps) {
                 var btn = $.extend({}, starter.button);
