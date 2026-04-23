@@ -33,7 +33,11 @@ describe 'OBFSaveImageHardening' do
       expect(res[:tempfile]).to be_a(Tempfile)
       expect(File.exist?(res[:tempfile].path)).to be true
     ensure
-      res[:tempfile].close! rescue Errno::ENOENT if res && res[:tempfile]
+      begin
+        res[:tempfile].close! if res.is_a?(Hash) && res[:tempfile]
+      rescue Errno::ENOENT
+        # already cleaned up, fine
+      end
     end
   end
 end
