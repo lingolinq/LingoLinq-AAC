@@ -32,7 +32,8 @@ describe 'OBFSaveImageHardening' do
       expect(res[:thread]).to eq(fake_thr)
       expect(res[:tempfile]).to be_a(Tempfile)
       expect(File.exist?(res[:tempfile].path)).to be true
-      res[:tempfile].unlink rescue nil
+    ensure
+      res[:tempfile].close! rescue Errno::ENOENT if res && res[:tempfile]
     end
   end
 end

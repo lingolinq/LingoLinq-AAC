@@ -1,4 +1,6 @@
 require 'tempfile'
+require 'base64'
+require 'mime/types'
 
 # Hardens OBF::Utils.save_image against two failure modes observed in staging
 # 2026-04-20..22 on full-board-set PDF prints (Vocal Flair 60, etc.):
@@ -77,36 +79,41 @@ module OBFSaveImageHardening
     end
 
     if extension && ['image/jpeg', 'image/jpg'].include?(image['content_type']) && image['width'] && image['width'] < 1000 && image['width'] == image['height']
-      `cp #{file.path} #{file.path}#{extension}`
-      image['local_path'] = "#{file.path}#{extension}"
+      # Tempfile already carries the right extension — use it directly.
+      image['local_path'] = file.path
     else
       background ||= 'white'
       size = 400
       path = file.path
       if image['content_type'] && image['content_type'].match(/svg/)
-        cmd = "convert -background \"#{background}\" -density 300 -resize #{size}x#{size} -gravity center -extent #{size}x#{size} #{file.path} -flatten #{file.path}.jpg"
-        OBF::Utils.log "    #{cmd}"
+        args = ['convert', '-background', background, '-density', '300',
+                '-resize', "#{size}x#{size}", '-gravity', 'center',
+                '-extent', "#{size}x#{size}", file.path, '-flatten', "#{file.path}.jpg"]
+        OBF::Utils.log "    #{args.join(' ')}"
         image['local_path'] = "#{file.path}.jpg"
         if image['threadable']
-          pid = Process.spawn(cmd)
+          pid = Process.spawn(*args)
           thr = Process.detach(pid)
           OBF::Utils.log '    scheduled image'
           return { thread: thr, image: image, type: 'svg', pid: pid, tempfile: file }
         else
-          `#{cmd}`
+          system(*args)
           OBF::Utils.log "    finished image #{File.exist?(image['local_path']) && File.size(image['local_path'])}"
         end
       else
-        cmd = "convert #{path} -density 300 -resize #{size}x#{size} -background \"#{background}\" -gravity center -extent #{size}x#{size} -flatten #{path}.jpg"
-        OBF::Utils.log "    #{cmd}"
+        args = ['convert', path, '-density', '300',
+                '-resize', "#{size}x#{size}", '-background', background,
+                '-gravity', 'center', '-extent', "#{size}x#{size}",
+                '-flatten', "#{path}.jpg"]
+        OBF::Utils.log "    #{args.join(' ')}"
         image['local_path'] = "#{path}.jpg"
         if image['threadable']
-          pid = Process.spawn(cmd)
+          pid = Process.spawn(*args)
           thr = Process.detach(pid)
           OBF::Utils.log '    scheduled image'
           return { thread: thr, image: image, type: 'not_svg', pid: pid, tempfile: file }
         else
-          `#{cmd}`
+          system(*args)
           OBF::Utils.log "    finished image #{File.exist?(image['local_path']) && File.size(image['local_path'])}"
         end
       end
