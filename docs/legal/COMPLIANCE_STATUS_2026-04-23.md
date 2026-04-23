@@ -21,23 +21,23 @@ Alongside these, the EU AI Act's next milestone (high-risk obligations effective
 
 ### 2.1 Merged
 
-- **Regulatory scope and AI de-identification policy** — `COMPLIANCE.md`.
-- **Runtime controls** — `lib/pii_scrubber.rb`, `AiApiLog` audit trail for all AI API calls, feature flags in `lib/feature_flags.rb`, data deletion via `lib/flusher.rb` + `DataPolicyEnforcer`.
-- **Secrets management** — 1Password five-vault structure, GitHub Actions sync to Render, documented in `docs/RENDER-ENV-MANIFEST.md`.
-- **Encryption at rest** — AWS KMS (S3, RDS), TLS 1.2+ in transit.
-- **S3 hardening** — BucketOwnerEnforced; `UPLOADS_S3_NO_ACL=1` required on every Render service.
+- **Regulatory scope and AI de-identification policy**, `COMPLIANCE.md`.
+- **Runtime controls**, `lib/pii_scrubber.rb`, `AiApiLog` audit trail for all AI API calls, feature flags in `lib/feature_flags.rb`, data deletion via `lib/flusher.rb` + `DataPolicyEnforcer`.
+- **Secrets management**, 1Password five-vault structure, GitHub Actions sync to Render, documented in `docs/RENDER-ENV-MANIFEST.md`.
+- **Encryption at rest**, AWS KMS (S3, RDS), TLS 1.2+ in transit.
+- **S3 hardening**, BucketOwnerEnforced; `UPLOADS_S3_NO_ACL=1` required on every Render service.
 
 ### 2.2 Open pull requests
 
-- **PR #203** — AWS BAA recorded (`docs/legal/AWS_BAA_2026-02.pdf`, `docs/legal/AWS_BAA_ACCEPTED.md`), COMPLIANCE.md correction.
-- **PR #204** — CSP in report-only, reporter endpoint at `app/controllers/api/v1/csp_reports_controller.rb`, route at `POST /api/v1/csp-reports`, reporter expanded to current external dependency set.
+- **PR #203**, AWS BAA recorded (`docs/legal/AWS_BAA_2026-02.pdf`, `docs/legal/AWS_BAA_ACCEPTED.md`), COMPLIANCE.md correction.
+- **PR #204**, CSP in report-only, reporter endpoint at `app/controllers/api/v1/csp_reports_controller.rb`, route at `POST /api/v1/csp-reports`, reporter expanded to current external dependency set.
 
 ### 2.3 Drafted on this branch (`docs/compliance-artifacts-april-2026`)
 
-- **`docs/legal/DATA_RETENTION.md`** — 21 categories, retention windows, legal bases, deletion mechanisms. Meets the COPPA Final Rule publication-of-retention-policy requirement at 16 CFR § 312.10 and aligns with GDPR Article 5(1)(e), HIPAA 45 CFR § 164.316(b)(2)(i), FERPA, and SOPPA/SB 1177/Ed Law 2-d.
-- **`docs/legal/SUBPROCESSORS.md`** — 14 subprocessors, 30-day change-notification clause, GDPR Article 28 and HIPAA 45 CFR § 164.502(e) alignment. The 2026-04-23 revision corrected the Pusher entry (the `lib/pusher.rb` module is an AWS SNS SMS wrapper inherited from the CoughDrop fork, not a Pusher.com integration).
-- **`docs/legal/BREACH_RUNBOOK.md`** — FERPA / HIPAA / GDPR / UK GDPR / COPPA definitions, roles, timelines. Incorporates FERPA 45 days, HIPAA 60 days, GDPR 72 hours, COPPA parental-notification expectations, and key state statutes (Illinois SOPPA, California SB 1177, New York Education Law § 2-d, Texas SB 820).
-- **`docs/legal/INCIDENT_LOG.md`** — append-only register with seven-year retention (HIPAA plus state statutes of limitation).
+- **`docs/legal/DATA_RETENTION.md`**, 21 categories, retention windows, legal bases, deletion mechanisms. Meets the COPPA Final Rule publication-of-retention-policy requirement at 16 CFR § 312.10 and aligns with GDPR Article 5(1)(e), HIPAA 45 CFR § 164.316(b)(2)(i), FERPA, and SOPPA/SB 1177/Ed Law 2-d.
+- **`docs/legal/SUBPROCESSORS.md`**, 14 subprocessors, 30-day change-notification clause, GDPR Article 28 and HIPAA 45 CFR § 164.502(e) alignment. The 2026-04-23 revision corrected the Pusher entry (the `lib/pusher.rb` module is an AWS SNS SMS wrapper inherited from the CoughDrop fork, not a Pusher.com integration).
+- **`docs/legal/BREACH_RUNBOOK.md`**, FERPA / HIPAA / GDPR / UK GDPR / COPPA definitions, roles, timelines. Incorporates FERPA 45 days, HIPAA 60 days, GDPR 72 hours, COPPA parental-notification expectations, and key state statutes (Illinois SOPPA, California SB 1177, New York Education Law § 2-d, Texas SB 820).
+- **`docs/legal/INCIDENT_LOG.md`**, append-only register with seven-year retention (HIPAA plus state statutes of limitation).
 
 ## 3. What Was Outdated in the Prior Plan
 
@@ -52,7 +52,7 @@ Alongside these, the EU AI Act's next milestone (high-risk obligations effective
 
 ## 4. Net-New Items Not Previously Tracked
 
-### 4.1 Tier A — Deadline-driven
+### 4.1 Tier A, Deadline-driven
 
 | ID | Action | Driver |
 |---|---|---|
@@ -63,7 +63,7 @@ Alongside these, the EU AI Act's next milestone (high-risk obligations effective
 | A5 | Verify AWS KMS module FIPS 140-3 validation; document the CMVP certificate number(s) in `COMPLIANCE.md` | FIPS 140-2 historical-list sunset 2026-09-21 |
 | A6 | Verify MFA is enforced for every admin account and for all Render, AWS, 1Password, GitHub, HubSpot admin surfaces | HIPAA Security Rule NPRM; OCR enforcement trend |
 
-### 4.2 Tier B — 2026 district procurement unlocks
+### 4.2 Tier B, 2026 district procurement unlocks
 
 | ID | Action | Driver | Est. cost / time |
 |---|---|---|---|
@@ -75,7 +75,7 @@ Alongside these, the EU AI Act's next milestone (high-risk obligations effective
 | B6 | Apply for Common Sense Privacy Seal evaluation | Parent-facing differentiator for AAC; under-10% pass rate | estimate $3-10K / 2-4 months |
 | B7 | Commit to an annual third-party penetration test; publish executive summary sharing policy | HIPAA Security Rule NPRM; hospital and district RFPs | $8-20K / 2-3 weeks engagement plus report |
 
-### 4.3 Tier C — Hospital and EU readiness (pipeline-gated)
+### 4.3 Tier C, Hospital and EU readiness (pipeline-gated)
 
 | ID | Action | Driver | Est. cost / time |
 |---|---|---|---|
