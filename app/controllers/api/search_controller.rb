@@ -225,7 +225,7 @@ class Api::SearchController < ApplicationController
       end
     rescue BadFileError => e
       error = e.message
-      s3_cache_miss = e.message.match?(/\b(403|404)\b/)
+      s3_cache_miss = e.message.match?(/(?:status |, )(403|404)\b/)
       Rails.logger.error("Proxy error for #{url}: #{error}")
     rescue => e
       error = "Failed to fetch URL: #{e.message}"

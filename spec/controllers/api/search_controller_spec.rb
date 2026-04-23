@@ -445,6 +445,8 @@ describe Api::SearchController, :type => :controller do
       expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
       get :proxy, params: {:url => stale_url}
       expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('File not retrieved, status 403')
     end
   end
   
