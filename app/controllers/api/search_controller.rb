@@ -225,18 +225,22 @@ class Api::SearchController < ApplicationController
       end
     rescue BadFileError => e
       error = e.message
+      s3_cache_miss = e.message.match?(/\b(403|404)\b/)
       Rails.logger.error("Proxy error for #{url}: #{error}")
     rescue => e
       error = "Failed to fetch URL: #{e.message}"
+      s3_cache_miss = false
       Rails.logger.error("Proxy exception for #{url}: #{e.class.name} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
     end
 
-    # If fetching a button_set_cache URL failed, the DB pointer is stale:
-    # regenerate the button_set and retry the fetch against the new URL.
+    # If fetching a button_set_cache URL got a 403/404 from S3, the DB pointer
+    # is stale: regenerate the button_set and retry the fetch against the new URL.
     # Without this, a single missing S3 object leaves users stuck with a
     # spinning "Loading..." forever (observed 2026-04-20..22, staging).
-    if error && @api_user
+    # Only self-heal on 403/404 cache misses, not timeouts or other errors,
+    # to avoid masking real upstream problems.
+    if s3_cache_miss && @api_user
       retried = attempt_button_set_regenerate(url)
       if retried
         content_type, body = retried
@@ -271,12 +275,16 @@ class Api::SearchController < ApplicationController
     button_set = BoardDownstreamButtonSet.find_by_global_id(button_set_gid)
     return nil unless button_set
 
+    board = button_set.board
+    return nil unless board && board.allows?(@api_user, 'view')
+
     if button_set.data['remote_paths'].is_a?(Hash)
       remote_paths = button_set.data['remote_paths']
-      removed = remote_paths.delete_if do |_hash, obj|
+      original_count = remote_paths.size
+      remote_paths.delete_if do |_hash, obj|
         obj.is_a?(Hash) && obj['path'] && url.to_s.include?(obj['path'])
       end
-      button_set.save if removed.any?
+      button_set.save if remote_paths.size < original_count
     end
 
     board_id = button_set.related_global_id(button_set.board_id)

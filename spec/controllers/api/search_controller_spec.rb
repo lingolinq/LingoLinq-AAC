@@ -421,6 +421,31 @@ describe Api::SearchController, :type => :controller do
       get :proxy, params: {:url => 'http://www.example.com/pic.png'}
       expect(response).not_to be_successful
     end
+
+    it "should NOT attempt regenerate for cache URL errors that are not 403/404" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      cache_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'Invalid file type, text/html')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => cache_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid file type, text/html')
+    end
+
+    it "should NOT attempt regenerate if user does not have view permission on the board" do
+      token_user
+      other_user = User.create
+      b = Board.create(user: other_user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      stale_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Api::SearchController::BadFileError, 'File not retrieved, status 403')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => stale_url}
+      expect(response).not_to be_successful
+    end
   end
   
   describe "apps" do
