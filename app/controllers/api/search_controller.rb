@@ -272,12 +272,11 @@ class Api::SearchController < ApplicationController
     return nil unless button_set
 
     if button_set.data['remote_paths'].is_a?(Hash)
-      button_set.data['remote_paths'].each do |hash, obj|
-        if obj.is_a?(Hash) && obj['path'] && url.to_s.include?(obj['path'])
-          button_set.data['remote_paths'].delete(hash)
-        end
+      remote_paths = button_set.data['remote_paths']
+      removed = remote_paths.delete_if do |_hash, obj|
+        obj.is_a?(Hash) && obj['path'] && url.to_s.include?(obj['path'])
       end
-      button_set.save
+      button_set.save if removed.any?
     end
 
     board_id = button_set.related_global_id(button_set.board_id)
