@@ -5,8 +5,9 @@ describe Api::V1::CspReportsController, :type => :controller do
     def post_report(body, content_type: 'application/csp-report')
       json = body.is_a?(String) ? body : body.to_json
       request.headers['Content-Type'] = content_type
-      request.env['RAW_POST_DATA'] = json
-      post 'create'
+      # Rails 7.2 rebuilds the test request in #process; pass body: so it is set
+      # on the new request (RAW_POST_DATA on the old env is dropped by scrub_env!).
+      post 'create', body: json
     end
 
     it 'returns 204 for a valid legacy csp-report payload' do
@@ -38,15 +39,13 @@ describe Api::V1::CspReportsController, :type => :controller do
 
     it 'returns 204 for malformed JSON without raising' do
       request.headers['Content-Type'] = 'application/csp-report'
-      request.env['RAW_POST_DATA'] = 'this is not json at all {{{'
-      post 'create'
+      post 'create', body: 'this is not json at all {{{'
       expect(response.status).to eq(204)
     end
 
     it 'returns 204 for an empty body' do
       request.headers['Content-Type'] = 'application/csp-report'
-      request.env['RAW_POST_DATA'] = ''
-      post 'create'
+      post 'create', body: ''
       expect(response.status).to eq(204)
     end
 
@@ -120,14 +119,14 @@ describe Api::V1::CspReportsController, :type => :controller do
       expect(warned).not_to include('ABC')
     end
 
-    it 'rejects oversized payloads and returns 204 without parsing' do
-      large_body = ('x' * (Api::V1::CspReportsController::MAX_REPORT_BYTES + 1))
-      allow(request).to receive(:content_length).and_return(large_body.bytesize)
+    it 'parse_report_body rejects when Content-Length exceeds the cap' do
+      max = Api::V1::CspReportsController::MAX_REPORT_BYTES
+      req = double('Request', content_length: max + 1, body: StringIO.new(''))
+      ctrl = described_class.new
+      allow(ctrl).to receive(:request).and_return(req)
       expect(Rails.logger).to receive(:warn).with(/oversized/)
-      request.headers['Content-Type'] = 'application/csp-report'
-      request.env['RAW_POST_DATA'] = large_body
-      post 'create'
-      expect(response.status).to eq(204)
+      expect(ctrl.send(:parse_report_body)).to eq({})
     end
+
   end
 end
