@@ -6,9 +6,9 @@
           <div class="md-stats-filter__row md-stats-filter__row--period-actions md-stats-filter__row--stacked">
             <div class="md-stats-filter__period-stack">
               <div class="md-stats-filter__period-head">
-                <label class="md-stats-filter__period-title" for="report-period-filter">{{t "Report period" key="report_period"}}</label>
+                <span id="report-period-filter-label" class="md-stats-filter__period-title">{{t "Report period" key="report_period"}}</span>
                 <div class="form-group md-stats-filter__period-wrap">
-                  {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side}}
+                  {{stats/period-select content=this.filter_list selection=this.usage_stats.filter action=(action "onPeriodChange") excludeSelectedFromList=this.side_by_side labelId="report-period-filter-label"}}
                 </div>
               </div>
               {{#if this.usage_stats.custom_filter}}

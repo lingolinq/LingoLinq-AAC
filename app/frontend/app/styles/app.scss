@@ -168,8 +168,16 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
 #within_ember {
   position: relative;
   background: #fff;
-  overflow: hidden; /* Windows-only quirk causes extra scrollbars without this, if you 
+  overflow: hidden; /* Windows-only quirk causes extra scrollbars without this, if you
                       change, make sure to test sidebar and modal.highlight */
+}
+
+/* Page-level horizontal-scroll kill switch. No element inside the app should
+   ever trigger a horizontal scrollbar on the document — that's always a bug,
+   typically caused by a fixed-width child overshooting a narrow viewport. */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
 }
 /* Bento page: standard app layout – .app (fixed inset) + .topbar/.bottombar fixed, .main scrolls with padding */
 #within_ember:has(.page-footer) {
@@ -318,7 +326,9 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
     rgba(212, 168, 75, 0.12) 50%,
     rgba(61, 122, 92, 0.14) 100%) !important;
 }
-/* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user) */
+/* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user).
+   Apply the login gradient to #content itself so it fills the full scroll area —
+   including the top/bottom padding bands — regardless of how tall the form is. */
 #within_ember:has(.page-footer) #content:has(.login-page-bg) {
   flex: 1 1 auto;
   min-height: 0;
@@ -329,6 +339,13 @@ header.header--unauthenticated #inner_header .nav-header__logo-link {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background:
+    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
 }
 /* Light mode: shell bg uses active pill gradient (7eb8e0 → 3a6bc7). */
 #within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
@@ -684,6 +701,7 @@ body:has(#within_ember.bento-page-with-footer) {
 }
 #within_ember #content {
   margin-top: 0 !important; /* override header + #content { margin-top: 50–200px } from legacy header_sizing.scss (Rails asset); !important needed to beat .speaking.tiny/.medium/.large/.huge variants */
+  overflow-x: hidden !important; /* Kill horizontal scroll on authenticated pages at small widths; no element inside should ever need to scroll the whole page horizontally. */
   padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px)); /* content below fixed header; extra grows when speak bar wraps */
 }
 
@@ -1079,7 +1097,7 @@ header #normal_mode .glyphicon-arrow-left {
 }
 
 /* ── Board page responsive: collapse action buttons into hamburger ── */
-@media (max-width: 975px) {
+@media (max-width: 1024px) {
   /* Show hamburger */
   #inner_header .la-board-hamburger {
     display: flex !important;
@@ -1142,7 +1160,7 @@ header #normal_mode .glyphicon-arrow-left {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   #board_id {
     font-size: 14px !important;
   }
@@ -1165,7 +1183,7 @@ header #normal_mode .glyphicon-arrow-left {
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   #board_id {
     font-size: 14px !important;
   }
@@ -1366,7 +1384,7 @@ p.explanation {
     object-fit: contain;
   }
 }
-@media (max-width: 540px) {
+@media (max-width: 550px) {
   #loading {
     width: calc(100vw - 40px);
     margin-left: calc(-50vw + 20px);
@@ -2349,8 +2367,18 @@ header.speaking #identity .user_name {
 
 }
 
+/* Ensure the identity dropdown trigger is the positioning context for its menu so the
+   popup anchors to the avatar (not the viewport) and sits above the fixed header. */
+#identity .dropdown {
+  position: relative;
+}
 /* Modern identity dropdown menu — dark slate bg, light text */
 #identity .dropdown .dropdown-menu {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  left: auto !important;
+  z-index: 1050 !important;
   margin-top: 8px !important;
 
   padding: 8px 0 !important;
@@ -2368,7 +2396,7 @@ header.speaking #identity .user_name {
 
   > li > a,
   > li > .ember-view {
-    padding: 10px 18px;
+    padding: 10px 22px;
     font-size: 15px;
     color: rgba(255, 255, 255, 0.95);
     transition: background 0.12s ease, color 0.12s ease;
@@ -2393,7 +2421,7 @@ header.speaking #identity .user_name {
   > li.big > a {
     font-size: 16px;
     font-weight: 600;
-    padding: 12px 18px;
+    padding: 12px 22px;
     color: rgba(255, 255, 255, 0.95);
 
     &:hover, &:focus-visible {
@@ -2403,7 +2431,7 @@ header.speaking #identity .user_name {
   }
 
   .dropdown-header {
-    padding: 12px 18px 6px;
+    padding: 12px 22px 6px;
     font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
@@ -4109,7 +4137,7 @@ tr.accuracy_non_mastered {
      Darker slate gradient gives ~5:1+ across the entire gradient. */
   background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-dark);
 }
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .md-download-grid {
     grid-template-columns: 1fr;
   }
@@ -4375,7 +4403,7 @@ tr.accuracy_non_mastered {
   font-weight: 500;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .md-home-boards-picker__nav {
     max-width: none;
   }
@@ -8587,7 +8615,7 @@ body.pretty_loader #loading_box {
     }
   }  
 }
-@media (max-width: 1450px) {
+@media (max-width: 1366px) {
   @media (min-width: 1200px) {
     .big_buttons {
       .button_row_wrap {
@@ -8610,7 +8638,7 @@ body.pretty_loader #loading_box {
     }
   }
 }
-@media (max-width: 850px) {
+@media (max-width: 900px) {
   @media (min-width: 768px) {
     .big_buttons {
       .button_row_wrap {
@@ -8633,7 +8661,7 @@ body.pretty_loader #loading_box {
   }
 }
 @media (max-width: 550px) {
-  @media (min-width: 421px) {
+  @media (min-width: 481px) {
     .big_buttons {
       .button_row_wrap {
         margin-left: 80px;
@@ -8654,7 +8682,7 @@ body.pretty_loader #loading_box {
     }
   }
 }
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .big_buttons {
     .button_row_mini_wrap {
       margin-left: 80px;
@@ -9856,7 +9884,7 @@ video.button_image {
 }
 
 /* Responsive: stack sidebar on small screens */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .modal-dialog:has(#button_settings) {
     width: auto;
     margin: 10px;
@@ -10088,7 +10116,7 @@ video.button_image {
   box-shadow: 0 2px 10px rgba($brand-charcoal-blue, 0.3);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .la-board-details-wrap .dl-horizontal {
     grid-template-columns: 1fr;
   }
@@ -10306,7 +10334,7 @@ video.button_image {
   box-shadow: 0 2px 10px rgba($brand-charcoal-blue, 0.3);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .la-board-actions-item {
     padding: 12px 12px;
     gap: 10px;
@@ -13229,7 +13257,7 @@ form.row.subscription-form-with-cards {
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 950px) {
   .subscription-form-cards {
     grid-template-columns: 1fr;
   }
@@ -13963,7 +13991,7 @@ body:-ms-fullscreen {
     display: none;
   }
 }
-@media (max-width: 991px) {
+@media (max-width: 1024px) {
   #index_boards_toggle {
     margin-left: -15px;
     padding-left: 15px;
@@ -14010,7 +14038,7 @@ body:-ms-fullscreen {
 }
 
 /* When More Resources dropdown is shown: keep left content, put dropdown on far right, hide language/privacy/terms */
-@media (max-width: 991px) {
+@media (max-width: 1024px) {
   .page-footer:has(.skinny_links) {
     display: flex;
     flex-direction: row;
@@ -14063,7 +14091,7 @@ body:-ms-fullscreen {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   span.hidden-xs {
     display: none!important;
   }
@@ -14229,12 +14257,12 @@ body:-ms-fullscreen {
 .really_skinny {
   display: none;
 }
-@media (max-width: 450px) {
+@media (max-width: 480px) {
   .not_pretty_skinny {
     display: none;
   }
 }
-@media (max-width: 400px) {
+@media (max-width: 430px) {
   .really_skinny {
     display: inline;
   }
@@ -14249,7 +14277,7 @@ body:-ms-fullscreen {
     left: -130px;
   }
 }
-@media (min-width: 850px) {
+@media (min-width: 900px) {
   // header .btn .skinny, header .btn .skinny.real_skinny {
   //   display: none;
   // }
@@ -14283,7 +14311,7 @@ body:-ms-fullscreen {
   //   width: calc(100% - 150px);
   // }
 }
-@media (min-width: 850px) and (max-width: 950px) {
+@media (min-width: 900px) and (max-width: 950px) {
   // header .btn.not_really_skinny .skinny, header .btn.not_really_skinny .skinny.real_skinny {
   //   display: inline;
   // }
@@ -14461,7 +14489,7 @@ body:-ms-fullscreen {
   }
 }
 
-@media (max-width: 530px) {
+@media (max-width: 550px) {
   #speak_mode_notification {
     display: none;
   }
@@ -14471,7 +14499,7 @@ body:-ms-fullscreen {
     display: none;
   }
 }
-@media (max-width: 825px) {
+@media (max-width: 820px) {
   @media (min-width: 768px) {
     #nav_updates .label {
       display: none;
@@ -15061,6 +15089,15 @@ body:-ms-fullscreen {
   border-bottom: 1px solid rgba($la-navy, 0.08) !important;
 
   box-shadow: 0 6px 20px rgba($la-navy, 0.18) !important;
+
+  /* No overflow here: the identity dropdown must escape the navbar to render
+     below it. Horizontal scroll protection lives on html/body globally. */
+  min-width: 0 !important;
+}
+
+.app-navbar > *,
+.app-navbar-authenticated-inner > * {
+  min-width: 0;
 }
 
 /* When navbar is inside main header (#inner_header), fill the bar and let navbar provide the look */
@@ -15654,6 +15691,64 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only {
     display: inline-flex !important;
   }
+  /* order: -1 no longer needed — beta lives in .app-navbar__quick-actions now
+     and sits to the left of settings by DOM order. */
+}
+
+/* At ≥768px, the .app-navbar__quick-actions wrapper dissolves — its children
+   (settings) flow as direct flex siblings, so no empty gap is reserved where
+   the hidden circular beta used to be. Baseline nav flex layout applies. */
+@media (min-width: 768px) {
+  .app-navbar__quick-actions {
+    display: contents !important;
+  }
+}
+
+/* Phone/small-tablet navbar layout (≤767px) — three absolute-positioned groups
+   so overlap is impossible regardless of content widths:
+   [nav-header: logo+search]  [quick-actions: β + ⚙]  ...  [identity: avatar]
+   Each group is vertically centered and pinned with explicit left/right. */
+@media (max-width: 767px) {
+  .app-navbar-authenticated-inner {
+    position: relative !important;
+    min-height: 56px !important;
+    display: block !important;  /* absolute children take themselves out of flex flow */
+  }
+  .app-navbar-authenticated-inner > .app-navbar__nav-header {
+    position: absolute !important;
+    left: 16px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 0 !important;
+  }
+  .app-navbar-authenticated-inner > .app-navbar__quick-actions {
+    position: absolute !important;
+    left: 220px !important;  /* right of nav-header's typical width (logo ~150 + search ~40 + gap) */
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    margin: 0 !important;
+  }
+  .app-navbar-authenticated-inner > #identity,
+  .app-navbar-authenticated-inner > .identity-with-dark-toggle {
+    position: absolute !important;
+    right: 16px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 0 !important;
+  }
+  .app-navbar__quick-actions > .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
 }
 /* Exception: the beta-feedback collapse (full pill → circular β) at ≤1200px is only intended for
    the board-alt page, whose header cluster is tight. On every other page, restore the full pill
@@ -15674,10 +15769,6 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
     display: none !important;
   }
 }
-/* Settings gear sits between the help icon and the identity dropdown. Keep its trailing margin at
-   the default 6px (see .ll-header-settings-btn base rule) so the gap to the avatar matches the gaps
-   between the other header actions (Upgrade → help → gear). No override needed. */
-
 /* "Try New Style" dropdown item: mirrors the style-switcher icon on the navbar — the icon is shown
    on wide screens (>1200px), the dropdown item is shown on narrow screens (<=1200px). */
 .dropdown-menu__try-new-style-item {
@@ -15721,7 +15812,7 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   display: none !important;
 
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .app-navbar .app-navbar__beta-feedback-link,
   #inner_header .app-navbar__beta-feedback-link {
     display: none !important;
@@ -15783,7 +15874,7 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
   text-decoration: none !important;
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular,
   #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular {
     display: none !important;
@@ -18007,9 +18098,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   border: 1px solid rgba(210, 214, 224, 0.6);
 }
 
-/* Header settings shortcut — sits to the left of the identity dropdown.
-   No trailing margin: siblings (help icon, upgrade pill) have none either, so the gap to the
-   avatar is driven by the flex container's natural spacing and matches the other action gaps. */
+/* Header settings shortcut — sits to the left of the identity dropdown. */
 .ll-header-settings-btn {
   display: inline-flex;
   align-items: center;
@@ -18017,6 +18106,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   width: 38px;
   height: 38px;
   padding: 0;
+  margin-right: 1rem;
   border-radius: 10px;
   color: rgba($la-navy, 0.75);
   background: transparent;
@@ -21062,14 +21152,14 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 /* Responsiveness for bento layout */
-@media (max-width: 380px) {
+@media (max-width: 375px) {
   .ll-bento-search { min-width: 140px; }
   .ll-bento-btn--primary { min-width: 140px; }
   .ll-bento-grid { grid-template-columns: 1fr; }
 }
 
 /* Show company name in navbar on index/landing when screen is small (global h1 span is hidden below 1000px) */
-@media (max-width: 999px) {
+@media (max-width: 1024px) {
   #within_ember.index-or-landing-view #nav_header h1 .nav-header__app-name {
     display: inline !important;
 
@@ -23408,6 +23498,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   box-sizing: border-box;
 }
 
+
 /* Whenever landing-alt page (.la-wrapper) is shown (index or /landing-alt),
    ensure footer is above it and la-wrapper reserves space at bottom */
 #within_ember:has(.la-wrapper) .page-footer {
@@ -24475,7 +24566,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 
 // ── Pricing page specific styles ─────────────────────────────────────────────
 .la-pricing-hero-subtitle {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 400;
   color: $brand-charcoal-dark;
   line-height: 1.75;
@@ -25196,6 +25287,12 @@ header.header--unauthenticated ~ #content .la-topbar {
   & + & {
     margin-top: 4px;
   }
+}
+
+/* Footer hamburger sits on a light background — override the white bars from
+   the base rule (designed for the dark topbar) with a dark color. */
+.la-footer__hamburger .la-topbar-hamburger__bar {
+  background: $brand-charcoal-dark;
 }
 
 /* ── Mobile drawer (slide-in from right) ── */
@@ -26063,11 +26160,16 @@ header #identity #identity_button.btn::after {
   margin-bottom: 14px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.11);
-  font-size: clamp(1.3rem, calc(1.2rem + 0.32vw), 1.4rem);
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: 0.035em;
   color: rgba(255, 255, 255, 0.78);
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+}
+@media (max-width: 768px) {
+  .la-hero-trust-line {
+    font-size: 14px;
+  }
 }
 
 .la-hero-card .la-hero-text .la-hero-trust-line {
@@ -26155,7 +26257,9 @@ header #identity #identity_button.btn::after {
 
   .la-hero-title-line2 {
     display: inline;
-    font-size: 14px; /* WCAG minimum; was 0.88em (~4% smaller than line 1 for subtle emphasis) */
+    /* Scale with viewport like line1 does (line1 uses 1.2em which scales via
+       the parent's clamp). Floor 18px on tiny phones, ceiling 32px at 768. */
+    font-size: clamp(18px, calc(12px + 2.5vw), 32px);
   }
 }
 
@@ -26438,10 +26542,10 @@ header #identity #identity_button.btn::after {
   }
 
   &.la-btn--ghost {
-    background: rgba(white, 0.1);
-    color: rgba(white, 0.9);
-    border-color: rgba(white, 0.2);
-    &:hover { background: rgba(white, 0.18); color: white; text-decoration: none; }
+    background: rgba($brand-charcoal-dark, 0.06);
+    color: $brand-charcoal-dark;
+    border-color: rgba($brand-charcoal-dark, 0.2);
+    &:hover { background: rgba($brand-charcoal-dark, 0.12); color: $brand-charcoal-dark; text-decoration: none; }
   }
 
   &.la-btn--outline {
@@ -28064,7 +28168,9 @@ header #identity #identity_button.btn::after {
 .la-features-modal-body {
 .la-feature-grid {
   display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* auto-fit handles wrapping without explicit breakpoints: at ≥~930px → 3 cols,
+       ≥~620px → 2 cols, below that → 1 col. No media queries needed. */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 32px;
     align-items: stretch;
   }
@@ -28130,12 +28236,9 @@ header #identity #identity_button.btn::after {
     );
   }
 
-  /* Subtle stagger: only desktop */
-  .la-feature-card:nth-child(4),
-  .la-feature-card:nth-child(5),
-  .la-feature-card:nth-child(6) {
-    transform: translateY(24px);
-  }
+  /* (Stagger removed — was a 24px offset on cards 4–6 tuned for the fixed
+     3×2 grid. With auto-fit wrapping, cards 4–6 land in varying positions
+     so the stagger created uneven vertical gaps when the grid wrapped.) */
 
   .la-feature-card--faq {
     grid-column: 1 / -1;
@@ -28332,7 +28435,8 @@ header #identity #identity_button.btn::after {
   }
 }
 
-/* Tablet: 2 columns, no stagger */
+/* Tablet: tighter gap and disable stagger. Column count handled by auto-fit
+   on the base rule — no need to hard-set grid-template-columns here. */
 @media (max-width: 1024px) {
   #la-features,
   #about-what-we-offer,
@@ -28340,7 +28444,6 @@ header #identity #identity_button.btn::after {
   #faq-questions,
   .la-features-modal-body {
     .la-feature-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 24px;
     }
 
@@ -28352,15 +28455,15 @@ header #identity #identity_button.btn::after {
   }
 }
 
-/* Mobile: single column */
-@media (max-width: 768px) {
+/* Phone: tighter gap + smaller card padding. auto-fit collapses to 1 column
+   naturally around ~620px based on the 280px minmax. */
+@media (max-width: 820px) {
   #la-features,
   #about-what-we-offer,
   #faq-items,
   #faq-questions,
   .la-features-modal-body {
     .la-feature-grid {
-      grid-template-columns: 1fr;
       gap: 20px;
     }
 
@@ -28393,11 +28496,28 @@ header #identity #identity_button.btn::after {
 @keyframes la-feature-card-enter-stagger {
   from {
     opacity: 0;
-    transform: translate(0, 52px); /* 24px stagger + 28px slide */
+    transform: translateY(52px); /* slide distance only — no resting offset */
   }
   to {
     opacity: 1;
-    transform: translateY(24px);
+    transform: translateY(0);
+  }
+}
+
+/* Landing-alt "Why LingoLinq" specifically — 3×2 grid (3 cards per row, 2 rows)
+   on max screens, dropping to 2-col at 820px (iPad landscape) and 1-col at 480px.
+   Overrides the shared auto-fit rule that other sections still use. */
+#la-features .la-feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 820px) {
+  #la-features .la-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  #la-features .la-feature-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -28406,10 +28526,13 @@ header #identity #identity_button.btn::after {
   transform: translateY(28px);
 }
 
+/* Cards 4-6 used to start 52px lower (for the zigzag effect). Now that the
+   grid wraps with auto-fit, a card's position in a row isn't stable at every
+   viewport width, so all cards share the same 28px initial offset. */
 #la-features .la-feature-card:nth-child(4),
 #la-features .la-feature-card:nth-child(5),
 #la-features .la-feature-card:nth-child(6) {
-  transform: translate(0, 52px);
+  transform: translateY(28px);
 }
 
 #la-features.la-features-visible .la-feature-card {
@@ -33617,7 +33740,7 @@ a.la-footer-bottom-a11y-wcag {
   }
 
   .la-wrapper .la-main {
-    padding: $aac-spacing-12 calc(#{$aac-spacing-12} + 5rem);
+    padding: $aac-spacing-12 $aac-spacing-12;
     padding-bottom: 0;
     gap: $aac-spacing-12;
   }
@@ -33710,6 +33833,30 @@ a.la-footer-bottom-a11y-wcag {
   }
   .la-cta-section .la-cta-headline {
     font-size: 24px;
+  }
+}
+
+// — xxs (≤ 430px, iPhone Pro Max and below): collapse horizontal padding —
+// Sits after the sm/xs landing-alt cascade so it wins on file order.
+@media (max-width: 430px) {
+  .la-wrapper .la-main {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  // CTA section — match specificity of base rule (.la-wrapper #la-cta.la-cta-section)
+  // so file-order wins.
+  .la-wrapper #la-cta.la-cta-section {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  /* About page open-source (aka .la-a11y-statement) section — 60% width.
+     Match base rule's specificity (la-wrapper.la-wrapper--about .la-a11y-statement)
+     and override max-width which would otherwise cap it at 37.5%. */
+  .la-wrapper.la-wrapper--about .la-a11y-statement {
+    width: 60%;
+    max-width: 60%;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -34238,7 +34385,7 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 /* Narrow: one fluid column so cards use available width */
-@media (max-width: 359px) {
+@media (max-width: 375px) {
   .ub-search-page .ub-search-page__board-grid.ub-boards-page__board-grid {
     > .ub-boards-page__board-item.simple_board_holder,
     > .simple_board_holder {
@@ -34249,7 +34396,7 @@ a.la-footer-bottom-a11y-wcag {
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 550px) {
   .register-page {
     padding-top: 2rem;
   }
@@ -34271,20 +34418,15 @@ a.la-footer-bottom-a11y-wcag {
 
 /* ===== Login / Forgot password / Forgot username – same bg as modern-dashboard ===== */
 .login-page-bg {
+  /* Gradient is now applied on #content (the scroll container) so it fills
+     including the topbar/bottombar padding bands. This wrapper is just the
+     content-alignment box. */
   position: relative;
-  background:
-    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
-    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
-    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
-    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
-    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
-    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
-  min-height: 100vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding: 4rem 16px 3rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .login-page-bg .la-bg-orbs {
@@ -34607,6 +34749,19 @@ a.la-footer-bottom-a11y-wcag {
   border-radius: 48px !important;
 
   overflow: hidden !important;
+}
+
+/* Support-flavored pages (beta-feedback, support, beta-feedback-admin) — 64px top
+   padding at ≤1024px. Above 1024 the base .md-workspace rule wins (40px).
+   Uses two-class specificity (0,2,0) to beat the .md-workspace media-query
+   overrides at (0,1,0). */
+@media (max-width: 1024px) {
+  .md-workspace.md-workspace--support {
+    padding-top: 64px !important;
+  }
+}
+
+.md-workspace--support {
 
   min-width: 0 !important;
 
@@ -35310,9 +35465,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-hero--dashboard .md-hero__title {
   font-family: 'Maitree', serif !important;
   font-size: 32px !important;
+  /* Allow the title to grow when the username line wraps so the sub doesn't
+     land on top of line 2. */
+  height: auto !important;
+  min-height: 0 !important;
+  line-height: 1.3 !important;
 }
 .md-hero--dashboard .md-hero__sub {
-  font-size: 18px !important; /* match .la-pricing-hero-subtitle on boards page */
+  font-size: 24px !important;
+  margin-top: 16px !important;
 }
 .md-hero__sub {
   margin: 0 0 2rem !important;
@@ -38268,7 +38429,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-sizing: border-box;
   width: 100%;
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .md-user-summary {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -38376,7 +38537,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     max-width: 100% !important;
   }
 }
-@media (max-width: 479px) {
+@media (max-width: 480px) {
   .md-user-summary {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
@@ -38506,7 +38667,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: left;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 768px) {
   .md-about-hero__grid {
     grid-template-columns: 1fr;
   }
@@ -38726,7 +38887,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* `.md-card__title` is now applied to <h3> elements (WCAG 1.3.1 — Heading hierarchy).
    Reset browser h3 defaults so the visual is identical to the prior <div> usage. */
-.md-card__title { font-weight: 900; font-size: 1.25rem; letter-spacing: -0.2px; margin: 0; line-height: 1.35; color: inherit; } /* line-height bumped to 1.35 for WCAG 1.4.12 readability */
+.md-card__title { font-weight: 900; font-size: 18px; letter-spacing: -0.2px; margin: 0; line-height: 1.35; color: inherit; } /* line-height bumped to 1.35 for WCAG 1.4.12 readability */
+
+/* Getting Started card header — 20% larger on small screens (≤820px) so it reads
+   prominently on the authenticated home page when the dashboard is condensed.
+   !important because a later media query override may be winning otherwise. */
+@media (max-width: 820px) {
+  .md-card--getting-started .md-card__title {
+    font-size: 1.5rem !important;
+  }
+}
 .md-card__sub { color: #3A506E; margin-top: 4px; font-weight: 500; }
 
 .md-muted { color: var(--md-muted); }
@@ -39995,11 +40165,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy !important;
 
 }
+.md-grid--dashboard .md-card__title {
+  font-size: 20px !important;
+}
 .md-grid--dashboard .md-card--boards .md-card__title {
-  font-size: 22px !important;
-
   color: $la-navy !important;
-
 }
 .md-stat__meta { font-size: 0.9375rem; color: $la-navy; } /* 15px — secondary metadata (WCAG 3:1 for small text OK with navy) */
 .md-stat__meta .md-muted { font-size: 0.9375rem; }
@@ -41061,13 +41231,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Prevent black flash on modern-dashboard load: paint content area with dashboard bg as soon as route is active */
 #within_ember #content.modern-dashboard {
   background: var(--md-bg);
-  padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
 #within_ember #content:has(.md-shell) {
   background: var(--md-bg);
 }
 #within_ember #content.stats-page {
   background: var(--md-bg);
+}
+/* Dashboard-style pages (extras/home/boards/stats): shared top padding so all four tabs align under the fixed header */
+#within_ember #content.modern-dashboard,
+#within_ember #content.home-page,
+#within_ember #content.boards-page,
+#within_ember #content.stats-page {
+  padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
 /* Stats page: allow scrolling when in page-footer layout (#content is not .index so it needs explicit scroll) */
 #within_ember:has(.page-footer) #content.stats-page.with_user {
@@ -42604,7 +42780,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-extras-card__title {
   margin: 0 0 4px !important;
 
-  font-size: 20px !important;
+  font-size: 18px !important;
 
   font-weight: 900 !important;
 
@@ -42691,7 +42867,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       linear-gradient(180deg, #fefefe 0%, #fafafa 50%, #f7f7f7 100%) !important;
   }
 }
-@media (max-width: 945px) {
+@media (max-width: 950px) {
   /* Modern dashboard: single-column layout under 945px; workspace expands to content, #content scrolls vertically */
   .md-pillnav {
     margin-top: 2rem !important;
@@ -42732,7 +42908,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-workspace {
     margin: 0 !important;
 
-    padding: calc(24px + 2rem) 16px calc(24px - 9rem) 16px !important;
+    padding: calc(32px + 2rem) 16px calc(24px - 9rem) 16px !important;
 
     border-radius: 24px !important;
 
@@ -42980,7 +43156,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: none;
 }
 
-@media (max-width: 525px) {
+@media (max-width: 550px) {
   .nav-header__brand {
     margin-left: -16px !important;
 
@@ -43231,7 +43407,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* Very small screens: keep all pillnavs compact */
-@media (max-width: 325px) {
+@media (max-width: 375px) {
   .md-pillnav,
   .md-pillnav--dashboard {
     display: flex !important;
@@ -43278,7 +43454,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 550px) {
   .md-focusbar__text { display: none; }
   .md-focusbar__item { gap: 0; }
 }
@@ -43993,7 +44169,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ── Board header responsive: hide buttons into hamburger at ≤975px ── */
-@media (max-width: 975px) {
+@media (max-width: 1024px) {
   #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done,
   #within_ember.board-view #inner_header:has(#nav_header) #board_done {
     display: none !important;
@@ -44979,7 +45155,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin-bottom: 24px;
-    @media (max-width: 767px) { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
     @media (max-width: 480px) { grid-template-columns: 1fr; }
   }
   &__stat-card {
@@ -46346,7 +46522,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .ub-boards-page {
     padding: 0 !important;
     &__hero { flex-direction: column; text-align: center; padding: 18px 12px; }
@@ -52302,7 +52478,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 550px) {
   .md-board-detail-board-actions {
     padding: 3px 4px;
   }
@@ -52339,7 +52515,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     font-size: clamp(10px, 17cqw, 17px) !important;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 820px) {
   .md-board-detail-symbol-card__label {
     font-size: clamp(8px, 13cqw, 14px) !important;
   }
@@ -52360,7 +52536,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
 }
 
-@media (max-width: 1080px) and (min-width: 821px) {
+@media (max-width: 1200px) and (min-width: 821px) {
   /* Default (collapsed): single column, hide both sidebars */
   .md-board-detail-layout {
     grid-template-columns: 1fr;
@@ -52669,7 +52845,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* Small tablets / large phones */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .md-board-detail-layout {
     padding: 10px 10px 16px;
   }
@@ -52760,7 +52936,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* Phones */
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .md-board-detail-layout {
     padding: 8px 6px 12px;
   }
@@ -54564,7 +54740,7 @@ a.md-caseload__action {
   margin: 0 auto;
   line-height: 1.6;
 }
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .md-caseload__grid {
     grid-template-columns: 1fr;
   }
@@ -55849,7 +56025,7 @@ a.md-caseload__action {
     grid-column: span 2;
   }
 }
-@media (max-width: 525px) {
+@media (max-width: 550px) {
   .md-org-stats__grid {
     grid-template-columns: 1fr;
   }
@@ -56163,7 +56339,7 @@ a.md-caseload__action {
   margin-top: 28px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .la-beta-feedback-detail__meta-row {
     grid-template-columns: 1fr;
     gap: 4px;
