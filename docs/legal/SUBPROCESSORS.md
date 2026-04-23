@@ -29,14 +29,13 @@ LingoLinq will provide customers with at least 30 days advance notice before any
 | 5 | Google LLC (Gemini API) | Gemini models for AI board generation | De-identified prompts only, redacted by lib/pii_scrubber.rb before transmission | No (de-identified) | US | DPA via Google Cloud Terms of Service and Data Processing Addendum | https://cloud.google.com/terms/data-processing-addendum |
 | 6 | HubSpot, Inc. | Marketing CRM, lifecycle email, customer support | Prospect names, emails, company names, marketing engagement events; no student data | No (LingoLinq customer records only) | US, with EU regional options | DPA via HubSpot Customer DPA | https://legal.hubspot.com/dpa |
 | 7 | Functional Software, Inc. (Sentry) | Application error monitoring | Stack traces, request metadata, optional user ID; PII scrubbing filters active | Potentially yes if filters fail; treat as Yes for review | US | DPA via Sentry Customer DPA | https://sentry.io/trust/ |
-| 8 | Pusher Ltd. | Real-time WebSocket channels for collaborative features | Pub/sub channel names, minimal payload metadata | Incidental only (channel identifiers), treat as Yes | US | DPA via Pusher standard terms | https://pusher.com/legal/dpa/ |
-| 9 | n8n GmbH (self-hosted on LingoLinq Render) | Internal workflow automation | No customer data; operational signals only | No | us-east (same Render infrastructure) | No third-party processing; covered by Render | https://n8n.io/legal/ |
-| 10 | Cake.com Inc. (Clockify) | Internal time tracking | LingoLinq employee and contractor time entries; no customer data | No | US | DPA via Clockify standard terms | https://clockify.me/privacy-policy |
-| 11 | Render Managed PostgreSQL | Relational database for the production application | All tenant application data at rest | Yes | us-east | Covered by Render DPA, BAA pending | https://render.com/docs/databases |
-| 12 | Cloudflare, Inc. | DNS resolution; CDN in front of marketing site where applicable | Request metadata, IP addresses, user agents for traffic to public endpoints | Incidental only (IP and UA for public traffic) | Global anycast | DPA via Cloudflare Customer DPA | https://www.cloudflare.com/cloudflare-customer-dpa/ |
-| 13 | Google LLC (Google Workspace) | LingoLinq corporate email, calendar, Drive, Chat | LingoLinq employee and contractor business data | No (corporate productivity only) | US, EU failover | DPA via Google Workspace DPA | https://workspace.google.com/terms/dpa_terms.html |
-| 14 | 1Password Corp. | Password and secrets management for LingoLinq staff | LingoLinq internal secrets; no customer data | No | US and Canada | DPA via 1Password standard terms | https://1password.com/legal/data-processing-agreement |
-| 15 | GitHub, Inc. | Source code hosting and CI | LingoLinq source code, issue content; customer data is not permitted in this system | No (policy: no customer data) | US | DPA via GitHub Customer DPA | https://docs.github.com/en/site-policy/privacy-policies/github-data-protection-agreement |
+| 8 | n8n GmbH (self-hosted on LingoLinq Render) | Internal workflow automation | No customer data; operational signals only | No | us-east (same Render infrastructure) | No third-party processing; covered by Render | https://n8n.io/legal/ |
+| 9 | Cake.com Inc. (Clockify) | Internal time tracking | LingoLinq employee and contractor time entries; no customer data | No | US | DPA via Clockify standard terms | https://clockify.me/privacy-policy |
+| 10 | Render Managed PostgreSQL | Relational database for the production application | All tenant application data at rest | Yes | us-east | Covered by Render DPA, BAA pending | https://render.com/docs/databases |
+| 11 | Cloudflare, Inc. | DNS resolution; CDN in front of marketing site where applicable | Request metadata, IP addresses, user agents for traffic to public endpoints | Incidental only (IP and UA for public traffic) | Global anycast | DPA via Cloudflare Customer DPA | https://www.cloudflare.com/cloudflare-customer-dpa/ |
+| 12 | Google LLC (Google Workspace) | LingoLinq corporate email, calendar, Drive, Chat | LingoLinq employee and contractor business data | No (corporate productivity only) | US, EU failover | DPA via Google Workspace DPA | https://workspace.google.com/terms/dpa_terms.html |
+| 13 | 1Password Corp. | Password and secrets management for LingoLinq staff | LingoLinq internal secrets; no customer data | No | US and Canada | DPA via 1Password standard terms | https://1password.com/legal/data-processing-agreement |
+| 14 | GitHub, Inc. | Source code hosting and CI | LingoLinq source code, issue content; customer data is not permitted in this system | No (policy: no customer data) | US | DPA via GitHub Customer DPA | https://docs.github.com/en/site-policy/privacy-policies/github-data-protection-agreement |
 
 ## 5. Data Flow Notes
 
@@ -60,9 +59,9 @@ Sentry SDK configuration in the Rails application must enable `send_default_pii:
 
 HubSpot receives data via `lib/external_tracker.rb`. The code path gates on `supporter_registration?`, `external_email_allowed?`, and `cookies_opted_out?`. Student and patient accounts never reach HubSpot; only marketing-qualified supporters and paying customer contacts do. COPPA review of the registration flow is in progress.
 
-### 5.6 Pusher
+### 5.6 AWS SNS (SMS delivery)
 
-Pusher channels carry presence and collaboration events. Channel names use anonymized identifiers. Payloads are minimal and do not include communication content. Pusher is nonetheless treated as receiving tenant-identifying metadata.
+The `lib/pusher.rb` module is an internal naming relic from the CoughDrop fork; it is an `aws-sdk-sns` wrapper used to deliver transactional SMS (supervisor consent invitations, two-factor codes, password resets). Phone numbers and short message bodies are transmitted to AWS SNS; no communication content or board data is sent. This flow is covered by the AWS BAA executed on 2026-02-07 and is listed under subprocessor #1 (Amazon Web Services).
 
 ## 6. De-identified Data Standard
 
@@ -81,4 +80,5 @@ When LingoLinq ends a subprocessor relationship, the Privacy Contact confirms th
 
 | Date | Change | Notified to customers |
 |---|---|---|
-| 2026-04-20 | Register established, 15 subprocessors recorded | Bulletin planned for 2026-05-20 |
+| 2026-04-20 | Register established, 14 subprocessors recorded | Bulletin planned for 2026-05-20 |
+| 2026-04-23 | Removed Pusher Ltd. entry: `lib/pusher.rb` is an AWS SNS SMS wrapper, not a Pusher.com integration. SMS flow is now described under AWS (subprocessor #1). | Bulletin planned for 2026-05-20 |
