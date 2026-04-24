@@ -9,19 +9,17 @@
     <div class="ub-search-page__form-wrap">
       <form class="ub-search-page__form" {{action "searchBoards" on="submit"}}>
         <div class="ub-search-page__form-row">
-          <label for="search-page-query" class="ub-search-page__label">{{t "Search Boards" key="search_boards"}}</label>
+          <label for="search-page-query" class="ub-search-page__label">{{t "Filter Boards" key="filter_boards"}}</label>
           <Input
             id="search-page-query"
-            @type="text"
+            @type="search"
             @value={{this.searchString}}
-            @enter={{action "searchBoards"}}
             class="ub-search-page__input form-control"
-            placeholder={{t "Search Boards" key="search_boards"}}
+            placeholder={{t "Filter boards..." key="filter_boards_placeholder"}}
           />
-          <div class="ub-search-page__locale-wrap thin_select">
-            {{bound-select select_class="form-control ub-search-page__locale" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
+          <div class="ub-search-page__locale-wrap">
+            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(action (mut this.locale)) ariaLabel=(t "Language" key="locale")}}
           </div>
-          <button type="submit" class="md-btn md-btn--primary ub-search-page__go">{{t "Go" key="go"}}</button>
         </div>
         {{#if this.app_state.currentUser}}
           <div class="ub-search-page__actions">

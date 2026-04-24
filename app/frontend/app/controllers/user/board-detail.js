@@ -353,7 +353,7 @@ export default Controller.extend(prefClasses, {
     };
     var swatches = [
       { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#FAFAAA' },
-      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#C0E8C8' },
+      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#BCECC5' },
       { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#B9D0F6' },
       { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FDCF98' },
       { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#E8B5DC' },
@@ -536,44 +536,10 @@ export default Controller.extend(prefClasses, {
   },
 
   /**
-   * Matched button list for this board from `focus_words.board_ids` (same keys as Buttonset.find_routes).
-   * Returns `undefined` if this board is not present yet (still loading); `[]` if present but no matches.
-   */
-  _focus_word_buttons_for_board: function(board) {
-    var fw = this.get('app_state.focus_words');
-    if (!fw || !board) { return undefined; }
-    var ids = fw.board_ids || {};
-    var cand = [board.get('global_id'), board.get('id'), board.get('_actual_id')].filter(function(k) {
-      return k != null && k !== '';
-    });
-    var i;
-    for (i = 0; i < cand.length; i++) {
-      if (Object.prototype.hasOwnProperty.call(ids, cand[i])) {
-        return ids[cand[i]];
-      }
-    }
-    var idStr = String(board.get('id') || '');
-    for (var k in ids) {
-      if (Object.prototype.hasOwnProperty.call(ids, k) && String(k) === idStr) {
-        return ids[k];
-      }
-    }
-    return undefined;
-  },
-
-  /**
-   * Focus words dim non-matching cells via `button.dim` -> `dim_button` (bound_classes) on the
-   * classic board. Board-detail builds its own `ordered_buttons` and never merged that state,
-   * so focus mode had no visible effect here. Copy dim flags from `board.contextualized_buttons`.
-   * Matched cells get `focus_word_match` -> `focus_word_button` for an extra outline/glow.
-   *
-   * Prefer merging from `focus_words.board_ids` directly so we are not blocked by
-   * contextualized_buttons cache or locale gates.
-   */
-  /**
-   * Board-detail grid buttons are usually plain objects. Mutating `dim` / `focus_word_match` in place
-   * plus `notifyPropertyChange` does not reliably re-run `{{if btn.dim}}` in the template; shallow-copy
-   * non-Ember buttons so Glimmer updates class bindings.
+   * Board-detail builds its own `ordered_buttons` grid (plain objects). Mutating `dim` / `focus_word_match`
+   * in place does not reliably re-run `{{if btn.dim}}` in the template; shallow-copy non-Ember buttons
+   * so Glimmer updates class bindings. Focus/dim flags come from `board.contextualized_buttons`, which
+   * does a direct label match against `focus_words.list` — no hierarchy walk, no button-set regeneration.
    */
   _finalizeFocusDimGrid: function(ob) {
     var newOb = ob.map(function(row) {
@@ -671,25 +637,6 @@ export default Controller.extend(prefClasses, {
       return;
     }
 
-    var directList = this._focus_word_buttons_for_board(board);
-    if (directList !== undefined) {
-      var active_button_ids = {};
-      directList.forEach(function(b) {
-        if (b && b.id !== undefined) { active_button_ids[String(b.id)] = true; }
-      });
-      walk(function(btn) {
-        var id = String(btn.id);
-        var active = !!active_button_ids[id];
-        setDim(btn, !active);
-        setFocusMatch(btn, active);
-        try {
-          boundClasses.add_classes(btn);
-        } catch (e) { /* skip */ }
-      });
-      this._finalizeFocusDimGrid(ob);
-      return;
-    }
-
     var contextualized = board.contextualized_buttons(
       appState.get('label_locale'),
       appState.get('vocalization_locale'),
@@ -712,19 +659,14 @@ export default Controller.extend(prefClasses, {
 
   _focus_dim_observer: observer(
     'app_state.focus_words',
-    'app_state.focus_words.board_ids',
-    'app_state.focus_words.pending',
+    'app_state.focus_words.list',
     'app_state.sessionUser.id',
     'app_state.referenced_user.id',
-    'model.focus_id',
     'model.id',
     'model.global_id',
     'app_state.label_locale',
     'app_state.vocalization_locale',
-    'app_state.inflection_shift',
     function() {
-      // Do not gate on _last_raw: focus_words.board_ids arrives async after find_routes; we still need
-      // to merge dim/focus into ordered_buttons. _apply_focus_dim_to_ordered_buttons no-ops if no grid.
       this._apply_focus_dim_to_ordered_buttons();
     }
   ),
@@ -2676,14 +2618,22 @@ export default Controller.extend(prefClasses, {
     },
 
     toggle_focus: function() {
+      // Menu click can bubble/re-fire the action; debounce rapid re-invocations.
+      var now = Date.now();
+      if(this._lastToggleFocusAt && (now - this._lastToggleFocusAt) < 300) {
+        return false;
+      }
+      this._lastToggleFocusAt = now;
       this.set('show_options_menu', false);
       if(this.get('app_state').get('focus_words')) {
         this.get('app_state').set('focus_words', null);
-        this.get('model').set('focus_id', 'blank');
+        var model = this.get('model');
+        if(model && model.set) { model.set('focus_id', 'blank'); }
         editManager.process_for_displaying();
       } else {
         modal.open('modals/focus-words', {board: this.get('model')});
       }
+      return false;
     },
 
     switch_communicators: function() {

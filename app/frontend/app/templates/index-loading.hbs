@@ -1,0 +1,11 @@
+{{!--
+  Renders automatically while the index route's model() hook resolves.
+  Prevents the post-login flash of stale content (login form / landing page)
+  while appState.refresh_session_user() and the user fetch are still pending.
+--}}
+<div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+  <div class="ll-loading-overlay__card">
+    <div class="ll-loading-overlay__spinner" aria-hidden="true"></div>
+    <p class="ll-loading-overlay__message">{{t "Loading..." key="loading"}}</p>
+  </div>
+</div>

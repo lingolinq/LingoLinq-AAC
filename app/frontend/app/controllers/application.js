@@ -588,15 +588,26 @@ export default Controller.extend({
       }
     },
     toggle_focus: function() {
+      // Menu click bubbles/re-fires the action twice; debounce so rapid re-invocations are ignored.
+      var now = Date.now();
+      if(this._lastToggleFocusAt && (now - this._lastToggleFocusAt) < 300) {
+        return false;
+      }
+      this._lastToggleFocusAt = now;
       if(this.appState.get('focus_words')) {
         this.appState.set('focus_words', null);
-        editManager.controller.model.set('focus_id', 'blank');
+        var ec = editManager.controller;
+        var model = ec && ec.get && ec.get('model');
+        if(model && model.set) {
+          model.set('focus_id', 'blank');
+        }
         if(this.appState.get('pairing') || this.appState.get('followers.allowed')) {
           sync.send_update(this.appState.get('referenced_user.id') || this.appState.get('currentUser.id'), {assertion: {focus_words: []}});
         }
       } else {
         modal.open('modals/focus-words', {user: this.appState.get('sessionUser'), root_board_id: this.stashes.get('root_board_state.id'), inactivity_timeout: true});
       }
+      return false;
     },
     end_evaluation: function() {
       obf.eval.conclude();
@@ -1862,6 +1873,15 @@ export default Controller.extend({
       }
       if(route === 'user.stats') {
         res = res + "stats-page ";
+      }
+      if(route === 'user.home') {
+        res = res + "home-page ";
+      }
+      if(route === 'user.boards') {
+        res = res + "boards-page ";
+      }
+      if(route === 'user.extras') {
+        res = res + "extras-page ";
       }
       if(route === 'caseload') {
         res = res + "modern-dashboard ";

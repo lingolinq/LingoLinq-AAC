@@ -7,6 +7,8 @@ export default Component.extend({
   content: null,
   selection: null,
   triggerId: 'report-period-filter',
+  /** Optional id of a visible label element that names this trigger; falls back to aria-label when absent (e.g. compare view). */
+  labelId: null,
   action: function() {},
   /** When true (e.g. compare view), do not show the currently selected option in the dropdown list */
   excludeSelectedFromList: false,

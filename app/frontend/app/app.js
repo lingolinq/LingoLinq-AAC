@@ -386,7 +386,7 @@ LingoLinq.keyed_colors = [
 // Board-detail page uses its own color palette (more muted/pastel, split preposition/social)
 LingoLinq.board_detail_keyed_colors = [
   {fill: "#FAFAAA", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
-  {fill: "#C0E8C8", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
+  {fill: "#BCECC5", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
   {fill: "#B9D0F6", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
   {fill: "#FDCF98", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
   {fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},

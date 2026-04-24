@@ -48,14 +48,16 @@
             {{/if}}
           </div>
           <form class="ub-boards-page__folder-filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
-            <label for="folder-filter-input" class="ub-boards-page__folder-filter-label">
+            <span id="folder-filter-input-label" class="ub-boards-page__folder-filter-label">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
               {{t "Filter" key="filter"}}
-            </label>
+            </span>
             <input
               id="folder-filter-input"
               type="text"
               class="ub-boards-page__folder-filter-input"
+              aria-labelledby="folder-filter-input-label"
+              autocomplete="off"
               placeholder={{t "Search folders and boards..." key="filter_folders"}}
               value={{this.folderFilterString}}
               {{on "input" (action "updateFolderFilter")}}
@@ -101,14 +103,16 @@
 
       {{#unless this.boardsCtrl.allBoardsCategorized}}
         <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
-          <label for={{this.filterInputId}} class="ub-boards-page__filter-title">
+          <span id="{{this.filterInputId}}-label" class="ub-boards-page__filter-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             {{t "Filter" key="filter"}}
-          </label>
+          </span>
           <input
             id={{this.filterInputId}}
             type="text"
             class="ub-boards-page__filter-input"
+            aria-labelledby="{{this.filterInputId}}-label"
+            autocomplete="off"
             placeholder={{t "Filter boards..." key="filter_results"}}
             value={{this.boardsCtrl.filterString}}
             {{on "input" (action "updateFilterString" target=this.boardsCtrl)}}

@@ -469,87 +469,43 @@ LingoLinq.Board = DS.Model.extend({
       delete b['focus_word_match'];
       if(b.hidden) { _this.set('hidden_buttons', true) }
     });
-    // Focus words: dim non-matches / highlight matches whenever focus is set (not only in speak mode).
-    // Do not require label/vocalization locale prefix to match — mixed locales are common and would
-    // otherwise skip all focus styling (board detail + speak grid).
+    // Focus words: dim non-matches / highlight matches on THIS board directly.
+    // Simple local match: check each button's label (or vocalization) against focus_words.list.
+    // No hierarchy walk, no button-set regeneration — just the current board's buttons.
     if(this.appState.get('focus_words')) {
-      var ids = this.appState.get('focus_words.board_ids') || {};
-      var focusBoardKey = _this.get('global_id') || _this.get('id');
-      var idsForBoard = ids[focusBoardKey] || ids[_this.get('id')] || (focusBoardKey && ids[String(focusBoardKey)]);
-      if(idsForBoard === undefined && focusBoardKey) {
-        var _k;
-        for(_k in ids) {
-          if(Object.prototype.hasOwnProperty.call(ids, _k) && String(_k) === String(focusBoardKey)) {
-            idsForBoard = ids[_k];
-            break;
-          }
-        }
-      }
+      var fw = this.appState.get('focus_words');
+      var fwList = (fw && fw.list) || [];
       var fwUser = this.appState.get('focus_words.user_id');
       var sessUser = this.appState.get('sessionUser.id');
       var refUser = this.appState.get('referenced_user.id');
       var userOk = fwUser == null || fwUser === '' ||
         String(fwUser) === String(sessUser) ||
         (refUser != null && refUser !== '' && String(fwUser) === String(refUser));
-      if(userOk && idsForBoard) {
-        var active_button_ids = {};
-        idsForBoard.forEach(function(btn) { active_button_ids[btn.id.toString()] = true; });
+      if(userOk && fwList.length > 0) {
+        var focusWordsSet = {};
+        fwList.forEach(function(w) {
+          var norm = String(w || '').toLowerCase().trim();
+          if(norm) { focusWordsSet[norm] = true; }
+        });
+        var matches_focus = function(s) {
+          if(!s) { return false; }
+          var norm = String(s).toLowerCase().replace(/[^\p{L}\p{N}_\s]/gu, '').trim();
+          return !!focusWordsSet[norm];
+        };
         res.forEach(function(button) {
-          var active = active_button_ids[button.id.toString()];
+          var voc = button.vocalization;
+          var lbl = button.label;
+          if(button.tr && button.tr[label_locale]) {
+            voc = button.tr[label_locale][1];
+            lbl = button.tr[label_locale][0];
+          }
+          var active = false;
+          if(voc && !String(voc).match(/^:/) && matches_focus(voc)) { active = true; }
+          else if(lbl && matches_focus(lbl)) { active = true; }
           button.dim = !active;
           button.focus_word_match = !!active;
         });
-      } else {
-        if(!this.appState.get('focus_words.pending')) {
-          this.appState.set('focus_words.pending', true);
-          _this.load_button_set().then(function(set) {
-            set.find_routes(_this.appState.get('focus_words.list'), label_locale, focusBoardKey || _this.get('id'), _this.appState.get('sessionUser')).then(function(hash) {
-                var board_ids = _this.appState.get('focus_words.board_ids') || {};
-                var fwUid = _this.appState.get('focus_words.user_id');
-                var sessSid = _this.appState.get('sessionUser.id');
-                var refSid = _this.appState.get('referenced_user.id');
-                var userMatches = fwUid == null || fwUid === '' ||
-                  String(fwUid) === String(sessSid) ||
-                  (refSid != null && refSid !== '' && String(fwUid) === String(refSid));
-                if(!userMatches) {
-                  board_ids = {};
-                }
-                for(var id in hash) {
-                  if(id != 'missing' && id != 'found') {
-                    board_ids[id] = hash[id];
-                  }
-                }
-                if(_this.appState.get('focus_words')) {
-                  // Replace the whole object so observers on app_state.focus_words / board_ids fire.
-                  // Nested set on a plain POJO can leave board-detail's focus dim observer stale.
-                  var fw = _this.appState.get('focus_words');
-                  _this.appState.set('focus_words', Object.assign({}, fw, {
-                    pending: false,
-                    board_ids: board_ids
-                  }));
-                  // Always bump focus_id so contextualized_buttons cache invalidates and Board Detail merges dim/focus.
-                  runLater(function() {
-                    _this.set('focus_id', Math.random());
-                    var ec = editManager.controller;
-                    if(ec && ec.get && ec.get('is_board_detail') && typeof ec._apply_focus_dim_to_ordered_buttons === 'function') {
-                      ec._apply_focus_dim_to_ordered_buttons();
-                    }
-                  });
-                }
-              }, function() {
-                if(_this.appState.get('focus_words')) {
-                  var fwErr = _this.appState.get('focus_words');
-                  _this.appState.set('focus_words', Object.assign({}, fwErr, { pending: false }));
-                }
-              });
-            }, function() {
-              if(_this.appState.get('focus_words')) {
-                var fwLoadErr = _this.appState.get('focus_words');
-                _this.appState.set('focus_words', Object.assign({}, fwLoadErr, { pending: false }));
-              }
-            });
-          }
-        }
+      }
     }
     if(this.appState.get('speak_mode')) {
       if((label_locale || '').split(/-|_/)[0] == (vocalization_locale || '').split(/-|_/)[0]) {
