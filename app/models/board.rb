@@ -1207,6 +1207,11 @@ class Board < ActiveRecord::Base
       @defer_suggested_sounds = true
       return
     end
+
+    # For non-Google providers, generate suggested sounds inline so locales that
+    # do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still
+    # receive auto-generated sounds during the save flow.
+    process_suggested_sounds_async
   end
 
   def enqueue_suggested_sounds_if_deferred
