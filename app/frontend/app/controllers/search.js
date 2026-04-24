@@ -6,6 +6,7 @@ import session from '../utils/session';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { debounce } from '@ember/runloop';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Controller.extend({
@@ -97,6 +98,16 @@ export default Controller.extend({
       loadBoards();
     });
 
+  },
+  /** Live filter: re-run the search whenever the query or locale changes (debounced 300ms). */
+  _autoSearch: observer('searchString', 'locale', function() {
+    debounce(this, this._runAutoSearch, 300);
+  }),
+  _runAutoSearch: function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var str = this.get('searchString') || '';
+    this.load_results(str);
+    this.transitionToRoute('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   actions: {
     searchBoards: function() {

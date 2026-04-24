@@ -1,4 +1,4 @@
-<span id={{this.triggerId}} class="md-stats-period-select__trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded={{this.isOpen}} {{action "toggle"}}>
+<span id={{this.triggerId}} class="md-stats-period-select__trigger" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded={{this.isOpen}} aria-labelledby={{this.labelId}} aria-label={{unless this.labelId (t "Report period" key="report_period")}} {{action "toggle"}}>
   <span class="md-stats-period-select__label">{{this.selectedItem.name}}</span>
   <span class="md-stats-period-select__caret" aria-hidden="true"></span>
 </span>

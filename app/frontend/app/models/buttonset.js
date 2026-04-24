@@ -95,16 +95,10 @@ LingoLinq.Buttonset = DS.Model.extend({
     // load_button_set() without force racing copy-modal load_button_set(true,...)).
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
-    // #region agent log
-    fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H6',location:'buttonset.js:load_buttons',message:'load_buttons queued after prior tail',data:{force:!!force,id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
-    // #endregion
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
       if(bs.get('root_url') && (!bs.get('buttons_loaded') || hash_mismatch || (force && !bs.get('buttons_force_loaded')))) {
-        // #region agent log
-        fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H1',location:'buttonset.js:load_buttons',message:'enter load_buttons branch',data:{force:!!force,hash_mismatch:!!hash_mismatch,buttons_loaded:!!bs.get('buttons_loaded'),id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
-        // #endregion
         var regenerate = function(missing) {
           return bs.persistence.ajax('/api/v1/buttonsets/' + bs.get('id') + '/generate', {
             type: 'POST',
@@ -154,9 +148,6 @@ LingoLinq.Buttonset = DS.Model.extend({
               bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
               bs.set('buttons', buttons);
               if(!buttons.find(function(b) { return b.board_id == board_id; })) {
-                // #region agent log
-                fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H2',location:'buttonset.js:process_buttons',message:'regenerate path (missing board_id in buttons)',data:{board_id:board_id},timestamp:Date.now()})}).catch(function(){});
-                // #endregion
                 return regenerate(true).then(function(url) {
                   bs.set('root_url', url);
                   return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
@@ -195,9 +186,6 @@ LingoLinq.Buttonset = DS.Model.extend({
                 return reject({error: "not a valid buttonset result"});
               }
             }
-            // #region agent log
-            fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H1',location:'buttonset.js:process_buttons',message:'process_buttons resolve(bs) sync path',data:{id:bs.get('id')},timestamp:Date.now()})}).catch(function(){});
-            // #endregion
             resolve(bs);
           } catch(e) {
             reject({error: "exception in process_buttons", details: e});

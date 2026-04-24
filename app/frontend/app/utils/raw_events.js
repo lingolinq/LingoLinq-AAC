@@ -67,13 +67,16 @@ var eat_events = function(event) {
   // on mobile, long presses result in unexpected selection issues.
   // This is an attempt to remedy, for Speak Mode at the very least.
   if (!buttonTracker.appState || buttonTracker.appState.isDestroyed || buttonTracker.appState.isDestroying) { return; }
-  // board-detail relies on Ember {{action "select_button"}} which fires on
-  // browser-synthesized click events. preventDefault()'ing touchstart here
-  // suppresses click synthesis on Android, so taps in speak mode silently
-  // do nothing. The original board page dispatches selection via raw_events'
-  // own frame_event and doesn't need the synthesized click, which is why
-  // this handler has always been safe there.
-  if($(event.target).closest('.md-board-detail-grid').length > 0) { return; }
+  // board-detail (modernized board view) relies on browser-synthesized click
+  // events throughout — both the grid buttons ({{action "select_button"}}) and
+  // the page chrome (options toggle, sidebar toggle, sentence-bar tools). The
+  // original board page dispatches selection via raw_events' own frame_event
+  // and doesn't need the synthesized click, which is why this handler has
+  // always been safe there. preventDefault()'ing touchstart here suppresses
+  // click synthesis on Android, so ANY tap inside board-detail silently does
+  // nothing — not just grid buttons. Widen the carve-out to the whole
+  // board-detail view so chrome taps work too.
+  if($(event.target).closest('.board-detail-view, .md-board-detail-grid').length > 0) { return; }
   var eatable = buttonTracker.appState.get('speak_mode') || (!buttonTracker.appState.get('edit_mode') && $(event.target).closest('.board .button').length > 0);
   if(eatable && capabilities.mobile && !modal.is_open() && !buttonTracker.ignored_region(event)) {
     event.preventDefault();
