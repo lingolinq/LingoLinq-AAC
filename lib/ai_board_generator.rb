@@ -26,7 +26,7 @@ module AiBoardGenerator
       end
 
       # Check org-level AI opt-out (FERPA/HIPAA compliance)
-      if defined?(FeatureFlags) && !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
+      if !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
         err = { words: nil, name: nil, description: nil, error: 'AI features are disabled for this organization' }
         err.merge!(dev_diag(:org_ai_disabled,
           'FeatureFlags.ai_feature_enabled_for?("ai_board_generation", user) is false for this user/org.'))
