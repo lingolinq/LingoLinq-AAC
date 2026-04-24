@@ -141,8 +141,38 @@
         </div>
       </section>
 
+      {{!-- ── Speech-Therapist Spotlight (DESKTOP version, >1024px only — sits above the parallax zone; the mobile mirror inside the parallax zone is hidden at this width) ── --}}
+      <section id="la-slp-spotlight-desktop" class="la-slp-spotlight la-spotlight-desktop" aria-labelledby="la-slp-spotlight-desktop-title">
+        <div class="la-parallax-card-outer la-slp-spotlight__card">
+          <div class="la-parallax-card-inner la-slp-spotlight__inner">
+            <div class="la-plan-text la-slp-spotlight__header">
+              <span class="la-section-eyebrow-badge">{{t "Built for schools & therapists" key='fsa_slp_spotlight_eyebrow'}}</span>
+              <h2 id="la-slp-spotlight-desktop-title" class="la-plan-title la-slp-spotlight__title">{{t "We focus on" key='fsa_slp_spotlight_title_1'}} <em>{{t "everyone's needs" key='fsa_slp_spotlight_title_2'}}</em></h2>
+            </div>
+            <p class="la-plan-subtitle la-slp-spotlight__body">{{t "Speech-language pathologists love LingoLinq because the features are tailored to the way they actually work — from session logging and goal tracking to flexible board sharing. We listen to your suggestions and ship the ones that make your day easier." key='fsa_slp_spotlight_body'}}</p>
+            <div class="la-slp-spotlight__image" role="img" aria-label={{t "AAC user practicing with a speech-language pathologist" key='fsa_slp_spotlight_image_alt'}}></div>
+          </div>
+        </div>
+      </section>
+
       {{!-- Parallax zone: from "Included in every plan" through footer --}}
       <div class="la-parallax-zone">
+      {{!-- ── Speech-Therapist Spotlight (≤1024px only — replaces the parallax background image, which doesn't render well on small screens) ── --}}
+      <section id="la-slp-spotlight" class="la-slp-spotlight" aria-labelledby="la-slp-spotlight-title">
+        <div class="la-parallax-card-outer la-slp-spotlight__card">
+          <div class="la-parallax-card-inner la-slp-spotlight__inner">
+            {{!-- Reuse .la-plan-text + .la-plan-title so the eyebrow pill and
+                 title inherit the exact same styling as "Included in every plan" --}}
+            <div class="la-plan-text la-slp-spotlight__header">
+              <span class="la-section-eyebrow-badge">{{t "Built for schools & therapists" key='fsa_slp_spotlight_eyebrow'}}</span>
+              <h2 id="la-slp-spotlight-title" class="la-plan-title la-slp-spotlight__title">{{t "We focus on" key='fsa_slp_spotlight_title_1'}} <em>{{t "everyone's needs" key='fsa_slp_spotlight_title_2'}}</em></h2>
+            </div>
+            <p class="la-plan-subtitle la-slp-spotlight__body">{{t "Speech-language pathologists love LingoLinq because the features are tailored to the way they actually work — from session logging and goal tracking to flexible board sharing. We listen to your suggestions and ship the ones that make your day easier." key='fsa_slp_spotlight_body'}}</p>
+            <div class="la-slp-spotlight__image" role="img" aria-label={{t "AAC user practicing with a speech-language pathologist" key='fsa_slp_spotlight_image_alt'}}></div>
+          </div>
+        </div>
+      </section>
+
       {{!-- ── Included in Every Plan ── --}}
       <section id="la-plan" class="la-plan-section">
         <div class="la-parallax-card-outer">
@@ -184,6 +214,20 @@
         </div>
       </section>
 
+      {{!-- ── Devices Spotlight (≤1024px only — mirrors the SLP spotlight pattern, swapping image + copy) ── --}}
+      <section id="la-devices-spotlight" class="la-devices-spotlight" aria-labelledby="la-devices-spotlight-title">
+        <div class="la-parallax-card-outer la-devices-spotlight__card">
+          <div class="la-parallax-card-inner la-devices-spotlight__inner">
+            <div class="la-plan-text la-devices-spotlight__header">
+              <span class="la-section-eyebrow-badge">{{t "Available on all devices" key='fsa_devices_spotlight_eyebrow'}}</span>
+              <h2 id="la-devices-spotlight-title" class="la-plan-title la-devices-spotlight__title">{{t "Use LingoLinq anywhere," key='fsa_devices_spotlight_title_1'}} <em>{{t "anytime" key='fsa_devices_spotlight_title_2'}}</em></h2>
+            </div>
+            <p class="la-plan-subtitle la-devices-spotlight__body">{{t "LingoLinq runs on the devices your students and team already use — phones, tablets, laptops, and dedicated AAC hardware. If it connects to the internet, LingoLinq is ready to go — and once your boards are loaded, you can keep using LingoLinq without a connection, wherever your day takes you." key='fsa_devices_spotlight_body'}}</p>
+            <div class="la-devices-spotlight__image" role="img" aria-label={{t "LingoLinq running on phone, tablet, laptop, and dedicated AAC devices" key='fsa_devices_spotlight_image_alt'}}></div>
+          </div>
+        </div>
+      </section>
+
       {{!-- ── What Educators Say ── --}}
       <section id="la-testimonial" class="la-testimonial-section">
         <div class="la-parallax-card-outer">
@@ -222,6 +266,20 @@
       </section>
 
       </div>{{!-- /.la-parallax-zone --}}
+
+      {{!-- ── Devices Spotlight (DESKTOP version, >1024px only — sits below the parallax zone; the mobile mirror inside the parallax zone is hidden at this width) ── --}}
+      <section id="la-devices-spotlight-desktop" class="la-devices-spotlight la-spotlight-desktop" aria-labelledby="la-devices-spotlight-desktop-title">
+        <div class="la-parallax-card-outer la-devices-spotlight__card">
+          <div class="la-parallax-card-inner la-devices-spotlight__inner">
+            <div class="la-plan-text la-devices-spotlight__header">
+              <span class="la-section-eyebrow-badge">{{t "Available on all devices" key='fsa_devices_spotlight_eyebrow'}}</span>
+              <h2 id="la-devices-spotlight-desktop-title" class="la-plan-title la-devices-spotlight__title">{{t "Use LingoLinq anywhere," key='fsa_devices_spotlight_title_1'}} <em>{{t "anytime" key='fsa_devices_spotlight_title_2'}}</em></h2>
+            </div>
+            <p class="la-plan-subtitle la-devices-spotlight__body">{{t "LingoLinq runs on the devices your students and team already use — phones, tablets, laptops, and dedicated AAC hardware. If it connects to the internet, LingoLinq is ready to go — and once your boards are loaded, you can keep using LingoLinq without a connection, wherever your day takes you." key='fsa_devices_spotlight_body'}}</p>
+            <div class="la-devices-spotlight__image" role="img" aria-label={{t "LingoLinq running on phone, tablet, laptop, and dedicated AAC devices" key='fsa_devices_spotlight_image_alt'}}></div>
+          </div>
+        </div>
+      </section>
 
       {{!-- ── Ready to Start ── --}}
       <section id="la-cta" class="la-cta-section">

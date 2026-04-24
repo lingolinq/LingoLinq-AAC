@@ -1880,6 +1880,9 @@ export default Controller.extend({
       if(route === 'user.boards') {
         res = res + "boards-page ";
       }
+      if(route === 'user.extras') {
+        res = res + "extras-page ";
+      }
       if(route === 'caseload') {
         res = res + "modern-dashboard ";
       }

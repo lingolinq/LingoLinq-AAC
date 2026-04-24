@@ -75,13 +75,13 @@ header:has(#speak) *:focus-visible,
 /* Board page: navbar + board bar (speak or nav_header) need a taller header so both rows fit */
 #within_ember:has(header.header-index-with-dark-toggle #speak),
 #within_ember:has(header.header-index-with-dark-toggle #nav_header) {
-  --topbar-height: 135px;
+  --topbar-height: 129px;
 }
 /* Board index route: header often lacks header-index-with-dark-toggle; speak bar still needs the same
    --topbar-height baseline so board/index ResizeObserver math matches #content padding (see docs/SPEAK_MODE_EVAL_LAYOUT.md). */
 #within_ember.board-view:has(#inner_header #speak),
 #within_ember.board-alt-view:has(#inner_header #speak) {
-  --topbar-height: 135px;
+  --topbar-height: 129px;
 }
 /* Landing navbar: target height 88–96px; footer 50% taller and content vertically centered */
 #within_ember:has(header.header--unauthenticated) {
@@ -496,21 +496,27 @@ body:has(#within_ember.bento-page-with-footer) {
 }
 
 /* #content.index.with_user > .ember-view beats specificity above; without this the outlet stays
-   viewport-height while .md-workspace grows, so shell bg ends mid-page and content “spills”. */
+   viewport-height while .md-workspace grows, so shell bg ends mid-page and content “spills”.
+   flex: 1 1 auto so the outlet stretches to fill #content vertically — otherwise short
+   content (e.g. home dashboard) leaves the shell bg ending mid-page. */
 #within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.md-shell),
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.md-shell) {
-  flex: 0 0 auto;
-  min-height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   height: auto;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Shell fills outlet height = full scrollable content; gradient/bg covers to bottom of boards etc. */
+/* Shell fills outlet height = full scrollable content; gradient/bg covers to bottom of boards etc.
+   flex: 1 1 auto + min-height: 100% (fills the now-stretched .ember-view parent) combined with
+   the existing min-height: 100vh guarantees coverage whether content is short or tall. */
 #within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.md-shell) > .md-shell,
 #within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.md-shell) > .md-shell,
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-shell) > .md-shell,
 #within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) > .md-shell {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-height: 100vh;
   height: auto;
   align-self: stretch;
@@ -588,6 +594,12 @@ body:has(#within_ember.bento-page-with-footer) {
   align-self: stretch;
   display: flex;
   flex-direction: column;
+}
+/* Search page: extra 48px breathing room above the hero.
+   !important needed to beat `#within_ember:has(header.header--unauthenticated) #content { padding-top: var(--topbar-height) !important }`
+   (defined later in this file) when the search page is viewed signed-out. */
+#within_ember #content:has(.search-page) {
+  padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px) + 48px) !important;
 }
 /* User settings pages (preferences, billing, edit profile, account index):
    outlet grows with content; #content scrolls (same pattern as stats/search) */
@@ -1777,7 +1789,7 @@ header:has(#normal_mode) #inner_header {
   border-radius: 0;
   padding: 8px 8px;
   margin: 0;
-  min-height: 90px;
+  min-height: 84px;
   box-sizing: border-box;
   gap: 0;
 }
@@ -18124,6 +18136,76 @@ header.header--unauthenticated ~ #content .la-topbar {
   outline: none;
   box-shadow: 0 0 0 2px $brand-verdigris;
 }
+/* At ≤1024px, lift the settings shortcut out of the navbar flow and pin it
+   into the empty space on the right side of #inner_header. The positioning
+   ancestor (.app-navbar__inner) already gets `position: relative` at this
+   breakpoint (see ~33389), so absolute positioning here resolves against it. */
+@media (max-width: 1024px) {
+  .ll-header-settings-btn {
+    position: absolute;
+    top: 50%;
+    right: 48px;
+    transform: translateY(calc(-50% - 2px));
+    margin: 0;
+  }
+}
+
+/* At ≤768px, pin all three quick-action icons (search, settings, beta) into
+   the top-right of #inner_header so they sit evenly spaced instead of
+   collapsing against the right edge. Positioning ancestor is
+   .app-navbar__inner (position: relative at this breakpoint).
+
+   Defensive specificity (3,0,1) via `#within_ember header #inner_header`
+   chain — beats every known competing rule at narrower widths:
+     - #header_search override at ~33458 (2,0,0) → position: fixed; right: 100px
+     - .ll-header-settings-btn base at ~18102 (0,1,0) → margin-right: 1rem
+     - beta margin override at ~15895 (1,2,0) → margin-right: -2px
+   `left: auto` + `bottom: auto` neutralize any future rule using those
+   properties; `!important` on every property and a high-specificity chain
+   together ensure these win regardless of source-order tiebreakers. */
+@media (max-width: 768px) {
+  #within_ember header #inner_header #header_search,
+  #within_ember header #inner_header .ll-header-settings-btn,
+  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular {
+    position: absolute !important;
+    top: 50% !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: translateY(calc(-50% - 2px)) !important;
+    margin: 0 !important;
+  }
+  #within_ember header #inner_header #header_search {
+    right: 152px !important;
+    transform: translateY(calc(-50% - 6px)) !important;
+  }
+  #within_ember header #inner_header .ll-header-settings-btn { right: 108px !important; }
+  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular { right: 58px !important; }
+}
+
+/* At ≤766px, neutralize rule ~15711's position: absolute + display: flex on
+   .app-navbar__nav-header and .app-navbar__quick-actions so they stop being
+   the (tiny) positioning ancestors and stop spreading their children. Using
+   `display: contents` dissolves them — their children (search, settings,
+   beta) anchor against .app-navbar-authenticated-inner (position: relative)
+   instead, giving the same full-width coordinate system as ≥768px. The icon
+   positioning rules above (right: 152/108/58px) then work correctly.
+   Scoped to ≤766 so the existing 767/768 layouts are untouched. */
+@media (max-width: 766px) {
+  #within_ember header #inner_header .app-navbar__nav-header,
+  #within_ember header #inner_header .app-navbar__quick-actions {
+    display: contents !important;
+  }
+}
+
+@media (max-width: 375px) {
+  #within_ember header #inner_header #header_search { left: 4px !important; }
+}
+
+@media (max-width: 475px) {
+  .md-hero__title--from-left {
+    font-size: 0.8em !important;
+  }
+}
 
 /* Tabs - pill-style navigation */
 .ll-bento-device-frame > .row {
@@ -23546,21 +23628,22 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-skip-link {
-  position: absolute;
+  position: fixed;
   top: -100%;
-  left: 16px;
+  left: 180px;
   z-index: 10000;
-  padding: 12px 24px;
+  padding: 8px 18px;
   background: $la-navy;
   color: #fff;
-  border-radius: 0 0 12px 12px;
+  border-radius: 12px;
   font-weight: 700;
   font-size: 14px;
   text-decoration: none;
   transition: top 0.2s ease;
 }
-.la-skip-link:focus-visible {
-  top: 0;
+.la-skip-link:focus-visible,
+.la-skip-link:focus {
+  top: 22px;
 }
 
 .la-wrapper {
@@ -25333,6 +25416,11 @@ header.header--unauthenticated ~ #content .la-topbar {
   flex-direction: column;
   gap: 4px;
   animation: la-drawer-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  /* Scroll when content exceeds viewport height (tall footer menus on short screens). */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 @keyframes la-drawer-slide-in {
@@ -26422,6 +26510,14 @@ header #identity #identity_button.btn::after {
   max-width: 65ch; /* 55–70 chars per line for readability */
 }
 
+/* Small screens (≤640px): floor la-hero-subtitle at 15px so it stays legible
+   when the clamp above would otherwise scale it too small. */
+@media (max-width: $aac-breakpoint-sm) {
+  .la-wrapper .la-hero-subtitle {
+    font-size: 15px;
+  }
+}
+
 @keyframes la-badges-enter {
   from {
     opacity: 0;
@@ -26654,6 +26750,46 @@ header #identity #identity_button.btn::after {
     transform: translateY(-3px);
     box-shadow: none;
   }
+
+  /* Keyboard focus contrast fix: the default white-on-translucent-dark loses
+     contrast against the lighter focus ring + page background. Force a dark
+     text + opaque light background so WCAG contrast holds during focus. */
+  &:focus-visible,
+  &:focus {
+    color: $brand-charcoal-dark;
+    background: rgba(255, 255, 255, 0.96);
+    border-color: $brand-charcoal-dark;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   WCAG focus-contrast safety net for ghost buttons across landing/marketing
+   pages. The default ghost-button styling uses translucent dark backgrounds
+   with white-ish text — fine in resting/hover state, but the focus ring
+   overlay reduces perceived contrast and the white text becomes hard to read.
+   These overrides flip to dark text on opaque white background on focus.
+   Same fix as the Watch Demo button (above), applied to its analogs:
+     - .la-cta-section .la-btn--ghost   (Schedule a District Demo, etc.)
+     - .la-wrapper--about, --contact, --pricing, --support, --troubleshooting
+       wrappers' ghost buttons
+   ────────────────────────────────────────────────────────────────────────── */
+.la-cta-section .la-btn--ghost:focus-visible,
+.la-cta-section .la-btn--ghost:focus,
+.la-wrapper .la-cta-section .la-btn--ghost:focus-visible,
+.la-wrapper .la-cta-section .la-btn--ghost:focus,
+.la-wrapper--about .la-btn--ghost:focus-visible,
+.la-wrapper--about .la-btn--ghost:focus,
+.la-wrapper--contact .la-btn--ghost:focus-visible,
+.la-wrapper--contact .la-btn--ghost:focus,
+.la-wrapper--pricing .la-btn--ghost:focus-visible,
+.la-wrapper--pricing .la-btn--ghost:focus,
+.la-wrapper--support .la-btn--ghost:focus-visible,
+.la-wrapper--support .la-btn--ghost:focus,
+.la-wrapper--troubleshooting .la-btn--ghost:focus-visible,
+.la-wrapper--troubleshooting .la-btn--ghost:focus {
+  color: $brand-charcoal-dark !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: $brand-charcoal-dark !important;
 }
 
 /* About page: override primary button to match Try Free (gold) */
@@ -27268,6 +27404,10 @@ header #identity #identity_button.btn::after {
 #la-features .la-section-header .la-section-eyebrow-badge,
 #about-hero .la-section-header .la-section-eyebrow-badge,
 #la-plan .la-section-eyebrow-badge,
+#la-slp-spotlight .la-section-eyebrow-badge,
+#la-slp-spotlight-desktop .la-section-eyebrow-badge,
+#la-devices-spotlight .la-section-eyebrow-badge,
+#la-devices-spotlight-desktop .la-section-eyebrow-badge,
 #la-testimonial .la-section-eyebrow-badge,
 #la-a11y .la-section-eyebrow-badge,
 .la-wrapper .la-cta-section .la-cta-eyebrow,
@@ -28835,7 +28975,9 @@ header #identity #identity_button.btn::after {
 // ── Parallax zone sections: soft section anchors (outer = #F7F9FA frame, inner = transparent so image shows) ──
 .la-parallax-zone > .la-plan-section,
 .la-parallax-zone > .la-testimonial-section,
-.la-parallax-zone > .la-a11y-statement {
+.la-parallax-zone > .la-a11y-statement,
+.la-parallax-zone > .la-slp-spotlight,
+.la-parallax-zone > .la-devices-spotlight {
   background: transparent;
 }
 
@@ -28851,6 +28993,200 @@ header #identity #identity_button.btn::after {
 
 .la-parallax-zone .la-parallax-card-inner {
   background: #F7F9FA;
+}
+
+/* Mirror the parallax-zone card-frame styling onto the desktop spotlight
+   copies that live OUTSIDE the parallax zone, so they share the identical
+   gray frame, rounding, shadow, and inner background. */
+.la-spotlight-desktop .la-parallax-card-outer {
+  margin-top: 5rem;
+  margin-bottom: 5rem;
+  background: transparent;
+  border: 20px solid #F7F9FA;
+  border-radius: 20px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
+}
+.la-spotlight-desktop .la-parallax-card-inner {
+  background: #F7F9FA;
+}
+
+/* ── Spotlight Cards: SLP + Devices ───────────────────────────────────────
+   Two card variants (built-for-schools and available-on-all-devices) share
+   identical layout/styling and only swap their image. Each card is rendered
+   TWICE in the template:
+     • Inside the parallax zone (mobile placement, IDs without -desktop)
+     • Outside the parallax zone (desktop placement, IDs with -desktop)
+   The .la-spotlight-desktop class flips the visibility logic for the desktop
+   copies, so on each viewport exactly one of the two copies is shown. */
+.la-slp-spotlight,
+.la-devices-spotlight { display: none; }
+
+/* Desktop versions: hidden by default at all widths via the rule above; this
+   block re-shows them only above 1024px and ensures the mobile mirrors stay
+   hidden in that range. */
+@media (min-width: 1025px) {
+  #la-slp-spotlight-desktop,
+  #la-devices-spotlight-desktop { display: block; }
+}
+@media (max-width: 1024px) {
+  .la-spotlight-desktop { display: none !important; }
+}
+
+/* ── Spotlight layout (applies at ALL widths so both mobile and desktop
+   copies render correctly) ──────────────────────────────────────────────── */
+.la-slp-spotlight,
+.la-devices-spotlight {
+  padding: $aac-spacing-48 $aac-spacing-40;
+  position: relative;
+  overflow: hidden;
+}
+.la-slp-spotlight__inner,
+.la-devices-spotlight__inner {
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-48;
+}
+.la-slp-spotlight__header,
+.la-devices-spotlight__header {
+  margin-bottom: 4px;
+}
+.la-slp-spotlight__image,
+.la-devices-spotlight__image {
+  width: 100%;
+  min-height: 220px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 16px;
+}
+.la-slp-spotlight__image {
+  background-image: url('/images/aac-user-front-page.png');
+}
+.la-devices-spotlight__image {
+  background-image: url('/images/landing-devices.png');
+}
+
+/* Desktop (>1024px): swap the SLP image to landing-classroom.png and let
+   both spotlight images render at full height using their natural aspect
+   ratios (image dimensions: classroom 850×638, devices 1000×667). */
+@media (min-width: 1025px) {
+  .la-slp-spotlight__image {
+    background-image: url('/images/landing-classroom.png');
+    aspect-ratio: 850 / 638;
+    min-height: 0;
+    border-radius: 0;
+    /* "Built for schools" image: 62.5% width (25% bigger than prior 50%), centered.
+       margin-top: 16px adds breathing room under the paragraph (parent gap 48px
+       + 16px = ~64px visible). */
+    width: 62.5%;
+    margin: 16px auto 0;
+  }
+  .la-devices-spotlight__image {
+    /* "Devices" image: 78.125% width (25% bigger than SLP's 62.5%).
+       aspect-ratio matches the natural image dimensions (1000/667) so that
+       `background-size: contain` fills the div edge-to-edge — otherwise the
+       image (1.50 ratio) fits inside an 850/638 frame (1.33) with transparent
+       strips top/bottom, and the 16px border-radius clips invisible space
+       instead of the image. With matching aspect-ratio, the radius is visible
+       on the image's own corners.
+       margin-top: -48px cancels the parent flex gap ($aac-spacing-48), so the
+       image sits flush against the paragraph above. */
+    aspect-ratio: 1000 / 667;
+    min-height: 0;
+    width: 78.125%;
+    margin: -48px auto 0;
+    background-size: contain;
+    border-radius: 16px;
+  }
+  /* Body paragraphs in SLP + Devices spotlights: centered on the page (text-align
+     + max-width w/ auto margins), pulled up hard against the subheader.
+     Font size/family intentionally NOT overridden — they inherit `.la-plan-subtitle`
+     so all three subtitles (plan + slp + devices) scale identically at every
+     width.
+     Doubled class selector (__body + la-plan-subtitle) bumps specificity above
+     `.la-plan-subtitle` so the layout overrides win without disturbing typography. */
+  .la-slp-spotlight__body.la-plan-subtitle,
+  .la-devices-spotlight__body.la-plan-subtitle {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    text-align: center;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: -36px;
+  }
+  /* "Built for schools" SLP card: remove top margin and strip the gray frame
+     so the card blends into the page. Scoped to the desktop copy. */
+  .la-slp-spotlight .la-slp-spotlight__card.la-parallax-card-outer {
+    margin-top: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  .la-slp-spotlight .la-slp-spotlight__card .la-parallax-card-inner {
+    background: transparent;
+  }
+  /* "Available on all devices" card: transparent outer bg so it blends into the page.
+     margin-bottom: 0 pulls the "Ready to Start" CTA section up against this card
+     (default .la-spotlight-desktop .la-parallax-card-outer rule applies margin-bottom: 5rem). */
+  .la-devices-spotlight .la-devices-spotlight__card.la-parallax-card-outer {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    margin-bottom: 0;
+  }
+  .la-devices-spotlight .la-devices-spotlight__card .la-parallax-card-inner {
+    background: transparent;
+  }
+  /* "Available on all devices" section: zero top/bottom padding (base rule uses
+     $aac-spacing-48 vertical); horizontal padding unchanged. */
+  .la-devices-spotlight {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .la-slp-spotlight,
+  .la-devices-spotlight { display: block; }
+  .la-parallax-zone {
+    background-image: none !important;
+  }
+  /* Body inherits type/color from `.la-plan-subtitle` so all three subtitles
+     scale identically across widths. Override only layout: centered + narrower
+     max-width + pulled close to the subheader. Doubled-class selector beats
+     `.la-plan-subtitle` (defined later), same approach as the desktop rule. */
+  .la-slp-spotlight__body.la-plan-subtitle,
+  .la-devices-spotlight__body.la-plan-subtitle {
+    text-align: center;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: -36px;
+  }
+  /* "Built for schools" image on mobile/tablet: use landing-classroom.png and
+     double the min-height (base rule is 220px) so the image has room to breathe. */
+  .la-slp-spotlight__image {
+    background-image: url('/images/landing-classroom.png');
+    min-height: 440px;
+  }
+  /* Zero top/bottom padding on every direct section inside the parallax zone
+     on mobile/tablet (base rule is $aac-spacing-48); horizontal padding stays.
+     Covers .la-slp-spotlight, .la-plan-section, .la-devices-spotlight,
+     .la-testimonial-section, .la-a11y-statement, and any future siblings. */
+  .la-parallax-zone > section {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  /* Add breathing room below the "Every LingoLinq plan..." paragraph so the
+     checklist below doesn't sit directly under it. */
+  .la-plan-text > .la-plan-subtitle {
+    margin-bottom: 2rem;
+  }
+  /* Devices image on mobile/tablet: double the min-height (base 220px → 440px). */
+  .la-devices-spotlight__image {
+    min-height: 440px;
+  }
 }
 
 // ── Included in Every Plan ──────────────────────────────────────────────────
@@ -29420,7 +29756,12 @@ header #identity #identity_button.btn::after {
 
 // ── Footer (modern) ───────────────────────────────────────────────────────────
 .la-footer {
-  padding: $aac-spacing-48 clamp(#{$aac-spacing-16}, calc(4vw + #{$aac-spacing-12}), #{$aac-spacing-32}) $aac-spacing-40;
+  /* Zero horizontal padding so the bg tint extends edge-to-edge; the centered
+     content column is handled by .la-footer-inner's max-width + margin:auto. */
+  padding-top: $aac-spacing-48;
+  padding-right: 0;
+  padding-bottom: $aac-spacing-40;
+  padding-left: 0;
   margin-top: 0;
   background: rgba($la-navy, 0.03);
   border-top: none;
@@ -33675,7 +34016,9 @@ a.la-footer-bottom-a11y-wcag {
     grid-template-columns: 1fr;
   }
 
-  .la-plan-section {
+  .la-plan-section,
+  .la-slp-spotlight,
+  .la-devices-spotlight {
     padding: $aac-spacing-32 $aac-spacing-20;
   }
 
@@ -33811,8 +34154,10 @@ a.la-footer-bottom-a11y-wcag {
     border-radius: $aac-radius-lg;
   }
 
-  // Plan
-  .la-plan-section {
+  // Plan + spotlight cards (shared padding so all match)
+  .la-plan-section,
+  .la-slp-spotlight,
+  .la-devices-spotlight {
     padding: $aac-spacing-24 $aac-spacing-16;
   }
 
@@ -34166,9 +34511,13 @@ a.la-footer-bottom-a11y-wcag {
   line-height: 1.4;
 }
 
-/* Search page: top spacing below header */
+/* Search page: top spacing below header; flex-fills the outlet so bg covers full viewport on short screens */
 .search-page {
   margin-top: 5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Search page: same layout/board styles as boards page; search-specific header and form */
@@ -34186,6 +34535,8 @@ a.la-footer-bottom-a11y-wcag {
       -webkit-text-fill-color: transparent;
       color: transparent;
       font-style: normal;
+      padding-left: 0.25em;
+      font-size: 28px;
     }
     .la-about-hero-separator {
       margin-bottom: 1.25rem;
@@ -34246,21 +34597,105 @@ a.la-footer-bottom-a11y-wcag {
   }
   .ub-search-page__locale-wrap {
     flex: 0 0 auto;
-    width: 140px;
+    width: 175px;
     display: flex;
     align-items: stretch;
-    .form-control.ub-search-page__locale,
-    .form-control {
+    position: relative;
+    .ub-search-page__locale-select {
+      width: 100%;
+      display: flex;
+      align-items: stretch;
+    }
+    .modern-select {
+      width: 100%;
+      position: relative;
+    }
+    .modern-select__trigger {
       width: 100%;
       height: $ub-search-page-control-h;
       min-height: $ub-search-page-control-h;
       box-sizing: border-box;
-      padding: 0 12px;
+      padding: 0 32px 0 12px;
       border: 1.5px solid rgba($brand-blue-black, 0.12);
       border-radius: 10px;
       font-size: calc(1.05rem * 1.3);
       line-height: 1.2;
       background: rgba(246, 247, 250, 0.9);
+      text-align: left;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      /* caret indicator */
+      &::after {
+        content: '';
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        width: 10px;
+        height: 10px;
+        border-right: 2px solid rgba($brand-blue-black, 0.55);
+        border-bottom: 2px solid rgba($brand-blue-black, 0.55);
+        transform: translateY(-70%) rotate(45deg);
+        pointer-events: none;
+      }
+      &:hover {
+        border-color: rgba($brand-blue-black, 0.22);
+      }
+      &:focus-visible {
+        outline: none;
+        border-color: $brand-teal;
+        box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+      }
+    }
+    .modern-select__trigger-text {
+      display: inline-block;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .modern-select--open .modern-select__trigger {
+      border-color: $brand-teal;
+      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+    }
+    .modern-select--open .modern-select__trigger::after {
+      transform: translateY(-30%) rotate(-135deg);
+    }
+    .modern-select__list {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 40;
+      max-height: 280px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 6px;
+      list-style: none;
+      background: #fff;
+      border: 1px solid rgba($brand-blue-black, 0.12);
+      border-radius: 10px;
+      box-shadow: 0 12px 28px rgba($brand-blue-black, 0.14), 0 2px 6px rgba($brand-blue-black, 0.08);
+    }
+    .modern-select__option {
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: calc(1rem * 1.2);
+      line-height: 1.2;
+      color: $brand-blue-black;
+      cursor: pointer;
+      &:hover {
+        background: rgba($brand-teal, 0.08);
+      }
+    }
+    .modern-select__option--selected {
+      background: rgba($brand-teal, 0.14);
+      color: $brand-teal;
+      font-weight: 600;
+      &:hover {
+        background: rgba($brand-teal, 0.2);
+      }
     }
   }
   .ub-search-page__go {
@@ -34751,6 +35186,9 @@ a.la-footer-bottom-a11y-wcag {
   overflow: hidden !important;
 }
 
+/* Note: dashboard top-padding override for ≤1024px lives next to the base
+   rule near line 41260 (placed there so source-order wins the !important tie). */
+
 /* Support-flavored pages (beta-feedback, support, beta-feedback-admin) — 64px top
    padding at ≤1024px. Above 1024 the base .md-workspace rule wins (40px).
    Uses two-class specificity (0,2,0) to beat the .md-workspace media-query
@@ -34984,6 +35422,13 @@ a.la-footer-bottom-a11y-wcag {
 
   overflow: hidden !important;
 
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.md-pillnav::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 .md-pillnav__pill {
@@ -41245,6 +41690,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 #within_ember #content.stats-page {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
+/* At ≤1024px the four dashboard pages need extra clearance below the fixed
+   navbar — placed immediately after the base rule so source-order wins the
+   !important tie (same specificity as the rule above). */
+@media (max-width: 1024px) {
+  #within_ember #content.home-page,
+  #within_ember #content.boards-page,
+  #within_ember #content.stats-page,
+  #within_ember #content.extras-page,
+  #within_ember #content.modern-dashboard {
+    padding-top: 52px !important;
+  }
+}
 /* Stats page: allow scrolling when in page-footer layout (#content is not .index so it needs explicit scroll) */
 #within_ember:has(.page-footer) #content.stats-page.with_user {
   flex: 1 1 auto;
@@ -41273,11 +41730,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-sizing: border-box;
   padding-top: calc(var(--topbar-height) + 3rem);
   padding-bottom: var(--bottombar-height);
-  background:
-    radial-gradient(1200px 600px at 20% 20%, rgba(44, 183, 176, 0.12), transparent 55%),
-    radial-gradient(1200px 600px at 80% 15%, rgba(240, 106, 91, 0.10), transparent 60%),
-    radial-gradient(1000px 700px at 60% 85%, rgba(91, 141, 239, 0.12), transparent 60%),
-    var(--md-bg);
+  /* Match authenticated home (#content.index.with_user): blue → gold → green top-down gradient */
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
   color: var(--md-ink);
 }
 #within_ember:has(.page-footer) #content:has(.search-page) > .ember-view {
@@ -46751,19 +47208,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ── Left sidebar ─────────────────────────────────────── */
 
+/* ── Sidebar (expanded view) ──
+   Modernized: glass card surface, soft rounded edges, subtle shadow, and
+   tighter section rhythm. Collapsed state still wipes width/padding/opacity
+   so the transition stays smooth in both directions. */
 .md-board-detail-sidebar {
-  padding: 8px 1rem 24px 4px;
-  border-right: 1px solid rgba($la-navy, 0.08);
+  padding: 16px 12px 20px;
   position: relative;
   transition: width 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
   overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 22px;
+  box-shadow:
+    0 6px 28px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  margin: 4px 8px 4px 4px;
 }
 .md-board-detail-sidebar--collapsed {
   width: 0 !important;
   padding-left: 0;
   padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
   opacity: 0;
-  border-right: none;
+  border: none;
+  box-shadow: none;
 }
 
 /* Expand/collapse toggle */
@@ -46802,16 +47274,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 .md-board-detail-sidebar__section {
-  margin-bottom: 28px;
+  margin-bottom: 18px;
+}
+.md-board-detail-sidebar__section:last-child {
+  margin-bottom: 0;
 }
 
 .md-board-detail-sidebar__heading {
-  font-size: 13px; /* matches right panel heading */
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em; /* matches right panel heading */
+  letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: $brand-stormy-teal;
-  padding: 0 14px 8px;
+  color: rgba($la-navy, 0.55);
+  padding: 4px 14px 10px;
   margin: 0;
 }
 
@@ -46820,28 +47295,45 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   gap: 12px;
   width: 100%;
-  /* WCAG 2.5.5 AAA touch target — was 11px 14px (~42 tall). */
-  padding: 13px 14px;
+  padding: 11px 12px;
   min-height: 44px;
   border: none;
-  border-radius: 14px;
+  border-radius: 12px;
   background: transparent;
-  font-size: 15px; /* matches right panel content size */
+  font-size: 14.5px;
   font-weight: 500;
-  color: rgba($la-navy, 0.72); /* matches right panel content contrast */
+  color: rgba($la-navy, 0.78);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
   text-align: left;
+  position: relative;
 }
 .md-board-detail-sidebar__item:hover {
-  background: rgba($brand-verdigris, 0.06);
+  background: rgba($brand-verdigris, 0.08);
   color: $la-navy;
 }
+.md-board-detail-sidebar__item:active {
+  transform: scale(0.985);
+}
+/* Modern active treatment: soft tinted background + a 3px verdigris bar
+   pinned to the left edge as a clear "you are here" indicator. */
 .md-board-detail-sidebar__item--active {
-  background: linear-gradient(135deg, rgba($brand-verdigris, 0.12), rgba($brand-dusty-denim, 0.10));
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.14), rgba($brand-dusty-denim, 0.08));
   color: $la-navy;
   font-weight: 600;
-  border: 1px solid rgba($brand-verdigris, 0.15);
+  border: 1px solid rgba($brand-verdigris, 0.20);
+  box-shadow: 0 1px 4px rgba($brand-verdigris, 0.10);
+}
+.md-board-detail-sidebar__item--active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: $brand-verdigris;
 }
 
 .md-board-detail-sidebar__icon {
@@ -46944,7 +47436,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      (6px from the bar, 6px from the adjacent stack). */
   gap: 13px;
   flex-shrink: 0;
-  margin: 4px 4px 6px 4px;
+  margin: 1px 4px 3px 4px;
 }
 .md-board-detail-sentence-row > .md-board-detail-boards-btn {
   flex-shrink: 0;
@@ -47011,6 +47503,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba($brand-blue-grey, 0.3) !important;
   box-shadow: none !important;
 }
+/* Home button — sits to the left of the sentence bar inside .md-board-detail-sentence-row.
+   Mirrors the sentence bar's glass + sunken-well styling so the two elements
+   read as a single coordinated row. */
+.md-board-detail-home-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  min-height: 72px;
+  padding: 10px;
+  /* Negative right margin shrinks the visual gap to the sentence bar
+     without touching the row's intentional 13px gap (which is calibrated
+     for the sentence bar's pseudo-element dividers on its other side). */
+  margin-right: -8px;
+  border-radius: 18px;
+  border: none;
+  background: rgba(110, 122, 140, 0.32);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.18),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -2px 5px rgba($la-navy, 0.18),
+    inset 0 -1px 1px rgba($la-navy, 0.10);
+}
+.md-board-detail-home-btn:hover {
+  background: rgba(110, 122, 140, 0.42);
+}
+.md-board-detail-home-btn:active {
+  transform: scale(var(--md-tap, 0.97));
+}
+.md-board-detail-home-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.18),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -2px 5px rgba($la-navy, 0.18),
+    inset 0 -1px 1px rgba($la-navy, 0.10),
+    0 0 0 3px $brand-verdigris;
+}
+
 .md-board-detail-sentence-bar {
   flex: 1;
   /* `position: relative` so the ::before / ::after dividers can position
@@ -47022,8 +47559,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 14px;
   /* Height stretches to match the surrounding stacked button groups via the
      parent .md-board-detail-sentence-row's `align-items: stretch`. */
-  min-height: 72px;
-  padding: 10px;
+  min-height: 62px;
+  padding: 8px 10px;
   border-radius: 18px;
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
@@ -47145,7 +47682,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   min-width: 44px;
-  height: 72px;
+  /* min-height (not fixed height) so chip stretches to match the neighboring
+     .md-board-detail-sentence-bar__prediction-group, which is taller due to its
+     own 4px vertical padding. Parent has align-items: stretch. */
+  min-height: 62px;
+  align-self: stretch;
   box-sizing: border-box;
 }
 .md-board-detail-sentence-bar__chip-img {
@@ -47191,7 +47732,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 1px;
   padding: 6px 10px;
   min-width: 44px;
-  height: 72px;
+  height: 62px;
   box-sizing: border-box;
   border-radius: 8px;
   border: 2px dashed rgba(255, 255, 255, 0.35);
@@ -48288,6 +48829,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 0;
   flex: 1;
   min-height: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid,
 .md-board-detail-grid-sidebar-wrap > div:has(.md-board-detail-grid) {
@@ -56413,8 +56956,9 @@ a.md-caseload__action {
    block the UI. Replaces the legacy flash-notice pattern. */
 .ll-toast {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   max-width: min(420px, calc(100vw - 48px));
   display: inline-flex;
   align-items: center;
@@ -56481,18 +57025,25 @@ a.md-caseload__action {
 .ll-toast--error .ll-toast__icon { color: $brand-danger; }
 
 @keyframes ll-toast-slide-in {
-  from { opacity: 0; transform: translateY(-12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ll-toast { animation: none; }
 }
 @media (max-width: 480px) {
   .ll-toast {
-    top: 12px;
-    right: 12px;
+    bottom: 12px;
     left: 12px;
+    right: 12px;
+    transform: none;
     max-width: none;
+  }
+  /* On phones the toast spans the full width, so the slide-in needs to
+     animate without the centering translate. */
+  @keyframes ll-toast-slide-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 }
 

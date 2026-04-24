@@ -353,7 +353,7 @@ export default Controller.extend(prefClasses, {
     };
     var swatches = [
       { label: i18n.t('swatch_pronoun', "Pronoun"), pos_class: 'pronoun', bg: '#FAFAAA' },
-      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#C0E8C8' },
+      { label: i18n.t('swatch_verb', "Verb"), pos_class: 'verb', bg: '#BCECC5' },
       { label: i18n.t('swatch_descriptor', "Descriptor"), pos_class: 'adjective', bg: '#B9D0F6' },
       { label: i18n.t('swatch_noun', "Noun"), pos_class: 'noun', bg: '#FDCF98' },
       { label: i18n.t('swatch_social', "Social"), pos_class: 'social', bg: '#E8B5DC' },
