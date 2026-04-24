@@ -13,10 +13,11 @@ unless Rails.env.production?
   require 'dotenv'
   if defined?(Dotenv)
     root = Pathname.new(__FILE__).join('..', '..').expand_path
-    %w[.env.op.template .env.op.local .env .env.local].each do |name|
+    paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
       path = root.join(name).to_s
-      Dotenv.load(path) if File.exist?(path)
-    end
+      path if File.exist?(path)
+    end.compact
+    Dotenv.load(*paths) unless paths.empty?
   end
 end
 
