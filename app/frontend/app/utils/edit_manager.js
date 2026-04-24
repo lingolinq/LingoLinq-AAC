@@ -1135,7 +1135,7 @@ var editManager = EmberObject.extend({
       var neg_ids = [0];
       this.controller.get('ordered_buttons').forEach(function(row) {
         row.forEach(function(btn) {
-          var num_id = parseInt(btn.get('id'), 10) || 0;
+          var num_id = parseInt(emberGet(btn, 'id'), 10) || 0;
           if(num_id < 0 && isFinite(num_id)) {
             neg_ids.push(num_id);
           }

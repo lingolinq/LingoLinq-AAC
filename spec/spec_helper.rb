@@ -1,7 +1,11 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 ENV["RAILS_ENV"] ||= 'test'
 require 'dotenv'
-Dotenv.load
+root = File.expand_path('..', __dir__)
+%w[.env.op.template .env.op.local .env .env.local].each do |name|
+  path = File.join(root, name)
+  Dotenv.load(path) if File.exist?(path)
+end
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
 require 'simplecov'

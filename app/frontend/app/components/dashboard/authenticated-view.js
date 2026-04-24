@@ -1196,8 +1196,9 @@ export default Component.extend({
     modeling_ideas: function(user_name) {
       var users = [];
       if(!user_name) {
-        if((this.appState.get('currentUser.supervisees') || []).length > 0) {
-          (this.appState.get('currentUser.known_supervisees') || []).forEach(function(u) {
+        var knownSupervisees = this.appState.get('currentUser.known_supervisees') || [];
+        if(knownSupervisees.length > 0) {
+          knownSupervisees.forEach(function(u) {
             if(emberGet(u, 'premium')) {
               users.push(u);
             }

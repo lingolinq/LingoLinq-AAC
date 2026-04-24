@@ -164,9 +164,6 @@ BoardHierarchy.load_with_button_set = function(board, opts) {
     // With force:false, a prior stuck promise can be returned and no new XHR runs ("no calls").
     // skipBoardReloadForCopyModal still skips board.reload + Ember buttonset reload noise.
     return board.load_button_set(true, copyModal).then(function(bs) {
-      // #region agent log
-      fetch('http://127.0.0.1:7311/ingest/24105c53-d0a7-47df-94d5-11a8d0f5e6dc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'32f630'},body:JSON.stringify({sessionId:'32f630',hypothesisId:'H5',location:'board_hierarchy.js:load_with_button_set',message:'board.load_button_set settled',data:{hasBs:!!bs,copyModal:copyModal},timestamp:Date.now()})}).catch(function(){});
-      // #endregion
       return bs;
     });
   });

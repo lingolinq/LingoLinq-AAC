@@ -1352,6 +1352,7 @@ export default Controller.extend(prefClasses, {
     };
 
     fetchWordMap(0, {}).then(function(wordMap) {
+      var mutated = false;
       jobs.forEach(function(job) {
         var btn = job.btn;
         var words = job.words;
@@ -1400,9 +1401,25 @@ export default Controller.extend(prefClasses, {
               break;
             }
           }
-          _this.notifyPropertyChange('ordered_buttons');
+          mutated = true;
         }
       });
+      // Plain objects in ordered_buttons: mutating suggested_part_of_speech does not reliably
+      // recompute md-board-detail-symbol-card--* class bindings (see _finalizeFocusDimGrid).
+      // Shallow-copy non-Ember cells so Glimmer picks up Fitzgerald colors after batch POS.
+      if(mutated && !_this.get('edit_mode')) {
+        var ob = _this.get('ordered_buttons');
+        if(ob) {
+          _this.set('ordered_buttons', ob.map(function(row) {
+            return row.map(function(b) {
+              if(!b || b.empty) { return b; }
+              if(typeof b.set === 'function') { return b; }
+              return Object.assign({}, b);
+            });
+          }));
+        }
+        _this.notifyPropertyChange('ordered_buttons');
+      }
     }, function() { });
   },
 

@@ -419,7 +419,12 @@ class Api::BoardsController < ApplicationController
       user: @api_user
     )
     if result[:error]
-      return api_error(503, { error: result[:error] })
+      err_payload = { error: result[:error] }
+      if Rails.env.development?
+        err_payload[:error_detail] = result[:error_detail] if result[:error_detail].present?
+        err_payload[:error_kind] = result[:error_kind] if result[:error_kind].present?
+      end
+      return api_error(503, err_payload)
     end
     words = result[:words]
     return api_error(400, { error: 'Could not generate words' }) if words.blank?
