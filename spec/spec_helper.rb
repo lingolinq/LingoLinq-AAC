@@ -2,10 +2,11 @@
 ENV["RAILS_ENV"] ||= 'test'
 require 'dotenv'
 root = File.expand_path('..', __dir__)
-%w[.env.op.template .env.op.local .env .env.local].each do |name|
+dotenv_paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
   path = File.join(root, name)
-  Dotenv.load(path) if File.exist?(path)
-end
+  path if File.exist?(path)
+end.compact
+Dotenv.load(*dotenv_paths) unless dotenv_paths.empty?
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
 require 'simplecov'
