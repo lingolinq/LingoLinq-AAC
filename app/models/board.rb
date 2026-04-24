@@ -32,6 +32,7 @@ class Board < ActiveRecord::Base
   before_save :check_content_overrides
   before_save :process_suggested_symbols
   before_save :process_suggested_sounds
+  after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
   after_save :post_process
   after_save :assert_shallow_mapping
   after_destroy :flush_related_records
@@ -1200,6 +1201,40 @@ class Board < ActiveRecord::Base
     suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
     return if suggested_buttons.empty?
 
+    # Google TTS is one HTTP call per button; large boards exceed Rack::Timeout during POST /boards#create.
+    # Defer to Progress + worker (same pattern as other long-running board work).
+    if ENV['GOOGLE_TTS_TOKEN'].present?
+      @defer_suggested_sounds = true
+      return
+    end
+
+    # For non-Google providers, generate suggested sounds inline so locales that
+    # do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still
+    # receive auto-generated sounds during the save flow.
+    process_suggested_sounds_async
+  end
+
+  def enqueue_suggested_sounds_if_deferred
+    return unless @defer_suggested_sounds
+
+    @defer_suggested_sounds = false
+    return unless id && ENV['GOOGLE_TTS_TOKEN'].present?
+
+    b = self.class.find_by(id: id)
+    return unless b
+
+    Progress.schedule(b, :process_suggested_sounds_async)
+  rescue => e
+    Rails.logger.error "enqueue_suggested_sounds_if_deferred failed: #{e.class}: #{e.message}"
+  end
+
+  # Runs in a priority worker to attach generated ButtonSound records to label buttons.
+  def process_suggested_sounds_async
+    reload
+    buttons = self.settings['buttons'] || []
+    suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
+    return if suggested_buttons.empty?
+
     locale = (self.settings['locale'] || 'en').to_s
     author = self.user
 
@@ -1226,9 +1261,10 @@ class Board < ActiveRecord::Base
         @buttons_changed = 'suggested_sounds_added'
       rescue => e
         Rails.logger.error "Failed to process suggested sound for '#{text}': #{e.message}"
-        # Continue with other buttons
       end
     end
+
+    save! if @buttons_changed == 'suggested_sounds_added'
   end
 
   def restore_urls

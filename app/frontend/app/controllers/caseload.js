@@ -124,8 +124,9 @@ export default Controller.extend({
         return;
       }
       if (!userName) {
-        if ((model.get('supervisees') || []).length > 0) {
-          (model.get('known_supervisees') || []).forEach(function(u) {
+        var knownSupervisees = model.get('known_supervisees') || [];
+        if (knownSupervisees.length > 0) {
+          knownSupervisees.forEach(function(u) {
             if (u.premium) {
               users.push(u);
             }

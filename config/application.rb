@@ -6,11 +6,19 @@ require 'rails/all'
 # you've limited to :test, :development, or :production.
 Bundler.require(:default, Rails.env)
 
-# Load environment variables from .env file in development/test
-# (dotenv gem is available in all envs for build compatibility)
+# Load environment variables in development/test (dotenv is in Gemfile for all envs for build compatibility).
+# Order: later files override earlier. Use .env.op.template (committed) + .env.op.local (gitignored) for
+# ops/1Password-style vars; keep secrets in .env / .env.local.
 unless Rails.env.production?
   require 'dotenv'
-  Dotenv.load if defined?(Dotenv)
+  if defined?(Dotenv)
+    root = Pathname.new(__FILE__).join('..', '..').expand_path
+    paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
+      path = root.join(name).to_s
+      path if File.exist?(path)
+    end.compact
+    Dotenv.load(*paths) unless paths.empty?
+  end
 end
 
 module LingoLinq
