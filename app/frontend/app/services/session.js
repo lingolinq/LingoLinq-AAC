@@ -561,6 +561,17 @@ export default Service.extend({
     }
   },
 
+  // SPA path eligibility predicate. Extracted as a method (not an inline
+  // expression) so plan 07 tests can stub it directly without flipping the
+  // global Ember.testing flag. SPEC R2, plan 05.
+  _invalidate_spa_eligible: function(full_invalidate) {
+    return !!full_invalidate &&
+           !!this.appState &&
+           !!this.appState.get('feature_flags.auth_spa_transition') &&
+           !capabilities.installed_app &&
+           !isTesting();
+  },
+
   invalidate: function(force) {
     var _this = this;
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
@@ -569,6 +580,10 @@ export default Service.extend({
         window.navigator.splashscreen.show();
       }
     }
+    // SPEC R2, R3, R4, R5, R6, R8. Plan 05.
+    // Flag is read once, here, before the async chain — avoids mid-flow flag flips.
+    var spaTransitionEnabled = _this._invalidate_spa_eligible(full_invalidate);
+
     this.stashes.flush().then(null, function() { return RSVP.resolve(); }).then(function() {
       _this.stashes.setup();
       var later = function(callback, delay) { callback(); };
@@ -576,9 +591,14 @@ export default Service.extend({
         later = runLater;
       }
 
-      // Give the session time to clear completely before reloading, otherwise they might
-      // not actually get logged out
+      // Give the session time to clear completely before navigating, otherwise the
+      // user might not actually get logged out.
       later(function() {
+        // STEP (a): Clear auth tokens FIRST. The index route's afterModel
+        // checks session.access_token and replaceWith('user.home', user_name)
+        // if it sees one. Clearing here ensures the SPA transitionTo('index')
+        // actually lands on the login form rather than redirecting to the
+        // dashboard. Same on the OFF/reload path — existing behavior.
         _this.set('isAuthenticated', false);
         _this.set('access_token', null);
         _this.set('user_name', null);
@@ -587,7 +607,80 @@ export default Service.extend({
         if(capabilities) {
           capabilities.access_token = null;
         }
+
         if(full_invalidate) {
+          if(spaTransitionEnabled) {
+            // SPA path: transition FIRST, then clean up state in the .then()
+            // success handler. This ordering prevents observer cascades on
+            // inconsistent state and prevents the dashboard's templates from
+            // reading destroyed Ember Data records.
+            try {
+              if(_this.router && typeof _this.router.transitionTo === 'function') {
+                var promise = _this.router.transitionTo('index');
+                if(promise && typeof promise.then === 'function') {
+                  promise.then(function() {
+                    // Transition complete — dashboard route is unmounted.
+                    // NOW it is safe to null user records and per-user appState.
+                    // SPEC R5 cleanup happens here, not before transition.
+                    try {
+                      if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
+                        _this.appState.clear_user_state();
+                      }
+                      if(typeof LingoLinq !== 'undefined' && LingoLinq && LingoLinq.store && typeof LingoLinq.store.unloadAll === 'function') {
+                        LingoLinq.store.unloadAll();
+                      }
+                      if(_this.persistence && typeof _this.persistence.clear_user_state === 'function') {
+                        _this.persistence.clear_user_state();
+                      }
+                      // Forward-looking 3rd-party SDK reset block. No-op when
+                      // SDKs absent (the codebase has no Sentry today). Add
+                      // specific resets here as SDKs are added.
+                      if(typeof window !== 'undefined' && window.Sentry && typeof window.Sentry.setUser === 'function') {
+                        try { window.Sentry.setUser(null); } catch(e) { /* ignore */ }
+                      }
+                    } catch(err) {
+                      // Cleanup error after successful transition. Log but do
+                      // not reload — the user is already on the login form.
+                      console.warn('[session.invalidate] post-transition cleanup error', err);
+                    }
+                  }, function(err) {
+                    // Transition rejected — fall back to reload. The reload
+                    // accomplishes both navigation AND state cleanup by tearing
+                    // down the Ember instance. Do NOT call clear_user_state here.
+                    console.warn('[session.invalidate] SPA transition rejected, falling back to reload', err);
+                    later(function() { _this.reload('/'); });
+                  });
+                } else {
+                  // No thenable returned — defensive: assume success and clean
+                  // up synchronously. Templates may not have unmounted yet, so
+                  // this branch is best-effort. Should not happen in practice.
+                  try {
+                    if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
+                      _this.appState.clear_user_state();
+                    }
+                    if(typeof LingoLinq !== 'undefined' && LingoLinq && LingoLinq.store && typeof LingoLinq.store.unloadAll === 'function') {
+                      LingoLinq.store.unloadAll();
+                    }
+                    if(_this.persistence && typeof _this.persistence.clear_user_state === 'function') {
+                      _this.persistence.clear_user_state();
+                    }
+                  } catch(err) {
+                    console.warn('[session.invalidate] post-transition cleanup error (no thenable)', err);
+                  }
+                }
+                // Successful transition fired (thenable or not) — DO NOT fall
+                // through to reload.
+                return;
+              }
+              // Router unavailable for some reason — fall through to reload.
+              console.warn('[session.invalidate] Router unavailable, falling back to reload');
+            } catch(err) {
+              console.warn('[session.invalidate] SPA transition threw, falling back to reload', err);
+            }
+            // Fall-through reload (catch block or router unavailable). Tokens
+            // already cleared at top of this `later`; the reload will tear
+            // down the Ember instance and discard any remaining state.
+          }
           later(function() {
             _this.reload('/');
           });
