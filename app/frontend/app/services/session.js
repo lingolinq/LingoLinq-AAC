@@ -14,6 +14,7 @@ export default Service.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
   appState: service('app-state'),
+  router: service(),
 
   init() {
     this._super(...arguments);
