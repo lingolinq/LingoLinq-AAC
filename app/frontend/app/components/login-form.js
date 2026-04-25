@@ -297,6 +297,104 @@ export default Component.extend({
   noSecret: computed('client_secret', function() {
     return !this.get('client_secret');
   }),
+  // SPA path eligibility predicate. Extracted as a method (not an inline
+  // expression) so plan 07 tests can stub it directly without flipping the
+  // global Ember.testing flag. Returns true iff the SPA transition path
+  // should be taken on a non-installed-app web client.
+  // SPEC R1, plan 04.
+  _login_spa_eligible: function() {
+    return !!this.appState.get('feature_flags.auth_spa_transition');
+  },
+  // Post-auth web dispatch logic. Called from login_success's web `else`
+  // branch (the existing branch after `if(isTesting()) ... else if(installed_app)`).
+  // Extracted as a method so plan 07 tests can call it directly with a
+  // stubbed `wait` promise — bypassing login_success's outer `if(isTesting())`
+  // early-return without needing to mutate Ember.testing globally.
+  // The method assumes:
+  //   - reload=true (the reload=false case is handled in login_success itself)
+  //   - we're on a web client (NOT installed_app — that branch is handled by
+  //     login_success directly)
+  //   - we're NOT under test environment (login_success's outer if(isTesting())
+  //     short-circuits in production; in tests this method is called directly
+  //     by the test, bypassing the outer guard intentionally for test purposes)
+  // It dispatches to the SPA path if `_login_spa_eligible()` returns true,
+  // else to the existing reload path. ANY error in the SPA path falls back
+  // to the reload path.
+  // SPEC R1, R3, R4. Plan 04.
+  _login_dispatch_after_wait: function(wait) {
+    var _this = this;
+    var spaTransitionEnabled = !!_this._login_spa_eligible();
+
+    var reloadDone = false;
+    var doReload = function() {
+      if(reloadDone || _this.isDestroyed || _this.isDestroying) { return; }
+      reloadDone = true;
+      if(_this.get('return')) {
+        _this.session.set('return', true);
+      }
+      _loginDebug('Web: reloading to dashboard');
+      location.assign('/');
+    };
+
+    var removePreReloadOverlay = function() {
+      // The pre-reload overlay was appended to document.body (outside the
+      // Ember outlet) by login_success. On the reload path, browser
+      // navigation discards it. On the SPA path, we must remove it
+      // explicitly AFTER the transition resolves, otherwise it stays
+      // pinned over the dashboard.
+      try {
+        var ov = document.getElementById('ll-pre-reload-overlay');
+        if(ov && ov.parentNode) {
+          ov.parentNode.removeChild(ov);
+        }
+      } catch(e) { /* DOM may be unavailable; ignore */ }
+    };
+
+    var doTransition = function() {
+      if(reloadDone || _this.isDestroyed || _this.isDestroying) { return; }
+      reloadDone = true;
+      try {
+        _loginDebug('SPA transition: transitioning to index (route will redirect to user.home)');
+        // Transition to 'index' — the index route's afterModel
+        // (routes/index.js:35-39) does replaceWith('user.home', user_name)
+        // using the same code path as cold-boot. This avoids duplicate
+        // findRecord('user', 'self') fetches and the username-changed
+        // race that transitionTo('user.home', user_name) would introduce.
+        var promise = _this.router.transitionTo('index');
+        if(promise && typeof promise.then === 'function') {
+          promise.then(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            removePreReloadOverlay();
+          }, function(err) {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            console.warn('[login_success] SPA transition rejected, falling back to reload', err);
+            reloadDone = false;
+            doReload();
+          });
+        } else {
+          // No thenable returned — defensive: assume success.
+          removePreReloadOverlay();
+        }
+      } catch(err) {
+        console.warn('[login_success] SPA transition threw, falling back to reload', err);
+        reloadDone = false;
+        doReload();
+      }
+    };
+
+    var doNext = spaTransitionEnabled ? doTransition : doReload;
+
+    wait.then(doNext, function(err) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      console.warn('[login_success] User fetch failed, reloading', err);
+      doReload();
+    });
+    // Fallback: if wait hangs (e.g. slow API, IndexedDB), reload after 6s.
+    // The race ALWAYS falls back to doReload — never to doTransition — because
+    // a hanging wait means the SPA path cannot satisfy its preconditions.
+    var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
+    RSVP.race([wait, timeoutPromise]).then(doNext, function() { doReload(); });
+  },
   actions: {
     login_success: function(reload) {
       var _this = this;
@@ -342,6 +440,32 @@ export default Component.extend({
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
+        // Cover the login page with a full-screen overlay while we flush stashes,
+        // fetch the session user, and trigger the reload. Without this, the user
+        // sees the login form sitting "ready" during the wait, then a flash of
+        // mid-boot styling on the new page. The boot overlay in index.html picks
+        // up immediately on the reloaded page and stays until the destination
+        // route renders.
+        if(typeof document !== 'undefined' && document.body && !document.getElementById('ll-pre-reload-overlay')) {
+          var overlay = document.createElement('div');
+          overlay.id = 'll-pre-reload-overlay';
+          overlay.className = 'll-loading-overlay';
+          overlay.setAttribute('role', 'status');
+          overlay.setAttribute('aria-live', 'polite');
+          overlay.setAttribute('aria-busy', 'true');
+          var card = document.createElement('div');
+          card.className = 'll-loading-overlay__card';
+          var spinner = document.createElement('div');
+          spinner.className = 'll-loading-overlay__spinner';
+          spinner.setAttribute('aria-hidden', 'true');
+          var msg = document.createElement('p');
+          msg.className = 'll-loading-overlay__message';
+          msg.textContent = i18n.t('loading_your_account', "Loading your account…");
+          card.appendChild(spinner);
+          card.appendChild(msg);
+          overlay.appendChild(card);
+          document.body.appendChild(overlay);
+        }
       }
       // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)
       var wait = this.stashes.flush(null, 'auth_').then(function() {
@@ -381,28 +505,9 @@ export default Component.extend({
             }
           });
         } else {
-          // Web: use full page reload after login (same approach as installed app).
-          // Client-side transition was unreliable: on index route transitionTo('index') is a no-op,
-          // and the dashboard only shows when appState.currentUser is set by refresh_session_user.
-          // A reload guarantees session restore from localStorage and clean dashboard load.
-          var reloadDone = false;
-          var doReload = function() {
-            if(reloadDone || _this.isDestroyed || _this.isDestroying) { return; }
-            reloadDone = true;
-            if(_this.get('return')) {
-              _this.session.set('return', true);
-            }
-            _loginDebug('Web: reloading to dashboard');
-            location.assign('/');
-          };
-          wait.then(doReload, function(err) {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
-            console.warn('[login_success] User fetch failed, reloading anyway', err);
-            doReload();
-          });
-          // Fallback: if wait hangs (e.g. slow API, IndexedDB), reload after 6s
-          var timeoutPromise = new RSVP.Promise(function(resolve) { runLater(resolve, 6000); });
-          RSVP.race([wait, timeoutPromise]).then(doReload, function() { doReload(); });
+          // Web (non-installed-app): delegate dispatch to _login_dispatch_after_wait
+          // so plan 07 tests can call it directly with a stubbed wait promise.
+          _this._login_dispatch_after_wait(wait);
         }
       }
     },
