@@ -1936,6 +1936,69 @@ var persistence = EmberObject.extend({
       safeSet(getPersistence(), 'sync_progress.canceled', true);
     }
   },
+  // SPEC R5 / plan 03 audit (2026-04-25): clears in-memory user-scoped caches on
+  // sign-out. Called from services/session.js#invalidate when the
+  // auth_spa_transition feature flag is enabled (plan 05 wires the call). SAFE
+  // to call with no logged-in user. In-memory only — does NOT wipe IndexedDB /
+  // SQLite (persistent offline cache survives sign-out by design, matching the
+  // pre-SPA reload behavior).
+  //
+  // What is cleared:
+  //   - sync_progress (root_user-keyed in-flight sync state)
+  //   - last_sync_at, last_sync_stamp, last_sync_event_at, sync_stamps,
+  //     sync_status (per-user sync metadata)
+  //   - sync_actions queue + syncing_action_watchers counter
+  //   - known_missing (per-user 404 cache; user B may see records user A could not)
+  //   - urls_to_store queue + storing_url_watchers counter
+  //   - eventual_store queue + its runLater timer
+  //   - removals, stores, log, errors operation logs
+  //
+  // What is intentionally NOT cleared:
+  //   - online, auto_sync, local_system, app_needs_update, primed (app/device-scoped)
+  //   - url_cache / url_uncache (content-addressed; same URL = same local file
+  //     regardless of user)
+  //   - db_name and any IndexedDB / SQLite content (persistent — out of scope)
+  //   - storing_urls function reference (it's logic, not state)
+  clear_user_state: function() {
+    var inst = getPersistence();
+    // First cancel any in-flight sync so workers see canceled and exit cleanly.
+    if(safeGet(inst, 'sync_progress')) {
+      safeSet(inst, 'sync_progress.canceled', true);
+    }
+    // Per-user sync state.
+    safeSet(inst, 'sync_progress', null);
+    safeSet(inst, 'sync_status', null);
+    safeSet(inst, 'last_sync_at', null);
+    safeSet(inst, 'last_sync_stamp', null);
+    safeSet(inst, 'last_sync_event_at', null);
+    safeSet(inst, 'sync_stamps', {});
+
+    // Per-user queues + paired worker counters. These are direct properties
+    // on the persistence module object (not Ember-observed fields).
+    persistence.sync_actions = [];
+    persistence.syncing_action_watchers = 0;
+    persistence.urls_to_store = [];
+    persistence.storing_url_watchers = 0;
+    persistence.eventual_store = [];
+    if(persistence.eventual_store_timer) {
+      try { runCancel(persistence.eventual_store_timer); } catch(e) { }
+      persistence.eventual_store_timer = null;
+    }
+    if(persistence.refresh_after_eventual_stores) {
+      persistence.refresh_after_eventual_stores.waiting = false;
+    }
+
+    // Per-user permission/visibility cache — must clear because user B may have
+    // access to records that returned 404 for user A.
+    persistence.known_missing = {};
+
+    // Per-user operation logs. These are diagnostic and should not leak across
+    // sessions.
+    persistence.removals = [];
+    persistence.stores = [];
+    persistence.log = [];
+    persistence.errors = [];
+  },
   time_promise: function(promise, msg, ms) {
     var promise = new RSVP.Promise(function(resolve, reject) {
       ms = ms || 30000;
