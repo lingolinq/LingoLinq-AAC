@@ -33,6 +33,10 @@
        .app-navbar__small-only / .app-navbar__large-only logic. --}}
   {{#unless (is-equal this.appState.current_route "landing-alt")}}
   <span class="app-navbar__quick-actions">
+    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      {{t "Beta feedback" key="beta_feedback_nav"}}
+    </LinkTo>
     <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
     </LinkTo>
@@ -56,10 +60,9 @@
     {{/if}}
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      {{t "Beta feedback" key="beta_feedback_nav"}}
-    </LinkTo>
+    {{!-- Beta feedback (full pill, large-only) moved to .app-navbar__quick-actions
+         above so it tabs immediately after the search button instead of after
+         Upgrade. --}}
     <LinkTo @route="support" class="ll-bento-help-btn ll-bento-help-btn--nav ll-bento-help-btn--nav-icon-only ll-bento-help-btn--support app-navbar__large-only" aria-label={{t "Support" key="support"}} title={{t "Support" key="support"}}>
       <div class="ll-bento-help-btn__support-inner">
         <span class="ll-bento-help-btn__icon" aria-hidden="true">
