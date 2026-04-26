@@ -26753,6 +26753,7 @@ header #identity #identity_button.btn::after {
   /* Keyboard focus contrast fix: the default white-on-translucent-dark loses
      contrast against the lighter focus ring + page background. Force a dark
      text + opaque light background so WCAG contrast holds during focus. */
+  // :focus retained: WCAG contrast fix is intentionally paired with :focus-visible to also apply on mouse-click focus, since the white-on-translucent-dark contrast issue affects mouse-focused buttons too (e.g., a sighted mouse user who tabs back into the page or whose click triggered :focus). Removing the :focus half would silently regress contrast on pointer-focused state.
   &:focus-visible,
   &:focus {
     color: $brand-charcoal-dark;
