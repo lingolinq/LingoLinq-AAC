@@ -1,0 +1,64 @@
+// =============================================================================
+// LingoLinq-AAC — Canonical focus-ring mixins
+// =============================================================================
+//
+// Single source of truth for keyboard focus indicators across the app.
+// Use `@include focus-ring;` on any selector that needs a visible focus ring,
+// or `@include focus-ring-inset;` for elements where an outset ring would clip
+// (table cells, narrow inputs, buttons inside `overflow: hidden` parents).
+//
+// Default color is `$la-navy` to match the existing app-wide rule at
+// app.scss:21-26. To use the SPEC-preferred brand teal, pass it explicitly:
+//   @include focus-ring($color: $brand-verdigris);
+//
+// Forced-colors (Windows High Contrast Mode) is handled inside both mixins:
+// the outline / inset shadow switches to the system `Highlight` color and
+// the decorative outer glow is cleared (HCM strips it anyway).
+//
+// WCAG 2.4.7 (Focus Visible, AA) and 2.4.11 (Focus Appearance, AAA).
+// =============================================================================
+
+@use "variables" as *;
+
+// -----------------------------------------------------------------------------
+// focus-ring — outset 2px solid ring + subtle box-shadow glow
+//
+// Use this on standard interactive elements (buttons, links, inputs) that have
+// sufficient room around them for the 2px outline + 4px glow to be visible.
+// -----------------------------------------------------------------------------
+
+@mixin focus-ring($color: $la-navy, $width: 2px, $offset: 2px) {
+  outline: $width solid $color !important;
+  outline-offset: $offset !important;
+  box-shadow: 0 0 0 4px rgba($color, 0.15) !important;
+
+  // Windows High Contrast Mode (and other forced-colors environments):
+  // use the system Highlight color so the ring is visible against any
+  // user-chosen color theme, and drop the decorative box-shadow which
+  // forced-colors strips anyway.
+  @media (forced-colors: active) {
+    outline-color: Highlight !important;
+    box-shadow: none !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// focus-ring-inset — inset box-shadow ring (no outline)
+//
+// Use this on elements where an outset ring would be clipped: table cells
+// inside scroll containers, buttons inside `overflow: hidden` parents,
+// tightly-packed icon strips. The visual is similar (same color, same
+// thickness) but rendered inside the element's box.
+// -----------------------------------------------------------------------------
+
+@mixin focus-ring-inset($color: $la-navy, $width: 2px, $offset: 0) {
+  outline: none !important;
+  box-shadow:
+    inset 0 0 0 $width $color,
+    0 0 0 4px rgba($color, 0.10) !important;
+
+  @media (forced-colors: active) {
+    outline: $width solid Highlight !important;
+    box-shadow: none !important;
+  }
+}
