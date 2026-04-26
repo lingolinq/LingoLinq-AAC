@@ -19,10 +19,19 @@
   focus only (not for every mouse click). Matches WCAG 2.4.7 (Focus Visible).
   Scoped to #within_ember; !important wins over legacy outline resets.
 */
+/* Global keyboard focus indicator: 3px navy box-shadow ring around the focused
+   element. Critically, this rule does NOT change the element's background or
+   text color — those stay as the element designed them. Earlier iterations
+   tried to add a light navy bg tint + dark text on focus, but that broke
+   contrast in two opposite ways:
+     - light-text buttons (Sign In on dark bg) became light-text-on-light-tint
+     - dark-text active states (active pillnav on dark bg) became
+       dark-text-on-dark-bg when the forced color override applied
+   The simplest fix that works for every element type is to leave colors
+   alone and let the ring be the sole focus indicator. WCAG 2.4.7 + 1.4.3. */
 #within_ember *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   outline: none !important;
   box-shadow: 0 0 0 3px $la-navy !important;
-  background-color: rgba($la-navy, 0.06);
   border-radius: 6px;
 }
 /* On dark backgrounds, use a light focus ring for contrast */
@@ -36,6 +45,26 @@ header:has(#speak) *:focus-visible,
 .md-board-detail-board-actions__btn:focus-visible {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
+}
+
+/* Windows High Contrast Mode (forced-colors) compatibility:
+   The global focus rules above use box-shadow for the ring. HCM strips
+   box-shadow entirely AND we explicitly set outline:none, so HCM users would
+   see no focus indicator at all. This block restores a visible focus ring
+   using `outline` (which HCM respects) with the system `Highlight` color
+   (which adapts to the user's chosen contrast theme). WCAG 2.4.7 compliance.
+
+   Selector specificity must MATCH the global rule above (which uses
+   `:not(.md-board-detail-edit-toolbar__search-input)` adding a class to its
+   specificity count). Without the `:not(...)`, this rule loses the cascade
+   battle in HCM and `outline: none !important` from the global rule wins. */
+@media (forced-colors: active) {
+  #within_ember *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+  }
 }
 
 /*
@@ -133,7 +162,7 @@ header.header--unauthenticated #nav_header h1 {
 header.header--unauthenticated #inner_header .nav-header__brand {
   height: 100% !important;
 
-  display: flex !important;
+  display: inline-flex !important;
 
   align-items: center !important;
 
@@ -141,9 +170,14 @@ header.header--unauthenticated #inner_header .nav-header__brand {
 header.header--unauthenticated #inner_header .nav-header__logo-link {
   height: 100% !important;
 
-  display: flex !important;
+  display: inline-flex !important;
 
   align-items: center !important;
+
+  /* Keep the focus ring hugging the logo content rather than stretching to
+     fill the parent flex row. width: max-content prevents flex-row contexts
+     from forcing the link wider than its image content. */
+  width: max-content;
 
 }
 /* Hide page footer in unauthenticated view (login, register, landing-alt, etc.) */
@@ -2566,16 +2600,38 @@ h1 a:hover {
 
   display: block !important;
 
-  margin-left: 36px !important;
-
 }
 .nav-header__logo img {
   height: 22px !important;
 
   width: auto !important;
 
-  margin-left: 36px !important;
+}
+/* Push the navbar's inner content inward by 32px from the left edge so the
+   brand logo doesn't sit flush against the page edge. Applied to the outer
+   navbar inner wrapper rather than to the link itself, so the link's focus
+   ring stays tight around just the logo content.
+   Also: position: relative so .la-topbar-nav can be absolute-centered below. */
+.app-navbar .app-navbar__inner {
+  padding-left: 32px !important;
+  position: relative !important;
+}
 
+/* Center the main nav links (Features / About / Beta feedback) horizontally
+   AND vertically on the navbar, independent of the brand on the left and
+   the right cluster (Try Free + identity dropdown). Absolute positioning
+   relative to .app-navbar__inner (set position: relative just above)
+   guarantees true page-center alignment regardless of brand or
+   right-cluster widths. Mobile media query at line ~33641 hides
+   .la-topbar-nav entirely (replaced by a hamburger menu), so this absolute
+   positioning is only active on desktop where there's room. */
+.app-navbar .la-topbar-nav {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0;
 }
 #nav_header h1 .nav-header__brand .nav-header__app-name,
 #nav_header h1 .nav-header__brand .nav-header__app-name span {
@@ -16704,26 +16760,22 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   min-width: 0 !important;
 
 }
-/* Divider centered (vertical + horizontal) between LingoLinq and Features */
+/* Nav links (Features / About / Beta feedback) on the unauthenticated
+   header. Layout properties (position, centering) live on
+   `.app-navbar .la-topbar-nav` near the top of this file — the nav is
+   absolute-centered horizontally on the page. Only the visual properties
+   that don't conflict with that layout belong here. */
 .header--unauthenticated .la-topbar-nav {
-  position: relative;
-  align-self: stretch;
-  min-height: var(--topbar-height);
-  padding-left: 33px; /* 16px + 1px divider + 16px so divider sits in middle of gap */
-  box-sizing: border-box;
   gap: 16px; /* more condensed than default 32px */
 }
 .header--unauthenticated .la-topbar-nav .la-topbar-link {
   padding: 4px 8px;
   font-size: 14px;
 }
+/* Divider hidden — when the nav is absolute-centered on the page, a
+   "separator between brand and nav" no longer makes sense visually. */
 .header--unauthenticated .la-topbar-nav::before {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 24px;
-  margin: 0;
+  display: none;
 }
 .header--unauthenticated .header-unauth-right {
   margin-left: auto;
@@ -23632,25 +23684,6 @@ header.header--unauthenticated ~ #content .la-topbar {
   50% {
     background-position: 100% 50%;
   }
-}
-
-.la-skip-link {
-  position: fixed;
-  top: -100%;
-  left: 180px;
-  z-index: 10000;
-  padding: 8px 18px;
-  background: $la-navy;
-  color: #fff;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  text-decoration: none;
-  transition: top 0.2s ease;
-}
-.la-skip-link:focus-visible,
-.la-skip-link:focus {
-  top: 22px;
 }
 
 .la-wrapper {
