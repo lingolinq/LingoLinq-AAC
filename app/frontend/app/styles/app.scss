@@ -2,6 +2,7 @@
 @use "sass:color";
 @use "sass:list";
 @use "variables" as *;
+@use "focus" as *;
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
