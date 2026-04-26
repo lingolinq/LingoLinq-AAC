@@ -245,8 +245,20 @@ DS.Model.reopen({
 });
 
 Route.reopen({
+  // Loading and error substates (e.g. `index_loading`) often have no
+  // controller. `controllerFor` throws an assertion in that case. Guarding
+  // both call sites lets those substates activate cleanly — visible only
+  // under SPA route transitions where the substate's lifecycle completes
+  // (under full page reload, the browser tore down Ember before this fired).
+  _safe_controller_for_self: function() {
+    try {
+      return this.controllerFor(this.routeName);
+    } catch (e) {
+      return null;
+    }
+  },
   update_title_if_present: function() {
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
       LingoLinq.controller.updateTitle(title.toString());
@@ -254,7 +266,7 @@ Route.reopen({
   },
   activate: function() {
     this.update_title_if_present();
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     if(controller) {
       controller.addObserver('title', this, function() {
         this.update_title_if_present();

@@ -1817,6 +1817,106 @@ export default Service.extend({
       }
     }, 1000);
   },
+  // Audit performed 2026-04-25 against grep "this.set('" — 75 unique property
+  // names found, ~50 classified user-scoped, ~25 app-scoped. The user-scoped
+  // subset cleared below covers SPEC R5 minimum (sessionUser, currentUser,
+  // speakModeUser, referenced_speak_mode_user, modeling_for_self,
+  // currentBoardState) plus per-user board nav, modeling, login flow, route
+  // memory, and locale-derived overrides. App-scoped properties (browser,
+  // system, version, themeMode, battery*, domain_settings, installed_app,
+  // button_list, geolocation, current_ssid, stashes) are intentionally
+  // untouched. See clear_user_state below.
+  clear_user_state: function() {
+    // Explicit version of what page reload was implicitly doing.
+    // Called from services/session.js#invalidate when the auth_spa_transition
+    // feature flag is enabled. SPEC R5.
+    // SAFE to call when no user is logged in — every set is unconditional.
+
+    // Core per-user identity
+    this.set('sessionUser', null);
+    this.set('currentUser', null);
+    this.set('speakModeUser', null);
+    this.set('referenced_speak_mode_user', null);
+    this.set('referenced_user', null);
+    this.set('modeling_for_self', null);
+
+    // Per-user board / navigation state
+    this.set('currentBoardState', null);
+    this.set('latest_board_id', null);
+    this.set('referenced_board', null);
+    this.set('temporary_root_board_key', null);
+    this.set('meta_home', null);
+    this.set('last_fenced_board', null);
+    this.set('set_as_root_board_state', false);
+
+    // Per-user modeling / speak-mode state
+    this.set('manual_modeling', false);
+    this.set('modeling_started', null);
+    this.set('modeling_ts', null);
+    this.set('last_activation', null);
+    this.set('sync_utterance', null);
+    this.set('depth_actions', null);
+    this.set('speak_mode_started', null);
+    this.set('speak_mode_activities_at', null);
+    this.set('speak_mode_modeling_ideas', null);
+    this.set('last_speak_mode', null);
+    this.set('last_ding_state', null);
+    this.set('battery_after_speak_mode', false);
+
+    // Per-user login flow state (cleared so re-login starts clean)
+    this.set('logging_in', false);
+    this.set('login_followup', false);
+    this.set('login_modal', false);
+    this.set('login_index', false);
+    this.set('login_single_assertion', false);
+    this.set('already_homed', false);
+    this.set('already_scrolled', false);
+    this.set('setup_user', null);
+    this.set('pairing', null);
+
+    // Per-user route memory (next route transition would overwrite anyway,
+    // but clearing here removes stale "previous user" context from any
+    // computed that reads it before the next transition fires)
+    this.set('from_route', null);
+    this.set('from_url', null);
+    this.set('current_route', null);
+    this.set('to_target', null);
+    this.set('index_view', false);
+    this.set('hide_search', false);
+
+    // Per-user locale-derived overrides (locale itself is app-scoped via
+    // stashes, but these computed mirrors are user-scoped)
+    this.set('label_locale', null);
+    this.set('vocalization_locale', null);
+
+    // Per-user cached badge / suggestion / followers / focus state
+    this.set('user_badge', null);
+    this.set('user_badge_hash', null);
+    this.set('suggestion_id', null);
+    this.set('followers', null);
+    this.set('focus_words', null);
+
+    // Per-user transient UI overlays / refresh timers
+    this.set('loading_overlay_message', null);
+    this.set('toast', null);
+    this.set('last_keepalive', null);
+    this.set('refresh_stamp', null);
+    this.set('short_refresh_stamp', null);
+    this.set('medium_refresh_stamp', null);
+    this.set('limited_free_space', null);
+
+    // Do NOT clear: browser, system, version, themeMode, battery,
+    // battery_warns, battery_fulls, geolocation, installed_app,
+    // domain_settings, button_list, stashes, current_ssid, licenseOptions,
+    // device_name, no_linky, embedded, eye_gaze, board_layout_mode,
+    // colored_keys, flipped, full_screen_capable.
+
+    // Close any open modal so it does not overlay the post-signout login
+    // form. SPEC R5 — the page reload used to discard modals implicitly;
+    // on the SPA path we must close them explicitly. modal.reset() is
+    // idempotent.
+    modal.reset();
+  },
   refresh_session_user: function() {
     var _this = this;
     return LingoLinq.store.findRecord('user', 'self').then(function(user) {
