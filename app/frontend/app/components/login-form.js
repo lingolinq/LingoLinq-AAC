@@ -360,20 +360,75 @@ export default Component.extend({
         // using the same code path as cold-boot. This avoids duplicate
         // findRecord('user', 'self') fetches and the username-changed
         // race that transitionTo('user.home', user_name) would introduce.
-        var promise = _this.router.transitionTo('index');
-        if(promise && typeof promise.then === 'function') {
-          promise.then(function() {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
+
+        // Keep the pre-reload overlay visible across the ENTIRE chained
+        // transition (login -> index -> user.home). The transitionTo('index')
+        // promise resolves before the chained replaceWith('user.home', ...)
+        // settles, which would expose a blank moment + the index_loading
+        // template's secondary "Loading..." overlay. Listen for routeDidChange
+        // and dismiss only after the chain has been quiet for 150ms (= final
+        // route settled). 2x rAF after that lets the destination paint.
+        var routerSvc = _this.router;
+        var pending = null;
+        var safetyTimer = null;
+        var listenerCleanedUp = false;
+        // Bump the pre-reload overlay's z-index so it always wins regardless
+        // of DOM order. Higher than the default .ll-loading-overlay (z 10050).
+        try {
+          var preEl = document.getElementById('ll-pre-reload-overlay');
+          if(preEl) { preEl.style.zIndex = '2147483646'; }
+        } catch(e) {}
+        var cleanup = function() {
+          if(listenerCleanedUp) { return; }
+          listenerCleanedUp = true;
+          try { routerSvc.off('routeDidChange', onRouteDidChange); } catch(e) {}
+          if(pending) { try { cancelLater(pending); } catch(e) {} pending = null; }
+          if(safetyTimer) { try { cancelLater(safetyTimer); } catch(e) {} safetyTimer = null; }
+        };
+        var dismiss = function() {
+          cleanup();
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var raf = window.requestAnimationFrame;
+          if(typeof raf === 'function') {
+            raf(function() { raf(function() { removePreReloadOverlay(); }); });
+          } else {
             removePreReloadOverlay();
-          }, function(err) {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
+          }
+        };
+        var onRouteDidChange = function() {
+          if(listenerCleanedUp) { return; }
+          if(pending) { try { cancelLater(pending); } catch(e) {} }
+          pending = runLater(dismiss, 150);
+        };
+        routerSvc.on('routeDidChange', onRouteDidChange);
+        // Safety net: if routeDidChange never fires (edge case), don't trap the
+        // user behind the overlay forever.
+        safetyTimer = runLater(dismiss, 8000);
+
+        var promise = routerSvc.transitionTo('index');
+        if(promise && typeof promise.then === 'function') {
+          promise.then(null, function(err) {
+            if(_this.isDestroyed || _this.isDestroying) { cleanup(); return; }
+            // CRITICAL: TransitionAborted is the EXPECTED rejection when
+            // index's afterModel calls replaceWith('user.home', ...) — Ember
+            // marks the original transition as aborted, but the chain still
+            // succeeds and routeDidChange will fire for user.home. Treating
+            // this as a failure and reloading produces exactly the bug we
+            // are trying to fix (mid-chain page reload → white flash →
+            // index-loading overlay → dashboard). Recognize it and bail out.
+            var errName = err && (err.name || (err.constructor && err.constructor.name));
+            var errMsg = err && err.message;
+            var isTransitionAborted = errName === 'TransitionAborted' ||
+                                       (errMsg && /TransitionAborted|transition.*aborted/i.test(errMsg));
+            if(isTransitionAborted) {
+              _loginDebug('SPA transition: original promise rejected with TransitionAborted (expected — chain replaceWith); routeDidChange will dismiss', { err: errMsg });
+              return;
+            }
             console.warn('[login_success] SPA transition rejected, falling back to reload', err);
+            cleanup();
             reloadDone = false;
             doReload();
           });
-        } else {
-          // No thenable returned — defensive: assume success.
-          removePreReloadOverlay();
         }
       } catch(err) {
         console.warn('[login_success] SPA transition threw, falling back to reload', err);
@@ -440,6 +495,18 @@ export default Component.extend({
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
+        // Set auth-pending flag in localStorage. The boot overlay in index.html
+        // reads this on the reloaded page and shows "Loading your account…"
+        // instead of the generic "Loading…" so the message is consistent
+        // throughout the auth flow regardless of whether the SPA or reload path
+        // takes. localStorage survives page reload (sessionStorage does too,
+        // but localStorage is also visible to other tabs which is fine here).
+        // Cleared by the boot overlay's remove() once dismissed.
+        try {
+          if(typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('lingolinq_auth_pending', 'login');
+          }
+        } catch(e) { /* localStorage unavailable; pre-reload overlay still works */ }
         // Cover the login page with a full-screen overlay while we flush stashes,
         // fetch the session user, and trigger the reload. Without this, the user
         // sees the login form sitting "ready" during the wait, then a flash of

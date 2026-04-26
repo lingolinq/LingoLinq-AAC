@@ -33,6 +33,59 @@
     <link rel="icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
     <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
 
+    <style>
+      /* Boot overlay — painted immediately when HTML parses, before vendor.css /
+         frontend.css load and before Ember boots. Sits above #ember-application-root
+         and is dismissed by JS once the destination route's templates have rendered.
+         Mirrors .ll-loading-overlay so the in-app overlay can take over without a
+         visible seam. */
+      #ll-boot-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        background: rgba(15, 23, 42, 0.55);
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+        transition: opacity 220ms ease-out;
+      }
+      #ll-boot-overlay[data-hiding='true'] { opacity: 0; pointer-events: none; }
+      #ll-boot-overlay__card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 28px 36px;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        min-width: 240px;
+        max-width: calc(100vw - 32px);
+      }
+      #ll-boot-overlay__spinner {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 4px solid rgba(42, 157, 143, 0.18);
+        border-top-color: #2a9d8f;
+        animation: ll-boot-overlay-spin 0.9s linear infinite;
+      }
+      #ll-boot-overlay__message {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 500;
+        color: #1f2937;
+        text-align: center;
+      }
+      @keyframes ll-boot-overlay-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #ll-boot-overlay__spinner { animation-duration: 2.5s; }
+      }
+    </style>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&family=Maitree:wght@400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -53,6 +106,56 @@
     {{content-for "head-footer"}}
   </head>
   <body>
+    <!-- Boot overlay — sibling of the Ember root so it survives Ember mounting and
+         can fade out cleanly once the destination route has rendered. Hidden by
+         window.LingoLinqHideBootOverlay() (called from an instance initializer
+         after the first stable transition) or by a safety timeout. -->
+    <div id="ll-boot-overlay" role="status" aria-live="polite" aria-busy="true">
+      <div id="ll-boot-overlay__card">
+        <div id="ll-boot-overlay__spinner" aria-hidden="true"></div>
+        <p id="ll-boot-overlay__message">Loading&hellip;</p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var SAFETY_MS = 12000;
+        var FADE_MS = 240;
+        var hidden = false;
+        // If we're booting after an auth event (login posted), use the same
+        // "Loading your account…" message the pre-reload overlay shows. Without
+        // this, the user sees the pre-reload card swap to a generic "Loading…"
+        // boot card during the reload — visually inconsistent. localStorage
+        // survives page reload; the flag is set by login-form before reload
+        // and cleared by the ready signal once the destination route renders.
+        try {
+          var pending = window.localStorage && window.localStorage.getItem('lingolinq_auth_pending');
+          if (pending === 'login') {
+            var msgEl = document.getElementById('ll-boot-overlay__message');
+            if (msgEl) { msgEl.textContent = 'Loading your account…'; }
+          }
+        } catch (e) { /* localStorage unavailable; keep default text */ }
+        function remove() {
+          var el = document.getElementById('ll-boot-overlay');
+          if (el && el.parentNode) { el.parentNode.removeChild(el); }
+          // Clear the auth-pending flag once the overlay is gone — the user
+          // has reached the destination and the message has done its job.
+          try {
+            if (window.localStorage) { window.localStorage.removeItem('lingolinq_auth_pending'); }
+          } catch (e) {}
+        }
+        window.LingoLinqHideBootOverlay = function () {
+          if (hidden) { return; }
+          hidden = true;
+          var el = document.getElementById('ll-boot-overlay');
+          if (!el) { return; }
+          el.setAttribute('data-hiding', 'true');
+          setTimeout(remove, FADE_MS);
+        };
+        // Safety net: never trap the user behind the overlay if the ready signal
+        // never fires (offline boot, JS error in initializer, etc.).
+        setTimeout(function () { window.LingoLinqHideBootOverlay(); }, SAFETY_MS);
+      })();
+    </script>
     <!-- Ember mounts here. config has rootElement: '#ember-application-root'. App template renders #within_ember > header + #content (main outlet). Do not add wrappers inside this div or change its id, or app styles (#content, #within_ember, etc.) may not apply. -->
     <div id="ember-application-root">{{content-for "body"}}</div>
 
