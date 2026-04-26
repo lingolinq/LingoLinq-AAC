@@ -66,3 +66,5 @@ MODAL_REFACTOR_NEXT_CHAT_PROMPT.md
 app/frontend/tests/README-modal-test.md
 docs/S3_DOWNLOAD_ACCESS.md
 docs/ASSET_LICENSING.md
+*.docx
+~.docx
