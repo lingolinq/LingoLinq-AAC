@@ -2814,8 +2814,7 @@ h2 {
 }
 
 .subscribe-trial-btn:focus-visible {
-  outline: 2px solid $brand-smart-blue;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-smart-blue);
 }
 
 /* Same button in subscription table bottom row: full styling so it matches top Start button */
@@ -2844,8 +2843,7 @@ h2 {
   text-decoration: none;
 }
 .subscription_table .subscribe-trial-btn:focus-visible {
-  outline: 2px solid $brand-smart-blue;
-  outline-offset: 3px;
+  @include focus-ring($color: $brand-smart-blue, $offset: 3px);
 }
 
 .create-board-actions {
@@ -4256,8 +4254,7 @@ tr.accuracy_non_mastered {
   transform: scale(var(--md-tap, 0.99));
 }
 .md-home-boards-picker__category:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.6);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 
 .md-home-boards-picker__content {
@@ -4314,8 +4311,7 @@ tr.accuracy_non_mastered {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.5);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon img {
   width: 100%;
@@ -4652,8 +4648,7 @@ tr.accuracy_non_mastered {
   transform: scale(var(--md-tap, 0.99));
 }
 .setup-access__radio:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.6);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .setup-access__radio-dot {
   flex-shrink: 0;
@@ -5194,9 +5189,7 @@ tr.accuracy_non_mastered {
     background: rgba(44, 183, 176, 0.10);
     color: rgba(17, 70, 68, 0.95);
     border-color: $la-navy;
-    outline: 2px solid $la-navy;
-    outline-offset: 2px;
-    box-shadow: 0 2px 8px rgba(44, 183, 176, 0.15);
+    @include focus-ring-inset;
   }
   .setup-symbols-pill.is-active {
     background: linear-gradient(135deg, rgba(44, 183, 176, 0.12) 0%, rgba(91, 141, 239, 0.08) 100%);
@@ -5652,8 +5645,7 @@ tr.accuracy_non_mastered {
     text-decoration: none;
   }
   a.btn:focus-visible {
-    outline: 2px solid rgba(44, 183, 176, 0.6);
-    outline-offset: 2px;
+    @include focus-ring;
   }
   .btn:active {
     transform: scale(var(--md-tap, 0.99));
@@ -5905,8 +5897,7 @@ tr.accuracy_non_mastered {
     0 0 32px rgba(44, 183, 176, 0.22);
 }
 .md-card--setup-intro .md-card__getting-started-btn:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.6);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 /* Secondary button (ghost) on intro: small pill, lower-right, de-emphasized */
 .md-card--setup-intro .md-card__getting-started-btn--secondary,
@@ -9243,8 +9234,7 @@ video.button_image {
   }
 }
 #recording_status:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 #recording_status:hover, #recording_status.recording {
   border-color: $brand-danger;
@@ -9696,9 +9686,7 @@ video.button_image {
 /* Stronger keyboard focus ring for all interactive elements in button settings modal.
    Uses outline instead of box-shadow so it doesn't conflict with existing box-shadow on active tabs. */
 .modal-content:has(#button_settings) *:focus-visible {
-  outline: 3px solid #1B365D !important;
-  outline-offset: 2px !important;
-  box-shadow: none !important;
+  @include focus-ring($width: 3px);
   border-radius: 6px;
 }
 
@@ -20748,16 +20736,14 @@ header.header--unauthenticated ~ #content .la-topbar {
   .ll-bento-hero-card__btn:focus-visible,
   .ll-bento-home-board-card__btn:focus-visible,
   .ll-bento-getting-started__btn:focus-visible {
-    outline: 2px solid rgba(75, 121, 255, 0.6);
-    outline-offset: 2px;
+    @include focus-ring;
   }
 
   /* Topbar elements use outline: none by default; only show ring on focus-visible */
   .ll-bento-brand-link:focus-visible,
   .ll-bento-icon-btn:focus-visible,
   .ll-bento-search:focus-visible {
-    outline: 2px solid rgba(75, 121, 255, 0.6);
-    outline-offset: 2px;
+    @include focus-ring;
   }
 }
 
@@ -25301,8 +25287,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-topbar-link:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 
 .la-topbar-alt-link {
@@ -25323,8 +25308,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-topbar-alt-link:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 
 .la-topbar-right {
@@ -25356,8 +25340,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   &:focus-visible {
     background: rgba(255, 255, 255, 0.18);
     border-color: rgba(255, 255, 255, 0.3);
-    outline: 2px solid rgba(255, 255, 255, 0.8);
-    outline-offset: 2px;
+    @include focus-ring;
   }
 }
 
@@ -25453,8 +25436,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-mobile-drawer__close:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 
 .la-mobile-drawer__link {
@@ -25475,8 +25457,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-mobile-drawer__link:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 
 /* Button-style drawer items (Upgrade, Help, Theme): match .la-mobile-drawer__link look with navy */
@@ -25503,8 +25484,7 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 
 .la-mobile-drawer__link--button:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 
 .la-mobile-drawer__header {
@@ -25692,8 +25672,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   }
 
   &:focus-visible {
-    outline: 2px solid $la-teal;
-    outline-offset: 2px;
+    @include focus-ring($color: $la-teal);
   }
 
   &--active {
@@ -26676,8 +26655,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-btn:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 
 // Hero primary button: bright by default, lift + glow on hover, shimmer effect
@@ -27844,8 +27822,7 @@ header #identity #identity_button.btn::after {
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .la-wrapper--support .la-beta-feedback__dropzone:focus-visible {
-  outline: 2px solid rgba($brand-charcoal-blue, 0.45);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .la-wrapper--support .la-beta-feedback__dropzone--active {
   border-color: rgba($brand-charcoal-blue, 0.55);
@@ -28457,8 +28434,7 @@ header #identity #identity_button.btn::after {
     }
 
     &:focus-visible {
-      outline: 2px solid $brand-verdigris;
-      outline-offset: 2px;
+      @include focus-ring($color: $brand-verdigris);
     }
   }
 
@@ -28763,8 +28739,7 @@ header #identity #identity_button.btn::after {
   }
 
   &:focus-visible {
-    outline: 2px solid $la-teal;
-    outline-offset: 2px;
+    @include focus-ring($color: $la-teal);
     border-radius: 4px;
   }
 }
@@ -29883,8 +29858,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-footer-link-btn:focus-visible {
-  outline: 2px solid $brand-verdigris;
-  outline-offset: 2px;
+  @include focus-ring($color: $brand-verdigris);
 }
 
 .la-footer-bottom {
@@ -29943,8 +29917,7 @@ a.la-footer-bottom-a11y-wcag {
   }
 
   &:focus-visible {
-    outline: 2px solid $brand-verdigris;
-    outline-offset: 2px;
+    @include focus-ring($color: $brand-verdigris);
     border-radius: 12px;
   }
 
@@ -30564,8 +30537,7 @@ a.la-footer-bottom-a11y-wcag {
   background: rgba(44, 183, 176, 0.06);
 }
 .md-dashboard-supervisors-modal-wrap .md-person__main--btn:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.45);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .md-dashboard-supervisors-modal-wrap .md-person__link-btn {
   background: none;
@@ -35744,10 +35716,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-user-meta__chip--reset:hover .md-user-meta__label { color: rgba(17, 95, 92, 0.8); }
 .md-user-meta__chip--reset:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.4) !important;
-
-  outline-offset: 2px !important;
-
+  @include focus-ring-inset;
 }
 /* Fallback when no modifier (preserve existing glass look) */
 .md-user-meta__chip:not([class*='--']) {
@@ -39640,10 +39609,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 .md-card--getting-started .md-card__getting-started-btn:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.6) !important;
-
-  outline-offset: 2px !important;
-
+  @include focus-ring;
 }
 .md-card__progress {
   flex: 1 1 auto !important;
@@ -41995,8 +41961,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: var(--md-ink);
 }
 .md-stats-page .md-stats-modeling-toggle__option:focus-visible {
-  outline: 2px solid rgba(44, 183, 176, 0.4);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .md-stats-page .md-stats-modeling-toggle__heading {
   margin-top: 0;
@@ -46560,8 +46525,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     box-shadow: 0 3px 14px rgba($brand-blue-black, 0.12);
   }
   .board_with_action .board_action:focus-visible {
-    outline: 2px solid rgba(44, 183, 176, 0.45);
-    outline-offset: 2px;
+    @include focus-ring-inset;
   }
 
   &__show-more {
@@ -49021,8 +48985,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 1px 4px rgba($la-navy, 0.10);
 }
 .md-board-detail-phrase-builder__chip:focus-visible {
-  outline: 3px solid rgba($brand-stormy-teal, 0.5);
-  outline-offset: 2px;
+  @include focus-ring-inset;
 }
 .md-board-detail-phrase-builder__chip-label {
   font-weight: 700;
@@ -49092,8 +49055,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 2px 6px rgba($la-navy, 0.10);
 }
 .md-board-detail-phrase-builder__sentence-chip--match:focus-visible {
-  outline: 3px solid rgba($brand-stormy-teal, 0.55);
-  outline-offset: 2px;
+  @include focus-ring-inset;
 }
 .md-board-detail-phrase-builder__sentence-chip--missing {
   border-color: rgba($la-navy, 0.12);
@@ -49164,8 +49126,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transform: translateY(0);
 }
 .md-board-detail-phrase-builder__sentence-commit:focus-visible {
-  outline: 3px solid rgba($brand-stormy-teal, 0.55);
-  outline-offset: 3px;
+  @include focus-ring;
 }
 
 .md-board-detail-phrase-builder__btn {
@@ -49196,8 +49157,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 2px 6px rgba($la-navy, 0.12);
 }
 .md-board-detail-phrase-builder__btn:focus-visible {
-  outline: 3px solid rgba($brand-stormy-teal, 0.5);
-  outline-offset: 2px;
+  @include focus-ring;
 }
 .md-board-detail-phrase-builder__btn--folder::after {
   content: '';
