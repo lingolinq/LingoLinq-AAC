@@ -1312,6 +1312,9 @@ h1 a:focus-visible {
 #board_canvas {
   outline: none;
 }
+#board_canvas:focus-visible {
+  @include focus-ring;
+}
 .really_bold {
   font-weight: bold;
   font-size: 18px;
@@ -16911,6 +16914,8 @@ header.header--unauthenticated ~ #content .la-topbar {
   border-radius: 50%;
   object-fit: cover;
   border: none;
+  // SPEC R3: legitimate reset — img is non-focusable; the focusable button parent
+  // (#identity_button) already receives a ring via the global :focus-visible rule.
   outline: none;
 }
 /* Broken avatar fallback: tinted circle with user silhouette */
@@ -18014,6 +18019,10 @@ header.header--unauthenticated ~ #content .la-topbar {
 
     &::placeholder {
       color: rgba(30, 36, 48, 0.50);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
     }
   }
 }
@@ -19477,6 +19486,8 @@ header.header--unauthenticated ~ #content .la-topbar {
   transition: transform 0.25s var(--ll-bento-ease-in-out), box-shadow 0.25s var(--ll-bento-ease-in-out), outline-color 0.2s var(--ll-bento-ease-out), background 0.2s var(--ll-bento-ease-out);
 
   &:hover {
+    // SPEC R3: legitimate reset — :hover state, not a focus reset. Cancels the
+    // animated transparent outline above so it does not flash on hover.
     outline: none;
     text-decoration: none;
     background: linear-gradient(135deg, rgba(235, 183, 175, 0.95) 0%, rgba(255, 231, 215, 0.95) 100%);
@@ -21484,6 +21495,9 @@ header.header--unauthenticated ~ #content .la-topbar {
   outline: none;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
 }
+.ll-searchInput:focus-visible {
+  @include focus-ring;
+}
 .ll-ghost {
   padding: 10px 12px;
   border-radius: 14px;
@@ -22501,7 +22515,10 @@ header.header--unauthenticated ~ #content .la-topbar {
   transition: background $aac-transition-fast;
 
   &::placeholder { color: $brand-slate-gray; }
-  &:focus-visible { background: rgba(white, 0.12); }
+  &:focus-visible {
+    background: rgba(white, 0.12);
+    @include focus-ring;
+  }
 }
 
 .topbar__right {
@@ -23113,7 +23130,10 @@ header.header--unauthenticated ~ #content .la-topbar {
     transition: background 0.15s ease;
 
     &::placeholder { color: rgba(white, 0.45); }
-    &:focus-visible        { background: rgba(white, 0.13); }
+    &:focus-visible {
+      background: rgba(white, 0.13);
+      @include focus-ring;
+    }
   }
 
   .topbar-right {
@@ -31801,6 +31821,9 @@ a.la-footer-bottom-a11y-wcag {
   border-color: var(--md-teal);
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
   outline: none;
+}
+.la-assign-lesson-modal-body .form-control:focus-visible {
+  @include focus-ring($color: $brand-verdigris);
 }
 .la-assign-lesson-modal-body .control-label {
   font-size: 14px;
@@ -41611,6 +41634,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 
+.md-searchOverlay__input:focus-visible {
+  @include focus-ring;
+}
+
 .md-searchOverlay__body {
   margin-top: 14px !important;
 
@@ -45245,6 +45272,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
   min-width: 0;
 }
+.board-picker__filter-input:focus-visible {
+  @include focus-ring;
+}
 .board-picker__filter-input::placeholder {
   color: $brand-cool-steel;
 }
@@ -46291,6 +46321,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     padding: 0 0 4px;
     outline: none;
     min-width: 200px;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
   }
   &__folder-rename-save,
   &__folder-rename-cancel {
@@ -51905,6 +51939,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 0 0 1px rgba($la-navy, 0.15);
 }
 .md-settings-skin:focus { outline: none; }
+.md-settings-skin:focus-visible { @include focus-ring($color: $brand-verdigris); }
 /* --active ring. !important + high specificity so nothing in the cascade
    (including the mix-prefer inset rings or any dark-mode override) can
    possibly knock it off when the active class is present. */
@@ -52060,6 +52095,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: none;
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.2), 0 2px 6px rgba($la-navy, 0.08);
+}
+.md-settings-select:focus-visible {
+  @include focus-ring($color: $brand-verdigris);
 }
 .md-settings-select option {
   padding: 8px;
