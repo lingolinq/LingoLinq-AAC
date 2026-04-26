@@ -9,15 +9,11 @@ export default Route.extend({
     if(controller && controller.updateTitle) {
       controller.updateTitle(i18n.t('landing_alt', "LingoLinq"));
     }
-    this._installSpaceActivation();
-    this._installSkipLinkOverride();
     this._installDrawerArrowNav();
   },
 
   deactivate: function() {
     this._super();
-    this._removeSpaceActivation();
-    this._removeSkipLinkOverride();
     this._removeDrawerArrowNav();
   },
 
@@ -61,61 +57,6 @@ export default Route.extend({
     if (this._drawerArrowHandler) {
       document.removeEventListener('keydown', this._drawerArrowHandler, true);
       this._drawerArrowHandler = null;
-    }
-  },
-
-  _installSkipLinkOverride: function() {
-    var handler = function(e) {
-      var skip = e.target && typeof e.target.closest === 'function'
-        ? e.target.closest('.la-skip-link')
-        : null;
-      if (!skip) { return; }
-      e.preventDefault();
-      e.stopPropagation();
-      var btn = document.querySelector('.la-hero-actions .la-btn--primary');
-      if (!btn) { return; }
-      btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(function() {
-        if (typeof btn.focus === 'function') { btn.focus({ preventScroll: true }); }
-      }, 400);
-    };
-    document.addEventListener('click', handler, true);
-    this._skipLinkHandler = handler;
-  },
-
-  _removeSkipLinkOverride: function() {
-    if (this._skipLinkHandler) {
-      document.removeEventListener('click', this._skipLinkHandler, true);
-      this._skipLinkHandler = null;
-    }
-  },
-
-  _installSpaceActivation: function() {
-    var handler = function(e) {
-      if (e.key !== ' ' && e.code !== 'Space' && e.keyCode !== 32) { return; }
-      var el = document.activeElement || e.target;
-      if (!el || el === document.body) { return; }
-      var tag = el.tagName;
-      if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' ||
-          tag === 'TEXTAREA' || el.isContentEditable) {
-        return;
-      }
-      var actionable = (tag === 'A' && el.hasAttribute('href')) ||
-                       el.getAttribute('role') === 'button' ||
-                       el.getAttribute('role') === 'link' ||
-                       el.hasAttribute('tabindex');
-      if (!actionable) { return; }
-      e.preventDefault();
-      el.click();
-    };
-    document.addEventListener('keydown', handler);
-    this._spaceHandler = handler;
-  },
-
-  _removeSpaceActivation: function() {
-    if (this._spaceHandler) {
-      document.removeEventListener('keydown', this._spaceHandler);
-      this._spaceHandler = null;
     }
   }
 });
