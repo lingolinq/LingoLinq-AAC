@@ -306,20 +306,66 @@ The native wrapper repo for the Cordova/Capacitor mobile build is **not in this 
 
 ## Phase 3: Reconciliation
 
-### Agent disagreements
+### Agent disagreements (resolved conservatively)
 
-_(Pending.)_
+| # | Disagreement | Agent A | Agent B | Conservative resolution |
+|---|--------------|---------|---------|--------------------------|
+| 1 | Item 4 (school-official COPPA bypass) | SHIPPED. No code path treats school-official status as substitute. | TODO. `app/models/user.rb:958` short-circuits the entire COPPA branch when `authored_organization_id` is present, so org-authored users have NO consent record. | **TODO.** Agent B's reading is supported by direct file:line citation. The org-authored signup path is a de facto school-official bypass. |
+| 2 | Item 5 Bugsnag gating | UNCONDITIONAL (no gate) | (Explore agent) GATED via `lib/external_tracker.rb` | **UNCONDITIONAL.** `external_tracker.rb` is the HubSpot gate per its own header. No Bugsnag-specific gating evidence. |
 
 ### Punch list
 
-| # | Item | Status | File:line | Owner / Next step |
-|---|------|--------|-----------|-------------------|
+P0 = ship-blocker for COPPA Final Rule compliance. P1 = required for compliance posture but not the immediate enforcement vector. P2 = privacy-policy copy or documentation only.
 
-_(Pending.)_
+| # | Item | Status | File:line | Severity | Owner / Next step |
+|---|------|--------|-----------|----------|-------------------|
+| 1a | AI predictor bypass of PiiScrubber/AiApiLog | TODO | `lib/ai_word_predictor.rb:74-106` (no scrub, no log, no consent, no token gate) | **P0** | **/gsd-fast** if just adding `PiiScrubber.redact_for_ai` + `AiApiLog.log_ai_call` + auth + flag wraps `predict`. /gsd-new-project if it requires designing a new shared `AiCallContext` helper used by all three call sites. |
+| 1b | Separate VPC for AI/data sharing (distinct from signup COPPA) | TODO | None - feature does not exist; needed at `parental_consents_controller.rb`, new settings key on `User`, all AI call sites | **P0** | **/gsd-new-project** - schema change, new modal UX, new tokenized email flow, hard block at every AI call site, plus existing-user backfill plan. Cross-cutting. |
+| 1c | Hard block on `coppa_parental_consent_pending?` before AI calls in `ai_board_generator` | TODO | `lib/ai_board_generator.rb:29` (only checks feature flag, not consent state) | **P0** | **/gsd-fast** - one-line addition to the gate, but requires deciding what to do with already-running tenants whose flag is enabled. |
+| 2 | Biometric PI tagging for voice + dwell/gaze + retention | TODO | `app/models/button_sound.rb` (no biometric flag), `app/models/log_session.rb` (dwell timing in `data` blob), `lib/data_policy_enforcer.rb` (no scoped biometric deletion) | **P0** | **/gsd-new-project** - schema migration, model concern, retention worker scoping, VPC token check before save. |
+| 3a | Privacy notice 312.10 categories incomplete | PARTIAL | `app/views/shared/_privacy.html.erb:67-70` | P1 | **/gsd-fast** - copy update enumerating AI logs, voice, dwell/gaze, school-tenant data retention windows. |
+| 3b | `AiApiLog.redact_old_ip_addresses!` defined but unscheduled | PARTIAL | `app/models/ai_api_log.rb:108-112` (defined), `lib/tasks/scheduler.rake` (not wired) | P1 | **/gsd-fast** - one rake task entry. Same gap also flagged by `COMPLIANCE_STATUS_2026-04-23.md` action A4. |
+| 3c | No retention enforcement for self-managed users / parents (`data_policy_version == 0`) | PARTIAL | `lib/data_policy_enforcer.rb:2-23` only sweeps `Organization.where("data_policy_version > 0")` | P1 | **/gsd-new-project** - retention defaults for self-managed users have policy implications (need to decide TTL for non-org accounts), then code change. |
+| 4 | Org-authored signup skips COPPA consent branch (`authored_organization_id.present?`) | TODO | `app/models/user.rb:958` (skip), `:992-998` (sets `pending=false`) | **P0** | **/gsd-new-project** - decide whether org-authored signups should still record VPC (likely yes for under-13), what backfill looks like for existing org-authored users, and reconcile with NDPA / school-official 1999 FAQ guidance. |
+| 4b | Privacy policy copy mentions "authorized school official" without AI/profiling carve-out | n/a | `app/views/shared/_privacy.html.erb:52` | P2 | **/gsd-fast** - copy update. |
+| 5a | Bugsnag unconditional load, no under-13 gate | TODO | `Gemfile:69`; no `before_notify` filter; no `config/initializers/bugsnag.rb` scrubbing | **P0** | **/gsd-fast** - initializer with `before_notify` callback + DPA / sub-processor disclosure. |
+| 5b | NewRelic unconditional load, no under-13 gate | TODO | `Gemfile:74`; `newrelic.yml` not configured for child PII scrubbing | **P0** | **/gsd-fast** - `newrelic.yml` attribute filter + DPA / sub-processor disclosure. |
+| 5c | Native mobile wrapper SDK inventory missing | TODO | wrapper repo not located; package.json + Gemfile clean of consumer-analytics SDKs but mobile may carry more | P1 | **Find wrapper repo** (per FOLLOWUPS Section 5), then re-run SDK pass against its config. |
 
 ### Recommended GSD routing per TODO
 
-_(Pending.)_
+| TODO id | Recommended route | Justification |
+|---------|-------------------|---------------|
+| 1a | /gsd-fast | One-shot wrap of `AiWordPredictor.predict` with scrub + log + consent gate |
+| 1b | /gsd-new-project | Multi-phase: schema, parent UX, email flow, gate at every site, backfill |
+| 1c | /gsd-fast | Single gate addition, low LOC |
+| 2 | /gsd-new-project | Migration, model concern, worker, consent UX |
+| 3a | /gsd-fast | Privacy policy copy edit |
+| 3b | /gsd-fast | Single rake task entry |
+| 3c | /gsd-new-project | Policy decision required before code |
+| 4 | /gsd-new-project | Touches signup flow, has backfill implications |
+| 4b | /gsd-fast | Copy edit |
+| 5a | /gsd-fast | Single Bugsnag initializer |
+| 5b | /gsd-fast | Single newrelic.yml change |
+| 5c | Investigation thread, not GSD | Find wrapper repo first (depends on Section 5 of FOLLOWUPS) |
+
+### Estimated time per follow-up
+
+| Item | Effort estimate | Notes |
+|------|----------------|-------|
+| 1a | 1 to 2 hours | Wrap predict in PiiScrubber + AiApiLog + auth + flag |
+| 1b | 4 to 8 weeks (multi-phase) | Schema, modal, email, gate at all sites, backfill |
+| 1c | 30 minutes | Add `coppa_parental_consent_pending?` short-circuit |
+| 2 | 4 to 6 weeks | Migration + retention worker + UX |
+| 3a | 30 minutes | Copy edit |
+| 3b | 30 minutes | One rake task |
+| 3c | 2 to 4 weeks | Policy decision then code |
+| 4 | 3 to 5 weeks | Reconcile NDPA, school-official guidance, backfill |
+| 4b | 15 minutes | Copy edit |
+| 5a | 1 hour | Bugsnag initializer + DPA update |
+| 5b | 1 hour | newrelic.yml + DPA update |
+| 5c | 1 to 2 hours investigation | Find wrapper repo, then separate SDK pass |
+
 
 ---
 
