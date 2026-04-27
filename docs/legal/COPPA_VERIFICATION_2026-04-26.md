@@ -264,7 +264,43 @@ if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored
 
 ## Phase 2C: SDK inventory (Explore agent)
 
-_(Pending - to be filled after agent reports.)_
+**Note on agent disagreement:** Explore classified Bugsnag as GATED via `lib/external_tracker.rb`. Agent A (compliance-auditor) classified Bugsnag as UNCONDITIONAL. `external_tracker.rb` is the HubSpot gate (per its own header comment), not a Bugsnag gate. Per audit policy "default to the more conservative reading", Bugsnag is treated as UNCONDITIONAL for the punch list.
+
+### P0 Findings (UNCONDITIONAL backend SDKs)
+
+- **`newrelic_rpm`** (`Gemfile:74`): Loads at Rails boot unconditionally. Transmits perf/error metrics including request paths, transaction names, and (by default) custom attributes. No age-gating detected.
+- **`bugsnag`** (`Gemfile:69`): Loads at Rails boot unconditionally. Transmits user_id, error context, IP. **Conservative reading** (Explore's "GATED via external_tracker.rb" claim is unsupported - that file gates HubSpot only).
+
+### Inventory
+
+| SDK | Where | Status | Gate | Notes |
+|---|---|---|---|---|
+| bugsnag | `Gemfile:69` | UNCONDITIONAL (P0) | no gate | Conservative reconciliation. Explore claimed GATED via external_tracker.rb but that file targets HubSpot. |
+| newrelic_rpm | `Gemfile:74` | UNCONDITIONAL (P0) | no gate | APM agent loads at Rails boot; transmits perf data + IP |
+| stripe | `Gemfile:70` | GATED (effectively) | Account/payment context | Payments only; assumed adult-account context |
+| anthropic | `Gemfile` | INTERNAL | n/a | Used by `lib/ai_board_generator.rb` (PiiScrubber-gated) AND `lib/ai_word_predictor.rb` (NOT gated, see Item 1 P0) |
+| ruby-openai | `Gemfile` | INTERNAL | n/a | Same dual-use pattern as anthropic |
+| HubSpot tracker | not a gem; HTTP via `lib/external_tracker.rb` | GATED | `lib/external_tracker.rb:2-3` | Supporter-only enforcement confirmed |
+| Google Analytics | `app/views/layouts/application.html.erb:110-138` | GATED | `localStorage['enable_cookies'] == 'true'` (line 135); `anonymizeIp` set | Verified by Agent B |
+| sentry, mixpanel, amplitude, firebase, segment, branch, onesignal, intercom, hotjar, fullstory, facebook pixel, twitter widget, pusher.com, rollbar, honeybadger, scout_apm | not present | REMOVED | n/a | grep across `Gemfile` and `app/frontend/package.json` returned zero matches |
+
+### Native wrapper repo
+
+The native wrapper repo for the Cordova/Capacitor mobile build is **not in this repo and not findable via the Explore pass** in `~/lingolinq-aac-mobile/` or via casual `gh repo list lingolinq` inspection. The Cordova plugin set could carry SDKs not visible here. **Item 5 SDK inventory is partial pending mobile wrapper inspection** (this is a known scoping gap also flagged by FOLLOWUPS-2026-04-26.md Section 5).
+
+### Counts
+
+- GATED: 4 (HubSpot, Google Analytics, Stripe, AI internal-only paths via `ai_board_generator`)
+- UNCONDITIONAL P0: 2 (bugsnag, newrelic_rpm)
+- INTERNAL but bypass-via-other-call-site: 2 (anthropic + ruby-openai used by `ai_word_predictor` without scrubbing - Item 1 P0)
+- Verified absent: 16 high-risk consumer SDKs
+- Native wrapper SDKs: NOT YET INVENTORIED (mobile wrapper repo not located)
+
+### Recommendation per UNCONDITIONAL finding
+
+- **bugsnag**: Add `Bugsnag.configure { |c| c.before_notify { |event| event.user = nil if user_under_13?(event) } }` initializer, or treat Bugsnag as a sub-processor in the privacy notice and obtain VPC for sub-processor disclosure.
+- **newrelic_rpm**: Configure `newrelic.yml` to scrub user_id and IP for child users, OR disable transaction attributes entirely for routes serving under-13 traffic.
+
 
 ---
 
