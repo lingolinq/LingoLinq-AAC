@@ -79,7 +79,82 @@ Phase 2C (Explore) will inventory the full `app/frontend/package.json` for any c
 
 ## Phase 2A: compliance-auditor findings
 
-_(Pending - to be filled after agent reports.)_
+### P0: AI bypass of PiiScrubber - CONFIRMED
+
+`lib/ai_word_predictor.rb` and `lib/ai_prediction_generator.rb` make live calls to Anthropic and OpenAI clients with **zero references** to `PiiScrubber`, `redact_for_ai`, or `AiApiLog`.
+
+- `lib/ai_word_predictor.rb:76` `client = Anthropic::Client.new(api_key: config[:api_key])`
+- `lib/ai_word_predictor.rb:89` `client = OpenAI::Client.new(...)`
+- `lib/ai_prediction_generator.rb:236, 247` same pattern, plus Gemini path
+- grep for `PiiScrubber|AiApiLog|redact_for_ai` returned ZERO matches in either file
+
+These are kid-facing prediction features. Under the Final Rule (FTC, Akin, FPF), unredacted child input flowing to OpenAI/Anthropic/Gemini without VPC for AI sharing is a per-violation event at up to $53,088 each. **Treat as ship blocker.**
+
+### Item 1 - Separate VPC for AI/data sharing - **TODO**
+
+**Evidence:**
+- `lib/ai_board_generator.rb:29` gate is only `FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)` (a feature flag, not a VPC record).
+- `lib/feature_flags.rb:80-92` `ai_enabled_for?` checks org `disable_ai_features` setting only. No second consent record.
+- `app/controllers/parental_consents_controller.rb` only handles ONE token: `coppa_parental_consent_pending?`. No `ai_consent`, `ai_data_sharing_consent`, or biometric consent paths exist (grep returned zero).
+- `lib/ai_word_predictor.rb` and `lib/ai_prediction_generator.rb` have NO consent or feature-flag check before LLM calls.
+
+**Rationale:** No second, separately-presented VPC exists for AI data sharing. The single signup-time consent bundled with general use violates the FTC's "AI inference and training are never integral" position (Akin/FPF/PIPC commentary).
+
+**Gap:** Add `ai_data_sharing_consent` token + parent-facing modal listing OpenAI/Anthropic/Gemini as recipients; hard-fail every AI call site (board generator, word predictor, prediction generator, future sites) when consent is absent OR `coppa_parental_consent_pending?` is true.
+
+### Item 2 - Biometric PI tagging (voiceprints, dwell/gaze) - **TODO**
+
+**Evidence:**
+- `app/models/button_sound.rb` stores user audio (URL on S3) with no biometric flag, no retention TTL, no tagged-as-biometric column. `db/schema.rb` confirms no `biometric_*` fields anywhere.
+- `app/models/user.rb:1476-1480` and `:292-293` recognize `dwell_type == 'eyegaze'` for runtime behavior, but no model column tags gaze/dwell timing as biometric, and `LogSession` stores button event timestamps in the `data` blob (`log_session.rb:526`) without biometric classification.
+- `lib/data_policy_enforcer.rb` enforces org `retention_months` policies but does not scope `ButtonSound` deletion or dwell-event redaction.
+- No VPC record check anywhere before voice capture (`button_sound.rb:228` `ButtonSound.new(user: user, settings: {})`).
+
+**Rationale:** Hintze/Finnegan analysis is clear that voice samples and dwell/gaze timing in an identification-capable AAC context ARE biometric PI under the Final Rule. The data model has no column, no consent gate, and no enforced TTL for these.
+
+**Gap:** Add `biometric: true` flag to `ButtonSound` and dwell/gaze fields, require a separate biometric VPC token before save, and extend `DataPolicyEnforcer` to delete biometric records on the stated TTL.
+
+### Item 3 - Written retention policy embedded + scheduled deletion - **PARTIAL**
+
+**Evidence:**
+- `app/views/shared/_privacy.html.erb:67-70` embeds a retention statement: "active accounts indefinitely. Accounts inactive for 12 months are flagged for automatic deletion." This is in-policy text, satisfying Fenwick's "do not link out" point at a coarse level.
+- `lib/tasks/scheduler.rake:134-136` schedules `DataPolicyEnforcer.enforce_retention!` daily.
+- The embedded text does NOT cover: derived AI logs (`AiApiLog`), voice clips (`ButtonSound`), school-tenant deletion on contract end, or biometric data. The 312.10 categories required by the Final Rule are incomplete.
+- `lib/data_policy_enforcer.rb` enforces org-policy retention months but does not delete `AiApiLog`, `ButtonSound`, or downstream LLM-vendor data.
+
+**Rationale:** A retention statement is in the policy and a scheduled job runs, but the scope is too narrow to satisfy 312.10's category-by-category disclosure.
+
+**Gap:** Update `_privacy.html.erb` to enumerate retention windows for: AI logs, voice/audio recordings, dwell/gaze data, school-tenant data on contract end. Wire `DataPolicyEnforcer` to actually delete those record types on the stated cadence.
+
+### Item 4 - FERPA school-official as COPPA substitute - **SHIPPED (compliance-auditor read)**
+
+> Note: Agent B (rails-ember-dev) DISAGREES with this read. See Phase 2B section. Conservative reconciliation in Phase 3.
+
+**Evidence:**
+- Grep across `app/` and `lib/` for `school_official|FERPA.*consent|in_loco|district.*consent|coppa.*school` returned zero code paths treating school-official status as a COPPA bypass.
+- `app/controllers/api/users_controller.rb:262, 284, 661, 672, 735` and `session_controller.rb:107, 524-525` consistently enforce `coppa_parental_consent_pending?` regardless of org/district context.
+- One soft mention exists in policy copy at `app/views/shared/_privacy.html.erb:52` ("parent, guardian, or authorized school official") - this is doc only, not code.
+
+**Gap:** Tighten the privacy policy copy at line 52 to clarify that school-official consent applies only when the service is used solely for school benefit with no AI/profiling/ads.
+
+### Item 5 - SDK audit (Apitor settlement vector) - **PARTIAL**
+
+**Evidence:**
+- `Gemfile`: `bugsnag` (6.28.0) and `newrelic_rpm` (9.23.0) ship in production. Bugsnag transmits user_id, error context, IP. NewRelic transmits request paths and timing. Neither is gated by under-13 detection.
+- `lib/external_tracker.rb` HubSpot path is correctly gated to supporters only (confirmed in baseline).
+- `app/frontend/package.json`: grep for sentry/mixpanel/amplitude/google-analytics/firebase/hotjar/fullstory/onesignal/appsflyer returned no matches. Frontend appears clean of consumer-analytics SDKs.
+
+**Rationale:** Backend ships Bugsnag and NewRelic that can transmit child-associated identifiers/IPs to third parties without VPC or under-13 gating. This is the exact Apitor pattern.
+
+**Gap:** Either (a) configure Bugsnag/NewRelic to scrub user_id and IP for users under 13, (b) gate them off entirely for child users, or (c) document in DPA/privacy notice as service providers and obtain VPC. A `before_notify` callback on Bugsnag and a NewRelic attribute filter are the minimum fixes.
+
+### Compliance-auditor totals
+
+- SHIPPED: 1 (item 4 - **disputed by Agent B**)
+- PARTIAL: 2 (items 3, 5)
+- TODO: 2 (items 1, 2)
+- P0 ship blocker: AI predictor bypass of PiiScrubber/AiApiLog
+
 
 ---
 
