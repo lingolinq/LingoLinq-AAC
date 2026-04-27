@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
+import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
@@ -155,6 +156,43 @@ export default Component.extend({
     var str = this.get('model.grid.labels') || "";
     var lines = str.split(/\n|,\s*/);
     return lines.filter(function(l) { return l && !l.match(/^\s+$/); }).length;
+  }),
+
+  parsed_labels: computed('model.grid.labels', function() {
+    var str = this.get('model.grid.labels') || '';
+    if(typeof str !== 'string') { str = '' + str; }
+    return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+  }),
+
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', function() {
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    rows = Math.max(0, Math.min(20, rows));
+    cols = Math.max(0, Math.min(20, cols));
+    var order = this.get('model.grid.labels_order') || 'rows';
+    var labels = this.get('parsed_labels') || [];
+    var grid = [];
+    for(var r = 0; r < rows; r++) {
+      var row = [];
+      for(var c = 0; c < cols; c++) {
+        var idx = (order === 'columns') ? (c * rows + r) : (r * cols + c);
+        var label = labels[idx] || '';
+        row.push({
+          row: r,
+          col: c,
+          label: label,
+          empty: !label
+        });
+      }
+      grid.push(row);
+    }
+    return grid;
+  }),
+
+  preview_style: computed('model.grid.columns', function() {
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 1;
+    cols = Math.max(1, Math.min(20, cols));
+    return htmlSafe('--preview-cols: ' + cols);
   }),
 
   too_many_labels: computed('label_count', 'model.grid.rows', 'model.grid.columns', function() {

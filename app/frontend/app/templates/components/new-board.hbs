@@ -66,41 +66,40 @@
           </div>
         </div>
       {{/if}}
-      <div class="form-group">
-        <label for="new_board_rows" class="col-sm-2 control-label">{{t "Rows" key="rows"}}</label>
-        <div class="col-sm-3">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.rows"}}>-</button>
-            </span>
-            <Input @type="number" @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.rows"}}>+</button>
-            </span>
+      <div class="form-group new-board-field--dimensions">
+        <label class="col-sm-2 control-label">{{t "Size" key="board_size"}}</label>
+        <div class="col-sm-10">
+          <div class="new-board-dimensions">
+            <div class="new-board-dimensions__field">
+              <label for="new_board_rows" class="new-board-dimensions__sublabel">{{t "Rows" key="rows"}}</label>
+              <div class="input-group">
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.rows"}} aria-label={{t "Decrease rows" key="decrease_rows"}}>-</button>
+                </span>
+                <Input @type="number" @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.rows"}} aria-label={{t "Increase rows" key="increase_rows"}}>+</button>
+                </span>
+              </div>
+            </div>
+            <div class="new-board-dimensions__field">
+              <label for="new_board_columns" class="new-board-dimensions__sublabel">{{t "Columns" key="columns"}}</label>
+              <div class="input-group">
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.columns"}} aria-label={{t "Decrease columns" key="decrease_columns"}}>-</button>
+                </span>
+                <Input @type="number" @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.columns"}} aria-label={{t "Increase columns" key="increase_columns"}}>+</button>
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="new_board_columns" class="col-sm-2 control-label">{{t "Columns" key="columns"}}</label>
-        <div class="col-sm-3" style="height: 100px;">
-          <div class="input-group">
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.columns"}}>-</button>
-            </span>
-            <Input @type="number" @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.columns"}}>+</button>
-            </span>
-          </div>
-        </div>
-        <div class="col-sm-7" id="grid_selection">
-          <div class="row">
-            {{#each this.showGrid as |row|}}
+          <div class="new-board-preview" style={{this.preview_style}} role="grid" aria-label={{t "Board preview" key="board_preview"}}>
+            {{#each this.preview_grid as |row|}}
               {{#each row as |cell|}}
-                <div style="width: 8.33%; float: left;" class={{cell.preview_class}} data-row={{cell.row}} data-col={{cell.column}}>
-                  <div title="{{cell.row}} x {{cell.column}}">
-                    &nbsp;
-                  </div>
+                <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}}" role="gridcell">
+                  <span class="new-board-preview__label">{{cell.label}}</span>
                 </div>
               {{/each}}
             {{/each}}

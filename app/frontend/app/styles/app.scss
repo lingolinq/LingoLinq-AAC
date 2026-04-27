@@ -40702,6 +40702,68 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: rgba(31, 41, 51, 0.5);
 }
 
+/* Size & Preview block — rows/cols inputs side-by-side at top of a live grid preview. */
+.new-board-dimensions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.new-board-dimensions__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+.new-board-dimensions__sublabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--md-ink, #1f2933);
+  margin: 0;
+}
+.new-board-dimensions__field .input-group {
+  width: 160px;
+}
+.new-board-preview {
+  display: grid;
+  grid-template-columns: repeat(var(--preview-cols, 4), minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--md-line, #d4d8df);
+  background: rgba(255, 255, 255, 0.5);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.new-board-preview__cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid var(--md-line, #d4d8df);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  word-break: break-word;
+  min-width: 0;
+}
+.new-board-preview__cell--empty {
+  background: rgba(0, 0, 0, 0.02);
+  border-style: dashed;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.new-board-preview__label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+}
+
 .new-board--modern #grid_selection .cell {
   border-radius: 6px !important;
 
