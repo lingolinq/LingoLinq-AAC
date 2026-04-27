@@ -92,4 +92,20 @@ module FeatureFlags
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
   end
+
+  # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
+  # Set COPPA_AI_HARD_GATE=false in env for emergency rollback only.
+  def self.coppa_ai_hard_gate_enabled?
+    ENV['COPPA_AI_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # Returns true when AI calls must be blocked for this user because COPPA
+  # parental consent is still pending. Used by every AI call site as a
+  # short-circuit before PiiScrubber and any provider request.
+  def self.coppa_blocks_ai_for?(user)
+    return false unless coppa_ai_hard_gate_enabled?
+    return false unless user
+    return false unless user.respond_to?(:coppa_parental_consent_pending?)
+    user.coppa_parental_consent_pending?
+  end
 end
