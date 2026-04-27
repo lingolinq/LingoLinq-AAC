@@ -371,9 +371,59 @@ P0 = ship-blocker for COPPA Final Rule compliance. P1 = required for compliance 
 
 ## Phase 4: Final summary
 
-- SHIPPED count: TBD
-- PARTIAL count: TBD
-- TODO count: TBD
-- Item #1 VPC blocker assessment for AI board generator: TBD
-- Estimated time per TODO follow-up: TBD
-- Branch pushed: TBD
+### Tallies (after conservative reconciliation)
+
+- **SHIPPED:** 0 of 5 verbatim items (Item 4 reclassified TODO based on Agent B finding)
+- **PARTIAL:** 1 of 5 verbatim items (Item 3 - retention; some pieces enforced, scope incomplete)
+- **TODO:** 4 of 5 verbatim items (Items 1, 2, 4, 5)
+- **Punch list rows:** 12 (some items split into sub-rows for routing)
+- **P0 ship-blockers:** 6 sub-items (1a, 1b, 1c, 2, 4, 5a, 5b)
+- **P1 important:** 3 sub-items (3a, 3b, 3c, 5c)
+- **P2 doc/copy:** 1 sub-item (4b)
+
+### Item #1 VPC blocker assessment
+
+**Yes - Item #1 (separate VPC for AI/data sharing) blocks the AI board generator from running compliantly.** Specifically:
+
+1. The board generator at `lib/ai_board_generator.rb` already routes through PiiScrubber + AiApiLog. That part is good.
+2. But the only consent gate is the org-level `disable_ai_features` setting (a feature flag), not a VPC record specific to AI data sharing.
+3. The FTC's Akin/FPF/PIPC commentary on the Final Rule is explicit: AI inference and AI training are NEVER "integral" to a service, so they cannot ride on the bundled signup-time COPPA consent.
+4. Additionally, child users with `coppa_parental_consent_pending?` true can still trigger the AI call if their org has not opted out (no consent-pending short-circuit on the gate).
+
+This means Section 5 of FOLLOWUPS-2026-04-26.md (AI board generator revenue audit) cannot proceed to "drive more usage" recommendations until Item 1b (separate AI VPC) is at least scoped, and Item 1c (consent-pending hard-block) is shipped. Sequencing: Section 1 follow-up #1c must ship before Section 4 can recommend usage growth.
+
+### P0 Ship-blocker summary
+
+| ID | Severity | Description | Why P0 |
+|----|----------|-------------|--------|
+| 1a | P0 | `AiWordPredictor.predict` sends user sentences verbatim to Anthropic and Gemini with no PiiScrubber, no AiApiLog, no auth, no flag, no consent | Per-keystroke-class call path; up to $53,088 per violation under FTC Final Rule |
+| 1b | P0 | No "AI/data sharing" VPC record distinct from signup COPPA | FTC position: AI is never "integral"; bundled consent will not survive enforcement |
+| 1c | P0 | `ai_board_generator` does not short-circuit on `coppa_parental_consent_pending?` | Children awaiting parental consent can still trigger AI calls in opted-in orgs |
+| 2 | P0 | No biometric tagging on voice recordings or dwell/gaze timing; no scoped retention | AAC voice + gaze are dead-center biometric PI per Hintze; Final Rule covers these |
+| 4 | P0 | `user.rb:958` skips entire COPPA consent branch for org-authored signups | De facto FERPA-school-official-as-COPPA-substitute pattern in code; FTC declined to codify this |
+| 5a | P0 | Bugsnag loads unconditionally without scrubbing under-13 user_id/IP | Apitor settlement vector |
+| 5b | P0 | NewRelic loads unconditionally without scrubbing under-13 user_id/IP | Apitor settlement vector |
+
+### Compliance posture against the 2026-04-22 deadline
+
+The deadline has passed (today is 2026-04-27, +5 days). Item 1c, 1a, 5a, 5b can ship within a week. Items 1b, 2, 4 are multi-week projects. **The company is currently non-compliant on the running-code dimension; documentation in `docs/legal/` is in better shape than the running code.** A risk-mitigation note acknowledging this gap should go to legal counsel.
+
+### Branch information
+
+- **Branch:** `compliance/coppa-final-rule-audit-2026-04-27`
+- **Branched from:** `staging` at `d3c75a5a1`
+- **Safety tag:** `local-staging-pre-coppa-recovery-2026-04-27`
+- **Phase commits:** Phase 1 baseline, Phase 2A compliance-auditor, Phase 2B rails-ember-dev, Phase 2C Explore SDK, Phase 3 reconciliation, Phase 4 summary
+- **Push status:** _(updated below after `git push`.)_
+
+### Estimated time for follow-up sessions
+
+See punch list above. Aggregate:
+- **Quick wins** (≤2 hr each, /gsd-fast): 1a, 1c, 3a, 3b, 4b, 5a, 5b, 5c-investigation. Total roughly 1 to 1.5 working days.
+- **Multi-phase** (/gsd-new-project): 1b, 2, 3c, 4. Total roughly 12 to 22 weeks of single-engineer effort, or run 1b and 4 in parallel since they share consent UX work.
+
+### Items where agents disagreed
+
+- Item 4: SHIPPED vs TODO - **resolved TODO** (Agent B's `user.rb:958` citation is concrete code, Agent A's negative grep missed it).
+- Item 5 Bugsnag: GATED vs UNCONDITIONAL - **resolved UNCONDITIONAL** (Explore's claimed gate at `external_tracker.rb` does not actually cover Bugsnag, that file is the HubSpot gate per its header).
+
