@@ -160,7 +160,105 @@ These are kid-facing prediction features. Under the Final Rule (FTC, Akin, FPF),
 
 ## Phase 2B: rails-ember-dev findings
 
-_(Pending - to be filled after agent reports.)_
+### P0 PRE-FLAG VERIFICATION
+
+**`lib/ai_word_predictor.rb`** (used live by every sentence-builder request):
+
+(a) **External AI calls? YES.** Anthropic Claude Haiku at `lib/ai_word_predictor.rb:74-85` (`Anthropic::Client#messages.create`) and Gemini via OpenAI-compat endpoint at `lib/ai_word_predictor.rb:87-106`.
+(b) **PiiScrubber? NO.** The user's in-progress sentence (`sentence:` arg) is sent verbatim to the model at line 81 (`messages: [{ role: 'user', content: sentence }]`) and to Gemini at line 98. Zero redaction.
+(c) **AiApiLog? NO.** No `AiApiLog.log_ai_call` invocation anywhere in the file. The only logging is `Rails.logger.error` at line 48.
+(d) **Consent / feature-flag gate? NO.** The module is only gated by env-var presence (`ENV['ANTHROPIC_API_KEY']` / `ENV['GEMINI_API_KEY']` at lines 55-71). Neither `FeatureFlags.ai_feature_enabled_for?` nor `coppa_parental_consent_pending?` is checked. Caller `app/controllers/api/words_controller.rb:51-62` (action `predict`) is in the controller's `:except => [:reachable_core, :lang, :predict]` list at line 2, so it does not even require an API token.
+(e) **User data flowing in:** the literal user-typed sentence fragment, plus locale. Cached in-process for 30 min in `CACHE` constant at line 9 (memory-resident PII).
+
+**`lib/ai_prediction_generator.rb`** (offline batch tool):
+
+(a) **External AI calls? YES** at lines 234-260 (Anthropic + Gemini).
+(b) **PiiScrubber? NO.** Prompt is built from `lib/core_lists.json` and the hard-coded word arrays at lines 141-172. No user data flows in by design.
+(c) **AiApiLog? NO.** Only `puts` to STDOUT.
+(d) **Consent gate? NO**, but irrelevant: this is an offline rake-style generator (writes `public/language/ngrams.arpa.trimmed.10.json`). No user-supplied content.
+(e) **User data:** none - generic vocabulary lists only.
+
+**Net P0 finding:** `ai_word_predictor` is a live, every-keystroke-class call path that bypasses PII scrubbing, audit logging, the org-level AI opt-out (`FeatureFlags.ai_enabled_for?`), and any COPPA consent check. `ai_prediction_generator` is benign (no live user input). The compliance posture present in `ai_board_generator` is not replicated.
+
+### Item 1 - VPC for AI / Data Sharing
+
+**Code path (Board generation only):**
+- Route: `POST /api/v1/boards/generate_labels`
+- Controller: `app/controllers/api/boards_controller.rb:394-440` - gates only on `FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)` at line 395.
+- Service: `lib/ai_board_generator.rb#generate_words` - line 29 enforces `FeatureFlags.ai_feature_enabled_for?` (combines feature flag + org-level `disable_ai_features` opt-out per `lib/feature_flags.rb:80-94`); PII scrubbing at line 46 (`PiiScrubber.redact_for_ai`); audit log at lines 108-126 via `AiApiLog.log_ai_call` (`app/models/ai_api_log.rb:41-65`).
+- Word-prediction route: `app/controllers/api/words_controller.rb:51-62` calls `AiWordPredictor.predict` with NO flag, NO scrub, NO log, NO consent.
+
+**Hard block vs soft warning before AI call:**
+- `ai_board_generator`: **soft gate** - feature-flag and org opt-out short-circuit. There is NO check on `User#coppa_parental_consent_pending?` or any AI-specific VPC. A child with COPPA-consent-pending whose org has not opted out can still trigger the call.
+- `ai_word_predictor`: **NO block at all.** Endpoint excluded from `require_api_token` (line 2). Anonymous traffic can hit it.
+- `ai_prediction_generator`: not user-callable.
+
+**No "AI sharing" consent flag exists.** `User#coppa_parental_consent_pending?` (`app/models/user.rb:370-375`) records the general COPPA signup consent only (settings hash key `coppa.parent_consent_granted_at`). No second-tier "AI/data sharing" consent column or settings key is referenced anywhere in `lib/`, `app/models/`, or `app/controllers/`.
+
+### Item 2 - Biometric PI Tagging (Voiceprints, Dwell, Eye-Tracking)
+
+**Voice data:**
+- Stored as URI strings (third-party TTS voice IDs, not voice samples) in `User#settings['preferences']['devices'][key]['voice']['voice_uris']` (`app/models/user.rb:489, 1452-1474`); also recorded per-session at `app/models/log_session.rb:397`.
+- `LogSession` ingestion in `lib/stats.rb:582, 754` aggregates `voice_uri` into device prefs.
+
+**Dwell / gaze data:**
+- Server: `User#access_methods` reads `device_prefs['dwell']` and `dwell_type` in {`arrow_dwell`, `mouse_dwell`, `eyegaze`, `head`} at `app/models/user.rb:286-298, 1473-1480`.
+- Client: `app/frontend/app/utils/raw_events.js` (lines 113-341 handle `gazelinger`, `dwell_elem`, `dwell_type == 'head'`); `app/frontend/app/utils/scanner.js` for scanning timing.
+- Per-button timing recorded into `LogSession` events via `app_state.activate_button` and `LogSession.process_params`.
+
+**Biometric tagging? NONE.**
+- No `biometric` flag in any model, no `secure_serialize` field for voiceprints, no separate retention rule.
+- Retention falls under generic `LogSession` retention (see Item 3) - not enforced for voice/dwell specifically.
+
+### Item 3 - Retention Policy Enforcement
+
+**Code-enforced:**
+- `DataPolicyEnforcer.enforce_retention!` (`lib/data_policy_enforcer.rb:2-23`) deletes only `LogSession` rows where `log_type='session'` for `Organization.where("data_policy_version > 0").sponsored_users`, older than `org.effective_data_policy['retention_months']`. Calls `Flusher.flush_record` (`lib/flusher.rb:30-37`) which destroys + purges PaperTrail.
+- Wired into `lib/tasks/scheduler.rake:134-138` (`enforce_data_retention_policies`, daily at 6 AM UTC).
+- `Flusher.flush_deleted_users` (`lib/flusher.rb:143-149`) processes `User.schedule_deletion_at` queue. `flush_user_completely` (`flusher.rb:225-233`) cascades through LogSession, ClusterLocation, WeeklyStatsSummary, Boards, Devices, Utterances, NfcTag, UserIntegration, UserGoal, UserBadge, Webhook, UserBoardConnection, UserLink, License. Wired at `scheduler.rake:120-124`.
+- `SupervisorConsentExpirationWorker.perform` (`scheduler.rake:140-143`) runs daily.
+
+**Policy-only, NO scheduled enforcement:**
+- `AiApiLog.redact_old_ip_addresses!` at `app/models/ai_api_log.rb:108-112` is defined but **NOT referenced** from any rake task, scheduler, worker, or initializer (verified by grep). It will never run on its own. **Confirms COMPLIANCE_STATUS_2026-04-23.md A4 gap.**
+- No category-specific deletion for: voice samples, dwell/gaze events, eye-tracking timing, biometric data of any kind. They live inside `LogSession.data` and are deleted only when the entire session is deleted by org data-policy retention or full user deletion.
+- No retention enforcement for users in orgs with `data_policy_version == 0` or no managing_organization. **Self-managed users / parents have no automatic deletion.**
+
+### Item 4 - FERPA School-Official-as-COPPA-Substitute Pattern - **DISPUTES Agent A's "SHIPPED"**
+
+`User#coppa_parental_consent_pending?` (`app/models/user.rb:370-375`) returns `true` only if `settings['coppa']['pending_parent_consent']` is set and `parent_consent_granted_at` is absent. It does NOT consult `managing_organization_id`, `authored_organization_id`, or supervisor relationships.
+
+**However**, the only place that initializes the COPPA struct is `User#process_params` at `app/models/user.rb:958`:
+
+```ruby
+if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored_organization_id'].blank?
+```
+
+**This is the bypass:** when an Organization with `edit` permission seeds the user (`authored_organization_id` present, lines 992-998 set `settings['authored_organization_id']` and `settings['pending'] = false`), the entire COPPA branch (the under-13 check at lines 960-988 that sets `pending_parent_consent`, `parent_email`, `parent_consent_token`) is **skipped**. The user is created with no `settings['coppa']` hash at all, so `coppa_parental_consent_pending?` returns `false` permanently - appearing "consented" without VPC ever being recorded. **This is the school-official substitute pattern, implemented as an org-authored signup short-circuit.**
+
+`JsonApi::Json.coppa_parental_consent_enabled?` (`lib/json_api/json.rb:127-128`) further requires the current domain to opt in. `JsonApi::User#as_json` at `lib/json_api/user.rb:448` only emits `coppa_parental_consent_pending` when true. `grant_parental_consent!` (`user.rb:378-408`) is the only path that flips the flag for non-org users.
+
+### Item 5 - Pre-Consent Bootstrap Init
+
+**Rails view layer:** `app/views/layouts/application.html.erb:110-138` registers Google Analytics setup. **It is gated** by `localStorage['enable_cookies'] == 'true'` at line 135 - `ga_setup` only fires after explicit cookie opt-in. `anonymizeIp` is set (line 131). No analytics fires before consent.
+
+**Sentry:** referenced only in CSP allow-list (`config/initializers/content_security_policy.rb:12, 61-62`); no actual SDK initialization in Rails or Ember bootstrap.
+
+**No Mixpanel/Heap/Amplitude/PostHog/FullStory** found in `app/frontend/app` or `config/initializers` (grep returned zero matches).
+
+**AI bootstrap:** AI modules are lazy-loaded only inside controller actions (`words_controller.rb:58 require_relative`); `application.rb` does not autoload them.
+
+### Rails-ember-dev coverage summary
+
+| Item | Code Coverage |
+|------|---------------|
+| 1. AI VPC (board_generator) | **Partial** - feature flag + org opt-out + PII scrub + audit log present, but no AI-specific VPC distinct from signup COPPA. |
+| 1. AI VPC (word_predictor) | **None** - no flag, no scrub, no log, no token, no consent. P0 gap. |
+| 1. AI VPC (prediction_generator) | N/A - offline tool, no user input. |
+| 2. Biometric tagging | **None** - voice URIs and dwell/gaze data are stored without biometric classification or category-specific retention. |
+| 3. Retention enforcement | **Partial** - LogSession retention works for org-managed users; `AiApiLog.redact_old_ip_addresses!` defined but unscheduled; no enforcement for self-managed users or biometric-class data. |
+| 4. School-official COPPA bypass | **Present and undocumented** - `authored_organization_id.present?` at `user.rb:958` skips the entire COPPA pending-consent branch with no audit trail, no fallback consent check. |
+| 5. Pre-consent SDK init | **Full coverage** - GA gated on `enable_cookies` opt-in; no other analytics/AI SDKs initialize before consent. |
+
 
 ---
 
