@@ -24,10 +24,14 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options);
+    this.runOpening();
   },
 
-  didInsertElement() {
-    this._super(...arguments);
+  runOpening() {
+    if (this.get('_copyBoardInitialized')) { return; }
+    if (!this.get('model.board')) { return; }
+    this.set('_copyBoardInitialized', true);
+    // This component is tagless, so initialize modal state without relying on didInsertElement.
     this.set('model.jump_home', true);
     this.set('model.keep_as_self', false);
     this.set('board_name', this.get('model.board.name'));
@@ -61,6 +65,7 @@ export default Component.extend({
       this.set('currently_selected_id', 'self');
     }
     this.set('model.known_supervisees', supervisees);
+    this.user_board();
   },
 
   has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
@@ -178,7 +183,9 @@ export default Component.extend({
     close() {
       this.get('modal').close(false);
     },
-    opening() {},
+    opening() {
+      this.runOpening();
+    },
     closing() {},
     more_options() {
       this.set('show_more_options', !this.get('show_more_options'));
