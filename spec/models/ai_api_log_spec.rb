@@ -224,4 +224,59 @@ describe AiApiLog, :type => :model do
       expect(log.request_payload_hash).to eq('sha256_abc123def45')
     end
   end
+
+  describe "redact_old_ip_addresses!" do
+    it "should replace ip_address on records older than 90 days with [REDACTED]" do
+      old_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.1')
+      old_log.update_column(:created_at, 100.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(1)
+      expect(old_log.reload.ip_address).to eq('[REDACTED]')
+    end
+
+    it "should leave records newer than 90 days alone" do
+      recent_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.2')
+      recent_log.update_column(:created_at, 30.days.ago)
+
+      AiApiLog.redact_old_ip_addresses!
+      expect(recent_log.reload.ip_address).to eq('10.0.0.2')
+    end
+
+    it "should skip records that are already redacted" do
+      already_redacted = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '[REDACTED]')
+      already_redacted.update_column(:created_at, 200.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(0)
+    end
+
+    it "should skip records with a nil ip_address" do
+      nil_ip_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: nil)
+      nil_ip_log.update_column(:created_at, 200.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(0)
+    end
+
+    it "should accept a custom days argument" do
+      mid_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.3')
+      mid_log.update_column(:created_at, 45.days.ago)
+
+      AiApiLog.redact_old_ip_addresses!(days: 30)
+      expect(mid_log.reload.ip_address).to eq('[REDACTED]')
+    end
+
+    it "should redact multiple eligible records in one call" do
+      log1 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.4')
+      log2 = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.5')
+      log1.update_column(:created_at, 120.days.ago)
+      log2.update_column(:created_at, 150.days.ago)
+
+      count = AiApiLog.redact_old_ip_addresses!
+      expect(count).to eq(2)
+      expect(log1.reload.ip_address).to eq('[REDACTED]')
+      expect(log2.reload.ip_address).to eq('[REDACTED]')
+    end
+  end
 end
