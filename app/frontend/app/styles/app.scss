@@ -40619,6 +40619,89 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-bottom: 14px !important;
 
 }
+
+/* Label chips input — bulk-paste compatible chip/tag entry for board labels.
+   Cascades on --md-line / --md-ink / --md-teal set by the modal/standalone wrappers. */
+.label-chips {
+  display: block;
+  width: 100%;
+  margin-bottom: 14px;
+}
+.label-chips__container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  min-height: 60px;
+  border-radius: 14px;
+  border: 1px solid var(--md-line, #d4d8df);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--md-ink, #1f2933);
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.label-chips--focused .label-chips__container {
+  border-color: var(--md-teal, #2cb7b0);
+  box-shadow: 0 0 0 2px rgba(44, 183, 176, 0.2);
+}
+.label-chips__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  background: var(--md-teal-soft, rgba(44, 183, 176, 0.12));
+  color: var(--md-ink, #1f2933);
+  border: 1px solid rgba(44, 183, 176, 0.25);
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.label-chips__chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 18em;
+}
+.label-chips__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--md-ink, #1f2933);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.label-chips__chip-remove:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+.label-chips__chip-remove:focus-visible {
+  @include focus-ring;
+  opacity: 1;
+}
+.label-chips__input {
+  flex: 1 1 8em;
+  min-width: 8em;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--md-ink, #1f2933);
+  padding: 4px 2px;
+}
+.label-chips__input::placeholder {
+  color: rgba(31, 41, 51, 0.5);
+}
+
 .new-board--modern #grid_selection .cell {
   border-radius: 6px !important;
 

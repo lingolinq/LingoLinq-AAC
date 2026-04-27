@@ -110,7 +110,7 @@
       <div class="form-group new-board-field--labels">
         <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
         <div class="col-sm-10">
-          <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
+          {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
           {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Labels" key="labels")}}
           <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
           <span class={{this.labels_class}}>

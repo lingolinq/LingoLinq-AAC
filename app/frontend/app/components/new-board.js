@@ -289,6 +289,9 @@ export default Component.extend({
     setLabelsOrder: function(value) {
       this.set('model.grid.labels_order', value);
     },
+    setLabels: function(value) {
+      this.set('model.grid.labels', value);
+    },
     more_options: function() {
       this.set('more_options', true);
     },
