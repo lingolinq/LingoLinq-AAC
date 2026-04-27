@@ -330,6 +330,75 @@ export default Component.extend({
     setLabels: function(value) {
       this.set('model.grid.labels', value);
     },
+    cellDragStart: function(row, col, event) {
+      var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+      var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+      var order = this.get('model.grid.labels_order') || 'rows';
+      var idx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
+      var labels = this.get('parsed_labels') || [];
+      if(idx >= labels.length || !labels[idx]) {
+        if(event && event.preventDefault) { event.preventDefault(); }
+        return;
+      }
+      if(event && event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        try { event.dataTransfer.setData('text/plain', String(idx)); } catch(e) { }
+      }
+      this.set('_dragSourceIdx', idx);
+    },
+    cellDragOver: function(event) {
+      if(event && event.preventDefault) { event.preventDefault(); }
+      // Stop propagation so the global file-drop handler (used for board file
+      // imports) doesn't see this and treat our chip as a dropped file.
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      if(event && event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
+    },
+    cellDrop: function(row, col, event) {
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      var sourceIdx = this.get('_dragSourceIdx');
+      if(sourceIdx === null || sourceIdx === undefined) { return; }
+      var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+      var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+      var order = this.get('model.grid.labels_order') || 'rows';
+      var targetIdx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
+      if(sourceIdx === targetIdx) { return; }
+      var labels = (this.get('parsed_labels') || []).slice();
+      if(targetIdx >= labels.length || !labels[targetIdx]) { return; }
+      var tmp = labels[sourceIdx];
+      labels[sourceIdx] = labels[targetIdx];
+      labels[targetIdx] = tmp;
+      this.set('_dragSourceIdx', null);
+      var _this = this;
+      var newValue = labels.join('\n');
+      // Use View Transitions API for smooth crossfade between old and new cell
+      // contents. Falls back to instant update on browsers without support.
+      if(typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+        document.startViewTransition(function() {
+          _this.set('model.grid.labels', newValue);
+        });
+      } else {
+        this.set('model.grid.labels', newValue);
+      }
+    },
+    cellDragEnd: function() {
+      this.set('_dragSourceIdx', null);
+    },
+    previewDragOver: function(event) {
+      // Keep dropEffect consistent across the entire preview (cells + gaps),
+      // so the cursor doesn't flicker between "move" and "no-drop" as the
+      // user drags between cells.
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      if(event && event.dataTransfer) { event.dataTransfer.dropEffect = 'move'; }
+    },
+    previewDrop: function(event) {
+      // Drops on the container (gaps, empty zones) are no-ops; we only consume
+      // the event so it doesn't bubble to the global file-drop handler.
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      this.set('_dragSourceIdx', null);
+    },
     more_options: function() {
       this.set('more_options', true);
     },

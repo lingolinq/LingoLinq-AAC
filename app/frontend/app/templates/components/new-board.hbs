@@ -50,215 +50,217 @@
         {{/if}}
       </div>
       {{/unless}}
-      <form class="form-horizontal {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
-      <!-- TODO: form should wrap to include submit button, no? -->
-      <div class="form-group">
-        <label for="new_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
-        <div class="col-sm-10">
-          <Input @value={{this.model.name}} class="form-control" id="new_board_name" placeholder="My Board" />
-        </div>
-      </div>
-      {{#if this.has_supervisees}}
-        <div class="form-group">
-          <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
-          <div class="col-sm-10">
-            {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "setForUserId") }}
+      <form class="nb-form {{unless this.standalone "la-new-board-form"}}" {{action "saveBoard" on="submit"}}>
+
+        <section class="nb-section">
+          <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
+          <p class="nb-section__hint">{{t "Give your board a name and a brief description." key="new_board_section_basics_hint"}}</p>
+          <div class="nb-section__body">
+            <div class="nb-field">
+              <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
+              <Input @value={{this.model.name}} class="form-control nb-field__input" id="new_board_name" placeholder="My Board" />
+            </div>
+            <div class="nb-field new-board-field--description">
+              <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}</label>
+              <Textarea @value={{this.model.description}} class="form-control nb-field__input" id="new_board_description" placeholder="Brief description of the board" />
+            </div>
+            {{#if this.has_supervisees}}
+              <div class="nb-field">
+                <label for="for_user_id" class="nb-field__label">{{t "For" key="for"}}</label>
+                {{user-select select_id="for_user_id" selection=this.for_user_id action=(action "setForUserId") }}
+              </div>
+            {{/if}}
           </div>
-        </div>
-      {{/if}}
-      <div class="form-group new-board-field--dimensions">
-        <label class="col-sm-2 control-label">{{t "Size" key="board_size"}}</label>
-        <div class="col-sm-10">
-          <div class="new-board-dimensions">
-            <div class="new-board-dimensions__field">
-              <label for="new_board_rows" class="new-board-dimensions__sublabel">{{t "Rows" key="rows"}}</label>
-              <div class="input-group">
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.rows"}} aria-label={{t "Decrease rows" key="decrease_rows"}}>-</button>
-                </span>
-                <Input @type="number" @value={{this.model.grid.rows}} class="form-control" id="new_board_rows" placeholder="##" />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.rows"}} aria-label={{t "Increase rows" key="increase_rows"}}>+</button>
-                </span>
+        </section>
+
+        <section class="nb-section">
+          <h4 class="nb-section__title">{{t "Size & preview" key="new_board_section_size"}}</h4>
+          <p class="nb-section__hint">{{t "Set the grid; words you type below will fill the cells live." key="new_board_section_size_hint"}}</p>
+          <div class="nb-section__body">
+            <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
+              <div class="nb-stepper-mini">
+                <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
+                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "minus" "model.grid.rows"}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <Input @type="number" @value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" />
+                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "plus" "model.grid.rows"}} aria-label={{t "Increase rows" key="increase_rows"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <div class="nb-stepper-mini">
+                <span class="nb-stepper-mini__label" id="nb-cols-label">{{t "Cols" key="cols_short"}}</span>
+                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "minus" "model.grid.columns"}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <Input @type="number" @value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" />
+                <button type="button" class="nb-stepper-mini__btn" {{action "plus_minus" "plus" "model.grid.columns"}} aria-label={{t "Increase columns" key="increase_columns"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
               </div>
             </div>
-            <div class="new-board-dimensions__field">
-              <label for="new_board_columns" class="new-board-dimensions__sublabel">{{t "Columns" key="columns"}}</label>
-              <div class="input-group">
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "minus" "model.grid.columns"}} aria-label={{t "Decrease columns" key="decrease_columns"}}>-</button>
-                </span>
-                <Input @type="number" @value={{this.model.grid.columns}} class="form-control" id="new_board_columns" placeholder="##" />
-                <span class="input-group-btn">
-                  <button type="button" class="btn btn-default" {{action "plus_minus" "plus" "model.grid.columns"}} aria-label={{t "Increase columns" key="increase_columns"}}>+</button>
-                </span>
-              </div>
+            <div class="new-board-preview"
+                 style={{this.preview_style}}
+                 role="grid"
+                 aria-label={{t "Board preview" key="board_preview"}}
+                 ondragover={{action "previewDragOver"}}
+                 ondrop={{action "previewDrop"}}>
+              {{#each this.preview_grid as |row|}}
+                {{#each row as |cell|}}
+                  <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}}"
+                       role="gridcell"
+                       draggable={{unless cell.empty "true" "false"}}
+                       ondragstart={{action "cellDragStart" cell.row cell.col}}
+                       ondragover={{action "cellDragOver"}}
+                       ondrop={{action "cellDrop" cell.row cell.col}}
+                       ondragend={{action "cellDragEnd"}}>
+                    <span class="new-board-preview__label">{{cell.label}}</span>
+                  </div>
+                {{/each}}
+              {{/each}}
             </div>
           </div>
-          <div class="new-board-preview" style={{this.preview_style}} role="grid" aria-label={{t "Board preview" key="board_preview"}}>
-            {{#each this.preview_grid as |row|}}
-              {{#each row as |cell|}}
-                <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}}" role="gridcell">
-                  <span class="new-board-preview__label">{{cell.label}}</span>
+        </section>
+
+        <section class="nb-section">
+          <h4 class="nb-section__title">{{t "Words" key="new_board_section_words"}}</h4>
+          <p class="nb-section__hint">{{t "Type a word and press Enter, or paste a list. Each word becomes a button." key="new_board_section_words_hint"}}</p>
+          <div class="nb-section__body">
+            <div class="nb-field new-board-field--labels">
+              <label for="new_board_labels" class="nb-field__label">{{t "Labels" key="labels"}}</label>
+              {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
+              <div class="nb-field__row">
+                <label for="labels_order" class="nb-field__sublabel">{{t "Fill order" key="fill_order"}}</label>
+                {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Fill order" key="fill_order")}}
+              </div>
+              <div class="nb-field__meta">
+                <span class={{this.labels_class}}>
+                  {{this.label_count}} {{t "labels" key="label_count"}}
+                </span>
+                <span class="nb-field__sep" aria-hidden="true">·</span>
+                <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
+                {{#if this.speech}}
+                  <span class="nb-field__sep" aria-hidden="true">·</span>
+                  <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
+                {{/if}}
+                <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
+              </div>
+            </div>
+            {{#if this.core_lists}}
+              <div class="nb-field">
+                <ul class="nav nav-pills">
+                  {{#each this.core_words as |core_word|}}
+                    <li class={{if core_word.active "active"}}>
+                      <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
+                    </li>
+                  {{/each}}
+                </ul>
+              </div>
+            {{else}}
+              {{#if this.speech.ready}}
+                <div class="nb-field">
+                  <div style="margin-bottom: 5px;">
+                    {{t "Listening..." key="listening"}}
+                    <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+                    {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+                  </div>
+                  <ul class="nav nav-pills">
+                    {{#each this.speech.words as |word|}}
+                      <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
+                        <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
+                          {{word.label}}
+                          <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                        </button>
+                      </li>
+                    {{/each}}
+                  </ul>
                 </div>
-              {{/each}}
-            {{/each}}
+              {{else}}
+                {{#if this.speech.almost_recording}}
+                  <div class="nb-field">
+                    <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
+                  </div>
+                {{/if}}
+              {{/if}}
+            {{/if}}
           </div>
-        </div>
-      </div>
-      <div class="form-group new-board-field--labels">
-        <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
-        <div class="col-sm-10">
-          {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
-          {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Labels" key="labels")}}
-          <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
-          <span class={{this.labels_class}}>
-            {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
-          </span>
-          <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
-          {{#if this.speech}}
-             |
-            <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
-          {{/if}}
-          <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
-        </div>
-      </div>
-      {{#if this.core_lists}}
-        <div class="form-group">
-          <div class="col-sm-10 col-sm-offset-2">
-          <ul class="nav nav-pills">
-            {{#each this.core_words as |core_word|}}
-              <li class={{if core_word.active "active"}}>
-                <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
-              </li>
-            {{/each}}
-          </ul>
-          </div>
-        </div>
-      {{else}}
-        {{#if this.speech.ready}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-            <div style="margin-bottom: 5px;">
-              {{t "Listening..." key="listening"}}
-              <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
-              {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+        </section>
+
+        <section class="nb-section">
+          <h4 class="nb-section__title">{{t "Appearance" key="new_board_section_appearance"}}</h4>
+          <p class="nb-section__hint">{{t "Pick who can see this board and what icon represents it." key="new_board_section_appearance_hint"}}</p>
+          <div class="nb-section__body">
+            <div class="nb-field new-board-field--visibility">
+              <label class="nb-field__label" for="new_board_visibility">{{t "Visibility" key="visibility"}}</label>
+              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
             </div>
-            <ul class="nav nav-pills">
-              {{#each this.speech.words as |word|}}
-                <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
-                  <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
-                    {{word.label}}
-                    <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                  </button>
-                </li>
-              {{/each}}
-            </ul>
+            <div class="nb-field">
+              <label for="image_url" class="nb-field__label">{{t "Icon" key="icon"}}</label>
+              {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
             </div>
           </div>
-        {{else}}
-          {{#if this.speech.almost_recording}}
-            <div class="form-group">
-              <div class="col-sm-10 col-sm-offset-2">
-                <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
+        </section>
+
+        <section class="nb-section nb-section--advanced">
+          <div class="nb-section__head">
+            <h4 class="nb-section__title">{{t "Advanced options" key="new_board_section_advanced"}}</h4>
+            {{#unless this.more_options}}
+              <button type="button" class="md-link-btn nb-section__toggle" {{action "more_options"}}>{{t "Show advanced options" key="show_advanced_options"}}</button>
+            {{/unless}}
+          </div>
+          {{#if this.more_options}}
+            <div class="nb-section__body">
+              <div class="nb-field new-board-field--key">
+                <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
+                <Input @value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} />
+              </div>
+              <div class="nb-field new-board-field--license">
+                <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
+                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(action "setLicenseType") ariaLabel=(t "License" key="license")}}
+              </div>
+              <div class="nb-field new-board-field--locale">
+                <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
+                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
+              </div>
+              {{#if this.attributable_license_type}}
+                <div class="nb-field nb-field--row">
+                  <div class="nb-field__col">
+                    <label for="author" class="nb-field__label">{{t "Author" key="author"}}</label>
+                    <Input @value={{this.model.license.author_name}} class="form-control nb-field__input" id="author" placeholder="Name" />
+                  </div>
+                  <div class="nb-field__col">
+                    <label for="author_url" class="nb-field__label">{{t "Author URL" key="author_url"}}</label>
+                    <Input @value={{this.model.license.author_url}} class="form-control nb-field__input" id="author_url" title="Author URL" placeholder="Author URL" />
+                  </div>
+                </div>
+              {{/if}}
+              <div class="nb-field nb-field--checkbox new-board-checkbox-row">
+                <label for="home_board" class="nb-checkbox">
+                  <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
+                  <span>{{t "This board can be used as a home board" key="is_home_board"}}</span>
+                </label>
+              </div>
+              {{#if this.model.home_board}}
+                <div class="nb-field">
+                  <p class="nb-field__hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
+                  {{#each this.board_categories as |category|}}
+                    <label class="nb-checkbox">
+                      <Input @type="checkbox" @checked={{category.selected}} />
+                      <span>{{category.name}}</span>
+                    </label>
+                  {{/each}}
+                </div>
+              {{/if}}
+              <div class="nb-field nb-field--checkbox new-board-checkbox-row new-board-checkbox-row--suggestions">
+                <label for="word_suggestions" class="nb-checkbox">
+                  <Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
+                  <span>{{t "Show word completion suggestions" key="show_word_suggestions"}}</span>
+                </label>
+                <p class="nb-field__hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
               </div>
             </div>
           {{/if}}
-        {{/if}}
-      {{/if}}
-      <div class="form-group new-board-field--visibility">
-        <label class="col-sm-2 control-label" for="new_board_visibility">{{t "Visibility" key="visibility"}}</label>
-        <div class="col-sm-10">
-          {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="image_url" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
-        <div class="col-sm-10">
-          {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
-        </div>
-      </div>
-      {{#unless this.more_options}}
-        <div class="form-group">
-          <div class="col-sm-10 col-sm-offset-2">
-            <button type="button" class="md-link-btn" {{action "more_options"}}>{{t "more options" key="more_options"}}</button>
-          </div>
-        </div>
-      {{else}}
-        <div class="form-group new-board-field--key">
-          <label for="new_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
-          <div class="col-sm-6">
-            <Input @value={{this.model.key}} class="form-control" id="new_board_key" placeholder={{this.key_placeholder}} />
-          </div>
-        </div>
-        <div class="form-group new-board-field--license">
-          <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
-          <div class="col-sm-10">
-            {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(action "setLicenseType") ariaLabel=(t "License" key="license")}}
-          </div>
-        </div>
-        <div class="form-group new-board-field--locale">
-          <label for="locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
-          <div class="col-sm-10">
-            {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
-          </div>
-        </div>
-        {{#if this.attributable_license_type}}
-          <div class="form-group">
-            <label for="author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
-            <div class="col-sm-4">
-              <Input @value={{this.model.license.author_name}} class="form-control" id="author" placeholder="Name" />
-            </div>
-            <div class="col-sm-6">
-              <Input @value={{this.model.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" />
-            </div>
-          </div>
-        {{/if}}
-        <div class="form-group new-board-field--description">
-          <label for="new_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
-          <div class="col-sm-10">
-            <Textarea @value={{this.model.description}} class="form-control" id="new_board_description" placeholder="brief description of the board" />
-          </div>
-        </div>
-        <div class="form-group new-board-checkbox-row">
-          <label for="home_board" class="col-sm-2 control-label">{{t "Home" key="home"}}</label>
-          <div class="col-sm-10">
-            <div class="checkbox big_checkbox new-board-checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
-                {{t "This board can be used as a home board" key="is_home_board"}}
-              </label>
-            </div>
-          </div>
-        </div>
-        {{#if this.model.home_board}}
-        <div class="form-group">
-          <div class="col-sm-10 col-sm-offset-2">
-            {{t "Select any categories that this home board may fit well into." key="select_categories"}}
-              {{#each this.board_categories as |category|}}
-                <div><div class="checkbox big_checkbox">
-                  <label>
-                    <Input @type="checkbox" @checked={{category.selected}} />
-                    {{category.name}}
-                  </label><br>
-                </div></div>
-            {{/each}}
-          </div>
-        </div>
-        {{/if}}
-        <div class="form-group new-board-checkbox-row new-board-checkbox-row--suggestions">
-          <label for="word_suggestions" class="col-sm-2 control-label">{{t "Suggestions" key="word_suggestions"}}</label>
-          <div class="col-sm-10">
-            <div class="checkbox big_checkbox new-board-checkbox">
-              <label>
-                <Input @type="checkbox" @checked={{this.model.word_suggestions}} id="word_suggestions" />
-                {{t "Show word completion suggestions" key="show_word_suggestions"}}
-              </label>
-            </div>
-            <p class="new-board-checkbox-hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
-          </div>
-        </div>
-      {{/unless}}
+        </section>
       </form>
     </div>
     <div class="{{if this.standalone "modal-footer" "la-new-board-modal-footer"}}">
