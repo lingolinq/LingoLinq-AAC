@@ -107,6 +107,66 @@
           </div>
         </div>
       </div>
+      <div class="form-group new-board-field--labels">
+        <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
+        <div class="col-sm-10">
+          <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
+          {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Labels" key="labels")}}
+          <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
+          <span class={{this.labels_class}}>
+            {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
+          </span>
+          <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
+          {{#if this.speech}}
+             |
+            <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
+          {{/if}}
+          <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
+        </div>
+      </div>
+      {{#if this.core_lists}}
+        <div class="form-group">
+          <div class="col-sm-10 col-sm-offset-2">
+          <ul class="nav nav-pills">
+            {{#each this.core_words as |core_word|}}
+              <li class={{if core_word.active "active"}}>
+                <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
+              </li>
+            {{/each}}
+          </ul>
+          </div>
+        </div>
+      {{else}}
+        {{#if this.speech.ready}}
+          <div class="form-group">
+            <div class="col-sm-10 col-sm-offset-2">
+            <div style="margin-bottom: 5px;">
+              {{t "Listening..." key="listening"}}
+              <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+              {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+            </div>
+            <ul class="nav nav-pills">
+              {{#each this.speech.words as |word|}}
+                <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
+                  <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
+                    {{word.label}}
+                    <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                  </button>
+                </li>
+              {{/each}}
+            </ul>
+            </div>
+          </div>
+        {{else}}
+          {{#if this.speech.almost_recording}}
+            <div class="form-group">
+              <div class="col-sm-10 col-sm-offset-2">
+                <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
+      {{/if}}
       <div class="form-group new-board-field--visibility">
         <label class="col-sm-2 control-label" for="new_board_visibility">{{t "Visibility" key="visibility"}}</label>
         <div class="col-sm-10">
@@ -199,66 +259,6 @@
             <p class="new-board-checkbox-hint">{{t "(helpful for keyboard-style boards)" key="helpful_for_keyboard_boards"}}</p>
           </div>
         </div>
-        <div class="form-group new-board-field--labels">
-          <label for="new_board_labels" class="col-sm-2 control-label">{{t "Labels" key="labels"}}</label>
-          <div class="col-sm-10">
-            <Textarea @value={{this.model.grid.labels}} class="form-control" rows="4" id="new_board_labels" placeholder="list of labels to pre-populate the board, one per line or separated by commas" />
-            {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Labels" key="labels")}}
-            <!-- TODO: this is the wrong way to do it, but helper options aren't bound so this is a hack for now -->
-            <span class={{this.labels_class}}>
-              {{this.label_count}} {{t "labels" key="label_count"}}&nbsp;&nbsp;
-            </span>
-            <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
-            {{#if this.speech}}
-               |
-              <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
-            {{/if}}
-            <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
-          </div>
-        </div>
-        {{#if this.core_lists}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-            <ul class="nav nav-pills">
-              {{#each this.core_words as |core_word|}}
-                <li class={{if core_word.active "active"}}>
-                  <button type="button" class="md-link-btn-pill" {{action "enable_word" core_word.id}} aria-pressed={{if core_word.active "true" "false"}}>{{ core_word.label }}</button>
-                </li>
-              {{/each}}
-            </ul>
-            </div>
-          </div>
-        {{else}}
-          {{#if this.speech.ready}}
-            <div class="form-group">
-              <div class="col-sm-10 col-sm-offset-2">
-              <div style="margin-bottom: 5px;">
-                {{t "Listening..." key="listening"}}
-                <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
-                {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
-              </div>
-              <ul class="nav nav-pills">
-                {{#each this.speech.words as |word|}}
-                  <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
-                    <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
-                      {{word.label}}
-                      <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                    </button>
-                  </li>
-                {{/each}}
-              </ul>
-              </div>
-            </div>
-          {{else}}
-            {{#if this.speech.almost_recording}}
-              <div class="form-group">
-                <div class="col-sm-10 col-sm-offset-2">
-                  <p>{{t "Waiting for Approval..." key="waiting_for_approval"}}</p>
-                </div>
-              </div>
-            {{/if}}
-          {{/if}}
-        {{/if}}
       {{/unless}}
       </form>
     </div>
