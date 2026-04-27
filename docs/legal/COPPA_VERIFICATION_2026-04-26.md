@@ -428,3 +428,19 @@ See punch list above. Aggregate:
 - Item 4: SHIPPED vs TODO - **resolved TODO** (Agent B's `user.rb:958` citation is concrete code, Agent A's negative grep missed it).
 - Item 5 Bugsnag: GATED vs UNCONDITIONAL - **resolved UNCONDITIONAL** (Explore's claimed gate at `external_tracker.rb` does not actually cover Bugsnag, that file is the HubSpot gate per its header).
 
+---
+
+## Re-verification: 2026-04-27 (independent re-run)
+
+This audit was independently re-run on 2026-04-27 from a fresh session via `/lingo` plan-then-execute. Three new agent instances (compliance-auditor, rails-ember-dev, Explore) re-traced the same five items with no knowledge of this prior file. **All findings confirmed identically:**
+
+- Item 1 TODO -- VPC absence reconfirmed at `lib/feature_flags.rb:80-94` and `lib/ai_board_generator.rb:29`. `Api::WordsController#predict` (`words_controller.rb:51-62`) is not even gated by `ai_word_prediction` flag (worse than board generator). All three call sites independently re-found.
+- Item 2 TODO -- Re-confirmed no `biometric` column in `db/schema.rb`. `recordrtc` ungated. Privacy-policy line 39 contradiction with S3-stored voice clips re-flagged as Section 5 deception risk.
+- Item 3 PARTIAL -- `redact_old_ip_addresses!` still unscheduled; privacy text (`privacy.hbs:81-84`) still single-line generic. Flusher still does not cascade to AiApiLog.
+- Item 4 TODO -- `user.rb:958` `authored_organization_id.blank?` short-circuit re-found. Privacy template `privacy.hbs:66` still endorses "authorized school official" pattern.
+- Item 5 PARTIAL -- Bugsnag and NewRelic still load unconditionally. New observation: Google Fonts (`index.html:89-91`) and jsDelivr CDN (`index.html:95-98`) leak child-user IP/UA on every page load. Native wrapper repo still not searched (separate audit thread per FOLLOWUPS Section 5).
+
+**Aggregate:** 0 SHIPPED, 2 PARTIAL, 3 TODO. The 2026-04-22 deadline remains missed; the running-code posture has not changed since the prior audit was filed. **This file should be treated as load-bearing for the remediation work.**
+
+Re-verified by: compliance-auditor + rails-ember-dev + Explore agents, run 2026-04-27 from `/home/scotw` via plan `we-are-working-eager-phoenix.md`.
+
