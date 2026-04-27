@@ -111,6 +111,30 @@ common: &default_settings
   #     ex: ignored_params: credit_card, ssn, password
   capture_params: false
 
+  # COPPA Final Rule scrub: NewRelic auto-captures request parameters,
+  # request headers, and any custom attributes the app sets. The agent
+  # cannot filter per-user, so these globs apply to every request.
+  # Over-filtering is safe; under-filtering risks a per-violation FTC
+  # penalty up to $53,088. See docs/legal/COPPA_VERIFICATION_2026-04-26.md
+  # item 5b.
+  attributes:
+    exclude:
+      - request.parameters.*
+      - request.headers.cookie
+      - request.headers.authorization
+      - request.headers.referer
+      - request.headers.x-forwarded-for
+      - request.headers.x_forwarded_for
+      - request.headers.forwarded
+      - request.headers.x-real-ip
+      - http.request.headers.cookie
+      - http.request.headers.authorization
+      - http.request.headers.referer
+      - user.*
+      - user_id
+      - global_id
+      - device_id
+
   # Transaction tracer captures deep information about slow
   # transactions and sends this to the New Relic service once a
   # minute. Included in the transaction is the exact call sequence of
