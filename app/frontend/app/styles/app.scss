@@ -11499,7 +11499,7 @@ video.button_image {
 }
 .la-tag-board-submit {
   background: $brand-dusty-denim;
-  color: #fff;
+  color: $la-navy;
   border: none;
   padding: 10px 20px;
   border-radius: 999px;
@@ -13370,13 +13370,13 @@ form.row.subscription-form-with-cards {
   font-size: 19.8px; /* 22px −10% */
 }
 .subscription-activate-btn__icon {
-  color: var(--fs-teal, $la-teal);
+  color: $brand-teal;
 }
 .subscription-activate-btn__discount {
   font-weight: bold;
   color: var(--fs-navy, $la-navy);
   .subscription-activate-btn__icon {
-    color: var(--fs-teal, $la-teal);
+    color: $brand-teal;
   }
 }
 .subscription-activate-btn__subtext {
@@ -16348,7 +16348,7 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
 
 }
 
-/* Light mode only: navigation bar (logo, Scot’s landing page link) – medium-dark blue to fit light scheme */
+/* Light mode only: navigation bar – medium-dark blue to fit light scheme */
 #within_ember.bento-light-mode-active > header.header-index-with-dark-toggle {
   background: #4A7BA7 !important;
   background-color: #4A7BA7 !important;
@@ -32346,7 +32346,7 @@ a.la-footer-bottom-a11y-wcag {
 }
 .la-new-board-modal-footer__actions .la-btn--primary {
   background: $brand-dusty-denim;
-  color: #fff;
+  color: $la-navy;
   border: none;
   padding: 10px 20px;
   border-radius: 999px;
@@ -32516,7 +32516,7 @@ a.la-footer-bottom-a11y-wcag {
 }
 .la-new-board-folder-actions .la-btn--primary {
   background: $brand-dusty-denim;
-  color: #fff;
+  color: $la-navy;
   border: none;
   padding: 10px 20px;
   border-radius: 999px;
