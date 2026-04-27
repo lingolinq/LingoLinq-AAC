@@ -80,8 +80,7 @@
     "ember-cli-babel": "^7.26.6",
     "@babel/traverse": "^7.23.2",
     "handlebars": "^4.7.9",
-    "lodash": "^4.17.21",
-    "ember-auto-import": "^2.10.0"
+    "lodash": "^4.17.21"
   },
   "ember": {
     "edition": "octane"
