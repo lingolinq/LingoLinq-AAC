@@ -49,6 +49,7 @@ export default Component.extend({
     this.set('home_board', null);
     const user_name = this.get('model.selected_user_name');
     let supervisees = [];
+    this.set('model.known_supervisees', supervisees);
     if (this.get('appState').get('sessionUser.supervisees.length')) {
       let selected_user_id = null;
       this.get('appState').get('sessionUser.known_supervisees').forEach(function(supervisee) {
@@ -60,12 +61,11 @@ export default Component.extend({
         }
         supervisees.push(res);
       }.bind(this));
+      this.set('model.known_supervisees', supervisees);
       this.set('currently_selected_id', selected_user_id);
     } else {
       this.set('currently_selected_id', 'self');
     }
-    this.set('model.known_supervisees', supervisees);
-    this.user_board();
   },
 
   has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
