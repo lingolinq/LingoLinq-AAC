@@ -40,8 +40,8 @@ export default Component.extend({
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
         const _this = this;
-        this.set('deleting', true);
         return actionLock.run('delete-logs:' + this.get('user.id'), function() {
+          _this.set('deleting', true);
           return persistence.ajax('/api/v1/users/' + _this.get('user_name') + '/flush/logs', {
             type: 'POST',
             data: {
