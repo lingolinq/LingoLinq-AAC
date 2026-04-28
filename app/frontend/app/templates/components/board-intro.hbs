@@ -24,14 +24,14 @@
     {{/if}}
   </div>
   <div class='modal-footer'>
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
     {{#if this.current_step.prompt}}
-      <button class='btn btn-primary btn-lg' {{action "start"}}>{{t "I'm Ready to Try" key="ready_to_try"}}</button>
       {{#if this.next_step}}
         <button class='btn btn-default btn-lg' {{action "next"}}>{{t "Skip" key="skip"}}</button>
       {{/if}}
+      <button class='btn btn-primary btn-lg' {{action "start"}}>{{t "I'm Ready to Try" key="ready_to_try"}}</button>
     {{else if this.next_step}}
       <button class='btn btn-primary btn-lg' {{action "next"}}>{{t "Continue" key="continue"}}</button>
     {{/if}}
-    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
   </div>
 {{/modal-dialog}}

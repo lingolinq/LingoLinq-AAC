@@ -134,6 +134,7 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{#if this.model.speak_on_done}}
       <button class='btn btn-primary btn-lg' {{action "done" true}}>
         {{t "Speak and Update" key="speak_and_update"}}
@@ -142,6 +143,5 @@
     <button class='btn btn-primary btn-lg' {{action "done"}}>
       {{t "Update" key="update"}}
     </button>
-    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

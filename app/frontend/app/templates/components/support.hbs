@@ -81,9 +81,9 @@
             <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
           {{/if}}
           <div class="la-contact-form__actions">
-            <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
-            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn" style="display: none;">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
             <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+            <LinkTo @route="troubleshooting" class="la-support-troubleshooting-link login-btn" style="display: none;">{{t "Troubleshooting" key="troubleshooting"}}</LinkTo>
+            <button disabled={{this.disabled}} type="submit" class="la-btn la-btn--primary">{{t "Send Message" key="send_message"}}</button>
           </div>
         </form>
       </div>

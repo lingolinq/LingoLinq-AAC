@@ -3,6 +3,12 @@
     {{t "This board is not your standard home board. Would you like to temporarily use this board as your home board?" key="not_standard_board"}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='btn btn-default' {{action "close"}}>
+      {{t "Cancel" key="cancel"}}
+    </button>
+    <button class='btn btn-default' {{action "toggleSpeakMode" "goHome"}}>
+      {{t "Go to my Home board" key="go_to_home_board"}}
+    </button>
     <div class="btn-group">
       <button class='btn btn-primary dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
         {{t "Stay Here" key="stay_here"}} <span class="caret"></span>
@@ -12,11 +18,5 @@
         <li><a href="#" {{action "toggleSpeakMode" "rememberRealHome"}}>{{t "Keep My Usual Home Board" key="keep_home_board_but_stay_here"}}</a></li>
       </ul>
     </div>
-    <button class='btn btn-default' {{action "toggleSpeakMode" "goHome"}}>
-      {{t "Go to my Home board" key="go_to_home_board"}}
-    </button>
-    <button class='btn btn-default' {{action "close"}}>
-      {{t "Cancel" key="cancel"}}
-    </button>
   </div>
 {{/modal-dialog}}

@@ -182,10 +182,10 @@ export default Controller.extend(prefClasses, {
   subtitle: computed('model.description', function() {
     var desc = this.get('model.description');
     if(desc && desc.indexOf('CoughDrop') !== -1) {
-      return i18n.t('board_detail_subtitle', "Tap symbols to build your message");
+      return null;
     }
     if(desc) { return desc; }
-    return i18n.t('board_detail_subtitle', "Tap symbols to build your message");
+    return null;
   }),
 
   description_expanded: false,

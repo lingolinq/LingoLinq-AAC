@@ -68,6 +68,13 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
+    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>
+      {{#if this.editing}}
+        {{t "Cancel" key="cancel"}}
+      {{else}}
+        {{t "Close" key="close"}}
+      {{/if}}
+    </a>
     {{#if this.editing}}
       <button class='btn btn-lg btn-primary' {{action "update"}} disabled={{this.save_status.loading}}>
         {{#if this.save_status.loading}}
@@ -79,12 +86,5 @@
         {{/if}}
       </button>
     {{/if}}
-    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>
-      {{#if this.editing}}
-        {{t "Cancel" key="cancel"}}
-      {{else}}
-        {{t "Close" key="close"}}
-      {{/if}}
-    </a>
   </div>
 {{/modal-dialog}}

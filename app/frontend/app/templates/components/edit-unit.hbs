@@ -38,6 +38,7 @@
       </div>
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
+          <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
             {{#if this.saving}}
               {{t "Updating Room..." key="updating_room"}}
@@ -45,7 +46,6 @@
               {{t "Update Room" key="update_room"}}
             {{/if}}
           </button>
-          <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected error while updating the room" key="error_updating_room"}}</p>
           {{/if}}

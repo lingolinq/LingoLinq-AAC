@@ -56,6 +56,7 @@ Router.map(function() {
   });
   this.route('caseload', { path: '/caseload' });
   this.route('create-board', { path: '/create-board' });
+  this.route('create-board-new', { path: '/create-board-new' });
   this.route('about', { path: '/about' });
   this.route('landing-alt', { path: '/landing-alt' });
   this.route('download', { path: '/download' });

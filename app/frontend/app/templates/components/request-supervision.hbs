@@ -27,6 +27,7 @@
         </div>
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3">
+            <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
             <button type="submit" class='btn btn-primary' disabled={{if this.can_submit false true}}>
               {{#if this.submitting}}
                 {{t "Submitting Request..." key="submitting_request"}}
@@ -34,7 +35,6 @@
                 {{t "Send Consent Request" key="send_consent_request"}}
               {{/if}}
             </button>
-            <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
             {{#if this.error}}
               <p class="text-danger" style="margin-top: 10px;">{{this.error}}</p>
             {{/if}}

@@ -1,0 +1,13 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") class="beta-feedback-modal"}}
+  <div class="modal-header">
+    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <h3>
+      <span class="la-section-eyebrow-badge"><span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "BETA" key="beta_feedback_eyebrow"}}</span>
+      {{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span>
+    </h3>
+    <p class="beta-feedback-modal__intro">{{t "Help us improve LingoLinq. Tell us what broke, what confused you, or what you wish worked differently." key="beta_feedback_intro"}}</p>
+  </div>
+  <div class="modal-body beta-feedback-modal__body">
+    {{beta-feedback-form onSubmitSuccess=(action "onSubmitSuccess") onCancel=(action "onCancel")}}
+  </div>
+{{/modal-dialog}}

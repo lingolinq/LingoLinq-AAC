@@ -45,6 +45,7 @@
         {{/if}}
         <div class="form-group">
           <div class="col-sm-9 col-sm-offset-3">
+            <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
             <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
               {{#if this.snapshot.saving}}
                 {{t "Creating Snapshot..." key="creating_snapshot"}}
@@ -52,7 +53,6 @@
                 {{t "Create Snapshot" key="create_snapshot"}}
               {{/if}}
             </button>
-            <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
             {{#if this.snapshot.error}}
               <p class='text-danger'>{{t "There was an unexpected error while creating the snapshot" key="error_creating_snapshot"}}</p>
             {{/if}}
