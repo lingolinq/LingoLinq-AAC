@@ -1,0 +1,105 @@
+<div class="la-wrapper la-wrapper--pricing la-wrapper--support">
+  <div class="app-shell">
+    <main class="la-main" role="main">
+      <div class="md-workspace md-workspace--support">
+        <section class="la-section la-database-explorer" aria-labelledby="database-explorer-heading">
+          <div class="la-section-header la-database-explorer__header">
+            <h1 id="database-explorer-heading" class="la-hero-title">{{t "Database schema" key="database_explorer_title"}}</h1>
+            <p class="la-pricing-hero-subtitle">{{t "Browse public tables and columns. Read-only reference for support and development." key="database_explorer_intro"}}</p>
+          </div>
+
+          <div class="la-support-content-wrapper">
+            <article class="la-about-glass-card la-support-page-card">
+              <div class="la-support-page-card__body md-support-content la-database-explorer__body">
+                {{#if this.loadError}}
+                  <p role="alert">{{t "Could not load schema. You may not have access, or try again later." key="database_explorer_load_error"}}</p>
+                {{else}}
+                  {{#if this.loading}}
+                    <p class="la-database-explorer__loading" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+                  {{/if}}
+
+                  <div class="la-database-explorer__toolbar">
+                    <label class="la-database-explorer__search-label">
+                      <span class="la-database-explorer__label-text">{{t "Filter tables" key="database_explorer_table_search_label"}}</span>
+                      <Input @type="search" @value={{this.tableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
+                    </label>
+                    <label class="la-database-explorer__search-label">
+                      <span class="la-database-explorer__label-text">{{t "Filter columns" key="database_explorer_column_search_label"}}</span>
+                      <Input @type="search" @value={{this.columnSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Column name or type…" key="database_explorer_column_search_placeholder"}} />
+                    </label>
+                  </div>
+
+                  <div class="la-database-explorer__layout">
+                    <nav class="la-database-explorer__sidebar" aria-label={{t "Tables" key="database_explorer_select_table"}}>
+                      {{#if this.filteredTables.length}}
+                        <ul class="list-group la-database-explorer__table-list">
+                          {{#each this.filteredTables as |tbl|}}
+                            <li class="list-group-item la-database-explorer__table-item">
+                              <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.selectedTableName) "la-database-explorer__table-btn--active"}}" {{action "selectTable" tbl.name}}>
+                                {{tbl.name}}
+                              </button>
+                            </li>
+                          {{/each}}
+                        </ul>
+                      {{else}}
+                        {{#unless this.loading}}
+                          <p class="text-muted">{{t "No tables match your filter." key="database_explorer_empty_tables"}}</p>
+                        {{/unless}}
+                      {{/if}}
+                    </nav>
+
+                    <div class="la-database-explorer__main" aria-live="polite">
+                      {{#if this.selectedTable}}
+                        <h2 class="la-database-explorer__table-title">{{this.selectedTable.name}}</h2>
+                        <p class="text-muted la-database-explorer__column-count">
+                          {{this.filteredColumns.length}}
+                          {{#if this.columnSearch}}
+                            {{t "matching columns" key="database_explorer_columns_match_suffix"}}
+                          {{else}}
+                            {{t "columns" key="database_explorer_columns_total_suffix"}}
+                          {{/if}}
+                        </p>
+                        {{#if this.filteredColumns.length}}
+                          <div class="table-responsive la-database-explorer__table-wrap">
+                            <table class="table table-striped la-database-explorer__columns-table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">{{t "Column" key="database_explorer_col_name"}}</th>
+                                  <th scope="col">{{t "Type" key="database_explorer_col_type"}}</th>
+                                  <th scope="col">{{t "Nullable" key="database_explorer_col_nullable"}}</th>
+                                  <th scope="col">{{t "Default" key="database_explorer_col_default"}}</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {{#each this.filteredColumns as |col|}}
+                                  <tr>
+                                    <td class="la-database-explorer__cell-name">{{col.name}}</td>
+                                    <td class="la-database-explorer__cell-type"><code>{{col.type}}</code></td>
+                                    <td>
+                                      {{#if col.nullable}}
+                                        {{t "Yes" key="database_explorer_yes"}}
+                                      {{else}}
+                                        {{t "No" key="database_explorer_no"}}
+                                      {{/if}}
+                                    </td>
+                                    <td class="la-database-explorer__cell-default">{{col.default}}</td>
+                                  </tr>
+                                {{/each}}
+                              </tbody>
+                            </table>
+                          </div>
+                        {{else}}
+                          <p class="text-muted">{{t "No columns match your filter." key="database_explorer_empty_columns"}}</p>
+                        {{/if}}
+                      {{/if}}
+                    </div>
+                  </div>
+                {{/if}}
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
