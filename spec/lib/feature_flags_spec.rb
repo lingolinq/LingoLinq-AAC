@@ -51,4 +51,70 @@ describe FeatureFlags do
       expect(FeatureFlags.user_created_after?(u, 'bacon')).to eq(false)
     end
   end
+
+  describe "coppa_ai_hard_gate_enabled?" do
+    around(:each) do |example|
+      old = ENV['COPPA_AI_HARD_GATE']
+      example.run
+    ensure
+      ENV['COPPA_AI_HARD_GATE'] = old
+    end
+
+    it "defaults to true when env var is unset" do
+      ENV.delete('COPPA_AI_HARD_GATE')
+      expect(FeatureFlags.coppa_ai_hard_gate_enabled?).to eq(true)
+    end
+
+    it "returns true for any value other than 'false'" do
+      ENV['COPPA_AI_HARD_GATE'] = 'true'
+      expect(FeatureFlags.coppa_ai_hard_gate_enabled?).to eq(true)
+      ENV['COPPA_AI_HARD_GATE'] = '1'
+      expect(FeatureFlags.coppa_ai_hard_gate_enabled?).to eq(true)
+    end
+
+    it "returns false only when explicitly set to 'false'" do
+      ENV['COPPA_AI_HARD_GATE'] = 'false'
+      expect(FeatureFlags.coppa_ai_hard_gate_enabled?).to eq(false)
+      ENV['COPPA_AI_HARD_GATE'] = 'FALSE'
+      expect(FeatureFlags.coppa_ai_hard_gate_enabled?).to eq(false)
+    end
+  end
+
+  describe "coppa_blocks_ai_for?" do
+    around(:each) do |example|
+      old = ENV['COPPA_AI_HARD_GATE']
+      ENV.delete('COPPA_AI_HARD_GATE')
+      example.run
+    ensure
+      ENV['COPPA_AI_HARD_GATE'] = old
+    end
+
+    it "returns false when user is nil" do
+      expect(FeatureFlags.coppa_blocks_ai_for?(nil)).to eq(false)
+    end
+
+    it "returns false when user has no coppa settings" do
+      u = User.new(settings: {})
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+
+    it "returns true when user has pending parental consent" do
+      u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
+    end
+
+    it "returns false when consent has been granted" do
+      u = User.new(settings: { 'coppa' => {
+        'pending_parent_consent' => true,
+        'parent_consent_granted_at' => Time.now.utc.iso8601
+      }})
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+
+    it "returns false when the hard gate is disabled, even with pending consent" do
+      ENV['COPPA_AI_HARD_GATE'] = 'false'
+      u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+  end
 end

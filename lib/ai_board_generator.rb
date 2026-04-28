@@ -33,6 +33,14 @@ module AiBoardGenerator
         return err
       end
 
+      # COPPA Final Rule hard-gate: block under-13 users awaiting parental consent.
+      if FeatureFlags.coppa_blocks_ai_for?(user)
+        err = { words: nil, name: nil, description: nil, error: 'AI features require parental consent for this account' }
+        err.merge!(dev_diag(:coppa_consent_pending,
+          'FeatureFlags.coppa_blocks_ai_for?(user) returned true. The user has settings["coppa"]["pending_parent_consent"] set without a parent_consent_granted_at timestamp.'))
+        return err
+      end
+
       cell_count = rows * columns
 
       # Configure blocklist with user names before scrubbing
