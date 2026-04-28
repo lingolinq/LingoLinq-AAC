@@ -22,6 +22,7 @@ var actionLock = {
       runCancel(locks[key].timer);
     }
     delete locks[key];
+    delete warning_times[key];
   },
 
   run: function(key, callback, opts) {
