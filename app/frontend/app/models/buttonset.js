@@ -96,10 +96,11 @@ LingoLinq.Buttonset = DS.Model.extend({
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
     // Safety timeout: if a previous call hung (e.g. server failure or stuck promise),
-    // don't stall new ones forever. We'll wait at most 30 seconds for the tail. On timeout
+    // don't stall new ones forever. We'll wait at most this many ms for the tail. On timeout
     // we clear the stranded chain so the next call doesn't immediately time out again, and
     // emit telemetry so we can observe how often this fires in production.
-    var SERIAL_TAIL_TIMEOUT_MS = 30000;
+    // Override LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS in tests to keep them fast.
+    var SERIAL_TAIL_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS) || 30000;
     var wait = new RSVP.Promise(function(resolve) {
       var done = false;
       var settle = function() {
