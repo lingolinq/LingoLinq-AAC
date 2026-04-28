@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
+import actionLock from '../utils/action-lock';
 
 /**
  * Available Boards grid (Mine folders, filter, DnD) — used on user/boards and dashboard.
@@ -21,6 +22,7 @@ export default Component.extend({
   editingFolderName: false,
   editFolderNameValue: '',
   confirmingFolderDelete: false,
+  deletingFolder: false,
   folderFilterString: '',
 
   filteredFolderSummaries: computed(
@@ -272,32 +274,37 @@ export default Component.extend({
       var tag = ctrl && ctrl.get('mineTagFolderDrillIn');
       if (!user || !tag) { return; }
 
-      this.get('persistence').ajax('/api/v1/users/' + user.get('id') + '/board_tags/delete', {
-        type: 'POST',
-        data: { tag: tag }
-      }).then(function(res) {
-        if (res && res.board_tag_map) {
-          user.set('board_tag_map', res.board_tag_map);
-        }
-        if (res && res.board_tags) {
-          user.set('board_tags', res.board_tags);
-        }
-        _this.set('confirmingFolderDelete', false);
-        ctrl.set('mineTagFolderDrillIn', null);
-        ctrl.set('show_all_boards', false);
-        ctrl.set('boards_display_limit', null);
-        ctrl.notifyPropertyChange('model.board_tag_map');
-        ctrl.notifyPropertyChange('model.board_tags');
-        ctrl.notifyPropertyChange('board_list');
-        var bl = ctrl.get('board_list');
-        if (bl) {
-          ctrl.set('last_filtered_results_key', bl.filtered_results_key);
-          ctrl.set('filtered_results', bl.filtered_results);
-        }
-      }, function(err) {
-        console.error('Folder delete failed:', err);
-        _this.set('confirmingFolderDelete', false);
-      });
+      this.set('deletingFolder', true);
+      return actionLock.run('delete-folder:' + user.get('id') + ':' + tag, function() {
+        return _this.get('persistence').ajax('/api/v1/users/' + user.get('id') + '/board_tags/delete', {
+          type: 'POST',
+          data: { tag: tag }
+        }).then(function(res) {
+          _this.set('deletingFolder', false);
+          if (res && res.board_tag_map) {
+            user.set('board_tag_map', res.board_tag_map);
+          }
+          if (res && res.board_tags) {
+            user.set('board_tags', res.board_tags);
+          }
+          _this.set('confirmingFolderDelete', false);
+          ctrl.set('mineTagFolderDrillIn', null);
+          ctrl.set('show_all_boards', false);
+          ctrl.set('boards_display_limit', null);
+          ctrl.notifyPropertyChange('model.board_tag_map');
+          ctrl.notifyPropertyChange('model.board_tags');
+          ctrl.notifyPropertyChange('board_list');
+          var bl = ctrl.get('board_list');
+          if (bl) {
+            ctrl.set('last_filtered_results_key', bl.filtered_results_key);
+            ctrl.set('filtered_results', bl.filtered_results);
+          }
+        }, function(err) {
+          console.error('Folder delete failed:', err);
+          _this.set('deletingFolder', false);
+          _this.set('confirmingFolderDelete', false);
+        });
+      }, {timeout: 10000});
     },
     exitMineFolderTag() {
       var ctrl = this.get('boardsCtrl');

@@ -19,6 +19,7 @@ import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
+import actionLock from '../../utils/action-lock';
 import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
 import prefClasses from '../../mixins/pref-classes';
@@ -731,8 +732,11 @@ export default Controller.extend(prefClasses, {
     function() { return computeBgImgStyle(this.model); }
   ),
 
-  nothing_visible_not_edit: computed('model.nothing_visible', 'edit_mode', function() {
-    return this.get('model.nothing_visible') && !this.get('edit_mode');
+  nothing_visible: computed('model.nothing_visible', function() {
+    return this.get('model.nothing_visible');
+  }),
+  nothing_visible_not_edit: computed('nothing_visible', 'edit_mode', function() {
+    return this.get('nothing_visible') && !this.get('edit_mode');
   }),
 
   retrying: false,
@@ -3180,21 +3184,26 @@ export default Controller.extend(prefClasses, {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
           return;
         }
-        _this._push_nav_history();
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           var key_parts = board_key.split('/');
-          _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+          actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
+            _this._push_nav_history();
+            return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+          }, {timeout: 5000});
           return;
         }
         var lookup = board_key || load_board.id;
         if(lookup) {
-          persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
-            if(data && data.board && data.board.key) {
-              var parts = data.board.key.split('/');
-              _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
-            }
-          });
+          actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + lookup, function() {
+            _this._push_nav_history();
+            return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
+              if(data && data.board && data.board.key) {
+                var parts = data.board.key.split('/');
+                return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+              }
+            });
+          }, {timeout: 5000});
           return;
         }
       }

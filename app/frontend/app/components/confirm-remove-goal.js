@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Remove Goal Modal Component
@@ -36,17 +37,19 @@ export default Component.extend({
     closing() {},
     confirm() {
       this.set('status', { saving: true });
-      this.store.findRecord('unit', this.get('model.source.id')).then((unit) => {
-        unit.set('goal', { remove: true, auto_conclude: this.get('auto_conclude') });
-        unit.save().then(() => {
-          unit.set('goal', null);
-          this.get('modal').close({ confirmed: true });
+      return actionLock.run('remove-goal:' + this.get('model.source.id'), () => {
+        return this.store.findRecord('unit', this.get('model.source.id')).then((unit) => {
+          unit.set('goal', { remove: true, auto_conclude: this.get('auto_conclude') });
+          return unit.save().then(() => {
+            unit.set('goal', null);
+            this.get('modal').close({ confirmed: true });
+          }, () => {
+            this.set('status', { error: true });
+          });
         }, () => {
           this.set('status', { error: true });
         });
-      }, () => {
-        this.set('status', { error: true });
-      });
+      }, {timeout: 10000});
     }
   }
 });

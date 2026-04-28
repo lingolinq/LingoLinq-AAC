@@ -67,7 +67,7 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
-    <button class="btn md-modal-btn {{if this.delete_action 'md-modal-btn--danger' 'md-modal-btn--primary'}}" {{action "remove"}}>
+    <button class="btn md-modal-btn {{if this.delete_action 'md-modal-btn--danger' 'md-modal-btn--primary'}}" {{action "remove"}} disabled={{this.loading}}>
       {{#if this.delete_action}}
         {{t "Delete Board" key="delete_board"}}
       {{else if this.unstar_action}}
