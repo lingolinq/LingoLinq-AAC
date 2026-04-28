@@ -11,7 +11,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Heroku with background job processing via Resque
+- Deployed on Render with background job processing via Resque
 
 ## Development Commands
 
@@ -36,9 +36,8 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-foreman start
 # or
-heroku local
+# heroku local (Deprecated)
 
 # Stop all running processes
 bin/kill_all
@@ -68,7 +67,7 @@ bundle exec rspec spec/models/user_spec.rb:42
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**
@@ -110,3 +109,15 @@ ember test
 ### 5. Security and Best Practices
 - **Sensitive Data:** Never include API keys or passwords directly in prompts. Use environment variables and reference them symbolically.
 - **Trusted Folders:** Understand and utilize the Trusted Folders security feature to control execution policies by folder.
+
+## End of Session Workflow (Clockify)
+Applies to any AI agent working in this repo (Claude Code, Gemini CLI, Antigravity native agents, IDE assistants). When asked to "log my time" or "wrap up and log":
+1. **Review:** Summarize the key accomplishments of the session.
+2. **Estimate:** Estimate the focused human-equivalent time spent, then DOUBLE it, then round the doubled value to the nearest 15 minutes. The doubled value is what gets logged. (Set 2026-04-27 by Scot: AI-paced sessions feel faster than equivalent human effort; doubling normalizes to honest billable time. Apply this every time, not just when asked.)
+3. **Log:** Use the `clockify` MCP to create a time entry:
+   - **Workspace:** LingoLinq (`69407374ee572941313ce700`)
+   - **Project:** 1. Product Development (`696adbd93fb01c1d549d34dd`)
+   - **User:** Scot Wahlquist (`6986590e298c54d45943dc5a`)
+   - **Task (Default):** D. Research & Development (`696adda516b27c402bb3e1ee`)
+   - **Task (Bug Fixes):** B. Bug Fixing & Maintenance (`696add8e27682d5f2ca5f9a4`)
+   - **Description:** [Session Summary]
