@@ -93,7 +93,7 @@ export default Component.extend({
     deleteBoard(decision) {
       const board = this.get('model.board');
       const action_key = 'delete-board:' + ((board && (board.id || board.key)) || 'orphans');
-      if(!actionLock.run(action_key, function() { return true; }, {timeout: 30000})) { return; }
+      if(!actionLock.run(action_key, function() { return true; }, {timeout: 300000})) { return; }
       this.set('deleting', { deleting: true });
       const load_promises = [];
       let other_board_ids = [];
