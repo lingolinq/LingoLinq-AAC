@@ -47,8 +47,8 @@ export default Component.extend({
       if (user_name !== user.user_name) {
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
-        this.set('deleting', true);
         return actionLock.run('delete-user:' + user.id, () => {
+          this.set('deleting', true);
           return this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
             type: 'POST',
             data: {
