@@ -30,14 +30,10 @@ export default Component.extend({
     _this.set('loading', true);
     _this.set('error', null);
     const board = _this.get('model.board');
-    console.log('COPYING: runOpening for', board.get('id'), 'action:', this.get('model.action'));
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
-      console.log('COPYING: skipping hierarchy load');
       _this.start_copying();
     } else {
-      console.log('COPYING: loading hierarchy...');
       BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true }).then(function(hierarchy) {
-        console.log('COPYING: hierarchy loaded');
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
         if (hierarchy && hierarchy.get('root')) {
@@ -46,7 +42,6 @@ export default Component.extend({
           _this.start_copying();
         }
       }, function(err) {
-        console.error('COPYING: hierarchy load failed', err);
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
         _this.set('error', err);
@@ -73,9 +68,8 @@ export default Component.extend({
     if (this.get('model.default_locale') && this.get('model.board.locale') !== this.get('model.default_locale')) {
       _this.set('model.board.default_locale', this.get('model.default_locale'));
     }
-    console.log('COPYING: calling editManager.copy_board...');
     editManager.copy_board(_this.get('model.board'), _this.get('model.action'), _this.get('model.user'), _this.get('model.make_public'), _this.get('model.symbol_library'), _this.get('model.new_owner'), _this.get('model.disconnect')).then(function(board) {
-      console.log('COPYING: editManager.copy_board success');
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
       let next = RSVP.resolve();
       const new_board_ids = board_ids_to_include ? board.get('new_board_ids') : null;
       if (_this.get('model.shares') && _this.get('model.shares').length > 0) {
@@ -117,6 +111,7 @@ export default Component.extend({
         return RSVP.resolve(null);
       });
       next.then(function(res) {
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         const modalSvc = _this.get('modal');
         const translatedResult = !!(res && res.translated === true);
         const copyingOpen =
@@ -136,7 +131,7 @@ export default Component.extend({
           modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
         }
       }, function(err) {
-        console.error('COPYING: editManager.copy_board success handler failed', err);
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         const modalSvc = _this.get('modal');
         const copyingOpen =
           modal.is_open('copying-board') ||
@@ -148,7 +143,7 @@ export default Component.extend({
         }
       });
     }, function(err) {
-      console.error('COPYING: editManager.copy_board failed', err);
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
       const modalSvc = _this.get('modal');
       const copyingOpen =
         modal.is_open('copying-board') ||

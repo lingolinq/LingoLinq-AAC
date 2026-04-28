@@ -95,11 +95,25 @@ LingoLinq.Buttonset = DS.Model.extend({
     // load_button_set() without force racing copy-modal load_button_set(true,...)).
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
-    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise), 
-    // don't stall new ones forever. We'll wait at most 10 seconds for the tail.
+    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise),
+    // don't stall new ones forever. We'll wait at most 30 seconds for the tail. On timeout
+    // we clear the stranded chain so the next call doesn't immediately time out again, and
+    // emit telemetry so we can observe how often this fires in production.
+    var SERIAL_TAIL_TIMEOUT_MS = 30000;
     var wait = new RSVP.Promise(function(resolve) {
-      prev.then(resolve, resolve);
-      setTimeout(resolve, 10000);
+      var done = false;
+      var settle = function() {
+        if(done) { return; }
+        done = true;
+        resolve();
+      };
+      prev.then(settle, settle);
+      setTimeout(function() {
+        if(done) { return; }
+        try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
+        bs.__loadButtonsSerialTail = null;
+        settle();
+      }, SERIAL_TAIL_TIMEOUT_MS);
     });
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
