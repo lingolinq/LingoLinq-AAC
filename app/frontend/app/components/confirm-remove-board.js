@@ -54,9 +54,9 @@ export default Component.extend({
       const board = this.get('model.board');
       const user = this.get('model.user');
       const _this = this;
-      _this.set('loading', true);
       _this.set('error', false);
       return actionLock.run('remove-board:' + this.get('model.action') + ':' + board.get('id'), function() {
+        _this.set('loading', true);
         return persistence.ajax('/api/v1/boards/unlink', {
           type: 'POST',
           data: {
