@@ -95,6 +95,12 @@ LingoLinq.Buttonset = DS.Model.extend({
     // load_button_set() without force racing copy-modal load_button_set(true,...)).
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
+    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise), 
+    // don't stall new ones forever. We'll wait at most 10 seconds for the tail.
+    var wait = new RSVP.Promise(function(resolve) {
+      prev.then(resolve, resolve);
+      setTimeout(resolve, 10000);
+    });
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -240,7 +246,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         reject({error: 'root url not available'});
       }
     });
-    bs.__loadButtonsSerialTail = prev.then(function() { return work; }, function() { return work; });
+    bs.__loadButtonsSerialTail = wait.then(function() { return work; }, function() { return work; });
     return work;
   },
   redepth: function(from_board_id) {
