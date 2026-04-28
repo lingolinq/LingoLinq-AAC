@@ -34,6 +34,7 @@ import geolocation from '../utils/geo';
 import i18n from '../utils/i18n';
 import frame_listener from '../utils/frame_listener';
 import Button from '../utils/button';
+import actionLock from '../utils/action-lock';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -3449,6 +3450,29 @@ export default Service.extend({
     } else if(button.load_board) {
       obj.type = 'link';
     }
+    var action_lock_key = null;
+    if(button.load_board && button.load_board.key) {
+      action_lock_key = 'board-link:' + ((obj.board && (obj.board.key || obj.board.id)) || 'current') + ':' + button.load_board.key;
+    } else if(button.url) {
+      action_lock_key = 'external-url:' + button.url;
+    } else if(button.apps) {
+      action_lock_key = 'external-app:' + (
+        (capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) ||
+        (capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) ||
+        (button.apps.web && button.apps.web.launch_url) ||
+        button.id ||
+        obj.button_id ||
+        'unknown'
+      );
+    } else if(button.integration && button.integration.action_type == 'webhook') {
+      action_lock_key = 'integration:' + (button.integration.user_integration_id || button.id || obj.button_id || 'unknown') + ':webhook';
+    } else if(button.integration && button.integration.action_type == 'render') {
+      action_lock_key = 'integration:' + button.integration.user_integration_id + ':render:' + (button.integration.action || '');
+    }
+    if(action_lock_key && actionLock.isLocked(action_lock_key)) {
+      actionLock.warn(action_lock_key);
+      return false;
+    }
     var overlay = obj.overlay;
     delete obj['overlay'];
 
@@ -3636,17 +3660,27 @@ export default Service.extend({
         scanner.native_keyboard();
       } else if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-      } else {
-        runLater(function() {
-          _this.track_depth('link');
-          _this.jump_to_board({
-            id: button.load_board.id,
-            key: button.load_board.key,
-            button_triggered: true,
-            meta_home: button.meta_home,
-            home_lock: button.home_lock
-          }, obj.board);
-        }, 50);
+      } else if(button.load_board) {
+        actionLock.run(action_lock_key, function() {
+          return new RSVP.Promise(function(resolve, reject) {
+            runLater(function() {
+              var jump;
+              _this.track_depth('link');
+              jump = _this.jump_to_board({
+                id: button.load_board.id,
+                key: button.load_board.key,
+                button_triggered: true,
+                meta_home: button.meta_home,
+                home_lock: button.home_lock
+              }, obj.board);
+              if(jump && typeof jump.then === 'function') {
+                jump.then(resolve, reject);
+              } else {
+                resolve();
+              }
+            }, 50);
+          });
+        }, {timeout: 5000});
       }
     } else if(button.url) {
       this.track_depth('clear');
@@ -3655,7 +3689,9 @@ export default Service.extend({
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
         modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
-        this.launch_url(button, null, obj.board);
+        actionLock.run(action_lock_key, function() {
+          return _this.launch_url(button, null, obj.board);
+        }, {timeout: 5000});
       }
     } else if(button.apps) {
       this.track_depth('clear');
@@ -3664,21 +3700,23 @@ export default Service.extend({
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
         modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
-        if((!this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
-          modal.open('confirm-external-app', {apps: button.apps});
-        } else if((!this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || this.get('currentUser.preferences.confirm_external_links')) {
-          modal.open('confirm-external-app', {apps: button.apps});
-        } else {
-          if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
-            capabilities.window_open(button.apps.ios.launch_url, '_blank');
-          } else if(capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) {
-            capabilities.window_open(button.apps.android.launch_url, '_blank');
-          } else if(button.apps.web && button.apps.web.launch_url) {
-            capabilities.window_open(button.apps.web.launch_url, '_blank');
+        actionLock.run(action_lock_key, function() {
+          if((!_this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (_this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
+            return modal.open('confirm-external-app', {apps: button.apps});
+          } else if((!_this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || _this.get('currentUser.preferences.confirm_external_links')) {
+            return modal.open('confirm-external-app', {apps: button.apps});
           } else {
-            // TODO: handle this edge case smartly I guess
+            if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
+              capabilities.window_open(button.apps.ios.launch_url, '_blank');
+            } else if(capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) {
+              capabilities.window_open(button.apps.android.launch_url, '_blank');
+            } else if(button.apps.web && button.apps.web.launch_url) {
+              capabilities.window_open(button.apps.web.launch_url, '_blank');
+            } else {
+              // TODO: handle this edge case smartly I guess
+            }
           }
-        }
+        }, {timeout: 5000});
       }
     } else if(specialty_button) {
       this.track_depth('clear');
@@ -3689,18 +3727,30 @@ export default Service.extend({
       }
     } else if(button.integration && button.integration.action_type == 'webhook') {
       this.track_depth('clear');
-      Button.extra_actions(button);
-      runLater(function() { _this.check_scanning(); }, 200);
+      actionLock.run(action_lock_key, function() {
+        var extra = Button.extra_actions(button);
+        runLater(function() { _this.check_scanning(); }, 200);
+        return extra;
+      }, {timeout: 5000});
     } else if(button.integration && button.integration.action_type == 'render') {
       this.track_depth('clear');
-      runLater(function() {
-      _this.jump_to_board({
-        id: "i" + button.integration.user_integration_id,
-        key: "integrations/" + button.integration.user_integration_id + ":" + (button.integration.action || ''),
-        home_lock: button.home_lock,
-        meta_home: button.meta_home
-      }, obj.board);
-      }, 100);
+      actionLock.run(action_lock_key, function() {
+        return new RSVP.Promise(function(resolve, reject) {
+          runLater(function() {
+            var jump = _this.jump_to_board({
+              id: "i" + button.integration.user_integration_id,
+              key: "integrations/" + button.integration.user_integration_id + ":" + (button.integration.action || ''),
+              home_lock: button.home_lock,
+              meta_home: button.meta_home
+            }, obj.board);
+            if(jump && typeof jump.then === 'function') {
+              jump.then(resolve, reject);
+            } else {
+              resolve();
+            }
+          }, 100);
+        });
+      }, {timeout: 5000});
     } else if(!skip_auto_return) {
       this.possible_auto_home(obj);
     }
@@ -4058,9 +4108,9 @@ export default Service.extend({
   launch_url: function(button, force, board) {
     var _this = this;
     if(!force && _this.get('currentUser.preferences.external_links') == 'confirm_all') {
-      modal.open('confirm-external-link', {url: button.url}).then(function(res) {
+      return modal.open('confirm-external-link', {url: button.url}).then(function(res) {
         if(res && res.open) {
-          _this.launch_url(button, true, board);
+          return _this.launch_url(button, true, board);
         }
       });
     } else {
@@ -4071,32 +4121,40 @@ export default Service.extend({
         real_url = button.book.url;
       }
       if(button.video && button.video.popup) {
-        modal.open('inline-video', button);
+        return modal.open('inline-video', button);
       } else if(button.book && button.book.popup && book_integration) {
         var opts = $.extend({}, button.book || {});
         delete opts['base_url'];
         delete opts['url'];
         delete opts['popup'];
         delete opts['type'];
-        runLater(function() {
-          _this.jump_to_board({
-            id: "i_tarheel",
-            key: "integrations/tarheel:" + encodeURIComponent(btoa(JSON.stringify(opts))),
-            home_lock: button.home_lock,
-            meta_home: button.meta_home
-          }, board);
-        }, 100);
+        return new RSVP.Promise(function(resolve, reject) {
+          runLater(function() {
+            var jump = _this.jump_to_board({
+              id: "i_tarheel",
+              key: "integrations/tarheel:" + encodeURIComponent(btoa(JSON.stringify(opts))),
+              home_lock: button.home_lock,
+              meta_home: button.meta_home
+            }, board);
+            if(jump && typeof jump.then === 'function') {
+              jump.then(resolve, reject);
+            } else {
+              resolve();
+            }
+          }, 100);
+        });
       } else {
         var do_confirm = (!_this.get('currentUser') && window.user_preferences.any_user.external_links == 'confirm_custom') || _this.get('currentUser.preferences.external_links') == 'confirm_custom';
         do_confirm = do_confirm || (!_this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || _this.get('currentUser.preferences.confirm_external_links');
         if(!force && do_confirm) {
-          modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
+          return modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
             if(res && res.open) {
               capabilities.window_open(real_url || button.url, '_blank');
             }
           });
         } else {
           capabilities.window_open(real_url || button.url, '_blank');
+          return RSVP.resolve();
         }
       }
     }

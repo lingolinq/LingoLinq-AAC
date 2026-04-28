@@ -5,6 +5,7 @@ import modalUtil from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import RSVP from 'rsvp';
 import { later as runLater } from '@ember/runloop';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Delete Board Modal Component
@@ -91,6 +92,8 @@ export default Component.extend({
     },
     deleteBoard(decision) {
       const board = this.get('model.board');
+      const action_key = 'delete-board:' + ((board && (board.id || board.key)) || 'orphans');
+      if(!actionLock.run(action_key, function() { return true; }, {timeout: 300000})) { return; }
       this.set('deleting', { deleting: true });
       const load_promises = [];
       let other_board_ids = [];
@@ -200,11 +203,13 @@ export default Component.extend({
       }
 
       wait_for_deletes.then(() => {
+        actionLock.clear(action_key);
         if (_this.get('model.redirect')) {
           _this.appState.return_to_index();
         }
         modalUtil.close({ update: true });
       }, () => {
+        actionLock.clear(action_key);
         _this.set('deleting', false);
         _this.set('error', true);
       });

@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Delete Logs modal (Phase 2).
@@ -39,18 +40,23 @@ export default Component.extend({
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
         const _this = this;
-        persistence.ajax('/api/v1/users/' + this.get('user_name') + '/flush/logs', {
-          type: 'POST',
-          data: {
-            confirm_user_id: this.get('user.id'),
-            user_name: this.get('user_name')
-          }
-        }).then(function() {
-          modal.close();
-          modal.success(i18n.t('logs_to_be_deleted', "Your logs will be deleted within approximately the next 24 hours."));
-        }, function() {
-          _this.set('error', i18n.t('delete_failed', "Log delete failed unexpectedly"));
-        });
+        return actionLock.run('delete-logs:' + this.get('user.id'), function() {
+          _this.set('deleting', true);
+          return persistence.ajax('/api/v1/users/' + _this.get('user_name') + '/flush/logs', {
+            type: 'POST',
+            data: {
+              confirm_user_id: _this.get('user.id'),
+              user_name: _this.get('user_name')
+            }
+          }).then(function() {
+            _this.set('deleting', false);
+            modal.close();
+            modal.success(i18n.t('logs_to_be_deleted', "Your logs will be deleted within approximately the next 24 hours."));
+          }, function() {
+            _this.set('deleting', false);
+            _this.set('error', i18n.t('delete_failed', "Log delete failed unexpectedly"));
+          });
+        }, {timeout: 10000});
       }
     }
   }

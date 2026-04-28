@@ -10,6 +10,7 @@ import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
+import actionLock from '../utils/action-lock';
 
 /**
  * New Board Modal Component
@@ -647,42 +648,44 @@ export default Component.extend({
         this.set('status', {error: true});
         return;
       }
-      this.set('status', {saving: true});
-      if(this.get('model.license')) {
-        this.set('model.license.copyright_notice_url', LingoLinq.licenseOptions.license_url(this.get('model.license.type')));
-      }
-      if(this.get('model.home_board')) {
-        var cats = [];
-        this.get('board_categories').forEach(function(cat) {
-          if(cat.selected) {
-            cats.push(cat.id);
-          }
-        });
-        this.set('model.categories', cats);
-      }
-      // Ensure API has an owner: use for_user_id when creating for a supervisee, otherwise 'self' for current user
-      var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
-      if(!this.get('model.for_user_id') && currentUserId) {
-        this.set('model.for_user_id', 'self');
-      }
-      this.get('model').save().then(function(board) {
-        board.set('button_locale', board.get('locale'));
-        _this.appState.set('label_locale', board.get('locale'));
-        _this.appState.set('vocalization_locale', board.get('locale'));
-        _this.set('status', null);
-        modalUtil.close(true);
-        editManager.auto_edit(board.get('id'));
-        _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
-        var key = board.get('key') || '';
-        var parts = key.split('/');
-        if (parts.length >= 2) {
-          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
-        } else {
-          _this.get('router').transitionTo('board', key);
+      return actionLock.run('save-board:' + (this.get('model.id') || name), function() {
+        _this.set('status', {saving: true});
+        if(_this.get('model.license')) {
+          _this.set('model.license.copyright_notice_url', LingoLinq.licenseOptions.license_url(_this.get('model.license.type')));
         }
-      }, function() {
-        _this.set('status', {error: true});
-      });
+        if(_this.get('model.home_board')) {
+          var cats = [];
+          _this.get('board_categories').forEach(function(cat) {
+            if(cat.selected) {
+              cats.push(cat.id);
+            }
+          });
+          _this.set('model.categories', cats);
+        }
+        // Ensure API has an owner: use for_user_id when creating for a supervisee, otherwise 'self' for current user
+        var currentUserId = _this.appState.get('currentUser.id') || _this.appState.get('sessionUser.id');
+        if(!_this.get('model.for_user_id') && currentUserId) {
+          _this.set('model.for_user_id', 'self');
+        }
+        return _this.get('model').save().then(function(board) {
+          board.set('button_locale', board.get('locale'));
+          _this.appState.set('label_locale', board.get('locale'));
+          _this.appState.set('vocalization_locale', board.get('locale'));
+          _this.set('status', null);
+          modalUtil.close(true);
+          editManager.auto_edit(board.get('id'));
+          _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
+          var key = board.get('key') || '';
+          var parts = key.split('/');
+          if (parts.length >= 2) {
+            return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          } else {
+            return _this.get('router').transitionTo('board', key);
+          }
+        }, function() {
+          _this.set('status', {error: true});
+        });
+      }, {timeout: 10000});
     },
     hoverGrid: function(row, col) {
       this.set('previewRows', row);
