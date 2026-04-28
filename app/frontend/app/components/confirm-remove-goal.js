@@ -36,8 +36,8 @@ export default Component.extend({
     },
     closing() {},
     confirm() {
-      this.set('status', { saving: true });
       return actionLock.run('remove-goal:' + this.get('model.source.id'), () => {
+        this.set('status', { saving: true });
         return this.store.findRecord('unit', this.get('model.source.id')).then((unit) => {
           unit.set('goal', { remove: true, auto_conclude: this.get('auto_conclude') });
           return unit.save().then(() => {
