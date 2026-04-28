@@ -111,6 +111,9 @@
         {{#if this.application.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
         {{/if}}
+        {{#if this.application.showDatabaseExplorerLink}}
+        <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
+        {{/if}}
         <li class="divider" role="separator"></li>
         <li>
           <a href="#" {{action "openCompanySidebar" preventDefault=true}} class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</a>
@@ -171,6 +174,9 @@
     <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
     {{#if this.application.showBetaFeedbackAdminLink}}
     <LinkTo @route="beta-feedback-admin" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo>
+    {{/if}}
+    {{#if this.application.showDatabaseExplorerLink}}
+    <LinkTo @route="database" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Database" key="database_explorer_nav"}}</LinkTo>
     {{/if}}
     {{/unless}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "toggleThemePicker"}}>{{t "Theme" key="theme"}}</button>

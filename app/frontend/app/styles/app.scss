@@ -58980,6 +58980,118 @@ a.md-caseload__action {
   margin-left: 6px;
 }
 
+/* Database schema explorer (admin / support) */
+.la-database-explorer__body {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--md-ink, $brand-blue-black);
+}
+.la-database-explorer__header .la-pricing-hero-subtitle {
+  max-width: 44rem;
+}
+.la-database-explorer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+}
+.la-database-explorer__search-label {
+  flex: 1 1 220px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.la-database-explorer__search-input {
+  width: 100%;
+}
+.la-database-explorer__label-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.85;
+}
+.la-database-explorer__loading {
+  margin: 8px 0 16px;
+  color: var(--md-muted, $la-navy);
+}
+.la-database-explorer__layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+.la-database-explorer__sidebar {
+  flex: 1 1 240px;
+  max-width: 100%;
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.la-database-explorer__table-list {
+  margin-bottom: 0;
+}
+.la-database-explorer__table-item {
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.la-database-explorer__table-item:last-child {
+  border-bottom: none;
+}
+.la-database-explorer__table-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0;
+}
+.la-database-explorer__table-btn:hover,
+.la-database-explorer__table-btn:focus-visible {
+  background: rgba(100, 185, 188, 0.12);
+  outline: none;
+}
+.la-database-explorer__table-btn--active {
+  font-weight: 700;
+  background: rgba(100, 185, 188, 0.18);
+}
+.la-database-explorer__main {
+  flex: 2 1 320px;
+  min-width: 0;
+}
+.la-database-explorer__table-title {
+  font-size: 1.35rem;
+  margin: 0 0 8px;
+  word-break: break-word;
+}
+.la-database-explorer__column-count {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+.la-database-explorer__table-wrap {
+  margin-top: 4px;
+}
+.la-database-explorer__columns-table {
+  font-size: 1rem;
+}
+.la-database-explorer__columns-table code {
+  font-size: 0.95em;
+  word-break: break-word;
+}
+.la-database-explorer__cell-default {
+  word-break: break-word;
+  max-width: 22rem;
+  font-size: 0.95rem;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Custom confirm dialog — brand-styled replacement for browser confirm().
    Used in button-settings "Clear Button" and reusable elsewhere.
