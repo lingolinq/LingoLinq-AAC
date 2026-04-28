@@ -208,15 +208,16 @@
                 {{/if}}
               {{/if}}
             {{/if}}
-            {{!-- ── Display Preferences (collapsible, above preview) ── --}}
+            {{!-- ── Preferences & Labels (collapsible, above preview) ── --}}
+            {{#if this.label_count}}
             <div class="new-board-prefs-collapsible {{if this.prefs_open "new-board-prefs-collapsible--open"}}">
               <button type="button" class="new-board-prefs-toggle" aria-expanded={{if this.prefs_open "true" "false"}} {{action "togglePrefs"}}>
-                <span class="new-board-prefs-toggle__label">{{t "Display preferences" key="board_detail_display_prefs"}}</span>
+                <span class="new-board-prefs-toggle__label">{{t "Preferences & Labels" key="preferences_and_labels"}}</span>
                 <svg class="new-board-prefs-toggle__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               {{#if this.prefs_open}}
-            {{!-- ── Display Preferences inset (ported from board-detail) ── --}}
-            <div class="new-board-prefs-inset md-board-detail-edit-toolbar md-board-detail-edit-toolbar--expanded" role="toolbar" aria-label={{t "Display preferences" key="board_detail_display_prefs"}}>
+            {{!-- ── Preferences & Labels inset (ported from board-detail) ── --}}
+            <div class="new-board-prefs-inset md-board-detail-edit-toolbar md-board-detail-edit-toolbar--expanded" role="toolbar" aria-label={{t "Preferences & Labels" key="preferences_and_labels"}}>
               <div class="md-board-detail-edit-toolbar__display-prefs">
 
                 {{!-- ── Text Size + Font + Position ── --}}
@@ -439,6 +440,7 @@
             </div>
               {{/if}}
             </div>
+            {{/if}}
             <div class="new-board-mockup-wrap {{if (is_equal this.preview_mode "dark") "md-board-detail--dark new-board-mockup-wrap--dark"}}"
                  role="region"
                  aria-label={{t "Board preview" key="board_preview"}}>

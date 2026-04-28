@@ -40953,7 +40953,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board--modern .new-board-field--labels #new_board_labels {
   font-size: 14px !important;
 
-  margin-bottom: 14px !important;
+  margin-bottom: 0 !important;
 
 }
 .new-board--modern .new-board-field--labels .modern-select {
@@ -40978,7 +40978,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 8px;
   padding: 10px 12px;
   min-height: 64px;
-  border-radius: 18px;
+  border-radius: 25px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background:
     linear-gradient(
@@ -41195,7 +41195,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   letter-spacing: 0.01em;
   color: var(--md-ink, #1f2933);
   margin: 0;
-  padding: 6px 2px;
+  padding: 6px 8px;
   height: auto;
 }
 .label-chips__input::placeholder {
@@ -41906,20 +41906,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
 }
 .nb-words-grid__col--labels .label-chips {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   margin-bottom: 0;
 }
 .nb-words-grid__col--labels .label-chips__container {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-content: flex-start;
-  padding-top: 4px;
+  padding: 4px;
+  min-height: 0;
 }
 .nb-words-grid__col--labels .label-chips__input {
   align-self: center;
   margin-top: 0;
+}
+#within_ember .nb-words-grid__col--labels .label-chips__input:focus-visible {
+  border-radius: 18px;
 }
 /* Match chip height to the input field's visible chrome (input + focus ring)
    so chips and input align on the same baseline without shifting either. */

@@ -4126,6 +4126,7 @@
   "app_explanation": "%app_name% runs in web browsers, but you can also find it in the app stores",
   "configure_your_board_preferences": "Configure your board settings",
   "preferences_explanation": "Customize how %app_name% looks, turn on logging, etc.",
+  "preferences_and_labels": "Preferences & Labels",
   "update_your_profile": "Update your profile",
   "profile_explanation": "Check your name, email, notifications, and basic bio.",
   "pick_subscription": "Set up a subscription",
