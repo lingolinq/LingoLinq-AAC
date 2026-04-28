@@ -20,6 +20,7 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
     <button {{action "importFromHtml"}} class="btn btn-primary" disabled={{this.status.saving}}>
       {{#if this.status.saving}}
         {{t "Importing..." key="importing"}}
@@ -27,6 +28,5 @@
         {{t "Import" key="import"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

@@ -242,6 +242,8 @@
     {{edit-unit}}
   {{else if (is-equal this.currentTemplate "save-snapshot")}}
     {{save-snapshot}}
+  {{else if (is-equal this.currentTemplate "beta-feedback-modal")}}
+    {{beta-feedback-modal}}
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

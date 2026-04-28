@@ -12,10 +12,10 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 
 /**
- * New Board Modal Component
- * 
- * Converted from new-board template/controller to component
- * for the new service-based modal system.
+ * Create Board (New) Modal Component
+ *
+ * Full-width sibling of new-board for iterating on the create-board flow
+ * without disturbing the live modal. Lookup key 'create-board-new'.
  */
 export default Component.extend({
   modal: service('modal'),
@@ -28,7 +28,7 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     const modalService = this.get('modal');
-    const template = 'new-board';
+    const template = 'create-board-new';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
@@ -39,7 +39,7 @@ export default Component.extend({
       public: false,
       visibility: 'private',
       license: {type: 'private'},
-      grid: {rows: 2, columns: 4, labels_order: 'rows'},
+      grid: {rows: 6, columns: 10, labels_order: 'rows'},
       for_user_id: currentUserId ? 'self' : undefined
     }));
     
@@ -75,6 +75,8 @@ export default Component.extend({
     
     this.set('status', null);
     this.set('more_options', false);
+    this.set('preview_mode', 'dark');
+    this.set('prefs_open', false);
 
     // Initialize board categories
     var res = [];
@@ -99,12 +101,227 @@ export default Component.extend({
   },
 
   for_user_id: computed('model.for_user_id', function() {
-    return this.get('model.for_user_id');
+    return this.get('model.for_user_id') || 'self';
+  }),
+
+  /** Options for the "For" dropdown. Always includes "— my board —" (self)
+   *  as the default; supervisees the current user can edit are appended.
+   *  Disabled supervisees (no edit permission) are excluded so the menu
+   *  only shows valid choices. */
+  user_options: computed('appState.sessionUser.known_supervisees.[]', function() {
+    var res = [{id: 'self', name: i18n.t('my_board_self', '— my board —')}];
+    var supers = this.appState.get('sessionUser.known_supervisees') || [];
+    supers.forEach(function(s) {
+      if(s.edit_permission) {
+        res.push({id: s.id, name: s.user_name});
+      }
+    });
+    return res;
   }),
 
   ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
     return !!this.appState.get('feature_flags.ai_board_generation');
   }),
+
+  /** Mirror the live board-detail page's text-position class on the
+   *  preview grid so the mockup honors the user's saved preference
+   *  (top / bottom / text_only). Defaults to 'top' when unset, matching
+   *  controllers/user/board-detail.js:1099. */
+  button_text_position_class: computed('appState.sessionUser.preferences.device.button_text_position', function() {
+    var pos = this.appState.get('sessionUser.preferences.device.button_text_position') || 'top';
+    return 'md-board-detail-grid--text-pos-' + pos;
+  }),
+
+  /** Text-size class (small/medium/large/huge) — drives the live page's
+   *  font sizing rules. Same default ('medium') as the live controller. */
+  button_text_size_class: computed('appState.sessionUser.preferences.device.button_text', function() {
+    var size = this.appState.get('sessionUser.preferences.device.button_text') || 'medium';
+    return 'md-board-detail-grid--text-' + size;
+  }),
+
+  /** Text-size in px — published as --bd-button-text-size on the grid so
+   *  symbol cards pick the user's preferred label size. Map mirrors the
+   *  live controller exactly. */
+  button_text_size_px: computed('appState.sessionUser.preferences.device.button_text', function() {
+    var size = this.appState.get('sessionUser.preferences.device.button_text') || 'medium';
+    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
+    return map[size] || 18;
+  }),
+
+  /** Grid gap in px — published as --bd-button-gap. */
+  button_spacing_px: computed('appState.sessionUser.preferences.device.button_spacing', function() {
+    var spacing = this.appState.get('sessionUser.preferences.device.button_spacing') || 'medium';
+    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
+    return (map[spacing] != null) ? map[spacing] : 8;
+  }),
+
+  /** Symbol-card outline width in px — published as --bd-button-border. */
+  button_border_px: computed('appState.sessionUser.preferences.device.button_border', function() {
+    var border = this.appState.get('sessionUser.preferences.device.button_border') || 'medium';
+    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
+    return (map[border] != null) ? map[border] : 3;
+  }),
+
+  /** Shape modifier class (square / tall / wide) for the symbol cards. */
+  button_shape_class: computed('appState.sessionUser.preferences.stretch_buttons', function() {
+    var pref = this.appState.get('sessionUser.preferences.stretch_buttons') || 'none';
+    if(pref === 'prefer_tall') { return 'md-board-detail-grid--shape-tall'; }
+    if(pref === 'prefer_wide') { return 'md-board-detail-grid--shape-wide'; }
+    return 'md-board-detail-grid--shape-square';
+  }),
+
+  // ── Display Preferences toolbar (ported from board-detail) ────────────
+  // Dropdown open-state flags
+  display_prefs_font_dropdown_open: false,
+  display_prefs_symbol_library_dropdown_open: false,
+  display_prefs_symbol_background_dropdown_open: false,
+
+  // Option lists (mirror controllers/user/board-detail.js)
+  button_style_options: [
+    { id: 'default', label: 'Default' },
+    { id: 'default_caps', label: 'Default (caps)' },
+    { id: 'default_small', label: 'Default (small)' },
+    { id: 'arial', label: 'Arial' },
+    { id: 'arial_caps', label: 'Arial (caps)' },
+    { id: 'arial_small', label: 'Arial (small)' },
+    { id: 'comic_sans', label: 'Comic Sans' },
+    { id: 'comic_sans_caps', label: 'Comic Sans (caps)' },
+    { id: 'comic_sans_small', label: 'Comic Sans (small)' },
+    { id: 'open_dyslexic', label: 'Open Dyslexic' },
+    { id: 'open_dyslexic_caps', label: 'Open Dyslexic (caps)' },
+    { id: 'open_dyslexic_small', label: 'Open Dyslexic (small)' },
+    { id: 'architects_daughter', label: "Architect's Daughter" },
+    { id: 'architects_daughter_caps', label: "Architect's Daughter (caps)" },
+    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" }
+  ],
+  preferred_symbols_options: [
+    { id: 'original', label: 'Original' },
+    { id: 'opensymbols', label: 'OpenSymbols' },
+    { id: 'arasaac', label: 'ARASAAC' },
+    { id: 'twemoji', label: 'Twemoji' },
+    { id: 'noun-project', label: 'Noun Project' },
+    { id: 'lessonpix', label: 'LessonPix (Premium)' },
+    { id: 'pcs', label: 'PCS (Premium)' },
+    { id: 'symbolstix', label: 'SymbolStix (Premium)' },
+    { id: 'tawasol', label: 'Tawasol' }
+  ],
+  symbol_background_options: [
+    { id: 'clear', label: 'Colored' },
+    { id: 'white', label: 'White' },
+    { id: 'black', label: 'Black' },
+    { id: 'high_contrast', label: 'High Contrast' }
+  ],
+
+  // Map of pref key → live user.preferences path
+  _display_prefs_paths: {
+    button_spacing:       'preferences.device.button_spacing',
+    button_border:        'preferences.device.button_border',
+    button_text:          'preferences.device.button_text',
+    button_text_position: 'preferences.device.button_text_position',
+    button_style:         'preferences.device.button_style',
+    stretch_buttons:      'preferences.stretch_buttons',
+    preferred_symbols:    'preferences.preferred_symbols',
+    symbol_background:    'preferences.symbol_background',
+    high_contrast:        'preferences.high_contrast',
+    skin:                 'preferences.skin'
+  },
+
+  // Stepper end-of-ladder disabled-states
+  display_prefs_text_size_at_min: computed('appState.sessionUser.preferences.device.button_text', function() {
+    var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_text') || 'medium');
+    return idx <= 0;
+  }),
+  display_prefs_text_size_at_max: computed('appState.sessionUser.preferences.device.button_text', function() {
+    var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_text') || 'medium');
+    return idx >= 3;
+  }),
+  display_prefs_border_at_min: computed('appState.sessionUser.preferences.device.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_border') || 'medium');
+    return idx <= 0;
+  }),
+  display_prefs_border_at_max: computed('appState.sessionUser.preferences.device.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_border') || 'medium');
+    return idx >= 4;
+  }),
+  display_prefs_spacing_at_min: computed('appState.sessionUser.preferences.device.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_spacing') || 'medium');
+    return idx <= 0;
+  }),
+  display_prefs_spacing_at_max: computed('appState.sessionUser.preferences.device.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.appState.get('sessionUser.preferences.device.button_spacing') || 'medium');
+    return idx >= 6;
+  }),
+
+  // Current-value labels for dropdowns
+  display_prefs_current_font_label: computed('appState.sessionUser.preferences.device.button_style', 'button_style_options', function() {
+    var current = this.appState.get('sessionUser.preferences.device.button_style') || 'default';
+    var opts = this.get('button_style_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Default';
+  }),
+  display_prefs_current_symbol_library_label: computed('appState.sessionUser.preferences.preferred_symbols', 'preferred_symbols_options', function() {
+    var current = this.appState.get('sessionUser.preferences.preferred_symbols') || 'original';
+    var opts = this.get('preferred_symbols_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Original';
+  }),
+  display_prefs_current_symbol_background_id: computed('appState.sessionUser.preferences.symbol_background', 'appState.sessionUser.preferences.high_contrast', function() {
+    if(this.appState.get('sessionUser.preferences.high_contrast')) { return 'high_contrast'; }
+    return this.appState.get('sessionUser.preferences.symbol_background') || 'clear';
+  }),
+  display_prefs_current_symbol_background_label: computed('display_prefs_current_symbol_background_id', 'symbol_background_options', function() {
+    var current = this.get('display_prefs_current_symbol_background_id');
+    var opts = this.get('symbol_background_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Clear';
+  }),
+
+  // Skin compound-state checks (read directly from live preferences)
+  skin_is_mix: computed('appState.sessionUser.preferences.skin', function() {
+    var s = this.appState.get('sessionUser.preferences.skin') || '';
+    return s === 'mix' || s.indexOf('mix::') === 0;
+  }),
+  skin_is_mix_only: computed('appState.sessionUser.preferences.skin', function() {
+    return (this.appState.get('sessionUser.preferences.skin') || '').indexOf('mix_only') === 0;
+  }),
+  skin_is_mix_prefer: computed('appState.sessionUser.preferences.skin', function() {
+    return (this.appState.get('sessionUser.preferences.skin') || '').indexOf('mix_prefer') === 0;
+  }),
+  skin_suboptions: computed('appState.sessionUser.preferences.skin', function() {
+    var s = this.appState.get('sessionUser.preferences.skin') || '';
+    var is_only = s.indexOf('mix_only') === 0;
+    var is_prefer = s.indexOf('mix_prefer') === 0;
+    if(!is_only && !is_prefer) { return null; }
+    var bits = (s.split('limit-')[1] || '').slice(0, 6);
+    var defs = [
+      { id: 'default',       label: i18n.t('default_skin_tones',     "Original Skin Tone") },
+      { id: 'dark',          label: i18n.t('dark_skin_tone',         "Dark Skin Tone") },
+      { id: 'medium_dark',   label: i18n.t('medium_dark_skin_tone',  "Medium-Dark Skin Tone") },
+      { id: 'medium',        label: i18n.t('medium_skin_tone',       "Medium Skin Tone") },
+      { id: 'medium_light',  label: i18n.t('medium_light_skin_tone', "Medium-Light Skin Tone") },
+      { id: 'light',         label: i18n.t('light_skin_tone',        "Light Skin Tone") }
+    ];
+    for(var i = 0; i < 6; i++) {
+      var v = parseInt(bits[i] || '0', 10);
+      defs[i].checked = is_only ? v > 0 : v > 1;
+    }
+    return defs;
+  }),
+
+  // Composes and persists a mix / mix_only / mix_prefer skin string.
+  _rebuild_compound_skin: function(id) {
+    var user_id = this.appState.get('sessionUser.id');
+    var skin = id + (user_id ? '::' + user_id : '');
+    if(id === 'mix_only' || id === 'mix_prefer') {
+      skin = skin + '::limit-';
+      var subs = this.get('skin_suboptions') || [];
+      subs.forEach(function(opt) {
+        if(opt.checked) { skin += (id === 'mix_only' ? '1' : '3'); }
+        else            { skin += (id === 'mix_only' ? '0' : '1'); }
+      });
+    }
+    this.send('set_display_pref', 'skin', skin);
+  },
 
   willDestroy() {
     // Stop recording before teardown (don't use send() - component is being destroyed)
@@ -193,13 +410,23 @@ export default Component.extend({
     return grid;
   }),
 
-  preview_style: computed('model.grid.columns', 'model.grid.rows', function() {
-    var cols = parseInt(this.get('model.grid.columns'), 10) || 1;
-    var rows = parseInt(this.get('model.grid.rows'), 10) || 1;
-    cols = Math.max(1, Math.min(20, cols));
-    rows = Math.max(1, Math.min(20, rows));
-    return htmlSafe('--preview-cols: ' + cols + '; --preview-rows: ' + rows);
-  }),
+  preview_style: computed(
+    'model.grid.columns', 'model.grid.rows',
+    'button_text_size_px', 'button_spacing_px', 'button_border_px',
+    function() {
+      var cols = parseInt(this.get('model.grid.columns'), 10) || 1;
+      var rows = parseInt(this.get('model.grid.rows'), 10) || 1;
+      cols = Math.max(1, Math.min(20, cols));
+      rows = Math.max(1, Math.min(20, rows));
+      return htmlSafe(
+        '--preview-cols: ' + cols + '; --preview-rows: ' + rows +
+        '; --board-columns: ' + cols + '; --board-rows: ' + rows +
+        '; --bd-button-text-size: ' + this.get('button_text_size_px') + 'px' +
+        '; --bd-button-gap: ' + this.get('button_spacing_px') + 'px' +
+        '; --bd-button-border: ' + this.get('button_border_px') + 'px'
+      );
+    }
+  ),
 
   too_many_labels: computed('label_count', 'model.grid.rows', 'model.grid.columns', function() {
     return (this.get('label_count') || 0) > (parseInt(this.get('model.grid.rows'), 10) * parseInt(this.get('model.grid.columns'), 10));
@@ -512,6 +739,12 @@ export default Component.extend({
     more_options: function() {
       this.set('more_options', true);
     },
+    togglePreviewMode: function() {
+      this.set('preview_mode', this.get('preview_mode') === 'dark' ? 'light' : 'dark');
+    },
+    togglePrefs: function() {
+      this.toggleProperty('prefs_open');
+    },
     pick_core: function() {
       this.send('stop_recording');
       this.set('core_lists', i18n.get('core_words'));
@@ -698,6 +931,97 @@ export default Component.extend({
     },
     pickImageUrl: function(url) {
       this.set('model.image_url', url);
+    },
+
+    // ── Display Preferences toolbar actions (ported from board-detail) ──
+    // Writes go directly to live appState.sessionUser.preferences and save —
+    // there is no pending/Save flow in create-board-new.
+    set_display_pref: function(key, value) {
+      var user = this.appState.get('sessionUser');
+      var path = this._display_prefs_paths[key];
+      if(user && path) {
+        user.set(path, value);
+        user.set('preferences.device.updated', true);
+        try { user.save(); } catch(e) { }
+      }
+    },
+
+    step_display_pref: function(key, direction) {
+      var ladders = {
+        button_text:     ['small', 'medium', 'large', 'huge'],
+        button_border:   ['none', 'small', 'medium', 'large', 'huge'],
+        button_spacing:  ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge']
+      };
+      var ladder = ladders[key];
+      if(!ladder) { return; }
+      var current_paths = {
+        button_text:    'sessionUser.preferences.device.button_text',
+        button_border:  'sessionUser.preferences.device.button_border',
+        button_spacing: 'sessionUser.preferences.device.button_spacing'
+      };
+      var current = this.appState.get(current_paths[key]) || 'medium';
+      var idx = ladder.indexOf(current);
+      if(idx < 0) { idx = Math.floor(ladder.length / 2); }
+      var dir = direction > 0 ? 1 : -1;
+      var next_idx = dir > 0 ? Math.min(idx + 1, ladder.length - 1) : Math.max(idx - 1, 0);
+      if(next_idx === idx) { return; }
+      this.send('set_display_pref', key, ladder[next_idx]);
+    },
+
+    toggle_display_font_dropdown: function() {
+      this.toggleProperty('display_prefs_font_dropdown_open');
+    },
+    close_display_font_dropdown: function() {
+      this.set('display_prefs_font_dropdown_open', false);
+    },
+    pick_display_font: function(font_id) {
+      this.send('set_display_pref', 'button_style', font_id);
+      this.set('display_prefs_font_dropdown_open', false);
+    },
+
+    toggle_display_symbol_library_dropdown: function() {
+      this.toggleProperty('display_prefs_symbol_library_dropdown_open');
+    },
+    close_display_symbol_library_dropdown: function() {
+      this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+    pick_display_symbol_library: function(id) {
+      this.send('set_display_pref', 'preferred_symbols', id);
+      this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+
+    toggle_display_symbol_background_dropdown: function() {
+      this.toggleProperty('display_prefs_symbol_background_dropdown_open');
+    },
+    close_display_symbol_background_dropdown: function() {
+      this.set('display_prefs_symbol_background_dropdown_open', false);
+    },
+    pick_display_symbol_background: function(id) {
+      if(id === 'high_contrast') {
+        this.send('set_display_pref', 'high_contrast', true);
+        this.send('set_display_pref', 'symbol_background', 'black');
+      } else {
+        this.send('set_display_pref', 'high_contrast', false);
+        this.send('set_display_pref', 'symbol_background', id);
+      }
+      this.set('display_prefs_symbol_background_dropdown_open', false);
+    },
+
+    set_compound_skin: function(id) {
+      if(id === 'mix_only' && this.get('skin_is_mix_only')) {
+        return this.send('set_display_pref', 'skin', 'default');
+      }
+      if(id === 'mix_prefer' && this.get('skin_is_mix_prefer')) {
+        return this.send('set_display_pref', 'skin', 'default');
+      }
+      this._rebuild_compound_skin(id);
+    },
+
+    toggle_skin_suboption: function(option, event) {
+      var checked = event && event.target ? !!event.target.checked : !option.checked;
+      emberSet(option, 'checked', checked);
+      if(this.get('skin_is_mix_only'))   { this._rebuild_compound_skin('mix_only'); }
+      if(this.get('skin_is_mix_prefer')) { this._rebuild_compound_skin('mix_prefer'); }
     }
   }
 });

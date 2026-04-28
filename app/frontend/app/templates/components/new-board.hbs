@@ -54,15 +54,19 @@
 
         <section class="nb-section">
           <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
-          <p class="nb-section__hint">{{t "Give your board a name and a brief description." key="new_board_section_basics_hint"}}</p>
+          <p class="nb-section__hint">{{t "Give your board a name and brief description." key="new_board_section_basics_hint"}}</p>
           <div class="nb-section__body">
-            <div class="nb-field">
-              <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
-              <Input @value={{this.model.name}} class="form-control nb-field__input" id="new_board_name" placeholder="My Board" />
-            </div>
-            <div class="nb-field new-board-field--description">
-              <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}</label>
-              <Textarea @value={{this.model.description}} class="form-control nb-field__input" id="new_board_description" placeholder="Brief description of the board" />
+            <div class="nb-basics-grid">
+              <div class="nb-basics-grid__col nb-basics-grid__col--left">
+                <div class="nb-field">
+                  <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
+                  <Input @value={{this.model.name}} class="form-control nb-field__input" id="new_board_name" placeholder="My Board" />
+                </div>
+                <div class="nb-field new-board-field--description">
+                  <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}</label>
+                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" />
+                </div>
+              </div>
             </div>
             {{#if this.has_supervisees}}
               <div class="nb-field">
@@ -74,9 +78,8 @@
         </section>
 
         <section class="nb-section">
-          <h4 class="nb-section__title">{{t "Size & preview" key="new_board_section_size"}}</h4>
-          <p class="nb-section__hint">{{t "Set the grid; words you type below will fill the cells live." key="new_board_section_size_hint"}}</p>
-          <div class="nb-section__body">
+          <div class="nb-section__head">
+            <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
             <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
               <div class="nb-stepper-mini">
                 <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
@@ -99,51 +102,96 @@
                 </button>
               </div>
             </div>
-            <div class="new-board-preview"
-                 style={{this.preview_style}}
-                 role="grid"
-                 aria-label={{t "Board preview" key="board_preview"}}
-                 ondragover={{action "previewDragOver"}}
-                 ondrop={{action "previewDrop"}}>
-              {{#each this.preview_grid as |row|}}
-                {{#each row as |cell|}}
-                  <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}}"
-                       role="gridcell"
-                       draggable={{unless cell.empty "true" "false"}}
-                       ondragstart={{action "cellDragStart" cell.row cell.col}}
-                       ondragover={{action "cellDragOver"}}
-                       ondrop={{action "cellDrop" cell.row cell.col}}
-                       ondragend={{action "cellDragEnd"}}>
-                    <span class="new-board-preview__label">{{cell.label}}</span>
-                  </div>
-                {{/each}}
-              {{/each}}
+          </div>
+          <div class="nb-hint-row">
+            <ul class="nb-checklist nb-hint-row__text">
+              <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
+              <li class="nb-checklist__item">{{t "Type, paste, or upload CSV" key="new_board_size_hint_input"}}</li>
+              <li class="nb-checklist__item">{{t "Enter key adds word/word grouping" key="new_board_size_hint_grouping"}}</li>
+            </ul>
+            <div class="nb-field__radio-group nb-field__radio-group--inline nb-hint-row__controls" role="radiogroup" aria-label={{t "Fill order" key="fill_order"}}>
+              <div class="nb-field__radio-row">
+                <label class="nb-radio">
+                  <input type="radio"
+                         name="labels_order"
+                         value="rows"
+                         checked={{is_equal this.model.grid.labels_order "rows"}}
+                         onchange={{action "setLabelsOrder" "rows"}} />
+                  <span class="nb-radio__label">{{t "Rows, left to right" key="rows_first_short"}}</span>
+                </label>
+                <label class="nb-radio">
+                  <input type="radio"
+                         name="labels_order"
+                         value="columns"
+                         checked={{is_equal this.model.grid.labels_order "columns"}}
+                         onchange={{action "setLabelsOrder" "columns"}} />
+                  <span class="nb-radio__label">{{t "Columns, top to bottom" key="columns_first_short"}}</span>
+                </label>
+              </div>
             </div>
           </div>
-        </section>
-
-        <section class="nb-section">
-          <h4 class="nb-section__title">{{t "Words" key="new_board_section_words"}}</h4>
-          <p class="nb-section__hint">{{t "Type a word and press Enter, or paste a list. Each word becomes a button." key="new_board_section_words_hint"}}</p>
           <div class="nb-section__body">
-            <div class="nb-field new-board-field--labels">
-              <label for="new_board_labels" class="nb-field__label">{{t "Labels" key="labels"}}</label>
-              {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
-              <div class="nb-field__row">
-                <label for="labels_order" class="nb-field__sublabel">{{t "Fill order" key="fill_order"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="labels_order" content=this.labels_order_list selection=this.model.grid.labels_order action=(action "setLabelsOrder") ariaLabel=(t "Fill order" key="fill_order")}}
-              </div>
-              <div class="nb-field__meta">
-                <span class={{this.labels_class}}>
-                  {{this.label_count}} {{t "labels" key="label_count"}}
-                </span>
-                <span class="nb-field__sep" aria-hidden="true">·</span>
-                <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
-                {{#if this.speech}}
-                  <span class="nb-field__sep" aria-hidden="true">·</span>
-                  <button type="button" class="md-link-btn" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
-                {{/if}}
-                <button type="button" class="md-link-btn" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
+            <div class="nb-words-grid">
+              <div class="nb-basics-grid__col nb-words-grid__col--labels">
+                <div class="nb-field new-board-field--labels">
+                  <div class="nb-field__label-row nb-field__label-row--page-center">
+                    <label for="new_board_labels" class="nb-field__label">{{t "Labels" key="labels"}}</label>
+                    <div class="nb-field__meta nb-field__meta--center">
+                      <span class={{this.labels_class}}>
+                        {{this.label_count}} {{t "labels" key="label_count"}}
+                      </span>
+                      <span class="nb-field__sep" aria-hidden="true">·</span>
+                      <button type="button" class="nb-link" data-count={{this.label_count}} {{action "pick_core"}}>{{t "pick from core lists" key="pick_from_core_lists"}}</button>
+                      {{#if this.speech}}
+                        <span class="nb-field__sep" aria-hidden="true">·</span>
+                        <button type="button" class="nb-link" data-count={{this.label_count}} {{action "record_words"}}>{{t "speech recognition" key="record_words"}}</button>
+                      {{/if}}
+                      {{#if this.label_count}}
+                        <span class="nb-field__sep" aria-hidden="true">·</span>
+                        <button type="button"
+                                class="nb-link nb-link--danger"
+                                {{action "clearGrid"}}
+                                aria-label={{t "Clear all labels" key="clear_all_labels"}}>
+                          <svg class="nb-link__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                            <path d="M3 4 L3 12 Q3 13 4 13 L10 13 Q11 13 11 12 L11 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 4 L12 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                            <path d="M5.5 4 L5.5 2.5 Q5.5 2 6 2 L8 2 Q8.5 2 8.5 2.5 L8.5 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5.5 6.5 L5.5 10.5 M8.5 6.5 L8.5 10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                          </svg>
+                          <span>{{t "clear grid" key="clear_grid"}}</span>
+                        </button>
+                      {{/if}}
+                      <button type="button" class="nb-link" style="display: none;" {{action "import_from_pdf"}}>{{t "import from pdf" key="import_from_pdf"}}</button>
+                    </div>
+                    <span class="nb-field__label-row__spacer" aria-hidden="true"></span>
+                  </div>
+                  {{#if this.has_duplicate_labels}}
+                    <span class="nb-pill nb-pill--warn" role="status">
+                      <svg class="nb-pill__icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                        <path d="M7 1.5 L13 12 L1 12 Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+                        <path d="M7 5.5 L7 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        <circle cx="7" cy="10.3" r="0.7" fill="currentColor"/>
+                      </svg>
+                      <span class="nb-pill__text">{{t "Duplicate labels detected" key="duplicate_labels_pill"}}</span>
+                    </span>
+                  {{/if}}
+                  {{#if this.too_many_total_labels}}
+                    <div class="nb-alert nb-alert--warning" role="alert">
+                      <span class="nb-alert__icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                          <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                          <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                          <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                        </svg>
+                      </span>
+                      <div class="nb-alert__body">
+                        <p class="nb-alert__title">{{t "Too many labels" key="too_many_labels_title"}}</p>
+                        <p class="nb-alert__text">{{t "You've entered %{count} labels — %{unused} of them won't be used because the grid maximum is %{max} buttons (20 × 20). Remove the extras or split them into a second board." key="too_many_labels_message" count=this.label_count unused=this.unused_label_count max=this.max_grid_labels}}</p>
+                      </div>
+                    </div>
+                  {{/if}}
+                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
+                </div>
               </div>
             </div>
             {{#if this.core_lists}}
@@ -183,20 +231,53 @@
                 {{/if}}
               {{/if}}
             {{/if}}
+            <div class="new-board-preview"
+                 style={{this.preview_style}}
+                 role="grid"
+                 aria-label={{t "Board preview" key="board_preview"}}
+                 ondragover={{action "previewDragOver"}}
+                 ondrop={{action "previewDrop"}}>
+              {{#each this.preview_grid as |row|}}
+                {{#each row as |cell|}}
+                  <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}} {{if cell.editing "new-board-preview__cell--editing"}}"
+                       role="gridcell"
+                       draggable={{if (or cell.empty cell.editing) "false" "true"}}
+                       ondragstart={{action "cellDragStart" cell.row cell.col}}
+                       ondragover={{action "cellDragOver"}}
+                       ondrop={{action "cellDrop" cell.row cell.col}}
+                       ondragend={{action "cellDragEnd"}}>
+                    {{#if cell.editing}}
+                      <input type="text"
+                             id={{concat "new-board-cell-edit-" cell.idx}}
+                             class="new-board-preview__edit-input"
+                             value={{this._editValue}}
+                             aria-label={{t "Edit label" key="edit_cell_label"}}
+                             oninput={{action "cellEditChanged" value="target.value"}}
+                             onkeydown={{action "cellEditKeydown"}}
+                             onblur={{action "commitCellEdit"}} />
+                    {{else if cell.empty}}
+                      <span class="new-board-preview__label">{{cell.label}}</span>
+                    {{else}}
+                      <button type="button"
+                              class="new-board-preview__label-btn"
+                              {{action "startCellEdit" cell.idx bubbles=false}}
+                              aria-label={{t "Edit %{word}" key="edit_cell_label_named" word=cell.label}}>
+                        <span class="new-board-preview__label">{{cell.label}}</span>
+                      </button>
+                    {{/if}}
+                  </div>
+                {{/each}}
+              {{/each}}
+            </div>
           </div>
         </section>
 
         <section class="nb-section">
-          <h4 class="nb-section__title">{{t "Appearance" key="new_board_section_appearance"}}</h4>
-          <p class="nb-section__hint">{{t "Pick who can see this board and what icon represents it." key="new_board_section_appearance_hint"}}</p>
+          <h4 class="nb-section__title">{{t "Visibility" key="new_board_section_appearance"}}</h4>
+          <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
           <div class="nb-section__body">
             <div class="nb-field new-board-field--visibility">
-              <label class="nb-field__label" for="new_board_visibility">{{t "Visibility" key="visibility"}}</label>
               {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(action "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
-            </div>
-            <div class="nb-field">
-              <label for="image_url" class="nb-field__label">{{t "Icon" key="icon"}}</label>
-              {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
             </div>
           </div>
         </section>
@@ -210,6 +291,10 @@
           </div>
           {{#if this.more_options}}
             <div class="nb-section__body">
+              <div class="nb-field new-board-field--icon">
+                <label for="image_url" class="nb-field__label">{{t "Icon for your Board" key="icon_for_your_board"}}</label>
+                {{icon-select selection=this.model.image_url action=(action (mut this.model.image_url)) }}
+              </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
                 <Input @value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} />
@@ -276,6 +361,7 @@
       </button>
       {{else}}
       <div class="la-new-board-modal-footer__actions">
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
         <button type="button" {{action "saveBoard"}} class="la-btn la-btn--primary new-board__submit" disabled={{this.createBoardDisabled}}>
           {{#if this.status.saving}}
             {{t "Creating Board..." key="creating_board"}}
@@ -285,7 +371,6 @@
             {{t "Create Board" key="create_board"}}
           {{/if}}
         </button>
-        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
       {{/if}}
     </div>

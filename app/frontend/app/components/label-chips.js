@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { next } from '@ember/runloop';
 import i18n from '../utils/i18n';
 
 export default Component.extend({
@@ -11,6 +12,8 @@ export default Component.extend({
   inputId: null,
   placeholder: null,
   hasFocus: false,
+  editingIndex: null,
+  editingValue: '',
 
   init() {
     this._super(...arguments);
@@ -26,6 +29,22 @@ export default Component.extend({
     var str = this.get('value') || '';
     if(typeof str !== 'string') { str = '' + str; }
     return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+  }),
+
+  chip_items: computed('value', function() {
+    var chips = this.get('chips') || [];
+    var counts = {};
+    chips.forEach(function(c) {
+      var key = (c || '').toLowerCase();
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return chips.map(function(c) {
+      var key = (c || '').toLowerCase();
+      return {
+        value: c,
+        is_duplicate: counts[key] > 1
+      };
+    });
   }),
 
   _emit(chips, currentInput) {
@@ -49,6 +68,21 @@ export default Component.extend({
     });
     this.set('currentInput', '');
     this._emit(chips, '');
+  },
+
+  editInputId: computed('inputId', function() {
+    return (this.get('inputId') || 'label-chips') + '-edit';
+  }),
+
+  _focusEditInput() {
+    var _this = this;
+    next(function() {
+      var elt = document.getElementById(_this.get('editInputId'));
+      if(elt) {
+        elt.focus();
+        try { elt.select(); } catch(e) { }
+      }
+    });
   },
 
   actions: {
@@ -108,8 +142,57 @@ export default Component.extend({
       if(event && event.target && event.target.closest && event.target.closest('.label-chips__chip-remove')) {
         return;
       }
+      if(event && event.target && event.target.closest && event.target.closest('.label-chips__chip')) {
+        return;
+      }
       var elt = document.getElementById(this.get('inputId'));
       if(elt) { elt.focus(); }
+    },
+
+    startEdit(index, event) {
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      var chips = this.get('chips') || [];
+      var current = chips[index] || '';
+      this.set('editingIndex', index);
+      this.set('editingValue', current);
+      this._focusEditInput();
+    },
+
+    editInputChanged(value) {
+      this.set('editingValue', value);
+    },
+
+    commitEdit() {
+      var index = this.get('editingIndex');
+      if(index === null || index === undefined) { return; }
+      var chips = (this.get('chips') || []).slice();
+      var newValue = (this.get('editingValue') || '').trim();
+      if(newValue.length === 0) {
+        chips.splice(index, 1);
+      } else {
+        chips[index] = newValue;
+      }
+      this.set('editingIndex', null);
+      this.set('editingValue', '');
+      this._emit(chips, this.get('currentInput') || '');
+    },
+
+    cancelEdit() {
+      this.set('editingIndex', null);
+      this.set('editingValue', '');
+    },
+
+    editKeydown(event) {
+      var key = event.key;
+      if(key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.send('commitEdit');
+      } else if(key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.send('cancelEdit');
+      }
     }
   }
 });

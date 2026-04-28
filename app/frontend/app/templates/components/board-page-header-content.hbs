@@ -588,8 +588,8 @@
           </ul>
         </span>
         <span class="not_really_skinny">
-          <button class="btn btn-primary" {{action "saveBoard" target=@controller}}><span class="wide">{{t "Save" key="save"}}{{#if @controller.board.model.multiple_locales}}{{#if @controller.board.model.button_locale}}<div style='height: 5px; margin-top: -5px; font-style: italic;'>( {{@controller.board.model.button_locale}} )</div>{{/if}}{{/if}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
           <button class="btn btn-default" {{action "resetBoard" target=@controller}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
+          <button class="btn btn-primary" {{action "saveBoard" target=@controller}}><span class="wide">{{t "Save" key="save"}}{{#if @controller.board.model.multiple_locales}}{{#if @controller.board.model.button_locale}}<div style='height: 5px; margin-top: -5px; font-style: italic;'>( {{@controller.board.model.button_locale}} )</div>{{/if}}{{/if}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
         </span>
       {{/if}}
     {{else}}

@@ -6,6 +6,7 @@ import { computed } from '@ember/object';
 
 export default Component.extend({
   tagName: 'div',
+  classNames: ['icon-select'],
   content: null,
   action: function() { return this; },
   _selection: reads('selection'),

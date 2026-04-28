@@ -15914,6 +15914,92 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   vertical-align: middle !important;
   overflow: hidden !important;
 }
+/* Create-board-new (preview iteration) trigger — mirrors the beta-feedback
+   pill so the two sit side-by-side at the top center. Full pill on wide
+   viewports; circular icon on narrow viewports. */
+.app-navbar .app-navbar__create-board-new-link--full,
+#inner_header:has(#nav_header) .app-navbar__create-board-new-link--full {
+  position: fixed !important;
+  top: calc(14px + 0.5rem) !important;
+  left: 50% !important;
+  margin-left: 110px !important;
+  right: auto !important;
+  padding: 6px 14px !important;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+  color: $brand-charcoal-dark !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba($la-navy, 0.10) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: background 0.15s ease, box-shadow 0.15s ease !important;
+  z-index: 5 !important;
+}
+.app-navbar .app-navbar__create-board-new-link--full svg,
+#inner_header:has(#nav_header) .app-navbar__create-board-new-link--full svg {
+  color: $brand-charcoal-blue !important;
+  flex-shrink: 0 !important;
+}
+.app-navbar .app-navbar__create-board-new-link--full:hover,
+.app-navbar .app-navbar__create-board-new-link--full:focus-visible,
+#inner_header:has(#nav_header) .app-navbar__create-board-new-link--full:hover,
+#inner_header:has(#nav_header) .app-navbar__create-board-new-link--full:focus-visible {
+  color: $la-navy !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10) !important;
+  text-decoration: none !important;
+}
+.app-navbar .app-navbar__create-board-new-link--circular,
+#inner_header:has(#nav_header) .app-navbar__create-board-new-link--circular,
+#identity .app-navbar__create-board-new-link--circular,
+.app-navbar__create-board-new-link--circular {
+  position: relative !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: $brand-charcoal-blue !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba($la-navy, 0.18) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+  text-decoration: none !important;
+  vertical-align: middle !important;
+  margin-right: 4px !important;
+}
+.app-navbar .app-navbar__create-board-new-link--circular:hover,
+.app-navbar .app-navbar__create-board-new-link--circular:focus-visible {
+  color: $la-navy !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10) !important;
+}
+
+.app-navbar__create-board-new-link.app-navbar__small-only,
+.app-navbar__create-board-new-link.app-navbar__create-board-new-link--circular.app-navbar__small-only {
+  display: none !important;
+}
+@media (max-width: 1200px) {
+  .app-navbar__create-board-new-link.app-navbar__small-only,
+  .app-navbar__create-board-new-link.app-navbar__create-board-new-link--circular.app-navbar__small-only {
+    display: inline-flex !important;
+  }
+}
+@media (max-width: 768px) {
+  .app-navbar .app-navbar__create-board-new-link--full,
+  #inner_header .app-navbar__create-board-new-link--full {
+    display: none !important;
+  }
+}
+
 .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular .app-navbar__beta-feedback-symbol {
   font-family: 'Times New Roman', 'Cambria', Georgia, serif !important;
   font-weight: 700 !important;
@@ -27925,8 +28011,11 @@ header #identity #identity_button.btn::after {
   outline: none;
 }
 
-/* Honeypot row: off-screen, not keyboard-focusable in normal tab order */
-.la-wrapper--support .la-beta-feedback-hp {
+/* Honeypot row: off-screen, not keyboard-focusable in normal tab order.
+   Applies in both the standalone /beta-feedback page and the beta-feedback
+   modal — the field type itself is a honeypot regardless of host. */
+.la-wrapper--support .la-beta-feedback-hp,
+.beta-feedback-modal-wrap .la-beta-feedback-hp {
   position: absolute;
   left: -10000px;
   top: auto;
@@ -27934,8 +28023,147 @@ header #identity #identity_button.btn::after {
   height: 1px;
   overflow: hidden;
 }
-.la-wrapper--support .la-beta-feedback-hp__input {
+.la-wrapper--support .la-beta-feedback-hp__input,
+.beta-feedback-modal-wrap .la-beta-feedback-hp__input {
   pointer-events: none;
+}
+
+/* ── Beta Feedback modal ─────────────────────────────────────────────────
+   Sizing/chrome mirror the find-button modal pattern (full-height,
+   border-radius 18px, .la-modal-header + .la-modal-close). Header
+   reuses the about-page hero composition (.la-section-eyebrow-badge +
+   .la-hero-title with .hero-gradient + .la-about-hero-separator +
+   .la-pricing-hero-subtitle) so the modal reads as a "mini about-page".
+   Form fields rely on the global .la-contact-input / .la-btn classes —
+   no per-modal restyling. */
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) {
+  max-width: 845px; /* find-button modal is 676px; this is ~25% wider. */
+  width: calc(100vw - 16px);
+  height: calc(100vh - 8px);
+  max-height: calc(100vh - 8px);
+  margin: 4px auto;
+  display: flex;
+  flex-direction: column;
+}
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.modal-content:has(.beta-feedback-modal-wrap) {
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba($brand-blue-black, 0.18), 0 8px 24px rgba($brand-blue-black, 0.10);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.beta-feedback-modal-wrap {
+  background: #fff;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header: about-page hero composition, centered inside a la-modal-header
+   shell with the close button pinned to the top-right. */
+.beta-feedback-modal-wrap > .la-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.1));
+  background: rgba(255, 255, 255, 0.6);
+}
+.beta-feedback-modal__hero {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+/* Mirror the about-page hero treatment for the modal header. .la-hero-title
+   and the eyebrow margin override are both scoped to .la-wrapper /
+   .la-wrapper--about in their original definitions, so we re-apply the
+   computed about-page values here. */
+.beta-feedback-modal__hero .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+}
+.beta-feedback-modal__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0 0 $aac-spacing-24;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+/* Match the support-page rule (.la-wrapper--support .hero-gradient) so the
+   "Feedback" gradient text sizes 1:1 with "Beta " — without this it inherits
+   the global 1.155em and reads slightly larger than the prefix. */
+.beta-feedback-modal__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-modal__subtitle {
+  margin: 1.5rem auto 0;
+  max-width: 680px;
+  font-size: 24px;
+  font-weight: 400;
+  color: $brand-charcoal-dark;
+  line-height: 1.75;
+  letter-spacing: 0.005em;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: var(--md-muted, $brand-slate-gray);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:hover,
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:focus-visible {
+  background: #fff;
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+
+/* Body: scrolls when content overflows the available modal height. */
+.beta-feedback-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px 28px;
+}
+
+@media (max-width: 600px) {
+  .beta-feedback-modal-wrap > .la-modal-header {
+    padding: 20px 20px 16px;
+  }
+  .beta-feedback-modal__subtitle {
+    font-size: 16px;
+  }
+  .beta-feedback-modal__body {
+    padding: 18px 20px 20px;
+  }
 }
 
 .la-wrapper--support .la-support-cookies-btn {
@@ -29090,7 +29318,7 @@ header #identity #identity_button.btn::after {
   border-radius: 16px;
 }
 .la-slp-spotlight__image {
-  background-image: url('/images/aac-user-front-page.png');
+  background-image: url('/images/landing-instructor.png');
 }
 .la-devices-spotlight__image {
   background-image: url('/images/landing-devices.png');
@@ -29101,8 +29329,8 @@ header #identity #identity_button.btn::after {
    ratios (image dimensions: classroom 850×638, devices 1000×667). */
 @media (min-width: 1025px) {
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-classroom.png');
-    aspect-ratio: 850 / 638;
+    background-image: url('/images/landing-instructor.png');
+    aspect-ratio: 1535 / 1024;
     min-height: 0;
     border-radius: 0;
     /* "Built for schools" image: 62.5% width (25% bigger than prior 50%), centered.
@@ -30555,6 +30783,7 @@ a.la-footer-bottom-a11y-wcag {
     border-radius: 0;
   }
 }
+
 .modal .modal-dialog:has(.md-dashboard-supervisors-modal-wrap) {
   max-width: min(720px, 96vw);
 }
@@ -39397,6 +39626,30 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 }
 
+/* Boards card: pin the New Board button to the true horizontal center of
+   the card head, independent of the right-hand count widget's width.
+   Without this, justify-content: space-between makes the button drift left
+   as the boardCount text grows from "0" to "1436", etc. The 1fr | auto | 1fr
+   grid keeps the center cell anchored to the card's midpoint. */
+.md-card--boards .md-card__head--between {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center !important;
+  gap: 12px !important;
+  justify-content: stretch !important;
+}
+.md-card--boards .md-card__head--between > .md-card__left {
+  justify-self: start;
+  min-width: 0;
+}
+.md-card--boards .md-card__head--between > .md-btn {
+  justify-self: center;
+}
+.md-card--boards .md-card__head--between > .md-stat {
+  justify-self: end;
+  min-width: 0;
+}
+
 /* `.md-card__title` is now applied to <h3> elements (WCAG 1.3.1 — Heading hierarchy).
    Reset browser h3 defaults so the visual is identical to the prior <div> usage. */
 .md-card__title { font-weight: 900; font-size: 18px; letter-spacing: -0.2px; margin: 0; line-height: 1.35; color: inherit; } /* line-height bumped to 1.35 for WCAG 1.4.12 readability */
@@ -40181,6 +40434,27 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba(255, 255, 255, 0.88) !important;
 
 }
+/* Import Board(s) wraps its button in a .file_select_holder span (so the
+   hidden file input can intercept clicks). In a flex row, force the span
+   to behave like a sibling button — and use overflow: visible so the
+   button's box-shadow renders fully (the global .file_select_holder rule
+   sets overflow: hidden, which would clip the shadow and make the button
+   look subtly different from its neighbors). */
+.new-board--modern .create-board-actions .file_select_holder {
+  display: inline-flex !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  position: relative;
+}
+.new-board--modern .create-board-actions .file_select_holder > .btn,
+.new-board--modern .create-board-actions .file_select_holder > button {
+  margin: 0 !important;
+}
 .new-board--modern .modal-body {
   padding: 24px !important;
 
@@ -40277,10 +40551,37 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .new-board--modern .modal-footer .new-board__submit:disabled,
 .new-board--modern .modal-footer .btn-primary:disabled {
-  opacity: 0.7 !important;
-
+  /* Light gray bg + dark slate text for WCAG AA contrast (~12.5:1) — replaces
+     the prior opacity: 0.7 treatment which washed out both layers and failed
+     contrast against the footer background. */
+  background: #e5e7eb !important;
+  color: #1f2937 !important;
+  border: 1px solid rgba(31, 41, 55, 0.18) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
   cursor: not-allowed !important;
-
+}
+/* Standalone (page) footer: Cancel sits to the left of Create Board, group
+   centered horizontally on the page. Cancel-then-primary follows modern
+   web/SaaS convention (macOS HIG / Material / GitHub / Stripe / Figma). */
+.new-board--modern .modal-footer .new-board__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.new-board--modern .modal-footer .new-board__cancel {
+  padding: 12px 24px !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--md-line) !important;
+  font-weight: 750 !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: var(--md-ink) !important;
+  box-shadow: var(--md-shadow-2) !important;
+}
+.new-board--modern .modal-footer .new-board__cancel:hover {
+  background: rgba(255, 255, 255, 0.88) !important;
 }
 .new-board--modern a[href="#"] {
   color: var(--md-teal) !important;
@@ -40770,12 +41071,75 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 12px 24px -8px rgba(44, 183, 176, 0.45);
 }
 
+/* Soft-orange highlight for duplicate label chips. The base chip's teal
+   gradient is replaced with a warm amber gradient and the border tinted
+   to match — readable as "needs attention" without shouting. */
+.label-chips__chip--duplicate {
+  border-color: rgba(217, 138, 36, 0.55);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 245, 224, 0.85) 0%,
+      rgba(252, 209, 138, 0.4) 55%,
+      rgba(252, 209, 138, 0.55) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 2px rgba(13, 36, 56, 0.06),
+    0 6px 16px -6px rgba(217, 138, 36, 0.4);
+}
+.label-chips__chip--duplicate:hover {
+  border-color: rgba(217, 138, 36, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 4px rgba(13, 36, 56, 0.08),
+    0 12px 24px -8px rgba(217, 138, 36, 0.55);
+}
+
 .label-chips__chip-label {
   position: relative;
   z-index: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 18em;
+}
+
+.label-chips__chip-label-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+  text-align: left;
+}
+
+.label-chips__chip--editing {
+  padding: 4px 8px;
+}
+
+.label-chips__chip-edit-input {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-ink, #1f2933);
+  min-width: 4em;
+  width: auto;
+  field-sizing: content;
 }
 
 .label-chips__chip-remove {
@@ -40820,15 +41184,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .label-chips__input {
   flex: 1 1 8em;
   min-width: 8em;
+  align-self: center;
   border: none;
   background: transparent;
   outline: none;
   font: inherit;
   font-size: 14px;
   font-weight: 400;
+  line-height: 1.4;
   letter-spacing: 0.01em;
   color: var(--md-ink, #1f2933);
-  padding: 4px 2px;
+  margin: 0;
+  padding: 6px 2px;
+  height: auto;
 }
 .label-chips__input::placeholder {
   color: rgba(31, 41, 51, 0.45);
@@ -41044,12 +41412,216 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   -webkit-appearance: none;
   margin: 0;
 }
+/* Create-board-new preview mockup wrapper. Wraps the .md-board-detail-grid
+   so the preview gets the same look as the live board-detail page. The
+   wrapper toggles between dark and light by adding/removing the
+   .md-board-detail--dark class (which the existing board-detail dark-mode
+   rules cascade into). */
+.new-board-mockup-wrap {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    #{color.adjust($brand-stone-100, $lightness: 12%)} 0%,
+    #{color.adjust($brand-stone-200, $lightness: 12%)} 100%
+  );
+  border: 1px solid rgba(13, 36, 56, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(13, 36, 56, 0.05);
+}
+.new-board-mockup-wrap--dark {
+  /* Mirrors the .md-shell--board-detail dark page treatment so the preview
+     reads as the actual board background, not a panel. */
+  background:
+    radial-gradient(900px 500px at 10% 5%, rgba($brand-stormy-teal, 0.18), transparent 50%),
+    radial-gradient(800px 400px at 90% 15%, rgba($brand-charcoal-blue, 0.16), transparent 50%),
+    radial-gradient(700px 400px at 50% 95%, rgba($brand-charcoal-dark, 0.22), transparent 55%),
+    linear-gradient(180deg, #1f2937 0%, #111827 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.25);
+}
+/* Recessed glass card that hosts the ported board-detail display-prefs
+   toolbar inside the create-board-new modal. Sits directly below the
+   preview mockup and shares the same dent treatment as
+   .nb-section__head-checklist. The inner toolbar markup keeps its
+   board-detail class names so styling carries over verbatim. */
+/* Collapsible Display Preferences — sits ABOVE the preview mockup. The
+   toggle button always shows; the inset toolbar is only rendered when
+   `prefs_open` is true. */
+.new-board-prefs-collapsible {
+  margin: 0 0 12px;
+}
+.new-board-prefs-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(13, 36, 56, 0.10);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--md-ink);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(13, 36, 56, 0.04);
+}
+.new-board-prefs-toggle:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(13, 36, 56, 0.18);
+}
+.new-board-prefs-toggle__chevron {
+  transition: transform 0.22s ease;
+}
+.new-board-prefs-collapsible--open .new-board-prefs-toggle__chevron {
+  transform: rotate(180deg);
+}
+.new-board-prefs-collapsible--open .new-board-prefs-toggle {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(13, 36, 56, 0.18);
+}
+
+.new-board-prefs-inset {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(13, 36, 56, 0.04);
+  border: 1px solid rgba(13, 36, 56, 0.06);
+  box-shadow:
+    inset 0 1px 2px rgba(13, 36, 56, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+  /* Cancel any absolute/fixed-position behavior the toolbar inherits from
+     its board-detail context — here it's just a static inline section. */
+  position: static;
+  width: auto;
+  max-width: none;
+  /* Allow children (steppers, dropdowns, swatches) to wrap onto new rows
+     instead of overflowing the inset on narrow modal widths. */
+  flex-wrap: wrap;
+}
+.new-board-mockup-toolbar {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  z-index: 2;
+}
+/* Compact 2-icon segmented switch — sun on the left (light), moon on the
+   right (dark). The thumb slides under the active icon. Matches the
+   restrained look of the rest of the form. */
+.new-board-mockup-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 56px;
+  height: 26px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(13, 36, 56, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(13, 36, 56, 0.06);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.new-board-mockup-toggle--dark {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.new-board-mockup-toggle:hover {
+  border-color: rgba(13, 36, 56, 0.22);
+}
+.new-board-mockup-toggle--dark:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.new-board-mockup-toggle__icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  transition: color 0.18s ease;
+}
+.new-board-mockup-toggle__icon--sun {
+  color: rgba(13, 36, 56, 0.9);
+}
+.new-board-mockup-toggle__icon--moon {
+  color: rgba(13, 36, 56, 0.45);
+}
+.new-board-mockup-toggle--dark .new-board-mockup-toggle__icon--sun {
+  color: rgba(255, 255, 255, 0.45);
+}
+.new-board-mockup-toggle--dark .new-board-mockup-toggle__icon--moon {
+  color: rgba(255, 255, 255, 0.95);
+}
+.new-board-mockup-toggle__thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff 0%, #e5e7eb 100%);
+  box-shadow: 0 1px 2px rgba(13, 36, 56, 0.18);
+  transform: translateY(-50%);
+  transition: transform 0.22s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 0;
+}
+.new-board-mockup-toggle--dark .new-board-mockup-toggle__thumb {
+  /* Slide right ~ 28px to sit under the moon icon */
+  transform: translate(28px, -50%);
+  background: linear-gradient(180deg, #4b5563 0%, #1f2937 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Preview-sized board-detail grid: clamp height + aspect-ratio so it fits
+   inside the form section instead of inheriting the live page's
+   calc(100dvh - 120px) height. */
+.md-board-detail-grid--preview {
+  width: 100%;
+  /* Stretch to fill the wrap's padded width (the .new-board-mockup-wrap
+     applies the breathing room around the grid). aspect-ratio still drives
+     the height from the width, but cells become slightly horizontal
+     rectangles on wide viewports — matching the live page's "wider than
+     square" feel instead of being capped at 1200px. */
+  max-width: 100%;
+  height: auto !important;
+  aspect-ratio: var(--board-columns, 4) / var(--board-rows, 4);
+  margin: 0 auto;
+  gap: clamp(4px, 1vw, 12px) !important;
+}
+/* Preview cells: drop the live-page interactive affordances so the mockup
+   reads as a static visual. We deliberately do NOT override --empty or
+   --no-color appearance — those classes carry the canonical live styles
+   (light gradient bg, soft shadow, 0.55 opacity, outline behavior) and the
+   user wants the mockup to match the live page exactly. */
+.md-board-detail-grid--preview .md-board-detail-symbol-card {
+  cursor: default;
+  width: 100%;
+  height: 100%;
+}
+
 .new-board-preview {
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--preview-cols, 4), minmax(0, 1fr));
-  gap: 18px;
-  padding: 18px;
+  grid-template-rows: repeat(var(--preview-rows, 4), minmax(0, 1fr));
+  width: 100%;
+  max-width: min(100%, calc(520px * (var(--preview-cols, 4) / var(--preview-rows, 4))));
+  aspect-ratio: var(--preview-cols, 4) / var(--preview-rows, 4);
+  margin: 0 auto;
+  gap: clamp(4px, 1.2vw, 18px);
+  padding: clamp(8px, 1.4vw, 18px);
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background:
@@ -41071,13 +41643,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 3px 8px -2px rgba(13, 36, 56, 0.08),
     0 1px 2px rgba(13, 36, 56, 0.04),
     0 6px 18px -8px rgba(13, 36, 56, 0.12);
-  max-height: 50vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .new-board-preview__cell {
   position: relative;
-  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41088,9 +41660,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   user-select: none;
   background:
     linear-gradient(
-      160deg,
+      180deg,
       rgba(255, 255, 255, 1) 0%,
-      rgba(216, 246, 244, 0.45) 100%
+      rgba(244, 252, 252, 0.95) 50%,
+      rgba(216, 246, 244, 0.55) 100%
     );
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
@@ -41120,13 +41693,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board-preview__cell::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 50%;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(255, 255, 255, 0) 50%
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.35) 35%,
+    rgba(255, 255, 255, 0) 100%
   );
 }
 .new-board-preview__cell:hover {
@@ -41144,6 +41722,296 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .new-board-preview__cell--empty {
   cursor: default;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(244, 252, 252, 0.85) 50%,
+      rgba(216, 246, 244, 0.45) 100%
+    );
+  border: 1px solid rgba(44, 183, 176, 0.22);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(44, 183, 176, 0.12),
+    0 2px 4px rgba(13, 36, 56, 0.1),
+    0 6px 12px rgba(13, 36, 56, 0.12),
+    0 14px 28px -2px rgba(13, 36, 56, 0.14);
+}
+.new-board-preview__cell--empty::after {
+  display: block;
+}
+.new-board-preview__cell--empty:hover {
+  transform: none;
+  border-color: rgba(44, 183, 176, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 1px rgba(44, 183, 176, 0.14),
+    0 12px 22px -8px rgba(44, 183, 176, 0.28);
+}
+
+.new-board-preview__label {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.new-board-preview__label-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+  text-align: center;
+}
+
+.new-board-preview__cell--editing {
+  cursor: text;
+}
+
+/* icon-select preview swatch.
+   Default look preserves the original 42x42 gray-bordered square for
+   surfaces outside the new-board modal. Inside .nb-form we render it
+   to match the .new-board-preview__cell glass treatment. */
+.icon-select__preview {
+  margin-top: 12px;
+  float: left;
+  height: 42px;
+  width: 42px;
+  border: 1px solid #ccc;
+  overflow: hidden;
+}
+.icon-select__preview .icon-select__preview-img {
+  width: 40px;
+  height: 40px;
+}
+
+/* Basics section: 2-column grid layout.
+   Left  = Name + Description (stacked).
+   Right = Icon for your Board (input + glass preview + picker grid).
+   Collapses to single column on narrow viewports. */
+.nb-basics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 18px;
+  align-items: stretch;
+}
+.nb-basics-grid__col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(13, 36, 56, 0.06) 0%,
+      rgba(13, 36, 56, 0.02) 35%,
+      rgba(255, 255, 255, 0.55) 100%
+    );
+  border: 1px solid rgba(13, 36, 56, 0.06);
+  box-shadow:
+    inset 0 3px 8px rgba(13, 36, 56, 0.14),
+    inset 0 1px 2px rgba(13, 36, 56, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.nb-basics-grid__col .nb-field__label {
+  padding-left: 0;
+}
+.nb-basics-grid__col--left {
+  display: flex;
+  flex-direction: column;
+}
+.nb-basics-grid__col--left .new-board-field--description {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.nb-basics-grid__col--left .nb-field__input--fill {
+  flex: 1 1 auto;
+  min-height: 96px;
+  resize: vertical;
+}
+
+/* Words section: outer dented well groups the Labels block. Matches the
+   subsection well treatment (.nb-basics-grid__col). */
+.nb-words-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 18px;
+  align-items: stretch;
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(13, 36, 56, 0.06) 0%,
+      rgba(13, 36, 56, 0.02) 35%,
+      rgba(255, 255, 255, 0.55) 100%
+    );
+  border: 1px solid rgba(13, 36, 56, 0.06);
+  box-shadow:
+    inset 0 3px 8px rgba(13, 36, 56, 0.14),
+    inset 0 1px 2px rgba(13, 36, 56, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.nb-words-grid__col--order {
+  order: 0;
+}
+.nb-words-grid__col--labels {
+  order: 1;
+}
+/* Remove the inner well treatment — the outer .nb-words-grid now provides
+   the dented background, so the col would otherwise double-up. */
+.nb-words-grid > .nb-basics-grid__col {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.nb-words-grid__col--order .nb-field__radio-group {
+  margin-top: 0;
+}
+
+/* In the labels well, push the count 2rem off the "Labels" label, then let
+   the chip input fill the remaining vertical space. The placeholder /
+   single-line input stays vertically centered via the container's existing
+   align-items: center; chips pack to the top via align-content: flex-start. */
+.nb-words-grid__col--labels .nb-field__meta > :first-child {
+  margin-left: 4rem;
+}
+.nb-words-grid__col--labels .nb-field {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.nb-words-grid__col--labels .label-chips {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: 0;
+}
+.nb-words-grid__col--labels .label-chips__container {
+  flex: 1 1 auto;
+  align-content: flex-start;
+  padding-top: 4px;
+}
+.nb-words-grid__col--labels .label-chips__input {
+  align-self: center;
+  margin-top: 0;
+}
+/* Match chip height to the input field's visible chrome (input + focus ring)
+   so chips and input align on the same baseline without shifting either. */
+.nb-words-grid__col--labels .label-chips__chip {
+  min-height: 34px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.nb-form .icon-select {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 4px;
+  align-items: start;
+}
+.nb-form .icon-select > .form-control {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+.nb-form .icon-select > .icon-select__preview {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+}
+.nb-form .icon-select > .icon_urls {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 12px;
+  align-self: start;
+}
+.nb-form .icon-select > div[style*="clear"] {
+  display: none;
+}
+
+.nb-form .icon-select__preview {
+  position: relative;
+  float: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 12px 0 0;
+  padding: 6px;
+  border: 1px solid rgba(44, 183, 176, 0.3);
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(216, 246, 244, 0.45) 100%
+    );
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(44, 183, 176, 0.18),
+    0 2px 4px rgba(13, 36, 56, 0.18),
+    0 6px 12px rgba(13, 36, 56, 0.2),
+    0 14px 28px -2px rgba(13, 36, 56, 0.22),
+    0 18px 36px -4px rgba(44, 183, 176, 0.28);
+  transition:
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.22s ease;
+}
+.nb-form .icon-select__preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+}
+.nb-form .icon-select__preview--filled:hover {
+  transform: translateY(-2px);
+  border-color: rgba(44, 183, 176, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 4px rgba(13, 36, 56, 0.08),
+    0 14px 26px -6px rgba(44, 183, 176, 0.4);
+}
+.nb-form .icon-select__preview--empty {
   background: rgba(255, 255, 255, 0.16);
   border: 1px dashed rgba(44, 183, 176, 0.5);
   backdrop-filter: blur(4px);
@@ -41155,25 +42023,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 4px 10px rgba(13, 36, 56, 0.1),
     0 8px 18px -4px rgba(13, 36, 56, 0.18);
 }
-.new-board-preview__cell--empty::after {
+.nb-form .icon-select__preview--empty::after {
   display: none;
 }
-.new-board-preview__cell--empty:hover {
-  transform: none;
-  border-color: rgba(44, 183, 176, 0.45);
-  box-shadow:
-    inset 0 0 18px rgba(44, 183, 176, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-.new-board-preview__label {
+.nb-form .icon-select__preview .icon-select__preview-img {
   position: relative;
   z-index: 1;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.new-board-preview__edit-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 2px 4px;
+  margin: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--md-ink, #1f2933);
 }
 
 /* ============================================================
@@ -41197,25 +42072,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 .nb-section {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 20px 22px 22px;
   border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(13, 36, 56, 0.07);
   background:
     linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.32) 100%
+      180deg,
+      rgba(13, 36, 56, 0.025) 0%,
+      rgba(255, 255, 255, 0.45) 45%,
+      rgba(255, 255, 255, 0.55) 100%
     );
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.15),
-    0 1px 2px rgba(13, 36, 56, 0.04),
-    0 8px 24px -10px rgba(13, 36, 56, 0.14);
+    inset 0 1px 8px rgba(13, 36, 56, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.nb-section:has(.modern-select--open) {
+  z-index: 50;
 }
 .nb-section__head {
   display: flex;
@@ -41223,6 +42102,33 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+/* Inset checklist living inside the section head, between the eyebrow
+   pill and the size steppers. Recessed glass treatment, sized to its
+   content, height matched to the 44px nb-stepper-mini so the inset and
+   steppers form a visually aligned band. Aligned to flex-start in the
+   head so it sits at the top of the row beside the eyebrow pill. */
+.nb-section__head-checklist {
+  flex: 0 0 auto;
+  width: fit-content;
+  height: 44px;
+  margin: 0 4px !important;
+  padding: 0 12px !important;
+  align-self: flex-start;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(13, 36, 56, 0.04);
+  box-shadow:
+    inset 0 1px 2px rgba(13, 36, 56, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+}
+.nb-checklist--inset {
+  justify-content: flex-start !important;
+}
+/* Pull the inset + steppers to the top of the section head, leaving the
+   eyebrow pill's intrinsic height to drive the row's overall height. */
+.nb-section__head .new-board-dimensions {
+  align-self: flex-start;
 }
 .nb-section__title {
   align-self: flex-start;
@@ -41247,6 +42153,25 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     0 2px 12px rgba(20, 127, 130, 0.15);
+}
+
+/* Inline sub-heading variant for nested titles (e.g., the Words sub-heading
+   that now lives inside the Size & preview section). Drops the eyebrow pill
+   chrome since it would compete visually with the parent section's primary
+   title. */
+.nb-section__title--inline {
+  display: block;
+  align-self: stretch;
+  padding: 0;
+  margin: 4px 0 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-size: 14px;
+  letter-spacing: 0.05em;
 }
 .nb-section__hint {
   margin: -4px 0 0;
@@ -41316,6 +42241,144 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   line-height: 1.4;
   color: rgba(31, 41, 51, 0.6);
 }
+
+.nb-field__radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.nb-field__sublabel--legend {
+  display: block;
+  width: auto;
+  margin: 0;
+  padding: 0 0 0 14px;
+  border: 0;
+  border-bottom: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--md-ink, #1f2933);
+}
+.nb-field__hint--legend {
+  margin: 2px 0 8px;
+  padding-left: 14px;
+}
+
+/* Inline layout: legend on the left, radio chips immediately to the right
+   with comfortable spacing. Replaces the stacked legend + hint + radios. */
+.nb-field__radio-group--inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+}
+.nb-field__radio-group--inline .nb-field__sublabel--legend {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.nb-field__radio-group--inline .nb-field__radio-row {
+  margin: 0;
+}
+
+/* Page-center variant for the inline radio group: legend pinned left,
+   radios truly centered relative to the row's full width, spacer on the
+   right mirrors the legend column for symmetry. Mirrors the
+   .nb-field__label-row--page-center pattern used by the Labels row. */
+.nb-field__radio-group--page-center {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+.nb-field__radio-group--page-center .nb-field__sublabel--legend {
+  justify-self: start;
+}
+.nb-field__radio-group--page-center .nb-field__radio-row {
+  justify-self: center;
+}
+@media (max-width: 600px) {
+  .nb-field__radio-group--page-center {
+    grid-template-columns: 1fr;
+  }
+  .nb-field__radio-group--page-center .nb-field__radio-row {
+    justify-self: start;
+  }
+}
+.nb-field__radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.nb-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.3) 100%
+    );
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-ink, #1f2933);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(13, 36, 56, 0.04);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.nb-radio:hover {
+  border-color: rgba(44, 183, 176, 0.45);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(216, 246, 244, 0.4) 100%
+    );
+}
+.nb-radio:has(input:checked) {
+  border-color: rgba(44, 183, 176, 0.7);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(216, 246, 244, 0.55) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 6px 16px -8px rgba(44, 183, 176, 0.35);
+}
+.nb-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #2cb7b0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nb-radio__label {
+  line-height: 1.3;
+}
 .nb-field__meta {
   display: flex;
   flex-wrap: wrap;
@@ -41324,6 +42387,356 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-top: 4px;
   font-size: 14px;
   color: rgba(31, 41, 51, 0.7);
+}
+
+.nb-field__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.nb-field__label-row .nb-field__label {
+  margin: 0;
+}
+.nb-field__label-row .nb-field__meta {
+  margin-top: 0;
+}
+
+.nb-field__meta--center {
+  justify-content: center;
+  margin-top: 10px;
+}
+
+/* 3-column grid: label on the far left, meta truly centered relative to
+   the row's full width (not just the remaining space), spacer on the right
+   to mirror the label column for visual balance. */
+.nb-field__label-row--page-center {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  gap: 16px;
+}
+.nb-field__label-row--page-center .nb-field__label {
+  justify-self: start;
+  margin: 0;
+}
+.nb-field__label-row--page-center .nb-field__meta {
+  justify-self: center;
+  margin-top: 0;
+  transform: translateX(-18px);
+}
+.nb-field__label-row__spacer {
+  display: block;
+}
+@media (max-width: 600px) {
+  .nb-field__label-row--page-center {
+    grid-template-columns: 1fr;
+  }
+  .nb-field__label-row--page-center .nb-field__meta {
+    justify-self: start;
+  }
+  .nb-field__label-row__spacer {
+    display: none;
+  }
+}
+
+/* Modern link-styled button.
+   Uses real <button type="button"> for proper keyboard semantics; visually
+   reads as a link. The global :focus-visible rule still draws the focus ring
+   so keyboard a11y is preserved. */
+.nb-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #0d5c5f;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    text-decoration-color 0.18s ease;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.nb-link:hover {
+  color: #2cb7b0;
+  text-decoration: underline;
+  text-decoration-color: rgba(44, 183, 176, 0.6);
+}
+.nb-link:active {
+  color: #094547;
+}
+.nb-link[disabled],
+.nb-link:disabled {
+  color: rgba(13, 92, 95, 0.45);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.nb-link__icon {
+  flex-shrink: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Destructive variant for clearing/deleting actions. Stays subtle at rest
+   (no red wash) but turns to a brand red on hover so the action reads as
+   intentional. */
+.nb-link--danger {
+  color: #b3303a;
+}
+.nb-link--danger:hover {
+  color: #d63b48;
+  text-decoration: underline;
+  text-decoration-color: rgba(214, 59, 72, 0.55);
+  background-color: rgba(214, 59, 72, 0.08);
+}
+.nb-link--danger:active {
+  color: #8c2530;
+}
+
+/* Modern inline alert for in-form notices (over-limit, validation, etc.). */
+.nb-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  line-height: 1.4;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(13, 36, 56, 0.04);
+}
+.nb-alert__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+}
+.nb-alert__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.nb-alert__title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+.nb-alert__text {
+  margin: 0;
+  font-weight: 400;
+}
+
+.nb-alert--warning {
+  color: #7a4a08;
+  border-color: rgba(217, 138, 36, 0.35);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 244, 222, 0.95) 0%,
+      rgba(255, 235, 199, 0.85) 100%
+    );
+}
+.nb-alert--warning .nb-alert__icon {
+  color: #c97b14;
+}
+
+/* Stylish info chip — used for inline recommendations / soft notes that
+   shouldn't carry the visual weight of a full alert. Glass pill in brand
+   teal with an info icon, label, and emphasized value. */
+/* Hint row: section hint paragraph on the left, fill-direction radios on
+   the right — both anchored to opposite edges of the section width. The
+   hint absorbs leftover horizontal space so the radios always sit flush
+   right at any width. */
+.nb-hint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: -8px 0 8px;
+}
+/* When the hint-row immediately follows the section head (e.g., the Size &
+   Labels descriptor pills under the SIZE & LABELS eyebrow), pull it up
+   tighter against the section title — the .nb-section gap (12px) + the
+   head's intrinsic spacing otherwise pushes the pills too far down. */
+.nb-section__head + .nb-hint-row {
+  margin-top: -10px;
+}
+.nb-hint-row__text {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+}
+.nb-hint-row__controls {
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+/* Sleek inline pill checklist — succinct chips with the check tucked inside
+   each pill, wrapping on a single row. Used inside .nb-section bodies. */
+.nb-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.nb-checklist__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: rgba(31, 41, 51, 0.82);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  border: 1px solid rgba(13, 36, 56, 0.08);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(13, 36, 56, 0.04);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+}
+.nb-checklist__item::before {
+  content: "";
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%232cb7b0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7.2 L5.75 9.8 L11 4.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.nb-note {
+  display: inline-flex;
+  align-self: center;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 9px;
+  margin: 4px auto 0;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+  border: 1px solid rgba(44, 183, 176, 0.35);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(216, 246, 244, 0.65) 100%
+    );
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(13, 36, 56, 0.05),
+    0 4px 10px -4px rgba(44, 183, 176, 0.25);
+  color: #0d5c5f;
+  white-space: nowrap;
+}
+.nb-note__icon {
+  flex-shrink: 0;
+  color: #2cb7b0;
+}
+.nb-note__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  opacity: 0.75;
+}
+.nb-note__value {
+  position: relative;
+  padding-left: 12px;
+  font-weight: 600;
+  color: #094547;
+}
+.nb-note__value::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(13, 92, 95, 0) 0%,
+    rgba(13, 92, 95, 0.35) 50%,
+    rgba(13, 92, 95, 0) 100%
+  );
+}
+
+/* Compact warning pill — for soft, inline notices (e.g., duplicate labels).
+   Smaller than .nb-alert, no body, just an icon + line. */
+.nb-pill {
+  display: inline-flex;
+  align-self: center;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 9px;
+  margin: 0 0 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.nb-pill__icon {
+  flex-shrink: 0;
+}
+
+.nb-pill--warn {
+  color: #7a4a08;
+  border-color: rgba(217, 138, 36, 0.4);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 244, 222, 0.85) 0%,
+      rgba(252, 215, 156, 0.6) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(13, 36, 56, 0.04),
+    0 4px 10px -4px rgba(217, 138, 36, 0.25);
+}
+.nb-pill--warn .nb-pill__icon {
+  color: #c97b14;
 }
 .nb-field__sep {
   color: rgba(31, 41, 51, 0.3);
@@ -47752,6 +49165,41 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ────────────────────────────────────────────────────────
+   Create Board (preview) page  (/create-board-new)
+   The route sets `hide_header` on the application controller, which adds
+   .header--hidden and zeroes --topbar-height — that collapses the global
+   navbar entirely (display: none). All we add here is the full-bleed
+   shell + zeroed #content padding so the page can fill the viewport.
+   ──────────────────────────────────────────────────────── */
+/* Let base .md-shell drive the gradient + 3rem padding-top exactly like the
+   home page (modern-dashboard / authenticated-view). Only override #content
+   to strip the body padding/margin since .header--hidden zeroes
+   --topbar-height already. */
+#within_ember:has(.md-shell--create-board-new) #content {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+/* Suppress the .new-board--modern card chrome — .md-workspace is now the
+   visual card (matching the home page pattern). We keep the
+   .new-board--modern class on the wrapper for its descendant rules
+   (.modal-header, .modal-body, .modal-footer styling), just neutralize
+   its own background/border/shadow/radius. */
+.md-workspace--create-board-new.new-board--modern {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid var(--md-line) !important;
+  box-shadow: var(--md-shadow) !important;
+  border-radius: 48px !important;
+  /* Restore overflow:hidden so the inner modal-header/body/footer rounded
+     corners don't bleed past the workspace edge. */
+  overflow: hidden !important;
+  /* No top gap; 64px left/right gap so the gradient breathes around the
+     card. Bottom margin kept at 40px so the gradient still shows beneath. */
+  margin: 0 auto 40px !important;
+  max-width: calc(100% - 128px) !important;
+}
+
+/* ────────────────────────────────────────────────────────
    Board Detail page  (/user/:user_id/board-detail/:boardname)
    ──────────────────────────────────────────────────────── */
 
@@ -48634,7 +50082,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Board header */
 .md-board-detail-header {
-  padding-bottom: 0;
+  padding: 16px 20px 0;
   margin-bottom: 0;
   border-bottom: none;
 }
@@ -48661,6 +50109,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 10px 20px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   border-color: rgba($indigo, 0.08);
+}
+/* Dark mode: the board's own header icon is shown on a near-white tile so
+   dark/silhouette pictograms (e.g. black apple core) stay visible against
+   the dark page surface. The faint indigo gradient used in light mode is
+   invisible on a dark background. */
+.md-board-detail--dark .md-board-detail-header__board-icon {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.md-board-detail--dark .md-board-detail-header__board-icon:hover {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .md-board-detail-header__title-row {
   display: flex;
@@ -48757,6 +50223,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-style: italic;
   color: rgba($la-navy, 0.55);
 }
+.md-board-detail--dark .md-board-detail-header__info-description {
+  color: rgba(255, 255, 255, 0.85);
+}
+.md-board-detail--dark .md-board-detail-header__info-description--empty {
+  color: rgba(255, 255, 255, 0.55);
+}
 
 .md-board-detail-info-btn {
   display: flex;
@@ -48783,22 +50255,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-header__row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
 }
 .md-board-detail-header__title-group {
   display: flex;
   align-items: center;
   gap: 14px;
-  width: 75%;
-  flex-shrink: 0;
+  flex: 1 1 320px;
   min-width: 0;
 }
 @media (max-width: 900px) {
   .md-board-detail-header__title-group {
     width: 100%;
-    padding: 0 16px;
   }
   .md-board-detail-header__title {
     margin: 4px 0 0;
@@ -49021,21 +50492,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 .md-board-detail-header__actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  flex-shrink: 0;
-  width: 25%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
-/* In edit mode, the __actions container is empty — collapse it so the
-   board-actions-wrap (which holds the Edit Mode pill + Details & Actions)
-   sits flush at the right edge of the row. */
-.md-board-detail-header__row:has(.md-board-detail-board-actions-wrap) .md-board-detail-header__actions {
-  width: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  gap: 0 !important;
-}
+/* Edit mode: __actions still holds the Done-Editing button so it sizes
+   naturally; the Details & Actions dropdown lives in __board-actions-wrap
+   alongside it. The legacy `width: 0` collapse is no longer needed since
+   __actions is a row-flex group rather than a fixed-width column. */
 
 /* Edit Board button */
 .md-board-detail-edit-btn {
@@ -49343,6 +50811,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-quick-toggle--categories {
   position: relative;
   top: 2px;
+}
+/* In the header actions row, the Quick Phrases / Categories pills sit
+   alongside Color Key and Edit Board — drop the 2px nudge so they baseline
+   with the other action buttons. */
+.md-board-detail-header__actions .md-board-detail-quick-toggle--categories {
+  top: 0;
 }
 .md-board-detail-quick-toggle:hover {
   background: rgba(255, 255, 255, 1);
@@ -51601,6 +53075,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 .md-shell--board-detail-edit .md-board-detail-header {
   margin-bottom: 12px;
+  padding-top: 0;
+  padding-bottom: 12px;
   position: relative;
 }
 /* ── Edit mode pill badge ── */
@@ -53343,16 +54819,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ── Board-Detail: Empty, Hidden, Swapping button states ─ */
+/* Empty cards: noticeably darker gray than the page background so the empty
+   slot is distinguishable from the surrounding canvas — but still neutral
+   so it doesn't compete with real buttons for attention. The previous
+   #eaebee→#e2e3e7 gradient at 0.55 opacity sat too close to white and
+   failed contrast. The bright `inset 0 1px 0 rgba(255,255,255,0.6)`
+   highlight is removed because it created a visible top-band where the
+   gradient appeared to start below the card edge. The full gradient now
+   fills the card edge-to-edge with the existing 16px radius (radius is
+   on the .md-board-detail-symbol-card itself + overflow: hidden, so the
+   gradient fills the rounded shape uniformly). */
 .md-board-detail-symbol-card--empty {
-  opacity: 0.55;
+  opacity: 1;
   background:
-    linear-gradient(180deg, #eaebee, #e2e3e7) !important;
+    linear-gradient(180deg, #c4cad4, #b1b8c4) !important;
   box-shadow:
-    0 2px 0 rgba($indigo, 0.10),
-    0 1px 0 rgba($indigo, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 0 -1px 2px rgba($indigo, 0.04) !important;
-  outline: 2px dashed rgba($indigo, 0.10) !important;
+    0 1px 2px rgba($indigo, 0.10),
+    inset 0 -1px 2px rgba($indigo, 0.06) !important;
+  outline: 2px dashed rgba($indigo, 0.18) !important;
   outline-offset: -6px;
 }
 .md-board-detail-symbol-card--no-color {
@@ -54488,6 +55972,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 2px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   outline-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-detail-symbol-card--no-color {
+  background-color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-symbol-card--no-color .md-board-detail-symbol-card__label {
   color: $brand-charcoal-dark;

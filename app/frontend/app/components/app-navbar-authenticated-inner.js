@@ -30,6 +30,9 @@ export default Component.extend({
         fn();
       }
     },
+    openBetaFeedback() {
+      this.get('application').send('openBetaFeedback');
+    },
     openLanguage() {
       this.get('application').send('language');
     },

@@ -1,0 +1,18 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="beta-feedback-modal-wrap">
+    <header class="la-modal-header beta-feedback-modal__header">
+      <div class="beta-feedback-modal__hero">
+        <span class="la-section-eyebrow-badge"><span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "BETA" key="beta_feedback_eyebrow"}}</span>
+        <h2 class="la-hero-title beta-feedback-modal__title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h2>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+        <p class="la-pricing-hero-subtitle beta-feedback-modal__subtitle">{{t "Help us improve LingoLinq. Tell us what broke, what confused you, or what you wish worked differently." key="beta_feedback_intro"}}</p>
+      </div>
+      <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="beta-feedback-modal__body">
+      {{beta-feedback-form onSubmitSuccess=(action "onSubmitSuccess") onCancel=(action "onCancel")}}
+    </div>
+  </div>
+{{/modal-dialog}}

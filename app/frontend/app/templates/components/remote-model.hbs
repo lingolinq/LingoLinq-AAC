@@ -60,6 +60,10 @@
         {{/if}}
       {{/if}}
       <div style='margin-top: 30px;'>
+        <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
+        {{#if this.app_state.pairing}}
+          <button class='btn btn-default btn-lg' {{action "end"}}>{{t "End Connection" key="end_connection"}}</button>
+        {{/if}}
         {{#unless this.model.communicator}}
           {{#unless this.paired_with_current_user}}
             <button class='btn btn-primary btn-lg' {{action "request"}} disabled={{this.connect_pending}}>
@@ -77,10 +81,6 @@
             </button>
           {{/unless}}
         {{/unless}}
-        {{#if this.app_state.pairing}}
-          <button class='btn btn-default btn-lg' {{action "end"}}>{{t "End Connection" key="end_connection"}}</button>
-        {{/if}}
-        <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Close" key="close"}}</button>
       </div>
     {{else}}
       <div style='margin: 20px 0;'>
