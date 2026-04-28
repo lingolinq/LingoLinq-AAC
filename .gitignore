@@ -36,6 +36,9 @@
 
 .DS_Store
 *.code-workspace
+*.docx
+~$*.docx
+~$*.doc
 /lib/domains.json
 # Ignore master key for decrypting credentials and more.
 /config/master.key
