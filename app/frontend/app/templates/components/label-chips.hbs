@@ -1,0 +1,51 @@
+{{!-- Chip-style input for board labels. Bulk-paste compatible. --}}
+<div class="label-chips__container"
+     role="group"
+     aria-label={{t "Labels" key="labels"}}
+     {{action "focusInput" on="click"}}>
+  {{#each this.chip_items as |item index|}}
+    {{#if (is_equal index this.editingIndex)}}
+      <span class="label-chips__chip label-chips__chip--editing">
+        <input type="text"
+               id={{this.editInputId}}
+               class="label-chips__chip-edit-input"
+               value={{this.editingValue}}
+               aria-label={{t "Edit label" key="edit_label_chip"}}
+               oninput={{action "editInputChanged" value="target.value"}}
+               onkeydown={{action "editKeydown"}}
+               onblur={{action "commitEdit"}} />
+      </span>
+    {{else}}
+      <span class="label-chips__chip {{if item.is_duplicate "label-chips__chip--duplicate"}}">
+        <button type="button"
+                class="label-chips__chip-label-btn"
+                {{action "startEdit" index bubbles=false}}
+                aria-label={{t "Edit %{word}" key="edit_label_chip_named" word=item.value}}>
+          <span class="label-chips__chip-label">{{item.value}}</span>
+        </button>
+        <button type="button"
+                class="label-chips__chip-remove"
+                {{action "removeChipAt" index bubbles=false}}
+                aria-label={{t "Remove %{word}" key="remove_label_chip" word=item.value}}>
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false">
+            <path d="M1 1 L9 9 M9 1 L1 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </span>
+    {{/if}}
+  {{/each}}
+  <input type="text"
+         value={{this.currentInput}}
+         id={{this.inputId}}
+         class="label-chips__input"
+         placeholder={{this.placeholder}}
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="true"
+         oninput={{action "inputChanged" value="target.value"}}
+         onkeydown={{action "handleKeydown"}}
+         onpaste={{action "handlePaste"}}
+         onfocus={{action "handleFocus"}}
+         onblur={{action "handleBlur"}} />
+</div>

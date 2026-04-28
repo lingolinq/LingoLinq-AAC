@@ -533,15 +533,17 @@
                   </li>
                 </ul>
               {{else}}
-                <p class="md-board-detail-header__sub {{unless this.description_expanded 'md-board-detail-header__sub--collapsed'}}">{{this.subtitle}}</p>
-                {{#if this.subtitle_is_long}}
-                  <button type="button" class="md-board-detail-header__expand-link" {{action "toggle_description"}}>
-                    {{#if this.description_expanded}}
-                      {{t "Show less" key="show_less"}}
-                    {{else}}
-                      {{t "Show more" key="show_more"}}
-                    {{/if}}
-                  </button>
+                {{#if this.subtitle}}
+                  <p class="md-board-detail-header__sub {{unless this.description_expanded 'md-board-detail-header__sub--collapsed'}}">{{this.subtitle}}</p>
+                  {{#if this.subtitle_is_long}}
+                    <button type="button" class="md-board-detail-header__expand-link" {{action "toggle_description"}}>
+                      {{#if this.description_expanded}}
+                        {{t "Show less" key="show_less"}}
+                      {{else}}
+                        {{t "Show more" key="show_more"}}
+                      {{/if}}
+                    </button>
+                  {{/if}}
                 {{/if}}
               {{/if}}
               {{#if this.description_info_expanded}}
@@ -664,6 +666,28 @@
           {{/if}}
           <div class="md-board-detail-header__actions">
             {{#unless this.edit_mode}}
+              <button type="button"
+                class="md-board-detail-quick-toggle {{if this.show_quick_phrases 'md-board-detail-quick-toggle--active'}}"
+                {{action "toggle_quick_phrases"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>{{t "Quick Phrases" key="board_detail_quick_phrases_label"}}</span>
+                <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              <button type="button"
+                class="md-board-detail-quick-toggle md-board-detail-quick-toggle--categories {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
+                {{action "toggle_categories"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <span>{{t "Categories" key="board_detail_categories_label"}}</span>
+                <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
               <button type="button"
                 class="md-board-detail-color-legend-toggle {{if this.show_color_legend 'md-board-detail-color-legend-toggle--active'}}"
                 {{action "toggle_color_legend"}}
@@ -1337,36 +1361,10 @@
       {{/if}}
 
 
-      {{!-- Toolbar row: Quick Phrases + Category Filter --}}
+      {{!-- Toolbar row: filter chip + reveal panels (Quick Phrases / Categories
+           toggles moved into the header actions row above). --}}
       <div class="md-board-detail-toolbar">
         <div class="md-board-detail-quick-wrap">
-          {{#unless this.edit_mode}}
-            <button type="button"
-              class="md-board-detail-quick-toggle {{if this.show_quick_phrases 'md-board-detail-quick-toggle--active'}}"
-              {{action "toggle_quick_phrases"}}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              <span>{{t "Quick Phrases" key="board_detail_quick_phrases_label"}}</span>
-              <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-          {{/unless}}
-          {{#unless this.edit_mode}}
-            <button type="button"
-              class="md-board-detail-quick-toggle md-board-detail-quick-toggle--categories {{if this.show_categories 'md-board-detail-quick-toggle--active'}}"
-              {{action "toggle_categories"}}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-              </svg>
-              <span>{{t "Categories" key="board_detail_categories_label"}}</span>
-              <svg class="md-board-detail-quick-toggle__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-          {{/unless}}
-
           {{#if this.active_filter_label}}
             <span class="md-board-detail-filter-chip">
               {{#if this.active_filter_css}}

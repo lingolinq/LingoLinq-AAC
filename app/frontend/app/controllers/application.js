@@ -468,6 +468,9 @@ export default Controller.extend({
     support: function() {
       this.get('router').transitionTo('support');
     },
+    openBetaFeedback: function() {
+      modal.open('beta-feedback-modal');
+    },
     goToNewStyle: function() {
       var key = this.appState.get('currentBoardState.key');
       if(key && key.indexOf('/') !== -1) {

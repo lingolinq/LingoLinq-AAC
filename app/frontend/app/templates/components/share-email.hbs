@@ -32,8 +32,8 @@
           {{#if this.loading}}
             <p>{{t "Sending Email..." key="sending_email"}}</p>
           {{else}}
-            <button class='btn btn-primary' disabled={{this.no_email}} {{action "confirm"}}>{{t "Send Email" key="send_email"}}</button>
             <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+            <button class='btn btn-primary' disabled={{this.no_email}} {{action "confirm"}}>{{t "Send Email" key="send_email"}}</button>
           {{/if}}
           {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected problem sending the email" key="error_sending_email"}}</p>

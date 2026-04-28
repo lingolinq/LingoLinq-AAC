@@ -128,6 +128,7 @@
     </div>
     <div class="la-new-board-modal-footer">
       <div class="la-new-board-modal-footer__actions">
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
         <button type="button" {{action "createBoard"}} class="la-btn la-btn--primary" disabled={{this.create_board_disabled}}>
           {{#if this.status.saving}}
             {{t "Creating Board..." key="creating_board"}}
@@ -135,7 +136,6 @@
             {{t "Create Board" key="create_board"}}
           {{/if}}
         </button>
-        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     </div>
   </div>

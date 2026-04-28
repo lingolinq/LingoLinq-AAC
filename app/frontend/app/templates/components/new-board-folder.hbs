@@ -11,10 +11,10 @@
         <p class="la-new-board-folder-error">{{t "Please enter a valid folder name." key="new_board_folder_error"}}</p>
       {{/if}}
       <div class="la-new-board-folder-actions">
+        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
         <button type="submit" class="la-btn la-btn--primary" disabled={{this.submitDisabled}}>
           {{#if this.status.loading}}{{t "Creating..." key="creating"}}{{else}}{{t "Create" key="create"}}{{/if}}
         </button>
-        <button type="button" class="la-btn la-btn--ghost" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     </form>
   </div>

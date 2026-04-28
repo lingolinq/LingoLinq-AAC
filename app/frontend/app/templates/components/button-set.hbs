@@ -83,6 +83,7 @@
   </div>
   <div class='modal-footer'>
     {{#if this.translating}}
+      <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class='btn btn-primary' {{action "save_translations"}} disabled={{this.saving_translations}}>
         {{#if this.saving_translations}}
           {{t "Accepting Translations..." key="accepting_translations"}}
@@ -92,7 +93,6 @@
           {{t "Accept Translations" key="accept_translations"}}
         {{/if}}
       </button>
-      <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{else}}
       <button class='btn btn-primary' {{action "close"}}>{{t "Close" key="close"}}</button>
     {{/if}}

@@ -23,8 +23,8 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
-    <button class='btn btn-default btn-lg' {{action "delete_user"}} disabled={{this.deleting}}>{{t "Delete User Account" key="delete_user_account"}}</button>
     <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default btn-lg' {{action "delete_user"}} disabled={{this.deleting}}>{{t "Delete User Account" key="delete_user_account"}}</button>
     {{#if this.error}}
       <p class='text-danger'>{{this.error}}</p>
     {{/if}}

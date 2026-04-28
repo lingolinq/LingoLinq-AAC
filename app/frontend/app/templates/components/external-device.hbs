@@ -105,6 +105,7 @@
     </form>
   </div>
   <div class="modal-footer md-modal-footer">
+    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
     <button class='btn btn-lg btn-primary' disabled={{this.status.loading}} {{action "update"}}>
       {{#if this.status.loading}}
         {{t "Updating User..." key="updating_user"}}
@@ -114,6 +115,5 @@
         {{t "Update User" key="update_user"}}
       {{/if}}
     </button>
-    <a href="#" class="btn btn-lg btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>
 {{/modal-dialog}}

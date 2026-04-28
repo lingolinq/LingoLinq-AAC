@@ -58,5 +58,32 @@ describe AiBoardGenerator do
       expect(described_class).to have_received(:call_anthropic).twice
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(provider: 'claude', success: false))
     end
+
+    context "COPPA Final Rule hard-gate" do
+      it "returns a parental-consent error when coppa_blocks_ai_for? is true" do
+        u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).with(u).and_return(true)
+        allow(described_class).to receive(:call_anthropic)
+
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2, user: u)
+
+        expect(result[:words]).to eq(nil)
+        expect(result[:error]).to include('parental consent')
+        expect(described_class).not_to have_received(:call_anthropic)
+        expect(AiApiLog).not_to have_received(:log_ai_call)
+      end
+
+      it "proceeds when coppa_blocks_ai_for? is false" do
+        u = User.new(settings: {})
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).with(u).and_return(false)
+        complete = "WORDS: apple, banana, carrot, drink\nNAME: Snacks\nDESCRIPTION: Snack words."
+        allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2, user: u)
+
+        expect(result[:words]).to eq(%w[apple banana carrot drink])
+        expect(result[:error]).to eq(nil)
+      end
+    end
   end
 end

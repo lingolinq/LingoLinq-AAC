@@ -49,6 +49,8 @@
   </div>
   <div class="modal-footer md-modal-footer">
     {{#if this.editing}}
+      <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
+      <button class='btn btn-default' {{action "edit_image_url"}}>{{t "Cancel Changes" key="cancel_changes"}}</button>
       <button class='btn btn-primary' {{action "save_edit"}}>
         {{#if this.saving}}
           {{t "Saving..." key="saving"}}
@@ -56,11 +58,9 @@
           {{t "Save" key="save"}}
         {{/if}}
       </button>
-      <button class='btn btn-default' {{action "edit_image_url"}}>{{t "Cancel Changes" key="cancel_changes"}}</button>
-      <button class='btn btn-default' {{action "close"}}>{{t "Close" key="close"}}</button>
     {{else}}
-      <button class='btn btn-primary' {{action "select"}}>{{t "Select Profile Pic" key="select_avatar"}}</button>
       <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      <button class='btn btn-primary' {{action "select"}}>{{t "Select Profile Pic" key="select_avatar"}}</button>
     {{/if}}
   </div>
 {{/modal-dialog}}

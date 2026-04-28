@@ -49,7 +49,7 @@
     <ul>
       <li><strong>Health Information (HIPAA):</strong> For covered medical professionals, LingoLinq operates as a Business Associate. User-generated content is encrypted in transit (SSL) and at rest. We will execute Business Associate Agreements (BAAs) with eligible healthcare organizations upon request.</li>
       <li><strong>Educational Records (FERPA):</strong> When LingoLinq is used by schools, we act as a "School Official" with a legitimate educational interest. We maintain the confidentiality of student records and use data strictly to provide the contracted educational services.</li>
-      <li><strong>Children's Privacy (COPPA):</strong> Children under 13 may only use LingoLinq with verifiable consent from a parent, guardian, or authorized school official. If we learn we have collected personal information from a child under 13 without proper consent, we will delete it promptly.</li>
+      <li><strong>Children's Privacy (COPPA):</strong> Children under 13 may only use LingoLinq with verifiable parental consent. We accept a FERPA school-official authorization in place of direct parental consent only for the limited, school-curriculum use of LingoLinq with no AI features, no profiling, and no advertising. Any use of LingoLinq's AI features by a child under 13, including AI-assisted board generation and AI word prediction, requires verifiable parental consent under 16 CFR Part 312, regardless of school enrollment. If we learn we have collected personal information from a child under 13 without the required consent, we will delete it promptly.</li>
     </ul>
     <p><strong>Disclaimer of Absolute Security:</strong> While LingoLinq utilizes commercially acceptable, industry-standard means to protect your personal information, no method of transmission over the Internet or method of electronic storage is 100% secure. Therefore, we cannot guarantee its absolute security against sophisticated, unforeseen cyberattacks or zero-day vulnerabilities.</p>
 
@@ -67,7 +67,18 @@
     <h3>7. Data Security, Retention, and Breach Notification</h3>
     <ul>
       <li><strong>Security:</strong> We utilize industry-standard encryption, secure cloud infrastructure, and strict internal access controls to protect your account.</li>
-      <li><strong>Retention:</strong> We retain active accounts indefinitely. Accounts inactive for 12 months are flagged for automatic deletion. Upon deletion, your personal data is purged (subject to a 10-day grace period for accidental deletions).</li>
+      <li><strong>Retention:</strong> We retain personal data only as long as necessary for the purpose it was collected, with category-specific windows that align with our Data Retention Schedule.
+        <ul>
+          <li>Active account data: retained for the life of the account, plus up to 2 years of continuous inactivity, after which the account is soft-deleted and queued for purge.</li>
+          <li>Inactive accounts: accounts inactive for 12 months are flagged for automatic deletion, subject to a 10-day grace period for accidental deletions.</li>
+          <li>AI request logs: the audit record (AiApiLog) is retained for 2 years; IP addresses on those records are redacted at 90 days.</li>
+          <li>Voice and audio recordings (button sounds you record): retained for the life of the user account and deleted when the account is deleted.</li>
+          <li>Dwell, eye-gaze, and head-tracking timing data (stored within communication logs): retained for 3 years by default, configurable to a shorter window per user or organization.</li>
+          <li>School and district tenant data: deleted within 90 days after the customer contract ends, unless a shorter window is specified in the data processing addendum.</li>
+          <li>Children's data (users under 13): parent-controllable at any time; automatically purged at age 18 or after 2 years of inactivity, whichever is sooner. Verified parental deletion requests are processed within 30 days.</li>
+        </ul>
+        Backups follow a 35-day rolling window for operational recovery; if a record is deleted, our retention jobs re-apply the deletion after any restore. The full schedule, including legal basis and deletion mechanism for each category, is available on request from our Data Privacy Team.
+      </li>
       <li><strong>Incident Response:</strong> In the unlikely event of a security breach that exposes personal information or results in data loss, LingoLinq will notify affected users and organization administrators via email within 72 hours of confirming the incident, providing details and a remediation plan.</li>
     </ul>
 

@@ -26,13 +26,13 @@
         {{pick-license license=this.sound_preview.license}}
       </div>
       <div>
-        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Save This Recording" key="save_this_recording"}}</button>
+        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
         {{#if this.sound_preview.from_recording}}
           <button {{action "record_sound"}} class='btn btn-default'>
             {{t "Try Again" key="try_again"}}
           </button>
         {{/if}}
-        <button {{action "clear_sound_work"}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
+        <button {{action "select_sound_preview"}} class='btn btn-primary'>{{t "Save This Recording" key="save_this_recording"}}</button>
       </div>
     </div>
   {{else}}
@@ -78,8 +78,8 @@
               <div style='margin: 5px 20% 10px;'>
                 {{t "This recording seems like it matches the phrase, would you like to accept it for this phrase?" key="choose_to_accept_recording"}}
               </div>
-              <button class='btn btn-primary' {{action "decide_on_recording" "approve"}}>{{t "Accept Recording" key="accept_recording"}}</button>
               <button class='btn btn-default' {{action "decide_on_recording" "reject"}}>{{t "Cancel" key="cancel"}}</button>
+              <button class='btn btn-primary' {{action "decide_on_recording" "approve"}}>{{t "Accept Recording" key="accept_recording"}}</button>
             {{else}}
               <button class='btn btn-default' {{action "clear_sound"}}>{{t "Clear Sound" key="clear_sound"}}</button>
             {{/if}}

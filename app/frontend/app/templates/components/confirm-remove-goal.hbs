@@ -43,6 +43,7 @@
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     <button class='btn btn-primary btn-lg' disabled={{this.status.saving}} {{action "confirm"}}>
       {{#if this.status.saving}}
         {{t "Removing Goal..." key="removing_goal"}}
@@ -52,6 +53,5 @@
         {{t "Remove Goal" key="remove_goal"}}
       {{/if}}
     </button>
-    <button class='btn btn-default btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

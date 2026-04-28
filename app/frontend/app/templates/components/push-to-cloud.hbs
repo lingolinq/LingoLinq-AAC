@@ -12,6 +12,7 @@
     </p>
   </div>
   <div class="modal-header md-modal-header">
+    <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     <button class='btn btn-default btn-lg' {{action "push"}} disabled={{this.status.pushing}}>
       {{#if this.status.pushing}}
         {{t "Pushing to Cloud..." key="pushing_to_cloud"}}
@@ -21,7 +22,6 @@
         {{t "Push to Cloud" key="push_to_cloud"}}
       {{/if}}
     </button>
-    <button class='btn btn-primary btn-lg' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{#if this.status.save_failed}}
       <p class='text-danger'>{{t "One or more boards were not successfully pushed to the cloud" key="one_or_more_boards_failed_to_push"}}</p>
     {{/if}}
