@@ -274,8 +274,8 @@ export default Component.extend({
       var tag = ctrl && ctrl.get('mineTagFolderDrillIn');
       if (!user || !tag) { return; }
 
-      this.set('deletingFolder', true);
       return actionLock.run('delete-folder:' + user.get('id') + ':' + tag, function() {
+        _this.set('deletingFolder', true);
         return _this.get('persistence').ajax('/api/v1/users/' + user.get('id') + '/board_tags/delete', {
           type: 'POST',
           data: { tag: tag }
