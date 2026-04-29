@@ -103,11 +103,16 @@ class BetaFeedbackRecording < ActiveRecord::Base
   end
 
   def delete_remote!
-    if settings && settings['local_path'].present? && File.exist?(settings['local_path'])
-      File.delete(settings['local_path'])
-    elsif upload_key.present?
-      Uploader.remote_remove_upload_path(upload_key)
-    end
+    deletion_succeeded =
+      if settings && settings['local_path'].present?
+        !File.exist?(settings['local_path']) || File.delete(settings['local_path']) > 0
+      elsif upload_key.present?
+        Uploader.remote_remove_upload_path(upload_key).present?
+      else
+        false
+      end
+
+    return false unless deletion_succeeded
     self.status = 'deleted'
     self.deleted_at ||= Time.now
     save
