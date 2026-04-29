@@ -11,6 +11,24 @@
           <div class="la-support-content-wrapper">
             <article class="la-about-glass-card la-support-page-card">
               <div class="la-support-page-card__body md-support-content la-database-explorer__body">
+
+                <div class="la-database-explorer__tabs" role="tablist" aria-label={{t "Database views" key="database_explorer_tabs_label"}}>
+                  <button type="button"
+                          role="tab"
+                          aria-selected={{if (is-equal this.activeTab "setup") "true" "false"}}
+                          class="la-database-explorer__tab {{if (is-equal this.activeTab "setup") "la-database-explorer__tab--active"}}"
+                          {{action "setActiveTab" "setup"}}>
+                    {{t "Setup" key="database_explorer_tab_setup"}}
+                  </button>
+                  <button type="button"
+                          role="tab"
+                          aria-selected={{if (is-equal this.activeTab "contents") "true" "false"}}
+                          class="la-database-explorer__tab {{if (is-equal this.activeTab "contents") "la-database-explorer__tab--active"}}"
+                          {{action "setActiveTab" "contents"}}>
+                    {{t "Contents" key="database_explorer_tab_contents"}}
+                  </button>
+                </div>
+
                 {{#if this.loadError}}
                   <p role="alert">{{t "Could not load schema. You may not have access, or try again later." key="database_explorer_load_error"}}</p>
                 {{else}}
@@ -18,82 +36,176 @@
                     <p class="la-database-explorer__loading" aria-live="polite">{{t "Loading..." key="loading"}}</p>
                   {{/if}}
 
-                  <div class="la-database-explorer__toolbar">
-                    <label class="la-database-explorer__search-label">
-                      <span class="la-database-explorer__label-text">{{t "Filter tables" key="database_explorer_table_search_label"}}</span>
-                      <Input @type="search" @value={{this.tableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
-                    </label>
-                    <label class="la-database-explorer__search-label">
-                      <span class="la-database-explorer__label-text">{{t "Filter columns" key="database_explorer_column_search_label"}}</span>
-                      <Input @type="search" @value={{this.columnSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Column name or type…" key="database_explorer_column_search_placeholder"}} />
-                    </label>
-                  </div>
-
-                  <div class="la-database-explorer__layout">
-                    <nav class="la-database-explorer__sidebar" aria-label={{t "Tables" key="database_explorer_select_table"}}>
-                      {{#if this.filteredTables.length}}
-                        <ul class="list-group la-database-explorer__table-list">
-                          {{#each this.filteredTables as |tbl|}}
-                            <li class="list-group-item la-database-explorer__table-item">
-                              <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.selectedTableName) "la-database-explorer__table-btn--active"}}" {{action "selectTable" tbl.name}}>
-                                {{tbl.name}}
-                              </button>
-                            </li>
-                          {{/each}}
-                        </ul>
-                      {{else}}
-                        {{#unless this.loading}}
-                          <p class="text-muted">{{t "No tables match your filter." key="database_explorer_empty_tables"}}</p>
-                        {{/unless}}
-                      {{/if}}
-                    </nav>
-
-                    <div class="la-database-explorer__main" aria-live="polite">
-                      {{#if this.selectedTable}}
-                        <h2 class="la-database-explorer__table-title">{{this.selectedTable.name}}</h2>
-                        <p class="text-muted la-database-explorer__column-count">
-                          {{this.filteredColumns.length}}
-                          {{#if this.columnSearch}}
-                            {{t "matching columns" key="database_explorer_columns_match_suffix"}}
-                          {{else}}
-                            {{t "columns" key="database_explorer_columns_total_suffix"}}
-                          {{/if}}
-                        </p>
-                        {{#if this.filteredColumns.length}}
-                          <div class="table-responsive la-database-explorer__table-wrap">
-                            <table class="table table-striped la-database-explorer__columns-table">
-                              <thead>
-                                <tr>
-                                  <th scope="col">{{t "Column" key="database_explorer_col_name"}}</th>
-                                  <th scope="col">{{t "Type" key="database_explorer_col_type"}}</th>
-                                  <th scope="col">{{t "Nullable" key="database_explorer_col_nullable"}}</th>
-                                  <th scope="col">{{t "Default" key="database_explorer_col_default"}}</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {{#each this.filteredColumns as |col|}}
-                                  <tr>
-                                    <td class="la-database-explorer__cell-name">{{col.name}}</td>
-                                    <td class="la-database-explorer__cell-type"><code>{{col.type}}</code></td>
-                                    <td>
-                                      {{#if col.nullable}}
-                                        {{t "Yes" key="database_explorer_yes"}}
-                                      {{else}}
-                                        {{t "No" key="database_explorer_no"}}
-                                      {{/if}}
-                                    </td>
-                                    <td class="la-database-explorer__cell-default">{{col.default}}</td>
-                                  </tr>
-                                {{/each}}
-                              </tbody>
-                            </table>
-                          </div>
-                        {{else}}
-                          <p class="text-muted">{{t "No columns match your filter." key="database_explorer_empty_columns"}}</p>
-                        {{/if}}
-                      {{/if}}
+                  {{#if (is-equal this.activeTab "setup")}}
+                    {{!-- ── Setup tab: schema browser ── --}}
+                    <div class="la-database-explorer__toolbar">
+                      <label class="la-database-explorer__search-label">
+                        <span class="la-database-explorer__label-text">{{t "Filter tables" key="database_explorer_table_search_label"}}</span>
+                        <Input @type="search" @value={{this.tableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
+                      </label>
+                      <label class="la-database-explorer__search-label">
+                        <span class="la-database-explorer__label-text">{{t "Filter columns" key="database_explorer_column_search_label"}}</span>
+                        <Input @type="search" @value={{this.columnSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Column name or type…" key="database_explorer_column_search_placeholder"}} />
+                      </label>
                     </div>
-                  </div>
+
+                    <div class="la-database-explorer__layout">
+                      <nav class="la-database-explorer__sidebar" aria-label={{t "Tables" key="database_explorer_select_table"}}>
+                        {{#if this.filteredTables.length}}
+                          <ul class="list-group la-database-explorer__table-list">
+                            {{#each this.filteredTables as |tbl|}}
+                              <li class="list-group-item la-database-explorer__table-item">
+                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.selectedTableName) "la-database-explorer__table-btn--active"}}" {{action "selectTable" tbl.name}}>
+                                  {{tbl.name}}
+                                </button>
+                              </li>
+                            {{/each}}
+                          </ul>
+                        {{else}}
+                          {{#unless this.loading}}
+                            <p class="text-muted">{{t "No tables match your filter." key="database_explorer_empty_tables"}}</p>
+                          {{/unless}}
+                        {{/if}}
+                      </nav>
+
+                      <div class="la-database-explorer__main" aria-live="polite">
+                        {{#if this.selectedTable}}
+                          <h3 class="la-database-explorer__table-title">{{this.selectedTable.name}}</h3>
+                          <p class="text-muted la-database-explorer__column-count">
+                            {{this.filteredColumns.length}}
+                            {{#if this.columnSearch}}
+                              {{t "matching columns" key="database_explorer_columns_match_suffix"}}
+                            {{else}}
+                              {{t "columns" key="database_explorer_columns_total_suffix"}}
+                            {{/if}}
+                          </p>
+                          {{#if this.filteredColumns.length}}
+                            <div class="table-responsive la-database-explorer__table-wrap">
+                              <table class="table table-striped la-database-explorer__columns-table">
+                                <thead>
+                                  <tr>
+                                    <th scope="col">{{t "Column" key="database_explorer_col_name"}}</th>
+                                    <th scope="col">{{t "Type" key="database_explorer_col_type"}}</th>
+                                    <th scope="col">{{t "Nullable" key="database_explorer_col_nullable"}}</th>
+                                    <th scope="col">{{t "Default" key="database_explorer_col_default"}}</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {{#each this.filteredColumns as |col|}}
+                                    <tr>
+                                      <td class="la-database-explorer__cell-name">{{col.name}}</td>
+                                      <td class="la-database-explorer__cell-type"><code>{{col.type}}</code></td>
+                                      <td>
+                                        {{#if col.nullable}}
+                                          {{t "Yes" key="database_explorer_yes"}}
+                                        {{else}}
+                                          {{t "No" key="database_explorer_no"}}
+                                        {{/if}}
+                                      </td>
+                                      <td class="la-database-explorer__cell-default">{{col.default}}</td>
+                                    </tr>
+                                  {{/each}}
+                                </tbody>
+                              </table>
+                            </div>
+                          {{else}}
+                            <p class="text-muted">{{t "No columns match your filter." key="database_explorer_empty_columns"}}</p>
+                          {{/if}}
+                        {{/if}}
+                      </div>
+                    </div>
+                  {{else}}
+                    {{!-- ── Contents tab: pick a table, query its rows ── --}}
+                    <div class="la-database-explorer__toolbar">
+                      <label class="la-database-explorer__search-label">
+                        <span class="la-database-explorer__label-text">{{t "Find table" key="database_explorer_find_table_label"}}</span>
+                        <Input @type="search" @value={{this.contentsTableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
+                      </label>
+                    </div>
+
+                    <div class="la-database-explorer__layout la-database-explorer__layout--stacked">
+                      <nav class="la-database-explorer__sidebar la-database-explorer__sidebar--top" aria-label={{t "Tables" key="database_explorer_select_table"}}>
+                        {{#if this.filteredContentsTables.length}}
+                          <ul class="list-group la-database-explorer__table-list">
+                            {{#each this.filteredContentsTables as |tbl|}}
+                              <li class="list-group-item la-database-explorer__table-item">
+                                <button type="button" class="btn btn-link la-database-explorer__table-btn {{if (is-equal tbl.name this.contentsTableName) "la-database-explorer__table-btn--active"}}" disabled={{this.contentsLoading}} {{action "selectContentsTable" tbl.name}}>
+                                  {{tbl.name}}
+                                </button>
+                              </li>
+                            {{/each}}
+                          </ul>
+                        {{else}}
+                          {{#unless this.loading}}
+                            <p class="text-muted">{{t "No tables match your filter." key="database_explorer_empty_tables"}}</p>
+                          {{/unless}}
+                        {{/if}}
+                      </nav>
+
+                      <div class="la-database-explorer__main la-database-explorer__main--wide" aria-live="polite">
+                        {{#if this.contentsTableName}}
+                          <h3 class="la-database-explorer__table-title">{{this.contentsTableName}}</h3>
+
+                          {{#if this.contentsLoading}}
+                            <div class="la-database-explorer__spinner-wrap" aria-live="polite">
+                              <div class="la-database-explorer__spinner" aria-hidden="true"></div>
+                              <p class="la-database-explorer__loading">{{t "Loading rows from %{table}..." key="database_explorer_contents_loading_named" table=this.contentsTableName}}</p>
+                            </div>
+                          {{else if this.contentsLoadError}}
+                            <p role="alert">{{t "Could not load table contents." key="database_explorer_contents_error"}}</p>
+                          {{else}}
+                            <p class="text-muted la-database-explorer__column-count">
+                              {{#if this.contentsRows.length}}
+                                {{#if this.contentsTotalExact}}
+                                  {{t "Showing %{start}–%{end} of %{total}" key="database_explorer_contents_range" start=this.contentsRangeStart end=this.contentsRangeEnd total=this.contentsTotal}}
+                                {{else}}
+                                  {{t "Showing %{start}–%{end} of ~%{total} (estimated)" key="database_explorer_contents_range_estimated" start=this.contentsRangeStart end=this.contentsRangeEnd total=this.contentsTotal}}
+                                {{/if}}
+                              {{else}}
+                                {{t "0 rows" key="database_explorer_contents_zero"}}
+                              {{/if}}
+                            </p>
+
+                            {{#if this.contentsRows.length}}
+                              <div class="table-responsive la-database-explorer__table-wrap la-database-explorer__contents-wrap">
+                                <table class="table table-striped la-database-explorer__columns-table la-database-explorer__contents-table">
+                                  <thead>
+                                    <tr>
+                                      {{#each this.contentsColumns as |col|}}
+                                        <th scope="col">{{col}}</th>
+                                      {{/each}}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {{#each this.contentsRows as |row|}}
+                                      <tr>
+                                        {{#each row as |cell|}}
+                                          <td class="la-database-explorer__contents-cell" title={{cell}}>
+                                            <div class="la-database-explorer__contents-cell-clamp">{{cell}}</div>
+                                          </td>
+                                        {{/each}}
+                                      </tr>
+                                    {{/each}}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <div class="la-database-explorer__pager">
+                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{is-equal this.contentsOffset 0}} {{action "prevContentsPage"}}>
+                                  {{t "Previous" key="database_explorer_prev"}}
+                                </button>
+                                <button type="button" class="btn btn-default la-database-explorer__pager-btn" disabled={{this.noMoreContents}} {{action "nextContentsPage"}}>
+                                  {{t "Next" key="database_explorer_next"}}
+                                </button>
+                              </div>
+                            {{/if}}
+                          {{/if}}
+                        {{else}}
+                          <p class="text-muted">{{t "Select a table to view its contents." key="database_explorer_contents_prompt"}}</p>
+                        {{/if}}
+                      </div>
+                    </div>
+                  {{/if}}
                 {{/if}}
               </div>
             </article>

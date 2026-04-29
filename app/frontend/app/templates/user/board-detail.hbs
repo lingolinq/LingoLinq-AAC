@@ -1684,21 +1684,6 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
                   </button>
                 </div>
-              {{else}}
-                {{!-- Non-edit mode: subtle context menu trigger for Stash / Word Data (replaces the legacy #stash_hover UI) --}}
-                {{#unless btn.empty}}
-                  {{#unless btn.load_board}}
-                    <div class="md-board-detail-symbol-card__context-actions">
-                      <button type="button" tabindex="-1"
-                        class="md-board-detail-symbol-card__edit-btn md-board-detail-symbol-card__edit-menu-trigger md-board-detail-symbol-card__edit-menu-trigger--context"
-                        title={{t "Button options" key="board_detail_button_options"}}
-                        aria-label={{t "More options for this button" key="board_detail_button_more_options"}}
-                        {{action "toggle_button_menu" btn bubbles=false}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
-                      </button>
-                    </div>
-                  {{/unless}}
-                {{/unless}}
               {{/if}}
               {{#if btn.image_url}}
                 <div class="md-board-detail-symbol-card__image">

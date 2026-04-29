@@ -119,6 +119,7 @@ LingoLinq::Application.routes.draw do
     patch 'beta_feedback/:id' => 'beta_feedback#update'
     get 'beta_feedback/:id' => 'beta_feedback#show'
     get 'database_schema' => 'database_schema#index'
+    get 'database_contents' => 'database_contents#index'
     post 'callback' => 'callbacks#callback'
     get 'domain_settings' => 'integrations#domain_settings'
     get 'start_code' => 'organizations#start_code_lookup'

@@ -3,13 +3,14 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next } from '@ember/runloop';
+import { next, debounce } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
+import persistence from '../utils/persistence';
 
 /**
  * Create Board (New) Modal Component
@@ -39,7 +40,7 @@ export default Component.extend({
       public: false,
       visibility: 'private',
       license: {type: 'private'},
-      grid: {rows: 6, columns: 10, labels_order: 'rows'},
+      grid: {rows: 5, columns: 6, labels_order: 'rows'},
       for_user_id: currentUserId ? 'self' : undefined
     }));
     
@@ -77,6 +78,10 @@ export default Component.extend({
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
     this.set('prefs_open', false);
+    this.set('creating_for_someone_else', true);
+    // Map of label.toLowerCase() -> { fill, border, type } populated as
+    // labels are looked up via /api/v1/search/batch_parts_of_speech.
+    this.set('_label_colors', {});
 
     // Initialize board categories
     var res = [];
@@ -101,22 +106,37 @@ export default Component.extend({
   },
 
   for_user_id: computed('model.for_user_id', function() {
-    return this.get('model.for_user_id') || 'self';
+    // Return null when the model points at 'self' so the dropdown shows
+    // its placeholder ("Select who this board is for") instead of acting
+    // like the user has already made a real choice. The save path falls
+    // back to 'self' at submit time when no supervisee is picked.
+    var id = this.get('model.for_user_id');
+    if(!id || id === 'self') { return null; }
+    return id;
   }),
 
-  /** Options for the "For" dropdown. Always includes "— my board —" (self)
-   *  as the default; supervisees the current user can edit are appended.
-   *  Disabled supervisees (no edit permission) are excluded so the menu
-   *  only shows valid choices. */
+  /** Options for the "For" dropdown. All known supervisees — no "self"
+   *  entry, since the dropdown is only shown when creating for someone
+   *  else. Matches user-select.js's pattern of including every
+   *  supervisee (edit_permission is enforced server-side at save time
+   *  rather than hidden from the menu, so a supervisor who hasn't been
+   *  granted explicit edit access for a supervisee still appears here). */
   user_options: computed('appState.sessionUser.known_supervisees.[]', function() {
-    var res = [{id: 'self', name: i18n.t('my_board_self', '— my board —')}];
     var supers = this.appState.get('sessionUser.known_supervisees') || [];
-    supers.forEach(function(s) {
-      if(s.edit_permission) {
-        res.push({id: s.id, name: s.user_name});
-      }
+    return supers.map(function(s) {
+      return {id: s.id, name: s.user_name};
     });
-    return res;
+  }),
+
+  /** Only show the "For" picker when there is at least one valid choice. */
+  show_user_options: computed('user_options.length', function() {
+    return (this.get('user_options.length') || 0) > 0;
+  }),
+
+  /** Inline width binding for the speech level meter (0–100% from speech.level). */
+  speech_level_style: computed('speech.level', function() {
+    var lvl = this.get('speech.level') || 0;
+    return 'width: ' + Math.max(0, Math.min(100, lvl)) + '%;';
   }),
 
   ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
@@ -351,11 +371,21 @@ export default Component.extend({
   license_options: LingoLinq.licenseOptions,
   public_options: LingoLinq.publicOptions,
 
-  createBoardDisabled: computed('model.name', 'model.image_url', 'model.description', 'status.saving', function() {
+  createBoardDisabled: computed('model.name', 'model.image_url', 'model.description', 'status.saving', 'creating_for_someone_else', 'show_user_options', 'model.for_user_id', function() {
     var name = (this.get('model.name') || '').trim();
     var icon = (this.get('model.image_url') || '').trim();
     var description = (this.get('model.description') || '').trim();
-    return this.get('status.saving') || name.length === 0 || icon.length === 0 || description.length === 0;
+    if(this.get('status.saving') || name.length === 0 || icon.length === 0 || description.length === 0) {
+      return true;
+    }
+    // If the user is creating for someone else, block until they've
+    // actually picked a supervisee — 'self' or empty isn't a valid pick
+    // when the toggle is set to Yes.
+    if(this.get('show_user_options') && this.get('creating_for_someone_else')) {
+      var picked = this.get('model.for_user_id');
+      if(!picked || picked === 'self') { return true; }
+    }
+    return false;
   }),
 
   attributable_license_type: computed('model.license.type', function() {
@@ -382,7 +412,7 @@ export default Component.extend({
     return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', function() {
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', '_label_colors', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
@@ -390,25 +420,93 @@ export default Component.extend({
     var order = this.get('model.grid.labels_order') || 'rows';
     var labels = this.get('parsed_labels') || [];
     var editIdx = this.get('_editIdx');
+    var label_colors = this.get('_label_colors') || {};
     var grid = [];
     for(var r = 0; r < rows; r++) {
       var row = [];
       for(var c = 0; c < cols; c++) {
         var idx = (order === 'columns') ? (c * rows + r) : (r * cols + c);
         var label = labels[idx] || '';
+        var color = label ? label_colors[label.toLowerCase()] : null;
+        var bg_style = null;
+        if(color && color.fill) {
+          var style = 'background-color: ' + color.fill + ';';
+          if(color.border) { style += ' border-color: ' + color.border + ';'; }
+          bg_style = htmlSafe(style);
+        }
         row.push({
           row: r,
           col: c,
           idx: idx,
           label: label,
           empty: !label,
-          editing: (editIdx !== null && editIdx !== undefined && editIdx === idx)
+          editing: (editIdx !== null && editIdx !== undefined && editIdx === idx),
+          bg_style: bg_style,
+          has_color: !!(color && color.fill)
         });
       }
       grid.push(row);
     }
     return grid;
   }),
+
+  /** Whenever the parsed labels change, schedule a Fitzgerald color
+   *  lookup for any unseen labels. Debounced so we don't hit the API on
+   *  every keystroke as the user is typing. */
+  _request_label_colors: observer('parsed_labels.[]', function() {
+    debounce(this, this._lookup_label_colors, 450);
+  }),
+
+  /** Fetches part-of-speech for any labels we haven't seen yet, then
+   *  maps each one to a Fitzgerald color from board_detail_keyed_colors.
+   *  Cached results stay in _label_colors so re-typing the same word is
+   *  instant. */
+  _lookup_label_colors() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var labels = this.get('parsed_labels') || [];
+    var cached = this.get('_label_colors') || {};
+    var seen = {};
+    var to_lookup = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      seen[key] = true;
+      to_lookup.push(key);
+    });
+    if(to_lookup.length === 0) { return; }
+    var _this = this;
+    var palette = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors || [];
+    persistence.ajax('/api/v1/search/batch_parts_of_speech', {
+      type: 'GET',
+      data: { words: to_lookup.join(',') }
+    }).then(function(res) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var results = (res && res.results) || {};
+      var next_map = Object.assign({}, _this.get('_label_colors') || {});
+      to_lookup.forEach(function(word) {
+        var data = results[word];
+        var entry = { fill: null, border: null, type: null };
+        if(data && data.types) {
+          for(var ti = 0; ti < data.types.length && !entry.fill; ti++) {
+            var type = data.types[ti];
+            for(var ci = 0; ci < palette.length && !entry.fill; ci++) {
+              var color = palette[ci];
+              if(color.types && color.types.indexOf(type) >= 0) {
+                entry.fill = color.fill;
+                entry.border = color.border;
+                entry.type = type;
+              }
+            }
+          }
+        }
+        // Cache even no-match results so we don't re-query the same word.
+        next_map[word] = entry;
+      });
+      _this.set('_label_colors', next_map);
+    }, function() {
+      // Fail silently — preview just stays default-colored.
+    });
+  },
 
   preview_style: computed(
     'model.grid.columns', 'model.grid.rows',
@@ -602,6 +700,14 @@ export default Component.extend({
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
     },
+    toggleCreatingForSomeoneElse: function() {
+      var newValue = !this.get('creating_for_someone_else');
+      this.set('creating_for_someone_else', newValue);
+      if(!newValue) {
+        // Switching to "No" — board belongs to current user.
+        this.set('model.for_user_id', 'self');
+      }
+    },
     setVisibility: function(value) {
       this.set('model.visibility', value);
     },
@@ -764,14 +870,33 @@ export default Component.extend({
       this.send('add_recorded_word', str);
     },
     speech_error: function(err) {
+      // 'no-speech' fires routinely when the user pauses; not a real error.
+      // 'aborted' fires when we deliberately stop the engine.
+      var code = err && err.error;
+      if(code === 'no-speech' || code === 'aborted') {
+        return;
+      }
       this.set('speech.ready', false);
+      var msg;
+      if(code === 'not-allowed' || code === 'service-not-allowed') {
+        msg = i18n.t('speech_error_permission', "Microphone access was blocked. Allow microphone access in your browser settings to use speech recognition.");
+      } else if(code === 'audio-capture') {
+        msg = i18n.t('speech_error_no_mic', "No microphone was found. Connect one and try again.");
+      } else if(code === 'network') {
+        msg = i18n.t('speech_error_network', "Speech recognition service is unavailable. Check your internet connection and try again.");
+      } else {
+        msg = i18n.t('speech_error_generic', "Speech recognition stopped. Please try again.");
+      }
+      this.set('speech_error_message', msg);
     },
     speech_stop: function() {
       this.set('speech.ready', false);
     },
+    dismiss_speech_error: function() {
+      this.set('speech_error_message', null);
+    },
     record_words: function() {
-      var speech = this.get('speech');
-      var _this = this;
+      this.set('speech_error_message', null);
       this.set('speech.ready', true);
     },
     stop_recording: function() {
@@ -879,6 +1004,17 @@ export default Component.extend({
       if (!name.length || !icon.length || !description.length) {
         this.set('status', {error: true});
         return;
+      }
+      // Defensive guard: block submission when the user has selected
+      // "creating for someone else" but hasn't actually picked a
+      // supervisee. Mirrors createBoardDisabled — covers Enter-key
+      // submits and any path that bypasses the disabled button.
+      if(this.get('show_user_options') && this.get('creating_for_someone_else')) {
+        var picked = this.get('model.for_user_id');
+        if(!picked || picked === 'self') {
+          this.set('status', {error: true});
+          return;
+        }
       }
       this.set('status', {saving: true});
       if(this.get('model.license')) {

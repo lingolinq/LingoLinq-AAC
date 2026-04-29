@@ -51,7 +51,8 @@ export default Component.extend({
     const self = this;
     const handler = function(ev) {
       const id = self.get('selectId');
-      const root = id ? document.getElementById(id) : null;
+      const trigger = id ? document.getElementById(id) : null;
+      const root = trigger ? trigger.closest('.modern-select') : null;
       if (root && ev.target && root.contains(ev.target)) {
         return;
       }
