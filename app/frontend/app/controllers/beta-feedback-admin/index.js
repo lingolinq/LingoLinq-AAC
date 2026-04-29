@@ -15,11 +15,13 @@ export default Controller.extend({
   searchQuery: '',
   filterType: '',
   filterSeverity: '',
+  filterPriority: '',
   sortColumn: 'created_at',
   sortOrder: 'desc',
 
   feedbackTypeOptions: null,
   severityOptions: null,
+  priorityOptions: null,
 
   init() {
     this._super(...arguments);
@@ -29,6 +31,7 @@ export default Controller.extend({
       { id: 'crash', label: i18n.t('beta_feedback_type_crash', 'Crash or freeze') },
       { id: 'speak_mode', label: i18n.t('beta_feedback_type_speak_mode', 'Speak mode or speech / TTS') },
       { id: 'boards', label: i18n.t('beta_feedback_type_boards', 'Boards or editing') },
+      { id: 'editing', label: i18n.t('beta_feedback_type_editing', "Editing") },
       { id: 'sync', label: i18n.t('beta_feedback_type_sync', 'Sync, offline, or data') },
       { id: 'account', label: i18n.t('beta_feedback_type_account', 'Login or account') },
       { id: 'performance', label: i18n.t('beta_feedback_type_performance', 'Performance or loading') },
@@ -43,13 +46,19 @@ export default Controller.extend({
       { id: 'minor', label: i18n.t('beta_feedback_severity_minor', 'Minor — small issue or polish') },
       { id: 'suggestion', label: i18n.t('beta_feedback_severity_suggestion', 'Suggestion — idea or enhancement') }
     ]);
+    this.set('priorityOptions', [
+      { id: '', label: i18n.t('beta_feedback_admin_filter_all_priorities', "All priorities") },
+      { id: 'high', label: i18n.t('beta_feedback_priority_high', "High") },
+      { id: 'medium', label: i18n.t('beta_feedback_priority_medium', "Medium") },
+      { id: 'low', label: i18n.t('beta_feedback_priority_low', "Low") }
+    ]);
   },
 
   onSearchQueryChanged: observer('searchQuery', function() {
     debounce(this, this.loadList, 400);
   }),
 
-  onFilterChanged: observer('filterType', 'filterSeverity', function() {
+  onFilterChanged: observer('filterType', 'filterSeverity', 'filterPriority', function() {
     this.loadList();
   }),
 
@@ -66,6 +75,9 @@ export default Controller.extend({
     }
     if (this.get('filterSeverity')) {
       parts.push('filter_severity=' + encodeURIComponent(this.get('filterSeverity')));
+    }
+    if (this.get('filterPriority')) {
+      parts.push('filter_priority=' + encodeURIComponent(this.get('filterPriority')));
     }
     parts.push('sort_by=' + encodeURIComponent(this.get('sortColumn') || 'created_at'));
     parts.push('sort_order=' + encodeURIComponent(this.get('sortOrder') || 'desc'));
@@ -136,7 +148,8 @@ export default Controller.extend({
       this.setProperties({
         searchQuery: '',
         filterType: '',
-        filterSeverity: ''
+        filterSeverity: '',
+        filterPriority: ''
       });
       this.loadList();
     }

@@ -12,6 +12,7 @@ module JsonApi::BetaFeedback
     meta['sort_order'] = params['sort_order'] if params['sort_order'].present?
     meta['filter_type'] = params['filter_type'] if params['filter_type'].present?
     meta['filter_severity'] = params['filter_severity'] if params['filter_severity'].present?
+    meta['filter_priority'] = params['filter_priority'] if params['filter_priority'].present?
     meta
   end
 
@@ -30,6 +31,8 @@ module JsonApi::BetaFeedback
       'subject' => subject,
       'feedback_type' => ftype,
       'severity' => sev,
+      'reaction' => s['reaction'],
+      'priority' => msg.try(:beta_priority),
       'name' => submitter,
       'email' => s['email'],
       'locale' => s['locale'],
@@ -38,7 +41,9 @@ module JsonApi::BetaFeedback
       'version' => s['version'],
       'user_agent' => s['user_agent'],
       'has_screenshot' => s['screenshot_base64'].present?,
-      'screenshot_filename' => s['screenshot_filename']
+      'screenshot_filename' => s['screenshot_filename'],
+      'has_recording' => msg.beta_feedback_recording.present?,
+      'recording_saved_locally' => !!s['recording_saved_locally']
     }
 
     if detail
@@ -47,7 +52,21 @@ module JsonApi::BetaFeedback
       json['expected_result'] = s['expected_result']
       json['actual_result'] = s['actual_result']
       json['general_feedback'] = s['general_feedback']
+      json['workflow_context'] = s['workflow_context']
       json['message'] = s['message']
+      json['recording_byte_size'] = s['recording_byte_size']
+      if msg.beta_feedback_recording
+        rec = msg.beta_feedback_recording
+        json['recording'] = {
+          'id' => rec.global_id,
+          'content_type' => rec.content_type,
+          'byte_size' => rec.byte_size,
+          'expires_at' => rec.expires_at && rec.expires_at.utc.iso8601,
+          'expired' => rec.expired?,
+          'deleted' => rec.deleted?,
+          'signed_url' => rec.signed_url
+        }
+      end
       if s['screenshot_base64'].present?
         ext = (s['screenshot_filename'].to_s.split('.').last || 'png').downcase
         mime = case ext
