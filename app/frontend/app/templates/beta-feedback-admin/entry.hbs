@@ -6,6 +6,21 @@
           <div class="la-support-content-wrapper">
             <article class="la-about-glass-card la-support-page-card">
               <div class="la-support-page-card__body md-support-content la-beta-feedback-detail__body">
+                <nav class="la-beta-feedback-detail__top-nav" aria-label={{t "Feedback navigation" key="beta_feedback_admin_detail_navigation"}}>
+                  <LinkTo @route="beta-feedback-admin" class="btn btn-default">{{t "Back to list" key="beta_feedback_admin_back_list"}}</LinkTo>
+                  <div class="la-beta-feedback-detail__step-controls">
+                    {{#if this.previousFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.previousFeedbackId}} class="btn btn-default">{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</button>
+                    {{/if}}
+                    {{#if this.nextFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.nextFeedbackId}} class="btn btn-default">{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</button>
+                    {{/if}}
+                  </div>
+                </nav>
                 {{#if this.loadError}}
                   <p role="alert">{{t "Could not load this submission." key="beta_feedback_admin_detail_error"}}</p>
                 {{else if this.detail}}
@@ -145,9 +160,21 @@
                 {{else}}
                   <p>{{t "Submission not found." key="beta_feedback_admin_not_found"}}</p>
                 {{/if}}
-                <p class="la-beta-feedback-detail__back">
+                <nav class="la-beta-feedback-detail__bottom-nav" aria-label={{t "Feedback navigation" key="beta_feedback_admin_detail_navigation"}}>
                   <LinkTo @route="beta-feedback-admin" class="btn btn-default">{{t "Back to list" key="beta_feedback_admin_back_list"}}</LinkTo>
-                </p>
+                  <div class="la-beta-feedback-detail__step-controls">
+                    {{#if this.previousFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.previousFeedbackId}} class="btn btn-default">{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</button>
+                    {{/if}}
+                    {{#if this.nextFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.nextFeedbackId}} class="btn btn-default">{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</button>
+                    {{/if}}
+                  </div>
+                </nav>
               </div>
             </article>
           </div>

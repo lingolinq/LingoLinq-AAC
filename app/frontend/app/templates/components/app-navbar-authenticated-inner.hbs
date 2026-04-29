@@ -27,19 +27,12 @@
     {{/if}}
     {{/unless}}
   </span>
-  {{!-- Quick-actions cluster (beta-circular + settings). Lives in its own span
+  {{!-- Quick-actions cluster. Lives in its own span
        just after .app-navbar__nav-header so it renders between the search
-       icon and the #identity dropdown. On wide screens both hide via
+       icon and the #identity dropdown. On wide screens links hide via
        .app-navbar__small-only / .app-navbar__large-only logic. --}}
   {{#unless (is-equal this.appState.current_route "landing-alt")}}
   <span class="app-navbar__quick-actions">
-    <button type="button" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" {{action "openBetaFeedback"}}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      {{t "Beta feedback" key="beta_feedback_nav"}}
-    </button>
-    <button type="button" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" {{action "openBetaFeedback"}} aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
-      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
-    </button>
     <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--full app-navbar__large-only">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
       {{t "New board (preview)" key="create_board_new_nav"}}
