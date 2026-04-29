@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -69,6 +69,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.index ["event_type", "created_at"], name: "index_audit_events_on_event_type_and_created_at"
     t.index ["event_type", "record_id"], name: "index_audit_events_on_event_type_and_record_id"
     t.index ["user_key", "created_at"], name: "index_audit_events_on_user_key_and_created_at"
+  end
+
+  create_table "beta_feedback_recordings", force: :cascade do |t|
+    t.integer "contact_message_id"
+    t.string "status", default: "pending", null: false
+    t.string "upload_key", null: false
+    t.string "content_type", null: false
+    t.integer "byte_size", default: 0, null: false
+    t.string "token", null: false
+    t.datetime "confirmed_at"
+    t.datetime "expires_at"
+    t.datetime "deleted_at"
+    t.text "settings"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contact_message_id"], name: "index_beta_feedback_recordings_on_contact_message_id"
+    t.index ["status", "expires_at"], name: "index_beta_feedback_recordings_on_status_and_expires_at"
+    t.index ["token"], name: "index_beta_feedback_recordings_on_token", unique: true
   end
 
   create_table "board_button_images", id: :serial, force: :cascade do |t|
@@ -201,6 +219,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_09_130000) do
     t.string "beta_submitter_name"
     t.string "beta_feedback_type"
     t.string "beta_severity"
+    t.string "beta_priority"
+    t.index ["recipient", "beta_priority", "created_at"], name: "index_contact_messages_on_recipient_priority_created_at"
     t.index ["recipient", "created_at"], name: "index_contact_messages_on_recipient_and_created_at"
     t.index ["recipient", "hidden", "created_at"], name: "index_contact_messages_on_recipient_hidden_created_at"
   end

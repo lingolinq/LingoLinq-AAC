@@ -147,6 +147,11 @@ task "scheduler:dispatch" => :environment do
       "#{count} expired"
     end
 
+    run_task.call("flush_expired_beta_feedback_recordings") do
+      count = BetaFeedbackRecording.flush_expired
+      "#{count} recordings deleted"
+    end
+
     run_task.call("expire_licenses") do
       count = License.expire_stale_licenses!
       "#{count} licenses expired"

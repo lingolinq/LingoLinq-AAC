@@ -27931,8 +27931,194 @@ header #identity #identity_button.btn::after {
 }
 
 /* Beta feedback form (same wrapper as support) */
+.beta-feedback-panel {
+  background: transparent;
+}
+.beta-feedback-panel__header {
+  position: relative;
+  text-align: center;
+  padding: 0 0 1.5rem;
+}
+.beta-feedback-panel__intro {
+  margin-left: auto;
+  margin-right: auto;
+}
+.beta-feedback-panel__privacy-note {
+  max-width: 720px;
+  margin: 0.75rem auto 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-panel__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-drawer-tab {
+  position: fixed;
+  top: var(--topbar-height, 70px);
+  left: 50%;
+  z-index: 1078;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  padding: 0.35rem 0.9rem 0.45rem;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: $brand-charcoal-dark;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.app-navbar .app-navbar__inner {
+  overflow: visible !important;
+}
+.beta-feedback-drawer-tab--navbar {
+  position: absolute;
+  top: 100%;
+}
+.beta-feedback-drawer-tab--speak {
+  top: 0;
+}
+.beta-feedback-drawer-tab:hover {
+  color: $brand-charcoal-blue;
+  outline: none;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.16);
+}
+.beta-feedback-drawer-tab:focus-visible {
+  color: $brand-charcoal-blue;
+  outline: none;
+  box-shadow: 0 3px 0 rgba($brand-charcoal-blue, 0.16), 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.beta-feedback-drawer-tab__caret {
+  transition: transform 0.18s ease;
+}
+.beta-feedback-drawer-tab--open .beta-feedback-drawer-tab__caret {
+  transform: rotate(180deg);
+}
+.beta-feedback-drawer {
+  position: fixed;
+  top: var(--topbar-height, 70px);
+  left: 0;
+  right: 0;
+  z-index: 1077;
+  pointer-events: none;
+  transition: transform 0.24s ease, opacity 0.18s ease;
+}
+.beta-feedback-drawer--speak {
+  top: 0;
+}
+.beta-feedback-drawer__panel {
+  width: min(780px, calc(100vw - 36px));
+  max-height: calc(100vh - 92px);
+  margin: 0 auto;
+  overflow-y: auto;
+  pointer-events: auto;
+  border-radius: 0 0 20px 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba($brand-blue-black, 0.22), 0 8px 28px rgba($brand-blue-black, 0.12);
+  padding: 1.5rem;
+}
+.beta-feedback-drawer--hidden {
+  transform: translateY(calc(-100% - 18px));
+  opacity: 0;
+}
+.beta-feedback-drawer--hidden .beta-feedback-drawer__panel {
+  pointer-events: none;
+}
+.beta-feedback-drawer--open {
+  transform: translateY(0);
+  opacity: 1;
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0;
+  text-align: center;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-panel .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
 .la-wrapper--support .la-support-form.md-support-form {
   position: relative;
+}
+.la-wrapper--support .la-beta-feedback__reaction-options,
+.beta-feedback-drawer .la-beta-feedback__reaction-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn {
+  min-height: 5.25rem;
+  border: 2px solid rgba($brand-blue-black, 0.12);
+  border-radius: 16px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn--selected,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--selected {
+  border-color: $brand-charcoal-blue;
+  box-shadow: 0 0 0 3px rgba($brand-charcoal-blue, 0.14);
+}
+.la-beta-feedback__reaction-face {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 0.4rem;
+}
+.la-beta-feedback__reaction-face--neutral {
+  color: #a16207;
+}
+.la-beta-feedback__reaction-face--frown {
+  color: #b91c1c;
+}
+.la-beta-feedback__reaction-face--smile {
+  color: #15803d;
+}
+.la-beta-feedback__reaction-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.la-beta-feedback__reaction-icon circle:not(:first-child) {
+  fill: currentColor;
+  stroke: none;
 }
 .la-wrapper--support .la-contact-input--file {
   padding: 0.5rem 0.75rem;
@@ -27979,6 +28165,55 @@ header #identity #identity_button.btn::after {
   width: 100%;
   max-width: 100%;
 }
+.la-beta-feedback__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.la-beta-feedback__recording-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.la-beta-feedback__recording-preview {
+  margin-top: 0.9rem;
+}
+.la-beta-feedback__recording-video,
+.la-beta-feedback-detail__recording {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-dark, 0.15);
+  background: #000;
+}
+.la-beta-feedback-admin__priority {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.la-beta-feedback-admin__priority--high {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+.la-beta-feedback-admin__priority--medium {
+  color: #78350f;
+  background: #fef3c7;
+}
+.la-beta-feedback-admin__priority--low {
+  color: #14532d;
+  background: #dcfce7;
+}
+.la-beta-feedback-detail__priority-controls {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
 
 /* Beta feedback: client-side validation banner and field highlights */
 #beta-feedback-hero .la-beta-feedback__validation-banner {
@@ -28011,21 +28246,27 @@ header #identity #identity_button.btn::after {
   outline: none;
 }
 
-/* Honeypot row: off-screen, not keyboard-focusable in normal tab order.
-   Applies in both the standalone /beta-feedback page and the beta-feedback
-   modal — the field type itself is a honeypot regardless of host. */
-.la-wrapper--support .la-beta-feedback-hp,
-.beta-feedback-modal-wrap .la-beta-feedback-hp {
-  position: absolute;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-.la-wrapper--support .la-beta-feedback-hp__input,
-.beta-feedback-modal-wrap .la-beta-feedback-hp__input {
-  pointer-events: none;
+@media (max-width: 720px) {
+  .beta-feedback-drawer-tab {
+    top: var(--topbar-height, 70px);
+    font-size: 0.95rem;
+    min-height: 34px;
+  }
+  .beta-feedback-drawer-tab--navbar {
+    top: 100%;
+  }
+  .beta-feedback-drawer-tab--speak {
+    top: 0;
+  }
+  .beta-feedback-drawer__panel {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 78px);
+    padding: 1rem;
+  }
+  .la-wrapper--support .la-beta-feedback__reaction-options,
+  .beta-feedback-drawer .la-beta-feedback__reaction-options {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Beta Feedback modal ─────────────────────────────────────────────────

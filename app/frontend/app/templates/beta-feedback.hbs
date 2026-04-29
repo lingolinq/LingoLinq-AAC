@@ -2,28 +2,17 @@
   <div class="app-shell">
     <main class="la-main" role="main">
       <div class="md-workspace md-workspace--support">
-      <section id="beta-feedback-hero" class="la-section">
-        <div class="la-section-header" style="display: block; text-align: center;">
-          <span class="la-section-eyebrow-badge"><span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "BETA" key="beta_feedback_eyebrow"}}</span>
-          <div class="la-hero-title-wrap">
-            <h1 class="la-hero-title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h1>
-          </div>
-          <hr class="la-about-hero-separator" aria-hidden="true">
-          <p class="la-pricing-hero-subtitle">
-            {{t "Help us improve LingoLinq. Tell us what broke, what confused you, or what you wish worked differently." key="beta_feedback_intro"}}
-          </p>
-        </div>
-
-        <div class="la-support-content-wrapper">
-          <article class="la-about-glass-card la-support-page-card" aria-label={{t "Beta feedback form" key="beta_feedback_form_aria"}}>
-            <div class="la-support-page-card__section">
-              <div class="la-support-page-card__body md-support-content">
-                {{beta-feedback-form onSubmitSuccess=(action "onSubmitSuccess")}}
+        <section id="beta-feedback-hero" class="la-section">
+          <div class="la-support-content-wrapper">
+            <article class="la-about-glass-card la-support-page-card" aria-label={{t "Beta feedback form" key="beta_feedback_form_aria"}}>
+              <div class="la-support-page-card__section">
+                <div class="la-support-page-card__body md-support-content">
+                  {{beta-feedback-panel onSubmitSuccess=(action "onSubmitSuccess")}}
+                </div>
               </div>
-            </div>
-          </article>
-        </div>
-      </section>
+            </article>
+          </div>
+        </section>
       </div>
     </main>
   </div>

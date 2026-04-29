@@ -57,12 +57,17 @@ class Api::V1::CspReportsController < ApplicationController
       return {}
     end
 
-    raw = request.body.read(MAX_REPORT_BYTES)
+    raw = request.body.read(MAX_REPORT_BYTES).to_s
     return {} if raw.blank?
+
+    raw = raw.dup
+    raw.force_encoding(Encoding::UTF_8)
+    raw = raw.scrub('') unless raw.valid_encoding?
 
     parsed = JSON.parse(raw)
     parsed.is_a?(Hash) || parsed.is_a?(Array) ? parsed : {}
-  rescue JSON::ParserError
+  rescue JSON::ParserError => e
+    Rails.logger.warn("[CSP] malformed report JSON: #{e.message}")
     {}
   end
 

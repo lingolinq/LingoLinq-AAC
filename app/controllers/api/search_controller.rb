@@ -216,6 +216,7 @@ class Api::SearchController < ApplicationController
     # TODO: add timeout for slow requests
     request = Typhoeus::Request.new(uri.to_s, followlocation: true)
     error = nil
+    s3_cache_miss = false
     begin
       content_type, body = get_url_in_chunks(request)
       if content_type == 'redirect'
