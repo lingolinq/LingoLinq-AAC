@@ -3,7 +3,7 @@ class Api::BetaFeedbackController < ApplicationController
   before_action :require_admin
 
   def index
-    scope = ContactMessage.where(recipient: 'beta_feedback')
+    scope = ContactMessage.where(recipient: 'beta_feedback').includes(:beta_feedback_recording)
     scope = if params['filter_type'].to_s == 'hidden'
               scope.where(hidden: true)
             else

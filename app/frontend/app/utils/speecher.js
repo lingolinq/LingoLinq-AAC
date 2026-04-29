@@ -829,7 +829,7 @@ var speecher = EmberObject.extend({
 
       if(speecher.use_capturable_speech()) {
         utterance.cloud_lang = (voice && voice.lang) || current_locale || navigator.language;
-        speak_utterance(utterance);
+        speak_utterance();
       } else if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
         var voice_id = voice.voiceURI.replace(/^extra:/, '');
         runLater(function() {
