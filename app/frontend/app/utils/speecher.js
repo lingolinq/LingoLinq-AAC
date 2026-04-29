@@ -429,6 +429,12 @@ var speecher = EmberObject.extend({
     // }
     // return 1.0;
   },
+  use_capturable_speech: function() {
+    return typeof window !== 'undefined' &&
+      window.LingoLinqBetaFeedbackRecordingActive &&
+      window.cloud_speak &&
+      navigator.onLine;
+  },
   speak_id: 0,
   speak_text: function(text, collection_id, opts) {
     opts = opts || {};
@@ -821,7 +827,10 @@ var speecher = EmberObject.extend({
         }, extra_delay + (1000 * Math.ceil(text.length / 15) * 4 / (utterance.rate || 1.0)));
       };
 
-      if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
+      if(speecher.use_capturable_speech()) {
+        utterance.cloud_lang = (voice && voice.lang) || current_locale || navigator.language;
+        speak_utterance(utterance);
+      } else if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
         var voice_id = voice.voiceURI.replace(/^extra:/, '');
         runLater(function() {
           capabilities.tts.speak_text(text, {

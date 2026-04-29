@@ -23,6 +23,23 @@
                       <dt>{{t "Severity" key="beta_feedback_admin_severity"}}</dt>
                       <dd>{{this.detail.severity}}</dd>
                     </div>
+                    {{#if this.detail.reaction}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "Reaction" key="beta_feedback_admin_reaction"}}</dt>
+                        <dd>{{this.detail.reaction}}</dd>
+                      </div>
+                    {{/if}}
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Priority" key="beta_feedback_admin_col_priority"}}</dt>
+                      <dd>
+                        <div class="la-beta-feedback-detail__priority-controls" role="group" aria-label={{t "Priority" key="beta_feedback_admin_col_priority"}}>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "high") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "high"}}>{{t "High" key="beta_feedback_priority_high"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "medium") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "medium"}}>{{t "Medium" key="beta_feedback_priority_medium"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "low") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "low"}}>{{t "Low" key="beta_feedback_priority_low"}}</button>
+                          <button type="button" class="btn btn-default btn-sm" disabled={{this.savingPriority}} {{action "setPriority" ""}}>{{t "Clear" key="clear"}}</button>
+                        </div>
+                      </dd>
+                    </div>
                     <div class="la-beta-feedback-detail__meta-row">
                       <dt>{{t "Submitted (UTC)" key="beta_feedback_admin_submitted_utc"}}</dt>
                       <dd>{{this.detail.created_at}}</dd>
@@ -71,6 +88,12 @@
                       <div class="la-beta-feedback-detail__text">{{this.detail.general_feedback}}</div>
                     </section>
                   {{/if}}
+                  {{#if this.detail.workflow_context}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-workflow">
+                      <h2 id="bfd-workflow" class="la-beta-feedback-detail__block-title">{{t "What they were trying to do" key="beta_feedback_admin_heading_workflow"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.workflow_context}}</div>
+                    </section>
+                  {{/if}}
                   {{#if this.detail.steps_to_reproduce}}
                     <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-steps">
                       <h2 id="bfd-steps" class="la-beta-feedback-detail__block-title">{{t "Steps to reproduce" key="beta_feedback_admin_heading_steps"}}</h2>
@@ -101,6 +124,22 @@
                       <p class="la-beta-feedback-detail__screenshot-wrap">
                         <img src={{this.detail.screenshot_data_url}} alt="" class="la-beta-feedback-detail__screenshot" />
                       </p>
+                    </section>
+                  {{/if}}
+                  {{#if this.detail.recording}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-recording">
+                      <h2 id="bfd-recording" class="la-beta-feedback-detail__block-title">{{t "Screen recording" key="beta_feedback_admin_heading_recording"}}</h2>
+                      {{#if this.detail.recording.signed_url}}
+                        <video src={{this.detail.recording.signed_url}} controls class="la-beta-feedback-detail__recording"></video>
+                        <p><a href={{this.detail.recording.signed_url}} class="btn btn-default" target="_blank" rel="noopener noreferrer">{{t "Open recording" key="beta_feedback_admin_open_recording"}}</a></p>
+                        <p class="text-muted">{{t "This private link expires shortly. The recording is retained for 90 days from submission." key="beta_feedback_admin_recording_signed_hint"}}</p>
+                      {{else if this.detail.recording.deleted}}
+                        <p>{{t "This recording has been deleted." key="beta_feedback_admin_recording_deleted"}}</p>
+                      {{else if this.detail.recording.expired}}
+                        <p>{{t "This recording has expired." key="beta_feedback_admin_recording_expired"}}</p>
+                      {{else}}
+                        <p>{{t "This recording is not available." key="beta_feedback_admin_recording_unavailable"}}</p>
+                      {{/if}}
                     </section>
                   {{/if}}
                 {{else}}

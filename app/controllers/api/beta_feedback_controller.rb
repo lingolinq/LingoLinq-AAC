@@ -32,12 +32,24 @@ class Api::BetaFeedbackController < ApplicationController
 
     bf = params['beta_feedback'] || params[:beta_feedback]
     if bf.present?
-      bf = bf.permit(:hidden) if bf.is_a?(ActionController::Parameters)
+      bf = bf.permit(:hidden, :priority) if bf.is_a?(ActionController::Parameters)
       h = bf.is_a?(ActionController::Parameters) ? bf.to_unsafe_h : bf.to_h
       h = h.with_indifferent_access
+      priority = nil
+      priority_provided = h.key?(:priority) || h.key?('priority')
+      if priority_provided
+        priority = h[:priority].to_s
+        priority = nil if priority.blank?
+        unless priority.nil? || ContactMessage::BETA_FEEDBACK_ALLOWED_PRIORITIES.include?(priority)
+          return api_error 400, {error: 'Invalid priority'}
+        end
+      end
       if h.key?(:hidden) || h.key?('hidden')
         val = h[:hidden]
         msg.update_column(:hidden, ActiveModel::Type::Boolean.new.cast(val))
+      end
+      if priority_provided
+        msg.update_column(:beta_priority, priority)
       end
     end
 
@@ -66,9 +78,14 @@ class Api::BetaFeedbackController < ApplicationController
       scope = scope.where(beta_severity: sev)
     end
 
+    priority = params['filter_priority'].to_s
+    if priority.present? && ContactMessage::BETA_FEEDBACK_ALLOWED_PRIORITIES.include?(priority)
+      scope = scope.where(beta_priority: priority)
+    end
+
     sort_by = params['sort_by'].to_s
     sort_order = params['sort_order'].to_s.downcase == 'asc' ? 'asc' : 'desc'
-    allowed = %w[created_at beta_subject beta_submitter_name beta_feedback_type beta_severity]
+    allowed = %w[created_at beta_subject beta_submitter_name beta_feedback_type beta_severity beta_priority]
     sort_by = 'created_at' unless allowed.include?(sort_by)
     scope.order(sort_by => sort_order)
   end

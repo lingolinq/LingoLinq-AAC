@@ -1,0 +1,33 @@
+<div class="beta-feedback-panel {{if @isDrawer "beta-feedback-panel--drawer"}}">
+  <header class="beta-feedback-panel__header">
+    <div class="beta-feedback-panel__hero">
+      <span class="la-section-eyebrow-badge"><span class="la-about-hero-brand">Lingo</span><span class="la-about-hero-brand la-about-hero-brand--italic">Linq</span> {{t "BETA" key="beta_feedback_eyebrow"}}</span>
+      <div class="la-hero-title-wrap">
+        {{#if @isDrawer}}
+          <h2 class="la-hero-title beta-feedback-panel__title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h2>
+        {{else}}
+          <h1 class="la-hero-title beta-feedback-panel__title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h1>
+        {{/if}}
+      </div>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+      <p class="la-pricing-hero-subtitle beta-feedback-panel__intro">
+        {{t "Help us improve LingoLinq. Tell us what happened, how it felt, and optionally attach a screenshot or screen recording." key="beta_feedback_intro_simple"}}
+      </p>
+      <p class="beta-feedback-panel__privacy-note">
+        {{t "Please do not include private information unless it is needed to explain the issue. Recordings and screenshots may show sensitive details." key="beta_feedback_privacy_note"}}
+      </p>
+    </div>
+    {{#if @onClose}}
+      <button type="button" class="beta-feedback-panel__close" {{action @onClose}} aria-label={{if @isDrawer (t "Hide feedback form" key="beta_feedback_hide_form") (t "Close" key="close")}}>
+        {{#if @isDrawer}}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg>
+        {{else}}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        {{/if}}
+      </button>
+    {{/if}}
+  </header>
+  <div class="beta-feedback-panel__body">
+    {{beta-feedback-form onSubmitSuccess=@onSubmitSuccess onCancel=@onCancel isDrawer=@isDrawer}}
+  </div>
+</div>
