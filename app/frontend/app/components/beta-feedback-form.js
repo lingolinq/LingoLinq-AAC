@@ -473,7 +473,7 @@ export default Component.extend({
     return u.substring(0, userBudget - ellipsis.length) + ellipsis + sep + auto;
   },
 
-  willDestroyElement() {
+  willDestroy() {
     this._super(...arguments);
     const recorder = this.get('mediaRecorder');
     if (recorder && recorder.state === 'recording') {
