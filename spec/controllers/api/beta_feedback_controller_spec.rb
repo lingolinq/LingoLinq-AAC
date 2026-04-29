@@ -261,5 +261,43 @@ describe Api::BetaFeedbackController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['beta_feedback']['id']).to eq(m.global_id)
     end
+
+    it 'should set priority for admin' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'To prioritize',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'h' * 12
+      })
+
+      patch :update, params: {id: m.global_id, beta_feedback: {priority: 'high'}}
+      expect(response.successful?).to eq(true)
+      m.reload
+      expect(m.beta_priority).to eq('high')
+      json = JSON.parse(response.body)
+      expect(json['beta_feedback']['priority']).to eq('high')
+    end
+
+    it 'should reject invalid priority' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Bad priority',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'h' * 12
+      })
+
+      patch :update, params: {id: m.global_id, beta_feedback: {priority: 'urgent'}}
+      assert_error('Invalid priority', 400)
+    end
   end
 end
