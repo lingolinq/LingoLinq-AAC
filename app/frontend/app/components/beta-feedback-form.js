@@ -210,18 +210,66 @@ export default Component.extend({
     }
   },
 
-  _recordingStreamWithAudio(displayStream) {
-    var audioTracks = displayStream && displayStream.getAudioTracks ? displayStream.getAudioTracks() : [];
-    this.set('recordingDisplayStream', displayStream);
-    this.set('recordingAudioStream', null);
-    this.set('recordingAudioContext', null);
-    this.set('recordingAudioSources', null);
-    if (audioTracks.length === 0) {
-      this.set('recordingBrowserSoundHint', i18n.t('beta_feedback_recording_no_tab_audio', "Browser sound was not shared. To include Speak Mode audio, choose a browser tab and enable Share tab audio in the screen sharing prompt."));
-    } else {
-      this.set('recordingBrowserSoundHint', '');
+  _getMicrophoneAudioStream() {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      return RSVP.resolve(null);
     }
-    return RSVP.resolve(displayStream);
+    return navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    }).catch(function() {
+      return null;
+    });
+  },
+
+  _recordingStreamWithAudio(displayStream) {
+    const _this = this;
+    return this._getMicrophoneAudioStream().then(function(audioStream) {
+      var videoTracks = displayStream && displayStream.getVideoTracks ? displayStream.getVideoTracks() : [];
+      var displayAudioTracks = displayStream && displayStream.getAudioTracks ? displayStream.getAudioTracks() : [];
+      var micAudioTracks = audioStream && audioStream.getAudioTracks ? audioStream.getAudioTracks() : [];
+      var audioTracks = displayAudioTracks.concat(micAudioTracks);
+      _this.set('recordingDisplayStream', displayStream);
+      _this.set('recordingAudioStream', audioStream);
+      _this.set('recordingAudioContext', null);
+      _this.set('recordingAudioSources', null);
+      if (displayAudioTracks.length === 0) {
+        _this.set('recordingBrowserSoundHint', i18n.t('beta_feedback_recording_no_tab_audio_with_mic', "Browser sound was not shared. To include Speak Mode audio, choose a browser tab and enable Share tab audio. Microphone audio will be included if you allow it."));
+      } else {
+        _this.set('recordingBrowserSoundHint', '');
+      }
+      if (audioTracks.length === 0) {
+        return displayStream;
+      }
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext || !window.MediaStream) {
+        return new MediaStream(videoTracks.concat(audioTracks));
+      }
+      const audioContext = new AudioContext();
+      const destination = audioContext.createMediaStreamDestination();
+      const sources = [];
+      audioTracks.forEach(function(track) {
+        try {
+          var source = audioContext.createMediaStreamSource(new MediaStream([track]));
+          source.connect(destination);
+          sources.push(source);
+        } catch(e) { }
+      });
+      if (sources.length === 0) {
+        audioContext.close();
+        return new MediaStream(videoTracks.concat(audioTracks));
+      }
+      if (audioContext.state === 'suspended' && audioContext.resume) {
+        audioContext.resume();
+      }
+      _this.set('recordingAudioContext', audioContext);
+      _this.set('recordingAudioSources', sources);
+      return new MediaStream(videoTracks.concat(destination.stream.getAudioTracks()));
+    });
   },
 
   _severityForReaction(reaction) {
@@ -374,7 +422,7 @@ export default Component.extend({
   applyScreenshotFile(file) {
     if (!file || !file.type || file.type.indexOf('image/') !== 0) {
       modal.error(i18n.t('beta_feedback_screenshot_invalid_type', "Please use a PNG, JPG, GIF, or WebP image."));
-      const invalidInput = document.getElementById('beta_feedback_screenshot');
+      const invalidInput = document.getElementById('beta_feedback_attachments');
       if (invalidInput) {
         invalidInput.value = '';
       }
@@ -383,7 +431,7 @@ export default Component.extend({
     const max = 1.5 * 1024 * 1024;
     if (file.size > max) {
       modal.error(i18n.t('beta_feedback_screenshot_too_large', "Please choose an image about 1.5 MB or smaller."));
-      const largeInput = document.getElementById('beta_feedback_screenshot');
+      const largeInput = document.getElementById('beta_feedback_attachments');
       if (largeInput) {
         largeInput.value = '';
       }
@@ -397,7 +445,55 @@ export default Component.extend({
       });
     };
     reader.readAsDataURL(file);
-    const fileInput = document.getElementById('beta_feedback_screenshot');
+    const fileInput = document.getElementById('beta_feedback_attachments');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  },
+
+  applyRecordingFile(file) {
+    this._clearRecordingObjectUrl();
+    if (!file || !file.type || file.type.indexOf('video/') !== 0) {
+      modal.error(i18n.t('beta_feedback_recording_invalid_type', "Please use a video file for the screen recording."));
+      return;
+    }
+    this.setProperties({
+      recordingBlob: file,
+      recordingUrl: window.URL.createObjectURL(file),
+      recordingSize: file.size,
+      recordingMimeType: file.type || 'video/webm',
+      recordingUploadId: null,
+      recordingUploadToken: null,
+      recordingError: '',
+      recordingBrowserSoundHint: ''
+    });
+    if (file.size > 100 * 1024 * 1024) {
+      this.set('recordingError', i18n.t('beta_feedback_recording_too_large_upload', "This recording is still over 100 MB after compression. Please make a shorter recording before sending feedback."));
+    }
+  },
+
+  applyAttachmentFiles(files) {
+    if (!files || !files.length) {
+      return;
+    }
+    var handled = false;
+    for (let i = 0; i < files.length; i++) {
+      var file = files[i];
+      if (!file || !file.type) {
+        continue;
+      }
+      if (file.type.indexOf('image/') === 0) {
+        this.applyScreenshotFile(file);
+        handled = true;
+      } else if (file.type.indexOf('video/') === 0) {
+        this.applyRecordingFile(file);
+        handled = true;
+      }
+    }
+    if (!handled) {
+      modal.error(i18n.t('beta_feedback_attachment_invalid_type', "Please attach an image or video file."));
+    }
+    const fileInput = document.getElementById('beta_feedback_attachments');
     if (fileInput) {
       fileInput.value = '';
     }
@@ -602,50 +698,18 @@ export default Component.extend({
         recordingError: '',
         recordingBrowserSoundHint: ''
       });
-      const el = document.getElementById('beta_feedback_recording_file');
+      const el = document.getElementById('beta_feedback_attachments');
       if (el) {
         el.value = '';
       }
     },
-    recordingFileChanged(event) {
+    attachmentsChanged(event) {
       const input = event.target;
-      const file = input.files && input.files[0];
-      this._clearRecordingObjectUrl();
-      if (!file) {
-        this.setProperties({
-          recordingBlob: null,
-          recordingUrl: null,
-          recordingSize: 0,
-          recordingMimeType: '',
-          recordingUploadId: null,
-          recordingUploadToken: null,
-          recordingError: '',
-          recordingBrowserSoundHint: ''
-        });
+      const files = input.files;
+      if (!files || files.length === 0) {
         return;
       }
-      this.setProperties({
-        recordingBlob: file,
-        recordingUrl: window.URL.createObjectURL(file),
-        recordingSize: file.size,
-        recordingMimeType: file.type || 'video/webm',
-        recordingUploadId: null,
-        recordingUploadToken: null,
-        recordingError: '',
-        recordingBrowserSoundHint: ''
-      });
-      if (file.size > 100 * 1024 * 1024) {
-        this.set('recordingError', i18n.t('beta_feedback_recording_too_large_upload', "This recording is still over 100 MB after compression. Please make a shorter recording before sending feedback."));
-      }
-    },
-    screenshotChanged(event) {
-      const input = event.target;
-      const file = input.files && input.files[0];
-      if (!file) {
-        this.set('screenshotData', null);
-        return;
-      }
-      this.applyScreenshotFile(file);
+      this.applyAttachmentFiles(files);
     },
     screenshotPaste(event) {
       const items = event.clipboardData && event.clipboardData.items;
@@ -670,34 +734,32 @@ export default Component.extend({
       event.preventDefault();
       this.applyScreenshotFile(imageFile);
     },
-    screenshotDragEnter(event) {
+    attachmentDragEnter(event) {
       event.preventDefault();
       event.stopPropagation();
       this.set('screenshotDragActive', true);
     },
-    screenshotDragOver(event) {
+    attachmentDragOver(event) {
       event.preventDefault();
       event.stopPropagation();
       this.set('screenshotDragActive', true);
     },
-    screenshotDragLeave(event) {
+    attachmentDragLeave(event) {
       event.preventDefault();
       if (!event.currentTarget.contains(event.relatedTarget)) {
         this.set('screenshotDragActive', false);
       }
     },
-    screenshotDrop(event) {
+    attachmentDrop(event) {
       event.preventDefault();
       event.stopPropagation();
       this.set('screenshotDragActive', false);
       const files = event.dataTransfer && event.dataTransfer.files;
-      if (files && files[0]) {
-        this.applyScreenshotFile(files[0]);
-      }
+      this.applyAttachmentFiles(files);
     },
     clearScreenshot() {
       this.setProperties({ screenshotData: null, screenshotDragActive: false });
-      const el = document.getElementById('beta_feedback_screenshot');
+      const el = document.getElementById('beta_feedback_attachments');
       if (el) {
         el.value = '';
       }
@@ -745,7 +807,7 @@ export default Component.extend({
         return;
       }
       var autoCtx = this._buildAutoDeviceContextSummary();
-      var deviceContext = this._combineDeviceContextForSubmit(this.get('device_context'), autoCtx);
+      var deviceContext = this._combineDeviceContextForSubmit('', autoCtx);
       var reaction = this.get('reaction');
       var feedbackText = this.get('general_feedback');
       const message = {
@@ -789,7 +851,6 @@ export default Component.extend({
         _this.setProperties({
           general_feedback: '',
           workflow_context: '',
-          device_context: '',
           feedback_type: '',
           reaction: '',
           screenshotData: null,
@@ -804,13 +865,9 @@ export default Component.extend({
           recordingMimeType: '',
           recordingError: ''
         });
-        const el = document.getElementById('beta_feedback_screenshot');
+        const el = document.getElementById('beta_feedback_attachments');
         if (el) {
           el.value = '';
-        }
-        const recordingEl = document.getElementById('beta_feedback_recording_file');
-        if (recordingEl) {
-          recordingEl.value = '';
         }
         modal.success(i18n.t('beta_feedback_sent', "Thank you! Your beta feedback was sent."));
         const onSuccess = _this.get('onSubmitSuccess');
