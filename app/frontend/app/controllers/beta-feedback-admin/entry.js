@@ -8,6 +8,8 @@ export default Controller.extend({
   detail: null,
   loadError: false,
   savingPriority: false,
+  previousFeedbackId: null,
+  nextFeedbackId: null,
 
   actions: {
     setPriority(priority) {

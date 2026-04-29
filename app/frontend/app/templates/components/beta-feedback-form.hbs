@@ -67,40 +67,43 @@
     <Textarea @value={{this.workflow_context}} class="la-contact-input la-contact-input--textarea" id="beta_workflow_context" placeholder={{t "For example, building a board, trying Speak Mode, or reviewing a report." key="beta_feedback_workflow_placeholder"}} rows={{3}} maxlength="10000" />
   </div>
   <div class="la-contact-form__row">
-    <label for="beta_device" class="la-contact-form__label">{{t "Device and app context (optional)" key="beta_feedback_device_label"}}</label>
-    <Input @value={{this.device_context}} class="la-contact-input" id="beta_device" placeholder={{t "e.g. iPad + Safari, Windows + Chrome, app version if known" key="beta_feedback_device_placeholder"}} maxlength="2000" />
-    <p class="la-contact-form__hint">{{t "When you submit, we add a short summary (viewport, time zone, app route, path, and online status) after your text for troubleshooting." key="beta_feedback_device_auto_hint"}}</p>
-  </div>
-  <div class="la-contact-form__row">
-    <label for="beta_feedback_screenshot" class="la-contact-form__label">{{t "Screenshot (optional)" key="beta_feedback_screenshot_label"}}</label>
+    <label for="beta_feedback_attachments" class="la-contact-form__label">{{t "Attachments (optional)" key="beta_feedback_attachments_label"}}</label>
     <div
       class="la-beta-feedback__dropzone {{if this.screenshotDragActive "la-beta-feedback__dropzone--active"}}"
       tabindex="0"
       role="region"
-      aria-label={{t "Drop an image file here or paste from the clipboard" key="beta_feedback_dropzone_aria"}}
-      {{on "dragenter" (action "screenshotDragEnter")}}
-      {{on "dragover" (action "screenshotDragOver")}}
-      {{on "dragleave" (action "screenshotDragLeave")}}
-      {{on "drop" (action "screenshotDrop")}}
+      aria-label={{t "Drop an image or video file here or paste an image from the clipboard" key="beta_feedback_attachments_dropzone_aria"}}
+      {{on "dragenter" (action "attachmentDragEnter")}}
+      {{on "dragover" (action "attachmentDragOver")}}
+      {{on "dragleave" (action "attachmentDragLeave")}}
+      {{on "drop" (action "attachmentDrop")}}
     >
-      <p class="la-beta-feedback__dropzone-hint">{{t "Drop an image here, paste from the clipboard (when not typing in a field), or choose a file." key="beta_feedback_dropzone_hint"}}</p>
-      <input type="file" class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_screenshot" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" {{on "change" (action "screenshotChanged")}} />
+      <p class="la-beta-feedback__dropzone-hint">{{t "Drop a screenshot or video here, paste an image from the clipboard (when not typing in a field), or choose files." key="beta_feedback_attachments_dropzone_hint"}}</p>
+      <input type="file" multiple class="la-contact-input la-contact-input--file la-beta-feedback__file-input" id="beta_feedback_attachments" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,video/webm,video/mp4,video/quicktime,video/*" disabled={{or this.disabled this.recordingUploading this.isRecording}} {{on "change" (action "attachmentsChanged")}} />
     </div>
-    <p class="la-contact-form__hint">{{t "PNG, JPG, GIF, or WebP, about 1.5 MB or smaller." key="beta_feedback_screenshot_hint"}}</p>
-    <p class="la-contact-form__hint">{{t "Screenshots may show personal or sensitive information—only attach what you are comfortable sharing." key="beta_feedback_screenshot_sensitive_hint"}}</p>
+    <p class="la-contact-form__hint">{{t "Images should be PNG, JPG, GIF, or WebP, about 1.5 MB or smaller. Videos should be WebM, MP4, or MOV, up to 100 MB." key="beta_feedback_attachments_hint"}}</p>
+    <p class="la-contact-form__hint">{{t "Attachments may show personal or sensitive information—only attach what you are comfortable sharing." key="beta_feedback_attachments_sensitive_hint"}}</p>
     {{#if this.screenshotData}}
       <div class="la-beta-feedback__screenshot-preview">
         <img src={{this.screenshotData}} alt="" class="la-beta-feedback__screenshot-img" aria-hidden="true">
         <button type="button" class="la-btn la-btn--ghost la-beta-feedback__clear-shot" {{action "clearScreenshot"}}>{{t "Remove image" key="beta_feedback_clear_screenshot"}}</button>
       </div>
     {{/if}}
+    {{#if this.recordingUrl}}
+      <div class="la-beta-feedback__recording-preview">
+        <video src={{this.recordingUrl}} controls class="la-beta-feedback__recording-video"></video>
+        <p class="la-contact-form__hint">{{t "Recording size: %{size}" key="beta_feedback_recording_size_label" size=this.recordingSizeLabel}}</p>
+        <p class="la-contact-form__hint">{{t "The recording is attached and will upload when you send beta feedback." key="beta_feedback_recording_upload_hint"}}</p>
+        <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingUploading}} {{action "clearRecording"}}>{{t "Remove recording" key="beta_feedback_recording_remove"}}</button>
+      </div>
+    {{/if}}
   </div>
   <div class="la-contact-form__row {{if this.errors.recording "la-contact-form__row--error"}}">
     <label class="la-contact-form__label">{{t "Screen recording (optional)" key="beta_feedback_recording_label"}}</label>
-    <p class="la-contact-form__hint">{{t "Recordings can help us understand beta issues, but they may include personal or sensitive information. If your browser offers audio, choose a browser tab and share tab audio so Speak Mode sound can be heard." key="beta_feedback_recording_sensitive_hint_audio"}}</p>
+    <p class="la-contact-form__hint">{{t "Recordings can help us understand beta issues, but they may include personal or sensitive information. If your browser offers audio, choose a browser tab and share tab audio so Speak Mode sound can be heard. You can also allow microphone audio." key="beta_feedback_recording_sensitive_hint_audio"}}</p>
     <label class="la-beta-feedback__consent" id="beta_recording_consent">
       <Input @type="checkbox" @checked={{this.recordingConsent}} {{on "change" (action "toggleRecordingConsent")}} />
-      <span>{{t "I am 13 or older, or I am a parent/guardian/authorized adult, and I consent to upload this recording with my beta feedback. I understand it may include personal or sensitive information, including browser audio if I share tab audio." key="beta_feedback_recording_consent_upload"}}</span>
+      <span>{{t "I am 13 or older, or I am a parent/guardian/authorized adult, and I consent to upload this recording with my beta feedback. I understand it may include personal or sensitive information, including browser audio or microphone audio if I allow it." key="beta_feedback_recording_consent_upload"}}</span>
     </label>
     {{#if this.errors.recording}}
       <p class="la-contact-form__field-error">{{t "Please confirm consent before recording or submitting a recording." key="beta_feedback_recording_consent_error"}}</p>
@@ -117,16 +120,6 @@
       {{#if this.recordingBrowserSoundHint}}
         <p class="la-contact-form__hint" role="status">{{this.recordingBrowserSoundHint}}</p>
       {{/if}}
-      <p class="la-contact-form__hint">{{t "You can also use your device's built-in screen recording feature, then choose the saved video here." key="beta_feedback_device_recording_hint"}}</p>
-      <input type="file" class="la-contact-input la-contact-input--file" id="beta_feedback_recording_file" accept="video/webm,video/mp4,video/quicktime,video/*" disabled={{or this.disabled this.recordingUploading this.isRecording}} {{on "change" (action "recordingFileChanged")}} />
-      {{#if this.recordingUrl}}
-        <div class="la-beta-feedback__recording-preview">
-          <video src={{this.recordingUrl}} controls class="la-beta-feedback__recording-video"></video>
-          <p class="la-contact-form__hint">{{t "Recording size: %{size}" key="beta_feedback_recording_size_label" size=this.recordingSizeLabel}}</p>
-          <p class="la-contact-form__hint">{{t "The recording is attached and will upload when you send beta feedback." key="beta_feedback_recording_upload_hint"}}</p>
-          <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingUploading}} {{action "clearRecording"}}>{{t "Remove recording" key="beta_feedback_recording_remove"}}</button>
-        </div>
-      {{/if}}
       {{#if this.recordingUploading}}
         <p class="la-contact-form__hint" aria-live="polite">{{t "Uploading recording..." key="beta_feedback_recording_uploading"}}</p>
       {{/if}}
@@ -140,6 +133,7 @@
   {{#if this.error}}
     <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
   {{/if}}
+  <p class="la-contact-form__hint la-beta-feedback__submit-context-note">{{t "When you submit, we add a short summary (viewport, time zone, app route, path, and online status) after your text for troubleshooting." key="beta_feedback_device_auto_hint"}}</p>
   <div class="la-contact-form__actions la-support-form__actions md-support-form__actions">
     <button disabled={{this.disabled}} type="button" class="la-btn la-btn--primary" {{on "click" (action "submit_feedback")}}>
       {{#if this.disabled}}
