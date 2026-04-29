@@ -161,7 +161,17 @@ class ContactMessage < ActiveRecord::Base
   private :process_beta_feedback_recording
 
   def attach_beta_feedback_recording
-    @beta_feedback_recording.attach_to!(self) if @beta_feedback_recording
+    return true unless @beta_feedback_recording
+
+    @beta_feedback_recording.with_lock do
+      @beta_feedback_recording.reload
+
+      if @beta_feedback_recording.contact_message_id.present? && @beta_feedback_recording.contact_message_id != self.id
+        raise ActiveRecord::RecordNotSaved, "Recording upload was already used"
+      end
+
+      @beta_feedback_recording.attach_to!(self) unless @beta_feedback_recording.contact_message_id == self.id
+    end
     true
   end
 
