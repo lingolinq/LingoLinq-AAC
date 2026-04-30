@@ -11,6 +11,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
+import { pick_aac_color } from '../utils/parts_of_speech';
 
 /**
  * Create Board (New) Modal Component
@@ -487,16 +488,11 @@ export default Component.extend({
         var data = results[word];
         var entry = { fill: null, border: null, type: null };
         if(data && data.types) {
-          for(var ti = 0; ti < data.types.length && !entry.fill; ti++) {
-            var type = data.types[ti];
-            for(var ci = 0; ci < palette.length && !entry.fill; ci++) {
-              var color = palette[ci];
-              if(color.types && color.types.indexOf(type) >= 0) {
-                entry.fill = color.fill;
-                entry.border = color.border;
-                entry.type = type;
-              }
-            }
+          var picked = pick_aac_color(data.types, palette, word);
+          if(picked) {
+            entry.fill = picked.color.fill;
+            entry.border = picked.color.border;
+            entry.type = picked.type;
           }
         }
         // Cache even no-match results so we don't re-query the same word.

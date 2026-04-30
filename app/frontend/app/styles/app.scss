@@ -964,7 +964,8 @@ header #normal_mode {
 }
 /* Board-alt: let #board_id grow to its natural content width (up to full page width) instead of being
    capped by the 300px clamp used elsewhere, and stretch its outer column so the long text can expand
-   horizontally. */
+   horizontally. Also nudged down 8px to align with the taller 84px
+   inner_header in normal mode. */
 #within_ember.board-alt-view #board_id,
 #within_ember.board-alt-view #nav_header #board_id {
   max-width: none !important;
@@ -972,6 +973,7 @@ header #normal_mode {
   white-space: nowrap !important;
   overflow: visible !important;
   text-overflow: clip !important;
+  margin-top: 8px !important;
 }
 #within_ember.board-alt-view .nav-header__board-bar,
 #within_ember.board-alt-view .nav-header__board-bar-right {
@@ -1516,6 +1518,13 @@ header .btn {
 header:has(#normal_mode) #inner_header {
   box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08) !important;
 
+}
+
+/* Board-alt page in normal (non-speak) mode: pin the inner_header to a
+   consistent 84px so the toolbar height doesn't fluctuate with content
+   wrapping (was rendering at 72.5px before this rule). */
+#within_ember.board-alt-view header:has(#normal_mode) #inner_header {
+  min-height: 84px !important;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -6005,6 +6014,21 @@ tr.accuracy_non_mastered {
   text-align: center;
   border-radius: 3px;
   cursor: pointer;
+  /* Inner colored ring. Was previously rendered with
+     `outline: 3px solid transparent; outline-offset: -3px;` and the
+     color set inline via `outline-color`. That approach intermittently
+     rendered thinner along the top edge on board-alt because of the
+     interaction between negative outline-offset, rounded corners, and
+     `overflow: hidden`. Switched to `box-shadow: inset` which paints a
+     uniform 3px ring on all four sides regardless of overflow/radius.
+     The color comes from `--btn-ring-color`, set inline by the same JS
+     paths that previously set `outline-color` (bound_classes.add_rule,
+     Button.computed_style, Button#fast_html). */
+  box-shadow: inset 0 0 0 3px var(--btn-ring-color, transparent);
+  /* Keep `outline: 3px solid transparent` for legacy back-compat —
+     other rules elsewhere in the codebase still flip it for keyboard
+     focus rings and the touched state (see :focus-visible / .touched
+     entries below in this file). */
   outline: 3px solid transparent;
   outline-offset: -3px;
   overflow: hidden;
@@ -6012,6 +6036,8 @@ tr.accuracy_non_mastered {
   &:hover {
     text-decoration: none;
     color: #000;
+    /* Thicken the inner ring on hover from 3px to 4px. */
+    box-shadow: inset 0 0 0 4px var(--btn-ring-color, transparent);
     outline: 4px solid; /* override Bootstrap a:hover { outline: 0 } — thicken on hover */
     outline-offset: -4px;
   }
@@ -50976,6 +51002,40 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 1px 2px rgba(0, 0, 0, 0.35);
 }
+/* Copy-on-save variant: badge shifts to the warm-amber warning palette
+   used for the duplicate-label chip on create-board-new — signals to
+   the user that their edits will create a NEW board (not modify the
+   public one they navigated to). */
+.md-board-detail-header__sub-badge--copying {
+  color: #7a4a08;
+  border-color: rgba(217, 138, 36, 0.65);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 245, 224, 0.95) 0%,
+      rgba(252, 209, 138, 0.55) 55%,
+      rgba(252, 209, 138, 0.70) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.20),
+    0 1px 2px rgba(13, 36, 56, 0.06),
+    0 6px 16px -6px rgba(217, 138, 36, 0.45);
+}
+.md-board-detail--dark .md-board-detail-header__sub-badge--copying {
+  color: #ffd6a0;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(217, 138, 36, 0.30) 0%,
+      rgba(217, 138, 36, 0.18) 100%
+    );
+  border-color: rgba(252, 209, 138, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 6px 16px -6px rgba(217, 138, 36, 0.50);
+}
 .md-board-detail-header__sub--collapsed {
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -53518,12 +53578,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: flex-end;
   flex-wrap: wrap;
   /* Center the sections so any wrapped bottom row is horizontally centered
-     instead of left-pinned. */
+     instead of left-pinned. justify-content: center keeps contents
+     centered horizontally regardless of the toolbar's outer width, so we
+     can drop the horizontal padding and let the section pills stretch
+     to the toolbar's edges without affecting centering. */
   justify-content: center;
   /* row-gap comes first: more vertical breathing room when sections wrap
      onto a new line; column-gap keeps the tighter 14px horizontal spacing. */
   gap: 18px 14px;
-  padding: 10px 24px 8px;
+  padding: 10px 0 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   border: 1px solid rgba($la-navy, 0.22);
   border-radius: 16px;
@@ -53627,15 +53690,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
   gap: 18px 14px;
 }
-/* On wider viewports, widen the side padding on the edit toolbar so the
-   display-prefs row runs out of horizontal space sooner and Gap/Border,
-   Skin-Tones, and Hidden wrap onto a second line together. */
-@media (min-width: 1201px) {
-  .md-board-detail-edit-toolbar {
-    padding-left: 140px;
-    padding-right: 140px;
-  }
-}
+/* (Removed: previously a media query at min-width 1201px added 140px of
+   horizontal padding to force the display-prefs row to wrap sooner. The
+   toolbar's centering uses justify-content:center so contents stay
+   centered without any horizontal padding; section pills can extend to
+   the toolbar edges. If display-prefs wrapping needs to be tuned again,
+   prefer a max-width on the inner row over re-introducing padding.) */
 /* Hide the vertical dividers inside the expanded display-prefs row — the
    per-section pills are already visually distinct and the dividers muddy
    the wrapped layout. */
@@ -53663,14 +53723,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  gap: 8px;
   height: 32px;
-  padding: 0;
+  padding: 0 14px 0 12px;
   border-radius: 999px;
   border: 1px solid rgba($la-navy, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   box-shadow:
     0 2px 6px rgba($la-navy, 0.12),
     0 1px 2px rgba($la-navy, 0.06),
@@ -53678,6 +53741,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.2s ease;
+}
+.md-board-detail-edit-toolbar__expand-btn__label {
+  letter-spacing: 0.01em;
 }
 .md-board-detail-edit-toolbar__expand-btn:hover,
 .md-board-detail-edit-toolbar__expand-btn:focus-visible {
@@ -54318,7 +54384,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-btn:focus-visible,
 .md-board-detail-suggestion:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px $brand-verdigris, 0 0 0 5px rgba($brand-verdigris, 0.15);
+  /* Use the AA-compliant darker verdigris so the focus ring stays
+     legible against the light dropdown / card backgrounds used by the
+     per-button menus (Edit/Color/Stash/...). The lighter $brand-verdigris
+     was failing 'light-on-light' against white menu surfaces. */
+  box-shadow: 0 0 0 3px $brand-verdigris-aa, 0 0 0 5px rgba($brand-verdigris-aa, 0.18);
 }
 
 /* Stepper variant with tighter label for settings */
@@ -55460,27 +55530,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
   display: none;
 }
-/* Edit mode + colored-corner: tint the folder front (and its label
-   section, which has a transparent bg so the card color shows through)
-   to a softer version of the button's color — same hue as the corner
-   tab, ~20% lighter via white-mix. Higher specificity beats the base
-   `background: #fff !important` on the folder card body. */
-.md-shell--board-detail-edit .md-board-detail-grid--folder-colored-corner .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
-  background: color-mix(in srgb, var(--btn-bg, #fff) 80%, white 20%) !important;
-}
-/* Bg-preference overrides for colored-corner folders in edit mode: when
-   the user has explicitly chosen a non-colored bg, honor it on folder
-   fronts too. Both modifier classes (--folder-colored-corner +
-   .symbol_background_*  / .high_contrast) live on the SAME grid
-   element, so they're concatenated. Specificity (0,5,1) beats the
-   tinted rule above (0,4,1). */
-.md-shell--board-detail-edit .md-board-detail-grid--folder-colored-corner.symbol_background_black .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card,
-.md-shell--board-detail-edit .md-board-detail-grid--folder-colored-corner.high_contrast .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
-  background: #000 !important;
-}
-.md-shell--board-detail-edit .md-board-detail-grid--folder-colored-corner.symbol_background_white .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
-  background: #fff !important;
-}
+/* (Removed: previously the colored-corner folder style auto-painted
+   the folder face with var(--btn-bg) in edit mode, plus a set of
+   bg-preference sub-overrides to undo that paint when the user had
+   chosen a non-colored symbol background. Now redundant because the
+   standalone "Colored Folder Front" toggle in the Folders section
+   handles painting the face on demand — independently of the folder
+   display style. The base folder rule (#fff face) and the general
+   symbol_background_* rules cover all other cases.) */
 /* Folder display style dropdown */
 .md-board-detail-folder-dropdown {
   position: absolute;
@@ -55521,6 +55578,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
   font-weight: 600;
 }
+/* When the "Colored Folder Front" toggle is on, paint the folder card
+   face with the button's Fitzgerald color (var(--btn-bg)). Applies in
+   any folder display style (default / tab_labels / colored_corner) and
+   in any mode (speak / edit). Higher specificity (0,2,1) beats the
+   base folder-front rule (0,1,1). */
+.md-board-detail-grid--folder-colored-face .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+  background: var(--btn-bg, #fff) !important;
+}
 /* In default folder mode, non-folder cells pick up the same 12px top reserve
    the folder cells use for their tab — so non-folder buttons render the same
    visual height as the folder fronts, keeping the grid rows aligned. */
@@ -55552,7 +55617,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
 }
-/* Folder badge icon — small, modern */
+/* Folder badge icon — small, modern. Colored to match what a regular
+   board button's outline would be: 20% darker than the Fitzgerald POS
+   color (the same darken-by-20 transform tinycolor applies to compute
+   border_color from background_color in _make_btn). color-mix with
+   black at 20% is the CSS equivalent. Falls back to charcoal blue when
+   the button has no assigned color. */
 .md-board-detail-symbol-card__folder-badge {
   position: absolute;
   top: 6px;
@@ -55564,9 +55634,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 22px;
   border-radius: 6px;
   background: rgba($brand-charcoal-blue, 0.08);
-  color: rgba($brand-charcoal-blue, 0.45);
+  color: color-mix(in srgb, var(--btn-bg, #46505F) 80%, black 20%);
   z-index: 2;
   transition: background 0.15s ease, color 0.15s ease;
+}
+/* Placeholder folder icon shown on the face when the folder has no
+   image. Painted at the same color a board button's outline would be —
+   20% darker than the Fitzgerald POS color via color-mix. Solid (no
+   opacity reduction) so the icon reads at the same weight as a real
+   button outline; the placeholder div behind it carries the lighter
+   tinted fill. */
+.md-board-detail-symbol-card__folder-placeholder {
+  color: color-mix(in srgb, var(--btn-bg, #888) 80%, black 20%);
+  max-width: 60%;
+  max-height: 60%;
+}
+/* Folder cards' placeholder image area: tint the wrapping div with the
+   folder's color (var(--btn-bg)) at low opacity so the area behind the
+   folder SVG icon picks up the Fitzgerald POS color too. Falls back to
+   the verdigris tint used by non-folder placeholders when the folder
+   has no assigned color. Scoped to folder cards so non-folder empty
+   buttons keep their neutral verdigris background. */
+.md-board-detail-symbol-card--folder .md-board-detail-symbol-card__image--placeholder {
+  background: color-mix(in srgb, var(--btn-bg, #2A9D8F) 25%, transparent);
 }
 /* Folder label styling */
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__label {
@@ -56480,6 +56570,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-board-detail-edit-toolbar__btn:disabled:hover {
   background: #2a3344;
+}
+/* Active-state override in dark mode: without this, the dark-mode base
+   rule above (specificity 0,2,0) wins over the active rule (0,1,0) and
+   active toolbar buttons render with the inactive dark bg. Mirrors the
+   md-settings-icon-btn--active dark-mode rule so the Speak Bar's
+   active option and the toolbar's active toggles share the same blue-
+   grey bg in both light and dark modes. */
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn--active,
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn--active:hover {
+  background: $brand-blue-grey;
+  color: $brand-blue-black;
+  border-color: rgba($brand-charcoal-blue, 0.3);
 }
 .md-board-detail--dark .md-board-detail-edit-toolbar__btn svg {
   filter: brightness(3);
