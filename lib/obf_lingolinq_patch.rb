@@ -335,6 +335,52 @@ if !defined?(OBF::External::LingoLinqPatched) &&
 
     LingoLinqPatched = true
   end
+
+  # Perf: bump Typhoeus::Hydra concurrency from gem default of 10. Boards routinely have
+  # 50-200+ images and S3 handles much higher concurrency comfortably. Override env var
+  # OBF_HYDRA_CONCURRENCY=N to tune. Set to 10 to revert to the gem default.
+  if !defined?(OBF::Utils::LingoLinqHydraPatched)
+    module Utils
+      class << self
+        alias_method :hydra_original, :hydra
+        def hydra
+          n = ENV['OBF_HYDRA_CONCURRENCY'].to_i
+          n = 25 if n <= 0
+          Typhoeus::Hydra.new(max_concurrency: n)
+        end
+      end
+    end
+    Utils::LingoLinqHydraPatched = true
+  end
+
+  # Perf: OBF::PDF.from_obz parses an OBZ that already contains every image bundled
+  # in the zip, but build_pdf reads obj['images_hash'][btn['image_id']] (pdf.rb:294)
+  # which from_obz never populates. The result is that every image is re-downloaded
+  # from S3 a second time. Patching build_pdf to populate images_hash from the per-board
+  # 'images' array (already parsed by from_obz) lets the existing path-and-zipper short
+  # circuit at pdf.rb:295 skip the S3 fetch entirely. Set OBF_PDF_IMAGES_HASH_PATCH=0
+  # to disable.
+  if defined?(OBF::PDF) && !defined?(OBF::PDF::LingoLinqImagesHashPatched) &&
+     !ENV['OBF_PDF_IMAGES_HASH_PATCH'].to_s.match(/\A(0|false|no|off)\z/i)
+    module PDF
+      class << self
+        alias_method :build_pdf_original, :build_pdf
+        def build_pdf(obj, dest_path, zipper, opts = {})
+          if obj && obj['boards']
+            obj['boards'].each do |brd|
+              next if brd['images_hash']
+              brd['images_hash'] = {}
+              (brd['images'] || []).each do |img|
+                brd['images_hash'][img['id']] = img if img && img['id']
+              end
+            end
+          end
+          build_pdf_original(obj, dest_path, zipper, opts)
+        end
+      end
+      LingoLinqImagesHashPatched = true
+    end
+  end
 end
 
 end
