@@ -70,6 +70,11 @@ export default Controller.extend({
 
   landingNavOpen: false,
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
+  betaFeedbackDrawerOpen: false,
+
+  showBetaFeedbackDrawer: computed('hide_header', 'appState.speak_mode', function() {
+    return !this.get('hide_header') || this.appState.get('speak_mode');
+  }),
 
   /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
   footer: computed('appState.currentBoardState', 'appState.current_route', function() {
@@ -472,7 +477,21 @@ export default Controller.extend({
       this.get('router').transitionTo('support');
     },
     openBetaFeedback: function() {
-      modal.open('beta-feedback-modal');
+      if (this.get('appState.currentUser') || this.get('appState.sessionUser')) {
+        this.set('betaFeedbackDrawerOpen', true);
+      } else {
+        this.get('router').transitionTo('beta-feedback');
+      }
+    },
+    toggleBetaFeedbackDrawer: function() {
+      if (this.get('appState.currentUser') || this.get('appState.sessionUser')) {
+        this.toggleProperty('betaFeedbackDrawerOpen');
+      } else {
+        this.get('router').transitionTo('beta-feedback');
+      }
+    },
+    closeBetaFeedbackDrawer: function() {
+      this.set('betaFeedbackDrawerOpen', false);
     },
     goToNewStyle: function() {
       var key = this.appState.get('currentBoardState.key');

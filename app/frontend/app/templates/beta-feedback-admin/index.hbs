@@ -36,6 +36,14 @@
                           {{/each}}
                         </select>
                       </label>
+                      <label class="la-beta-feedback-admin__filter">
+                        <span class="la-beta-feedback-admin__label-text">{{t "Priority" key="beta_feedback_admin_col_priority"}}</span>
+                        <select class="form-control" onchange={{action (mut this.filterPriority) value="target.value"}}>
+                          {{#each this.priorityOptions as |opt|}}
+                            <option value={{opt.id}} selected={{is-equal opt.id this.filterPriority}}>{{opt.label}}</option>
+                          {{/each}}
+                        </select>
+                      </label>
                       <button type="button" class="btn btn-default la-beta-feedback-admin__clear" {{action "clearFilters"}}>{{t "Clear filters" key="beta_feedback_admin_clear_filters"}}</button>
                     </div>
                   </div>
@@ -74,6 +82,12 @@
                               </button>
                             </th>
                             <th scope="col">
+                              <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_priority"}}>
+                                {{t "Priority" key="beta_feedback_admin_col_priority"}}
+                                {{#if (is-equal this.sortColumn "beta_priority")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
+                              </button>
+                            </th>
+                            <th scope="col">
                               <button type="button" class="la-beta-feedback-admin__sort-btn" {{action "toggleSort" "beta_subject"}}>
                                 {{t "Summary" key="beta_feedback_admin_col_summary"}}
                                 {{#if (is-equal this.sortColumn "beta_subject")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
@@ -89,6 +103,13 @@
                               <td>{{row.name}}</td>
                               <td>{{row.feedback_type}}</td>
                               <td>{{row.severity}}</td>
+                              <td>
+                                {{#if row.priority}}
+                                  <span class="la-beta-feedback-admin__priority la-beta-feedback-admin__priority--{{row.priority}}">{{row.priority}}</span>
+                                {{else}}
+                                  <span class="text-muted">{{t "None" key="none"}}</span>
+                                {{/if}}
+                              </td>
                               <td class="la-beta-feedback-admin__summary-cell">{{row.subject}}</td>
                               <td class="la-beta-feedback-admin__actions">
                                 <LinkTo @route="beta-feedback-admin.entry" @model={{row.id}} class="btn btn-default btn-sm">{{t "Details" key="beta_feedback_admin_details_link"}}</LinkTo>
@@ -109,12 +130,12 @@
                   {{else}}
                     {{#unless this.loading}}
                       {{#if (is-equal this.filterType "hidden")}}
-                        {{#if (or this.searchQuery this.filterSeverity)}}
+                        {{#if (or this.searchQuery (or this.filterSeverity this.filterPriority))}}
                           <p>{{t "No beta feedback submissions match your filters." key="beta_feedback_admin_empty_filtered"}}</p>
                         {{else}}
                           <p>{{t "No hidden submissions." key="beta_feedback_admin_empty_hidden"}}</p>
                         {{/if}}
-                      {{else if (or this.searchQuery (or this.filterType this.filterSeverity))}}
+                      {{else if (or this.searchQuery (or this.filterType (or this.filterSeverity this.filterPriority)))}}
                         <p>{{t "No beta feedback submissions match your filters." key="beta_feedback_admin_empty_filtered"}}</p>
                       {{else}}
                         <p>{{t "No beta feedback submissions yet." key="beta_feedback_admin_empty"}}</p>

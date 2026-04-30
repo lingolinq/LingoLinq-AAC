@@ -27,18 +27,18 @@
     {{/if}}
     {{/unless}}
   </span>
-  {{!-- Quick-actions cluster (beta-circular + settings). Lives in its own span
+  {{!-- Quick-actions cluster. Lives in its own span
        just after .app-navbar__nav-header so it renders between the search
-       icon and the #identity dropdown. On wide screens both hide via
+       icon and the #identity dropdown. On wide screens links hide via
        .app-navbar__small-only / .app-navbar__large-only logic. --}}
   {{#unless (is-equal this.appState.current_route "landing-alt")}}
   <span class="app-navbar__quick-actions">
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      {{t "Beta feedback" key="beta_feedback_nav"}}
+    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--full app-navbar__large-only">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+      {{t "New board (preview)" key="create_board_new_nav"}}
     </LinkTo>
-    <LinkTo @route="beta-feedback" class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--circular app-navbar__small-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
-      <span class="app-navbar__beta-feedback-symbol" aria-hidden="true">&#946;</span>
+    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--circular app-navbar__small-only" aria-label={{t "New board (preview)" key="create_board_new_nav"}} title={{t "New board (preview)" key="create_board_new_nav"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
     </LinkTo>
     <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--full app-navbar__large-only">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
@@ -171,7 +171,7 @@
     {{/unless}}
     {{#unless (is-equal this.appState.current_route "landing-alt")}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "support"}}>{{t "Help" key="help"}}</button>
-    <LinkTo @route="beta-feedback" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</LinkTo>
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{action "closeDrawerAndSend" "openBetaFeedback"}}>{{t "Beta feedback" key="beta_feedback_nav"}}</button>
     {{#if this.application.showBetaFeedbackAdminLink}}
     <LinkTo @route="beta-feedback-admin" class="la-mobile-drawer__link" {{action "closeDrawer"}}>{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo>
     {{/if}}

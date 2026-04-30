@@ -60127,3 +60127,538 @@ blockquote footer,
 blockquote small {
   font-size: 14px !important;
 }
+
+/* Beta feedback form (same wrapper as support) */
+.beta-feedback-panel {
+  background: transparent;
+}
+.beta-feedback-panel__header {
+  position: relative;
+  text-align: center;
+  padding: 0 0 1.5rem;
+}
+.beta-feedback-panel__intro {
+  margin-left: auto;
+  margin-right: auto;
+}
+.beta-feedback-panel__privacy-note {
+  max-width: 720px;
+  margin: 0.75rem auto 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-panel__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-drawer-tab {
+  position: fixed;
+  top: var(--topbar-height, 70px);
+  left: 50%;
+  z-index: 1078;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  padding: 0.35rem 0.9rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, #263d5c 0%, $indigo 40%, #0d1525 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.app-navbar .app-navbar__inner {
+  overflow: visible !important;
+}
+.beta-feedback-drawer-tab--navbar {
+  position: absolute;
+  top: 100%;
+}
+.beta-feedback-drawer-tab--speak {
+  top: 0;
+}
+.beta-feedback-drawer-tab:hover {
+  color: #fff;
+  outline: none;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.16);
+}
+.beta-feedback-drawer-tab:focus-visible {
+  color: #fff;
+  outline: none;
+  box-shadow: 0 3px 0 rgba($brand-charcoal-blue, 0.16), 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.beta-feedback-drawer-tab__caret {
+  transition: transform 0.18s ease;
+}
+.beta-feedback-drawer-tab--open .beta-feedback-drawer-tab__caret {
+  transform: rotate(180deg);
+}
+.beta-feedback-drawer {
+  --beta-feedback-drawer-offset: var(--topbar-height, 70px);
+  position: fixed;
+  top: var(--beta-feedback-drawer-offset);
+  left: 0;
+  right: 0;
+  z-index: 1077;
+  pointer-events: none;
+  transition: transform 0.24s ease, opacity 0.18s ease;
+}
+#within_ember > header.header-index-with-dark-toggle:not(.header--hidden):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header)) + .beta-feedback-drawer {
+  --beta-feedback-drawer-offset: 70px;
+}
+#within_ember > header.header-index-with-dark-toggle:not(.header--hidden):has(#inner_header #nav_header) + .beta-feedback-drawer {
+  --beta-feedback-drawer-offset: 129px;
+}
+.beta-feedback-drawer--speak {
+  --beta-feedback-drawer-offset: 0px;
+}
+.beta-feedback-drawer__panel {
+  width: min(780px, calc(100vw - 36px));
+  max-height: calc(100vh - var(--beta-feedback-drawer-offset) - 22px);
+  margin: 0 auto;
+  overflow-y: auto;
+  pointer-events: auto;
+  border-radius: 0 0 20px 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba($brand-blue-black, 0.22), 0 8px 28px rgba($brand-blue-black, 0.12);
+  padding: 1.5rem;
+}
+.beta-feedback-drawer--hidden {
+  transform: translateY(calc(-100% - 18px));
+  opacity: 0;
+}
+.beta-feedback-drawer--hidden .beta-feedback-drawer__panel {
+  pointer-events: none;
+}
+.beta-feedback-drawer--open {
+  transform: translateY(0);
+  opacity: 1;
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0;
+  text-align: center;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-panel .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.la-wrapper--support .la-support-form.md-support-form {
+  position: relative;
+}
+.la-wrapper--support .la-beta-feedback__reaction-options,
+.beta-feedback-drawer .la-beta-feedback__reaction-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn {
+  min-height: 5.25rem;
+  border: 2px solid rgba($brand-blue-black, 0.12);
+  border-radius: 16px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn--selected,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--selected {
+  border-color: $brand-charcoal-blue;
+  box-shadow: 0 0 0 3px rgba($brand-charcoal-blue, 0.14);
+}
+.la-beta-feedback__reaction-face {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 0.4rem;
+}
+.la-beta-feedback__reaction-face--neutral {
+  color: #a16207;
+}
+.la-beta-feedback__reaction-face--frown {
+  color: #b91c1c;
+}
+.la-beta-feedback__reaction-face--smile {
+  color: #15803d;
+}
+.la-beta-feedback__reaction-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.la-beta-feedback__reaction-icon circle:not(:first-child) {
+  fill: currentColor;
+  stroke: none;
+}
+.la-wrapper--support .la-contact-input--file {
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-preview,
+.beta-feedback-drawer .la-beta-feedback__screenshot-preview {
+  margin-top: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-img,
+.beta-feedback-drawer .la-beta-feedback__screenshot-img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba($brand-charcoal-dark, 0.15);
+  display: block;
+}
+.la-wrapper--support .la-beta-feedback__clear-shot,
+.beta-feedback-drawer .la-beta-feedback__clear-shot {
+  margin-top: 0.5rem;
+}
+
+.la-wrapper--support .la-beta-feedback__dropzone,
+.beta-feedback-drawer .la-beta-feedback__dropzone {
+  border: 2px dashed rgba($brand-charcoal-dark, 0.28);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+  min-height: 5.5rem;
+  background: rgba(255, 255, 255, 0.45);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-wrapper--support .la-beta-feedback__dropzone:focus-visible,
+.beta-feedback-drawer .la-beta-feedback__dropzone:focus-visible {
+  @include focus-ring;
+}
+.la-wrapper--support .la-beta-feedback__dropzone--active,
+.beta-feedback-drawer .la-beta-feedback__dropzone--active {
+  border-color: rgba($brand-charcoal-blue, 0.55);
+  background: rgba(70, 95, 120, 0.08);
+  box-shadow: inset 0 0 0 1px rgba($brand-charcoal-blue, 0.12);
+}
+.la-wrapper--support .la-beta-feedback__dropzone-hint,
+.beta-feedback-drawer .la-beta-feedback__dropzone-hint {
+  font-size: 14px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+  margin: 0 0 0.75rem 0;
+}
+.la-wrapper--support .la-beta-feedback__file-input,
+.beta-feedback-drawer .la-beta-feedback__file-input {
+  width: 100%;
+  max-width: 100%;
+}
+.la-beta-feedback__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.la-beta-feedback__recording-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.la-beta-feedback__recording-preview {
+  margin-top: 0.9rem;
+}
+.la-beta-feedback__recording-video,
+.la-beta-feedback-detail__recording {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-dark, 0.15);
+  background: #000;
+}
+.la-beta-feedback-admin__priority {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.la-beta-feedback-admin__priority--high {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+.la-beta-feedback-admin__priority--medium {
+  color: #78350f;
+  background: #fef3c7;
+}
+.la-beta-feedback-admin__priority--low {
+  color: #14532d;
+  background: #dcfce7;
+}
+.la-beta-feedback-detail__priority-controls {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Beta feedback: client-side validation banner and field highlights */
+#beta-feedback-hero .la-beta-feedback__validation-banner {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.95);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+#beta-feedback-hero .la-contact-form__field-error {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #b91c1c;
+  margin: 0.375rem 0 0;
+}
+#beta-feedback-hero .la-contact-form__row--error .la-contact-form__label {
+  color: #991b1b;
+}
+#beta-feedback-hero .la-contact-input--invalid,
+#beta-feedback-hero select.la-contact-input--invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+#beta-feedback-hero .la-contact-input--invalid:focus-visible {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  outline: none;
+}
+
+@media (max-width: 720px) {
+  .beta-feedback-drawer-tab {
+    top: var(--topbar-height, 70px);
+    font-size: 0.95rem;
+    min-height: 34px;
+  }
+  .beta-feedback-drawer-tab--navbar {
+    top: 100%;
+  }
+  .beta-feedback-drawer-tab--speak {
+    top: 0;
+  }
+  .beta-feedback-drawer__panel {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 78px);
+    padding: 1rem;
+  }
+  .la-wrapper--support .la-beta-feedback__reaction-options,
+  .beta-feedback-drawer .la-beta-feedback__reaction-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Beta Feedback modal ─────────────────────────────────────────────────
+   Sizing/chrome mirror the find-button modal pattern (full-height,
+   border-radius 18px, .la-modal-header + .la-modal-close). Header
+   reuses the about-page hero composition (.la-section-eyebrow-badge +
+   .la-hero-title with .hero-gradient + .la-about-hero-separator +
+   .la-pricing-hero-subtitle) so the modal reads as a "mini about-page".
+   Form fields rely on the global .la-contact-input / .la-btn classes —
+   no per-modal restyling. */
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) {
+  max-width: 845px; /* find-button modal is 676px; this is ~25% wider. */
+  width: calc(100vw - 16px);
+  height: calc(100vh - 8px);
+  max-height: calc(100vh - 8px);
+  margin: 4px auto;
+  display: flex;
+  flex-direction: column;
+}
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.modal-content:has(.beta-feedback-modal-wrap) {
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba($brand-blue-black, 0.18), 0 8px 24px rgba($brand-blue-black, 0.10);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.beta-feedback-modal-wrap {
+  background: #fff;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header: about-page hero composition, centered inside a la-modal-header
+   shell with the close button pinned to the top-right. */
+.beta-feedback-modal-wrap > .la-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.1));
+  background: rgba(255, 255, 255, 0.6);
+}
+.beta-feedback-modal__hero {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+/* Mirror the about-page hero treatment for the modal header. .la-hero-title
+   and the eyebrow margin override are both scoped to .la-wrapper /
+   .la-wrapper--about in their original definitions, so we re-apply the
+   computed about-page values here. */
+.beta-feedback-modal__hero .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+}
+.beta-feedback-modal__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0 0 $aac-spacing-24;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+/* Match the support-page rule (.la-wrapper--support .hero-gradient) so the
+   "Feedback" gradient text sizes 1:1 with "Beta " — without this it inherits
+   the global 1.155em and reads slightly larger than the prefix. */
+.beta-feedback-modal__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-modal__subtitle {
+  margin: 1.5rem auto 0;
+  max-width: 680px;
+  font-size: 24px;
+  font-weight: 400;
+  color: $brand-charcoal-dark;
+  line-height: 1.75;
+  letter-spacing: 0.005em;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: var(--md-muted, $brand-slate-gray);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:hover,
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:focus-visible {
+  background: #fff;
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+
+/* Body: scrolls when content overflows the available modal height. */
+.beta-feedback-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px 28px;
+}
+
+@media (max-width: 600px) {
+  .beta-feedback-modal-wrap > .la-modal-header {
+    padding: 20px 20px 16px;
+  }
+  .beta-feedback-modal__subtitle {
+    font-size: 16px;
+  }
+  .beta-feedback-modal__body {
+    padding: 18px 20px 20px;
+  }
+}
+
+.la-wrapper--support .la-support-cookies-btn {
+  font-size: 14px; /* 25% larger than 1rem */
+}
+
+/* About "Built around" section: same 1px divider as top of page */
+.la-wrapper.la-wrapper--about #about-what-we-offer .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-items .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-questions .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle,
+.la-wrapper.la-wrapper--about #faq-hero .la-pricing-hero-subtitle {
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header + .la-feature-grid {
+  margin-top: -2rem;
+}
+
+/* Features page hero: same layout and styling as about hero top */
+.la-wrapper.la-wrapper--about #features-hero .la-section-header,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header {
+  margin-bottom: 0;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}

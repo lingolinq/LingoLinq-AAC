@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Remove Board modal (Phase 2).
@@ -53,25 +54,27 @@ export default Component.extend({
       const board = this.get('model.board');
       const user = this.get('model.user');
       const _this = this;
-      _this.set('loading', true);
       _this.set('error', false);
-      persistence.ajax('/api/v1/boards/unlink', {
-        type: 'POST',
-        data: {
-          board_id: board.get('id'),
-          user_id: user.get('id'),
-          tag: this.get('model.tag'),
-          type: this.get('model.action')
-        }
-      }).then(function() {
-        _this.set('loading', false);
-        _this.set('error', false);
-        board.set('removed', true);
-        modal.close({ update: true });
-      }, function() {
-        _this.set('loading', false);
-        _this.set('error', true);
-      });
+      return actionLock.run('remove-board:' + this.get('model.action') + ':' + board.get('id'), function() {
+        _this.set('loading', true);
+        return persistence.ajax('/api/v1/boards/unlink', {
+          type: 'POST',
+          data: {
+            board_id: board.get('id'),
+            user_id: user.get('id'),
+            tag: _this.get('model.tag'),
+            type: _this.get('model.action')
+          }
+        }).then(function() {
+          _this.set('loading', false);
+          _this.set('error', false);
+          board.set('removed', true);
+          modal.close({ update: true });
+        }, function() {
+          _this.set('loading', false);
+          _this.set('error', true);
+        });
+      }, {timeout: 10000});
     }
   }
 });

@@ -43,6 +43,17 @@ export default Component.extend({
     return !this.get('isOnUserHomeDashboard');
   }),
 
+  showBetaFeedbackDrawerTab: computed(
+    'isAuthenticated',
+    'application.showBetaFeedbackDrawer',
+    'appState.speak_mode',
+    function() {
+      return this.get('isAuthenticated') &&
+        this.get('application.showBetaFeedbackDrawer') &&
+        !this.appState.get('speak_mode');
+    }
+  ),
+
   /** When true, the mobile drawer (landing-alt nav) is open. */
   isLandingDrawerOpen: false,
 
@@ -58,6 +69,9 @@ export default Component.extend({
     },
     closeLandingDrawer() {
       this.set('isLandingDrawerOpen', false);
+    },
+    toggleBetaFeedbackDrawer() {
+      this.get('application').send('toggleBetaFeedbackDrawer');
     },
   }
 });

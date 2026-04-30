@@ -14,11 +14,6 @@ export default Component.extend({
   hasFocus: false,
   editingIndex: null,
   editingValue: '',
-  // When false, hides existing chips (input-only mode). When showInput is
-  // false, renders only the chip list (no typing input). Both default true
-  // for backward compatibility.
-  showChips: true,
-  showInput: true,
 
   init() {
     this._super(...arguments);

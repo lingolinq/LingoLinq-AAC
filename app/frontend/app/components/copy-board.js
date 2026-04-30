@@ -28,8 +28,8 @@ export default Component.extend({
   },
 
   runOpening() {
-    if (this.get('_copyBoardInitialized')) { return; }
     if (!this.get('model.board')) { return; }
+    if (this.get('_copyBoardInitialized')) { return; }
     this.set('_copyBoardInitialized', true);
     // This component is tagless, so initialize modal state without relying on didInsertElement.
     this.set('model.jump_home', true);
@@ -67,6 +67,10 @@ export default Component.extend({
       this.set('currently_selected_id', 'self');
     }
   },
+
+  runOpeningWhenBoardReady: observer('model.board', function() {
+    this.runOpening();
+  }),
 
   has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;

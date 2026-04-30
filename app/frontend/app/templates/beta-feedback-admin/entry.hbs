@@ -6,6 +6,21 @@
           <div class="la-support-content-wrapper">
             <article class="la-about-glass-card la-support-page-card">
               <div class="la-support-page-card__body md-support-content la-beta-feedback-detail__body">
+                <nav class="la-beta-feedback-detail__top-nav" aria-label={{t "Feedback navigation" key="beta_feedback_admin_detail_navigation"}}>
+                  <LinkTo @route="beta-feedback-admin" class="btn btn-default">{{t "Back to list" key="beta_feedback_admin_back_list"}}</LinkTo>
+                  <div class="la-beta-feedback-detail__step-controls">
+                    {{#if this.previousFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.previousFeedbackId}} class="btn btn-default">{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</button>
+                    {{/if}}
+                    {{#if this.nextFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.nextFeedbackId}} class="btn btn-default">{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</button>
+                    {{/if}}
+                  </div>
+                </nav>
                 {{#if this.loadError}}
                   <p role="alert">{{t "Could not load this submission." key="beta_feedback_admin_detail_error"}}</p>
                 {{else if this.detail}}
@@ -22,6 +37,23 @@
                     <div class="la-beta-feedback-detail__meta-row">
                       <dt>{{t "Severity" key="beta_feedback_admin_severity"}}</dt>
                       <dd>{{this.detail.severity}}</dd>
+                    </div>
+                    {{#if this.detail.reaction}}
+                      <div class="la-beta-feedback-detail__meta-row">
+                        <dt>{{t "Reaction" key="beta_feedback_admin_reaction"}}</dt>
+                        <dd>{{this.detail.reaction}}</dd>
+                      </div>
+                    {{/if}}
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Priority" key="beta_feedback_admin_col_priority"}}</dt>
+                      <dd>
+                        <div class="la-beta-feedback-detail__priority-controls" role="group" aria-label={{t "Priority" key="beta_feedback_admin_col_priority"}}>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "high") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "high"}}>{{t "High" key="beta_feedback_priority_high"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "medium") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "medium"}}>{{t "Medium" key="beta_feedback_priority_medium"}}</button>
+                          <button type="button" class="btn btn-default btn-sm {{if (is-equal this.detail.priority "low") "active"}}" disabled={{this.savingPriority}} {{action "setPriority" "low"}}>{{t "Low" key="beta_feedback_priority_low"}}</button>
+                          <button type="button" class="btn btn-default btn-sm" disabled={{this.savingPriority}} {{action "setPriority" ""}}>{{t "Clear" key="clear"}}</button>
+                        </div>
+                      </dd>
                     </div>
                     <div class="la-beta-feedback-detail__meta-row">
                       <dt>{{t "Submitted (UTC)" key="beta_feedback_admin_submitted_utc"}}</dt>
@@ -71,6 +103,12 @@
                       <div class="la-beta-feedback-detail__text">{{this.detail.general_feedback}}</div>
                     </section>
                   {{/if}}
+                  {{#if this.detail.workflow_context}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-workflow">
+                      <h2 id="bfd-workflow" class="la-beta-feedback-detail__block-title">{{t "What they were trying to do" key="beta_feedback_admin_heading_workflow"}}</h2>
+                      <div class="la-beta-feedback-detail__text">{{this.detail.workflow_context}}</div>
+                    </section>
+                  {{/if}}
                   {{#if this.detail.steps_to_reproduce}}
                     <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-steps">
                       <h2 id="bfd-steps" class="la-beta-feedback-detail__block-title">{{t "Steps to reproduce" key="beta_feedback_admin_heading_steps"}}</h2>
@@ -103,12 +141,40 @@
                       </p>
                     </section>
                   {{/if}}
+                  {{#if this.detail.recording}}
+                    <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-recording">
+                      <h2 id="bfd-recording" class="la-beta-feedback-detail__block-title">{{t "Screen recording" key="beta_feedback_admin_heading_recording"}}</h2>
+                      {{#if this.detail.recording.signed_url}}
+                        <video src={{this.detail.recording.signed_url}} controls class="la-beta-feedback-detail__recording"></video>
+                        <p><a href={{this.detail.recording.signed_url}} class="btn btn-default" target="_blank" rel="noopener noreferrer">{{t "Open recording" key="beta_feedback_admin_open_recording"}}</a></p>
+                        <p class="text-muted">{{t "This private link expires shortly. The recording is retained for 90 days from submission." key="beta_feedback_admin_recording_signed_hint"}}</p>
+                      {{else if this.detail.recording.deleted}}
+                        <p>{{t "This recording has been deleted." key="beta_feedback_admin_recording_deleted"}}</p>
+                      {{else if this.detail.recording.expired}}
+                        <p>{{t "This recording has expired." key="beta_feedback_admin_recording_expired"}}</p>
+                      {{else}}
+                        <p>{{t "This recording is not available." key="beta_feedback_admin_recording_unavailable"}}</p>
+                      {{/if}}
+                    </section>
+                  {{/if}}
                 {{else}}
                   <p>{{t "Submission not found." key="beta_feedback_admin_not_found"}}</p>
                 {{/if}}
-                <p class="la-beta-feedback-detail__back">
+                <nav class="la-beta-feedback-detail__bottom-nav" aria-label={{t "Feedback navigation" key="beta_feedback_admin_detail_navigation"}}>
                   <LinkTo @route="beta-feedback-admin" class="btn btn-default">{{t "Back to list" key="beta_feedback_admin_back_list"}}</LinkTo>
-                </p>
+                  <div class="la-beta-feedback-detail__step-controls">
+                    {{#if this.previousFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.previousFeedbackId}} class="btn btn-default">{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Previous feedback" key="beta_feedback_admin_previous_feedback"}}</button>
+                    {{/if}}
+                    {{#if this.nextFeedbackId}}
+                      <LinkTo @route="beta-feedback-admin.entry" @model={{this.nextFeedbackId}} class="btn btn-default">{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</LinkTo>
+                    {{else}}
+                      <button type="button" class="btn btn-default" disabled>{{t "Next feedback" key="beta_feedback_admin_next_feedback"}}</button>
+                    {{/if}}
+                  </div>
+                </nav>
               </div>
             </article>
           </div>

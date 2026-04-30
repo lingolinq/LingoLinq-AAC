@@ -1039,8 +1039,11 @@ export default Controller.extend(prefClasses, {
   editModeNormalText: computed('appState.edit_mode', 'model.text_size', function() {
     return this.appState.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
   }),
-  nothing_visible_not_edit: computed('model.nothing_visible', 'appState.edit_mode', function() {
-    return this.get('model.nothing_visible') && !this.appState.get('edit_mode');
+  nothing_visible: computed('model.nothing_visible', function() {
+    return this.get('model.nothing_visible');
+  }),
+  nothing_visible_not_edit: computed('nothing_visible', 'appState.edit_mode', function() {
+    return this.get('nothing_visible') && !this.appState.get('edit_mode');
   }),
   display_class: computed(
     'stashes.all_buttons_enabled',
