@@ -103,13 +103,18 @@ LingoLinq.Buttonset = DS.Model.extend({
     var SERIAL_TAIL_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS) || 30000;
     var wait = new RSVP.Promise(function(resolve) {
       var done = false;
+      var timeoutId = null;
       var settle = function() {
         if(done) { return; }
         done = true;
+        if(timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         resolve();
       };
       prev.then(settle, settle);
-      setTimeout(function() {
+      timeoutId = setTimeout(function() {
         if(done) { return; }
         try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
         bs.__loadButtonsSerialTail = null;
