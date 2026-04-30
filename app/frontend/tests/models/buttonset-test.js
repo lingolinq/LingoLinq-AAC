@@ -989,5 +989,72 @@ describe('Buttonset', function() {
     it('should try to regenerate if an expected button set is missing', function() {
       expect('test').toEqual('todo');
     })
-  })
+  });
+
+  describe('load_buttons serial tail timeout', function() {
+    var original_timeout = null;
+    beforeEach(function() {
+      // Use a short timeout so tests stay fast. Production default is 30s.
+      original_timeout = LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS;
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = 50;
+    });
+    afterEach(function() {
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = original_timeout;
+    });
+
+    it('should not stall a new load_buttons call when the prior tail hangs forever', function() {
+      // Simulate a stranded prior tail by stuffing in a never-settling promise.
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-stuck',
+        buttons_loaded: true,
+        buttons: [{label: 'cached', depth: 0, board_id: '1'}]
+      });
+      bs.__loadButtonsSerialTail = new RSVP.Promise(function() {
+        // never resolves or rejects
+      });
+
+      var resolved = false;
+      var rejected = false;
+      bs.load_buttons().then(function() {
+        resolved = true;
+      }, function() {
+        rejected = true;
+      });
+
+      // Without the timeout, this would hang forever waiting on the stranded tail.
+      waitsFor(function() { return resolved || rejected; });
+      runs(function() {
+        // The new call should settle (resolve, since buttons are cached) within the
+        // configured timeout (50ms here, 30s in prod).
+        expect(resolved).toEqual(true);
+      });
+    });
+
+    it('should not block subsequent load_buttons calls after a timeout', function() {
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-recover',
+        buttons_loaded: true,
+        buttons: [{label: 'cached', depth: 0, board_id: '1'}]
+      });
+      bs.__loadButtonsSerialTail = new RSVP.Promise(function() {
+        // never resolves
+      });
+
+      var first_done = false;
+      var second_done = false;
+
+      bs.load_buttons().then(function() { first_done = true; }, function() { first_done = true; });
+
+      waitsFor(function() { return first_done; });
+      runs(function() {
+        // After the timeout-driven settle, the second call should also settle quickly,
+        // proving the stranded chain was not still blocking new work.
+        bs.load_buttons().then(function() { second_done = true; }, function() { second_done = true; });
+      });
+      waitsFor(function() { return second_done; });
+      runs(function() {
+        expect(second_done).toEqual(true);
+      });
+    });
+  });
 });
