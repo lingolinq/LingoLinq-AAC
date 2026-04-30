@@ -7,6 +7,7 @@ import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
+import boardDetailCache from '../../utils/board_detail_cache';
 
 export default Route.extend({
   store: service('store'),
@@ -20,14 +21,49 @@ export default Route.extend({
     user.set('subroute_name', i18n.t('board_detail', "Board Detail"));
     var board_key = user.get('user_name') + '/' + params.boardname;
 
-    // Load via persistence.ajax to get raw board data reliably
-    // Then also resolve the Ember Data model for editManager
+    // Cache-first: try the in-memory raw cache + Ember Data identity map
+    // before hitting the network. Mirrors the cache-first pattern in
+    // routes/user/board-alt.js. We keep our own raw-JSON cache because
+    // _build_from_raw needs the raw response shape (Ember Data hydration
+    // is bypassed for speed on the plain-object render path).
+    var cached_raw = boardDetailCache.get(board_key);
+    var cached_record = null;
+    if (cached_raw) {
+      cached_record = this.store.peekAll('board').find(function(b) {
+        if (!b) { return false; }
+        return b.get('key') === board_key;
+      });
+    }
+    if (cached_raw && cached_record && !cached_record.get('should_reload')) {
+      // Deep-clone so downstream consumers (normalize, _build_from_raw)
+      // can mutate without poisoning the cached copy.
+      var cached_copy = JSON.parse(JSON.stringify(cached_raw));
+      _this.set('_raw_board_data', cached_copy);
+      // Re-push the cached raw into the store. The original (pre-cache)
+      // route always did fetch+push on every navigation, which kept the
+      // Ember Data record's internal `_data` (committed attributes) in
+      // sync with the latest server response. Skipping the push entirely
+      // on cache hit caused board.save() to serialize stale internal
+      // state and the backend rejected the PUT with "Not authorized".
+      // The push is bookkeeping only (no network), so the cache benefit
+      // is preserved.
+      try {
+        var hit_normalized = this.store.normalize('board', JSON.parse(JSON.stringify(cached_raw)));
+        this.store.push(hit_normalized);
+      } catch (e) { /* best-effort; serializer edge cases shouldn't block nav */ }
+      return RSVP.resolve(cached_record);
+    }
+
+    // Cache miss — existing AJAX path. Populate the cache on success so
+    // the next visit hits the fast path.
     return new RSVP.Promise(function(resolve) {
       persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
         if(data && data.board) {
           // Save raw data BEFORE normalize (normalize may mutate the input)
           var raw_copy = JSON.parse(JSON.stringify(data.board));
           _this.set('_raw_board_data', raw_copy);
+          // Cache for future navigations.
+          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
           // Push into store to get Ember Data record with correct ID
           var store = _this.store;
           var normalized = store.normalize('board', data.board);
@@ -88,6 +124,7 @@ export default Route.extend({
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
+    controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
     controller.set('folder_dropdown_open', false);
 
     // Default panels to collapsed (unexpanded), unless a one-shot flag was
@@ -152,8 +189,9 @@ export default Route.extend({
       }
     });
 
-    // Set up editManager for edit mode operations
-    controller.set('ordered_buttons', null);
+    // Set up editManager for edit mode operations. ordered_buttons was
+    // already cleared in the state-reset block above; we don't re-clear
+    // here so _build_from_raw can write the new grid in a single pass.
     editManager.setup(controller, _this.appState, _this.persistence, _this.stashes);
     _this.appState.set('board_virtual_dom.triggerAction', function(action, id, extra) {
       controller.send(action, id, extra);
@@ -165,6 +203,16 @@ export default Route.extend({
     var raw = _this.get('_raw_board_data');
     if(raw) {
       controller._build_from_raw(raw);
+      // Background-prefetch immediate child boards + warm their image
+      // cache so folder navigation feels instant. Deferred 500ms so
+      // initial paint lands first; also gives the edit subroute time to
+      // flip edit_mode = true (we skip prefetch in edit mode to avoid
+      // any chance of stale reads while the user mutates buttons).
+      runLater(function() {
+        if(controller.isDestroyed || controller.isDestroying) { return; }
+        if(controller.get('edit_mode')) { return; }
+        boardDetailCache.prefetch_linked(raw);
+      }, 500);
     }
 
     // Store original name for rename detection
