@@ -1263,6 +1263,9 @@
         {{#if this.showBetaFeedbackAdminLink}}
         <li class="app-navbar__beta-feedback-admin-menu-item"><LinkTo @route="beta-feedback-admin">{{t "View Beta Feedback" key="beta_feedback_admin_nav"}}</LinkTo></li>
         {{/if}}
+        {{#if this.showDatabaseExplorerLink}}
+        <li class="app-navbar__database-explorer-menu-item"><LinkTo @route="database">{{t "Database" key="database_explorer_nav"}}</LinkTo></li>
+        {{/if}}
         <li class="divider" role="separator"></li>
         <li>
           <LinkTo @route="about" class="dropdown-menu__company-link">{{t "LingoLinq" key="app_name"}}</LinkTo>
