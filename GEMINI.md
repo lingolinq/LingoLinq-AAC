@@ -11,7 +11,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Heroku with background job processing via Resque
+- Deployed on Render with background job processing via Resque
 
 ## Development Commands
 
@@ -36,9 +36,8 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-foreman start
 # or
-heroku local
+# heroku local (Deprecated)
 
 # Stop all running processes
 bin/kill_all
@@ -68,7 +67,7 @@ bundle exec rspec spec/models/user_spec.rb:42
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**

@@ -16,7 +16,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Heroku with background job processing via Resque
+- Deployed on Render with background job processing via Resque
 
 ## Development considerations
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
@@ -49,9 +49,8 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-foreman start
 # or
-heroku local
+# heroku local (Deprecated)
 
 # Stop all running processes
 bin/kill_all
@@ -78,10 +77,10 @@ bundle exec rspec spec/models/user_spec.rb:42
 **Console access:**
 ```bash
 # Local console (includes audit safeguards)
-bin/heroku_console
+bin/rails console
 
-# Production console (on Heroku)
-bin/heroku_console  # Not just 'rails console'
+# Production console (on Render)
+# Use 'render shell' or specific task runner bin if available
 ```
 
 **Scheduled tasks (run periodically in production):**
@@ -102,7 +101,7 @@ rake clean_old_deleted_boards          # daily
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**
@@ -259,7 +258,7 @@ rake extras:desktop
 
 **Functionality and styling:**
 - Do NOT remove or change functionality when refactoring.
-- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
+- Preserve existing class names used for styling unless there is a clear need to change them - if so, prompt the user first.
 
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
@@ -269,8 +268,8 @@ rake extras:desktop
 - Generation script: `i18n_generator.rb`
 
 **CSS / SCSS:**
-- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` — SassC cannot evaluate mixed units at compile time
-- CSS compression is disabled in production (`config.assets.css_compressor = nil`) — do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
+- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` - SassC cannot evaluate mixed units at compile time
+- CSS compression is disabled in production (`config.assets.css_compressor = nil`) - do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
 
 **Platform-Specific Code:**
 - Extract platform-specific code or wrap in `capabilities` library
@@ -403,7 +402,7 @@ This repo includes a full audit orchestration system for continuous code quality
 | Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
 
 ### Audit Rules
-- NEVER modify code during audits — read-only until "apply fixes" is explicitly said
+- NEVER modify code during audits - read-only until "apply fixes" is explicitly said
 - Always show diffs before proposing changes
 - Subagents scan only their declared domain
 - All findings include file paths and line numbers where possible
