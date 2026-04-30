@@ -63,15 +63,31 @@
                 </div>
                 <div class="nb-field new-board-field--description">
                   <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}</label>
-                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" />
+                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" @rows="1" />
                 </div>
-                {{#if this.has_supervisees}}
-                  <div class="nb-field new-board-field--for">
-                    <label class="nb-field__label" for="new_board_for_user">{{t "For" key="for"}}</label>
-                    {{modern-select class="new-board-select--modern new-board-for-select" selectId="new_board_for_user" content=this.user_options selection=this.for_user_id action=(action "setForUserId") ariaLabel=(t "Who is this board for?" key="for_user_aria")}}
-                  </div>
-                {{/if}}
               </div>
+              {{#if this.show_user_options}}
+                <div class="nb-basics-grid__col nb-basics-grid__col--right">
+                  <div class="nb-field nb-toggle-row">
+                    <span class="nb-toggle-row__question" id="new_board_for_someone_else_label">{{t "Are you creating this board for someone else?" key="creating_for_someone_else"}}</span>
+                    <div class="nb-toggle-row__control">
+                      <span class="nb-toggle-row__state {{unless this.creating_for_someone_else 'nb-toggle-row__state--active'}}" aria-hidden="true">{{t "No" key="no"}}</span>
+                      <button type="button"
+                              role="switch"
+                              aria-checked={{if this.creating_for_someone_else "true" "false"}}
+                              aria-labelledby="new_board_for_someone_else_label"
+                              class="nb-toggle__switch {{if this.creating_for_someone_else 'nb-toggle__switch--on'}}"
+                              {{action "toggleCreatingForSomeoneElse"}}>
+                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                      </button>
+                      <span class="nb-toggle-row__state {{if this.creating_for_someone_else 'nb-toggle-row__state--active'}}" aria-hidden="true">{{t "Yes" key="yes"}}</span>
+                    </div>
+                  </div>
+                  <div class="new-board-for-collapse {{if this.creating_for_someone_else 'new-board-for-collapse--open'}}" aria-hidden={{unless this.creating_for_someone_else "true" "false"}}>
+                    {{modern-select class="new-board-select--modern new-board-for-select" selectId="new_board_for_user" content=this.user_options selection=this.for_user_id action=(action "setForUserId") ariaLabel=(t "Who is this board for?" key="for_user_aria") placeholder=(t "Select who this board is for" key="select_who_for")}}
+                  </div>
+                </div>
+              {{/if}}
             </div>
           </div>
         </section>
@@ -152,6 +168,25 @@
                       <span class="nb-pill__text">{{t "Duplicate labels detected" key="duplicate_labels_pill"}}</span>
                     </span>
                   {{/if}}
+                  {{#if this.speech_error_message}}
+                    <div class="nb-alert nb-alert--warning nb-speech__error" role="alert">
+                      <span class="nb-alert__icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                          <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                          <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                          <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                        </svg>
+                      </span>
+                      <div class="nb-alert__body">
+                        <p class="nb-alert__text">{{this.speech_error_message}}</p>
+                      </div>
+                      <button type="button" class="nb-speech__error-dismiss" {{action "dismiss_speech_error"}} aria-label={{t "Dismiss" key="dismiss"}}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                          <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  {{/if}}
                   {{#if this.too_many_total_labels}}
                     <div class="nb-alert nb-alert--warning" role="alert">
                       <span class="nb-alert__icon" aria-hidden="true">
@@ -167,7 +202,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
+                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
                 </div>
               </div>
             </div>
@@ -183,13 +218,37 @@
               </div>
             {{else}}
               {{#if this.speech.ready}}
-                <div class="nb-field">
-                  <div style="margin-bottom: 5px;">
-                    {{t "Listening..." key="listening"}}
-                    <button class='btn btn-default' {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
-                    {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+                <div class="nb-field nb-speech">
+                  <div class="nb-speech__head">
+                    <div class="nb-speech__indicator {{if this.speech.recording 'nb-speech__indicator--active'}}" aria-hidden="true">
+                      <svg class="nb-speech__mic" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                        <rect x="7.5" y="2.5" width="5" height="9" rx="2.5"/>
+                        <path d="M4.5 9 Q4.5 14 10 14 Q15.5 14 15.5 9"/>
+                        <path d="M10 14 L10 17 M7 17 L13 17"/>
+                      </svg>
+                    </div>
+                    <div class="nb-speech__status" role="status" aria-live="polite">
+                      {{#if this.speech.recording}}
+                        {{t "Listening..." key="listening"}}
+                      {{else}}
+                        {{t "Starting microphone..." key="speech_starting_mic"}}
+                      {{/if}}
+                    </div>
+                    <div class="nb-speech__meter" aria-hidden="true">
+                      <div class="nb-speech__meter-fill" style={{safe-style this.speech_level_style}}></div>
+                    </div>
                   </div>
-                  <ul class="nav nav-pills">
+
+                  <div class="nb-speech__controls">
+                    <button type="button" class="btn btn-default nb-speech__btn" title={{t "Click between dictated words to add each as its own label. Otherwise everything you say merges into one label." key="next_word_help"}} {{action "next_word"}}>{{t "Next Word" key="next_word"}}</button>
+                    <button type="button" class="btn btn-default nb-speech__btn nb-speech__btn--stop" {{action "stop_recording"}}>{{t "Stop" key="stop_speech"}}</button>
+                  </div>
+
+                  <p class="nb-speech__hint">{{t "Click \"Next Word\" between labels to keep them separate." key="speech_hint"}}</p>
+
+                  {{speech-listener content=(action "speech_content") error=(action "speech_error") stop=(action "speech_stop") speech=this.speech}}
+
+                  <ul class="nav nav-pills nb-speech__words">
                     {{#each this.speech.words as |word|}}
                       <li class="active" style="margin-right: 3px; margin-bottom: 3px;">
                         <button type="button" class="md-link-btn-pill" {{action "remove_word" word.id}} aria-label={{t "Remove %{word}" key="remove_word_named" word=word.label}}>
@@ -208,16 +267,26 @@
                 {{/if}}
               {{/if}}
             {{/if}}
-            {{!-- ── Display Preferences (collapsible, above preview) ── --}}
+            {{!-- ── Preferences & Labels (collapsible, above preview) ── --}}
+            {{#if this.label_count}}
             <div class="new-board-prefs-collapsible {{if this.prefs_open "new-board-prefs-collapsible--open"}}">
-              <button type="button" class="new-board-prefs-toggle" aria-expanded={{if this.prefs_open "true" "false"}} {{action "togglePrefs"}}>
-                <span class="new-board-prefs-toggle__label">{{t "Display preferences" key="board_detail_display_prefs"}}</span>
+              <button type="button" class="new-board-prefs-toggle {{if this.has_duplicate_labels 'new-board-prefs-toggle--warn'}}" aria-expanded={{if this.prefs_open "true" "false"}} {{action "togglePrefs"}}>
+                <span class="new-board-prefs-toggle__label">{{t "Preferences & Labels" key="preferences_and_labels"}}</span>
                 <svg class="new-board-prefs-toggle__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               {{#if this.prefs_open}}
-            {{!-- ── Display Preferences inset (ported from board-detail) ── --}}
-            <div class="new-board-prefs-inset md-board-detail-edit-toolbar md-board-detail-edit-toolbar--expanded" role="toolbar" aria-label={{t "Display preferences" key="board_detail_display_prefs"}}>
+            {{!-- ── Preferences & Labels inset (ported from board-detail) ── --}}
+            <div class="new-board-prefs-inset md-board-detail-edit-toolbar md-board-detail-edit-toolbar--expanded" role="toolbar" aria-label={{t "Preferences & Labels" key="preferences_and_labels"}}>
               <div class="md-board-detail-edit-toolbar__display-prefs">
+
+                {{!-- ── Current Labels list (interactive — click to edit, X to remove) ── --}}
+                <div class="md-board-detail-edit-toolbar__section new-board-prefs-labels">
+                  <div class="md-settings-sublabel-wrap">
+                    <span class="md-settings-sublabel">{{t "Labels" key="labels"}} <span class="new-board-prefs-labels__count">({{this.label_count}})</span></span>
+                    {{label-chips value=this.model.grid.labels onChange=(action "setLabels") showInput=false}}
+                  </div>
+                </div>
+                <div class="md-board-detail-edit-toolbar__divider"></div>
 
                 {{!-- ── Text Size + Font + Position ── --}}
                 <div class="md-board-detail-edit-toolbar__section">
@@ -439,6 +508,7 @@
             </div>
               {{/if}}
             </div>
+            {{/if}}
             <div class="new-board-mockup-wrap {{if (is_equal this.preview_mode "dark") "md-board-detail--dark new-board-mockup-wrap--dark"}}"
                  role="region"
                  aria-label={{t "Board preview" key="board_preview"}}>
@@ -465,7 +535,8 @@
                 {{#each this.preview_grid as |row|}}
                   {{#each row as |cell|}}
                     <div class="md-board-detail-grid__cell" role="gridcell">
-                      <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default md-board-detail-symbol-card--no-color {{if cell.empty "md-board-detail-symbol-card--empty"}}">
+                      <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}}"
+                           style={{cell.bg_style}}>
                         {{#unless cell.empty}}
                           <div class="md-board-detail-symbol-card__image md-board-detail-symbol-card__image--placeholder">
                             <img class="symbol" src="/images/square.svg" alt="" draggable="false" style="max-width: 70%; max-height: 70%;">
