@@ -117,7 +117,12 @@ LingoLinq.Buttonset = DS.Model.extend({
       timeoutId = setTimeout(function() {
         if(done) { return; }
         try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
-        bs.__loadButtonsSerialTail = null;
+        // Only clear the tail if it is still the hung previous promise; by the time the
+        // timeout fires the tail has already been advanced to this call's wait.then(work)
+        // chain, so an unconditional null here would drop the current active serialization.
+        if(bs.__loadButtonsSerialTail === prev) {
+          bs.__loadButtonsSerialTail = null;
+        }
         settle();
       }, SERIAL_TAIL_TIMEOUT_MS);
     });
