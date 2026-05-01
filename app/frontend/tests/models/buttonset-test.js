@@ -1057,4 +1057,57 @@ describe('Buttonset', function() {
       });
     });
   });
+
+  describe('load_buttons work timeout', function() {
+    var original_serial = null;
+    var original_work = null;
+    beforeEach(function() {
+      original_serial = LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS;
+      original_work = LingoLinq.Buttonset.WORK_TIMEOUT_MS;
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = 50;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = 100;
+    });
+    afterEach(function() {
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = original_serial;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = original_work;
+    });
+
+    it('should reject load_buttons when the work promise hangs past the configured timeout', function() {
+      // No cached buttons + no root_url means work is forced through the
+      // root-url-not-available reject path. Simulate a hung server by stubbing
+      // persistence.find_json to never resolve.
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-hang',
+        root_url: 'https://example.com/bs.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+      stub(bs.persistence, 'find_json', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+      stub(bs.persistence, 'store_json', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+      stub(bs.persistence, 'ajax', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+
+      var resolved = false;
+      var rejected_with = null;
+      bs.load_buttons().then(function() {
+        resolved = true;
+      }, function(err) {
+        rejected_with = err;
+      });
+
+      // Without the master timeout this would hang forever. With it, the call
+      // rejects within WORK_TIMEOUT_MS (100ms here, 60s in prod).
+      waitsFor(function() { return resolved || rejected_with; });
+      runs(function() {
+        expect(resolved).toEqual(false);
+        expect(rejected_with).toNotEqual(null);
+        expect(rejected_with.error).toEqual('buttonset load timed out');
+      });
+    });
+  });
 });

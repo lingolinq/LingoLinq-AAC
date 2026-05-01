@@ -271,8 +271,38 @@ LingoLinq.Buttonset = DS.Model.extend({
         reject({error: 'root url not available'});
       }
     });
-    bs.__loadButtonsSerialTail = wait.then(function() { return work; }, function() { return work; });
-    return work;
+    // Master timeout on the work promise itself. The serial-tail timeout above only
+    // unblocks the queue when a PREVIOUS work promise hangs; it does not bound the
+    // current work. If the server-side buttonset generate job never reports back via
+    // progress_tracker (job died mid-flight, Redis state poisoned, etc.) the inner
+    // RSVP.Promise above will sit pending forever. Wrap it so callers (e.g. copy modal)
+    // see a clean rejection instead of an indefinite "loading" state.
+    // Override LingoLinq.Buttonset.WORK_TIMEOUT_MS in tests to keep them fast.
+    var WORK_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.WORK_TIMEOUT_MS) || 60000;
+    var work_with_timeout = new RSVP.Promise(function(resolve, reject) {
+      var done = false;
+      var timeoutId = null;
+      var settle_resolve = function(v) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        resolve(v);
+      };
+      var settle_reject = function(e) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        reject(e);
+      };
+      work.then(settle_resolve, settle_reject);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        try { LingoLinq.track_error('buttonset load_buttons work timed out for board ' + board_id); } catch(e) { }
+        settle_reject({error: 'buttonset load timed out', board_id: board_id});
+      }, WORK_TIMEOUT_MS);
+    });
+    bs.__loadButtonsSerialTail = wait.then(function() { return work_with_timeout; }, function() { return work_with_timeout; });
+    return work_with_timeout;
   },
   redepth: function(from_board_id) {
     var buttons = this.get('buttons') || [];
