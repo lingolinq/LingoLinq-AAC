@@ -366,6 +366,10 @@ if !defined?(OBF::External::LingoLinqPatched) &&
       class << self
         alias_method :build_pdf_original, :build_pdf
         def build_pdf(obj, dest_path, zipper, opts = {})
+          # Track which board hashes we mutated so we can restore them in ensure.
+          # build_pdf is a public gem API; future callers may reuse the obj hash for
+          # other formats and shouldn't see our internal patch state leaking.
+          mutated_boards = []
           if obj && obj['boards']
             obj['boards'].each do |brd|
               next if brd['images_hash']
@@ -373,9 +377,14 @@ if !defined?(OBF::External::LingoLinqPatched) &&
               (brd['images'] || []).each do |img|
                 brd['images_hash'][img['id']] = img if img && img['id']
               end
+              mutated_boards << brd
             end
           end
-          build_pdf_original(obj, dest_path, zipper, opts)
+          begin
+            build_pdf_original(obj, dest_path, zipper, opts)
+          ensure
+            mutated_boards.each { |brd| brd.delete('images_hash') }
+          end
         end
       end
       LingoLinqImagesHashPatched = true
