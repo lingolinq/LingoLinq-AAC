@@ -225,6 +225,75 @@ describe AiApiLog, :type => :model do
     end
   end
 
+  describe "daily_summary" do
+    let(:target_date) { Date.current - 1 }
+
+    def make_log(attrs = {})
+      log = AiApiLog.create!({
+        ai_provider: 'claude',
+        request_type: 'board_generation',
+        tokens_sent: 50,
+        tokens_received: 75,
+        duration_ms: 1000,
+        success: true
+      }.merge(attrs))
+      log.update_column(:created_at, target_date.beginning_of_day + 4.hours)
+      log
+    end
+
+    it "returns the date as an ISO string" do
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:date]).to eq(target_date.iso8601)
+    end
+
+    it "totals calls, tokens, and failures for the day" do
+      make_log(tokens_sent: 100, tokens_received: 200, success: true)
+      make_log(tokens_sent: 50, tokens_received: 75, success: false)
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_calls]).to eq(2)
+      expect(summary[:total_failures]).to eq(1)
+      expect(summary[:total_tokens_sent]).to eq(150)
+      expect(summary[:total_tokens_received]).to eq(275)
+    end
+
+    it "groups token usage by provider" do
+      make_log(ai_provider: 'claude', tokens_sent: 100, tokens_received: 200)
+      make_log(ai_provider: 'gemini', tokens_sent: 30, tokens_received: 40)
+
+      summary = AiApiLog.daily_summary(target_date)
+      providers = summary[:by_provider].index_by { |row| row[:provider] }
+      expect(providers['claude'][:tokens_sent]).to eq(100)
+      expect(providers['gemini'][:tokens_received]).to eq(40)
+    end
+
+    it "counts pii_detected rows and includes findings samples" do
+      make_log(pii_detected: false)
+      make_log(
+        pii_detected: true,
+        pii_findings: [{ type: 'email', value: 'a****m', position: 5 }].to_json
+      )
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_pii_detected]).to eq(1)
+      expect(summary[:pii_samples].length).to eq(1)
+      expect(summary[:pii_samples].first[:findings].first['type']).to eq('email')
+    end
+
+    it "ignores rows from other days" do
+      log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation')
+      log.update_column(:created_at, (target_date - 3).beginning_of_day)
+
+      summary = AiApiLog.daily_summary(target_date)
+      expect(summary[:total_calls]).to eq(0)
+    end
+
+    it "defaults to yesterday when no date is given" do
+      summary = AiApiLog.daily_summary
+      expect(summary[:date]).to eq((Date.current - 1).iso8601)
+    end
+  end
+
   describe "redact_old_ip_addresses!" do
     it "should replace ip_address on records older than 90 days with [REDACTED]" do
       old_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.1')
