@@ -395,22 +395,21 @@ LingoLinq.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-// Board-detail page uses its own color palette (more muted/pastel, split preposition/social).
-// `pos_class` is the canonical lookup key — toolbar swatches and any other
-// JS code keying off part-of-speech derive their colors from these entries.
+// Board-detail page uses its own color palette matching the Fitzgerald SCSS tokens
+// used by the board-detail symbol-card classes.
 LingoLinq.board_detail_keyed_colors = [
-  {pos_class: 'pronoun',     fill: "#FFFBBB", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
-  {pos_class: 'verb',        fill: "#CBF2B2", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
-  {pos_class: 'adjective',   fill: "#AACCFF", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
-  {pos_class: 'noun',        fill: "#FFCCAA", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
+  {pos_class: 'pronoun',     fill: "#FAFAAA", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
+  {pos_class: 'verb',        fill: "#BCECC5", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
+  {pos_class: 'adjective',   fill: "#B9D0F6", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
+  {pos_class: 'noun',        fill: "#FDCF98", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
   {pos_class: 'social',      fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},
   {pos_class: 'negation',    fill: "#F5A0A0", color: i18n.t('red', "Red"), hint: i18n.t('negations', "negations"), types: ['negation', 'expletive', 'interjection']},
-  {pos_class: 'question',    fill: "#DBC4F4", color: i18n.t('purple', "Purple"), hint: i18n.t('questions', "questions"), types: ['question']},
+  {pos_class: 'question',    fill: "#D0B8E8", color: i18n.t('purple', "Purple"), hint: i18n.t('questions', "questions"), types: ['question']},
   {pos_class: 'preposition', fill: "#F5DCEA", color: i18n.t('rose', "Rose"), hint: i18n.t('prepositions', "prepositions"), types: ['preposition']},
-  {pos_class: 'adverb',      fill: "#CCAA88", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
+  {pos_class: 'adverb',      fill: "#D4B896", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
   {pos_class: 'determiner',  fill: "#DCDCDC", color: i18n.t('gray', "Gray"), hint: i18n.t('determiners', "determiners"), types: ['article', 'determiner']},
-  {pos_class: 'conjunction', fill: "#fff", border: "#ccc", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
-  {pos_class: 'other',       fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
+  {pos_class: 'conjunction', fill: "#FFFFFF", border: "#ccc", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
+  {pos_class: 'other',       fill: "#73CCFF", color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {pos_class: 'contrast',    fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
 LingoLinq.extra_keyed_colors = [

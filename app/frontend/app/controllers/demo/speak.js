@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import demoBoardLoader from '../../utils/demo_board_loader';
 import speecher from '../../utils/speecher';
 import i18n from '../../utils/i18n';
@@ -22,6 +23,7 @@ function default_prefs() {
 var TEXT_SIZE_OPTIONS = ['small', 'medium', 'large', 'huge'];
 var BORDER_SIZE_OPTIONS = ['none', 'small', 'medium', 'large', 'huge'];
 var SPACING_OPTIONS = ['none', 'small', 'medium', 'large'];
+var VISIBLE_SENTENCE_PARTS = 8;
 
 export default Controller.extend({
   edit_mode: false,
@@ -30,6 +32,7 @@ export default Controller.extend({
   manifest: null,
   ordered_buttons: null,
   sentence_parts: null,
+  sentence_dialog_open: false,
   board_history: null,
   status_message: null,
   demo_prefs: null,
@@ -37,6 +40,7 @@ export default Controller.extend({
   folder_labels_on_tab: false,
   folder_colored_corner: true,
   active_category: 'all',
+  status_message_timer: null,
 
   setup_demo: function(model) {
     this.set('manifest', model.manifest);
@@ -48,7 +52,12 @@ export default Controller.extend({
 
   reset_demo: function() {
     this.set('sentence_parts', []);
+    this.set('sentence_dialog_open', false);
     this.set('board_history', []);
+    if(this.get('status_message_timer')) {
+      runCancel(this.get('status_message_timer'));
+      this.set('status_message_timer', null);
+    }
     this.set('status_message', null);
     this.set('edit_mode', false);
   },
@@ -70,6 +79,15 @@ export default Controller.extend({
     return (this.get('sentence_parts') || []).map(function(part) {
       return part.vocalization || part.label;
     }).join(' ');
+  }),
+
+  visible_sentence_parts: computed('sentence_parts.[]', function() {
+    var parts = this.get('sentence_parts') || [];
+    return parts.slice(Math.max(parts.length - VISIBLE_SENTENCE_PARTS, 0));
+  }),
+
+  has_hidden_sentence_parts: computed('sentence_parts.[]', function() {
+    return (this.get('sentence_parts') || []).length > VISIBLE_SENTENCE_PARTS;
   }),
 
   utterance_show_symbols: computed('demo_prefs.utterance_text_only', function() {
@@ -183,6 +201,18 @@ export default Controller.extend({
     this._set_pref(key, options[index]);
   },
 
+  _set_temporary_status: function(message) {
+    var timer = this.get('status_message_timer');
+    if(timer) { runCancel(timer); }
+    this.set('status_message', message);
+    var _this = this;
+    this.set('status_message_timer', runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('status_message', null);
+      _this.set('status_message_timer', null);
+    }, 2500));
+  },
+
   _append_button: function(button) {
     var parts = (this.get('sentence_parts') || []).slice();
     parts.push({
@@ -259,14 +289,26 @@ export default Controller.extend({
       var parts = (this.get('sentence_parts') || []).slice();
       parts.pop();
       this.set('sentence_parts', parts);
+      if(!parts.length) { this.set('sentence_dialog_open', false); }
     },
 
     clear_sentence: function() {
       this.set('sentence_parts', []);
+      this.set('sentence_dialog_open', false);
+    },
+
+    open_sentence_dialog: function() {
+      if(this.get('has_sentence')) {
+        this.set('sentence_dialog_open', true);
+      }
+    },
+
+    close_sentence_dialog: function() {
+      this.set('sentence_dialog_open', false);
     },
 
     demo_disabled: function() {
-      this.set('status_message', i18n.t('demo_action_disabled', "This action is disabled in the demo."));
+      this._set_temporary_status(i18n.t('demo_action_disabled', "This action is disabled in the demo."));
     },
 
     toggle_edit_panel: function() {
