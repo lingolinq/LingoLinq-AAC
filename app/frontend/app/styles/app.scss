@@ -7018,9 +7018,6 @@ body > .popover.bottom {
   filter: contrast(4.0) saturate(100);
 }
 
-.symbol_background_clear .button img.symbol {
-  mix-blend-mode: multiply;
-}
 .symbol_background_clear .button img.symbol[src$="square.svg"] {
   mix-blend-mode: normal;
 }
@@ -28233,6 +28230,249 @@ header #identity #identity_button.btn::after {
   width: 100%;
   box-sizing: border-box;
   text-align: center;
+}
+
+/* Public Speak Mode demo */
+.demo-board-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  background:
+    radial-gradient(circle at top left, rgba(44, 183, 176, 0.16), transparent 28rem),
+    linear-gradient(135deg, #070b12 0%, #111722 50%, #0b111b 100%);
+}
+
+.demo-board-page--speak-only {
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.demo-board-page__main {
+  gap: 1rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.demo-board-page--speak-only .demo-board-page__main {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.demo-board-page__intro,
+.demo-board-page__style-panel,
+.demo-board-page__board {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #0c1018 0%, #151a24 100%);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.32);
+}
+
+.demo-board-page__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.demo-board-page__intro h1 {
+  margin: 0.1rem 0 0.35rem;
+  color: #f8fafc;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.05;
+}
+
+.demo-board-page__intro p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 1.1rem;
+}
+
+.demo-board-page__eyebrow {
+  margin: 0;
+  color: #8fe4df !important;
+  font-size: 0.95rem !important;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo-board-page__intro-actions,
+.demo-board-page__board-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.demo-board-page__sentence-row {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 20;
+  align-items: stretch;
+}
+
+.demo-board-page__exit-link,
+.demo-board-page__settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(47, 63, 86, 0.92);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 20px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+
+.demo-board-page__exit-link:hover,
+.demo-board-page__exit-link:focus-visible,
+.demo-board-page__settings-link:hover,
+.demo-board-page__settings-link:focus-visible,
+.demo-board-page__settings-link--active {
+  color: #fff;
+  background: rgba(58, 107, 199, 0.95);
+  outline: none;
+}
+
+.demo-board-page__status {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(20, 127, 130, 0.18);
+  border-radius: 16px;
+  background: rgba(20, 127, 130, 0.08);
+  color: #0f4f52;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.demo-board-page__board {
+  width: 100%;
+  padding: 0.5rem;
+}
+
+.demo-board-page--speak-only .demo-board-page__board {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.demo-board-page--speak-only .demo-board-page__board > .ember-view {
+  flex: 1 1 auto;
+  align-self: center;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: var(--board-columns, 10) / var(--board-rows, 6);
+  display: flex;
+}
+
+.demo-board-page__board-title {
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.demo-board-page--speak-only .demo-board-page__board-title {
+  flex: 0 0 auto;
+}
+
+.demo-board-page__board-title h2,
+.demo-board-page__style-panel h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.2rem;
+}
+
+.demo-board-page__style-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.demo-board-page__style-panel-header {
+  grid-column: 1 / -1;
+  align-items: flex-start !important;
+  justify-content: space-between;
+}
+
+.demo-board-page__style-panel-header p:not(.demo-board-page__eyebrow) {
+  max-width: 760px;
+  margin: 0.25rem 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 1.05rem;
+}
+
+.demo-board-page__style-panel > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem;
+  border-radius: 18px;
+  background: #1e2530;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.demo-board-page__style-panel h2 {
+  width: 100%;
+  font-size: 1rem;
+}
+
+.demo-board-page .md-board-detail-grid {
+  width: 100% !important;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: var(--board-columns, 10) / var(--board-rows, 6);
+}
+
+.demo-board-page .md-board-detail-grid.board {
+  margin: 0 !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+}
+
+.demo-board-page--speak-only .demo-board-page__board .md-board-detail-grid {
+  flex: 1 1 auto;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: auto;
+}
+
+.demo-board-page--speak-only .demo-board-page__board .md-board-detail-grid.board {
+  width: 100% !important;
+}
+
+@media (max-width: 760px) {
+  .demo-board-page {
+    padding: 0.5rem;
+  }
+
+  .demo-board-page__intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .demo-board-page__sentence-row {
+    position: static;
+  }
 }
 .la-wrapper.la-wrapper--about #features-hero .la-section-header .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--features #features-hero .la-section-header .la-section-eyebrow-badge {
@@ -52897,11 +53137,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
 }
-/* When symbol_background is "clear", use mix-blend-mode to make white image backgrounds
-   transparent so the button color shows through */
-.symbol_background_clear .md-board-detail-symbol-card__image img {
-  mix-blend-mode: multiply;
-}
 .symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
   mix-blend-mode: normal;
 }
@@ -55753,33 +55988,33 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 @media (max-width: 1200px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(9px, 14cqw, 14px) !important;
+    font-size: clamp(9px, 14cqw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(9px, 14cqw, 14px) !important;
+    font-size: clamp(9px, 14cqw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(10px, 17cqw, 17px) !important;
+    font-size: clamp(10px, 17cqw, calc(var(--bd-button-text-size, 18px) * 1.2)) !important;
   }
 }
 @media (max-width: 820px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(8px, 13cqw, 14px) !important;
+    font-size: clamp(8px, 13cqw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(8px, 13cqw, 14px) !important;
+    font-size: clamp(8px, 13cqw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-folder-tab__label {
-    font-size: clamp(10px, 2vw, 14px) !important;
+    font-size: clamp(10px, 2vw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-folder-tab__label-input {
-    font-size: clamp(10px, 2vw, 14px) !important;
+    font-size: clamp(10px, 2vw, var(--bd-button-text-size, 14px)) !important;
   }
   .md-board-detail-symbol-card__alt-text {
     font-size: clamp(10px, 2vw, 14px) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(8px, 16cqw, 16px) !important;
+    font-size: clamp(8px, 16cqw, calc(var(--bd-button-text-size, 18px) * 1.2)) !important;
   }
 }
 
