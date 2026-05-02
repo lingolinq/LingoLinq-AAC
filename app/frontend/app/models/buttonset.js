@@ -95,6 +95,37 @@ LingoLinq.Buttonset = DS.Model.extend({
     // load_button_set() without force racing copy-modal load_button_set(true,...)).
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
+    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise),
+    // don't stall new ones forever. We'll wait at most this many ms for the tail. On timeout
+    // we clear the stranded chain so the next call doesn't immediately time out again, and
+    // emit telemetry so we can observe how often this fires in production.
+    // Override LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS in tests to keep them fast.
+    var SERIAL_TAIL_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS) || 30000;
+    var wait = new RSVP.Promise(function(resolve) {
+      var done = false;
+      var timeoutId = null;
+      var settle = function() {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        resolve();
+      };
+      prev.then(settle, settle);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
+        // Only clear the tail if it is still the hung previous promise; by the time the
+        // timeout fires the tail has already been advanced to this call's wait.then(work)
+        // chain, so an unconditional null here would drop the current active serialization.
+        if(bs.__loadButtonsSerialTail === prev) {
+          bs.__loadButtonsSerialTail = null;
+        }
+        settle();
+      }, SERIAL_TAIL_TIMEOUT_MS);
+    });
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -240,7 +271,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         reject({error: 'root url not available'});
       }
     });
-    bs.__loadButtonsSerialTail = prev.then(function() { return work; }, function() { return work; });
+    bs.__loadButtonsSerialTail = wait.then(function() { return work; }, function() { return work; });
     return work;
   },
   redepth: function(from_board_id) {
