@@ -964,7 +964,8 @@ header #normal_mode {
 }
 /* Board-alt: let #board_id grow to its natural content width (up to full page width) instead of being
    capped by the 300px clamp used elsewhere, and stretch its outer column so the long text can expand
-   horizontally. */
+   horizontally. Also nudged down 8px to align with the taller 84px
+   inner_header in normal mode. */
 #within_ember.board-alt-view #board_id,
 #within_ember.board-alt-view #nav_header #board_id {
   max-width: none !important;
@@ -972,6 +973,7 @@ header #normal_mode {
   white-space: nowrap !important;
   overflow: visible !important;
   text-overflow: clip !important;
+  margin-top: 8px !important;
 }
 #within_ember.board-alt-view .nav-header__board-bar,
 #within_ember.board-alt-view .nav-header__board-bar-right {
@@ -1516,6 +1518,13 @@ header .btn {
 header:has(#normal_mode) #inner_header {
   box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.08) !important;
 
+}
+
+/* Board-alt page in normal (non-speak) mode: pin the inner_header to a
+   consistent 84px so the toolbar height doesn't fluctuate with content
+   wrapping (was rendering at 72.5px before this rule). */
+#within_ember.board-alt-view header:has(#normal_mode) #inner_header {
+  min-height: 84px !important;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -6005,6 +6014,21 @@ tr.accuracy_non_mastered {
   text-align: center;
   border-radius: 3px;
   cursor: pointer;
+  /* Inner colored ring. Was previously rendered with
+     `outline: 3px solid transparent; outline-offset: -3px;` and the
+     color set inline via `outline-color`. That approach intermittently
+     rendered thinner along the top edge on board-alt because of the
+     interaction between negative outline-offset, rounded corners, and
+     `overflow: hidden`. Switched to `box-shadow: inset` which paints a
+     uniform 3px ring on all four sides regardless of overflow/radius.
+     The color comes from `--btn-ring-color`, set inline by the same JS
+     paths that previously set `outline-color` (bound_classes.add_rule,
+     Button.computed_style, Button#fast_html). */
+  box-shadow: inset 0 0 0 3px var(--btn-ring-color, transparent);
+  /* Keep `outline: 3px solid transparent` for legacy back-compat —
+     other rules elsewhere in the codebase still flip it for keyboard
+     focus rings and the touched state (see :focus-visible / .touched
+     entries below in this file). */
   outline: 3px solid transparent;
   outline-offset: -3px;
   overflow: hidden;
@@ -6012,6 +6036,8 @@ tr.accuracy_non_mastered {
   &:hover {
     text-decoration: none;
     color: #000;
+    /* Thicken the inner ring on hover from 3px to 4px. */
+    box-shadow: inset 0 0 0 4px var(--btn-ring-color, transparent);
     outline: 4px solid; /* override Bootstrap a:hover { outline: 0 } — thicken on hover */
     outline-offset: -4px;
   }
@@ -40953,7 +40979,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board--modern .new-board-field--labels #new_board_labels {
   font-size: 14px !important;
 
-  margin-bottom: 14px !important;
+  margin-bottom: 0 !important;
 
 }
 .new-board--modern .new-board-field--labels .modern-select {
@@ -40978,7 +41004,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 8px;
   padding: 10px 12px;
   min-height: 64px;
-  border-radius: 18px;
+  border-radius: 25px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background:
     linear-gradient(
@@ -41195,11 +41221,30 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   letter-spacing: 0.01em;
   color: var(--md-ink, #1f2933);
   margin: 0;
-  padding: 6px 2px;
+  padding: 6px 8px;
   height: auto;
 }
 .label-chips__input::placeholder {
   color: rgba(31, 41, 51, 0.45);
+}
+/* Display-only chips list (rendered inside the Preferences & Labels panel
+   when showInput=false). No typing input, so the container has no
+   minimum height and a tighter look. */
+.label-chips__container--display-only {
+  min-height: 0;
+  padding: 8px 10px;
+  cursor: default;
+}
+.label-chips__container--display-only:empty {
+  display: none;
+}
+.new-board-prefs-labels {
+  margin-bottom: 8px;
+}
+.new-board-prefs-labels__count {
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 4px;
 }
 
 /* Size & Preview block — rows/cols inputs side-by-side at top of a live grid preview. */
@@ -41420,6 +41465,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;
+  max-width: 680px;
+  max-height: 480px;
   margin: 0 auto;
   padding: 14px;
   border-radius: 18px;
@@ -41456,6 +41503,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    `prefs_open` is true. */
 .new-board-prefs-collapsible {
   margin: 0 0 12px;
+  /* Center the inline-flex toggle button on the page. The inset toolbar
+     below is block-level so it stays full-width regardless. */
+  text-align: center;
+}
+.new-board-prefs-inset {
+  /* Reset alignment for the toolbar's own inline content so the centering
+     above doesn't affect labels, sublabel text, etc. inside it. */
+  text-align: left;
 }
 .new-board-prefs-toggle {
   display: inline-flex;
@@ -41486,6 +41541,41 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board-prefs-collapsible--open .new-board-prefs-toggle {
   background: rgba(255, 255, 255, 1);
   border-color: rgba(13, 36, 56, 0.18);
+}
+
+/* Duplicate-label warn state: softly pulse the toggle with the same
+   amber gradient used by .nb-pill--warn so the user notices it even
+   when the prefs section is collapsed. Selectors include the open
+   variants so the warn styling persists if the user opens the panel. */
+@keyframes nb-prefs-warn-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 0 0 rgba(217, 138, 36, 0),
+      0 1px 2px rgba(13, 36, 56, 0.04);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 14px 2px rgba(217, 138, 36, 0.45),
+      0 4px 10px -4px rgba(217, 138, 36, 0.35);
+  }
+}
+.new-board-prefs-toggle--warn,
+.new-board-prefs-collapsible--open .new-board-prefs-toggle--warn,
+.new-board-prefs-toggle--warn:hover {
+  color: #7a4a08;
+  border-color: rgba(217, 138, 36, 0.4);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 244, 222, 0.85) 0%,
+      rgba(252, 215, 156, 0.6) 100%
+    );
+  /* !important to defeat any cascade override on .animation; the pulse
+     is the primary signal for the duplicate-labels warning so we don't
+     gate it on prefers-reduced-motion. */
+  animation: nb-prefs-warn-glow 2.2s ease-in-out infinite !important;
 }
 
 .new-board-prefs-inset {
@@ -41595,6 +41685,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      rectangles on wide viewports — matching the live page's "wider than
      square" feel instead of being capped at 1200px. */
   max-width: 100%;
+  /* Hard cap matched to the wrap's 480px max-height (minus 28px padding
+     and ~40px toolbar). When the aspect-ratio-derived height exceeds this
+     cap, the browser scales BOTH dimensions down proportionally so the
+     grid fits within the wrap without overflowing. */
+  max-height: 400px;
   height: auto !important;
   aspect-ratio: var(--board-columns, 4) / var(--board-rows, 4);
   margin: 0 auto;
@@ -41801,16 +41896,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 40px;
 }
 
-/* Basics section: 2-column grid layout.
-   Left  = Name + Description (stacked).
-   Right = Icon for your Board (input + glass preview + picker grid).
-   Collapses to single column on narrow viewports. */
+/* Basics section: two side-by-side card containers at md+, each with
+   the same dented well treatment for balanced visual weight.
+   Left  = Name + Description.
+   Right = "Creating for someone else?" toggle + dropdown (when shown).
+   align-items: stretch so the two cards match heights — they read as
+   "the same row, just different sections." Collapses to single column
+   on narrow viewports and when no right column is rendered. */
 .nb-basics-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   column-gap: 24px;
   row-gap: 18px;
   align-items: stretch;
+}
+@media (min-width: $aac-breakpoint-md) {
+  .nb-basics-grid:has(.nb-basics-grid__col--right) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 .nb-basics-grid__col {
   display: flex;
@@ -41836,19 +41939,38 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .nb-basics-grid__col .nb-field__label {
   padding-left: 0;
 }
-.nb-basics-grid__col--left {
-  display: flex;
-  flex-direction: column;
+.nb-basics-grid__col--right {
+  justify-content: flex-start;
 }
-.nb-basics-grid__col--left .new-board-field--description {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+/* When the toggle is "No" (the dropdown's collapse wrapper has no
+   --open modifier), let the right card shrink to its content height
+   instead of stretching to match the left card. Half the bottom
+   padding so the empty space below the toggle row doesn't look loose. */
+.nb-basics-grid__col--right:has(.new-board-for-collapse:not(.new-board-for-collapse--open)) {
+  align-self: start;
+  padding-bottom: 9px;
 }
-.nb-basics-grid__col--left .nb-field__input--fill {
-  flex: 1 1 auto;
-  min-height: 96px;
-  resize: vertical;
+/* Compact Description: one line tall by default, auto-grows with
+   content via field-sizing where supported (Chrome 123+/Edge 123+);
+   the @rows="1" attr on the Textarea handles older browsers, and
+   users can drag-resize taller via the corner handle.
+   Scoped under both containers with !important because
+   .new-board--modern textarea.form-control locks min-height:80px
+   !important elsewhere. */
+.new-board--modern .nb-basics-grid textarea.nb-field__input--fill,
+.la-new-board-modal-wrap .la-new-board-form .nb-basics-grid textarea.nb-field__input--fill {
+  min-height: 0 !important;
+  height: auto !important;
+  resize: vertical !important;
+  field-sizing: content;
+}
+
+/* Match the "For" dropdown placeholder color to the page's helper-text
+   gray (.nb-section__hint), without italics — so it reads like a hint,
+   not a chosen value. */
+.new-board-for-select .modern-select__trigger-text--placeholder {
+  color: rgba(31, 41, 51, 0.62);
+  font-style: normal;
 }
 
 /* Words section: outer dented well groups the Labels block. Matches the
@@ -41906,20 +42028,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 0;
 }
 .nb-words-grid__col--labels .label-chips {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   margin-bottom: 0;
 }
 .nb-words-grid__col--labels .label-chips__container {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-content: flex-start;
-  padding-top: 4px;
+  padding: 4px;
+  min-height: 0;
 }
 .nb-words-grid__col--labels .label-chips__input {
   align-self: center;
   margin-top: 0;
+}
+#within_ember .nb-words-grid__col--labels .label-chips__input:focus-visible {
+  border-radius: 18px;
 }
 /* Match chip height to the input field's visible chrome (input + focus ring)
    so chips and input align on the same baseline without shifting either. */
@@ -42109,14 +42235,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    steppers form a visually aligned band. Aligned to flex-start in the
    head so it sits at the top of the row beside the eyebrow pill. */
 .nb-section__head-checklist {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   width: fit-content;
-  height: 44px;
+  max-width: 100%;
+  min-height: 44px;
   margin: 0 4px !important;
-  padding: 0 12px !important;
+  padding: 6px 12px !important;
   align-self: flex-start;
   align-items: center;
-  border-radius: 999px;
+  border-radius: 22px;
   background: rgba(13, 36, 56, 0.04);
   box-shadow:
     inset 0 1px 2px rgba(13, 36, 56, 0.10),
@@ -42124,6 +42251,27 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .nb-checklist--inset {
   justify-content: flex-start !important;
+}
+
+/* On narrow screens (≤ $aac-breakpoint-sm), center the section-head
+   checklist + the steppers below it so the column reads as a centered
+   stack instead of left-pinned with empty space. */
+@media (max-width: $aac-breakpoint-sm) {
+  .nb-section__head {
+    justify-content: center;
+  }
+  .nb-section__head-checklist {
+    align-self: center;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .nb-checklist--inset {
+    justify-content: center !important;
+  }
+  .nb-section__head .new-board-dimensions {
+    align-self: center;
+    justify-content: center;
+  }
 }
 /* Pull the inset + steppers to the top of the section head, leaving the
    eyebrow pill's intrinsic height to drive the row's overall height. */
@@ -42203,6 +42351,109 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 12px;
   align-items: flex-end;
 }
+
+/* Yes/No question + iOS-style switch row. Used for "Are you creating this
+   board for someone else?" — controls visibility of the For dropdown. */
+.nb-toggle-row {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+}
+.nb-toggle-row__question {
+  flex: 0 1 auto;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--md-ink, #1f2933);
+}
+.nb-toggle-row__control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.nb-toggle-row__state {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(13, 36, 56, 0.4);
+  transition: color 0.18s ease;
+  user-select: none;
+}
+.nb-toggle-row__state--active {
+  color: var(--md-ink, #1f2933);
+}
+
+.nb-toggle__switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(13, 36, 56, 0.18);
+  background: rgba(13, 36, 56, 0.10);
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+.nb-toggle__switch--on {
+  background: rgba(44, 183, 176, 0.55);
+  border-color: rgba(44, 183, 176, 0.7);
+}
+.nb-toggle__thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(13, 36, 56, 0.18),
+    0 1px 3px rgba(13, 36, 56, 0.22);
+  transform: translateY(-50%);
+  transition: left 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nb-toggle__switch--on .nb-toggle__thumb {
+  left: 24px;
+}
+.nb-toggle__switch:focus-visible {
+  outline: 2px solid rgba(44, 183, 176, 0.6);
+  outline-offset: 3px;
+}
+
+/* Smoothly collapses the For dropdown when the toggle is set to No.
+   Animating max-height is the "modern" cheap way to do open/close
+   without measuring scroll height in JS. */
+.new-board-for-collapse {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: 0;
+  pointer-events: none;
+  transition:
+    max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s ease,
+    margin-top 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.new-board-for-collapse--open {
+  max-height: 220px;
+  opacity: 1;
+  margin-top: 4px;
+  pointer-events: auto;
+}
+/* Once the user opens the dropdown trigger, allow the list to spill
+   outside the collapse wrapper. Without this, the collapse's
+   overflow:hidden clips the absolutely-positioned <ul>, making the
+   dropdown look like it's not opening. Scoping under --open means we
+   don't fight the collapse animation — by the time the trigger can be
+   clicked, the wrapper is already fully expanded. */
+.new-board-for-collapse--open:has(.modern-select--open) {
+  overflow: visible;
+}
+
 .nb-field__row {
   display: flex;
   flex-wrap: wrap;
@@ -42557,6 +42808,116 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .nb-alert--warning .nb-alert__icon {
   color: #c97b14;
+}
+
+/* Speech-recognition listening UI — clear visual state so the user can
+   tell the mic is hot, see audio level, and stop / chunk dictation. */
+.nb-speech {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(44, 183, 176, 0.06);
+  border: 1px solid rgba(44, 183, 176, 0.18);
+}
+.nb-speech__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.nb-speech__indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(44, 183, 176, 0.12);
+  color: rgba(44, 183, 176, 0.7);
+  flex: 0 0 auto;
+}
+.nb-speech__indicator--active {
+  color: #c44;
+  background: rgba(220, 60, 60, 0.12);
+}
+.nb-speech__indicator--active::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(220, 60, 60, 0.7);
+  animation: nb-speech-pulse 1.4s ease-out infinite;
+}
+@keyframes nb-speech-pulse {
+  0%   { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.nb-speech__status {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--md-ink, #1f2933);
+  flex: 0 0 auto;
+}
+.nb-speech__meter {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(13, 36, 56, 0.08);
+  overflow: hidden;
+  min-width: 80px;
+}
+.nb-speech__meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(44, 183, 176, 0.85), rgba(44, 183, 176, 1));
+  border-radius: inherit;
+  transition: width 0.08s linear;
+  width: 0%;
+}
+.nb-speech__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.nb-speech__btn--stop {
+  border-color: rgba(180, 60, 60, 0.4);
+  color: #b3303a;
+}
+.nb-speech__btn--stop:hover {
+  background: rgba(220, 60, 60, 0.08);
+}
+.nb-speech__hint {
+  font-size: 14px;
+  color: var(--md-muted, #4a6e8e);
+  margin: 0 0 8px;
+}
+.nb-speech__words {
+  margin-bottom: 0;
+}
+.nb-speech__error {
+  position: relative;
+  padding-right: 36px;
+}
+.nb-speech__error-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.nb-speech__error-dismiss:hover,
+.nb-speech__error-dismiss:focus-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* Stylish info chip — used for inline recommendations / soft notes that
@@ -50641,6 +51002,40 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 1px 2px rgba(0, 0, 0, 0.35);
 }
+/* Copy-on-save variant: badge shifts to the warm-amber warning palette
+   used for the duplicate-label chip on create-board-new — signals to
+   the user that their edits will create a NEW board (not modify the
+   public one they navigated to). */
+.md-board-detail-header__sub-badge--copying {
+  color: #7a4a08;
+  border-color: rgba(217, 138, 36, 0.65);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 245, 224, 0.95) 0%,
+      rgba(252, 209, 138, 0.55) 55%,
+      rgba(252, 209, 138, 0.70) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.20),
+    0 1px 2px rgba(13, 36, 56, 0.06),
+    0 6px 16px -6px rgba(217, 138, 36, 0.45);
+}
+.md-board-detail--dark .md-board-detail-header__sub-badge--copying {
+  color: #ffd6a0;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(217, 138, 36, 0.30) 0%,
+      rgba(217, 138, 36, 0.18) 100%
+    );
+  border-color: rgba(252, 209, 138, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 6px 16px -6px rgba(217, 138, 36, 0.50);
+}
 .md-board-detail-header__sub--collapsed {
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -52473,9 +52868,24 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .high_contrast .md-board-detail-symbol-card__label-input {
   background: transparent;
   color: #f8fc03 !important;
+  /* 1px black outline (four corner shadows) keeps the high-contrast
+     yellow text WCAG-readable against any card background, including
+     white folder cards and light Fitzgerald fills (yellow/pink/rose).
+     The soft drop shadow adds depth without blurring the outline. */
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 1px 3px rgba(0, 0, 0, 0.6);
 }
 .high_contrast .md-board-detail-symbol-card__alt-text {
-  color: rgba(248, 252, 3, 0.5) !important;
+  color: rgba(248, 252, 3, 0.7) !important;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000;
 }
 .md-board-detail-symbol-card__image img {
   max-width: 100%;
@@ -53168,12 +53578,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: flex-end;
   flex-wrap: wrap;
   /* Center the sections so any wrapped bottom row is horizontally centered
-     instead of left-pinned. */
+     instead of left-pinned. justify-content: center keeps contents
+     centered horizontally regardless of the toolbar's outer width, so we
+     can drop the horizontal padding and let the section pills stretch
+     to the toolbar's edges without affecting centering. */
   justify-content: center;
   /* row-gap comes first: more vertical breathing room when sections wrap
      onto a new line; column-gap keeps the tighter 14px horizontal spacing. */
   gap: 18px 14px;
-  padding: 10px 24px 8px;
+  padding: 10px 0 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   border: 1px solid rgba($la-navy, 0.22);
   border-radius: 16px;
@@ -53277,15 +53690,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
   gap: 18px 14px;
 }
-/* On wider viewports, widen the side padding on the edit toolbar so the
-   display-prefs row runs out of horizontal space sooner and Gap/Border,
-   Skin-Tones, and Hidden wrap onto a second line together. */
-@media (min-width: 1201px) {
-  .md-board-detail-edit-toolbar {
-    padding-left: 140px;
-    padding-right: 140px;
-  }
-}
+/* (Removed: previously a media query at min-width 1201px added 140px of
+   horizontal padding to force the display-prefs row to wrap sooner. The
+   toolbar's centering uses justify-content:center so contents stay
+   centered without any horizontal padding; section pills can extend to
+   the toolbar edges. If display-prefs wrapping needs to be tuned again,
+   prefer a max-width on the inner row over re-introducing padding.) */
 /* Hide the vertical dividers inside the expanded display-prefs row — the
    per-section pills are already visually distinct and the dividers muddy
    the wrapped layout. */
@@ -53313,14 +53723,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  gap: 8px;
   height: 32px;
-  padding: 0;
+  padding: 0 14px 0 12px;
   border-radius: 999px;
   border: 1px solid rgba($la-navy, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   box-shadow:
     0 2px 6px rgba($la-navy, 0.12),
     0 1px 2px rgba($la-navy, 0.06),
@@ -53328,6 +53741,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.2s ease;
+}
+.md-board-detail-edit-toolbar__expand-btn__label {
+  letter-spacing: 0.01em;
 }
 .md-board-detail-edit-toolbar__expand-btn:hover,
 .md-board-detail-edit-toolbar__expand-btn:focus-visible {
@@ -53840,55 +54256,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $brand-danger;
 }
 
-/* ── Non-edit context menu (Stash / Word Data) on symbol cards ───────── */
-.md-board-detail-symbol-card__context-actions {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-}
-.md-board-detail-symbol-card:hover .md-board-detail-symbol-card__context-actions,
-.md-board-detail-symbol-card:focus-within .md-board-detail-symbol-card__context-actions,
-.md-board-detail-symbol-card__context-actions:has(button[aria-expanded="true"]),
-.md-board-detail-symbol-card__context-actions:focus-within {
-  opacity: 1;
-  pointer-events: auto;
-}
-/* Touch devices (no hover): show with subtle opacity so users can find it. */
-@media (hover: none) {
-  .md-board-detail-symbol-card__context-actions {
-    opacity: 0.6;
-    pointer-events: auto;
-  }
-  .md-board-detail-symbol-card__context-actions:focus-within {
-    opacity: 1;
-  }
-}
-.md-board-detail-symbol-card__edit-menu-trigger--context {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  border: 1px solid rgba($la-navy, 0.12);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  color: rgba($la-navy, 0.75);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 1px 3px rgba($la-navy, 0.08);
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.md-board-detail-symbol-card__edit-menu-trigger--context:hover,
-.md-board-detail-symbol-card__edit-menu-trigger--context:focus-visible {
-  background: #fff;
-  color: $la-navy;
-  border-color: rgba($brand-verdigris, 0.3);
-  box-shadow: 0 2px 6px rgba($la-navy, 0.12);
-  outline: none;
-}
-
 /* ── Inline vs dropdown edit actions (container query) ── */
 /* By default: show inline, hide dropdown */
 .md-board-detail-symbol-card__edit-actions--dropdown {
@@ -54017,7 +54384,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-btn:focus-visible,
 .md-board-detail-suggestion:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px $brand-verdigris, 0 0 0 5px rgba($brand-verdigris, 0.15);
+  /* Use the AA-compliant darker verdigris so the focus ring stays
+     legible against the light dropdown / card backgrounds used by the
+     per-button menus (Edit/Color/Stash/...). The lighter $brand-verdigris
+     was failing 'light-on-light' against white menu surfaces. */
+  box-shadow: 0 0 0 3px $brand-verdigris-aa, 0 0 0 5px rgba($brand-verdigris-aa, 0.18);
 }
 
 /* Stepper variant with tighter label for settings */
@@ -55055,6 +55426,55 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-folder-tab__label-input {
   font-size: var(--bd-button-text-size, 18px);
 }
+/* In tab-labels folder mode + symbol_background_black: the folder
+   front is forced white (line 55493 above), so the tab needs a light
+   background and dark label to read well — mirroring how the symbol
+   card label shows in dark navy on the default "Colored" bg setting.
+   Both modifier classes live on the SAME .md-board-detail-grid
+   element, so the selectors are concatenated (no descendant space). */
+.md-board-detail-grid--folder-tab-labels.symbol_background_black .md-folder-tab {
+  background: #fff !important;
+}
+.md-board-detail-grid--folder-tab-labels.symbol_background_black .md-folder-tab__label,
+.md-board-detail-grid--folder-tab-labels.symbol_background_black .md-folder-tab__label-input {
+  color: $la-navy !important;
+}
+.md-board-detail-grid--folder-tab-labels.symbol_background_black .md-folder-tab__label-input::placeholder {
+  color: rgba($la-navy, 0.5) !important;
+}
+
+/* Default + colored-corner folder modes + symbol_background_black:
+   the folder front is forced white, but the symbol_background_black
+   rule colors all card labels white — leaving folder labels invisible
+   (white-on-white). Override to dark navy on folder cells specifically.
+   Higher specificity than the base symbol_background_black .label rule
+   so it wins. */
+.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label,
+.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label-input {
+  color: $la-navy !important;
+}
+.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__alt-text {
+  color: rgba($la-navy, 0.6) !important;
+}
+
+/* High-contrast + tab-labels mode: the folder tab label can render
+   over light Fitzgerald-colored backgrounds (yellow/pink/rose), where
+   the high-contrast yellow text loses contrast. A 1px black outline
+   (four corner shadows) plus a soft drop shadow gives the text a
+   dark "halo" that keeps WCAG contrast on any background — light or
+   dark — without changing the text color itself. */
+.md-board-detail-grid--folder-tab-labels.high_contrast .md-folder-tab__label,
+.md-board-detail-grid--folder-tab-labels.high_contrast .md-folder-tab__label-input {
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.md-board-detail-grid--folder-tab-labels.high_contrast .md-folder-tab__label-input::placeholder {
+  text-shadow: none;
+}
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell--folder {
   justify-content: flex-end;
 }
@@ -55110,6 +55530,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
   display: none;
 }
+/* (Removed: previously the colored-corner folder style auto-painted
+   the folder face with var(--btn-bg) in edit mode, plus a set of
+   bg-preference sub-overrides to undo that paint when the user had
+   chosen a non-colored symbol background. Now redundant because the
+   standalone "Colored Folder Front" toggle in the Folders section
+   handles painting the face on demand — independently of the folder
+   display style. The base folder rule (#fff face) and the general
+   symbol_background_* rules cover all other cases.) */
 /* Folder display style dropdown */
 .md-board-detail-folder-dropdown {
   position: absolute;
@@ -55150,6 +55578,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $la-navy;
   font-weight: 600;
 }
+/* When the "Colored Folder Front" toggle is on, paint the folder card
+   face with the button's Fitzgerald color (var(--btn-bg)). Applies in
+   any folder display style (default / tab_labels / colored_corner) and
+   in any mode (speak / edit). Higher specificity (0,2,1) beats the
+   base folder-front rule (0,1,1). */
+.md-board-detail-grid--folder-colored-face .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+  background: var(--btn-bg, #fff) !important;
+}
 /* In default folder mode, non-folder cells pick up the same 12px top reserve
    the folder cells use for their tab — so non-folder buttons render the same
    visual height as the folder fronts, keeping the grid rows aligned. */
@@ -55181,7 +55617,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
 }
-/* Folder badge icon — small, modern */
+/* Folder badge icon — small, modern. Colored to match what a regular
+   board button's outline would be: 20% darker than the Fitzgerald POS
+   color (the same darken-by-20 transform tinycolor applies to compute
+   border_color from background_color in _make_btn). color-mix with
+   black at 20% is the CSS equivalent. Falls back to charcoal blue when
+   the button has no assigned color. */
 .md-board-detail-symbol-card__folder-badge {
   position: absolute;
   top: 6px;
@@ -55193,9 +55634,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   height: 22px;
   border-radius: 6px;
   background: rgba($brand-charcoal-blue, 0.08);
-  color: rgba($brand-charcoal-blue, 0.45);
+  color: color-mix(in srgb, var(--btn-bg, #46505F) 80%, black 20%);
   z-index: 2;
   transition: background 0.15s ease, color 0.15s ease;
+}
+/* Placeholder folder icon shown on the face when the folder has no
+   image. Painted at the same color a board button's outline would be —
+   20% darker than the Fitzgerald POS color via color-mix. Solid (no
+   opacity reduction) so the icon reads at the same weight as a real
+   button outline; the placeholder div behind it carries the lighter
+   tinted fill. */
+.md-board-detail-symbol-card__folder-placeholder {
+  color: color-mix(in srgb, var(--btn-bg, #888) 80%, black 20%);
+  max-width: 60%;
+  max-height: 60%;
+}
+/* Folder cards' placeholder image area: tint the wrapping div with the
+   folder's color (var(--btn-bg)) at low opacity so the area behind the
+   folder SVG icon picks up the Fitzgerald POS color too. Falls back to
+   the verdigris tint used by non-folder placeholders when the folder
+   has no assigned color. Scoped to folder cards so non-folder empty
+   buttons keep their neutral verdigris background. */
+.md-board-detail-symbol-card--folder .md-board-detail-symbol-card__image--placeholder {
+  background: color-mix(in srgb, var(--btn-bg, #2A9D8F) 25%, transparent);
 }
 /* Folder label styling */
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__label {
@@ -56109,6 +56570,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail--dark .md-board-detail-edit-toolbar__btn:disabled:hover {
   background: #2a3344;
+}
+/* Active-state override in dark mode: without this, the dark-mode base
+   rule above (specificity 0,2,0) wins over the active rule (0,1,0) and
+   active toolbar buttons render with the inactive dark bg. Mirrors the
+   md-settings-icon-btn--active dark-mode rule so the Speak Bar's
+   active option and the toolbar's active toggles share the same blue-
+   grey bg in both light and dark modes. */
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn--active,
+.md-board-detail--dark .md-board-detail-edit-toolbar__btn--active:hover {
+  background: $brand-blue-grey;
+  color: $brand-blue-black;
+  border-color: rgba($brand-charcoal-blue, 0.3);
 }
 .md-board-detail--dark .md-board-detail-edit-toolbar__btn svg {
   filter: brightness(3);
@@ -58976,6 +59449,294 @@ a.md-caseload__action {
   margin-left: 6px;
 }
 
+/* Database schema explorer (admin / support) */
+.la-wrapper.la-wrapper--pricing .la-section.la-database-explorer {
+  padding: 0;
+  margin: 0;
+}
+.la-database-explorer ~ *,
+.la-database-explorer .la-support-content-wrapper {
+  max-width: none;
+}
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-support-content-wrapper {
+  max-width: none;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+.la-database-explorer__body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--md-ink, $brand-blue-black);
+}
+/* 14px floor — bump specificity with wrapper prefix to outrank generic
+   .md-support-content / Bootstrap rules that shrink children below 14px. */
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__label-text,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__search-input,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__loading,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__table-btn,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__column-count,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__columns-table,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__columns-table th,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__columns-table td,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__columns-table code,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__cell-default,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__cell-name,
+.la-wrapper.la-wrapper--pricing .la-database-explorer .la-database-explorer__cell-type {
+  font-size: 14px;
+}
+.la-database-explorer__header .la-pricing-hero-subtitle {
+  max-width: 44rem;
+}
+.la-database-explorer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+  margin-bottom: 20px;
+}
+.la-database-explorer__search-label {
+  flex: 1 1 220px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.la-database-explorer__search-input {
+  width: 100%;
+}
+.la-database-explorer__label-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.85;
+}
+.la-database-explorer__search-input {
+  font-size: 1rem;
+}
+.la-database-explorer__loading {
+  margin: 8px 0 16px;
+  color: var(--md-muted, $la-navy);
+}
+.la-database-explorer__layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+.la-database-explorer__sidebar {
+  flex: 1 1 240px;
+  max-width: 100%;
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.la-database-explorer__table-list {
+  margin-bottom: 0;
+}
+.la-database-explorer__table-item {
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.la-database-explorer__table-item:last-child {
+  border-bottom: none;
+}
+.la-database-explorer__table-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0;
+}
+.la-database-explorer__table-btn:hover,
+.la-database-explorer__table-btn:focus-visible {
+  background: rgba(100, 185, 188, 0.12);
+  outline: none;
+}
+.la-database-explorer__table-btn--active {
+  font-weight: 700;
+  background: rgba(100, 185, 188, 0.18);
+}
+.la-database-explorer__main {
+  flex: 2 1 320px;
+  min-width: 0;
+}
+.la-database-explorer__table-title {
+  font-size: 1.35rem;
+  margin: 0 0 8px;
+  word-break: break-word;
+}
+.la-database-explorer__column-count {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+.la-database-explorer__table-wrap {
+  margin-top: 4px;
+}
+.la-database-explorer__columns-table {
+  font-size: 1rem;
+}
+.la-database-explorer__columns-table th,
+.la-database-explorer__columns-table td {
+  font-size: 1rem;
+}
+.la-database-explorer__columns-table code {
+  font-size: 1em;
+  word-break: break-word;
+}
+.la-database-explorer__cell-default {
+  word-break: break-word;
+  max-width: 22rem;
+  font-size: 1rem;
+}
+
+/* Tabs at the top of the database explorer card. */
+.la-database-explorer__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.la-database-explorer__tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--md-muted, $la-navy);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.la-database-explorer__tab:hover {
+  color: var(--md-ink, $brand-blue-black);
+}
+.la-database-explorer__tab--active {
+  color: var(--md-ink, $brand-blue-black);
+  border-bottom-color: rgba(100, 185, 188, 0.9);
+}
+
+/* Contents tab — stack the table picker on top, preview below. */
+.la-database-explorer__layout--stacked {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+.la-database-explorer__sidebar--top {
+  flex: 0 0 auto;
+  max-width: none;
+  width: 100%;
+  max-height: 200px;          /* limited height — scroll inside if list is long */
+}
+.la-database-explorer__main--wide {
+  flex: 1 1 100%;
+  min-width: 0;
+  width: 100%;
+}
+/* Contents tab — wide row table with horizontal scroll. */
+.la-database-explorer__contents-wrap {
+  max-height: min(70vh, 600px);
+  overflow: auto;
+}
+.la-database-explorer__layout--stacked .la-database-explorer__contents-wrap {
+  max-height: min(75vh, 800px);
+}
+.la-database-explorer__contents-table {
+  font-size: 14px;
+}
+.la-database-explorer__contents-table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+/* Pin the first column so id/primary key stays visible while scrolling
+   horizontally. Header cell (top-left) needs both sticky directions plus a
+   higher z-index so it sits above other sticky cells when both axes scroll. */
+.la-database-explorer__contents-table thead th:first-child {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: #fff;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+.la-database-explorer__contents-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+/* Match Bootstrap .table-striped row backgrounds on the pinned column so the
+   stripe pattern continues underneath the freeze. */
+.la-database-explorer__contents-table.table-striped tbody tr:nth-child(odd) td:first-child {
+  background: #f9f9f9;
+}
+.la-database-explorer__contents-table.table-striped tbody tr:nth-child(even) td:first-child {
+  background: #fff;
+}
+.la-database-explorer__contents-cell {
+  vertical-align: top;
+  padding: 8px 12px !important;
+}
+.la-database-explorer__contents-cell-clamp {
+  max-width: 28rem;
+  max-height: 4.4em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  white-space: pre-wrap;
+  cursor: zoom-in;
+}
+.la-database-explorer__contents-cell-clamp:hover,
+.la-database-explorer__contents-cell-clamp:focus {
+  max-height: none;
+  -webkit-line-clamp: unset;
+  display: block;
+  cursor: zoom-out;
+  background: rgba(255, 248, 220, 0.55);
+}
+.la-database-explorer__pager {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.la-database-explorer__pager-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinner shown while contents load — visible animated indicator instead of
+   plain text so the user knows something is happening. */
+.la-database-explorer__spinner-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  gap: 12px;
+  color: var(--md-muted, #4a6e8e);
+}
+.la-database-explorer__spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(0, 0, 0, 0.12);
+  border-top-color: rgba(100, 185, 188, 0.9);
+  border-radius: 50%;
+  animation: la-database-explorer__spin 0.8s linear infinite;
+}
+@keyframes la-database-explorer__spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Custom confirm dialog — brand-styled replacement for browser confirm().
    Used in button-settings "Clear Button" and reusable elsewhere.
@@ -59365,4 +60126,539 @@ blockquote .small,
 blockquote footer,
 blockquote small {
   font-size: 14px !important;
+}
+
+/* Beta feedback form (same wrapper as support) */
+.beta-feedback-panel {
+  background: transparent;
+}
+.beta-feedback-panel__header {
+  position: relative;
+  text-align: center;
+  padding: 0 0 1.5rem;
+}
+.beta-feedback-panel__intro {
+  margin-left: auto;
+  margin-right: auto;
+}
+.beta-feedback-panel__privacy-note {
+  max-width: 720px;
+  margin: 0.75rem auto 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-panel__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-drawer-tab {
+  position: fixed;
+  top: var(--topbar-height, 70px);
+  left: 50%;
+  z-index: 1078;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  padding: 0.35rem 0.9rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, #263d5c 0%, $indigo 40%, #0d1525 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.app-navbar .app-navbar__inner {
+  overflow: visible !important;
+}
+.beta-feedback-drawer-tab--navbar {
+  position: absolute;
+  top: 100%;
+}
+.beta-feedback-drawer-tab--speak {
+  top: 0;
+}
+.beta-feedback-drawer-tab:hover {
+  color: #fff;
+  outline: none;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.16);
+}
+.beta-feedback-drawer-tab:focus-visible {
+  color: #fff;
+  outline: none;
+  box-shadow: 0 3px 0 rgba($brand-charcoal-blue, 0.16), 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.beta-feedback-drawer-tab__caret {
+  transition: transform 0.18s ease;
+}
+.beta-feedback-drawer-tab--open .beta-feedback-drawer-tab__caret {
+  transform: rotate(180deg);
+}
+.beta-feedback-drawer {
+  --beta-feedback-drawer-offset: var(--topbar-height, 70px);
+  position: fixed;
+  top: var(--beta-feedback-drawer-offset);
+  left: 0;
+  right: 0;
+  z-index: 1077;
+  pointer-events: none;
+  transition: transform 0.24s ease, opacity 0.18s ease;
+}
+#within_ember > header.header-index-with-dark-toggle:not(.header--hidden):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header)) + .beta-feedback-drawer {
+  --beta-feedback-drawer-offset: 70px;
+}
+#within_ember > header.header-index-with-dark-toggle:not(.header--hidden):has(#inner_header #nav_header) + .beta-feedback-drawer {
+  --beta-feedback-drawer-offset: 129px;
+}
+.beta-feedback-drawer--speak {
+  --beta-feedback-drawer-offset: 0px;
+}
+.beta-feedback-drawer__panel {
+  width: min(780px, calc(100vw - 36px));
+  max-height: calc(100vh - var(--beta-feedback-drawer-offset) - 22px);
+  margin: 0 auto;
+  overflow-y: auto;
+  pointer-events: auto;
+  border-radius: 0 0 20px 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba($brand-blue-black, 0.22), 0 8px 28px rgba($brand-blue-black, 0.12);
+  padding: 1.5rem;
+}
+.beta-feedback-drawer--hidden {
+  transform: translateY(calc(-100% - 18px));
+  opacity: 0;
+}
+.beta-feedback-drawer--hidden .beta-feedback-drawer__panel {
+  pointer-events: none;
+}
+.beta-feedback-drawer--open {
+  transform: translateY(0);
+  opacity: 1;
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0;
+  text-align: center;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+.beta-feedback-panel--drawer .beta-feedback-panel__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-panel .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.la-wrapper--support .la-support-form.md-support-form {
+  position: relative;
+}
+.la-wrapper--support .la-beta-feedback__reaction-options,
+.beta-feedback-drawer .la-beta-feedback__reaction-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn {
+  min-height: 5.25rem;
+  border: 2px solid rgba($brand-blue-black, 0.12);
+  border-radius: 16px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.la-wrapper--support .la-beta-feedback__reaction-btn--selected,
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--selected {
+  border-color: $brand-charcoal-blue;
+  box-shadow: 0 0 0 3px rgba($brand-charcoal-blue, 0.14);
+}
+.la-beta-feedback__reaction-face {
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 0.4rem;
+}
+.la-beta-feedback__reaction-face--neutral {
+  color: #a16207;
+}
+.la-beta-feedback__reaction-face--frown {
+  color: #b91c1c;
+}
+.la-beta-feedback__reaction-face--smile {
+  color: #15803d;
+}
+.la-beta-feedback__reaction-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.la-beta-feedback__reaction-icon circle:not(:first-child) {
+  fill: currentColor;
+  stroke: none;
+}
+.la-wrapper--support .la-contact-input--file {
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-preview,
+.beta-feedback-drawer .la-beta-feedback__screenshot-preview {
+  margin-top: 0.75rem;
+}
+.la-wrapper--support .la-beta-feedback__screenshot-img,
+.beta-feedback-drawer .la-beta-feedback__screenshot-img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba($brand-charcoal-dark, 0.15);
+  display: block;
+}
+.la-wrapper--support .la-beta-feedback__clear-shot,
+.beta-feedback-drawer .la-beta-feedback__clear-shot {
+  margin-top: 0.5rem;
+}
+
+.la-wrapper--support .la-beta-feedback__dropzone,
+.beta-feedback-drawer .la-beta-feedback__dropzone {
+  border: 2px dashed rgba($brand-charcoal-dark, 0.28);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+  min-height: 5.5rem;
+  background: rgba(255, 255, 255, 0.45);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-wrapper--support .la-beta-feedback__dropzone:focus-visible,
+.beta-feedback-drawer .la-beta-feedback__dropzone:focus-visible {
+  @include focus-ring;
+}
+.la-wrapper--support .la-beta-feedback__dropzone--active,
+.beta-feedback-drawer .la-beta-feedback__dropzone--active {
+  border-color: rgba($brand-charcoal-blue, 0.55);
+  background: rgba(70, 95, 120, 0.08);
+  box-shadow: inset 0 0 0 1px rgba($brand-charcoal-blue, 0.12);
+}
+.la-wrapper--support .la-beta-feedback__dropzone-hint,
+.beta-feedback-drawer .la-beta-feedback__dropzone-hint {
+  font-size: 14px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+  margin: 0 0 0.75rem 0;
+}
+.la-wrapper--support .la-beta-feedback__file-input,
+.beta-feedback-drawer .la-beta-feedback__file-input {
+  width: 100%;
+  max-width: 100%;
+}
+.la-beta-feedback__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.la-beta-feedback__recording-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.la-beta-feedback__recording-preview {
+  margin-top: 0.9rem;
+}
+.la-beta-feedback__recording-video,
+.la-beta-feedback-detail__recording {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-dark, 0.15);
+  background: #000;
+}
+.la-beta-feedback-admin__priority {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.la-beta-feedback-admin__priority--high {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+.la-beta-feedback-admin__priority--medium {
+  color: #78350f;
+  background: #fef3c7;
+}
+.la-beta-feedback-admin__priority--low {
+  color: #14532d;
+  background: #dcfce7;
+}
+.la-beta-feedback-detail__priority-controls {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* Beta feedback: client-side validation banner and field highlights */
+#beta-feedback-hero .la-beta-feedback__validation-banner {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.95);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+#beta-feedback-hero .la-contact-form__field-error {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #b91c1c;
+  margin: 0.375rem 0 0;
+}
+#beta-feedback-hero .la-contact-form__row--error .la-contact-form__label {
+  color: #991b1b;
+}
+#beta-feedback-hero .la-contact-input--invalid,
+#beta-feedback-hero select.la-contact-input--invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+#beta-feedback-hero .la-contact-input--invalid:focus-visible {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  outline: none;
+}
+
+@media (max-width: 720px) {
+  .beta-feedback-drawer-tab {
+    top: var(--topbar-height, 70px);
+    font-size: 0.95rem;
+    min-height: 34px;
+  }
+  .beta-feedback-drawer-tab--navbar {
+    top: 100%;
+  }
+  .beta-feedback-drawer-tab--speak {
+    top: 0;
+  }
+  .beta-feedback-drawer__panel {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 78px);
+    padding: 1rem;
+  }
+  .la-wrapper--support .la-beta-feedback__reaction-options,
+  .beta-feedback-drawer .la-beta-feedback__reaction-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Beta Feedback modal ─────────────────────────────────────────────────
+   Sizing/chrome mirror the find-button modal pattern (full-height,
+   border-radius 18px, .la-modal-header + .la-modal-close). Header
+   reuses the about-page hero composition (.la-section-eyebrow-badge +
+   .la-hero-title with .hero-gradient + .la-about-hero-separator +
+   .la-pricing-hero-subtitle) so the modal reads as a "mini about-page".
+   Form fields rely on the global .la-contact-input / .la-btn classes —
+   no per-modal restyling. */
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) {
+  max-width: 845px; /* find-button modal is 676px; this is ~25% wider. */
+  width: calc(100vw - 16px);
+  height: calc(100vh - 8px);
+  max-height: calc(100vh - 8px);
+  margin: 4px auto;
+  display: flex;
+  flex-direction: column;
+}
+.modal .modal-dialog:has(.beta-feedback-modal-wrap) > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.modal-content:has(.beta-feedback-modal-wrap) {
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba($brand-blue-black, 0.18), 0 8px 24px rgba($brand-blue-black, 0.10);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.beta-feedback-modal-wrap {
+  background: #fff;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header: about-page hero composition, centered inside a la-modal-header
+   shell with the close button pinned to the top-right. */
+.beta-feedback-modal-wrap > .la-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.1));
+  background: rgba(255, 255, 255, 0.6);
+}
+.beta-feedback-modal__hero {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+/* Mirror the about-page hero treatment for the modal header. .la-hero-title
+   and the eyebrow margin override are both scoped to .la-wrapper /
+   .la-wrapper--about in their original definitions, so we re-apply the
+   computed about-page values here. */
+.beta-feedback-modal__hero .la-section-eyebrow-badge {
+  margin-bottom: 2.5rem;
+}
+.beta-feedback-modal__title {
+  font-family: 'Maitree', serif;
+  font-weight: 600;
+  color: $indigo;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0 0 $aac-spacing-24;
+  font-size: 35px;
+  @media (max-width: 1366px) { font-size: 27px; }
+  @media (max-width: 1200px) { font-size: 24px; }
+  @media (max-width: 1024px) { font-size: 20px; }
+  @media (max-width: 480px)  { font-size: 17px; }
+}
+/* Match the support-page rule (.la-wrapper--support .hero-gradient) so the
+   "Feedback" gradient text sizes 1:1 with "Beta " — without this it inherits
+   the global 1.155em and reads slightly larger than the prefix. */
+.beta-feedback-modal__title .hero-gradient {
+  font-size: 1em;
+}
+.beta-feedback-modal__subtitle {
+  margin: 1.5rem auto 0;
+  max-width: 680px;
+  font-size: 24px;
+  font-weight: 400;
+  color: $brand-charcoal-dark;
+  line-height: 1.75;
+  letter-spacing: 0.005em;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: var(--md-muted, $brand-slate-gray);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:hover,
+.beta-feedback-modal-wrap > .la-modal-header > .la-modal-close:focus-visible {
+  background: #fff;
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+
+/* Body: scrolls when content overflows the available modal height. */
+.beta-feedback-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px 28px;
+}
+
+@media (max-width: 600px) {
+  .beta-feedback-modal-wrap > .la-modal-header {
+    padding: 20px 20px 16px;
+  }
+  .beta-feedback-modal__subtitle {
+    font-size: 16px;
+  }
+  .beta-feedback-modal__body {
+    padding: 18px 20px 20px;
+  }
+}
+
+.la-wrapper--support .la-support-cookies-btn {
+  font-size: 14px; /* 25% larger than 1rem */
+}
+
+/* About "Built around" section: same 1px divider as top of page */
+.la-wrapper.la-wrapper--about #about-what-we-offer .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-items .la-section-header .la-about-hero-separator,
+.la-wrapper.la-wrapper--about #faq-questions .la-section-header .la-about-hero-separator {
+  height: 1px;
+  max-width: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-pricing-hero-subtitle,
+.la-wrapper.la-wrapper--about #faq-hero .la-pricing-hero-subtitle {
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.la-wrapper.la-wrapper--about #about-hero .la-section-header + .la-feature-grid {
+  margin-top: -2rem;
+}
+
+/* Features page hero: same layout and styling as about hero top */
+.la-wrapper.la-wrapper--about #features-hero .la-section-header,
+.la-wrapper.la-wrapper--features #features-hero .la-section-header {
+  margin-bottom: 0;
+  max-width: 748px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }

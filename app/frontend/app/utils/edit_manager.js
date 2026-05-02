@@ -1246,15 +1246,17 @@ var editManager = EmberObject.extend({
     }
   },
   bogus_id_counter: 0,
-  fake_button: function() {
+  fake_button: function(board) {
     var button = editManager.Button.create({
       empty: true,
       label: '',
       id: --this.bogus_id_counter
     });
     var controller = this.controller;
-    var board = controller.get('model');
-    button.set('board', board);
+    board = board || (controller && controller.get && controller.get('model'));
+    if(board) {
+      button.set('board', board);
+    }
     return button;
   },
   modify_size: function(type, action, index) {
@@ -1906,7 +1908,7 @@ var editManager = EmberObject.extend({
               button = editManager.Button.create(buttons[kdx], more_args);
             }
           }
-          button = button || _this.fake_button();
+          button = button || _this.fake_button(board);
           if(!button.everything_local() && need_everything_local) {
             allButtonsReady = false;
             pending_buttons.push(button);

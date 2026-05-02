@@ -49,6 +49,10 @@ export default Component.extend({
       }
       this._ctaSectionObserver = null;
     }
+    if (this._spaceKeyHandler) {
+      document.removeEventListener('keydown', this._spaceKeyHandler);
+      this._spaceKeyHandler = null;
+    }
   },
 
   _setupSpaceKeyActivation() {

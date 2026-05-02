@@ -95,6 +95,55 @@ LingoLinq.Buttonset = DS.Model.extend({
     // load_button_set() without force racing copy-modal load_button_set(true,...)).
     // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
     var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
+    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise),
+    // don't stall new ones forever. We'll wait at most this many ms for the tail. On timeout
+    // we clear the stranded chain so the next call doesn't immediately time out again, and
+    // emit telemetry so we can observe how often this fires in production.
+    // Override LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS in tests to keep them fast.
+    var SERIAL_TAIL_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS) || 30000;
+    var wait = new RSVP.Promise(function(resolve) {
+      var done = false;
+      var timeoutId = null;
+      var settle = function() {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        resolve();
+      };
+      prev.then(settle, settle);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
+        // Only clear the tail if it is still the hung previous promise; by the time the
+        // timeout fires the tail has already been advanced to this call's wait.then(work)
+        // chain, so an unconditional null here would drop the current active serialization.
+        if(bs.__loadButtonsSerialTail === prev) {
+          bs.__loadButtonsSerialTail = null;
+        }
+        settle();
+      }, SERIAL_TAIL_TIMEOUT_MS);
+    });
+    // Tracks the active progress_tracker track id (if regenerate is called) so that
+    // every settlement path (resolve, reject, master timeout) can untrack and stop
+    // the 2.5s polling loop. Without this the poller leaks: track() returns an id,
+    // but the previous code discarded it, so on timeout the promise rejected while
+    // the poll continued forever.
+    var active_track_id = null;
+    var untrack_active = function() {
+      if(active_track_id) {
+        try { progress_tracker.untrack(active_track_id); } catch(e) { }
+        active_track_id = null;
+      }
+    };
+    // Stalled `started` threshold. If the Resque worker dies mid-flight (SIGKILL/OOM/
+    // redeploy) while the Progress record is at status='started', the record never
+    // advances. The poller keeps returning `started` and without this branch the
+    // wrapping promise hangs until the 60s master timeout fires. 45s is generous for
+    // legitimate large-board generation while still firing before the master timeout.
+    var STARTED_STALL_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.STARTED_STALL_MS) || 45000;
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -113,10 +162,19 @@ LingoLinq.Buttonset = DS.Model.extend({
                     gen_rej({error: 'generate response missing progress'});
                     return;
                   }
-                  progress_tracker.track(data.progress, function(event) {
+                  var started_seen_at = null;
+                  var settle_gen_res = function(u) {
+                    untrack_active();
+                    gen_res(u);
+                  };
+                  var settle_gen_rej = function(err) {
+                    untrack_active();
+                    gen_rej(err);
+                  };
+                  active_track_id = progress_tracker.track(data.progress, function(event) {
                     try {
                       if(event.status == 'errored') {
-                        gen_rej({error: 'error while generating button set'});
+                        settle_gen_rej({error: 'error while generating button set'});
                       } else if(event.status == 'finished' || event.finished_at) {
                         var r = event && event.result;
                         if(typeof r === 'string') {
@@ -124,15 +182,22 @@ LingoLinq.Buttonset = DS.Model.extend({
                         }
                         var u = r && (r.url || r['url']);
                         if(u) {
-                          gen_res(u);
+                          settle_gen_res(u);
                         } else {
-                          gen_rej({error: 'progress finished without button set url', result: r});
+                          settle_gen_rej({error: 'progress finished without button set url', result: r});
+                        }
+                      } else if(event.status == 'started' || event.status == 'pending') {
+                        if(started_seen_at === null) {
+                          started_seen_at = Date.now();
+                        } else if(Date.now() - started_seen_at > STARTED_STALL_MS) {
+                          try { LingoLinq.track_error('buttonset progress stalled at ' + event.status + ' for board ' + board_id); } catch(e) { }
+                          settle_gen_rej({error: 'generation_stalled', board_id: board_id, status: event.status});
                         }
                       }
                     } catch(e) {
-                      gen_rej({error: 'exception handling button set progress', details: e});
+                      settle_gen_rej({error: 'exception handling button set progress', details: e});
                     }
-                  });  
+                  });
                 } catch(e) {
                   gen_rej({error: 'exception setting up progress track', details: e});
                 }
@@ -240,8 +305,42 @@ LingoLinq.Buttonset = DS.Model.extend({
         reject({error: 'root url not available'});
       }
     });
-    bs.__loadButtonsSerialTail = prev.then(function() { return work; }, function() { return work; });
-    return work;
+    // Master timeout on the work promise itself. The serial-tail timeout above only
+    // unblocks the queue when a PREVIOUS work promise hangs; it does not bound the
+    // current work. If the server-side buttonset generate job never reports back via
+    // progress_tracker (job died mid-flight, Redis state poisoned, etc.) the inner
+    // RSVP.Promise above will sit pending forever. Wrap it so callers (e.g. copy modal)
+    // see a clean rejection instead of an indefinite "loading" state.
+    // Override LingoLinq.Buttonset.WORK_TIMEOUT_MS in tests to keep them fast.
+    var WORK_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.WORK_TIMEOUT_MS) || 60000;
+    var work_with_timeout = new RSVP.Promise(function(resolve, reject) {
+      var done = false;
+      var timeoutId = null;
+      var settle_resolve = function(v) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
+        resolve(v);
+      };
+      var settle_reject = function(e) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
+        reject(e);
+      };
+      work.then(settle_resolve, settle_reject);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        var current_buttons = bs.get('buttons') || [];
+        var buttons_count = current_buttons.length || 0;
+        try { LingoLinq.track_error('buttonset load_buttons work timed out for board ' + board_id + ' (buttons.length=' + buttons_count + ')'); } catch(e) { }
+        settle_reject({error: 'buttonset load timed out', board_id: board_id, buttons_count: buttons_count});
+      }, WORK_TIMEOUT_MS);
+    });
+    bs.__loadButtonsSerialTail = wait.then(function() { return work_with_timeout; }, function() { return work_with_timeout; });
+    return work_with_timeout;
   },
   redepth: function(from_board_id) {
     var buttons = this.get('buttons') || [];

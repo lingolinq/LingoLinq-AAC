@@ -45,6 +45,12 @@ var boundClasses = {};
           // Always use an outline 20% darker than the background for visibility
           var autoBorder = window.tinycolor(button.background_color).darken(20);
           str = str + 'outline-color: ' + autoBorder.toRgbString() + ';';
+          // Also expose the same darkened color as a CSS variable so
+          // .button's `box-shadow: inset 0 0 0 3px var(--btn-ring-color)`
+          // renders the inner ring uniformly on all four sides (the
+          // outline+negative-offset approach was rendering thinner on
+          // the top edge with rounded corners).
+          str = str + '--btn-ring-color: ' + autoBorder.toRgbString() + ';';
           str = str + 'background-color: ' + fill.toRgbString() + ';';
           str = str + '--btn-bg: ' + fill.toRgbString() + ';';
           button.dark_border_color = autoBorder.darken(5).toRgbString();

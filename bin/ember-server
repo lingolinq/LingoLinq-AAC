@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Start Ember dev server with Node 20 via nvm when available.
-# Invoked from Procfile (foreman/heroku local). Run from repo root.
+# Invoked from Procfile (foreman). Run from repo root.
 # Uses bash when present (for nvm), otherwise falls back to sh for minimal envs (e.g. Alpine).
 set -e
 
