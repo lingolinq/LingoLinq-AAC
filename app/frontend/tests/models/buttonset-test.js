@@ -13,6 +13,7 @@ import {
 import { queryLog, db_wait, queue_promise } from 'frontend/tests/helpers/ember_helper';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
+import progress_tracker from '../../utils/progress_tracker';
 import modal from '../../utils/modal';
 import app_state from '../../utils/app_state';
 import { run as emberRun } from '@ember/runloop';
@@ -1054,6 +1055,168 @@ describe('Buttonset', function() {
       waitsFor(function() { return second_done; });
       runs(function() {
         expect(second_done).toEqual(true);
+      });
+    });
+  });
+
+  describe('load_buttons work timeout', function() {
+    var original_serial = null;
+    var original_work = null;
+    beforeEach(function() {
+      original_serial = LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS;
+      original_work = LingoLinq.Buttonset.WORK_TIMEOUT_MS;
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = 50;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = 100;
+    });
+    afterEach(function() {
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = original_serial;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = original_work;
+    });
+
+    it('should reject load_buttons when the work promise hangs past the configured timeout', function() {
+      // No cached buttons + no root_url means work is forced through the
+      // root-url-not-available reject path. Simulate a hung server by stubbing
+      // persistence.find_json to never resolve.
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-hang',
+        root_url: 'https://example.com/bs.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+      stub(bs.persistence, 'find_json', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+      stub(bs.persistence, 'store_json', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+      stub(bs.persistence, 'ajax', function() {
+        return new RSVP.Promise(function() { /* never settles */ });
+      });
+
+      var resolved = false;
+      var rejected_with = null;
+      bs.load_buttons().then(function() {
+        resolved = true;
+      }, function(err) {
+        rejected_with = err;
+      });
+
+      // Without the master timeout this would hang forever. With it, the call
+      // rejects within WORK_TIMEOUT_MS (100ms here, 60s in prod).
+      waitsFor(function() { return resolved || rejected_with; });
+      runs(function() {
+        expect(resolved).toEqual(false);
+        expect(rejected_with).toNotEqual(null);
+        expect(rejected_with.error).toEqual('buttonset load timed out');
+        expect(rejected_with.board_id).toNotEqual(undefined);
+        expect(rejected_with.buttons_count).toEqual(0);
+      });
+    });
+
+    it('should untrack the progress_tracker poller when the master timeout fires', function() {
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-hang-untrack',
+        root_url: 'https://example.com/bs.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+      var tracked_id = null;
+      var untracked_id = null;
+      stub(bs.persistence, 'find_json', function() {
+        return RSVP.reject({error: 'no local copy'});
+      });
+      stub(bs.persistence, 'store_json', function() {
+        return RSVP.reject({error: 'no remote copy'});
+      });
+      stub(bs.persistence, 'ajax', function() {
+        return RSVP.resolve({progress: {status_url: 'https://example.com/progress'}});
+      });
+      stub(progress_tracker, 'track', function(progress, cb) {
+        tracked_id = 'track-id-1';
+        // Never invoke cb -- simulates a worker that died before reporting any status.
+        return tracked_id;
+      });
+      stub(progress_tracker, 'untrack', function(id) {
+        untracked_id = id;
+      });
+
+      var rejected_with = null;
+      bs.load_buttons().then(function() { }, function(err) {
+        rejected_with = err;
+      });
+
+      waitsFor(function() { return rejected_with; });
+      runs(function() {
+        expect(rejected_with.error).toEqual('buttonset load timed out');
+        expect(tracked_id).toEqual('track-id-1');
+        expect(untracked_id).toEqual('track-id-1');
+      });
+    });
+  });
+
+  describe('progress generation_stalled detection', function() {
+    var original_serial = null;
+    var original_work = null;
+    var original_stall = null;
+    beforeEach(function() {
+      original_serial = LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS;
+      original_work = LingoLinq.Buttonset.WORK_TIMEOUT_MS;
+      original_stall = LingoLinq.Buttonset.STARTED_STALL_MS;
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = 50;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = 5000;
+      LingoLinq.Buttonset.STARTED_STALL_MS = 30;
+    });
+    afterEach(function() {
+      LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS = original_serial;
+      LingoLinq.Buttonset.WORK_TIMEOUT_MS = original_work;
+      LingoLinq.Buttonset.STARTED_STALL_MS = original_stall;
+    });
+
+    it('should reject with generation_stalled when progress sticks at started past STARTED_STALL_MS', function() {
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-stall',
+        root_url: 'https://example.com/bs.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+      var captured_cb = null;
+      var untracked_id = null;
+      stub(bs.persistence, 'find_json', function() {
+        return RSVP.reject({error: 'no local copy'});
+      });
+      stub(bs.persistence, 'store_json', function() {
+        return RSVP.reject({error: 'no remote copy'});
+      });
+      stub(bs.persistence, 'ajax', function() {
+        return RSVP.resolve({progress: {status_url: 'https://example.com/progress'}});
+      });
+      stub(progress_tracker, 'track', function(progress, cb) {
+        captured_cb = cb;
+        return 'track-id-stall';
+      });
+      stub(progress_tracker, 'untrack', function(id) {
+        untracked_id = id;
+      });
+
+      var rejected_with = null;
+      bs.load_buttons().then(function() { }, function(err) {
+        rejected_with = err;
+      });
+
+      // First started event arms the timestamp; second after the stall window rejects.
+      waitsFor(function() { return captured_cb; });
+      runs(function() {
+        captured_cb({status: 'started'});
+        // Simulate the 2.5s poll interval crossing STARTED_STALL_MS.
+        setTimeout(function() {
+          if(captured_cb) { captured_cb({status: 'started'}); }
+        }, 60);
+      });
+      waitsFor(function() { return rejected_with; });
+      runs(function() {
+        expect(rejected_with.error).toEqual('generation_stalled');
+        expect(rejected_with.status).toEqual('started');
+        expect(untracked_id).toEqual('track-id-stall');
       });
     });
   });
