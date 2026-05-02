@@ -123,14 +123,17 @@
           </div>
         </div>
         <div class="md-card__row">
-          <div class="md-chip md-chip--soft">
-            <span class="md-chip__dot" aria-hidden="true"></span>
-            {{#if this.last_board_name}}
+          {{#if this.last_board_name}}
+            <button type="button" class="md-chip md-chip--soft md-chip--button" {{action "go" "last_board"}}>
+              <span class="md-chip__dot" aria-hidden="true"></span>
               {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
-            {{else}}
+            </button>
+          {{else}}
+            <div class="md-chip md-chip--soft">
+              <span class="md-chip__dot" aria-hidden="true"></span>
               {{t "Last board: None" key="md_last_board_none"}}
-            {{/if}}
-          </div>
+            </div>
+          {{/if}}
           <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
             {{t "Continue Speaking" key="continue_speaking"}}
           </button>

@@ -1,6 +1,9 @@
 {{#grid-listener gridEvent=(action "grid_event")}}
   <div class="board_drop new-board--modern md-workspace md-workspace--create-board-new">
     {{#if this.standalone}}
+    <button type="button" class="md-workspace__close" {{action "close"}} aria-label={{t "Close and return to previous page" key="close_create_board"}} title={{t "Close" key="close"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
     <div class="modal-header md-modal-header">
       <h3>{{t "Create a New Board" key="create_a_new_board"}}</h3>
       <div class="create-board-actions">
