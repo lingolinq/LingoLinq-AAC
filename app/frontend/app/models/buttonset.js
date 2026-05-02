@@ -126,6 +126,24 @@ LingoLinq.Buttonset = DS.Model.extend({
         settle();
       }, SERIAL_TAIL_TIMEOUT_MS);
     });
+    // Tracks the active progress_tracker track id (if regenerate is called) so that
+    // every settlement path (resolve, reject, master timeout) can untrack and stop
+    // the 2.5s polling loop. Without this the poller leaks: track() returns an id,
+    // but the previous code discarded it, so on timeout the promise rejected while
+    // the poll continued forever.
+    var active_track_id = null;
+    var untrack_active = function() {
+      if(active_track_id) {
+        try { progress_tracker.untrack(active_track_id); } catch(e) { }
+        active_track_id = null;
+      }
+    };
+    // Stalled `started` threshold. If the Resque worker dies mid-flight (SIGKILL/OOM/
+    // redeploy) while the Progress record is at status='started', the record never
+    // advances. The poller keeps returning `started` and without this branch the
+    // wrapping promise hangs until the 60s master timeout fires. 45s is generous for
+    // legitimate large-board generation while still firing before the master timeout.
+    var STARTED_STALL_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.STARTED_STALL_MS) || 45000;
     var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
@@ -144,10 +162,19 @@ LingoLinq.Buttonset = DS.Model.extend({
                     gen_rej({error: 'generate response missing progress'});
                     return;
                   }
-                  progress_tracker.track(data.progress, function(event) {
+                  var started_seen_at = null;
+                  var settle_gen_res = function(u) {
+                    untrack_active();
+                    gen_res(u);
+                  };
+                  var settle_gen_rej = function(err) {
+                    untrack_active();
+                    gen_rej(err);
+                  };
+                  active_track_id = progress_tracker.track(data.progress, function(event) {
                     try {
                       if(event.status == 'errored') {
-                        gen_rej({error: 'error while generating button set'});
+                        settle_gen_rej({error: 'error while generating button set'});
                       } else if(event.status == 'finished' || event.finished_at) {
                         var r = event && event.result;
                         if(typeof r === 'string') {
@@ -155,15 +182,22 @@ LingoLinq.Buttonset = DS.Model.extend({
                         }
                         var u = r && (r.url || r['url']);
                         if(u) {
-                          gen_res(u);
+                          settle_gen_res(u);
                         } else {
-                          gen_rej({error: 'progress finished without button set url', result: r});
+                          settle_gen_rej({error: 'progress finished without button set url', result: r});
+                        }
+                      } else if(event.status == 'started' || event.status == 'pending') {
+                        if(started_seen_at === null) {
+                          started_seen_at = Date.now();
+                        } else if(Date.now() - started_seen_at > STARTED_STALL_MS) {
+                          try { LingoLinq.track_error('buttonset progress stalled at ' + event.status + ' for board ' + board_id); } catch(e) { }
+                          settle_gen_rej({error: 'generation_stalled', board_id: board_id, status: event.status});
                         }
                       }
                     } catch(e) {
-                      gen_rej({error: 'exception handling button set progress', details: e});
+                      settle_gen_rej({error: 'exception handling button set progress', details: e});
                     }
-                  });  
+                  });
                 } catch(e) {
                   gen_rej({error: 'exception setting up progress track', details: e});
                 }
@@ -286,19 +320,23 @@ LingoLinq.Buttonset = DS.Model.extend({
         if(done) { return; }
         done = true;
         if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
         resolve(v);
       };
       var settle_reject = function(e) {
         if(done) { return; }
         done = true;
         if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
         reject(e);
       };
       work.then(settle_resolve, settle_reject);
       timeoutId = setTimeout(function() {
         if(done) { return; }
-        try { LingoLinq.track_error('buttonset load_buttons work timed out for board ' + board_id); } catch(e) { }
-        settle_reject({error: 'buttonset load timed out', board_id: board_id});
+        var current_buttons = bs.get('buttons') || [];
+        var buttons_count = current_buttons.length || 0;
+        try { LingoLinq.track_error('buttonset load_buttons work timed out for board ' + board_id + ' (buttons.length=' + buttons_count + ')'); } catch(e) { }
+        settle_reject({error: 'buttonset load timed out', board_id: board_id, buttons_count: buttons_count});
       }, WORK_TIMEOUT_MS);
     });
     bs.__loadButtonsSerialTail = wait.then(function() { return work_with_timeout; }, function() { return work_with_timeout; });
