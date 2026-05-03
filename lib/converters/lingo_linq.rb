@@ -28,12 +28,15 @@ module Converters::LingoLinq
     end
     res['description_html'] = board.settings['description'] || "built with LingoLinq"
     res['license'] = OBF::Utils.parse_license(board.settings['license'])
+    # Load translations once and reuse below in the buttons loop. Previously this method
+    # called BoardContent.load_content(board, 'translations') twice per board.
+    all_translations = nil
     if !opts || !opts['simple']
-      trans = BoardContent.load_content(board, 'translations')
-      if trans
-        res['default_locale'] = trans['default']
-        res['label_locale'] = trans['current_label']
-        res['vocalization_locale'] = trans['current_vocalization']
+      all_translations = BoardContent.load_content(board, 'translations')
+      if all_translations
+        res['default_locale'] = all_translations['default']
+        res['label_locale'] = all_translations['current_label']
+        res['vocalization_locale'] = all_translations['current_vocalization']
       end
       bg = BoardContent.load_content(board, 'background')
       if bg
@@ -71,9 +74,12 @@ module Converters::LingoLinq
     button_count = (board.buttons || []).length
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
+    # Pre-build id-keyed lookups so the per-button loop is O(1) instead of O(N) per access.
+    # known_button_images / known_button_sounds is an Array; using detect inside a loop
+    # with B buttons made the body of to_external O(B*I) per board.
+    known_images_by_id = (board.known_button_images || []).each_with_object({}) { |i, h| h[i.global_id] = i }
+    known_sounds_by_id = (board.known_button_sounds || []).each_with_object({}) { |s, h| h[s.global_id] = s }
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
-    # Lazily load translations once per board, only when needed for non-simple exports
-    all_translations = nil
     Progress.as_percent(0.3, 1.0) do
       (board.buttons || []).each_with_index do |original_button, idx|
         button = {
@@ -89,7 +95,7 @@ module Converters::LingoLinq
         }
         button['ext_lingolinq_rules'] = original_button['rules'] if original_button['rules']
         if !opts || !opts['simple']
-          all_translations ||= BoardContent.load_content(board, 'translations') || {}
+          all_translations ||= {}
           inflection_defaults = nil
           trans = {}
           all_translations.each do |loc, hash|
@@ -168,7 +174,7 @@ module Converters::LingoLinq
           end
         end
         if original_button['image_id']
-          image = board.known_button_images.detect{|i| i.global_id == original_button['image_id'] }
+          image = known_images_by_id[original_button['image_id']]
           if image
             image_settings = image.settings_for(opts['user'], nil, nil)
             
@@ -235,7 +241,7 @@ module Converters::LingoLinq
         end
         if !opts || !opts['simple']
           if original_button['sound_id']
-            sound_record = board.known_button_sounds.detect{|i| i.global_id == original_button['sound_id'] }
+            sound_record = known_sounds_by_id[original_button['sound_id']]
             if sound_record
               duration = sound_record.settings['duration']
               duration = 1 if !duration.is_a?(Numeric) || duration <= 0
@@ -499,12 +505,13 @@ module Converters::LingoLinq
   end
   
   def self.to_external_nested(board, opts)
+    started = Time.now
     boards = []
     images = []
     sounds = []
     seen_image_ids = {}
     seen_sound_ids = {}
-    
+
     board.track_downstream_boards!
     Progress.update_current_progress(0.1, 'tracked downstreams')
 
@@ -515,6 +522,7 @@ module Converters::LingoLinq
         lookup_boards << b
       end
     end
+    Rails.logger.info("[export_perf] to_external_nested processing #{lookup_boards.length} boards rooted at #{board.global_id}")
 
     incr = (1.0 / lookup_boards.length.to_f) * 0.9
     tally = 0.1
@@ -541,7 +549,8 @@ module Converters::LingoLinq
         tally += incr
       end
     end
-      
+
+    Rails.logger.info("[export_perf] to_external_nested took #{(Time.now - started).round(2)}s for #{lookup_boards.length} boards rooted at #{board.global_id}, #{images.length} images, #{sounds.length} sounds")
     return {
       'boards' => boards,
       'images' => images,
