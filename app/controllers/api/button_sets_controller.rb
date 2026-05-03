@@ -1,5 +1,7 @@
+require_relative '../../../lib/method_tracer'
+
 class Api::ButtonSetsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   before_action :require_api_token, :except => [:show]
   
   def index

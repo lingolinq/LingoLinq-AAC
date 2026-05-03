@@ -8,7 +8,7 @@
 # access_key_id: ENV['SES_KEY'] || ENV['AWS_KEY'],
 # secret_access_key: ENV['SES_SECRET'] || ENV['AWS_SECRET'],
 # error_handler: ->(error, raw_email) do
-#   # Bugsnag.notify(error){|r| r.add_tab('email', { email: raw_email })}
+#   # Sentry.capture_exception(error, extra: { email: raw_email })
 #   raise error    
 # end    
 

@@ -1,5 +1,7 @@
+require_relative '../method_tracer'
+
 module JsonApi::Board
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   extend JsonApi::Json
   
   TYPE_KEY = 'board'

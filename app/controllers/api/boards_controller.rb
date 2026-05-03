@@ -1,5 +1,7 @@
+require_relative '../../../lib/method_tracer'
+
 class Api::BoardsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
   # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
