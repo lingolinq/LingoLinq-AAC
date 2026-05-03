@@ -605,19 +605,73 @@ export default Component.extend({
   boardsLoading: computed('_previewBoardsLoaded', '_fetchedPreviewBoards', function() {
     return this.get('_previewBoardsLoaded') && !this.get('_fetchedPreviewBoards');
   }),
-  previewBoards: computed('_fetchedPreviewBoards.[]', function() {
-    var boards = this.get('_fetchedPreviewBoards') || [];
-    var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
-    return boards.slice(0, 5).map(function(board, idx) {
-      return {
-        board: board,
-        name: board.get('name') || board.get('key'),
-        imageUrl: board.get('icon_url_with_fallback'),
-        key: board.get('key'),
-        thumbClass: thumbClasses[idx % thumbClasses.length]
+  previewBoards: computed(
+    '_fetchedPreviewBoards.[]',
+    'appState.currentUser.preferences.home_board.key',
+    'appState.currentUser.preferences.home_board.id',
+    'stashes.root_board_state',
+    function() {
+      var _this = this;
+      var fetched = this.get('_fetchedPreviewBoards') || [];
+      var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
+      var seen = {};
+      var ordered = [];
+      var add = function(board, fallbackName, key, fallbackImg) {
+        if (!key || seen[key]) { return; }
+        seen[key] = true;
+        ordered.push({
+          board: board,
+          name: (board && board.get && board.get('name')) || fallbackName || key,
+          imageUrl: (board && board.get && board.get('icon_url_with_fallback')) || fallbackImg || '',
+          key: key
+        });
       };
-    });
-  }),
+
+      // 1. Home board
+      var homeKey = this.appState.get('currentUser.preferences.home_board.key');
+      var homeId = this.appState.get('currentUser.preferences.home_board.id');
+      if (homeKey) {
+        var homeRec = null;
+        if (homeId) {
+          try { homeRec = this.get('store').peekRecord('board', homeId); } catch(e) { }
+        }
+        if (!homeRec) {
+          homeRec = fetched.find(function(b) { return b.get('key') === homeKey; });
+        }
+        add(homeRec, this.appState.get('currentUser.preferences.home_board.name'), homeKey, null);
+      }
+
+      // 2. Last used board
+      var lastBoard = this.stashes.get('root_board_state');
+      if (!lastBoard || !lastBoard.key) {
+        var userName = this.appState.get('currentUser.user_name');
+        if (userName) {
+          try {
+            var stored = localStorage['ll_last_board_' + userName];
+            if (stored) { lastBoard = JSON.parse(stored); }
+          } catch(e) { }
+        }
+      }
+      if (lastBoard && lastBoard.key) {
+        var lastRec = fetched.find(function(b) { return b.get('key') === lastBoard.key; });
+        if (!lastRec) {
+          try { lastRec = _this.get('store').peekAll('board').find(function(b) { return b.get('key') === lastBoard.key; }); } catch(e) { }
+        }
+        add(lastRec, lastBoard.name, lastBoard.key, null);
+      }
+
+      // 3. Pad with remaining fetched boards (skipping any already added)
+      fetched.forEach(function(board) {
+        if (ordered.length >= 5) { return; }
+        add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
+      });
+
+      return ordered.slice(0, 5).map(function(item, idx) {
+        item.thumbClass = thumbClasses[idx % thumbClasses.length];
+        return item;
+      });
+    }
+  ),
   _loadPreviewBoards: observer('appState.currentUser.id', function() {
     var _this = this;
     var user = _this.get('appState.currentUser');
@@ -818,8 +872,8 @@ export default Component.extend({
     go: function(dest) {
       if (dest === 'speak') {
         var user = this.appState.get('currentUser');
+        var homeBoard = user && user.get('preferences.home_board');
         var lastBoard = this.stashes.get('root_board_state');
-        // Fall back to localStorage if stash doesn't have the board
         if (!lastBoard || !lastBoard.key) {
           var userName = user && user.get('user_name');
           if (userName) {
@@ -831,22 +885,15 @@ export default Component.extend({
             } catch(e) { }
           }
         }
-        var homeBoard = user && user.get('preferences.home_board');
-        if (lastBoard && lastBoard.key) {
-          var lbParts = lastBoard.key.split('/');
-          if(lbParts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', lbParts[0], lbParts[1]);
+        // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
+        var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
+        if (target && target.key) {
+          var parts = target.key.split('/');
+          if(parts.length === 2) {
+            this.get('router').transitionTo('user.board-detail', parts[0], parts[1]);
           } else {
-            this.get('router').transitionTo('board', lastBoard.key);
-            this.appState.toggle_mode('speak', {force: true, override_state: lastBoard});
-          }
-        } else if (homeBoard && homeBoard.key) {
-          var hbParts = homeBoard.key.split('/');
-          if(hbParts.length === 2) {
-            this.get('router').transitionTo('user.board-detail', hbParts[0], hbParts[1]);
-          } else {
-            this.get('router').transitionTo('board', homeBoard.key);
-            this.appState.toggle_mode('speak', {force: true, override_state: homeBoard});
+            this.get('router').transitionTo('board', target.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: target});
           }
         } else if (user && user.get('user_name')) {
           this.get('router').transitionTo('user.boards', user.get('user_name')).then(function() {
@@ -854,6 +901,29 @@ export default Component.extend({
             if (content) { content.scrollTop = 0; }
             window.scrollTo(0, 0);
           });
+        }
+        return;
+      }
+      if (dest === 'last_board') {
+        var u2 = this.appState.get('currentUser');
+        var lb = this.stashes.get('root_board_state');
+        if (!lb || !lb.key) {
+          var un2 = u2 && u2.get('user_name');
+          if (un2) {
+            try {
+              var s2 = localStorage['ll_last_board_' + un2];
+              if (s2) { lb = JSON.parse(s2); }
+            } catch(e) { }
+          }
+        }
+        if (lb && lb.key) {
+          var lbp = lb.key.split('/');
+          if (lbp.length === 2) {
+            this.get('router').transitionTo('user.board-detail', lbp[0], lbp[1]);
+          } else {
+            this.get('router').transitionTo('board', lb.key);
+            this.appState.toggle_mode('speak', {force: true, override_state: lb});
+          }
         }
         return;
       }

@@ -1,0 +1,60 @@
+#!/bin/bash
+
+set -e
+
+echo "=== LingoLinq Fresh Start (1Password as source of truth) ==="
+echo ""
+
+echo "1. Stopping any existing processes..."
+"$(dirname "$0")/kill_all"
+sleep 2
+
+echo ""
+echo "2. Checking Redis..."
+if ! redis-cli ping > /dev/null 2>&1; then
+    echo "Starting Redis..."
+    sudo service redis-server start
+    sleep 1
+fi
+redis-cli ping > /dev/null && echo "✓ Redis is running" || { echo "✗ Redis failed to start"; exit 1; }
+
+echo ""
+echo "3. Checking PostgreSQL..."
+if ! pg_isready > /dev/null 2>&1; then
+    echo "Starting PostgreSQL..."
+    sudo service postgresql start
+    sleep 1
+fi
+pg_isready > /dev/null && echo "✓ PostgreSQL is running" || { echo "✗ PostgreSQL failed to start"; exit 1; }
+
+echo ""
+echo "4. Verifying 1Password-injected environment..."
+if [ -z "$DB_USER" ]; then
+    echo "✗ DB_USER not set in environment."
+    echo "  This script expects to be run under 'op run --env-file=.env.op.local --'."
+    echo "  Use the 'rails-dev' or 'lingolinq-dev' shell helper instead of running this directly."
+    exit 1
+fi
+echo "✓ Environment populated by op run"
+
+echo ""
+echo "5. Starting all services with foreman (skipping foreman's .env loader so op values win)..."
+echo ""
+echo "=========================================="
+echo "LingoLinq is starting on:"
+echo "  Backend:  http://localhost:5000"
+echo "  Frontend: http://localhost:8184 (proxies API to :5000)"
+echo ""
+cat <<'TIP'
+
+Tip: COPPA_PARENTAL_CONSENT in .env applies to domain_settings from Rails.
+  Ember on :8184 merges /api/v1/domain_settings after load; open Register once
+  backend is up, or use http://localhost:5000 for the same HTML as production.
+  If new Ember UI changes (e.g. COPPA on Register) shows on :8184 but not :5000, rebuild
+  the Rails bundle: (cd app/frontend && npx ember build) && bundle exec rake extras:assert_js
+TIP
+echo "=========================================="
+echo ""
+
+# -e /dev/null tells foreman not to load .env — preserves the values op run injected.
+exec foreman start -e /dev/null
