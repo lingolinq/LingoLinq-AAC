@@ -10,6 +10,7 @@ module Worker
   ensure
     Thread.current[:board_content_cache] = nil
     Thread.current[:word_inflection_cache] = nil
+    Thread.current[:bulk_copy_in_progress] = nil
   end
 
   def self.method_stats(queue='default')

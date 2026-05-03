@@ -111,6 +111,20 @@ export default Component.extend({
     return i18n.t('beta_feedback_recording_size_mb', "%{size} MB", { size: Math.round(size / 1024 / 1024) });
   }),
 
+  recordingStartDisabled: computed('disabled', 'recordingUploading', 'recordingConsent', function() {
+    return !!this.get('disabled') || !!this.get('recordingUploading') || !this.get('recordingConsent');
+  }),
+
+  feedbackTypeOpen: false,
+  selectedFeedbackTypeLabel: computed('feedback_type', 'feedbackTypeOptions', function() {
+    var id = this.get('feedback_type') || '';
+    var opts = this.get('feedbackTypeOptions') || [];
+    for (var i = 0; i < opts.length; i++) {
+      if (opts[i].id === id) { return opts[i].name; }
+    }
+    return opts[0] ? opts[0].name : '';
+  }),
+
   _screenRecordingSupported() {
     return typeof navigator !== 'undefined' &&
       navigator.mediaDevices &&
@@ -585,6 +599,13 @@ export default Component.extend({
     },
     updateFeedbackType(id) {
       this.set('feedback_type', id);
+    },
+    toggleFeedbackTypeDropdown() {
+      this.toggleProperty('feedbackTypeOpen');
+    },
+    selectFeedbackType(id) {
+      this.set('feedback_type', id);
+      this.set('feedbackTypeOpen', false);
     },
     chooseReaction(id) {
       this.set('reaction', id);

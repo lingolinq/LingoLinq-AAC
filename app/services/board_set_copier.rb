@@ -21,6 +21,9 @@ class BoardSetCopier
   # Full copy-and-relink flow (replaces copy_board_links_for + copy_board_links_batch)
   def copy_and_relink
     overall_started = Time.now
+    # Capture prior so nested calls (or any other caller that already set this flag)
+    # don't get their state stomped when our ensure block runs.
+    prior_bulk_copy = Thread.current[:bulk_copy_in_progress]
     Thread.current[:bulk_copy_in_progress] = true
     begin
       # Ensure starting_new_board has a copy_id
@@ -91,13 +94,14 @@ class BoardSetCopier
       Rails.logger.info("[copy_perf] BoardSetCopier#copy_and_relink total #{(Time.now - overall_started).round(2)}s for #{@starting_old.global_id}")
       @mapper
     ensure
-      Thread.current[:bulk_copy_in_progress] = false
+      Thread.current[:bulk_copy_in_progress] = prior_bulk_copy
     end
   end
 
   # Relink-only flow (replaces replace_board_for)
   # Used when swapping a board in a user's existing set
   def replace_and_relink
+    prior_bulk_copy = Thread.current[:bulk_copy_in_progress]
     Thread.current[:bulk_copy_in_progress] = true
     begin
       @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
@@ -148,7 +152,7 @@ class BoardSetCopier
       @user.update_available_boards
       true
     ensure
-      Thread.current[:bulk_copy_in_progress] = false
+      Thread.current[:bulk_copy_in_progress] = prior_bulk_copy
     end
   end
 

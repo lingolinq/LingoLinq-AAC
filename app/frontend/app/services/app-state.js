@@ -813,8 +813,9 @@ export default Service.extend({
     }
   },
   /**
-   * Prefer the same URL style as the current screen: `user/board/…` (board-alt),
-   * `user/board-detail/…`, or legacy glob `board` for obf/integrations/single-segment keys.
+   * Default to `user/board-detail/…`. Preserve `user/board/…` (board-alt) only when the
+   * current screen is already board-alt. Legacy glob `board` is used for obf/, integrations/,
+   * and single-segment keys where the user/boardname split doesn't apply.
    */
   transitionToBoardForCurrentUiStyle: function(router, boardKey) {
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
@@ -841,12 +842,10 @@ export default Service.extend({
       router.transitionTo('board', boardKey);
       return;
     }
-    if(routeName.indexOf('board-detail') !== -1) {
-      router.transitionTo('user.board-detail', userName, boardSlug);
-    } else if(routeName.indexOf('board-alt') !== -1) {
+    if(routeName.indexOf('board-alt') !== -1) {
       router.transitionTo('user.board-alt', userName, boardSlug);
     } else {
-      router.transitionTo('board', boardKey);
+      router.transitionTo('user.board-detail', userName, boardSlug);
     }
   },
   jump_to_board: function(new_state, old_state) {

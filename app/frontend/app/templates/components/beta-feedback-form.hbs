@@ -53,7 +53,35 @@
   </fieldset>
   <div class="la-contact-form__row">
     <label for="beta_feedback_type" class="la-contact-form__label">{{t "What area is this about? (optional)" key="beta_feedback_area_label"}}</label>
-    {{bound-select select_class="la-contact-input" select_id="beta_feedback_type" content=this.feedbackTypeOptions selection=this.feedback_type action=(action "updateFeedbackType") }}
+    <div class="md-dropdown {{if this.feedbackTypeOpen 'md-dropdown--open'}}">
+      <button type="button"
+        id="beta_feedback_type"
+        class="md-dropdown__trigger"
+        aria-haspopup="listbox"
+        aria-expanded={{if this.feedbackTypeOpen "true" "false"}}
+        {{action "toggleFeedbackTypeDropdown"}}>
+        <span class="md-dropdown__value">{{this.selectedFeedbackTypeLabel}}</span>
+        <svg class="md-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {{#if this.feedbackTypeOpen}}
+        <ul class="md-dropdown__menu" role="listbox" aria-labelledby="beta_feedback_type">
+          {{#each this.feedbackTypeOptions as |opt|}}
+            <li class="md-dropdown__option {{if (is-equal this.feedback_type opt.id) 'md-dropdown__option--selected'}}"
+              role="option"
+              tabindex="0"
+              aria-selected={{if (is-equal this.feedback_type opt.id) "true" "false"}}
+              {{action "selectFeedbackType" opt.id}}>
+              <span class="md-dropdown__option-check" aria-hidden="true">
+                {{#if (is-equal this.feedback_type opt.id)}}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {{/if}}
+              </span>
+              <span class="md-dropdown__option-label">{{opt.name}}</span>
+            </li>
+          {{/each}}
+        </ul>
+      {{/if}}
+    </div>
   </div>
   <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
     <label for="beta_general" class="la-contact-form__label">{{t "What happened, or what would you like us to know?" key="beta_feedback_main_prompt_label"}}</label>
@@ -114,7 +142,7 @@
           <button type="button" class="la-btn la-btn--ghost" {{action "stopRecording"}}>{{t "Stop recording" key="beta_feedback_recording_stop"}}</button>
           <span class="la-beta-feedback__recording-status" aria-live="polite">{{t "Recording..." key="beta_feedback_recording_in_progress"}}</span>
         {{else}}
-          <button type="button" class="la-btn la-btn--ghost" disabled={{or this.disabled this.recordingUploading}} {{action "startRecording"}}>{{t "Start screen recording" key="beta_feedback_recording_start"}}</button>
+          <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingStartDisabled}} {{action "startRecording"}}>{{t "Start screen recording" key="beta_feedback_recording_start"}}</button>
         {{/if}}
       </div>
       {{#if this.recordingBrowserSoundHint}}
@@ -133,7 +161,7 @@
   {{#if this.error}}
     <p class="la-support-form-error">{{t "Submission failed, please try again" key="ticket_failed"}}</p>
   {{/if}}
-  <p class="la-contact-form__hint la-beta-feedback__submit-context-note">{{t "When you submit, we add a short summary (viewport, time zone, app route, path, and online status) after your text for troubleshooting." key="beta_feedback_device_auto_hint"}}</p>
+  <p class="la-contact-form__hint la-beta-feedback__submit-context-note">{{t "When you send your feedback, we'll add a few details about your device and the page you were on (viewport, time zone, app route, path, and online status). This helps us figure out what was happening on your end." key="beta_feedback_device_auto_hint"}}</p>
   <div class="la-contact-form__actions la-support-form__actions md-support-form__actions">
     <button disabled={{this.disabled}} type="button" class="la-btn la-btn--primary" {{on "click" (action "submit_feedback")}}>
       {{#if this.disabled}}

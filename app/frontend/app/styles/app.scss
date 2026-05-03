@@ -23944,15 +23944,16 @@ header.header--unauthenticated ~ #content .la-topbar {
   }
 }
 
-// About-page hero separator — same as login page divider
+// Thin 1px page divider — adopted as the project-wide separator style.
+// (Was a 160px chunky gradient bar; superseded by the about/pricing thin-line treatment.)
 .la-about-hero-separator {
   width: 100%;
-  max-width: 160px;
-  height: 3px;
+  max-width: 100%;
+  height: 1px;
   margin: 0 auto $aac-spacing-24;
   border: none;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, rgba($brand-teal, 0.5), rgba(58, 107, 199, 0.4), transparent);
+  border-radius: 0;
+  background: rgba(0, 0, 0, 0.12);
 }
 
 // Section divider — subtle gradient line between heading and content
@@ -24417,11 +24418,6 @@ header.header--unauthenticated ~ #content .la-topbar {
 }
 .la-wrapper.la-wrapper--about .la-cta-section .la-about-hero-separator {
   margin: 0 auto $aac-spacing-24;
-  height: 1px;
-  max-width: 100%;
-  border: none;
-  border-radius: 0;
-  background: rgba(0, 0, 0, 0.12);
 }
 
 // About page: "What we offer" (and other section eyebrow badges) — same bottom margin as About LingoLinq badge
@@ -24500,9 +24496,7 @@ header.header--unauthenticated ~ #content .la-topbar {
   margin-top: 5rem;
   margin-bottom: 48px;
 }
-.la-wrapper.la-wrapper--contact .la-hero-card .la-about-hero-separator {
-  background: linear-gradient(90deg, transparent, rgba($brand-teal, 0.28), rgba(58, 107, 199, 0.22), transparent);
-}
+/* Contact page divider inherits the new project-wide thin-line style. */
 
 // Privacy page: content card and prose
 .la-privacy-content-card {
@@ -27564,7 +27558,8 @@ header #identity #identity_button.btn::after {
 .la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-section-eyebrow-badge,
 .la-wrapper.la-wrapper--contact .la-hero-card .la-section-eyebrow-badge,
 .la-features-modal-body .la-section-header .la-section-eyebrow-badge,
-.ub-boards-page__page-header .la-section-eyebrow-badge {
+.ub-boards-page__page-header .la-section-eyebrow-badge,
+.beta-feedback-panel .la-section-eyebrow-badge {
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.35) 0%,
@@ -27617,19 +27612,8 @@ header #identity #identity_button.btn::after {
   margin-bottom: 0;
 }
 
-/* About page: dividers use subtle gradient */
-.la-wrapper.la-wrapper--about .la-about-hero-separator {
-  background: linear-gradient(90deg, transparent, rgba($brand-teal, 0.28), rgba(58, 107, 199, 0.22), transparent);
-}
-
-/* Pricing page: same divider style as landing-alt hero (.la-hero-headline border) — 1px subtle line */
-.la-wrapper.la-wrapper--pricing .la-section .la-section-header .la-about-hero-separator {
-  height: 1px;
-  max-width: 100%;
-  border: none;
-  border-radius: 0;
-  background: rgba(0, 0, 0, 0.12);
-}
+/* Project-wide thin-line divider is now defined on the base
+   .la-about-hero-separator rule — no per-page overrides needed. */
 
 /* About page hero: match pricing page top (layout, badge, title, divider, subtitle) */
 .la-wrapper.la-wrapper--about #about-hero .la-section-header {
@@ -44347,16 +44331,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-stats-hero__action {
   flex-shrink: 0;
 }
-/* Reports page: use same divider as about page (replace previous md-stats-hero__separator styling) */
+/* Reports page: inherits the project-wide thin-line divider from the base rule;
+   only the bottom-margin tweak remains here. */
 .md-stats-page .la-about-hero-separator {
-  width: 100%;
-  max-width: 160px;
-  height: 3px;
-  margin: 0 auto;
   margin-bottom: 24px;
-  border: none;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, rgba($brand-teal, 0.28), rgba(58, 107, 199, 0.22), transparent);
 }
 @media (max-width: 768px) {
   .md-stats-hero-card {
@@ -46447,6 +46425,53 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 
 
+/* ─── Board-alt edit mode: lean inner_header ─────────────────────────
+   In edit mode, only the editing toolbar (Edit, Paint, Undo, Redo,
+   Grid +/-, Ideas, More, Save, Cancel) should be visible in the
+   #inner_header. The brand logo, identity dropdown, beta-feedback link,
+   support link, settings, and style switcher all hide. */
+#within_ember.board-alt-view.edit-mode-active {
+  #inner_header #nav_header h1.with_board {
+    display: none !important;
+  }
+  #inner_header #identity {
+    display: none !important;
+  }
+  /* With logo + identity hidden, center the remaining edit toolbar
+     buttons horizontally inside the inner_header. */
+  #inner_header {
+    text-align: center !important;
+  }
+  #inner_header #nav_header {
+    display: block !important;
+    text-align: center !important;
+    width: 100%;
+  }
+}
+
+/* ─── Wide / Skinny edit-toolbar buttons: responsive breakpoints ─────
+   Default app rules render `.skinny` always-on and `.wide` always-off.
+   Inside the board-alt edit toolbar, swap that so the text-labeled
+   "wide" buttons show on >= 900px screens and the icon-only "skinny"
+   buttons show below 900px. */
+#within_ember.board-alt-view.edit-mode-active {
+  #inner_header #nav_header .btn .skinny,
+  #inner_header #nav_header .btn.wide {
+    display: none !important;
+  }
+  #inner_header #nav_header .btn .wide {
+    display: inline !important;
+  }
+  @media (max-width: 899px) {
+    #inner_header #nav_header .btn .skinny {
+      display: inline !important;
+    }
+    #inner_header #nav_header .btn .wide {
+      display: none !important;
+    }
+  }
+}
+
 // === Board Alt View: speech-card styled buttons ===
 #within_ember.board-alt-view {
   .board {
@@ -46481,6 +46506,29 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     box-shadow: 0 1px 3px rgba($indigo, 0.06);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     color: $indigo !important;
+  }
+  /* Add interior padding directly on the <a class="button"> link element.
+     The inner img_holder and button-label-holder are absolutely positioned
+     against this link's padding box, so insetting them by 4px each gives
+     the visible "more padding inside the button" effect. */
+  .board a.button {
+    padding: 4px !important;
+  }
+  .board a.button .img_holder {
+    top: 4px !important;
+    left: 4px !important;
+    right: 4px !important;
+    width: calc(100% - 8px) !important;
+  }
+  .board a.button .button-label-holder {
+    left: 4px !important;
+    width: calc(100% - 8px) !important;
+  }
+  .board a.button .button-label-holder:not(.top) {
+    bottom: 2px !important;
+  }
+  .board a.button .button-label-holder.top {
+    top: 2px !important;
   }
 
   // Focus words (dim_button): strengthen dimming on board-alt grid (same intent as board-view block above).
@@ -46520,8 +46568,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     background: #e8f5f4 !important;
   }
 
+  /* Transparent label-holder lets the button's bg show through so the top
+     section matches the rest of the button. The 2px border reads uniformly
+     because the label-holder no longer paints over it. */
   .board .button .button-label-holder {
-    background: var(--btn-bg, $color-linen) !important;
+    background: transparent !important;
   }
 
   .board .button .button-label {
@@ -49554,10 +49605,43 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   /* Restore overflow:hidden so the inner modal-header/body/footer rounded
      corners don't bleed past the workspace edge. */
   overflow: hidden !important;
+  /* Anchor for the "feels like a modal" close button in the top-right corner. */
+  position: relative !important;
   /* No top gap; 64px left/right gap so the gradient breathes around the
      card. Bottom margin kept at 40px so the gradient still shows beneath. */
   margin: 0 auto 40px !important;
   max-width: calc(100% - 128px) !important;
+}
+/* Modal-style close button — sits in the top-right of the workspace card
+   and routes back to the previous page via the `close` action. */
+.md-workspace--create-board-new .md-workspace__close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background: $surface-300;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
+}
+.md-workspace--create-board-new .md-workspace__close:hover,
+.md-workspace--create-board-new .md-workspace__close:focus-visible {
+  background: #fff;
+  color: $brand-charcoal-dark;
+  outline: none;
+  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.12);
+  transform: translateY(-1px);
 }
 
 /* ────────────────────────────────────────────────────────
@@ -49781,18 +49865,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    tighter section rhythm. Collapsed state still wipes width/padding/opacity
    so the transition stays smooth in both directions. */
 .md-board-detail-sidebar {
-  padding: 16px 12px 20px;
+  padding: calc(16px + 5rem) 12px 20px;
   position: relative;
   transition: width 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px) saturate(1.3);
-  -webkit-backdrop-filter: blur(18px) saturate(1.3);
-  border: 1px solid rgba($la-navy, 0.10);
-  border-radius: 22px;
-  box-shadow:
-    0 6px 28px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   margin: 4px 8px 4px 4px;
 }
 .md-board-detail-sidebar--collapsed {
@@ -49828,6 +49910,61 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-collapse-btn:hover {
   background: #fff;
   box-shadow: 0 2px 8px rgba($la-navy, 0.12);
+}
+/* Centered collapse trigger pinned to the top of the mid-section header.
+   Hidden alongside the rest of the header when board_collapsed is true
+   (see .md-shell--board-collapsed .md-board-detail-header rule). */
+.md-board-detail-collapse-btn.md-board-detail-collapse-btn--mid-top {
+  position: absolute;
+  top: -14px;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+.md-board-detail-header {
+  position: relative;
+}
+.md-board-detail--dark .md-board-detail-collapse-btn--mid-top {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.md-board-detail--dark .md-board-detail-collapse-btn--mid-top:hover {
+  background: #fff;
+}
+/* Side-panel collapse triggers — float at the inner edge of each panel,
+   anchored in the top third of the page. Hidden along with the panel itself
+   (width:0 + overflow:hidden) when panels_collapsed is true. */
+.md-board-detail-collapse-btn.md-board-detail-collapse-btn--side {
+  position: absolute;
+  top: 0;
+  right: auto;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+.md-board-detail-collapse-btn.md-board-detail-collapse-btn--side-left {
+  right: 8px;
+  left: auto;
+}
+.md-board-detail-collapse-btn.md-board-detail-collapse-btn--side-right {
+  left: 8px;
+  right: auto;
+}
+.md-board-detail--dark .md-board-detail-collapse-btn--side {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.md-board-detail--dark .md-board-detail-collapse-btn--side:hover {
+  background: #fff;
 }
 .md-board-detail-collapse-btn--sentence-row {
   position: static !important;
@@ -51218,7 +51355,6 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 2px 8px rgba($la-navy, 0.10);
 }
 .md-board-detail-quick-toggle--active {
-  background: linear-gradient(135deg, rgba($brand-verdigris, 0.12), rgba($brand-dusty-denim, 0.10));
   border-color: rgba($brand-verdigris, 0.20);
 }
 .md-board-detail-quick-toggle svg {
@@ -51275,6 +51411,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-quick-reveal__btn-icon {
   font-size: 16px;
   opacity: 0.7;
+}
+/* Dark mode: lift the chips to near-opaque white so they read clearly
+   against the navy speak-mode background. Text/icon stay dark. */
+.md-board-detail--dark .md-board-detail-quick-reveal__btn {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: $la-navy;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.md-board-detail--dark .md-board-detail-quick-reveal__btn:hover {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.md-board-detail--dark .md-board-detail-quick-reveal__btn-icon {
+  opacity: 0.9;
 }
 /* Active filter chip */
 .md-board-detail-filter-chip {
@@ -55005,7 +55156,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* ── Right panel ──────────────────────────────────────── */
 
 .md-board-detail-right-panel {
-  padding: 8px 4px 24px 20px;
+  padding: calc(8px + 7rem) 4px 24px 20px;
   border-left: 1px solid rgba($la-navy, 0.08);
   position: relative;
   transition: width 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
@@ -60172,13 +60323,13 @@ blockquote small {
   align-items: center;
   gap: 0.45rem;
   min-height: 36px;
-  padding: 0.35rem 0.9rem 0.45rem;
+  padding: 0.35rem 1.7rem 0.45rem;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-top: none;
   border-radius: 0 0 14px 14px;
   background: linear-gradient(180deg, #263d5c 0%, $indigo 40%, #0d1525 100%);
   color: #fff;
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 700;
   box-shadow: 0 8px 22px rgba($brand-blue-black, 0.12);
 }
@@ -60236,7 +60387,7 @@ blockquote small {
   border-radius: 0 0 20px 20px;
   background: #fff;
   box-shadow: 0 24px 70px rgba($brand-blue-black, 0.22), 0 8px 28px rgba($brand-blue-black, 0.12);
-  padding: 1.5rem;
+  padding: 5.5rem 1.5rem 1.5rem;
 }
 .beta-feedback-drawer--hidden {
   transform: translateY(calc(-100% - 18px));
@@ -60377,6 +60528,690 @@ blockquote small {
 .beta-feedback-drawer .la-beta-feedback__file-input {
   width: 100%;
   max-width: 100%;
+}
+
+/* ─── Beta-feedback drawer: modern form polish ───────────────────────────
+   Brings the drawer's form chrome in line with the rest of the redesigned
+   surface — generous spacing, refined inputs, custom-arrow dropdown,
+   readable label hierarchy, and a 14px floor on every text size. */
+.beta-feedback-drawer .la-contact-form {
+  gap: 1.25rem;
+}
+/* Each form row becomes a soft, sectioned card — gives every labeled
+   group its own visual lane and prevents the hints below dropzones /
+   consent blocks from feeling like loose floating copy. */
+.beta-feedback-drawer .la-contact-form__row {
+  gap: 0.625rem;
+  padding: 1.25rem 1.25rem 1.25rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba($brand-blue-black, 0.07);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.03);
+}
+.beta-feedback-drawer .la-contact-form fieldset.la-contact-form__row {
+  border: 1px solid rgba($brand-blue-black, 0.07);
+  min-width: 0;
+}
+/* Float the legend so it flows as a normal block inside the card instead of
+   sitting on the fieldset's top-border slot (which crops the label). */
+.beta-feedback-drawer .la-contact-form fieldset.la-contact-form__row > legend {
+  display: block;
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  border: none;
+  border-bottom: none;
+  background: transparent;
+}
+.beta-feedback-drawer .la-contact-form fieldset.la-contact-form__row > legend + * {
+  clear: both;
+}
+.beta-feedback-drawer .la-contact-form__row--error {
+  border-color: rgba(220, 38, 38, 0.4);
+  background: rgba(254, 242, 242, 0.6);
+}
+.beta-feedback-drawer .la-contact-form__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: $indigo;
+  letter-spacing: 0.01em;
+}
+.beta-feedback-drawer .la-contact-form__hint {
+  font-size: 14px;
+  line-height: 1.5;
+  color: $brand-charcoal-dark;
+}
+.beta-feedback-drawer .la-contact-input {
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) inset;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.beta-feedback-drawer .la-contact-input:focus-visible {
+  outline: none;
+  border-color: rgba($brand-teal, 0.5);
+  box-shadow: 0 0 0 3px rgba($brand-teal, 0.14);
+  background: #fff;
+}
+.beta-feedback-drawer .la-contact-input--textarea {
+  min-height: 110px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* ─── Custom dropdown — replaces the native <select> with a fully styled
+   button + listbox so the open-state list also matches our brand. ─── */
+.beta-feedback-drawer .md-dropdown {
+  position: relative;
+  width: 100%;
+}
+.beta-feedback-drawer .md-dropdown__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: $indigo;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) inset;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.beta-feedback-drawer .md-dropdown__trigger:hover {
+  background: #fff;
+  border-color: rgba($brand-charcoal-blue, 0.32);
+}
+.beta-feedback-drawer .md-dropdown__trigger:focus-visible,
+.beta-feedback-drawer .md-dropdown--open .md-dropdown__trigger {
+  outline: none;
+  border-color: rgba($brand-teal, 0.5);
+  box-shadow: 0 0 0 3px rgba($brand-teal, 0.14);
+  background: #fff;
+}
+.beta-feedback-drawer .md-dropdown__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.beta-feedback-drawer .md-dropdown__chevron {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  color: rgba($brand-charcoal-blue, 0.7);
+  transition: transform 0.18s ease;
+}
+.beta-feedback-drawer .md-dropdown--open .md-dropdown__chevron {
+  transform: rotate(180deg);
+}
+.beta-feedback-drawer .md-dropdown__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid rgba($brand-blue-black, 0.10);
+  border-radius: 14px;
+  box-shadow:
+    0 18px 40px rgba($brand-blue-black, 0.16),
+    0 6px 12px rgba($brand-blue-black, 0.08);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.beta-feedback-drawer .md-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 10px;
+  font-size: 15px;
+  color: $indigo;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.beta-feedback-drawer .md-dropdown__option:hover,
+.beta-feedback-drawer .md-dropdown__option:focus-visible {
+  background: rgba($brand-teal, 0.10);
+  outline: none;
+}
+.beta-feedback-drawer .md-dropdown__option--selected {
+  background: rgba($brand-teal, 0.16);
+  color: #0d5c5f;
+  font-weight: 600;
+}
+.beta-feedback-drawer .md-dropdown__option--selected:hover,
+.beta-feedback-drawer .md-dropdown__option--selected:focus-visible {
+  background: rgba($brand-teal, 0.22);
+}
+.beta-feedback-drawer .md-dropdown__option-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #0d5c5f;
+}
+.beta-feedback-drawer .md-dropdown__option-label {
+  flex: 1 1 auto;
+}
+
+/* Custom-styled dropdown — kills native chrome and adds an inline chevron. */
+.beta-feedback-drawer select.la-contact-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23111a2e' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+.beta-feedback-drawer select.la-contact-input option {
+  font-size: 15px;
+  padding: 8px 12px;
+  color: $indigo;
+  background-color: #fff;
+}
+/* Replace Chrome's default Bootstrap-blue highlight with the brand teal. */
+.beta-feedback-drawer select.la-contact-input option:checked,
+.beta-feedback-drawer select.la-contact-input option:hover,
+.beta-feedback-drawer select.la-contact-input option:focus {
+  background: linear-gradient(0deg, rgba($brand-teal, 0.18), rgba($brand-teal, 0.18)), #fff;
+  color: $indigo;
+  font-weight: 600;
+}
+
+/* Action row — modernize spacing and primary CTA prominence. */
+.beta-feedback-drawer .la-contact-form__actions {
+  margin-top: 0.75rem;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.beta-feedback-drawer .la-contact-form__actions .la-btn {
+  min-height: 44px;
+  padding: 10px 22px;
+  font-size: 15px;
+  border-radius: 999px;
+}
+
+/* Submit-context note: nudge spacing so the device-summary line breathes. */
+.beta-feedback-drawer .la-beta-feedback__submit-context-note {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Validation banner inside the drawer — match the modern card chrome. */
+.beta-feedback-drawer .la-beta-feedback__validation-banner {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.95);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.beta-feedback-drawer .la-contact-form__field-error {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #b91c1c;
+  margin: 0.375rem 0 0;
+}
+
+/* ─── Beta-feedback drawer: hero polish ────────────────────────────────
+   The shared landing styles ship a 24px intro + 16px privacy note. In the
+   compact drawer surface that pairing reads as "huge + tiny." Right-size
+   both and tighten the spacing so the title, divider, intro, and privacy
+   note read as a coherent header block. */
+.beta-feedback-drawer .beta-feedback-panel__header {
+  padding-bottom: 1.75rem;
+}
+.beta-feedback-drawer .beta-feedback-panel__hero .la-section-eyebrow-badge,
+.beta-feedback-drawer .beta-feedback-panel__hero .la-hero-title-wrap {
+  transform: translateX(0.5rem);
+}
+.beta-feedback-drawer .beta-feedback-panel__intro,
+.beta-feedback-drawer .la-pricing-hero-subtitle.beta-feedback-panel__intro {
+  font-size: 16px;
+  line-height: 1.55;
+  margin-top: 1rem;
+  max-width: 600px;
+  letter-spacing: 0;
+}
+.beta-feedback-drawer .beta-feedback-panel__privacy-note {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  text-align: left;
+  color: rgba($brand-charcoal-dark, 0.85);
+}
+.beta-feedback-drawer .la-about-hero-separator {
+  margin: 1.25rem auto;
+}
+
+/* Checklist intro — replaces the long-form intro paragraph with a scannable
+   list of what we want from feedback. Modern card with a centered title and
+   teal check pills for each item. */
+.beta-feedback-panel__checklist {
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  margin: 1.25rem auto 0;
+  padding: 1.25rem 1.75rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba($brand-teal, 0.04));
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 28px rgba($brand-blue-black, 0.10),
+    0 4px 10px rgba($brand-blue-black, 0.06);
+  text-align: left;
+}
+/* Privacy note nested at the bottom of the checklist — tighter spacing,
+   no card-on-card stacking, matches the checklist's internal width. */
+.beta-feedback-panel__checklist .beta-feedback-panel__info-pill {
+  margin: 1rem 0 0;
+  padding: 0.625rem 0.875rem;
+  background: rgba($brand-blue-black, 0.04);
+  border: 1px solid rgba($brand-blue-black, 0.06);
+  border-radius: 12px;
+  box-shadow: none;
+  max-width: 100%;
+}
+.beta-feedback-panel__checklist .beta-feedback-panel__info-pill-icon {
+  width: 26px;
+  height: 26px;
+  background: rgba($brand-blue-black, 0.08);
+  color: rgba($brand-charcoal-dark, 0.85);
+}
+.beta-feedback-panel__checklist .beta-feedback-panel__privacy-note {
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba($brand-charcoal-dark, 0.78);
+}
+.beta-feedback-panel__checklist-title {
+  margin: 0 0 0.875rem;
+  font-size: 15px;
+  font-weight: 700;
+  color: $indigo;
+  letter-spacing: 0.005em;
+}
+.beta-feedback-panel__checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+.beta-feedback-panel__checklist-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  padding: 0.5rem 0.875rem;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba($brand-charcoal-dark, 0.92);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba($brand-teal, 0.18);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.04);
+}
+.beta-feedback-panel__checklist-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba($brand-teal, 0.18);
+  color: #0d5c5f;
+}
+.beta-feedback-panel__checklist-icon svg {
+  display: block;
+}
+
+/* Info pill — wraps the privacy note with a soft tinted card and lock icon
+   so the warning reads as a discrete section rather than loose body text. */
+.beta-feedback-panel__info-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 600px;
+  margin: 1.25rem auto 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(180deg, rgba($brand-teal, 0.06), rgba($brand-teal, 0.10));
+  border: 1px solid rgba($brand-teal, 0.22);
+  border-radius: 14px;
+  text-align: left;
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.04);
+}
+.beta-feedback-panel__info-pill-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba($brand-teal, 0.18);
+  color: #0d5c5f;
+  margin-top: 1px;
+}
+.beta-feedback-panel__info-pill-icon svg {
+  display: block;
+}
+
+/* ─── Beta-feedback drawer: reaction tiles ─────────────────────────────
+   Polished pill-cards with smooth hover lift, tone-specific tinted
+   borders, and a clear selected state. */
+.beta-feedback-drawer .la-beta-feedback__reaction-options {
+  gap: 0.85rem;
+  margin-top: 0.25rem;
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 6rem;
+  padding: 1rem 0.75rem;
+  border: 1.5px solid rgba($brand-blue-black, 0.10);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  color: $indigo;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease, background 0.18s ease;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.04);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba($brand-charcoal-blue, 0.28);
+  box-shadow: 0 6px 18px rgba($brand-blue-black, 0.10);
+}
+/* Darker tonal hover backgrounds — each reaction tile deepens its own tint
+   on hover instead of flashing to plain white. */
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--green:hover {
+  background: linear-gradient(180deg, rgba(21, 128, 61, 0.14), rgba(21, 128, 61, 0.20));
+  border-color: rgba(21, 128, 61, 0.45);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--yellow:hover {
+  background: linear-gradient(180deg, rgba(161, 98, 7, 0.14), rgba(161, 98, 7, 0.20));
+  border-color: rgba(161, 98, 7, 0.45);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--red:hover {
+  background: linear-gradient(180deg, rgba(185, 28, 28, 0.14), rgba(185, 28, 28, 0.20));
+  border-color: rgba(185, 28, 28, 0.45);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn:focus-visible {
+  outline: none;
+  border-color: rgba($brand-teal, 0.55);
+  box-shadow: 0 0 0 3px rgba($brand-teal, 0.18);
+}
+/* Tone-specific resting tints — keep subtle, lift on hover. */
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--green {
+  border-color: rgba(21, 128, 61, 0.22);
+  background: linear-gradient(180deg, rgba(21, 128, 61, 0.04), rgba(21, 128, 61, 0.08));
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--yellow {
+  border-color: rgba(161, 98, 7, 0.22);
+  background: linear-gradient(180deg, rgba(161, 98, 7, 0.04), rgba(161, 98, 7, 0.08));
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--red {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: linear-gradient(180deg, rgba(185, 28, 28, 0.04), rgba(185, 28, 28, 0.08));
+}
+/* Selected state: tonal fill + ring, replaces the generic charcoal-blue ring. */
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--selected {
+  transform: translateY(-1px);
+  border-width: 2px;
+  box-shadow: 0 8px 22px rgba($brand-blue-black, 0.12);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--green.la-beta-feedback__reaction-btn--selected {
+  border-color: #15803d;
+  background: linear-gradient(180deg, rgba(21, 128, 61, 0.12), rgba(21, 128, 61, 0.18));
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.18), 0 8px 22px rgba($brand-blue-black, 0.10);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--yellow.la-beta-feedback__reaction-btn--selected {
+  border-color: #a16207;
+  background: linear-gradient(180deg, rgba(161, 98, 7, 0.12), rgba(161, 98, 7, 0.18));
+  box-shadow: 0 0 0 3px rgba(161, 98, 7, 0.18), 0 8px 22px rgba($brand-blue-black, 0.10);
+}
+.beta-feedback-drawer .la-beta-feedback__reaction-btn--red.la-beta-feedback__reaction-btn--selected {
+  border-color: #b91c1c;
+  background: linear-gradient(180deg, rgba(185, 28, 28, 0.12), rgba(185, 28, 28, 0.18));
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.18), 0 8px 22px rgba($brand-blue-black, 0.10);
+}
+/* Reaction face icons — keep crisp at the larger button size. */
+.beta-feedback-drawer .la-beta-feedback__reaction-face {
+  width: 38px;
+  height: 38px;
+  margin: 0 0 0.15rem;
+}
+
+/* ─── Beta-feedback drawer: dropzone & recording polish ──────────────── */
+.beta-feedback-drawer .la-beta-feedback__dropzone {
+  border-radius: 14px;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.6);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.beta-feedback-drawer .la-beta-feedback__dropzone:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba($brand-charcoal-blue, 0.4);
+}
+.beta-feedback-drawer .la-beta-feedback__dropzone-hint {
+  font-size: 14px;
+  margin-bottom: 0.875rem;
+}
+.beta-feedback-drawer .la-beta-feedback__consent {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 0.75rem 1rem;
+  background: rgba($brand-teal, 0.05);
+  border: 1px solid rgba($brand-teal, 0.14);
+  border-radius: 12px;
+}
+.beta-feedback-drawer .la-beta-feedback__recording-actions {
+  margin-top: 0.875rem;
+  gap: 0.875rem;
+}
+.beta-feedback-drawer .la-beta-feedback__recording-status {
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+
+/* ─── Modern file input — replaces the bare native "Choose Files" chrome ─ */
+.beta-feedback-drawer .la-beta-feedback__file-input {
+  font-size: 14px;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.beta-feedback-drawer .la-beta-feedback__file-input::file-selector-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin-right: 12px;
+  padding: 10px 18px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.18);
+  border-radius: 999px;
+  background: #fff;
+  color: $indigo;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.06);
+}
+.beta-feedback-drawer .la-beta-feedback__file-input::file-selector-button:hover {
+  background: rgba($brand-teal, 0.08);
+  border-color: rgba($brand-teal, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba($brand-blue-black, 0.08);
+}
+
+/* ─── Dropzone: roomier, friendlier, with the file picker tucked inside ─ */
+.beta-feedback-drawer .la-beta-feedback__dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 7rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  border-width: 2px;
+  border-color: rgba($brand-charcoal-blue, 0.22);
+  background: rgba($brand-teal, 0.03);
+}
+.beta-feedback-drawer .la-beta-feedback__dropzone-hint {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba($brand-charcoal-dark, 0.85);
+  margin: 0;
+}
+.beta-feedback-drawer .la-beta-feedback__dropzone--active {
+  background: rgba($brand-teal, 0.10);
+  border-color: rgba($brand-teal, 0.55);
+  box-shadow: 0 0 0 4px rgba($brand-teal, 0.10);
+}
+
+/* ─── Hints inside section cards: subtle muted chips, not loose prose ── */
+.beta-feedback-drawer .la-contact-form__row .la-contact-form__hint {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba($brand-charcoal-dark, 0.78);
+  background: rgba($brand-blue-black, 0.035);
+  border-radius: 10px;
+}
+.beta-feedback-drawer .la-contact-form__row .la-contact-form__hint::before {
+  content: "";
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E");
+  background-size: 16px;
+  background-repeat: no-repeat;
+}
+.beta-feedback-drawer .la-contact-form__row .la-contact-form__hint + .la-contact-form__hint {
+  margin-top: 0.5rem;
+}
+/* Section label: clearer hierarchy, sits above hints/inputs as a header. */
+.beta-feedback-drawer .la-contact-form__label,
+.beta-feedback-drawer .la-contact-form fieldset.la-contact-form__row .la-contact-form__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: $indigo;
+  letter-spacing: 0.005em;
+  margin-bottom: 0.25rem;
+  padding: 0;
+}
+
+/* ─── Submit-context note: information card with an info badge ─────── */
+.beta-feedback-drawer .la-beta-feedback__submit-context-note {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0.875rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba($brand-teal, 0.05), rgba($brand-teal, 0.09));
+  border: 1px solid rgba($brand-teal, 0.22);
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.04);
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba($brand-charcoal-dark, 0.92);
+}
+.beta-feedback-drawer .la-beta-feedback__submit-context-note::before {
+  content: "";
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: rgba($brand-teal, 0.20);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230d5c5f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");
+  background-size: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* ─── Submit/Cancel actions: full-width primary, generous spacing ────── */
+.beta-feedback-drawer .la-contact-form__actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba($brand-blue-black, 0.06);
+  gap: 14px;
+  align-items: center;
+}
+.beta-feedback-drawer .la-contact-form__actions .la-btn {
+  min-height: 48px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: 999px;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+.beta-feedback-drawer .la-contact-form__actions .la-btn--primary {
+  box-shadow: 0 6px 16px rgba($brand-charcoal-blue, 0.22);
+}
+.beta-feedback-drawer .la-contact-form__actions .la-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba($brand-charcoal-blue, 0.28);
+}
+
+/* ─── Recording controls: pull primary action out of the consent block ─ */
+.beta-feedback-drawer .la-beta-feedback__recording-actions {
+  margin-top: 1rem;
+  gap: 1rem;
+  align-items: center;
+}
+.beta-feedback-drawer .la-beta-feedback__recording-actions .la-btn {
+  min-height: 44px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+/* ─── Floor every text element at 14px so nothing reads "tiny." ─────── */
+.beta-feedback-drawer .beta-feedback-panel,
+.beta-feedback-drawer .beta-feedback-panel * {
+  &:where(p, span, label, button, a, li, small, em, strong) {
+    font-size: max(14px, 1em);
+  }
 }
 .la-beta-feedback__consent {
   display: flex;
