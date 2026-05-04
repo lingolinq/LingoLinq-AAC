@@ -221,7 +221,7 @@
             <div class="form-group">
               <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
               <div class="col-sm-10">
-                {{video-recorder user=this.model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
+                {{video-recorder user=this.model.user video_ready=(action "video_ready") video_not_ready=(action "video_not_ready")}}
               </div>
             </div>
           {{/if}}

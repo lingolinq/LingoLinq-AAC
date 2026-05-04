@@ -158,30 +158,32 @@ export default Component.extend({
               }
             }
             find.then((b) => {
-              if (board.orphan || b.user_name === board.user_name) {
-                runLater(() => {
-                  if (_this.get('deleting')) {
-                    _this.set('deleting', { deleting: true, board_key: b.key });
-                  }
-                  // Wait for any in-flight save before deleting; retry if deleteRecord throws inFlight
-                  (function tryDeleteBoard(attempt) {
-                    b.save().catch(function() { return RSVP.resolve(); }).then(function() {
-                      try {
-                        b.deleteRecord();
-                        deleted_ids.push(b.id);
-                        b.save().then(() => { defer.resolve(b); }, (err) => { defer.reject(err); });
-                      } catch (err) {
-                        const msg = (err && (err.message || String(err))) || '';
-                        if (msg.indexOf('inFlight') !== -1 && attempt < 20) {
-                          runLater(function() { tryDeleteBoard(attempt + 1); }, 100);
-                        } else {
-                          defer.reject(err);
-                        }
-                      }
-                    });
-                  })(0);
-                });
+              if (!b || !(board.orphan || b.user_name === board.user_name)) {
+                defer.resolve(b);
+                return;
               }
+              runLater(() => {
+                if (_this.get('deleting')) {
+                  _this.set('deleting', { deleting: true, board_key: b.key });
+                }
+                // Wait for any in-flight save before deleting; retry if deleteRecord throws inFlight
+                (function tryDeleteBoard(attempt) {
+                  b.save().catch(function() { return RSVP.resolve(); }).then(function() {
+                    try {
+                      b.deleteRecord();
+                      deleted_ids.push(b.id);
+                      b.save().then(() => { defer.resolve(b); }, (err) => { defer.reject(err); });
+                    } catch (err) {
+                      const msg = (err && (err.message || String(err))) || '';
+                      if (msg.indexOf('inFlight') !== -1 && attempt < 20) {
+                        runLater(function() { tryDeleteBoard(attempt + 1); }, 100);
+                      } else {
+                        defer.reject(err);
+                      }
+                    }
+                  });
+                })(0);
+              });
             }, (err) => { defer.reject(err); });
           };
           defer.promise.then(() => {

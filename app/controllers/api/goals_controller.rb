@@ -56,6 +56,7 @@ class Api::GoalsController < ApplicationController
     goal_data['user_id'] ||= @api_user.global_id
     user = User.find_by_global_id(goal_data['user_id'])
     return unless exists?(user, goal_data['user_id'])
+    scopes = api_permission_scopes
     return unless allowed?(user, 'set_goals')
 
     admin_org = Organization.admin
@@ -63,13 +64,12 @@ class Api::GoalsController < ApplicationController
     # community templates). Only org managers may create admin template headers; otherwise strip
     # the flag so goal creation still succeeds as a normal user goal.
     if ActiveModel::Type::Boolean.new.cast(goal_data['template_header'])
-      scopes = api_permission_scopes
       unless admin_org&.allows?(@api_user, 'edit', scopes)
         goal_data['template_header'] = false
       end
     end
 
-    goal = UserGoal.process_new(goal_data, {:user => user, :author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
+    goal = UserGoal.process_new(goal_data, {:user => user, :author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit', scopes)})
     if !goal || goal.errored?
       api_error(400, {error: "goal creation failed", errors: goal && goal.processing_errors})
     else

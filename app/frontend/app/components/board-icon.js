@@ -9,6 +9,19 @@ import { inject as service } from '@ember/service';
 export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
+  triggerExternalAction: function(actionName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var action = this.get(actionName);
+    if (action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var targetActionName = typeof action === 'string' ? action : actionName;
+    var target = this.get('targetObject');
+    if (targetActionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [targetActionName].concat(args));
+    }
+  },
   willInsertElement: function() {
     this.set_board_record();
   },
@@ -133,7 +146,7 @@ export default Component.extend({
       if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
         _this.onActionOverride(this.get('board_record.key'));
       } else if(_this.get('action_override')) {
-        _this.sendAction('action_override', this.get('board_record.key'));
+        _this.triggerExternalAction('action_override', this.get('board_record.key'));
       } else {
         modal.board_preview(board, board.preview_locale, this.get('allow_style'), function() {
           _this.send('pick_board', board);
@@ -158,11 +171,11 @@ export default Component.extend({
         _this.onActionOverride(key);
       } else if(_this.get('action_override')) {
         var key = board_record.get ? board_record.get('key') : board_record.key;
-        _this.sendAction('action_override', key);
+        _this.triggerExternalAction('action_override', key);
       } else if(_this.onAction && typeof _this.onAction === 'function') {
         _this.onAction(board_record);
       } else if(this.get('children')) {
-        _this.sendAction('action', board_record);
+        _this.triggerExternalAction('action', board_record);
       } else if(this.get('option') == 'select') {
         board_record.preview_option = 'select';
         if(_this.get('localized')) {
@@ -172,7 +185,7 @@ export default Component.extend({
           if (_this.onAction && typeof _this.onAction === 'function') {
             _this.onAction(board_record);
           } else {
-            _this.sendAction('action', board_record);
+            _this.triggerExternalAction('action', board_record);
           }
         });
       } else if(_this.get('allow_style') && _this.get('override_count')) {
@@ -180,7 +193,6 @@ export default Component.extend({
           board_record.preview_locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
         }
         modal.board_preview(board_record, board_record.preview_locale, this.get('allow_style'), function() {
-          // _this.sendAction('action', board_record);
         });
       } else {
         var key = board_record.get ? board_record.get('key') : board_record.key;

@@ -30,6 +30,11 @@ export default Component.extend({
     _this.set('loading', true);
     _this.set('error', null);
     const board = _this.get('model.board');
+    if (!board) {
+      _this.set('loading', false);
+      _this.set('error', i18n.t('copy_board_missing_board', "Board is not available for copying"));
+      return;
+    }
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
       _this.start_copying();
     } else {
@@ -55,6 +60,12 @@ export default Component.extend({
   },
 
   start_copying() {
+    const board = this.get('model.board');
+    if (!board) {
+      this.set('loading', false);
+      this.set('error', i18n.t('copy_board_missing_board', "Board is not available for copying"));
+      return;
+    }
     // keep_links/remove_links skip hierarchy load — still clear loading so the modal
     // shows the in-progress copy message instead of staying on "Loading...".
     this.set('loading', false);
@@ -67,24 +78,24 @@ export default Component.extend({
       board_ids_to_include = this.get('hierarchy').selected_board_ids();
       this.set('hierarchy', null);
     }
-    this.get('model.board').set('downstream_board_ids_to_copy', board_ids_to_include);
+    board.set('downstream_board_ids_to_copy', board_ids_to_include);
     const _this = this;
-    _this.set('model.board.default_locale', null);
-    if (this.get('model.default_locale') && this.get('model.board.locale') !== this.get('model.default_locale')) {
-      _this.set('model.board.default_locale', this.get('model.default_locale'));
+    board.set('default_locale', null);
+    if (this.get('model.default_locale') && board.get('locale') !== this.get('model.default_locale')) {
+      board.set('default_locale', this.get('model.default_locale'));
     }
     console.debug('[copying-board] starting copy_board', _this.get('model.action'));
-    editManager.copy_board(_this.get('model.board'), _this.get('model.action'), _this.get('model.user'), _this.get('model.make_public'), _this.get('model.symbol_library'), _this.get('model.new_owner'), _this.get('model.disconnect')).then(function(board) {
-      console.debug('[copying-board] copy_board resolved', board && board.get && board.get('id'));
+    editManager.copy_board(board, _this.get('model.action'), _this.get('model.user'), _this.get('model.make_public'), _this.get('model.symbol_library'), _this.get('model.new_owner'), _this.get('model.disconnect')).then(function(copiedBoard) {
+      console.debug('[copying-board] copy_board resolved', copiedBoard && copiedBoard.get && copiedBoard.get('id'));
       if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
       let next = RSVP.resolve();
-      const new_board_ids = board_ids_to_include ? board.get('new_board_ids') : null;
+      const new_board_ids = board_ids_to_include ? copiedBoard.get('new_board_ids') : null;
       if (_this.get('model.shares') && _this.get('model.shares').length > 0) {
         _this.get('model.shares').forEach(function(share) {
           next = next.then(function() {
             const user_name = share.user_name;
-            board.set('sharing_key', 'add_deep-' + user_name);
-            return board.save();
+            copiedBoard.set('sharing_key', 'add_deep-' + user_name);
+            return copiedBoard.save();
           });
         });
         next = next.then(null, function() {
@@ -93,11 +104,11 @@ export default Component.extend({
       }
       next = next.then(function() {
         if (_this.get('model.translate_locale')) {
-          return _this.get('model.board').load_button_set(true).then(function() {
+          return board.load_button_set(true).then(function() {
             const translate_opts = {
-              board: _this.get('model.board'),
-              copy: board,
-              button_set: _this.get('model.board.button_set'),
+              board: board,
+              copy: copiedBoard,
+              button_set: board.get('button_set'),
               locale: _this.get('model.translate_locale'),
               old_board_ids_to_translate: board_ids_to_include,
               new_board_ids_to_translate: new_board_ids
@@ -114,7 +125,7 @@ export default Component.extend({
         }
         // Do not block closing the copying modal on reload — a stuck reload() left the UI
         // on "Loading..." / copying forever even after button-set progress finished.
-        board.reload(true).then(null, function() {});
+        copiedBoard.reload(true).then(null, function() {});
         return RSVP.resolve(null);
       });
       next.then(function(res) {
@@ -125,14 +136,14 @@ export default Component.extend({
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen || translatedResult) {
-          board.set('should_reload', true);
+          copiedBoard.set('should_reload', true);
           _this.get('appState').jump_to_board({
-            id: board.get('id'),
-            key: board.get('key')
+            id: copiedBoard.get('id'),
+            key: copiedBoard.get('key')
           });
-          modal.close({ copied: true, id: board.get('id'), key: board.get('key') });
+          modal.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
-            modalSvc.close({ copied: true, id: board.get('id'), key: board.get('key') });
+            modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           }
         } else {
           modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
