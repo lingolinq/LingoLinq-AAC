@@ -219,12 +219,10 @@ def extract(source, dest, max_depth):
                 if not archive or source_path not in archive.namelist():
                     continue
                 asset_name = normalize_asset_name(source_path)
-                archive.extract(source_path, dest)
-                extracted = dest / source_path
                 target = images_dest / asset_name
-                if extracted != target:
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(extracted), str(target))
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(source_path) as src_file:
+                    target.write_bytes(src_file.read())
                 copied_images[source_path] = 'demo-boards/images/' + asset_name
 
         for board_path in sorted(selected_paths):
