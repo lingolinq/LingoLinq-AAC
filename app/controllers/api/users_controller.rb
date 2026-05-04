@@ -1,6 +1,7 @@
-class Api::UsersController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+require_relative '../../../lib/method_tracer'
 
+class Api::UsersController < ApplicationController
+  extend MethodTracer
   before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button, :resend_parental_consent]
   def show
     # If requesting 'self' but no authenticated user, return 401 instead of 404
