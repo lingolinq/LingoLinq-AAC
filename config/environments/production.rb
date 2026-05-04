@@ -10,7 +10,11 @@ Rails.application.configure do
   # Rake tasks automatically ignore this option for performance.
   config.eager_load = true
 
-  config.secret_key_base = ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]
+  # Fail loud at boot if SECRET_KEY_BASE is missing. The previous form
+  # (`ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]`) silently collapsed two
+  # encryption domains and made rotation procedures ambiguous.
+  # Render production sets SECRET_KEY_BASE via `generateValue: true`.
+  config.secret_key_base = ENV.fetch("SECRET_KEY_BASE")
   
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
