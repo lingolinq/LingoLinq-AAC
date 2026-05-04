@@ -47,8 +47,10 @@ class ApplicationController < ActionController::Base
   # CoppaSentryScrub redacts the user entirely if a logged-in user turns
   # out to be COPPA-pending.
   def set_sentry_user
-    return unless defined?(Sentry) && Sentry.initialized?
+    return unless defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
     Sentry.set_user(id: GoSecure.sha512(request.remote_ip, 'user_ip'))
+  rescue StandardError
+    nil
   end
   
   def check_api_token
