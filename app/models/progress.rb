@@ -82,6 +82,18 @@ class Progress < ActiveRecord::Base
       id = obj.id
       obj = obj.class
     end
+
+    # Check for existing pending or started progress for the same operation
+    existing = Progress.where("started_at > ? OR (started_at IS NULL AND created_at > ?)", 4.hours.ago, 1.hour.ago)
+                       .where(finished_at: nil)
+                       .find do |p|
+      p.settings['class'] == obj.to_s &&
+      p.settings['id'] == id &&
+      p.settings['method'].to_s == method.to_s &&
+      p.settings['arguments'] == args
+    end
+    return existing if existing
+
     progress = Progress.new
     progress.settings = {
       'class' => obj.to_s,
