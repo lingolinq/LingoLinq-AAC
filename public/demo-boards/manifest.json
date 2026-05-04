@@ -1,0 +1,22 @@
+{
+  "boards": {
+    "pc36.obf": {
+      "depth": 0,
+      "id": "1_66080",
+      "name": "Project Core-36 Universal Core",
+      "path": "boards/pc36.obf"
+    }
+  },
+  "format": "open-board-0.1",
+  "max_depth": 0,
+  "root": "boards/pc36.obf",
+  "root_source_path": "pc36.obf",
+  "source": "pc36.obf",
+  "stats": {
+    "boards": 1,
+    "buttons": 36,
+    "disabled_folder_buttons": 0,
+    "enabled_folder_buttons": 0,
+    "images": 35
+  }
+}

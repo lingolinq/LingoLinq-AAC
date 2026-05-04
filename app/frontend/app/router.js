@@ -149,6 +149,11 @@ Router.map(function() {
     this.route('password_reset', { path: '/password_reset/:code' });
   });
   this.route('speech', { path: '/speech' });
+  this.route('demo', { path: '/demo' }, function() {
+    this.route('index', { path: '/' });
+    this.route('speak');
+    this.route('style');
+  });
   this.route('board', { resetNamespace: true, path: '/*key'}, function() {
 //    this.route('error');
     this.route('stats');

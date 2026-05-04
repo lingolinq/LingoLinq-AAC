@@ -109,13 +109,21 @@ describe Api::WordsController, :type => :controller do
   end
 
   describe "post 'predict'" do
-    it "should require an api token" do
+    it "should not require an api token" do
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      expect(AiWordPredictor).to receive(:predict).with(hash_including(
+        sentence: 'I want to',
+        locale: 'en',
+        count: 4,
+        user: nil
+      )).and_return(%w[play go eat help])
+
       post 'predict', params: { 'sentence' => 'I want to' }
-      assert_missing_token
+      json = assert_success_json
+      expect(json).to eq({ 'words' => %w[play go eat help] })
     end
 
     it "should require a sentence" do
-      token_user
       post 'predict', params: { 'sentence' => '' }
       assert_error('sentence required')
     end

@@ -49,6 +49,10 @@
 # Ignore local settings for claude
 /.claude
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # Ignore GSD (get-shit-done) runtime artifacts — plans, task todos, execution state
 /.planning
 

@@ -359,10 +359,12 @@ export default Controller.extend(prefClasses, {
       }
       return color;
     };
-    // Toolbar paint swatches derive their hex values from the canonical
-    // Fitzgerald palette (LingoLinq.board_detail_keyed_colors), keyed by
-    // pos_class. Only display labels live here — keeps the palette as the
-    // single JS source of truth for POS color hex values.
+    var color_pos_class = function(color) {
+      if(color.pos_class) { return color.pos_class; }
+      if(color.types && color.types.length) { return color.types[0]; }
+      return null;
+    };
+    // Toolbar paint swatches derive their hex values from the Fitzgerald palette.
     var pos_labels = {
       pronoun:     i18n.t('swatch_pronoun', "Pronoun"),
       verb:        i18n.t('swatch_verb', "Verb"),
@@ -380,9 +382,10 @@ export default Controller.extend(prefClasses, {
     };
     var palette = (window.LingoLinq && window.LingoLinq.board_detail_keyed_colors) || [];
     var swatches = palette
-      .filter(function(c) { return c.pos_class && pos_labels[c.pos_class]; })
+      .filter(function(c) { return color_pos_class(c) && pos_labels[color_pos_class(c)]; })
       .map(function(c) {
-        var s = { label: pos_labels[c.pos_class], pos_class: c.pos_class, bg: c.fill };
+        var pos_class = color_pos_class(c);
+        var s = { label: pos_labels[pos_class], pos_class: pos_class, bg: c.fill };
         if(c.border) { s.border = c.border; }
         return s;
       });
