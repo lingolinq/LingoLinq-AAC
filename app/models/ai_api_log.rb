@@ -100,6 +100,58 @@ class AiApiLog < ApplicationRecord
     }
   end
 
+  # Returns a single-day rollup suitable for the daily AI cost + PII digest
+  # consumed by the n8n daily-ai-cost-pii-digest workflow.
+  #
+  # Provider breakdowns include token totals so n8n can cross-check against
+  # the upstream Anthropic / OpenAI / Gemini billing APIs and flag drift.
+  # PII findings are already redacted by PiiScrubber before persistence, so
+  # surfacing them here is safe.
+  def self.daily_summary(date = Date.current - 1)
+    day_start = date.beginning_of_day
+    day_end = date.end_of_day
+    scope = where(created_at: day_start..day_end)
+
+    pii_rows = scope.with_pii_detected.order(created_at: :asc).limit(50)
+
+    {
+      date: date.iso8601,
+      total_calls: scope.count,
+      total_failures: scope.where(success: false).count,
+      total_pii_detected: scope.where(pii_detected: true).count,
+      total_tokens_sent: scope.sum(:tokens_sent).to_i,
+      total_tokens_received: scope.sum(:tokens_received).to_i,
+      avg_duration_ms: scope.average(:duration_ms).to_f.round(1),
+      by_provider: scope.group(:ai_provider).pluck(
+        :ai_provider,
+        Arel.sql('COUNT(*)'),
+        Arel.sql('COALESCE(SUM(tokens_sent), 0)'),
+        Arel.sql('COALESCE(SUM(tokens_received), 0)'),
+        Arel.sql('SUM(CASE WHEN success = false THEN 1 ELSE 0 END)'),
+        Arel.sql('SUM(CASE WHEN pii_detected = true THEN 1 ELSE 0 END)')
+      ).map { |provider, calls, sent, received, failures, pii|
+        {
+          provider: provider,
+          calls: calls,
+          tokens_sent: sent.to_i,
+          tokens_received: received.to_i,
+          failures: failures.to_i,
+          pii_detected: pii.to_i
+        }
+      },
+      by_request_type: scope.group(:request_type).count,
+      pii_samples: pii_rows.map { |row|
+        {
+          id: row.id,
+          provider: row.ai_provider,
+          request_type: row.request_type,
+          findings: row.send(:parsed_pii_findings),
+          created_at: row.created_at.iso8601
+        }
+      }
+    }
+  end
+
   # Redacts IP addresses on records older than the specified number of days.
   # Supports data minimization requirements (e.g., GDPR, COPPA).
   # Records whose ip_address is already nil or '[REDACTED]' are skipped.
