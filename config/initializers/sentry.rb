@@ -173,10 +173,11 @@ module CoppaSentryScrub
     breadcrumb.message = strip_sensitive_query(msg)
   end
 
+  SENSITIVE_QUERY_PATTERN = /\b(#{Regexp.union(SENSITIVE_QUERY_KEYS).source})=([^&\s"']+)/i.freeze
+
   def strip_sensitive_query(str)
     return str unless str.is_a?(String) && str.include?('=')
-    pattern = /\b(#{SENSITIVE_QUERY_KEYS.join('|')})=([^&\s"']+)/i
-    str.gsub(pattern) { "#{Regexp.last_match(1)}=#{REDACTED}" }
+    str.gsub(SENSITIVE_QUERY_PATTERN) { "#{Regexp.last_match(1)}=#{REDACTED}" }
   end
 
   def responds(obj, key)
