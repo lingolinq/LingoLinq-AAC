@@ -1630,10 +1630,10 @@ LingoLinq.Board = DS.Model.extend({
 LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
     var hasUnsavedImages = LingoLinq.store.peekAll('image').any(function(img) {
-      return img.get('isNew') || img.get('hasDirtyAttributes');
+      return img.get('isSaving');
     });
     if (hasUnsavedImages) {
-      console.log('[BOARD] Skipping clear_fast_html because there are unsaved image records');
+      console.log('[BOARD] Skipping clear_fast_html because image uploads are in progress');
       return;
     }
     LingoLinq.store.peekAll('board').forEach(function(b) {

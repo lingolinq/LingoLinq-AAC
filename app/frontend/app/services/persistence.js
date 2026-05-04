@@ -3832,10 +3832,14 @@ var persistence = Service.extend({
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
     var is_online = this.get('online');
-    if (is_online === false && navigator.onLine === true) {
-      console.log('[PERSISTENCE AJAX] Service reported offline but navigator.onLine is true. Overriding.');
-      this.set('online', true);
-      is_online = true;
+    if (is_online === false) {
+      var override = navigator.online_override;
+      var nav_online = (override !== undefined && override !== null) ? !!override : navigator.onLine;
+      if (nav_online === true) {
+        console.log('[PERSISTENCE AJAX] Service reported offline but navigator indicates online. Overriding.');
+        this.set('online', true);
+        is_online = true;
+      }
     }
     if(is_online || local_request) {
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on
