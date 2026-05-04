@@ -150,6 +150,7 @@ Router.map(function() {
   });
   this.route('speech', { path: '/speech' });
   this.route('demo', { path: '/demo' }, function() {
+    this.route('index', { path: '/' });
     this.route('speak');
     this.route('style');
   });
