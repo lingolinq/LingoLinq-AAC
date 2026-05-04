@@ -27,7 +27,7 @@ module Flusher
     end
 
     ai_logs = AiApiLog.where(user_global_id: user.global_id)
-    ai_logs.each do |log|
+    ai_logs.find_each do |log|
       flush_record(log)
     end
   end
