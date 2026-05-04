@@ -14,7 +14,10 @@ Rails.application.configure do
   # (`ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]`) silently collapsed two
   # encryption domains and made rotation procedures ambiguous.
   # Render production sets SECRET_KEY_BASE via `generateValue: true`.
-  config.secret_key_base = ENV.fetch("SECRET_KEY_BASE")
+  secret_key_base = ENV.fetch('SECRET_KEY_BASE')
+  raise ArgumentError, 'SECRET_KEY_BASE must be set and non-blank' if secret_key_base.strip.empty?
+
+  config.secret_key_base = secret_key_base
   
   # Full error reports are disabled and caching is turned on.
   config.consider_all_requests_local       = false
