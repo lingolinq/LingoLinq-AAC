@@ -25,6 +25,11 @@ module Flusher
     summaries.each do |summary|
       flush_record(summary)
     end
+
+    ai_logs = AiApiLog.where(user_global_id: user.global_id)
+    ai_logs.each do |log|
+      flush_record(log)
+    end
   end
   
   def self.flush_record(record, record_db_id=nil, record_class=nil)
