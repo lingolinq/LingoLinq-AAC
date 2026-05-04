@@ -1,4 +1,6 @@
 class AiApiLog < ApplicationRecord
+  require_relative '../../lib/pii_scrubber'
+
   # Validations
   validates :ai_provider, presence: true
   validates :request_type, presence: true
@@ -7,6 +9,30 @@ class AiApiLog < ApplicationRecord
     allow_blank: false,
     message: "%{value} is not a recognized AI provider"
   }
+
+  # Scrub PII out of free-form summary columns before persistence. Request
+  # summaries are usually built from already-scrubbed prompts, but model
+  # responses are raw model output and frequently echo names / emails from
+  # the prompt or hallucinate new ones. Audit-reports/security-review-2026-05-04
+  # finding #3 flagged response_summary as a latent PII reservoir, one new
+  # SQL caller away from leakage. Scrub on assignment so no future caller
+  # can store raw output even by accident.
+  before_validation :scrub_summary_columns
+
+  def scrub_summary_columns
+    self.response_summary = pii_scrub(response_summary)
+    self.request_summary = pii_scrub(request_summary)
+    nil
+  end
+
+  def pii_scrub(value)
+    return value unless value.is_a?(String) && !value.empty?
+    result = PiiScrubber.redact_for_ai(value)
+    result.is_a?(Hash) ? result[:payload] : value
+  rescue StandardError => e
+    Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
+    '[REDACTED]'
+  end
 
   # Scopes
   scope :by_provider, ->(provider) { where(ai_provider: provider) }
@@ -145,7 +171,7 @@ class AiApiLog < ApplicationRecord
           id: row.id,
           provider: row.ai_provider,
           request_type: row.request_type,
-          findings: row.send(:parsed_pii_findings),
+          findings: row.safe_pii_findings_for_digest,
           created_at: row.created_at.iso8601
         }
       }
@@ -186,6 +212,21 @@ class AiApiLog < ApplicationRecord
       created_at: created_at&.iso8601,
       updated_at: updated_at&.iso8601
     }
+  end
+
+  # Public, defensively-scrubbed view of pii_findings for the n8n daily
+  # digest endpoint. Strips any field that could carry a raw PII value if a
+  # future PiiScrubber change started storing it. Whitelist of allowed
+  # finding keys: type, position. The :value preview field is dropped
+  # entirely; consumers do not need it for digest aggregation.
+  def safe_pii_findings_for_digest
+    parsed_pii_findings.map do |f|
+      next f unless f.is_a?(Hash)
+      {
+        'type' => f['type'] || f[:type],
+        'position' => f['position'] || f[:position]
+      }.compact
+    end
   end
 
   private

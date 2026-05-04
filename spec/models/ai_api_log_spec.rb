@@ -215,6 +215,96 @@ describe AiApiLog, :type => :model do
       expect(log.feature_flag).to eq('ai_board_gen_v2')
     end
 
+    # Audit-reports/security-review-2026-05-04 finding #3: response_summary
+    # was a latent PII reservoir because raw model output landed verbatim in
+    # the DB. The model now scrubs both summary columns on save.
+    describe "summary column scrubbing" do
+      it "redacts an email address from response_summary" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Welcome jane.doe@example.com to the board'
+        )
+        expect(log.response_summary).not_to include('jane.doe@example.com')
+        expect(log.response_summary).to include('[REDACTED_EMAIL]')
+      end
+
+      it "redacts an SSN from response_summary" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Confirm number 123-45-6789 in your records'
+        )
+        expect(log.response_summary).not_to include('123-45-6789')
+        expect(log.response_summary).to include('[REDACTED_SSN]')
+      end
+
+      it "redacts an email address from request_summary too" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'word_suggestion',
+          request_summary: 'Suggest words for kid@example.com',
+          response_summary: 'cat dog tree'
+        )
+        expect(log.request_summary).not_to include('kid@example.com')
+      end
+
+      it "leaves a clean response_summary unchanged" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'Returned 12 buttons with symbols'
+        )
+        expect(log.response_summary).to eq('Returned 12 buttons with symbols')
+      end
+
+      it "is idempotent on already-redacted text" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'See [REDACTED_EMAIL] for details'
+        )
+        expect(log.response_summary).to eq('See [REDACTED_EMAIL] for details')
+      end
+
+      it "passes nil and empty values through unchanged" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: nil
+        )
+        expect(log.response_summary).to be_nil
+      end
+    end
+
+    describe "safe_pii_findings_for_digest" do
+      it "returns only type and position, not value/preview" do
+        findings = [
+          { type: 'email', position: 5, value: 'jane@example.com', preview: 'j***m' },
+          { type: 'ssn', position: 30, value: '123-45-6789' }
+        ]
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: findings
+        )
+
+        result = log.safe_pii_findings_for_digest
+        expect(result.length).to eq(2)
+        expect(result.first.keys).to contain_exactly('type', 'position')
+        expect(result.first['type']).to eq('email')
+        expect(result.first['position']).to eq(5)
+        expect(result.first.values.join).not_to include('jane@example.com')
+        expect(result.first.values.join).not_to include('j***m')
+      end
+
+      it "returns an empty array when there are no findings" do
+        log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
+        expect(log.safe_pii_findings_for_digest).to eq([])
+      end
+    end
+
     it "should store the request payload hash" do
       log = AiApiLog.log_ai_call(
         provider: 'claude',
