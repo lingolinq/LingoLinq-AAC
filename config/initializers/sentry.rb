@@ -24,6 +24,16 @@ module CoppaSentryScrub
 
   REQUEST_BODY_KEYS = %w[data params body query_parameters request_parameters form_params query_string].freeze
 
+  # Query-string keys stripped from breadcrumb URLs for ALL users (not just
+  # COPPA-pending). Mirrors filter_parameter_logging plus a few Sentry-specific
+  # sources of leakage (email in subscribe links, support reset tokens, etc).
+  SENSITIVE_QUERY_KEYS = %w[
+    access_token token api_key apikey password secret secret_key auth
+    bearer email reset_token confirmation_token tmp_token
+  ].freeze
+
+  REQUEST_STORE_KEY = :coppa_sentry_user
+
   module_function
 
   def call(event, _hint)
@@ -50,11 +60,29 @@ module CoppaSentryScrub
     false
   end
 
+  # Resolve the User for the active request so the COPPA branch can decide
+  # whether to scrub. Sentry's user_hash[:id] is the SHA-512 hex of the
+  # request IP (set in ApplicationController#set_sentry_user for grouping)
+  # and is NOT a database id, so a User.where(id: hex) lookup never matches.
+  # Read the actual user reference stashed via RequestStore in
+  # set_sentry_user; fall back to event.user[:id] only if it is numeric
+  # (kept for callers that intentionally set a real id, e.g. background
+  # jobs using Sentry.with_scope).
   def lookup_user(user_hash)
+    stored = current_request_user
+    return stored if stored
     return nil unless user_hash.is_a?(Hash)
     user_id = user_hash[:id] || user_hash['id']
     return nil if user_id.nil? || user_id.to_s.empty?
+    return nil unless user_id.is_a?(Integer) || user_id.to_s.match?(/\A\d+\z/)
     User.where(id: user_id).first
+  rescue StandardError
+    nil
+  end
+
+  def current_request_user
+    return nil unless defined?(RequestStore)
+    RequestStore.store[REQUEST_STORE_KEY]
   rescue StandardError
     nil
   end
@@ -113,6 +141,45 @@ module CoppaSentryScrub
     no_query.gsub(PiiScrubber::GLOBAL_ID_PATTERN, REDACTED_ID)
   end
 
+  # Scrub breadcrumbs for ALL users, regardless of COPPA status. Targets the
+  # outbound HTTP breadcrumbs Sentry-Rails auto-captures (active_support_logger,
+  # http_logger), where URLs frequently carry access_token, reset_token, etc.
+  # This complements (does NOT replace) the COPPA branch in #call which fully
+  # nukes the event for under-13 users.
+  def scrub_breadcrumb(breadcrumb)
+    return breadcrumb unless breadcrumb
+    scrub_breadcrumb_data!(breadcrumb)
+    scrub_breadcrumb_message!(breadcrumb)
+    breadcrumb
+  rescue StandardError
+    breadcrumb
+  end
+
+  def scrub_breadcrumb_data!(breadcrumb)
+    data = breadcrumb.respond_to?(:data) ? breadcrumb.data : nil
+    return unless data.is_a?(Hash)
+    %w[url full_url].each do |k|
+      val = data[k] || data[k.to_sym]
+      next unless val.is_a?(String)
+      cleaned = strip_sensitive_query(val)
+      assign(data, k, cleaned)
+    end
+  end
+
+  def scrub_breadcrumb_message!(breadcrumb)
+    return unless breadcrumb.respond_to?(:message=)
+    msg = breadcrumb.respond_to?(:message) ? breadcrumb.message : nil
+    return unless msg.is_a?(String)
+    breadcrumb.message = strip_sensitive_query(msg)
+  end
+
+  SENSITIVE_QUERY_PATTERN = /\b(#{Regexp.union(SENSITIVE_QUERY_KEYS).source})=([^&\s"']+)/i.freeze
+
+  def strip_sensitive_query(str)
+    return str unless str.is_a?(String) && str.include?('=')
+    str.gsub(SENSITIVE_QUERY_PATTERN) { "#{Regexp.last_match(1)}=#{REDACTED}" }
+  end
+
   def responds(obj, key)
     obj.respond_to?("#{key}=") || (obj.is_a?(Hash) && (obj.key?(key) || obj.key?(key.to_sym)))
   end
@@ -155,5 +222,6 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     config.send_default_pii = false
 
     config.before_send = ->(event, hint) { CoppaSentryScrub.call(event, hint) }
+    config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
   end
 end
