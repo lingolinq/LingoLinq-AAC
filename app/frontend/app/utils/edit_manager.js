@@ -27,21 +27,24 @@ export function fastHtmlHasRenderableContent(fast) {
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
-    return this._services.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return (this._services && this._services.appState) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
+    this._services = this._services || {};
     this._services.appState = val;
   },
   get persistence() {
-    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+    return (this._services && this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
   set persistence(val) {
+    this._services = this._services || {};
     this._services.persistence = val;
   },
   get stashes() {
-    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+    return (this._services && this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
   set stashes(val) {
+    this._services = this._services || {};
     this._services.stashes = val;
   },
 
