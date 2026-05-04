@@ -4193,16 +4193,16 @@ export default Service.extend({
   board_virtual_dom: computed(function() {
     var _this = this;
     var dom = {
-      sendAction: function() {
+      triggerAction: function() {
       },
       trigger: function(event, id, args) {
         var useVirtualDom = _this.get('currentUser.preferences.device.canvas_render') || _this.get('speak_mode');
         if(useVirtualDom && LingoLinq.customEvents[event]) {
-          var sendAction = _this.get('board_virtual_dom.sendAction');
-          if(typeof sendAction === 'function') {
-            sendAction(LingoLinq.customEvents[event], id, {event: args});
+          var triggerAction = _this.get('board_virtual_dom.triggerAction');
+          if(typeof triggerAction === 'function') {
+            triggerAction(LingoLinq.customEvents[event], id, {event: args});
           } else {
-            dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
+            dom.triggerAction(LingoLinq.customEvents[event], id, {event: args});
           }
         }
       },
@@ -4225,7 +4225,7 @@ export default Service.extend({
           dom.each_button(function(b) {
             if(b.id == id && !emberGet(b, state)) {
               emberSet(b, state, true);
-              dom.sendAction('redraw', b.id);
+              dom.triggerAction('redraw', b.id);
             }
           });
         }
@@ -4234,17 +4234,17 @@ export default Service.extend({
         dom.each_button(function(b) {
           if(b.id != except_id && emberGet(b, state)) {
             emberSet(b, state, false);
-            dom.sendAction('redraw', b.id);
+            dom.triggerAction('redraw', b.id);
           }
         });
       },
       clear_touched: function() {
         dom.clear_state('touched');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       clear_hover: function() {
         dom.clear_state('hover');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       button_result: function(b) {
         var pos = b.positioning;

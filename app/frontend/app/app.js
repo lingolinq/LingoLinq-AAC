@@ -399,7 +399,7 @@ LingoLinq.keyed_colors = [
 // used by the board-detail symbol-card classes.
 LingoLinq.board_detail_keyed_colors = [
   {pos_class: 'pronoun',     fill: "#FAFAAA", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
-  {pos_class: 'verb',        fill: "#BCECC5", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
+  {pos_class: 'verb',        fill: "#C0E8C8", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
   {pos_class: 'adjective',   fill: "#B9D0F6", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
   {pos_class: 'noun',        fill: "#FDCF98", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
   {pos_class: 'social',      fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},

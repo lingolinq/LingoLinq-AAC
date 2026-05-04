@@ -43,7 +43,7 @@ class Api::Internal::AiApiLogsController < ApplicationController
     provided_hash = Digest::SHA256.hexdigest(provided)
     unless ActiveSupport::SecurityUtils.fixed_length_secure_compare(expected_hash, provided_hash)
       render json: { error: 'unauthorized' }, status: :unauthorized
-      false
+      return false
     end
   end
 end

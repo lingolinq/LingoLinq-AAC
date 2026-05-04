@@ -23,6 +23,19 @@ var shuffle = function (array) {
 
 export default Component.extend({
   appState: service('app-state'),
+  triggerExternalAction: function(primaryName, fallbackName) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    var action = this.get(primaryName) || this.get(fallbackName);
+    if (action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var actionName = typeof action === 'string' ? action : (fallbackName || primaryName);
+    var target = this.get('targetObject');
+    if (actionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [actionName].concat(args));
+    }
+  },
   willInsertElement: function () {
     this.load_boards();
     this.set('current_index', null);
@@ -141,39 +154,17 @@ export default Component.extend({
         } else {
           _this.set('status', { error: true });
           _this.set('_boards_loading', false);
-          var loadError = _this.get('loadError') || _this.get('load_error');
-          if (loadError && typeof loadError === 'function') {
-            loadError();
-          } else if (loadError && typeof loadError === 'string') {
-            _this.sendAction(loadError);
-          } else {
-            _this.sendAction('load_error');
-          }
+          _this.triggerExternalAction('loadError', 'load_error');
         }
       }, function() {
         _this.set('status', { error: true });
         _this.set('_boards_loading', false);
-        var loadError = _this.get('loadError') || _this.get('load_error');
-        if (loadError && typeof loadError === 'function') {
-          loadError();
-        } else if (loadError && typeof loadError === 'string') {
-          _this.sendAction(loadError);
-        } else {
-          _this.sendAction('load_error');
-        }
+        _this.triggerExternalAction('loadError', 'load_error');
       });
     }, function(err) {
       _this.set('status', {error: true});
       _this.set('_boards_loading', false);
-      // Check both camelCase (loadError) and snake_case (load_error) for compatibility
-      var loadError = _this.get('loadError') || _this.get('load_error');
-      if (loadError && typeof loadError === 'function') {
-        loadError();
-      } else if (loadError && typeof loadError === 'string') {
-        _this.sendAction(loadError);
-      } else {
-        _this.sendAction('load_error');
-      }
+      _this.triggerExternalAction('loadError', 'load_error');
     });
   },
   check_update_scroll: observer('base_level', function () {
@@ -357,17 +348,7 @@ export default Component.extend({
         if (selectHandler && typeof selectHandler === 'function') {
           selectHandler(_this.get('current_board'));
         } else {
-          var selectAction = _this.get('select');
-          if (selectAction && typeof selectAction === 'string') {
-            _this.sendAction(selectAction, _this.get('current_board'));
-          } else {
-            var fn = _this.get('select');
-            if (typeof fn === 'function') {
-              fn(_this.get('current_board'));
-            } else {
-              _this.sendAction('select', _this.get('current_board'));
-            }
-          }
+          _this.triggerExternalAction('select', 'select', _this.get('current_board'));
         }
       } else {
         _this.set('current_level', _this.get('base_level'));

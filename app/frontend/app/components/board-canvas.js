@@ -7,8 +7,11 @@ export default Component.extend({
     var redrawFn = this.get('onInsert');
     if (redrawFn && typeof redrawFn === 'function') {
       redrawFn();
-    } else if (this.sendAction) {
-      this.sendAction('redraw');
+    } else {
+      var target = this.get('targetObject');
+      if (target && typeof target.send === 'function') {
+        target.send('redraw');
+      }
     }
   }
 });
