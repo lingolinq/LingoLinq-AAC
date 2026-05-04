@@ -30,7 +30,10 @@ describe CoppaSentryScrub do
     allow(User).to receive(:where).with(id: 42).and_return(double(first: child_user_record))
     allow(User).to receive(:where).with(id: 99).and_return(double(first: adult_user_record))
     allow(User).to receive(:where).with(id: 0).and_return(double(first: nil))
+    RequestStore.clear!
   end
+
+  after { RequestStore.clear! }
 
   describe '#call' do
     it 'returns the event unchanged when user is nil' do
@@ -98,6 +101,48 @@ describe CoppaSentryScrub do
       described_class.call(event, nil)
       expect(event.request.data).to eq('sensitive')
     end
+
+    # Regression: the production set_sentry_user path stores
+    # SHA-512(remote_ip) into Sentry.user.id for issue grouping. That hex
+    # string never matches a User row, so before this fix the COPPA branch
+    # was dead code in production. The User reference must come from
+    # RequestStore, not from the event's user.id field.
+    it 'scrubs a child user when only RequestStore identifies them (hashed IP id)' do
+      RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = child_user_record
+      sha_id = '0' * 128
+      event = Event.new(
+        user: { id: sha_id },
+        request: Request.new(data: { board: 'private' }, ip_address: '203.0.113.7')
+      )
+
+      described_class.call(event, nil)
+
+      expect(event.user).to eq({ id: '[REDACTED_ID]' })
+      expect(event.request.data).to eq('[REDACTED]')
+      expect(event.request.ip_address).to eq('[REDACTED_IP]')
+    end
+
+    it 'leaves an adult event alone even when RequestStore is set' do
+      RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = adult_user_record
+      event = Event.new(
+        user: { id: 'a' * 128 },
+        request: Request.new(data: 'sensitive')
+      )
+
+      described_class.call(event, nil)
+
+      expect(event.request.data).to eq('sensitive')
+    end
+
+    it 'leaves the event alone when only a hex hash id is set and RequestStore is empty' do
+      sha_id = 'f' * 128
+      event = Event.new(user: { id: sha_id }, request: Request.new(data: 'sensitive'))
+
+      described_class.call(event, nil)
+
+      expect(event.user).to eq({ id: sha_id })
+      expect(event.request.data).to eq('sensitive')
+    end
   end
 
   describe '#redact_url' do
@@ -108,6 +153,54 @@ describe CoppaSentryScrub do
 
     it 'leaves urls without identifiers alone' do
       expect(described_class.redact_url('https://example.com/health')).to eq('https://example.com/health')
+    end
+  end
+
+  # before_breadcrumb runs for ALL users, COPPA-pending or not. This is the
+  # global second line of defense against access_token / reset_token / email
+  # leaking through Sentry's auto-captured HTTP and ActiveSupport breadcrumbs.
+  describe '#scrub_breadcrumb' do
+    Breadcrumb = Struct.new(:message, :data, :category) do
+      def initialize(message: nil, data: nil, category: nil)
+        super(message, data, category)
+      end
+    end
+
+    it 'redacts access_token from breadcrumb url' do
+      bc = Breadcrumb.new(
+        category: 'http',
+        data: { 'url' => 'https://api.example.com/v1/things?access_token=abc123&page=2' }
+      )
+      described_class.scrub_breadcrumb(bc)
+      expect(bc.data['url']).to include('access_token=[REDACTED]')
+      expect(bc.data['url']).to include('page=2')
+    end
+
+    it 'redacts multiple sensitive keys in one url' do
+      bc = Breadcrumb.new(
+        data: { url: 'https://x.test/?token=t1&password=p1&page=ok' }
+      )
+      described_class.scrub_breadcrumb(bc)
+      expect(bc.data[:url]).to include('token=[REDACTED]')
+      expect(bc.data[:url]).to include('password=[REDACTED]')
+      expect(bc.data[:url]).to include('page=ok')
+    end
+
+    it 'redacts sensitive keys appearing in the breadcrumb message string' do
+      bc = Breadcrumb.new(message: 'GET /reset?reset_token=r1&user=42')
+      described_class.scrub_breadcrumb(bc)
+      expect(bc.message).to include('reset_token=[REDACTED]')
+      expect(bc.message).to include('user=42')
+    end
+
+    it 'is safe on a breadcrumb with no data and no message' do
+      bc = Breadcrumb.new
+      expect { described_class.scrub_breadcrumb(bc) }.not_to raise_error
+    end
+
+    it 'never raises when breadcrumb shape is unexpected' do
+      bc = Breadcrumb.new(data: 'not_a_hash', message: nil)
+      expect { described_class.scrub_breadcrumb(bc) }.not_to raise_error
     end
   end
 end
