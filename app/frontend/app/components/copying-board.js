@@ -47,6 +47,9 @@ export default Component.extend({
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
         _this.set('error', err);
+        if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
+          _this.set('isTimeoutError', true);
+        }
       });
     }
   },
@@ -56,7 +59,7 @@ export default Component.extend({
     // shows the in-progress copy message instead of staying on "Loading...".
     this.set('loading', false);
     let board_ids_to_include = null;
-    const include_missing = this.get('hierarchy.include_missing');
+    const include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
     if (include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
@@ -171,6 +174,10 @@ export default Component.extend({
       this.start_copying();
     },
     start_copying() {
+      this.start_copying();
+    },
+    copy_all() {
+      this.set('includeMissing', true);
       this.start_copying();
     }
   }
