@@ -10,13 +10,22 @@ export default modal.ModalController.extend({
     var _this = this;
     _this.set('loading', true);
     _this.set('error', null);
+    _this.set('hierarchyLoadFailed', false);
+    _this.set('hierarchyRootOnlyWarning', false);
+    _this.set('isTimeoutError', false);
     var board = _this.get('model.board');
     if(this.get('model.action') == 'keep_links' || this.get('model.action') == 'remove_links') {
       _this.start_copying();
     } else {
-      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true }).then(function(hierarchy) {
+      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true, expand_all: true }).then(function(hierarchy) {
         _this.set('loading', false);
         if(hierarchy && hierarchy.get('root')) {
+          var rootChildren = hierarchy.get('root.children') || [];
+          var expectedLinkedBoards =
+            (board.get('linked_boards.length') || 0) > 0 ||
+            (board.get('downstream_boards') || 0) > 0 ||
+            (board.get('downstream_board_ids.length') || 0) > 0;
+          _this.set('hierarchyRootOnlyWarning', expectedLinkedBoards && rootChildren.length === 0);
           _this.set('hierarchy', hierarchy);
         } else {
           _this.start_copying();
@@ -24,13 +33,17 @@ export default modal.ModalController.extend({
       }, function(err) {
         _this.set('loading', false);
         _this.set('error', err);
+        _this.set('hierarchyLoadFailed', true);
+        if(err && (err.error == 'buttonset load timed out' || err.error == 'generation_stalled')) {
+          _this.set('isTimeoutError', true);
+        }
       });
     }
   },
   start_copying: function() {
     this.set('loading', false);
     var board_ids_to_include = null;
-    var include_missing = this.get('hierarchy.include_missing');
+    var include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
     if(include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
@@ -123,6 +136,10 @@ export default modal.ModalController.extend({
       this.start_copying();
     },
     start_copying: function() {
+      this.start_copying();
+    },
+    copy_all: function() {
+      this.set('includeMissing', true);
       this.start_copying();
     }
   }

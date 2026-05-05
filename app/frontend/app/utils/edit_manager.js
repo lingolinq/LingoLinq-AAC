@@ -1651,7 +1651,9 @@ var editManager = EmberObject.extend({
     if(this.controller) {
       (this.controller.get('ordered_buttons') || []).forEach(function(row) {
         row.forEach(function(button) {
-          button.apply_level(level);
+          if(button && typeof button.apply_level === 'function') {
+            button.apply_level(level);
+          }
         });
       });
       this.update_color_key_id();

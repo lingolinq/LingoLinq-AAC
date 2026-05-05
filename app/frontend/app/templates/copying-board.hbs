@@ -8,12 +8,23 @@
   <div class="modal-body">
     {{#if this.error}}
       <p class="text-danger">{{this.error}}</p>
+      {{#if this.hierarchyLoadFailed}}
+        <p>{{t "The linked board list could not be loaded. You can close and try again, or copy all linked boards now to preserve the full board set." key="copy_hierarchy_load_failed_help"}}</p>
+        <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
+      {{/if}}
     {{else if this.loading}}
       <p>{{t "Loading..." key="loading"}}</p>
     {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
+      {{#if this.hierarchyRootOnlyWarning}}
+        <p class="text-warning">{{t "The linked board list could not be loaded. Copy all linked boards to preserve the full board set, or close and try again." key="copy_hierarchy_root_only_warning"}}</p>
+      {{/if}}
       {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
-      <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
+      {{#if this.hierarchyRootOnlyWarning}}
+        <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
+      {{else}}
+        <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
+      {{/if}}
     {{else}}
       <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}} </p>
     {{/if}}

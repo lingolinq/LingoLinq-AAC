@@ -95,6 +95,13 @@ var BoardHierarchy = EmberObject.extend({
       return hierarchy_board;
     };
     var root_board = traverse_board(board.get('id'), board.get('key'));
+    if(this.get('options.expand_all')) {
+      all_boards.forEach(function(brd) {
+        if((brd.get('children') || []).length > 0) {
+          brd.set('open', true);
+        }
+      });
+    }
     var any_missing = false;
     for(var id in downstreams) {
       if(downstreams[id] === false) {

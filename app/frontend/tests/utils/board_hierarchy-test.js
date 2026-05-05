@@ -55,6 +55,22 @@ describe('boardHierarchy', function() {
     expect(bh.get('root.children')[0].get('children')[1].get('children').length).toEqual(0);
     expect(bh.get('all_boards').length).toEqual(5);
   });
+  it('should expand the hierarchy when requested for copy selection', function() {
+    var bs = LingoLinq.store.createRecord('buttonset', {
+      buttons: [
+        {board_id: '123', linked_board_id: '234', linked_board_key: 'asdf/234'},
+        {board_id: '234', linked_board_id: '345', linked_board_key: 'asdf/345'},
+        {board_id: '345'},
+      ]
+    });
+    var brd = LingoLinq.store.createRecord('board', {
+      id: '123', key: 'asdf/123'
+    });
+    var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {expand_all: true}});
+    expect(bh.get('root.open')).toEqual(true);
+    expect(bh.get('root.children')[0].get('open')).toEqual(true);
+    expect(bh.get('root.children')[0].get('children')[0].get('open')).toEqual(undefined);
+  });
   describe('options', function() {
     it('should apply options.deselect_on_different', function() {
       var bs = LingoLinq.store.createRecord('buttonset', {

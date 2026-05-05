@@ -85,6 +85,28 @@ describe('editManager', function() {
     });
   });
 
+  describe("preview levels", function() {
+    it("should ignore plain button objects that do not implement apply_level", function() {
+      var applied = null;
+      editManager.controller = EmberObject.create({
+        ordered_buttons: [[
+          {id: 'plain-button'},
+          {
+            id: 'ember-button',
+            apply_level: function(level) {
+              applied = level;
+            }
+          }
+        ]]
+      });
+      stub(editManager, 'update_color_key_id', function() { });
+      expect(function() {
+        editManager.apply_preview_level(10);
+      }).not.toThrow();
+      expect(applied).toEqual(10);
+    });
+  });
+
   describe("state", function() {
     it("should create a deep copy of state on clone_state", function() {
       expect(editManager.clone_state()).toEqual(undefined);
@@ -2571,8 +2593,14 @@ describe('editManager', function() {
             new_board_id: '1_2',
             old_board_id: '1_1',
             update_inline: false,
+            old_default_locale: undefined,
+            new_default_locale: undefined,
+            swap_library: undefined,
             make_public: undefined,
-            ids_to_copy: ""
+            ids_to_copy: "",
+            new_owner: undefined,
+            disconnect: undefined,
+            copy_prefix: undefined
           }
         });
       });
@@ -2869,7 +2897,7 @@ describe('editManager', function() {
       });
     });
 
-    it("should allow trying to copy for someone else", function() {
+    it("should call copy_board_links when copying linked boards for someone else", function() {
       app_state.set('currentBoardState', {id: '1_1'});
       stub(modal, 'flash', function() { });
       var user = EmberObject.create({
@@ -2916,8 +2944,14 @@ describe('editManager', function() {
             new_board_id: '1_2',
             old_board_id: '1_1',
             update_inline: false,
+            old_default_locale: undefined,
+            new_default_locale: undefined,
+            swap_library: undefined,
             make_public: undefined,
-            ids_to_copy: ""
+            ids_to_copy: "",
+            new_owner: undefined,
+            disconnect: undefined,
+            copy_prefix: undefined
           }
         });
       });
