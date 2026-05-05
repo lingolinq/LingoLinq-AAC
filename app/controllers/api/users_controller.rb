@@ -526,7 +526,7 @@ class Api::UsersController < ApplicationController
     if params['type'] == 'gift_code'
       return require_api_token unless @api_user
       return unless allowed?(user, 'edit')
-      progress = Progress.schedule(user, :redeem_gift_token, token['code'], for_user: @api_user || user)
+      progress = Progress.schedule(user, :redeem_gift_token, token['code'], for_user: @api_user)
     elsif['never_expires', 'eval', 'add_1', 'add_5_years', 'manual_supporter', 'add_voice', 'communicator_trial', 'force_logout', 'enable_extras', 'supporter_credit', 'check_remote', 'restore', 'manual_modeler'].include?(params['type'])
       return require_api_token unless @api_user
       return unless allowed?(user, 'admin_support_actions')
@@ -537,7 +537,14 @@ class Api::UsersController < ApplicationController
         return require_api_token unless @api_user
         return unless allowed?(user, 'edit')
       end
-      progress = Progress.schedule(user, :process_subscription_token, token, params['type'], params['code'], for_user: @api_user || user)
+      # for_user: @api_user (NOT `|| user`). The confirmation-code branch
+      # above intentionally allows anonymous calls (no @api_user). The
+      # frontend then polls /api/v1/progress/<id> anonymously, and
+      # Api::ProgressController authorizes against @api_user. Owner-scoping
+      # to the target user would 401 those polls and hang the purchase UI.
+      # When @api_user is nil here, the progress falls back to legacy
+      # permissive view (protected by the global_id nonce on Progress).
+      progress = Progress.schedule(user, :process_subscription_token, token, params['type'], params['code'], for_user: @api_user)
     end
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
@@ -549,7 +556,7 @@ class Api::UsersController < ApplicationController
     user.settings['subscription'] ||= {}
     user.settings['subscription']['unsubscribe_reason'] = params['reason'] if params['reason']
     user.save_with_sync('unsubscribe')
-    progress = Progress.schedule(user, :process_subscription_token, 'token', 'unsubscribe', for_user: @api_user || user)
+    progress = Progress.schedule(user, :process_subscription_token, 'token', 'unsubscribe', for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
 
@@ -557,7 +564,7 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
-    progress = Progress.schedule(user, :verify_receipt, params['receipt_data'], for_user: @api_user || user)
+    progress = Progress.schedule(user, :verify_receipt, params['receipt_data'], for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
