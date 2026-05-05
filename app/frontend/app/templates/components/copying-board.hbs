@@ -8,6 +8,10 @@
   <div class="modal-body md-modal-body">
     {{#if this.error}}
       <p class="text-danger">{{this.error}}</p>
+      {{#if this.isTimeoutError}}
+        <p>{{t "The board hierarchy is still being generated in the background. You can wait a moment and try again, or copy all boards now." key="hierarchy_timeout_help"}}</p>
+        <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards (Fast)" key="copy_all_boards_fast"}}</button>
+      {{/if}}
     {{else if this.loading}}
       <p>{{t "Loading..." key="loading"}}</p>
     {{else if this.hierarchy}}

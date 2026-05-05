@@ -84,7 +84,6 @@ var persistence = Service.extend({
       
       
       // Initialize online property immediately - this is critical for early requests
-      // Using a direct property assignment to avoid triggering observers
       try {
         this.online = navigator.onLine !== false;
         if (_vb) { console.log('[PERSISTENCE INIT] online set to:', this.online); }
@@ -3832,7 +3831,17 @@ var persistence = Service.extend({
   ajax: function() {
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
-    if(this.get('online') || local_request) {
+    var is_online = this.get('online');
+    if (is_online === false) {
+      var override = navigator.online_override;
+      var nav_online = (override !== undefined && override !== null) ? !!override : navigator.onLine;
+      if (nav_online === true) {
+        console.log('[PERSISTENCE AJAX] Service reported offline but navigator indicates online. Overriding.');
+        this.set('online', true);
+        is_online = true;
+      }
+    }
+    if(is_online || local_request) {
       // TODO: is this wrapper necessary? what's it for? maybe can just listen on
       // global ajax for errors instead...
       return new RSVP.Promise(function(resolve, reject) {

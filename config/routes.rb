@@ -108,6 +108,13 @@ LingoLinq::Application.routes.draw do
     namespace :v1 do
       post 'csp-reports' => 'csp_reports#create'
     end
+
+    # Internal, machine-to-machine endpoints. Auth is a shared-secret header
+    # (X-Internal-Token), not a user session, so these are mounted outside the
+    # legacy api/v1 scope to keep the security boundary obvious.
+    namespace :internal do
+      get 'ai_api_logs/daily_summary' => 'ai_api_logs#daily_summary'
+    end
   end
 
   scope 'api/v1', module: 'api' do

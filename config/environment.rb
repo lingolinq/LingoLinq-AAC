@@ -17,7 +17,11 @@ require File.expand_path('../application', __FILE__)
 require 'go_secure'
 
 # Initialize the Rails application.
-LingoLinq::Application.initialize!
+# Guard against re-entry: if a downstream require (e.g. spec_helper)
+# raises after initialize! has already mutated state, the next require
+# of this file would otherwise hit "Application has been already initialized"
+# and mask the real root cause across every subsequent spec file.
+LingoLinq::Application.initialize! unless LingoLinq::Application.instance.initialized?
 
 unless ENV['SKIP_VALIDATIONS']
   GoSecure.validate_encryption_key

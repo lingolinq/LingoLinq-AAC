@@ -414,7 +414,7 @@ LingoLinq.keyed_colors = [
   var _bd_cache = null;
   var FALLBACKS = {
     'pronoun-yellow':    '#FAFAAA',
-    'verb-green':        '#BCECC5',
+    'verb-green':        '#C0E8C8',
     'adjective-blue':    '#B9D0F6',
     'noun-orange':       '#FDCF98',
     'social-pink':       '#E8B5DC',

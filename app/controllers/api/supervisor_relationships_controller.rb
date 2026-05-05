@@ -97,7 +97,8 @@ class Api::SupervisorRelationshipsController < ApplicationController
       api_error 400, { error: result[:error] }
     else
       rel = result[:relationship]
-      AuditEvent.log_command('consent_flow', {
+      actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
+      AuditEvent.log_command(actor_id, {
         'type' => 'supervisor_consent_response',
         'decision' => action,
         'relationship_id' => rel&.global_id,

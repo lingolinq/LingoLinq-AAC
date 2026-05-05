@@ -72,6 +72,11 @@ export default Controller.extend({
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
 
+  hide_header: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route') || '';
+    return route === 'demo.speak';
+  }),
+
   showBetaFeedbackDrawer: computed('hide_header', 'appState.speak_mode', function() {
     return !this.get('hide_header') || this.appState.get('speak_mode');
   }),

@@ -74,6 +74,7 @@ describe Api::V1::CspReportsController, :type => :controller do
       sentry = double('Sentry', capture_event: nil)
       stub_const('Sentry', sentry)
       allow(sentry).to receive(:respond_to?).with(:capture_event).and_return(true)
+      allow(sentry).to receive(:respond_to?).with(:initialized?).and_return(false)
       expect(sentry).to receive(:capture_event).once
       post_report(payload)
       expect(response.status).to eq(204)
@@ -83,6 +84,7 @@ describe Api::V1::CspReportsController, :type => :controller do
       sentry = double('Sentry', capture_event: nil)
       stub_const('Sentry', sentry)
       allow(sentry).to receive(:respond_to?).with(:capture_event).and_return(true)
+      allow(sentry).to receive(:respond_to?).with(:initialized?).and_return(false)
 
       captured = nil
       allow(sentry).to receive(:capture_event) { |ev| captured = ev }

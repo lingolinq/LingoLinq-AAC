@@ -1556,6 +1556,24 @@ var videoGrabber = EmberObject.extend({
     this.controller = controller;
     _this.controller.addObserver('video_preview', _this, _this.default_video_preview_license);
   },
+  triggerControllerAction: function(actionName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var controller = this.controller;
+    if(!controller) { return; }
+
+    var action = controller.get && controller.get(actionName);
+    if(action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var targetActionName = typeof action === 'string' ? action : actionName;
+    var target = controller.get && controller.get('targetObject');
+    if(targetActionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [targetActionName].concat(args));
+    } else if(targetActionName && controller.send && typeof controller.send === 'function') {
+      return controller.send.apply(controller, [targetActionName].concat(args));
+    }
+  },
   clear: function() {
     var stream = this.controller && this.controller.get('video_recording.stream');
     if(stream && stream.stop) {
@@ -1900,7 +1918,7 @@ var videoGrabber = EmberObject.extend({
     this.controller.set('video_preview.saving', true);
     var _this = this;
 
-    _this.controller.sendAction('video_pending');
+    _this.triggerControllerAction('video_pending');
 
     if(preview.url.match(/^data:/)) {
       preview.content_type = preview.content_type || preview.url.split(/;/)[0].split(/:/)[1];
@@ -1935,14 +1953,14 @@ var videoGrabber = EmberObject.extend({
     save_video.then(function(video) {
       _this.controller.set('video', video);
       _this.clear_video_work();
-      _this.controller.sendAction('video_ready', video.get('id'));
+      _this.triggerControllerAction('video_ready', video.get('id'));
     }, function(err) {
       err = err || {};
       err.error = err.error || "unexpected error";
       lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
       _this.controller.set('video_preview.saving', false);
-      _this.controller.sendAction('video_not_ready');
+      _this.triggerControllerAction('video_not_ready');
     });
   },
   save_pending: function() {
