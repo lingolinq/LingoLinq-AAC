@@ -1830,7 +1830,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -1840,7 +1840,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow redeeming a gift purchase" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc', for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'gift_code'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2016,7 +2016,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow updating a subscription with no api token, but a confirmation code" do
       @user = User.create
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: nil).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :confirmation => @user.registration_code, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2052,7 +2052,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe', for_user: @user).and_return(p)
       delete :unsubscribe, params: {:user_id => @user.global_id}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -3639,7 +3639,7 @@ describe Api::UsersController, :type => :controller do
       json = assert_success_json
       expect(json['progress']).to_not eq(nil)
       p = Progress.find_by_path(json['progress']['id'])
-      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}]})
+      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}], 'for_user_global_id' => @user.global_id})
     end
   end
 

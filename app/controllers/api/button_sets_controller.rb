@@ -86,7 +86,7 @@ class Api::ButtonSetsController < ApplicationController
       end
 
       # Default Async Behavior (Restored)
-      progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id)
+      progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     end
   end
