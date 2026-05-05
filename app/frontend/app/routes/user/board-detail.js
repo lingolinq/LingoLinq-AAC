@@ -127,6 +127,21 @@ export default Route.extend({
     controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
     controller.set('folder_dropdown_open', false);
 
+    // Re-apply the user's symbol_background scope on every board-detail
+    // entry. The app-state `sync_fitzgerald_scope` observer covers the
+    // case where the pref *changes*, but doesn't fire if sessionUser was
+    // already populated before the observer attached — leaving the JS
+    // palette cache filled with original Fitzgerald hues even when the
+    // user has Colored Soft saved. Calling `set_fitzgerald_scope` here
+    // toggles `.fitzgerald-soft` on <html> and invalidates the
+    // `_bd_cache` closure, so the paint swatches and any subsequent
+    // auto-coloring (`editManager.get_keyed_colors` → POS lookup) read
+    // the soft variants from the swapped `--fitzgerald-*` CSS vars.
+    if (window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+      var bg = (user && user.get && user.get('preferences.symbol_background')) || null;
+      window.LingoLinq.set_fitzgerald_scope(bg);
+    }
+
     // Default panels to collapsed (unexpanded), unless a one-shot flag was
     // set by an in-page navigation that wants to preserve the expanded state
     // (e.g. clicking Symbol Board to reload the current board view).

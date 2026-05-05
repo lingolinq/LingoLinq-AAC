@@ -33,20 +33,12 @@
        .app-navbar__small-only / .app-navbar__large-only logic. --}}
   {{#unless (is-equal this.appState.current_route "landing-alt")}}
   <span class="app-navbar__quick-actions">
-    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--full app-navbar__large-only">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-      {{t "New board (preview)" key="create_board_new_nav"}}
-    </LinkTo>
-    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--circular app-navbar__small-only" aria-label={{t "New board (preview)" key="create_board_new_nav"}} title={{t "New board (preview)" key="create_board_new_nav"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-    </LinkTo>
-    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--full app-navbar__large-only">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-      {{t "New board (preview)" key="create_board_new_nav"}}
-    </LinkTo>
-    <LinkTo @route="create-board-new" class="app-navbar__create-board-new-link app-navbar__create-board-new-link--circular app-navbar__small-only" aria-label={{t "New board (preview)" key="create_board_new_nav"}} title={{t "New board (preview)" key="create_board_new_nav"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-    </LinkTo>
+    {{!-- "New board (preview)" pill removed from the navbar — the route
+         link now sits behind every existing "New Board" / "Create a New
+         Board" button across the app (see newBoard / openNewBoardOnBoards
+         action handlers). The .app-navbar__create-board-new-link* CSS is
+         intentionally left in place for now; this is the visual removal
+         only, not a cleanup of the orphaned styles. --}}
     {{#if this.appState.currentUser.user_name}}
       <LinkTo @route="user.preferences" @model={{this.appState.currentUser.user_name}} class="ll-header-settings-btn" aria-label={{t "Settings" key="settings"}} title={{t "Settings" key="settings"}}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

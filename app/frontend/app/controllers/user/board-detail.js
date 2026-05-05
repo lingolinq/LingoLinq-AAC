@@ -5,7 +5,7 @@ import { observer } from '@ember/object';
 import { set as emberSet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
-import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import { later as runLater, cancel as runCancel, next } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -123,6 +123,7 @@ export default Controller.extend(prefClasses, {
   display_prefs_font_dropdown_open: false,
   display_prefs_symbol_library_dropdown_open: false,
   display_prefs_symbol_background_dropdown_open: false,
+  display_prefs_voice_height_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
   dark_mode: true,
@@ -352,7 +353,14 @@ export default Controller.extend(prefClasses, {
     ];
   }),
 
-  color_picker_swatches: computed(function() {
+  color_picker_swatches: computed('app_state.currentUser.preferences.symbol_background', function() {
+    // Dep on `symbol_background` makes the swatches refresh when the user
+    // picks Colored Soft (or any other bg variant) — without it, this
+    // computed runs once at controller creation and the toolbar keeps
+    // showing the original Fitzgerald hexes even after `set_fitzgerald_scope`
+    // has swapped <html> to `.fitzgerald-soft` and invalidated the JS palette
+    // cache. The `app_state.*` path mirrors what `pending_display_prefs` and
+    // `display_prefs_current_symbol_background_id` use elsewhere in this file.
     var darken = function(color) {
       if(window.tinycolor) {
         return window.tinycolor(color).darken(30).toHexString();
@@ -914,21 +922,43 @@ export default Controller.extend(prefClasses, {
     { id: 'text_only', label: 'Text Only' }
   ],
   button_style_options: [
-    { id: 'default', label: 'Default' },
-    { id: 'default_caps', label: 'Default (caps)' },
-    { id: 'default_small', label: 'Default (small)' },
-    { id: 'arial', label: 'Arial' },
-    { id: 'arial_caps', label: 'Arial (caps)' },
-    { id: 'arial_small', label: 'Arial (small)' },
-    { id: 'comic_sans', label: 'Comic Sans' },
-    { id: 'comic_sans_caps', label: 'Comic Sans (caps)' },
-    { id: 'comic_sans_small', label: 'Comic Sans (small)' },
-    { id: 'open_dyslexic', label: 'Open Dyslexic' },
-    { id: 'open_dyslexic_caps', label: 'Open Dyslexic (caps)' },
-    { id: 'open_dyslexic_small', label: 'Open Dyslexic (small)' },
-    { id: 'architects_daughter', label: "Architect's Daughter" },
-    { id: 'architects_daughter_caps', label: "Architect's Daughter (caps)" },
-    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" }
+    { id: 'architects_daughter',       label: "Architect's Daughter" },
+    { id: 'architects_daughter_caps',  label: "Architect's Daughter (caps)" },
+    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" },
+    { id: 'arial',                     label: 'Arial' },
+    { id: 'arial_caps',                label: 'Arial (caps)' },
+    { id: 'arial_small',               label: 'Arial (small)' },
+    { id: 'comic_sans',                label: 'Comic Sans' },
+    { id: 'comic_sans_caps',           label: 'Comic Sans (caps)' },
+    { id: 'comic_sans_small',          label: 'Comic Sans (small)' },
+    { id: 'default',                   label: 'Default' },
+    { id: 'default_caps',              label: 'Default (caps)' },
+    { id: 'default_small',             label: 'Default (small)' },
+    { id: 'open_dyslexic',             label: 'Open Dyslexic' },
+    { id: 'open_dyslexic_caps',        label: 'Open Dyslexic (caps)' },
+    { id: 'open_dyslexic_small',       label: 'Open Dyslexic (small)' },
+    { divider: true },
+    { id: 'brush_script',    label: 'Brush Script MT' },
+    { id: 'calibri',         label: 'Calibri' },
+    { id: 'cambria',         label: 'Cambria' },
+    { id: 'chalkboard',      label: 'Chalkboard SE' },
+    { id: 'consolas',        label: 'Consolas' },
+    { id: 'courier_new',     label: 'Courier New' },
+    { id: 'garamond',        label: 'Garamond' },
+    { id: 'georgia',         label: 'Georgia' },
+    { id: 'helvetica',       label: 'Helvetica' },
+    { id: 'impact',          label: 'Impact' },
+    { id: 'lucida_sans',     label: 'Lucida Sans' },
+    { id: 'marker_felt',     label: 'Marker Felt' },
+    { id: 'monaco',          label: 'Monaco' },
+    { id: 'optima',          label: 'Optima' },
+    { id: 'palatino',        label: 'Palatino' },
+    { id: 'segoe_ui',        label: 'Segoe UI' },
+    { id: 'snell_roundhand', label: 'Snell Roundhand' },
+    { id: 'tahoma',          label: 'Tahoma' },
+    { id: 'times_new_roman', label: 'Times New Roman' },
+    { id: 'trebuchet',       label: 'Trebuchet MS' },
+    { id: 'verdana',         label: 'Verdana' }
   ],
   hidden_buttons_options: [
     { id: 'grid', label: 'Show as Grid' },
@@ -954,10 +984,21 @@ export default Controller.extend(prefClasses, {
   // Options for the "Image Background" dropdown (parallel to
   // `symbolBackgroundList` on the user-preferences page).
   symbol_background_options: [
-    { id: 'clear', label: 'Colored' },
-    { id: 'white', label: 'White' },
-    { id: 'black', label: 'Black' },
+    { id: 'clear',         label: 'Colored' },
+    { id: 'clear_soft',    label: 'Colored Soft' },
+    { id: 'white',         label: 'White' },
+    { id: 'black',         label: 'Black' },
     { id: 'high_contrast', label: 'High Contrast' }
+  ],
+  // Mirror of user/preferences.js#vocalizationHeightList — drives the
+  // height of the speak-mode header (the sentence/vocalization bar) and
+  // the size of fonts + symbol images inside it.
+  voice_height_options: [
+    { id: 'tiny',   label: 'Tiny (50px)' },
+    { id: 'small',  label: 'Small (70px)' },
+    { id: 'medium', label: 'Medium (100px)' },
+    { id: 'large',  label: 'Large (150px)' },
+    { id: 'huge',   label: 'Huge (200px)' }
   ],
   // Options for the "Words Combined" dropdown (the `device.utterance_text_only`
   // pref — stored as boolean but exposed as a select with labeled modes).
@@ -1115,6 +1156,21 @@ export default Controller.extend(prefClasses, {
     return match ? match.label : 'Default';
   }),
 
+  display_prefs_font_filter: '',
+
+  /** Filtered font list driven by the dropdown's search input. Empty filter
+   *  returns the full list (with divider). When filtering, drops the divider
+   *  since section grouping is no longer meaningful. */
+  filtered_button_style_options: computed('button_style_options', 'display_prefs_font_filter', function() {
+    var opts = this.get('button_style_options') || [];
+    var q = (this.get('display_prefs_font_filter') || '').trim().toLowerCase();
+    if(!q) { return opts; }
+    return opts.filter(function(o) {
+      if(o.divider) { return false; }
+      return (o.label || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }),
+
   display_prefs_current_symbol_library_label: computed('pending_display_prefs.preferred_symbols', 'preferred_symbols_options', function() {
     var current = this.get('pending_display_prefs.preferred_symbols');
     var opts = this.get('preferred_symbols_options') || [];
@@ -1137,6 +1193,12 @@ export default Controller.extend(prefClasses, {
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
   }),
+  display_prefs_current_voice_height_label: computed('pending_display_prefs.vocalization_height', 'voice_height_options', function() {
+    var current = this.get('pending_display_prefs.vocalization_height') || 'medium';
+    var opts = this.get('voice_height_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Medium (100px)';
+  }),
 
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
@@ -1150,6 +1212,7 @@ export default Controller.extend(prefClasses, {
     preferred_symbols:    'preferences.preferred_symbols',
     symbol_background:    'preferences.symbol_background',
     high_contrast:        'preferences.high_contrast',
+    vocalization_height:  'preferences.device.vocalization_height',
     utterance_text_only:  'preferences.device.utterance_text_only',
     skin:                 'preferences.skin'
   },
@@ -1262,6 +1325,12 @@ export default Controller.extend(prefClasses, {
   button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
     var style = this.get('app_state.referenced_user.preferences.device.button_style') || 'default';
     var fonts = {
+      // 'default' is treated as Arial — when the user has not set a font
+      // preference, the rendered font should be Arial (not the browser
+      // default serif).
+      'default':       'Arial, sans-serif',
+      'default_caps':  'Arial, sans-serif',
+      'default_small': 'Arial, sans-serif',
       'arial': 'Arial, sans-serif',
       'arial_caps': 'Arial, sans-serif',
       'arial_small': 'Arial, sans-serif',
@@ -1273,7 +1342,28 @@ export default Controller.extend(prefClasses, {
       'open_dyslexic_small': 'OpenDyslexic, sans-serif',
       'architects_daughter': 'ArchitectsDaughter, cursive',
       'architects_daughter_caps': 'ArchitectsDaughter, cursive',
-      'architects_daughter_small': 'ArchitectsDaughter, cursive'
+      'architects_daughter_small': 'ArchitectsDaughter, cursive',
+      'helvetica':       'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      'verdana':         'Verdana, Geneva, sans-serif',
+      'tahoma':          'Tahoma, Geneva, sans-serif',
+      'trebuchet':       '"Trebuchet MS", "Lucida Grande", sans-serif',
+      'calibri':         'Calibri, "Segoe UI", sans-serif',
+      'segoe_ui':        '"Segoe UI", Tahoma, sans-serif',
+      'lucida_sans':     '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+      'optima':          'Optima, Segoe, sans-serif',
+      'times_new_roman': '"Times New Roman", Times, serif',
+      'georgia':         'Georgia, "Times New Roman", serif',
+      'garamond':        'Garamond, "Times New Roman", serif',
+      'palatino':        '"Palatino Linotype", Palatino, serif',
+      'cambria':         'Cambria, Georgia, serif',
+      'courier_new':     '"Courier New", Courier, monospace',
+      'consolas':        'Consolas, "Courier New", monospace',
+      'monaco':          'Monaco, Menlo, monospace',
+      'impact':          'Impact, Charcoal, sans-serif',
+      'brush_script':    '"Brush Script MT", cursive',
+      'marker_felt':     '"Marker Felt", Casual, cursive',
+      'chalkboard':      '"Chalkboard SE", Chalkboard, sans-serif',
+      'snell_roundhand': '"Snell Roundhand", "Apple Chancery", cursive'
     };
     var cases = {};
     if(style && style.match(/_caps$/)) { cases.transform = 'uppercase'; }
@@ -2544,6 +2634,122 @@ export default Controller.extend(prefClasses, {
     this.send('set_display_pref', 'skin', skin);
   },
 
+  /** Hardcoded BASE ↔ SOFT hex map for the Fitzgerald palette. Edit
+   *  styles/_variables.scss to change a value, then update the
+   *  corresponding entry below — kept in sync by hand because a
+   *  computed map would require running the SCSS color.adjust math at
+   *  runtime. The values below are the literal results of
+   *  color.adjust($base, $saturation: -25%) (or +10% lightness for
+   *  determiner-gray) per _variables.scss. */
+  _FITZGERALD_BASE_TO_SOFT: {
+    '#ffffaa': '#f4f4b5',  // pronoun-yellow
+    '#ccffaa': '#cef4b5',  // verb-green
+    '#aaccff': '#b5cef4',  // adjective-blue
+    '#ffccaa': '#f4ceb5',  // noun-orange
+    '#ffaacc': '#f4b5ce',  // social-pink
+    '#ffaaaa': '#f4b5b5',  // negation-red
+    '#ccaaff': '#ceb5f4',  // question-purple
+    '#ffccdd': '#f8d2df',  // preposition-pink
+    '#ccaa88': '#b6aa9d',  // adverb-brown
+    '#cccccc': '#e6e6e6',  // determiner-gray (lightness +10%, not desat)
+    '#73ccff': '#84c7ed'   // other-blue
+  },
+
+  /** Walks ordered_buttons and swaps each button's background_color
+   *  via the BASE ↔ SOFT lookup table. Pure hex match — no color-math
+   *  evaluator. Buttons whose stored bg isn't in the table (manual
+   *  paints, custom hexes) are left alone. Mutates the Ember Button
+   *  wrapper, the raw board.buttons entry, and the rendered DOM
+   *  element's inline style directly so the change is visible
+   *  immediately and persists on save.
+   *
+   *  Defined as a controller method (not inside the actions hash) so
+   *  it's reachable as `this._refresh_auto_button_colors(...)` from
+   *  inside an action handler. */
+  _refresh_auto_button_colors: function(target_is_soft) {
+    if(typeof window === 'undefined' || !window.tinycolor) { return; }
+
+    // Build base→soft (or soft→base) lookup, normalized to lowercase
+    // hex so any color storage format (rgb, #FFCCAA, etc.) maps the
+    // same. Reverse direction is built by inverting the same table —
+    // there's no derivation here, just a fixed lookup.
+    var BASE_TO_SOFT = this._FITZGERALD_BASE_TO_SOFT;
+    var lookup = {};
+    Object.keys(BASE_TO_SOFT).forEach(function(base_hex) {
+      var soft_hex = BASE_TO_SOFT[base_hex].toLowerCase();
+      var base_lc = base_hex.toLowerCase();
+      if(target_is_soft) { lookup[base_lc] = soft_hex; }
+      else               { lookup[soft_hex] = base_lc; }
+    });
+    var norm = function(c) {
+      if(!c) { return ''; }
+      try { return window.tinycolor(c).toHexString().toLowerCase(); } catch(e) { return (c + '').toLowerCase().trim(); }
+    };
+
+    var ob = this.get('ordered_buttons') || [];
+    var board = this.get('model');
+    var raw_buttons = (board && board.get && board.get('buttons')) || [];
+    var raw_by_id = {};
+    raw_buttons.forEach(function(rb) { if(rb && rb.id != null) { raw_by_id[String(rb.id)] = rb; } });
+
+    var any_changed = false;
+    ob.forEach(function(row) {
+      if(!row || !row.forEach) { return; }
+      row.forEach(function(btn) {
+        if(!btn) { return; }
+        var bg = (btn.get ? btn.get('background_color') : btn.background_color);
+        if(!bg) { return; }
+        var bg_norm = norm(bg);
+        var new_color = lookup[bg_norm];
+        if(!new_color) { return; }  // not a recognized base/soft hex → leave alone (manual paint preserved)
+        var new_border;
+        try { new_border = window.tinycolor(new_color).darken(20).toRgbString(); }
+        catch(e) { new_border = new_color; }
+        var btn_id = (btn.get ? btn.get('id') : btn.id);
+        // 1. Mutate the Ember Button wrapper so any future re-render
+        //    picks up the new value.
+        if(btn.set && typeof btn.set === 'function') {
+          btn.set('background_color', new_color);
+          btn.set('border_color', new_border);
+        } else {
+          btn.background_color = new_color;
+          btn.border_color = new_border;
+        }
+        // 2. Mutate the raw board.buttons entry so the change persists
+        //    when the board is saved.
+        var raw = btn_id != null ? raw_by_id[String(btn_id)] : null;
+        if(raw) {
+          raw.background_color = new_color;
+          raw.border_color = new_border;
+        }
+        // 3. Mutate the rendered DOM element's inline style directly
+        //    so the visual update is immediate without depending on
+        //    Ember's template binding to re-evaluate. The card that
+        //    carries the inline background-color is the
+        //    .md-board-detail-symbol-card with data-id matching the
+        //    button id (the outer .md-board-detail-grid__cell with
+        //    the same data-id has no bg of its own).
+        if(typeof document !== 'undefined' && btn_id != null) {
+          var sel = '.md-board-detail-symbol-card[data-id="' + btn_id + '"]';
+          var dom_card = document.querySelector(sel);
+          if(dom_card) {
+            dom_card.style.backgroundColor = new_color;
+            dom_card.style.setProperty('--btn-bg', new_color);
+            dom_card.style.outlineColor = new_border;
+          }
+        }
+        any_changed = true;
+      });
+    });
+    // Invalidate any cached fast-html / contextualized buttons so a
+    // subsequent re-render uses the new colors rather than a snapshot
+    // built from the old raw data.
+    if(any_changed && board && board.set) {
+      board.set('last_cb', null);
+      if(board.get('fast_html')) { board.set('fast_html', null); }
+    }
+  },
+
   actions: {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
@@ -3000,15 +3206,39 @@ export default Controller.extend(prefClasses, {
     // ── Display Preferences Panel ──
     toggle_display_font_dropdown: function() {
       this.toggleProperty('display_prefs_font_dropdown_open');
+      if(this.get('display_prefs_font_dropdown_open')) {
+        this.set('display_prefs_font_filter', '');
+        next(function() {
+          var input = document.getElementById('bd-font-dropdown-search');
+          if(input) { input.focus(); }
+        });
+      }
     },
 
     close_display_font_dropdown: function() {
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
     },
 
     pick_display_font: function(font_id) {
       this.send('set_display_pref', 'button_style', font_id);
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
+    },
+
+    filter_display_fonts: function(value) {
+      this.set('display_prefs_font_filter', value || '');
+    },
+
+    font_dropdown_keydown: function(event) {
+      if(event && event.key === 'Escape') {
+        event.preventDefault();
+        this.send('close_display_font_dropdown');
+      } else if(event && event.key === 'Enter') {
+        event.preventDefault();
+        var first = (this.get('filtered_button_style_options') || []).find(function(o) { return !o.divider; });
+        if(first) { this.send('pick_display_font', first.id); }
+      }
     },
 
     toggle_display_symbol_library_dropdown: function() {
@@ -3033,6 +3263,11 @@ export default Controller.extend(prefClasses, {
       // "Black with High Contrast" option: symbol_background='black' +
       // high_contrast=true. Picking any other option turns HC off and sets
       // symbol_background to the chosen value.
+      // 'clear', 'clear_soft', 'clear_faded', 'white', 'black' all store
+      // directly. The soft/faded variants additionally cause the
+      // .fitzgerald-soft / .fitzgerald-faded class to be emitted by
+      // pref-classes.js#symbol_background_class, swapping the
+      // --fitzgerald-* CSS custom properties to the muted variants.
       if(id === 'high_contrast') {
         this.send('set_display_pref', 'high_contrast', true);
         this.send('set_display_pref', 'symbol_background', 'black');
@@ -3041,6 +3276,33 @@ export default Controller.extend(prefClasses, {
         this.send('set_display_pref', 'symbol_background', id);
       }
       this.set('display_prefs_symbol_background_dropdown_open', false);
+      // Apply the Fitzgerald-soft / -faded class at <html> so :root has
+      // the override. Necessary for any code path that reads colors via
+      // getComputedStyle (the JS palette, button auto-coloring) to see
+      // the muted values rather than the base palette.
+      if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+        window.LingoLinq.set_fitzgerald_scope(id);
+      }
+      // For Colored / Colored Soft toggles, swap any button whose stored
+      // bg matches a known Fitzgerald hex (base ↔ soft via the hardcoded
+      // _FITZGERALD_BASE_TO_SOFT lookup). Manually painted buttons with
+      // any other hex are left untouched. The swap mutates the wrapper,
+      // the raw board.buttons (so it persists on save), and the rendered
+      // DOM element directly (so the visual update is instant).
+      if(id === 'clear' || id === 'clear_soft') {
+        this._refresh_auto_button_colors(id === 'clear_soft');
+      }
+    },
+
+    toggle_display_voice_height_dropdown: function() {
+      this.toggleProperty('display_prefs_voice_height_dropdown_open');
+    },
+    close_display_voice_height_dropdown: function() {
+      this.set('display_prefs_voice_height_dropdown_open', false);
+    },
+    pick_display_voice_height: function(id) {
+      this.send('set_display_pref', 'vocalization_height', id);
+      this.set('display_prefs_voice_height_dropdown_open', false);
     },
 
     toggle_display_settings: function() {
@@ -3149,6 +3411,7 @@ export default Controller.extend(prefClasses, {
         user.set(path, next);
       }
     },
+
 
     // Speak Bar appearance toggle. Lives on the main edit toolbar (moved
     // out of More Settings), but can also be reached if More Settings is

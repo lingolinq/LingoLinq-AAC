@@ -395,24 +395,113 @@ LingoLinq.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
-// Board-detail page uses its own color palette (more muted/pastel, split preposition/social).
-// `pos_class` is the canonical lookup key — toolbar swatches and any other
-// JS code keying off part-of-speech derive their colors from these entries.
-LingoLinq.board_detail_keyed_colors = [
-  {pos_class: 'pronoun',     fill: "#FFFBBB", color: i18n.t('yellow', "Yellow"), hint: i18n.t('people', "people"), types: ['pronoun']},
-  {pos_class: 'verb',        fill: "#CBF2B2", color: i18n.t('green', "Green"), hint: i18n.t('actions_lower', "actions"), types: ['verb']},
-  {pos_class: 'adjective',   fill: "#AACCFF", color: i18n.t('blue', "Blue"), hint: i18n.t('describing_words', "describing"), types: ['adjective']},
-  {pos_class: 'noun',        fill: "#FFCCAA", color: i18n.t('orange', "Orange"), hint: i18n.t('nouns', "nouns"), types: ['noun', 'nominative']},
-  {pos_class: 'social',      fill: "#E8B5DC", color: i18n.t('pink', "Pink"), hint: i18n.t('social_words', "social words"), types: ['social', 'social_phrase']},
-  {pos_class: 'negation',    fill: "#F5A0A0", color: i18n.t('red', "Red"), hint: i18n.t('negations', "negations"), types: ['negation', 'expletive', 'interjection']},
-  {pos_class: 'question',    fill: "#DBC4F4", color: i18n.t('purple', "Purple"), hint: i18n.t('questions', "questions"), types: ['question']},
-  {pos_class: 'preposition', fill: "#F5DCEA", color: i18n.t('rose', "Rose"), hint: i18n.t('prepositions', "prepositions"), types: ['preposition']},
-  {pos_class: 'adverb',      fill: "#CCAA88", color: i18n.t('brown', "Brown"), hint: i18n.t('adverbs', "adverbs"), types: ['adverb']},
-  {pos_class: 'determiner',  fill: "#DCDCDC", color: i18n.t('gray', "Gray"), hint: i18n.t('determiners', "determiners"), types: ['article', 'determiner']},
-  {pos_class: 'conjunction', fill: "#fff", border: "#ccc", color: i18n.t('white', "White"), types: ['conjunction', 'number']},
-  {pos_class: 'other',       fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
-  {pos_class: 'contrast',    fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
-];
+// Board-detail palette — the SINGLE SOURCE OF TRUTH for these colors is
+// styles/_variables.scss (the $fitzgerald-* SCSS variables). Those vars
+// drive the rendered cell backgrounds via the .md-board-detail-symbol-card--<pos>
+// rules at compile time, and are also emitted as --fitzgerald-* CSS
+// custom properties on :root so this JS palette can read them at runtime.
+//
+// Edit a Fitzgerald color in ONE place (_variables.scss); the rendered
+// live cards, the create-board-new preview, the part-of-speech color
+// legend, and any other JS lookups all update on rebuild.
+//
+// Lazy getter caches the built array on first access since
+// getComputedStyle is non-trivial and pos_class lookups happen often.
+// Call LingoLinq.refresh_fitzgerald_colors() to invalidate the cache.
+// Fallbacks (used when document isn't yet available — e.g. tests, SSR)
+// mirror the SCSS variable defaults so behavior matches.
+(function() {
+  var _bd_cache = null;
+  var FALLBACKS = {
+    'pronoun-yellow':    '#FAFAAA',
+    'verb-green':        '#BCECC5',
+    'adjective-blue':    '#B9D0F6',
+    'noun-orange':       '#FDCF98',
+    'social-pink':       '#E8B5DC',
+    'negation-red':      '#F5A0A0',
+    'question-purple':   '#D0B8E8',
+    'preposition-pink':  '#F5DCEA',
+    'adverb-brown':      '#D4B896',
+    'determiner-gray':   '#DCDCDC',
+    'conjunction-white': '#FFFFFF',
+    'other-blue':        '#73CCFF',
+    'contrast-black':    '#000000'
+  };
+  function readVar(suffix) {
+    if(typeof document === 'undefined' || !document.documentElement) {
+      return FALLBACKS[suffix];
+    }
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--fitzgerald-' + suffix);
+    return (v && v.trim()) || FALLBACKS[suffix];
+  }
+  // 20%-darker variant of the fill, matching the legacy LingoLinq
+  // convention used by board_detail and bound_classes for inline
+  // outline-color on rendered cards. Falls back to the fill when
+  // tinycolor isn't loaded yet.
+  function darken20(fill) {
+    if(typeof window === 'undefined' || !window.tinycolor) { return fill; }
+    return window.tinycolor(fill).darken(20).toRgbString();
+  }
+  function entry(pos_class, fill_suffix, color_label, color_default, hint_label, hint_default, types, opts) {
+    var fill = readVar(fill_suffix);
+    var ent = {
+      pos_class: pos_class,
+      fill: fill,
+      border: (opts && opts.border) || darken20(fill),
+      color: i18n.t(color_label, color_default),
+      types: types
+    };
+    if(hint_label) { ent.hint = i18n.t(hint_label, hint_default); }
+    return ent;
+  }
+  function build() {
+    return [
+      entry('pronoun',     'pronoun-yellow',    'yellow', "Yellow",  'people',            "people",        ['pronoun']),
+      entry('verb',        'verb-green',        'green',  "Green",   'actions_lower',     "actions",       ['verb']),
+      entry('adjective',   'adjective-blue',    'blue',   "Blue",    'describing_words',  "describing",    ['adjective']),
+      entry('noun',        'noun-orange',       'orange', "Orange",  'nouns',             "nouns",         ['noun', 'nominative']),
+      entry('social',      'social-pink',       'pink',   "Pink",    'social_words',      "social words",  ['social', 'social_phrase']),
+      entry('negation',    'negation-red',      'red',    "Red",     'negations',         "negations",     ['negation', 'expletive', 'interjection']),
+      entry('question',    'question-purple',   'purple', "Purple",  'questions',         "questions",     ['question']),
+      entry('preposition', 'preposition-pink',  'rose',   "Rose",    'prepositions',      "prepositions",  ['preposition']),
+      entry('adverb',      'adverb-brown',      'brown',  "Brown",   'adverbs',           "adverbs",       ['adverb']),
+      entry('determiner',  'determiner-gray',   'gray',   "Gray",    'determiners',       "determiners",   ['article', 'determiner']),
+      // White card uses a fixed light-gray border rather than darken(white) which yields gray.
+      entry('conjunction', 'conjunction-white', 'white',  "White",   null,                null,            ['conjunction', 'number'], {border: '#ccc'}),
+      entry('other',       'other-blue',        'bluish', "Bluish",  'other_lower',       "other",         []),
+      entry('contrast',    'contrast-black',    'black',  "Black",   'contrast_lower',    "contrast",      [])
+    ];
+  }
+  Object.defineProperty(LingoLinq, 'board_detail_keyed_colors', {
+    get: function() {
+      if(!_bd_cache) { _bd_cache = build(); }
+      return _bd_cache;
+    },
+    configurable: true
+  });
+  LingoLinq.refresh_fitzgerald_colors = function() {
+    _bd_cache = null;
+  };
+
+  // Toggle the .fitzgerald-soft class on <html> based on the user's
+  // symbol_background preference. Applying at the document level
+  // (rather than the grid) means :root has the override — so
+  // getComputedStyle() reads the muted CSS custom property values, and
+  // inline styles built from LingoLinq.board_detail_keyed_colors
+  // (preview cells, button auto-coloring) get the muted hues too.
+  // Pass the symbol_background id ('clear' | 'clear_soft' | 'white' |
+  // 'black') — anything other than 'clear_soft' clears the class.
+  // Defensively also strips a legacy 'fitzgerald-faded' class in case
+  // an older session still has it on the element.
+  LingoLinq.set_fitzgerald_scope = function(symbol_background_id) {
+    if(typeof document === 'undefined' || !document.documentElement) { return; }
+    var cl = document.documentElement.classList;
+    cl.remove('fitzgerald-soft');
+    cl.remove('fitzgerald-faded');
+    if(symbol_background_id === 'clear_soft') { cl.add('fitzgerald-soft'); }
+    _bd_cache = null;
+  };
+})();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},

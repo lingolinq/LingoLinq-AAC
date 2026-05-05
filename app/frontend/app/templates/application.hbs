@@ -7,11 +7,23 @@
   {{#if this.useAppNavbarInHeader}}
     {{app-navbar onSupport=(action "support")}}
   {{else}}
-  {{#if this.app_state.speak_mode}}
-    <span id="speak">
+  {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
+    <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
       <span class="speak-header__home-marker">
         {{#triple-click-listener triple_click="meta_home_click"}}
-          {{#if this.on_board_or_alt}}
+          {{#if this.app_state.eval_mode}}
+            {{!-- Eval-mode home button — uses the same modern outline-house
+                 icon as the board-detail sentence bar (mirrors that visual
+                 language). Action goes home rather than opening the board
+                 picker since the picker would exit eval anyway. --}}
+            <button class="btn btn-default access" id="home_button" {{action "home"}} style="position: relative;" aria-label={{t "Home" key="home"}}>
+              <span class="sr-only">{{t "Home" key="home"}}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path d="M3 12 12 3l9 9"/>
+                <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
+              </svg>
+            </button>
+          {{else if this.on_board_or_alt}}
             <button class='btn btn-default access {{if this.boardPickerVisible "board-picker-btn--open"}}' id="home_button" {{action (if this.boardPickerVisible "closeBoardPicker" "openBoardPicker")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}} aria-expanded={{if this.boardPickerVisible "true" "false"}}>
               {{#if this.boardPickerVisible}}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
@@ -205,7 +217,19 @@
       {{#triple-click-listener triple_click="toggle_modeling"}}
         <button class="btn btn-default access" id="clear_button" {{action "clear"}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
-          <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
+          {{#if this.app_state.eval_mode}}
+            {{!-- Modern trash-can icon for the eval clear button —
+                 mirrors the trash-can icon on board-detail's sentence
+                 bar so the two surfaces share the same Clear glyph. --}}
+            <svg class="md-eval-clear-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              <line x1="10" y1="11" x2="10" y2="17"/>
+              <line x1="14" y1="11" x2="14" y2="17"/>
+            </svg>
+          {{else}}
+            <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
+          {{/if}}
           {{#if this.app_state.modeling}}
             <div style="position: absolute; bottom: 2px; left: 2px;">
               <span class="glyphicon glyphicon-hand-up"></span>
@@ -887,7 +911,39 @@
             {{/if}}
           {{/if}}
           {{#if this.app_state.currentUser}}
+            {{!-- Both img and SVG render. CSS :has() in
+                 .user_holder hides whichever doesn't apply: when
+                 the img src points at a /avatars/avatar-N.png
+                 default placeholder, the img is hidden and the
+                 SVG (Apple-style person.crop.circle.fill silhouette)
+                 shows. When the img src is a real uploaded avatar,
+                 the SVG is hidden and the img shows. --}}
             <span class='user_holder'>
+              {{!-- LingoLinq communicator avatar — same concentric
+                   design used on the caseload card so the identity
+                   chip matches the rest of the system. --}}
+              <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
+                <defs>
+                  <linearGradient id="ll-identity-bg" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#F4F4FB"/>
+                    <stop offset="0.55" stop-color="#EAEBF6"/>
+                    <stop offset="1" stop-color="#EEEEFF"/>
+                  </linearGradient>
+                  <linearGradient id="ll-identity-inner" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#F7F8FF"/>
+                    <stop offset="1" stop-color="#E5E7F4"/>
+                  </linearGradient>
+                  <linearGradient id="ll-identity-mark" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#A8AEE6"/>
+                    <stop offset="1" stop-color="#1B1F4A"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg)"/>
+                <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
+                <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
+                <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
+                <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark)"/>
+              </svg>
               <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if this.app_state.modeling_for_user}}
@@ -1224,6 +1280,28 @@
       {{#if this.app_state.currentUser}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
         <span class="user_holder">
+          <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
+            <defs>
+              <linearGradient id="ll-identity-bg-2" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#F4F4FB"/>
+                <stop offset="0.55" stop-color="#EAEBF6"/>
+                <stop offset="1" stop-color="#EEEEFF"/>
+              </linearGradient>
+              <linearGradient id="ll-identity-inner-2" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#F7F8FF"/>
+                <stop offset="1" stop-color="#E5E7F4"/>
+              </linearGradient>
+              <linearGradient id="ll-identity-mark-2" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#A8AEE6"/>
+                <stop offset="1" stop-color="#1B1F4A"/>
+              </linearGradient>
+            </defs>
+            <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg-2)"/>
+            <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
+            <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner-2)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
+            <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
+            <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark-2)"/>
+          </svg>
           <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.session.invalid_token}}

@@ -190,7 +190,7 @@
       <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
         <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
       </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*">
+      <input type="file" name="image_upload" id="image_upload" accept="image/*" tabindex="-1">
     </span>
     {{#if this.show_library_options}}
       <div style='margin-top: 3px;'>
@@ -1009,7 +1009,7 @@
         <button type="button" class='btn btn-default'>
           <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
         </button>
-        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*">
+        <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1">
       </span>
       {{#unless this.sound_preview}}
         {{#unless this.model.sound.url}}

@@ -69,13 +69,28 @@ export default Component.extend({
     }
   ),
   last_board_name: computed('stashes.root_board_state', 'appState.currentUser.user_name', function() {
+    // Helper: ignore synthetic OBF boards (keys like `obf/eval`,
+    // `obf/emergency`, etc.) — their names are throwaway timestamp ids.
+    var isObfKey = function(k) { return k && /^obf\//.test(k); };
+
+    var fromStashKey = this.stashes.get('root_board_state.key');
     var fromStash = this.stashes.get('root_board_state.name');
-    if(fromStash) { return fromStash; }
+    if(fromStash && !isObfKey(fromStashKey)) { return fromStash; }
+
     var userName = this.appState.get('currentUser.user_name');
     if(!userName) { return null; }
     try {
       var stored = localStorage['ll_last_board_' + userName];
-      if(stored) { return JSON.parse(stored).name || null; }
+      if(stored) {
+        var parsed = JSON.parse(stored);
+        if(isObfKey(parsed && parsed.key)) {
+          // Stale synthetic-board entry from a prior session — clean it
+          // out so it doesn't keep showing up on the dashboard.
+          try { delete localStorage['ll_last_board_' + userName]; } catch(e) { }
+          return null;
+        }
+        return (parsed && parsed.name) || null;
+      }
     } catch(e) { }
     return null;
   }),
@@ -641,7 +656,9 @@ export default Component.extend({
         add(homeRec, this.appState.get('currentUser.preferences.home_board.name'), homeKey, null);
       }
 
-      // 2. Last used board
+      // 2. Last used board — skip synthetic OBF boards (eval intro,
+      // emergency, etc.) whose keys are like `obf/eval` and whose
+      // names are throwaway timestamp ids minted by utils/obf.js.
       var lastBoard = this.stashes.get('root_board_state');
       if (!lastBoard || !lastBoard.key) {
         var userName = this.appState.get('currentUser.user_name');
@@ -652,7 +669,7 @@ export default Component.extend({
           } catch(e) { }
         }
       }
-      if (lastBoard && lastBoard.key) {
+      if (lastBoard && lastBoard.key && !/^obf\//.test(lastBoard.key)) {
         var lastRec = fetched.find(function(b) { return b.get('key') === lastBoard.key; });
         if (!lastRec) {
           try { lastRec = _this.get('store').peekAll('board').find(function(b) { return b.get('key') === lastBoard.key; }); } catch(e) { }
@@ -952,10 +969,12 @@ export default Component.extend({
       if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
+      var _this = this;
+      var go = function() { _this.get('router').transitionTo('create-board-new'); };
       if (this.appState.check_for_needing_purchase) {
-        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+        this.appState.check_for_needing_purchase().then(go, go);
       } else {
-        modal.open('new-board');
+        go();
       }
     },
     openSupervisorsModal: function() {

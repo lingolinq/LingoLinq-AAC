@@ -2259,8 +2259,8 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
   }
   .user_holder {
     display: inline-block;
-    width: 30px;
-    height: 30px;
+    width: 90px;
+    height: 90px;
     margin: -12px 0 -10px -30px;
     background: #fff;
     border-radius: 50%;
@@ -2270,10 +2270,21 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
     justify-content: center;
   }
   img.user {
-    width: 30px;
-    height: 30px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     object-fit: cover;
+  }
+  /* Apple SF Symbol "person.crop.circle.fill" style fallback —
+     replaces the legacy /avatars/avatar-N.png placeholder when the
+     user has no real uploaded photo. Default state: hidden. The
+     swap is driven by CSS :has() rules outside this block. */
+  svg.user.md-identity-avatar--default {
+    display: none;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    vertical-align: middle;
   }
   .status {
     background: rgba(255, 0, 0, 0.5);
@@ -2288,6 +2299,32 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
     }
   }
 }
+/* Pure-CSS avatar swap via :has() — no helper, no template
+   conditional, no dev-server restart needed. The Apple-style
+   silhouette is embedded as a background-image data URI on the
+   .user_holder; the <img> covers it for users with a real uploaded
+   photo, and is hidden when its src matches the legacy default
+   placeholder so the background SVG shows through. */
+.user_holder:has(img.user[src*="/avatars/avatar-"]) {
+  /* LingoLinq identity avatar — periwinkle/lavender head + deep
+     navy/indigo torso gradient, matching the two-tone speech-bubble
+     pair in the LingoLinq logo. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='16' y1='10' x2='80' y2='88' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F4F4FB'/%3E%3Cstop offset='0.55' stop-color='%23EAEBF6'/%3E%3Cstop offset='1' stop-color='%23EEEEFF'/%3E%3C/linearGradient%3E%3ClinearGradient id='i' x1='28' y1='24' x2='70' y2='74' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F7F8FF'/%3E%3Cstop offset='1' stop-color='%23E5E7F4'/%3E%3C/linearGradient%3E%3ClinearGradient id='m' x1='35' y1='30' x2='64' y2='69' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23A8AEE6'/%3E%3Cstop offset='1' stop-color='%231B1F4A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='48' cy='48' r='42' fill='url(%23b)'/%3E%3Ccircle cx='48' cy='48' r='40.75' fill='none' stroke='%23FFFFFF' stroke-opacity='0.85' stroke-width='2'/%3E%3Ccircle cx='48' cy='48' r='25' fill='url(%23i)' stroke='%23E0E2F0' stroke-width='1' stroke-opacity='0.7'/%3E%3Ccircle cx='48' cy='38.5' r='8.5' fill='%23A8AEE6'/%3E%3Cpath d='M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z' fill='url(%23m)'/%3E%3C/svg%3E") !important;
+  background-color: transparent !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  border-radius: 50% !important;
+}
+.user_holder:has(img.user[src*="/avatars/avatar-"]) img.user {
+  display: none !important;
+}
+.user_holder:has(img.user[src*="/avatars/avatar-"]) svg.user.md-identity-avatar--default {
+  display: inline-block !important;
+  width: 30px;
+  height: 30px;
+}
+
 header.speaking, .board.speak {
   -webkit-touch-callout: none !important; /* iOS Safari */
     -webkit-user-select: none !important; /* Safari */
@@ -17062,25 +17099,32 @@ header.header--unauthenticated ~ #content .la-topbar {
   transform: scale(var(--md-tap, 0.99));
 }
 
-/* User icon sized to fit inside 2px padding (content box 38×38) */
+/* Identity avatar — 44×44 (WCAG 2.5.5 touch target size), nudged
+   up to sit higher on the navbar baseline so the larger chip
+   doesn't crash into the bottom edge. */
 #identity.identity-with-dark-toggle #identity_button .user_holder {
-  width: 22px;
-  height: 22px;
-  margin: 0;
+  width: 44px;
+  height: 44px;
+  margin: -8px 0 0 0;
   border-radius: 50%;
   overflow: hidden;
   background: transparent;
 }
 
 #identity.identity-with-dark-toggle #identity_button img.user {
-  width: 22px;
-  height: 22px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   object-fit: cover;
   border: none;
   // SPEC R3: legitimate reset — img is non-focusable; the focusable button parent
   // (#identity_button) already receives a ring via the global :focus-visible rule.
   outline: none;
+}
+#identity.identity-with-dark-toggle #identity_button svg.user.md-identity-avatar--default {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
 }
 /* Broken avatar fallback: tinted circle with user silhouette */
 #identity #identity_button img.user.broken_image,
@@ -18336,12 +18380,22 @@ header.header--unauthenticated ~ #content .la-topbar {
     transform: translateY(calc(-50% - 2px)) !important;
     margin: 0 !important;
   }
+  /* Right offsets reduced by ~50px from the previous 152/108/58 set.
+     The original spacing reserved a slot for the inline beta-feedback
+     circular icon (right: 58px). With the beta-feedback drawer tab now
+     docked below the navbar (and the legacy inline beta link only
+     rendered when useAppNavbarInHeader is false), that slot is empty
+     on most pages — leaving a visible gap between the settings icon
+     and the hamburger / right edge. Shifting search + settings right
+     by 50px closes that gap; beta-circular stays at 58px so layouts
+     that DO render the inline beta link (legacy speak-mode boards)
+     still align. */
   #within_ember header #inner_header #header_search {
-    right: 152px !important;
+    right: 102px !important;
     transform: translateY(calc(-50% - 6px)) !important;
   }
-  #within_ember header #inner_header .ll-header-settings-btn { right: 108px !important; }
-  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular { right: 58px !important; }
+  #within_ember header #inner_header .ll-header-settings-btn { right: 58px !important; }
+  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular { right: 12px !important; }
 }
 
 /* At ≤766px, neutralize rule ~15711's position: absolute + display: flex on
@@ -18359,8 +18413,12 @@ header.header--unauthenticated ~ #content .la-topbar {
   }
 }
 
+/* At ≤375px the search icon previously got pulled to the left edge
+   (`left: 4px`) which broke its grouping with the settings/beta cluster
+   on the right. Keep it anchored to the right with the others so the
+   icon trio stays visually grouped at every width. */
 @media (max-width: 375px) {
-  #within_ember header #inner_header #header_search { left: 4px !important; }
+  #within_ember header #inner_header #header_search { left: auto !important; }
 }
 
 @media (max-width: 475px) {
@@ -29432,11 +29490,18 @@ header #identity #identity_button.btn::after {
     margin-right: auto;
     margin-top: -36px;
   }
-  /* "Built for schools" image on mobile/tablet: use landing-classroom.png and
-     double the min-height (base rule is 220px) so the image has room to breathe. */
+  /* "Built for schools" image on mobile/tablet: show the full
+     image at every width by using `contain` + the natural aspect
+     ratio of the asset (850×638). The base rule uses
+     `background-size: cover` which crops the edges on narrow
+     viewports — switching to `contain` and pinning the container's
+     aspect-ratio to match the image lets the full classroom photo
+     render without clipping. */
   .la-slp-spotlight__image {
     background-image: url('/images/landing-classroom.png');
-    min-height: 440px;
+    aspect-ratio: 850 / 638;
+    min-height: 0;
+    background-size: contain;
   }
   /* Zero top/bottom padding on every direct section inside the parallax zone
      on mobile/tablet (base rule is $aac-spacing-48); horizontal padding stays.
@@ -29451,9 +29516,16 @@ header #identity #identity_button.btn::after {
   .la-plan-text > .la-plan-subtitle {
     margin-bottom: 2rem;
   }
-  /* Devices image on mobile/tablet: double the min-height (base 220px → 440px). */
+  /* Devices image on mobile/tablet: show the full image at every
+     width by using `contain` + the natural aspect ratio of the
+     asset (1000×667). The base rule uses `background-size: cover`
+     which crops the left/right edges on narrow viewports — switching
+     to `contain` and pinning the container's aspect-ratio to match
+     the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    min-height: 440px;
+    aspect-ratio: 1000 / 667;
+    min-height: 0;
+    background-size: contain;
   }
 }
 
@@ -30025,7 +30097,13 @@ header #identity #identity_button.btn::after {
 // ── Footer (modern) ───────────────────────────────────────────────────────────
 .la-footer {
   /* Zero horizontal padding so the bg tint extends edge-to-edge; the centered
-     content column is handled by .la-footer-inner's max-width + margin:auto. */
+     content column is handled by .la-footer-inner's max-width + margin:auto.
+     Full-bleed full-viewport-width: the footer sits inside `.la-main` which
+     has heavy left/right padding (calc(spacing-28 + 5rem)) — that padding
+     would otherwise inset the footer's tinted background. Using the
+     standard 100vw + negative margin-left/right trick breaks the footer
+     out of `.la-main`'s content box and lets its background paint
+     edge-to-edge at every screen width. */
   padding-top: $aac-spacing-48;
   padding-right: 0;
   padding-bottom: $aac-spacing-40;
@@ -30033,6 +30111,10 @@ header #identity #identity_button.btn::after {
   margin-top: 0;
   background: rgba($la-navy, 0.03);
   border-top: none;
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
 }
 
 .la-footer-inner {
@@ -30315,27 +30397,106 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 @media (max-width: $aac-breakpoint-lg) {
+  /* ≤1024px footer layout: brand/tagline on top centered, then the
+     three link columns (Product / Resources / Company) below in
+     their existing 3-column grouping, centered horizontally on the
+     page. The columns themselves keep their own internal left
+     alignment so each heading sits flush above its links. The
+     bottom row (copyright + accessibility) spans full width below
+     the columns. The hamburger drawer is suppressed since the
+     content is now exposed directly. This structure is flexible at
+     all widths below 1024px — `grid-template-columns: repeat(3, auto)`
+     plus `justify-content: center` lets the cluster shrink to fit. */
   .la-footer--collapsible .la-footer-inner {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    text-align: center;
     margin-bottom: $aac-spacing-24;
   }
+  .la-footer--collapsible .la-footer-brand {
+    max-width: 600px;
+    text-align: center;
+    margin-bottom: $aac-spacing-16;
+  }
+  .la-footer--collapsible .la-footer-brand p {
+    text-align: center;
+  }
   .la-footer--collapsible .la-footer__main--desktop {
-    display: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, auto);
+    gap: $aac-spacing-32 $aac-spacing-40;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
   }
-  .la-footer--collapsible .la-footer__mobile {
-    display: flex;
-    align-items: center;
-    margin-left: auto;
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col {
+    grid-column: auto;
+    /* Reset the 5rem left-padding the surrounding 2-col layout
+       applies to .la-footer-col:nth-child(2)/(4) — that horizontal
+       inset breaks the centered cluster here. */
+    padding-left: 0 !important;
+    /* Keep each column's heading + links flush-left within its own
+       cell so the section reads cleanly even though the whole
+       cluster is centered on the page. */
+    text-align: left;
   }
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col h4,
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col nav {
+    text-align: left;
+  }
+  /* Bottom row spans full footer width and lives under the cluster. */
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-bottom {
+    grid-column: 1 / -1;
+  }
+  .la-footer--collapsible .la-footer__mobile,
   .la-footer--collapsible .la-footer__mobile .la-topbar-hamburger,
   .la-footer--collapsible .la-footer__hamburger {
-    display: flex;
+    display: none !important;
+  }
+  /* The mobile drawer panel triggered by the hamburger duplicates
+     the now-visible columns, so keep it hidden along with its
+     trigger. */
+  .la-footer--collapsible .la-mobile-drawer {
+    display: none !important;
   }
   .la-footer--collapsible .la-footer-bottom {
     padding-top: $aac-spacing-16;
+  }
+}
+
+/* ≤640px: the 3-column cluster no longer fits cleanly across the
+   viewport — links wrap mid-column, the cluster gets pushed off
+   center, and gaps eat what's left of the layout. Stack the three
+   columns vertically (still centered) so each section reads cleanly
+   at narrow widths. The brand-on-top-centered structure from the
+   ≤1024px block is preserved. */
+@media (max-width: $aac-breakpoint-sm) {
+  .la-footer--collapsible .la-footer__main--desktop {
+    grid-template-columns: 1fr !important;
+    gap: $aac-spacing-24 !important;
+    justify-content: stretch !important;
+  }
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col {
+    text-align: center !important;
+    align-items: center;
+  }
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col h4,
+  .la-footer--collapsible .la-footer__main--desktop .la-footer-col nav {
+    text-align: center !important;
+  }
+  .la-footer--collapsible .la-footer-bottom {
+    flex-direction: column;
+    align-items: center;
+    gap: $aac-spacing-12;
+    text-align: center;
+  }
+  /* Override the base .la-footer-bottom__copy `white-space: nowrap`
+     so the copyright string can wrap onto multiple lines instead of
+     getting clipped by the viewport edge at narrow widths. */
+  .la-footer--collapsible .la-footer-bottom .la-footer-bottom__copy {
+    white-space: normal;
+    max-width: 100%;
   }
 }
 
@@ -32616,6 +32777,54 @@ a.la-footer-bottom-a11y-wcag {
   padding: 20px 24px;
   border-top: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.6);
+}
+/* Field-level error state — the modern Stripe / Material 3 / GitHub
+   pattern. A required field that's been touched-and-blurred OR seen
+   a submit attempt while empty gets a 1px danger outline + a small
+   helper line below it. The error only renders after `_field_touched`
+   or `_submit_attempted` flips true, so a fresh form never accuses the
+   user before they've engaged. */
+/* Specificity bump: the base `.nb-field__hint` rule and the form-control
+   `:focus-visible` rules live further down in the file. Using a chained
+   selector + `!important` makes these win on source order regardless. */
+.nb-field__input.nb-field__input--error,
+.nb-field__input.nb-field__input--error:focus,
+.nb-field__input.nb-field__input--error:focus-visible,
+.la-new-board-modal-wrap .la-new-board-form .form-control.nb-field__input--error,
+.la-new-board-modal-wrap .la-new-board-form .form-control.nb-field__input--error:focus,
+.la-new-board-modal-wrap .la-new-board-form .form-control.nb-field__input--error:focus-visible {
+  border-color: rgba($brand-danger, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba($brand-danger, 0.10) !important;
+}
+.nb-field__hint.nb-field__hint--error {
+  margin: 4px 0 0;
+  padding-left: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  /* Muted danger — uses the project's $brand-danger (#C0392B) at 0.78
+     opacity so the helper reads as a corrective hint, not an alarm. */
+  color: rgba($brand-danger, 0.78) !important;
+  letter-spacing: 0.005em;
+}
+/* Visually-invalid Create button. We use `aria-disabled` instead of the
+   native `disabled` attribute so the click handler still fires on touch
+   devices — that's how the user gets feedback when fields are missing.
+   This class paints the same disabled look the native `:disabled`
+   pseudo-class would. The base `.btn-primary` / `.la-btn--primary` rules
+   own the enabled/hover/active appearance; we only override the
+   "invalid" state. */
+.new-board__submit--invalid {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+}
+.new-board__submit--invalid:hover,
+.new-board__submit--invalid:active {
+  /* Cancel the primary button's hover/active brightening — keep the
+     disabled look stable when the user hovers/taps. */
+  filter: saturate(0.6);
+  opacity: 0.55;
+  transform: none;
 }
 .la-new-board-modal-footer__actions {
   display: flex;
@@ -35753,6 +35962,8 @@ a.la-footer-bottom-a11y-wcag {
 
   box-shadow: none !important;
 
+  font-size: 14px !important;
+
   font-weight: 600 !important;
 
   color: rgba(75, 78, 92, 0.85) !important;
@@ -36556,7 +36767,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     ". sup" !important;
   grid-template-rows: auto auto 0 !important;
 
-  align-items: start !important;
+  /* Stretch items to fill their grid cells so a shorter card on
+     one side doesn't leave empty space below itself before the
+     row gap — the row gap then becomes the ONLY visible vertical
+     spacing between adjacent cards, identical across all rows. */
+  align-items: stretch !important;
 
   max-width: 100% !important;
 
@@ -36573,21 +36788,27 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   grid-template-rows: auto auto auto auto 0 !important;
 
 }
-/* Grid variant when org management card is shown (full-width row above boards/speak) */
+/* Grid variant when org management card is shown — full-width row
+   BELOW boards/speak/extras (admin and supervisor users see Boards,
+   Speak Mode, and Extras at the top of their dashboard, with My
+   Organizations grounded as a secondary action below). */
 .md-grid--with-org-mgmt {
   grid-template-areas:
-    "org_mgmt org_mgmt"
     "boards speak"
     "boards extras"
+    "org_mgmt org_mgmt"
     ". sup" !important;
   grid-template-rows: auto auto auto 0 !important;
 }
-/* Caseload + org management on same row */
+/* Caseload top-left + Speak top-right (tops flush). Boards spans
+   rows 2-3 on the left. Right column stacks Extras then My
+   Organizations — both same width as Speak. Org's bottom flushes
+   with Boards' bottom. */
 .md-grid--with-caseload.md-grid--with-org-mgmt {
   grid-template-areas:
-    "caseload org_mgmt"
-    "boards speak"
+    "caseload speak"
     "boards extras"
+    "boards org_mgmt"
     ". sup" !important;
   grid-template-rows: auto auto auto 0 !important;
 }
@@ -36600,25 +36821,28 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     ". sup" !important;
   grid-template-rows: auto auto auto 0 !important;
 }
-/* Both getting-started and org management */
+/* Both getting-started and org management — org_mgmt grounded below
+   the primary boards/speak/extras stack instead of pinned above. */
 .md-grid--with-getting-started.md-grid--with-org-mgmt {
   grid-template-areas:
     "getting_started getting_started"
     "divider divider"
-    "org_mgmt org_mgmt"
     "boards speak"
     "boards extras"
+    "org_mgmt org_mgmt"
     ". sup" !important;
   grid-template-rows: auto auto auto auto auto 0 !important;
 }
-/* Getting-started + caseload + org management */
+/* Getting-started + caseload + org management — caseload top-left,
+   speak top-right (tops flush). Boards spans rows on the left;
+   right column stacks extras then org_mgmt (same width as speak). */
 .md-grid--with-getting-started.md-grid--with-caseload.md-grid--with-org-mgmt {
   grid-template-areas:
     "getting_started getting_started"
     "divider divider"
-    "caseload org_mgmt"
-    "boards speak"
+    "caseload speak"
     "boards extras"
+    "boards org_mgmt"
     ". sup" !important;
   grid-template-rows: auto auto auto auto auto 0 !important;
 }
@@ -39672,7 +39896,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     font-size: 1.5rem !important;
   }
 }
-.md-card__sub { color: #3A506E; margin-top: 4px; font-weight: 500; }
+.md-card__sub { color: #3A506E; margin-top: 4px; font-weight: 500; font-size: 14px; }
 
 .md-muted { color: var(--md-muted); }
 
@@ -40581,6 +40805,65 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
   justify-content: center;
 }
+/* Row that holds a section's verdigris title pill + a small gray
+   "optional" pill side-by-side. flex-start keeps both pinned to the
+   left edge of the section, with a tight gap between the two. */
+.nb-section__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  /* Cancel the parent .nb-section's flex gap on this row's bottom — the
+     section's `gap: 12px` should remain between row and hint, but the
+     row itself is just one logical line. */
+  margin: 0;
+}
+/* Small gray "optional" chip. Sized to read as a sibling of the
+   eyebrow pill but visually subordinate — neutral fill, lighter type,
+   no uppercase. The pill chrome (rounded, soft border, faint inset
+   highlight) mirrors the verdigris pill's shape so they read as a
+   pair. */
+.nb-section__optional-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  color: rgba($la-navy, 0.62);
+  background: rgba(13, 36, 56, 0.06);
+  border: 1px solid rgba(13, 36, 56, 0.10);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+/* Field-level "optional" pill — sits inline next to a regular field
+   label (Description, "Are you creating this board for someone else?")
+   rather than next to a section eyebrow. Smaller and tighter than
+   `.nb-section__optional-pill`, but same color language so the two
+   read as a system. Margin-left pulls it off the label text by 8px. */
+.nb-field__optional-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  color: rgba($la-navy, 0.55);
+  background: rgba(13, 36, 56, 0.05);
+  border: 1px solid rgba(13, 36, 56, 0.09);
+  border-radius: 999px;
+  vertical-align: middle;
+  /* Reset the label's bold weight + text-transform — the pill's own
+     italic-lowercase styling should win regardless of whose child
+     element it lives in. */
+  text-decoration: none;
+}
 .new-board--modern .modal-footer .new-board__cancel {
   padding: 12px 24px !important;
   border-radius: 16px !important;
@@ -40989,26 +41272,33 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 10px 12px;
   min-height: 64px;
   border-radius: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  /* Visible 1.5px navy-tinted outline so the input field reads as
+     an obvious target — the previous near-white border made it look
+     like a passive container rather than an interactive input. Bumped
+     background opacity (0.92 → 0.7) so the field clearly stands out
+     from the section's frosted glass. */
+  border: 1.5px solid rgba(13, 36, 56, 0.18);
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.32) 100%
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(255, 255, 255, 0.78) 100%
     );
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   color: var(--md-ink, #1f2933);
   cursor: text;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.2),
-    0 1px 2px rgba(13, 36, 56, 0.04),
-    0 8px 24px -10px rgba(13, 36, 56, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(13, 36, 56, 0.06),
+    0 4px 12px -4px rgba(13, 36, 56, 0.10);
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.label-chips__container:hover {
+  border-color: rgba(13, 36, 56, 0.28);
 }
 .label-chips--focused .label-chips__container {
   border-color: rgba(44, 183, 176, 0.6);
@@ -41025,23 +41315,32 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 12px 30px -10px rgba(44, 183, 176, 0.3);
 }
 
+/* Drag-and-drop reorder affordances:
+   - `cursor: grab` on idle chips signals they're draggable; `:active`
+     swaps to `grabbing` once the press begins.
+   - `--dragging` fades + shrinks the source chip during the drag so the
+     user can track which one they're moving.
+   - `--drop-target` adds a verdigris border-glow to the chip currently
+     under the cursor — the spot the source will land at on drop.
+   The same visual language is mirrored on the preview grid cells below
+   so the two reorderable surfaces feel like one mechanism. */
 .label-chips__chip {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 6px 6px 14px;
-  border: 1px solid rgba(44, 183, 176, 0.4);
+  border: 1px solid rgba(13, 36, 56, 0.18);
   border-radius: 999px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(44, 183, 176, 0.18) 55%,
-      rgba(44, 183, 176, 0.28) 100%
-    );
-  backdrop-filter: blur(10px) saturate(150%);
-  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  cursor: grab;
+  user-select: none;
+  /* Default chip: solid white. Mirrors the preview grid's no-color
+     card — a chip without a POS-color match is a "clear" button, so
+     its default state should read as white, not as a teal/mint
+     gradient. POS-colored chips override `background` + `border-color`
+     inline (see chip_items in label-chips.js), and `--colored` strips
+     this base shadow so colored chips don't glow. */
+  background: #fff;
   color: var(--md-ink, #1f2933);
   font-size: 14px;
   font-weight: 500;
@@ -41053,7 +41352,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     inset 0 -1px 0 rgba(255, 255, 255, 0.18),
     0 1px 2px rgba(13, 36, 56, 0.06),
-    0 6px 16px -6px rgba(44, 183, 176, 0.32);
+    0 6px 16px -6px rgba(13, 36, 56, 0.18);
   transition:
     transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
@@ -41084,6 +41383,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* Soft-orange highlight for duplicate label chips. The base chip's teal
    gradient is replaced with a warm amber gradient and the border tinted
    to match — readable as "needs attention" without shouting. */
+/* Chip painted with its label's part-of-speech color. Inline `background`
+   and `border-color` from the JS bg_style win on their own; this rule
+   strips the mint-tinted halo from the base shadow so the colored fill
+   doesn't get a green glow around it. */
+.label-chips__chip--colored {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 2px rgba(13, 36, 56, 0.06),
+    0 6px 16px -6px rgba(13, 36, 56, 0.18);
+}
 .label-chips__chip--duplicate {
   border-color: rgba(217, 138, 36, 0.55);
   background:
@@ -41131,8 +41441,50 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: left;
 }
 
+/* Duplicate-label warning icon on the chip — sits to the left of the
+   label text, mirroring the preview-card warning. Sized to the chip
+   line-height (11px) with a small cream pill backdrop so the amber
+   triangle stays readable on POS-colored chips (yellow pronouns,
+   blue adjectives, etc). pointer-events:none so it doesn't intercept
+   the chip's edit/drag click targets. */
+.label-chips__chip-warning {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #b8761c;
+  background: rgba(255, 247, 220, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(232, 163, 23, 0.45);
+  pointer-events: none;
+}
+.label-chips__chip-warning svg {
+  display: block;
+}
+
 .label-chips__chip--editing {
   padding: 4px 8px;
+}
+
+.label-chips__chip:active {
+  cursor: grabbing;
+}
+.label-chips__chip--dragging {
+  opacity: 0.4;
+  transform: scale(0.96);
+}
+.label-chips__chip--drop-target {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.25);
+}
+/* While any chip is being dragged, soften everything so the source chip
+   and the active drop target stand out. */
+.label-chips--dragging .label-chips__chip:not(.label-chips__chip--dragging):not(.label-chips__chip--drop-target) {
+  opacity: 0.7;
 }
 
 .label-chips__chip-edit-input {
@@ -41207,6 +41559,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin: 0;
   padding: 6px 8px;
   height: auto;
+  /* textarea-specific: hide the resize grabber and the scrollbar that
+     textareas show by default, and stop text from wrapping on desktop
+     so it behaves like a single-line input. The mobile @media block
+     below re-enables wrap so the placeholder spans 2 lines on phones. */
+  resize: none;
+  overflow: hidden;
+  white-space: nowrap;
+  word-wrap: normal;
+  font-family: inherit;
 }
 .label-chips__input::placeholder {
   color: rgba(31, 41, 51, 0.45);
@@ -41491,6 +41852,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      below is block-level so it stays full-width regardless. */
   text-align: center;
 }
+@media (max-width: 640px) {
+  .new-board-prefs-collapsible {
+    margin-bottom: 0;
+  }
+}
 .new-board-prefs-inset {
   /* Reset alignment for the toolbar's own inline content so the centering
      above doesn't affect labels, sublabel text, etc. inside it. */
@@ -41585,6 +41951,151 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   top: 0;
   right: 8px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Compact "exit paint" close button next to the palette trigger in the
+   prefs toolbar Paint section. Mirrors the .md-board-detail-edit-toolbar__btn
+   footprint so it lines up with the palette pill — small, square, no
+   extra chrome. */
+.md-board-detail-edit-toolbar__paint-exit {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+/* Paint-mode cursor + click affordances on the preview grid. While
+   `paint_mode` is armed, every populated cell signals "click me to
+   paint" via the crosshair cursor and a light highlight on hover. The
+   inner label-button keeps the same crosshair so the affordance
+   reads consistently whether the user clicks the cell padding or the
+   text. Painted cells get a faint inset ring so the user can see
+   their manual overrides at a glance. */
+.md-board-detail-grid--paint-mode {
+  cursor: crosshair;
+}
+.md-board-detail-grid--paint-mode .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty),
+.md-board-detail-grid--paint-mode .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty) .md-board-detail-symbol-card__label-btn {
+  cursor: crosshair !important;
+}
+.md-board-detail-grid--paint-mode .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty):hover .md-board-detail-symbol-card {
+  box-shadow: 0 0 0 2px rgba(42, 157, 143, 0.5);
+}
+.md-board-detail-grid__cell--painted .md-board-detail-symbol-card {
+  box-shadow: inset 0 0 0 1px rgba(13, 36, 56, 0.18);
+}
+/* "Clear" preview cards: a populated label that resolved to no POS color
+   (or to white/conjunction). Without this rule the card still picked up
+   the base `.md-board-detail-symbol-card`'s drop shadow + inset white
+   highlight, which read as a subtle gradient against the green/yellow/
+   pink colored cards beside it. Flat white bg, no outline color, no
+   inset highlight — matches what a "clear" button looks like on the
+   live page. Painted/duplicate cells override this via the rules below
+   (their box-shadows use `!important`). */
+.md-board-detail-grid--preview .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty) .md-board-detail-symbol-card--no-color {
+  background: #fff;
+  box-shadow: none;
+}
+.md-board-detail--dark .md-board-detail-grid--preview .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty) .md-board-detail-symbol-card--no-color {
+  /* Dark preview: keep the no-color card solid white so it doesn't
+     wash out against the dark background. The base "until painted"
+     state of a button is white in this app, and the preview should
+     match that — not fade to a translucent ghost. */
+  background: #fff;
+  box-shadow: none;
+}
+/* Duplicate-label warning state. The glow sits *on the card itself*
+   (not on a wrapping pseudo-element) so it follows the card's own
+   rounded corners and hugs its outline with no gap. Stacked amber
+   box-shadows produce the layered halo: a tight 2px ring directly on
+   the edge, then two soft outer falloffs at 10px and 22px radii.
+   The inset 1.5px ring matches the painted-cell pattern so painted+
+   duplicate cells stay readable. */
+.md-board-detail-grid__cell--duplicate {
+  position: relative;
+  z-index: 1;
+}
+.md-board-detail-symbol-card--duplicate {
+  box-shadow:
+    0 0 0 2px rgba(232, 163, 23, 0.7),
+    0 0 10px 0 rgba(232, 163, 23, 0.55),
+    0 0 22px 4px rgba(232, 163, 23, 0.28),
+    inset 0 0 0 1.5px rgba(232, 163, 23, 0.7) !important;
+}
+/* Bottom-left warning triangle. Absolutely positioned inside the card
+   so it floats over the symbol image without disrupting the existing
+   centered layout. Amber fill + dark outline for contrast on both
+   light and dark preview backgrounds; tiny drop shadow keeps it
+   readable when the card is itself a warm color (orange/yellow). */
+.md-board-detail-symbol-card__warning {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #b8761c;
+  background: rgba(255, 247, 220, 0.95);
+  border-radius: 50%;
+  box-shadow:
+    0 1px 2px rgba(13, 36, 56, 0.18),
+    0 0 0 1px rgba(232, 163, 23, 0.4);
+  z-index: 2;
+  pointer-events: none;
+}
+.md-board-detail-symbol-card__warning svg {
+  display: block;
+}
+/* Top-right remove button on the preview card. Mirrors the
+   `.label-chips__chip-remove` chip-list X both visually and
+   functionally — clicking either removes the same label from the
+   `parsed_labels` array. Sized 18×18 to match the warning icon and
+   pinned to the corner with a subtle hover lift so it reads as
+   interactive. The card itself is now `position: relative` for any
+   non-empty cell (rule below) so this absolute anchor works. */
+.md-board-detail-symbol-card__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(13, 36, 56, 0.55);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(13, 36, 56, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.md-board-detail-symbol-card__remove:hover {
+  color: #c43d3d;
+  background: #fff;
+  border-color: rgba(196, 61, 61, 0.45);
+  transform: scale(1.08);
+}
+.md-board-detail-symbol-card__remove:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.6);
+  outline-offset: 2px;
+}
+.md-board-detail-symbol-card__remove svg {
+  display: block;
+}
+/* Symbol card needs `position: relative` so the absolutely-positioned
+   warning icon (bottom-left) and remove button (top-right) anchor to
+   the card, not the grid. Apply to every populated cell, not only
+   duplicate ones, so the X works on every card. */
+.md-board-detail-grid--preview .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty) .md-board-detail-symbol-card {
+  position: relative;
 }
 /* Compact 2-icon segmented switch — sun on the left (light), moon on the
    right (dark). The thumb slides under the active icon. Matches the
@@ -41688,6 +42199,25 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   cursor: default;
   width: 100%;
   height: 100%;
+}
+/* Drag-and-drop reorder on the preview grid. Filled cells advertise the
+   grab cursor (mirrors the chip list) and lift slightly on dragover so the
+   user sees which cell their drop will swap with. Empty cells stay inert —
+   `draggable={{unless cell.empty "true"}}` prevents the browser from
+   starting a drag from them. The matching .label-chips__chip--dragging /
+   --drop-target rules higher up keep both surfaces visually consistent. */
+.md-board-detail-grid--preview .md-board-detail-grid__cell {
+  cursor: grab;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-detail-grid--preview .md-board-detail-grid__cell:active {
+  cursor: grabbing;
+}
+.md-board-detail-grid--preview .md-board-detail-grid__cell--empty {
+  cursor: default;
+}
+.md-board-detail-grid--preview .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty):hover {
+  transform: translateY(-1px);
 }
 
 .new-board-preview {
@@ -42206,6 +42736,226 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .nb-section:has(.modern-select--open) {
   z-index: 50;
 }
+
+/* Advanced-options disclosure: the entire .nb-section--advanced row
+   acts as a single clickable button (modern iOS / macOS Settings
+   pattern). The surrounding .nb-section keeps its glass-pill chrome
+   (rounded card, soft tinted background, blur, inset highlights) —
+   the toggle button sits inside it as the full-width hit area. Title
+   on top, helper text below, modern outline-chevron right that
+   rotates 180° on expand. */
+.nb-section--advanced {
+  /* Tighten the section padding slightly so the toggle row reads as
+     a single bar rather than a tall card with a button inside. The
+     glass background + rounded corners from `.nb-section` still
+     apply — that's the "pill" the user sees. */
+  padding: 6px;
+  gap: 0;
+}
+.nb-advanced-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: $la-navy;
+  font: inherit;
+  transition: background 0.15s ease;
+  /* Slightly tighter than the parent section's 22px so the hover
+     fill nests cleanly inside the pill. */
+  border-radius: 16px;
+}
+.nb-advanced-toggle:hover {
+  background: rgba($la-navy, 0.05);
+}
+.nb-advanced-toggle:focus-visible {
+  outline: none;
+  background: rgba($la-navy, 0.06);
+  box-shadow: inset 0 0 0 2px rgba($brand-verdigris, 0.45);
+}
+/* Header lockup: verdigris pill (.nb-section__title) on top, inline
+   bullet list (.nb-section__hint) below — same chrome as Visibility,
+   Basics, Size & Labels, etc. */
+.nb-advanced-toggle__lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Match the title→hint spacing used by every other section header
+     (Visibility, Basics, Size & preview, etc.). Those sections inherit
+     `.nb-section`'s 12px flex gap with `.nb-section__hint` pulling up
+     -4px for an effective 8px — but visually reads larger because of
+     the section's 20px top padding and the `<p>` baseline. Matching the
+     parent `.nb-section` gap value here keeps the eyebrow pill from
+     feeling crammed against the bullet list. */
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+/* The toggle title reuses .nb-section__title's full pill styling.
+   No font/background overrides here — keeps it visually identical
+   to every other section header (Visibility, Basics, etc.). */
+.nb-advanced-toggle__title {
+  /* alignment-only reset — pill chrome is inherited from .nb-section__title */
+  margin: 0;
+}
+.nb-advanced-toggle__hint {
+  /* Inline bullet list — each item flows horizontally with a soft
+     dot separator between, wrapping naturally on narrower widths.
+     Reads as a quick-scan checklist of what's behind the disclosure. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.62);
+  line-height: 1.4;
+}
+.nb-advanced-toggle__hint-item {
+  display: inline-flex;
+  align-items: center;
+}
+.nb-advanced-toggle__hint-item:not(:last-child)::after {
+  content: '•';
+  display: inline-block;
+  margin: 0 8px;
+  color: rgba($la-navy, 0.30);
+  font-size: 10px;
+  line-height: 1;
+  /* Slight optical alignment so the dot sits centered on the text x-height. */
+  transform: translateY(-1px);
+}
+.nb-advanced-toggle__chevron {
+  flex-shrink: 0;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.22s ease, color 0.15s ease;
+}
+.nb-advanced-toggle:hover .nb-advanced-toggle__chevron {
+  color: $la-navy;
+}
+.nb-advanced-toggle--open .nb-advanced-toggle__chevron {
+  transform: rotate(180deg);
+  color: $brand-verdigris;
+}
+/* When expanded, draw a soft hairline divider beneath the toggle
+   (pill + helper list) so the header reads as a separate band from
+   the form panel below. Inset by 16px on each side so it doesn't
+   touch the section's rounded glass edge. */
+.nb-advanced-toggle--open {
+  position: relative;
+}
+.nb-advanced-toggle--open::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 1px;
+  background: rgba($la-navy, 0.12);
+  pointer-events: none;
+}
+/* Expanded panel: pad it inside the pill so the form fields don't
+   crash into the card edge. */
+.nb-section--advanced:has(.nb-advanced-toggle--open) .nb-section__body {
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Icon-picker disclosure: nested collapsible inside the advanced
+   panel. Same disclosure pattern as .nb-advanced-toggle but lighter
+   chrome (no glass pill — it's already inside one). Default
+   collapsed; clicking the row reveals the icon-select grid. */
+.nb-icon-disclosure {
+  /* Override the default .nb-field column layout so the toggle
+     header and panel manage their own spacing. */
+  display: block;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  background: rgba($la-navy, 0.02);
+  overflow: hidden;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.nb-icon-disclosure:hover {
+  border-color: rgba($la-navy, 0.18);
+}
+.nb-icon-disclosure--open {
+  background: #fff;
+  border-color: rgba($la-navy, 0.14);
+}
+.nb-icon-disclosure__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: $la-navy;
+  font: inherit;
+  border-radius: 14px;
+  transition: background 0.15s ease;
+}
+.nb-icon-disclosure__toggle:hover {
+  background: rgba($la-navy, 0.04);
+}
+.nb-icon-disclosure__toggle:focus-visible {
+  outline: none;
+  background: rgba($la-navy, 0.06);
+  box-shadow: inset 0 0 0 2px rgba($brand-verdigris, 0.45);
+}
+.nb-icon-disclosure__lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+/* Specificity bump: the base `.nb-field__label` rule lives further
+   down the file, so a single-class selector loses on source order
+   even at equal specificity. Pairing the parent class makes this
+   rule (0,2,0) — beats `.nb-field__label` (0,1,0). */
+.nb-icon-disclosure .nb-icon-disclosure__label {
+  /* Override .nb-field__label's default block layout + 14px left
+     padding so it sits in the lockup as inline text, flush-left to
+     the toggle's own padding edge — not a full-width form label. */
+  display: inline-block;
+  margin: 0;
+  padding-left: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.nb-icon-disclosure__chevron {
+  flex-shrink: 0;
+  color: rgba($la-navy, 0.50);
+  transition: transform 0.22s ease, color 0.15s ease;
+}
+.nb-icon-disclosure__toggle:hover .nb-icon-disclosure__chevron {
+  color: $la-navy;
+}
+.nb-icon-disclosure--open .nb-icon-disclosure__chevron {
+  transform: rotate(180deg);
+  color: $brand-verdigris;
+}
+.nb-icon-disclosure__panel {
+  padding: 4px 16px 16px;
+}
+
 .nb-section__head {
   display: flex;
   align-items: center;
@@ -42437,6 +43187,51 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .new-board-for-collapse--open:has(.modern-select--open) {
   overflow: visible;
 }
+/* Soft teal attention glow on the supervisee dropdown when the toggle
+   is "Yes" but no person has been picked yet. Pulses gently so the
+   user's eye is drawn to it without it reading as an error. Falls off
+   the moment the user picks someone (or flips back to "No") via the
+   `for_user_needs_attention` computed.
+   `overflow: visible` is required here so the glow can spill past the
+   rounded trigger — the parent collapse wrapper sets overflow:hidden
+   during its open/close animation, which would otherwise clip the
+   shadow into a rectangle. Safe to relax during needs-attention because
+   the wrapper is always fully open when this class is active. */
+.new-board-for-collapse--needs-attention {
+  overflow: visible;
+}
+.new-board-for-collapse--needs-attention .new-board-for-select,
+.new-board-for-collapse--needs-attention .modern-select__trigger {
+  /* Explicit border-radius makes the rounded shape unambiguous in case
+     a future override drops it on the trigger; the box-shadow follows
+     this radius automatically. */
+  border-radius: 10px !important;
+  border-color: rgba($brand-verdigris, 0.55) !important;
+  box-shadow:
+    0 0 0 1px rgba($brand-verdigris, 0.20),
+    0 0 4px rgba($brand-verdigris, 0.24) !important;
+  animation: new-board-for-pulse 2.4s ease-in-out infinite;
+}
+@keyframes new-board-for-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba($brand-verdigris, 0.20),
+      0 0 4px rgba($brand-verdigris, 0.24);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba($brand-verdigris, 0.32),
+      0 0 6px rgba($brand-verdigris, 0.40);
+  }
+}
+/* Respect users who've asked for reduced motion — keep the glow but
+   drop the pulse animation. */
+@media (prefers-reduced-motion: reduce) {
+  .new-board-for-collapse--needs-attention .new-board-for-select,
+  .new-board-for-collapse--needs-attention .modern-select__trigger {
+    animation: none;
+  }
+}
 
 .nb-field__row {
   display: flex;
@@ -42504,13 +43299,23 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* Inline layout: legend on the left, radio chips immediately to the right
-   with comfortable spacing. Replaces the stacked legend + hint + radios. */
+   with comfortable spacing. Replaces the stacked legend + hint + radios.
+   Why `flex-direction: row` is explicit: the base `.nb-field__radio-group`
+   declares `flex-direction: column`, and the `--inline` modifier needs to
+   override that — without this, `align-items: center` centers the radios
+   horizontally because the cross-axis is horizontal in a column flex. */
 .nb-field__radio-group--inline {
   display: flex;
+  flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
   gap: 24px;
   margin: 0;
+  justify-content: flex-start;
+}
+.nb-field__radio-group--inline .nb-field__radio-row {
+  justify-content: flex-start;
+  margin-right: auto;
 }
 .nb-field__radio-group--inline .nb-field__sublabel--legend {
   display: inline-block;
@@ -42662,18 +43467,106 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin-top: 0;
   transform: translateX(-18px);
 }
+/* When the clear-grid button is present in the meta block (only rendered
+   once the user has labels), the meta block grows wide enough to compress
+   the right-hand column below the import-csv min-width and force "import
+   csv" to wrap. In that case only, switch the row to `auto 1fr auto` so
+   the meta items sit immediately after the "Labels" label and the rest of
+   the row width becomes flex space, leaving the import-csv column free to
+   stay on a single line. Without clear-grid, the original 1fr-auto-1fr
+   centered layout is preserved. Uses `:has()` (supported in all major
+   browsers as of late 2023). */
+.nb-field__label-row--page-center:has(.nb-field__meta .nb-link--danger) {
+  grid-template-columns: auto 1fr auto;
+}
+.nb-field__label-row--page-center:has(.nb-field__meta .nb-link--danger) .nb-field__meta {
+  justify-self: start;
+  transform: none;
+}
 .nb-field__label-row__spacer {
   display: block;
 }
-@media (max-width: 600px) {
+.nb-field__label-row__actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+}
+.nb-field__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 640px) {
   .nb-field__label-row--page-center {
     grid-template-columns: 1fr;
   }
+  /* Center the labels-row meta block and the import-csv action under the
+     "Labels" heading so the wrapped pills (label count, pick-from-core,
+     speech recognition, clear grid, import csv) read as a centered group
+     instead of left-aligned with ragged whitespace on the right. Also
+     center-align inside each flex container so wrapped lines stay centered
+     too. Centers the "Labels" heading itself for symmetry. */
+  .nb-field__label-row--page-center .nb-field__label {
+    justify-self: center;
+    text-align: center;
+  }
   .nb-field__label-row--page-center .nb-field__meta {
-    justify-self: start;
+    justify-self: stretch;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    /* The desktop rule above this @media block applies translateX(-18px)
+       as a visual nudge — on mobile (full-width meta) that shifts the
+       whole row 18px left of center. Reset. */
+    transform: none;
+  }
+  /* The desktop rule .nb-words-grid__col--labels .nb-field__meta > :first-child
+     adds margin-left: 4rem to the first meta item ("N labels") to push it
+     away from the "Labels" heading. On mobile that creates an off-center
+     first row — kill it. */
+  .nb-words-grid__col--labels .nb-field__meta > :first-child {
+    margin-left: 0;
   }
   .nb-field__label-row__spacer {
     display: none;
+  }
+  .nb-field__label-row__actions {
+    justify-self: center;
+    justify-content: center;
+  }
+  /* Drop "speech recognition" onto its own centered row, separate from the
+     dot-separated "label count · pick from core lists [· clear grid]"
+     group. Hides the dot that would otherwise trail at the end of the
+     first row, and forces the speech link to take a full-width flex slot
+     so following items wrap to the next line cleanly. */
+  .nb-field__sep--before-speech {
+    display: none;
+  }
+  .nb-field__meta .nb-link--speech {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+  /* On phone widths the labels input grows to three lines so the entire
+     wrapped placeholder is visible without scrolling. Desktop above
+     keeps it single-line via white-space: nowrap; here we re-enable
+     wrap, set min-height to fit the longest placeholder text, and use
+     overflow: hidden so no scrollbar appears (the placeholder always
+     fits, and user-typed content stays bound to the value via Ember
+     even if it visually clips). Wider horizontal padding so the wrapped
+     text isn't crammed against the rounded edges. */
+  .label-chips__input {
+    white-space: normal;
+    word-wrap: break-word;
+    min-height: 5em;
+    overflow: hidden;
+    padding: 6px 16px;
+    text-align: center;
   }
 }
 
@@ -42964,9 +43857,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   );
   border: 1px solid rgba(13, 36, 56, 0.08);
   border-radius: 999px;
+  /* Layered shadow for visual lift: inset highlight on the top edge,
+     a soft close shadow at 2px for definition, and a wider, softer
+     shadow at 8px to seat the pill against the inset checklist
+     background — matches the elevation language of the Fitzgerald
+     paint swatches and stepper pills. */
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 1px 2px rgba(13, 36, 56, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(13, 36, 56, 0.10),
+    0 4px 10px -2px rgba(13, 36, 56, 0.12);
   backdrop-filter: blur(6px) saturate(140%);
   -webkit-backdrop-filter: blur(6px) saturate(140%);
 }
@@ -43201,6 +44100,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   border-radius: 12px; /* 14 * 0.9 */
 }
+/* Admin / supervisor dashboards: bump the boards preview thumbnail
+   height by 20% (80 → 96px) so each preview has room to render the
+   full board image without vertical clipping. Scoped via the same
+   role-driven body classes that the .md-grid template already adds:
+     - .md-grid--with-caseload   → supervisor (caseload) view
+     - .md-grid--with-org-mgmt   → admin (organization management) view
+   Communicators (no extra class) keep the original 80px thumb. */
+.md-grid--dashboard.md-grid--with-caseload .md-card--boards .md-thumb,
+.md-grid--dashboard.md-grid--with-org-mgmt .md-card--boards .md-thumb {
+  height: 96px !important;
+}
 .md-grid--dashboard .md-card--boards .md-thumb__icon {
   width: 38px; /* 32 * 1.2 */
   height: 38px !important;
@@ -43280,8 +44190,61 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
   overflow: hidden !important;
 
-  padding: 4rem 8rem 8rem 8rem !important;
+  padding: 4rem 8rem 4rem 8rem !important;
 
+}
+/* Tight title/subtitle stack on the My Caseload card. Visible gap
+   between "My Caseload" and "People you support" is eliminated
+   structurally:
+   1. Wrapper uses CSS Grid with row-gap: 0 so children flow with
+      no inter-row spacing.
+   2. Both children get line-height matched to font-size (so the
+      line box equals the visible glyph height, no leading).
+   3. All margin/padding zeroed on the elements.
+   No negative margins required. */
+.md-card--sup .md-card__head,
+.md-card--sup .md-card__head--between {
+  /* Clean inline header — no divider, no shadow. The visual
+     separation between the header and the supervisee grid below
+     comes from the sunken `.md-caseload` container, not a line. */
+  padding: 0;
+  margin-bottom: 16px;
+  border-bottom: none;
+  box-shadow: none;
+}
+/* Inline header — title and subtitle on the same row, separated by
+   a small dot bullet with comfortable padding around it. */
+.md-card--sup .md-card__head > div {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.md-card--sup .md-card__title {
+  /* Global h1 rule (line ~1292) gives every <h1> a fixed
+     `height: 60px; margin: 5px 0 0 5px`. Reset for inline layout. */
+  height: auto;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  display: inline-block;
+}
+.md-card--sup .md-card__sub {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+}
+/* Dot separator between title and subtitle. Uses ::before so no
+   markup change is required. */
+.md-card--sup .md-card__sub::before {
+  content: '•';
+  margin-right: 12px;
+  color: rgba($la-navy, 0.35);
+  font-size: 14px;
+  font-weight: 700;
 }
 /* Supervisors page: same card and div style as home page (.md-grid .md-card) */
 .md-supervisors-page .md-card {
@@ -50580,7 +51543,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* Board header */
 .md-board-detail-header {
-  padding: 16px 20px 0;
+  /* Right padding dropped to 0 so the Details & Actions button (right-
+     aligned in `.md-board-detail-board-actions-wrap`) can extend to
+     the page edge — matching the Save button's right offset in the
+     edit toolbar below, which has no horizontal padding either. The
+     left padding stays at 20px to keep the title group off the page
+     edge. Top padding unchanged. */
+  padding: 16px 0 0 20px;
   margin-bottom: 0;
   border-bottom: none;
 }
@@ -50765,9 +51734,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex: 1 1 320px;
   min-width: 0;
 }
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .md-board-detail-header__title-group {
     width: 100%;
+    /* In the column-stack mode (set by the matching media query
+       below on `.md-board-detail-header__row`), the base
+       `flex: 1 1 320px` makes the title-group grow *vertically* to
+       320px+ as a flex item along the column main-axis — and the
+       title-group's own `align-items: center` then centers the
+       actual title content within that tall slot, leaving large
+       empty bands above and below. Resetting to `0 0 auto` so the
+       title-group sizes to its content. */
+    flex: 0 0 auto;
   }
   .md-board-detail-header__title {
     margin: 4px 0 0;
@@ -50817,7 +51795,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: flex-end;
   justify-content: center;
   align-self: stretch;
-  width: 25%;
+  /* Let the wrapper size to its content (the Details & Actions pill)
+     instead of forcing it to 25% of the row. Combined with the parent
+     row's `justify-content: space-between`, the wrapper still sits at
+     the right end of the row — but now it doesn't extend past the
+     button on the right, so there's no empty space between the pill
+     and the page edge. */
+  flex: 0 0 auto;
   overflow: visible;
 }
 .md-board-detail-board-actions-wrap > .md-board-detail-board-actions {
@@ -50841,6 +51825,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-board-actions__btn {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
   /* WCAG 2.5.5 AAA touch target — was 9px 16px (~32-37 tall). */
   padding: 12px 16px;
@@ -50853,8 +51839,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 14px;
   font-weight: 500;
   transition: background 0.15s ease, color 0.15s ease;
-  white-space: nowrap;
+  /* Text wraps within the button when the available width can't fit
+     icon + label + chevron on one line. The flex container also wraps
+     so the chevron drops to a new line cleanly instead of forcing
+     overflow. Each child stays as a single token. */
+  white-space: normal;
+  word-break: break-word;
   border-right: 1.5px solid rgba(255, 255, 255, 0.15);
+}
+.md-board-detail-board-actions__btn span {
+  /* Allow the label span to wrap within the button at narrow widths
+     while keeping the icon + chevron on the same axis. */
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
 }
 .md-board-detail-board-actions__btn:last-child {
   border-right: none;
@@ -53115,6 +54113,44 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-weight: 400;
   font-style: italic;
 }
+/* Click-to-edit affordance on the preview-grid label. The button is a
+   transparent shim around the existing `__label` span — preserves the
+   centered, clamped typography from .md-board-detail-symbol-card__label
+   above while making the whole label area a click target that triggers
+   `startCellEdit`. No visible border/background so the card's chrome
+   stays unchanged; a subtle hover lift signals interactivity. */
+.md-board-detail-symbol-card__label-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: text;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+.md-board-detail-symbol-card__label-btn:hover .md-board-detail-symbol-card__label {
+  text-decoration: underline;
+  text-decoration-color: rgba($la-navy, 0.35);
+  text-underline-offset: 2px;
+}
+.md-board-detail-symbol-card__label-btn:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* While a cell is in edit mode, neutralise the grab cursor and the hover
+   lift on the wrapper so the input field reads as the only interactive
+   element inside the card. */
+.md-board-detail-grid--preview .md-board-detail-grid__cell--editing {
+  cursor: text;
+}
+.md-board-detail-grid--preview .md-board-detail-grid__cell--editing:hover {
+  transform: none;
+}
 /* ── Button text user preferences ── */
 /* Font family + text transform from user preferences (set as CSS vars on grid) */
 .md-board-detail-grid {
@@ -53132,6 +54168,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-symbol-card__label,
 .md-board-detail-symbol-card__label-input {
   font-size: clamp(8px, 1.5vw, var(--bd-button-text-size, 14px));
+}
+
+/* Preview mockup override: the global rule above (and the cqw-clamped rule
+   higher in this file) cap the font well below the user's selected size
+   in the smaller mockup cells, so picking small/medium/large/huge looks
+   identical. In preview context, use the user's pref as the preferred
+   value and only clamp against cell width (50% — generous, since labels
+   have overflow:hidden + word-break:break-word so huge text on tiny cells
+   clips/wraps rather than breaks the layout). Selector specificity
+   (0,2,0) beats both global rules (0,1,0). !important defends against
+   any later cascading rule winning despite specificity, which the user
+   was hitting in the live build. */
+.md-board-detail-grid--preview .md-board-detail-symbol-card__label,
+.md-board-detail-grid--preview .md-board-detail-symbol-card__label-input {
+  font-size: clamp(7px, var(--bd-button-text-size, 14px), 50cqw) !important;
 }
 
 /* Text position preferences */
@@ -53191,88 +54242,94 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      Prepositions  Soft Fawn       #C9AD7A  (same as Grammar)
    ──────────────────────────────────────────────────── */
 
+// Each background and text color reads from a CSS custom property defined
+// on :root in _variables.scss. When the .fitzgerald-desaturated class is
+// applied anywhere up the tree, those properties are reassigned to the
+// desaturated palette and these rules pick it up automatically — no
+// parallel SCSS rules needed.
+
 // Pronouns — Yellow
 .md-board-detail-symbol-card--pronoun {
-  background-color: $fitzgerald-pronoun-yellow;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-pronoun-yellow-text; }
+  background-color: var(--fitzgerald-pronoun-yellow);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-pronoun-yellow-text); }
 }
 
 // Verbs — Soft Green
 .md-board-detail-symbol-card--verb {
-  background-color: $fitzgerald-verb-green;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-verb-green-text; }
+  background-color: var(--fitzgerald-verb-green);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-verb-green-text); }
 }
 
 // Adjectives/Descriptors — Blue
 .md-board-detail-symbol-card--adjective {
-  background-color: $fitzgerald-adjective-blue;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-adjective-blue-text; }
+  background-color: var(--fitzgerald-adjective-blue);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-adjective-blue-text); }
 }
 
 // Nouns — Orange
 .md-board-detail-symbol-card--noun,
 .md-board-detail-symbol-card--nominative {
-  background-color: $fitzgerald-noun-orange;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-noun-orange-text; }
+  background-color: var(--fitzgerald-noun-orange);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-noun-orange-text); }
 }
 
 // Social — Pink
 .md-board-detail-symbol-card--social,
 .md-board-detail-symbol-card--social_phrase {
-  background-color: $fitzgerald-social-pink;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-social-pink-text; }
+  background-color: var(--fitzgerald-social-pink);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-social-pink-text); }
 }
 
 // Negatives — Red
 .md-board-detail-symbol-card--negation,
 .md-board-detail-symbol-card--expletive,
 .md-board-detail-symbol-card--interjection {
-  background-color: $fitzgerald-negation-red;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-negation-red-text; }
+  background-color: var(--fitzgerald-negation-red);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-negation-red-text); }
 }
 
 // Questions — Purple
 .md-board-detail-symbol-card--question {
-  background-color: $fitzgerald-question-purple;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-question-purple-text; }
+  background-color: var(--fitzgerald-question-purple);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-question-purple-text); }
 }
 
 // Prepositions — Muted Pink
 .md-board-detail-symbol-card--preposition {
-  background-color: $fitzgerald-preposition-pink;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-preposition-pink-text; }
+  background-color: var(--fitzgerald-preposition-pink);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-preposition-pink-text); }
 }
 
 // Adverbs — Brown
 .md-board-detail-symbol-card--adverb {
-  background-color: $fitzgerald-adverb-brown;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-adverb-brown-text; }
+  background-color: var(--fitzgerald-adverb-brown);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-adverb-brown-text); }
 }
 
 // Determiners — Gray
 .md-board-detail-symbol-card--article,
 .md-board-detail-symbol-card--determiner {
-  background-color: $fitzgerald-determiner-gray;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-determiner-gray-text; }
+  background-color: var(--fitzgerald-determiner-gray);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-determiner-gray-text); }
 }
 
 // Conjunctions/Numbers — White
 .md-board-detail-symbol-card--conjunction,
 .md-board-detail-symbol-card--number {
-  background-color: $fitzgerald-conjunction-white;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-conjunction-white-text; }
+  background-color: var(--fitzgerald-conjunction-white);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-conjunction-white-text); }
 }
 
 // Other — Sky Blue
 .md-board-detail-symbol-card--other {
-  background-color: $fitzgerald-other-blue;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-other-blue-text; }
+  background-color: var(--fitzgerald-other-blue);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-other-blue-text); }
 }
 
 // Contrast — Black
 .md-board-detail-symbol-card--contrast {
-  background-color: $fitzgerald-contrast-black;
-  .md-board-detail-symbol-card__label { color: $fitzgerald-contrast-black-text; }
+  background-color: var(--fitzgerald-contrast-black);
+  .md-board-detail-symbol-card__label { color: var(--fitzgerald-contrast-black-text); }
 }
 
 // Folder — styled via the consolidated folder section below
@@ -53539,6 +54596,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
   background: #fff;
+  /* `flex: 0 1 140px` — preferred basis 140px, can shrink when the
+     toolbar tightens, never grows past 140px when the row has extra
+     room. `min-width: 0` lets the shrink reach below the input's
+     intrinsic placeholder width. */
+  flex: 0 1 140px;
+  min-width: 0;
 }
 .md-board-detail-edit-toolbar__search-input {
   border: none;
@@ -53547,7 +54610,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-size: 14px;
   font-weight: 500;
   color: $brand-charcoal-dark;
-  width: 140px;
+  /* Same shrink-only flex semantics as the parent pill: starts at
+     140px, shrinks under pressure, doesn't grow. `min-width: 0` is
+     critical — `<input>` defaults refuse to go below the intrinsic
+     placeholder width, which is what was forcing the dock to wrap
+     prematurely. */
+  flex: 0 1 140px;
+  min-width: 0;
+  width: auto;
   padding: 2px 0;
 }
 .md-board-detail-edit-toolbar__search-input::placeholder {
@@ -53720,6 +54790,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-toolbar .md-settings-select--open[data-tooltip]:hover::before {
   content: none;
 }
+/* Suppress tooltip after a mouse click. Buttons get :focus on mouse-down
+   in Chrome/Firefox; :focus-visible is only true for keyboard focus, so
+   ":focus:not(:focus-visible)" matches "focused via click" specifically.
+   Once the user clicks elsewhere the focus moves and the tooltip returns
+   on subsequent hover. Keyboard tab focus still shows the tooltip. */
+.md-board-detail-edit-toolbar [data-tooltip]:focus:not(:focus-visible):hover::after,
+.md-board-detail-edit-toolbar [data-tooltip]:focus:not(:focus-visible):hover::before {
+  content: none;
+}
 
 /* ── Edit toolbar ──
    Whole-toolbar bg matches the Settings/Save/Cancel actions-cluster styling
@@ -53778,6 +54857,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 2px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
+/* Phone-narrow viewports: the Text section (font stepper + font dropdown
+   + 3-button text-position toggle) overflows its row at ≤420px. Allow the
+   buttons row to wrap and center each wrapped row so the controls split
+   onto two clean lines instead of clipping or scrolling. Targets the
+   inner `__section-buttons` flex container — which exists in every
+   section but only the Text section's three controls outgrow the
+   narrowest phone widths. */
+@media (max-width: 420px) {
+  .md-board-detail-edit-toolbar__section .md-board-detail-edit-toolbar__section-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 6px;
+  }
+}
 .md-board-detail--dark .md-board-detail-edit-toolbar__section {
   background: #1e2530;
   border-color: rgba(255, 255, 255, 0.10);
@@ -53792,11 +54885,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* On narrow viewports, the initial (always-visible) toolbar sections wrap to
    multiple lines; give each pill a bottom margin so wrapped rows don't feel
    cramped against the next row. */
-@media (max-width: 820px) {
-  .md-board-detail-edit-toolbar__section:not(.md-board-detail-edit-toolbar__section--actions) {
-    margin-bottom: 14px;
-  }
-}
+/* Previously added 14px margin-bottom on every section at ≤820px to
+   give wrapped pills more breathing room. Removed because it created
+   an awkward gap below the History (undo/redo) and Categories+Search
+   pills even when those rows weren't wrapping yet. The toolbar's own
+   row-gap (`gap: 18px 14px`) handles wrap-row spacing already. */
 .md-board-detail-edit-toolbar__section-label {
   font-size: 14px;
   font-weight: 700;
@@ -53841,6 +54934,246 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   justify-content: center;
   gap: 18px 14px;
 }
+/* On wide screens (>= 1280px), force every preference pill onto one row.
+   Tighten the gap and section padding so all 9 sections fit; allow them
+   to shrink (min-width: 0) so dropdown triggers can compress instead of
+   overflowing. Bumped from 1024px because at narrower widths the row
+   was clipping ("Border" → "B…", "Skin-Tones" overflowing) — below
+   1280px we let the row wrap to two rows naturally. */
+@media (min-width: 1280px) {
+  .md-board-detail-edit-toolbar__display-prefs {
+    flex-wrap: nowrap;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__section {
+    min-width: 0;
+    padding: 6px 8px;
+    flex: 0 1 auto;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__section-buttons {
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  /* Compress dropdown trigger widths inside the row so long font names like
+     "Architect's Daughter" yield to neighbors instead of forcing a wrap. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-select--trigger {
+    max-width: 160px;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-select__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+}
+/* Medium widths (tablet to small-laptop): tighten the gap between pills
+   so the row uses fewer wrap rows. Labels stay visible — a row of unlabeled
+   −/+ pills is unreadable at a glance even though each carries an
+   aria-label/tooltip. */
+@media (max-width: 1279px) {
+  .md-board-detail-edit-toolbar__display-prefs {
+    gap: 10px 10px;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__section {
+    padding: 6px 10px;
+  }
+}
+
+/* Default: .md-settings-group wrappers are layout-invisible. The flex layout
+   in section-buttons sees the inner sublabel-wraps as direct children, so
+   the existing desktop layout is unchanged. The wrappers only become real
+   layout boxes (with pill chrome) inside the mobile @media block below. */
+.md-settings-group {
+  display: contents;
+}
+
+/* Mobile / cell-phone widths: native-settings-list pattern (iOS Settings,
+   Material/Notion/Linear mobile). One unified rounded card holds the
+   whole prefs panel; each preference is a single row with label on the
+   left and control on the right, separated by hairline dividers. This
+   is the standard mobile-settings UX users already know — scannable,
+   clearly labeled, ~50% of the previous vertical footprint. */
+@media (max-width: 640px) {
+  /* The display-prefs container becomes the card. */
+  .md-board-detail-edit-toolbar__display-prefs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: $surface-100;
+    border: 1px solid rgba($la-navy, 0.12);
+    border-radius: 14px;
+    box-shadow:
+      0 2px 6px rgba($la-navy, 0.08),
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    overflow: hidden;
+  }
+  /* Dark mode at this breakpoint: switch the card to a dark surface
+     so it sits naturally on the dark toolbar instead of looking
+     punched-out, and keep the pale labels visible against it (the
+     base dark-mode sublabel rule sets `rgba(255, 255, 255, 0.6)` —
+     readable on dark, near-invisible on the light card). Same for
+     the hairline dividers between rows. */
+  .md-board-detail--dark .md-board-detail-edit-toolbar__display-prefs {
+    background: #1e2530;
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.35),
+      0 1px 2px rgba(0, 0, 0, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  .md-board-detail--dark .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  /* Sections, section-buttons, and groups all become layout-invisible
+     wrappers so each .md-settings-sublabel-wrap (one per preference)
+     is a direct row inside the card. */
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__section,
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__section-buttons,
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-group {
+    display: contents;
+  }
+  /* Each preference renders as one row. The base .md-settings-sublabel-wrap
+     rule sets flex-direction: column and min-width: max-content; both must
+     be explicitly overridden here, not just `display: flex`. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 14px;
+    border-bottom: 1px solid rgba($la-navy, 0.08);
+    min-height: 36px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
+  }
+  /* Mirror the base sibling-combinator rules at higher specificity so
+     they don't add 12px of left margin to sub-wraps that follow another
+     (Font Type after Text Size, Border after Gap, etc.). The base rule
+     fires because display:contents on the .md-settings-group wrappers
+     exposes the inner wraps as DOM siblings. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap + .md-settings-sublabel-wrap,
+  .md-board-detail-edit-toolbar__display-prefs * + .md-settings-sublabel-wrap {
+    margin-left: 0;
+  }
+  /* Only the truly final row should lose its divider — `.last-child` alone
+     matches every wrap that's the last in its DOM parent (each .md-settings-group
+     and each section's .section-buttons has a "last child"), which was
+     stripping 7 of 9 dividers. Scoping to "last wrap inside the last
+     section" keeps a divider between every pair of adjacent settings. */
+  .md-board-detail-edit-toolbar__display-prefs > .md-board-detail-edit-toolbar__section:last-child .md-settings-sublabel-wrap:last-child {
+    border-bottom: none;
+  }
+  /* Label on the left — visible, modest weight. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: $la-navy;
+    line-height: 1.2;
+    flex: 0 0 auto;
+    padding: 0;
+  }
+  /* Control on the right — let it size naturally and push to the end. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap > :not(.md-settings-sublabel) {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  /* Compact stepper buttons. Height trimmed by ~25% (32 → 24) to drop the
+     vertical padding around the −/+ glyphs; 24px is the WCAG AA touch
+     target floor. Width stays 32px so the buttons remain easy to tap. */
+  .md-board-detail-edit-toolbar__display-prefs .md-board-detail-edit-toolbar__stepper-btn {
+    width: 32px;
+    height: 24px;
+    min-width: 32px;
+    min-height: 24px;
+  }
+  /* Dropdown trigger sized like a pill on the right; cap width so long
+     font names truncate instead of pushing the label off-screen. The
+     right padding (32px) reserves space for the chevron background-image
+     drawn by the base .md-settings-select rule (positioned at "right 12px
+     center"). Without this padding the chevron sits underneath the value
+     text and reads as missing. height: auto overrides the base rule's
+     explicit height: 44px so the halved vertical padding actually
+     shrinks the trigger instead of getting absorbed. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-select--trigger {
+    height: auto;
+    min-height: 28px;
+    max-width: 180px;
+    padding: 2px 32px 2px 12px;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-select__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  /* Icon-button groups (Text Position, Shape) — slightly tighter. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  /* Halve the vertical padding on the icon-group pill (the gray rounded
+     wrap around the Shape and Text Position buttons). Override the base
+     rule's explicit `height: 44px` with `height: auto` so the padding
+     change actually shrinks the pill instead of being absorbed. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-icongroup {
+    height: auto;
+    padding: 1.5px 3px;
+  }
+  /* Rows whose control is an icongroup (Shape, Text Position) — halve
+     the row's vertical padding too so the gray pill hugs the row top
+     and bottom instead of floating with extra whitespace. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap:has(.md-settings-icongroup) {
+    padding-top: 2.5px;
+    padding-bottom: 2.5px;
+  }
+  /* Hidden row carries three controls (icongroup + 2 toggle-btns) on
+     the right. At ≤640px the wrapper pushes the whole cluster to the
+     right edge of the row via margin-left: auto. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-hidden-controls {
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+  /* Shape stretch icons — heights reduced ~15% so the icon-buttons feel
+     more compact on phone. Note the --square swatch is visually a tall
+     rounded rectangle and the --tall swatch is visually a rounded
+     square (icon visuals were swapped; underlying button actions are
+     unchanged). Widths still come from the base rule. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-stretch-icon--square { height: 15px; }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-stretch-icon--tall   { height: 12px; }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-stretch-icon--wide   { height: 9px;  }
+  /* Skin-tones dropdown swatch already inline-flexes — just keep the
+     trigger sized like the others. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-select--with-swatch {
+    max-width: 180px;
+  }
+  /* Sub-options checkbox row (mix-only / mix-prefer) sits below the
+     skin row — needs to take its own line, full width, no border. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-suboptions {
+    flex-basis: 100%;
+    margin-left: 0;
+    padding: 0 14px 10px;
+    justify-content: flex-start;
+  }
+  /* Dropdown menu on mobile: anchor to the trigger's right edge so it
+     expands leftward into the available row space (the trigger sits on
+     the right side of each row). Let the menu grow to fit its content
+     instead of clipping at the base 240px max — so "OpenSymbols",
+     "Noun Project", etc. read fully. Cap at viewport width minus a
+     small gutter to keep it from running off-screen. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-dropdown-menu {
+    left: auto;
+    right: 0;
+    min-width: 200px;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+  }
+}
 /* (Removed: previously a media query at min-width 1201px added 140px of
    horizontal padding to force the display-prefs row to wrap sooner. The
    toolbar's centering uses justify-content:center so contents stay
@@ -53863,14 +55196,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   position: relative;
 }
 .md-board-detail-edit-toolbar__expand-btn {
-  /* Pinned to the edit-controls row's bottom-right. When display-prefs
-     expands below, the chevron must NOT move — so we use a height-agnostic
-     anchor: the parent toolbar's padding-bottom (10px) + the natural edit-
-     controls row height. Collapsed state uses bottom: 2px; expanded state
-     uses top: calc(initial edit-row height) so the chevron stays put. */
+  /* Pinned just under the toolbar's bottom edge, centered
+     horizontally. `top: 100%` + 2px margin nudges the button slightly
+     past the border so the toolbar's drop shadow has room to breathe.
+     Translates -50% on X to center against `left: 50%`. The hover
+     rule preserves both the X-centering and adds a 1px Y lift. */
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  left: 50%;
+  top: 100%;
+  margin-top: 4px;
+  transform: translateX(-50%);
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53903,7 +55239,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 2px rgba($la-navy, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
   outline: none;
-  transform: translateY(-1px);
+  /* Preserve the X-centering from the base rule (translateX(-50%))
+     and add the 1px hover lift on top — without this, the button
+     would jump to the toolbar's left edge on hover. */
+  transform: translateX(-50%) translateY(-1px);
 }
 .md-board-detail-edit-toolbar__expand-btn svg {
   transition: transform 0.2s ease;
@@ -53958,15 +55297,49 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 12px;
   margin: -1rem 0 8px 0;
 }
+/* History + Filter sub-group inside the dock. Keeps those two clusters
+   glued together as a single dock-level flex item — when the dock wraps
+   on narrow viewports, they wrap together (and wrap *internally*
+   together too if the combined width exceeds the row). */
+.md-board-detail-edit-toolbar__actions-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  /* Allow the group to shrink + grow within the dock so the search
+     pill keeps room to breathe. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
 /* When no filter cluster is rendered (display-prefs mode), keep the actions
    cluster anchored right instead of centered. */
 .md-board-detail-edit-toolbar__actions-dock > .md-board-detail-edit-toolbar__actions-cluster:only-child {
   margin-left: auto;
 }
 .md-board-detail-edit-toolbar__actions-cluster--filter {
-  /* Filter cluster keeps the same pill chrome as the actions cluster but
-     anchors to the left of the dock row. */
+  /* `flex: 0 1 auto` + `min-width: 0` lets the cluster shrink when the
+     row tightens (so the search field doesn't force the Cancel/Save
+     cluster to wrap to a new row), but `0` grow keeps it from
+     stretching past its natural content width when there's plenty of
+     room. The chain below (`__section`, `__section-buttons`,
+     `__search`, `__search-input`) all get `min-width: 0` so the
+     shrink propagates all the way to the `<input>`. */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* `margin-right: auto` is only meaningful when the filter is a direct
+   child of the dock (legacy layout) — it pushed the filter against the
+   left while the actions cluster anchored right. Inside the new
+   `__actions-group` (current layout), this auto-margin would override
+   the group's `justify-content: center` and shove the filter left. */
+.md-board-detail-edit-toolbar__actions-dock > .md-board-detail-edit-toolbar__actions-cluster--filter {
   margin-right: auto;
+}
+.md-board-detail-edit-toolbar__actions-cluster--filter .md-board-detail-edit-toolbar__section,
+.md-board-detail-edit-toolbar__actions-cluster--filter .md-board-detail-edit-toolbar__section-buttons {
+  min-width: 0;
+  flex: 0 1 auto;
 }
 /* Narrow viewports: let the dock wrap and center the Save / Cancel cluster
    on its own line instead of pinning to the right edge. */
@@ -54153,10 +55526,18 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-edit-toolbar__stepper-btn:disabled {
   cursor: not-allowed;
   background: transparent;
+  color: rgba($la-navy, 0.28);
+  opacity: 0.6;
+}
+.md-board-detail-edit-toolbar__stepper-btn[disabled]:hover,
+.md-board-detail-edit-toolbar__stepper-btn:disabled:hover {
+  background: transparent;
+  color: rgba($la-navy, 0.28);
 }
 .md-board-detail-edit-toolbar__stepper-btn[disabled] svg,
 .md-board-detail-edit-toolbar__stepper-btn:disabled svg {
-  visibility: hidden;
+  visibility: visible;
+  opacity: 0.55;
 }
 .md-board-detail-edit-toolbar__stepper-label {
   padding: 0 8px;
@@ -54559,6 +55940,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   border-radius: 10px;
   background: rgba($la-navy, 0.05);
 }
+/* Hidden row's controls cluster: groups the 3-button hidden-state
+   icongroup with the two paint-mode toggle-btns into a single inline
+   row so the desktop layout stays compact (label on top, all three
+   controls in one row below) AND the mobile settings-list layout
+   pushes the whole cluster to the right of the row (see the matching
+   `margin-left: auto` rule inside the @media (max-width: 640px) block). */
+.md-settings-hidden-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .md-settings-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -54634,8 +56026,13 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   opacity: 0.85;
   border-radius: 2px;
 }
-.md-settings-stretch-icon--square { width: 16px; height: 16px; }
-.md-settings-stretch-icon--tall   { width: 10px; height: 18px; }
+/* Icon visuals only — the underlying button actions are unchanged.
+   Left swatch (Square option): rendered as a tall version of the wide
+                                swatch (same shape, rotated 90°).
+   Middle swatch (Tall option): rendered as a rounded square.
+   Right swatch (Wide option):  unchanged wide rectangle. */
+.md-settings-stretch-icon--square { width: 18px; height: 15px; }
+.md-settings-stretch-icon--tall   { width: 12px; height: 14px; border-radius: 3px; }
 .md-settings-stretch-icon--wide   { width: 18px; height: 10px; }
 
 /* Labeled sub-group wrapper (for nested groups like skin-tones).
@@ -54919,6 +56316,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-settings-dropdown-menu li {
   list-style: none;
 }
+.md-settings-dropdown-divider {
+  height: 1px;
+  margin: 6px 8px;
+  background: rgba($la-navy, 0.12);
+  pointer-events: none;
+}
+.md-board-detail--dark .md-settings-dropdown-divider {
+  background: rgba(255, 255, 255, 0.16);
+}
+.md-settings-dropdown-search-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px;
+  background: #fff;
+  border-bottom: 1px solid rgba($la-navy, 0.10);
+}
+.md-settings-dropdown-search__input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: $brand-charcoal-dark;
+  background: $surface-100;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-settings-dropdown-search__input:focus {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 2px rgba(44, 183, 176, 0.22);
+}
+.md-settings-dropdown-search__input::placeholder {
+  color: rgba($la-navy, 0.45);
+}
+.md-board-detail--dark .md-settings-dropdown-search-row {
+  background: rgba(20, 28, 44, 0.96);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+.md-board-detail--dark .md-settings-dropdown-search__input {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.md-board-detail--dark .md-settings-dropdown-search__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
 .md-settings-dropdown-item {
   display: flex;
   align-items: center;
@@ -54958,6 +56403,31 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+}
+.md-settings-dropdown-item__swatch.md-settings-skin,
+.md-settings-select__swatch.md-settings-skin {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  pointer-events: none;
+  cursor: default;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.md-settings-select__swatch.md-settings-skin {
+  margin-right: 8px;
+}
+.md-settings-select--with-swatch {
+  display: inline-flex;
+  align-items: center;
+}
+.md-settings-dropdown-item--with-swatch {
+  gap: 8px;
 }
 .md-settings-dropdown-menu::-webkit-scrollbar {
   width: 8px;
@@ -55007,6 +56477,56 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-settings-toggle-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px $brand-verdigris;
+}
+
+/* Pill-shaped on/off switch — used by the Muted Colors toggle inside the
+   board-detail edit toolbar and the create-board-new Preferences panel.
+   Distinct from .md-settings-toggle-btn (which is a small icon button).
+   Visual: 36x20 track + 14x14 thumb that translates from left to right
+   when the switch is on. Track color shifts to brand verdigris when on. */
+.md-settings-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 999px;
+  background: rgba($la-navy, 0.12);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  flex-shrink: 0;
+}
+.md-settings-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  transition: transform 0.18s ease;
+  pointer-events: none;
+}
+.md-settings-toggle--on {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris;
+}
+.md-settings-toggle--on .md-settings-toggle__thumb {
+  transform: translateX(16px);
+}
+.md-settings-toggle:hover {
+  border-color: rgba($la-navy, 0.32);
+}
+.md-settings-toggle--on:hover {
+  border-color: $brand-verdigris;
+  background: color.adjust($brand-verdigris, $lightness: -4%);
+}
+.md-settings-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.35);
 }
 
 /* Save / cancel group at far right */
@@ -55131,9 +56651,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-shell--board-detail-edit .md-board-detail-collapse-btn {
   display: none;
 }
-.md-shell--board-detail-edit .md-board-detail-edit-btn--active {
-  display: none;
-}
+/* Removed: `.md-shell--board-detail-edit .md-board-detail-edit-btn--active`
+   was hiding the "Done Editing" LinkTo in edit mode. The LinkTo (and its
+   surrounding `__actions` wrapper) is now omitted from the template via
+   `{{#unless this.edit_mode}}`, so there's no element to hide and no
+   empty wrapper consuming a flex slot in `header__row`. */
 /* Collapse to single-column layout with no sidebar gaps */
 .md-shell--board-detail-edit .md-board-detail-layout,
 .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed) {
@@ -55495,19 +57017,55 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: box-shadow 0.25s ease, transform 0.25s ease;
 }
-/* Folder tab — solid, sharp */
+
+/* Shape-aware folder back: when the card on top is shrunk by a non-square
+   Shape preference, inset the folder back so it sits behind the card
+   instead of peeking out around it. Card sizing rules above use
+   width: 66.6667% (tall) or height: 66.6667% (wide), centered along the
+   shrunk axis — so the folder back needs to inset by 16.6667% on the
+   matching axis (= half the empty space on each side) and keep the
+   original ±2/3px chrome overhang. */
+.md-board-detail-grid--shape-tall .md-folder-back {
+  left: calc(16.6667% - 2px);
+  right: calc(16.6667% - 2px);
+}
+/* Folder tab is position:absolute inside .md-folder-back (its containing
+   block is the folder back, not the cell). So the base `left: 10px` is
+   already 10px from the folder back's left edge — which we've inset for
+   shape-tall above. No tab override needed. */
+/* Selectors below mirror the chunkier-folder rule near line 56269 so
+   they reach the same specificity (0,5,0 vs the chunkier rule's 0,4,0)
+   — without this, the default-folder-mode rule that sets top:8px and
+   bottom:-3px overrides our shape-wide computed values.
+   Card top from cell border-top = padding-top (12) + (cell-content-box × 16.67%)
+                                  = 12 + (100% - 12px) × 0.16667
+   Folder back top should be 6px ABOVE card top (creates the tab gap):
+                                  = (100% - 12px) × 0.16667 + 6px
+   Folder back bottom should be 3px BELOW card bottom (overhang):
+                                  = (100% - 12px) × 0.16667 - 3px
+   The folder tab is position:absolute INSIDE folder back — its base
+   `top: -6px` is already relative to folder back, so it auto-tracks
+   the folder back's top edge. No tab override needed for shape-wide. */
+.md-board-detail-grid.md-board-detail-grid--shape-wide:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back,
+.md-board-detail-grid--shape-wide.md-board-detail-grid--folder-tab-labels .md-folder-back,
+.md-board-detail-grid--shape-wide.md-board-detail-grid--folder-colored-corner .md-folder-back {
+  top: calc((100% - 12px) * 0.16667 + 6px);
+  bottom: calc((100% - 12px) * 0.16667 - 3px);
+}
+/* Folder tab — same fill as the folder back so the two read as one
+   continuous shape rather than two stacked pieces. The shared color
+   plus matching rounded corners on the top edges (5px tab + 14px
+   back) creates a single seamless folder silhouette. */
 .md-folder-tab {
   position: absolute;
-  top: -6px;
+  top: -4px;
   left: 10px;
   width: 30%;
   height: 6px;
-  background: #525d6e;
+  background: $brand-charcoal-blue;
   border-radius: 5px 5px 0 0;
   pointer-events: none;
-  box-shadow:
-    0 -2px 8px rgba(27, 42, 65, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
 }
@@ -55751,7 +57309,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 /* Default folder tab is taller than the base 6px to fill the top reveal area. */
 .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-tab {
-  top: -9px;
+  top: -7px;
   height: 9px;
 }
 /* Card sits on top — elevated above folder */
@@ -55852,8 +57410,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ── Board Detail Responsive ──────────────────────────── */
 
-/* Large tablets / small desktops (821–1080px): hide right panel, show below main when expanded */
-@media (max-width: 900px) {
+/* Phones (≤ 600px): collapse the header into a column stack so the
+   title group and Details & Actions panel each get their own row.
+   Above this width there's plenty of room for both side-by-side, so
+   forcing a stack at 900px (the previous threshold) created an
+   unnecessarily tall header on tablets and small desktops. */
+@media (max-width: 600px) {
   .md-board-detail-header__row {
     flex-direction: column;
     align-items: center;
@@ -55885,7 +57447,8 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     gap: 2px;
   }
   .md-board-detail-board-actions__btn span {
-    font-size: clamp(8px, 2.5vw, 14px);
+    /* Floor at 14px — anything smaller is unreadable for AAC users. */
+    font-size: 14px;
   }
   .md-board-detail-board-actions__btn svg {
     width: clamp(12px, 3.5vw, 20px);
@@ -56143,36 +57706,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   .md-board-detail-actions-toggle {
     width: 32px;
   }
-  .md-board-detail-header__row {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-  .md-board-detail-header__title-group {
-    justify-content: center;
-  }
-  .md-board-detail-header__actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding-top: 12px;
-    border-top: 1px solid rgba($la-navy, 0.12);
-  }
-  .md-board-detail-header__actions .md-board-detail-color-legend-toggle {
-    order: 1;
-  }
-  .md-board-detail-header__actions .md-board-detail-collapse-btn {
-    order: 2;
-  }
-  .md-board-detail-layout.md-board-detail-layout--collapsed .md-board-detail-header__actions .md-board-detail-collapse-btn {
-    position: static !important;
-  }
-  .md-board-detail-header__actions .md-board-detail-edit-btn {
-    order: 3;
-  }
+  /* Header row stays in side-by-side layout at this breakpoint —
+     800-820px tablets still have plenty of room for title-group +
+     Details & Actions on one line. The column-stack rules used to
+     live here but caused the regression where everything below
+     820px (including ample-width tablets) jumped to a vertical
+     stack. The single-column stack now only kicks in at ≤600px (see
+     the matching block above). The action button `order` rules also
+     no longer apply here since they only affect a wrapped actions
+     row, which doesn't exist outside the column stack. */
   .md-board-detail-grid {
     grid-template-columns: repeat(var(--board-columns), minmax(0, 1fr));
     gap: 8px;
@@ -56877,7 +58419,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   margin: 0;
 }
 .md-modal-body {
-  padding: 28px 24px;
+  padding: 8px 24px 28px;
   text-align: center;
   font-size: 16px;
 }
@@ -56955,6 +58497,277 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: rgba($la-navy, 0.15);
   color: $la-navy;
 }
+/* Reusable modern-select styling for any modal — mirrors the
+   .la-new-board-modal-wrap .modern-select pattern so the dropdown
+   renders identically (rounded teal-focus trigger + custom listbox)
+   anywhere we drop in {{modern-select class="md-modal-modern-select" ...}}.
+   Key advantage over Bootstrap-styled <select>: the open list is a
+   real <ul>, fully CSS-controlled — no native OS rendering. */
+/* ── Global bound-select modernization ──
+ * The bound-select component was rewritten to render a custom
+ * <button> + <ul> listbox instead of a native <select>, so the
+ * Bootstrap-styled <select> visual is gone everywhere {{bound-select}}
+ * is used (200+ instances across modals, settings pages, forms).
+ *
+ * These rules style the new DOM globally so the modern look applies
+ * regardless of context. Per-area overrides (e.g. specific
+ * widths/colors) can be layered on .bound-select.<custom-class>.
+ */
+.bound-select {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  vertical-align: middle;
+  /* The wrapper is purely structural — the visual chip is the
+     inner .bound-select__trigger button. Force-reset wrapper-level
+     visuals so any legacy `select_class` (e.g. "form-control",
+     "la-contact-input", "la-board-privacy-select", etc. — all
+     classes that originally targeted a native <select>) doesn't
+     paint a competing border / background / padding around the
+     trigger. Without this, scoped rules like
+     `.la-record-note-modal-body .form-control { border:1.5px;
+     padding:8px 14px }` would nest a second box around the
+     already-styled trigger. */
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  box-shadow: none !important;
+  font-size: inherit !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+.bound-select__trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 40px 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: $la-navy;
+  text-align: left;
+  background-color: rgba($la-navy, 0.03);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2346505F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.bound-select__trigger:hover {
+  border-color: rgba($la-navy, 0.25);
+  background-color: rgba($la-navy, 0.05);
+}
+.bound-select__trigger:focus,
+.bound-select__trigger:focus-visible,
+.bound-select--open .bound-select__trigger {
+  border-color: $brand-verdigris;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+}
+.bound-select__trigger-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bound-select__trigger-text--placeholder {
+  color: $brand-slate-gray;
+  font-weight: 500;
+}
+.bound-select__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 1050;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  box-shadow:
+    0 10px 28px rgba($la-navy, 0.18),
+    0 2px 8px rgba($la-navy, 0.10);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.bound-select__option {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  cursor: pointer;
+  border-radius: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.bound-select__option:hover,
+.bound-select__option:focus-visible {
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris;
+  outline: none;
+}
+.bound-select__option--selected {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
+  font-weight: 600;
+}
+.bound-select__option--selected:hover,
+.bound-select__option--selected:focus-visible {
+  background: rgba($brand-verdigris, 0.20);
+}
+.bound-select__option--disabled {
+  color: rgba($la-navy, 0.35);
+  cursor: not-allowed;
+}
+.bound-select__option--disabled:hover {
+  background: transparent;
+  color: rgba($la-navy, 0.35);
+}
+.bound-select__divider {
+  padding: 8px 14px 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.50);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  pointer-events: none;
+}
+.bound-select__divider:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+/* Compact variant (some callers use `short=true` for tight UI). */
+.bound-select--short .bound-select__trigger {
+  min-height: 32px;
+  padding: 4px 36px 4px 12px;
+  font-size: 13px;
+}
+
+.modern-select.md-modal-modern-select {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+.modern-select.md-modal-modern-select .modern-select__trigger {
+  display: block;
+  width: 100%;
+  padding: 12px 44px 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $la-navy;
+  background-color: rgba($la-navy, 0.03);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2346505F' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.15);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 44px;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.modern-select.md-modal-modern-select .modern-select__trigger:hover {
+  border-color: rgba($la-navy, 0.25);
+}
+.modern-select.md-modal-modern-select .modern-select__trigger:focus,
+.modern-select.md-modal-modern-select .modern-select__trigger:focus-visible,
+.modern-select.md-modal-modern-select.modern-select--open .modern-select__trigger {
+  border-color: $brand-verdigris;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+}
+.modern-select.md-modal-modern-select .modern-select__trigger-text--placeholder {
+  color: $brand-slate-gray;
+  font-weight: 500;
+}
+.modern-select.md-modal-modern-select .modern-select__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 100;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.modern-select.md-modal-modern-select .modern-select__option {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.modern-select.md-modal-modern-select .modern-select__option:hover {
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris;
+}
+.modern-select.md-modal-modern-select .modern-select__option--selected {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
+  font-weight: 600;
+}
+.modern-select.md-modal-modern-select .modern-select__option--selected:hover {
+  background: rgba($brand-verdigris, 0.20);
+}
+
+/* Stacked-form wrapper used by new-goal and other modernized modals
+   in place of Bootstrap form-horizontal. The body's text-align is
+   already left for forms; this just resets vertical rhythm so each
+   field's md-modal-field margin-top reads cleanly. */
+.md-modal-form {
+  text-align: left;
+  margin: 0;
+}
+.md-modal-form .md-modal-field:first-child {
+  margin-top: 0;
+}
+/* Inline row for label-adjacent helper text (e.g. "5 attempts per
+   day" — narrow numeric input + free text on the same line). */
+.md-modal-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.md-modal-input--narrow {
+  max-width: 100px;
+  flex: 0 0 auto;
+}
+.md-modal-hint--inline {
+  margin: 0;
+  font-size: 15px;
+  color: $brand-slate-gray;
+}
 .md-modal-field {
   margin-top: 18px;
   text-align: left;
@@ -57031,12 +58844,50 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: none !important;
   outline: none !important;
 }
+.md-modal-body select.form-control:focus,
 .md-modal-body select.form-control:focus-visible,
+.md-modal-body input.form-control:focus,
 .md-modal-body input.form-control:focus-visible,
+.md-modal-body textarea.form-control:focus,
 .md-modal-body textarea.form-control:focus-visible {
   border-color: $brand-verdigris !important;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12) !important;
   outline: none !important;
+}
+/* Bootstrap's .form-control:focus rule (loaded after our overrides
+   in some bundles) reapplies the heavy navy border + glow. Pin our
+   modern teal focus state with a maximally-specific selector that
+   wins regardless of stylesheet order. The triple .form-control
+   chain bumps specificity to (0,5,2), well above Bootstrap's (0,2,1). */
+.md-modal-body select.form-control.form-control.form-control:focus,
+.md-modal-body select.form-control.form-control.form-control:focus-visible,
+.md-modal-body select.form-control.form-control.form-control:active,
+.md-modal-body input.form-control.form-control.form-control:focus,
+.md-modal-body input.form-control.form-control.form-control:focus-visible,
+.md-modal-body input.form-control.form-control.form-control:active,
+.md-modal-body textarea.form-control.form-control.form-control:focus,
+.md-modal-body textarea.form-control.form-control.form-control:focus-visible,
+.md-modal-body textarea.form-control.form-control.form-control:active,
+.md-modal-form select.form-control.form-control.form-control:focus,
+.md-modal-form select.form-control.form-control.form-control:focus-visible,
+.md-modal-form input.form-control.form-control.form-control:focus,
+.md-modal-form input.form-control.form-control.form-control:focus-visible,
+.md-modal-form textarea.form-control.form-control.form-control:focus,
+.md-modal-form textarea.form-control.form-control.form-control:focus-visible {
+  border: 1px solid $brand-verdigris !important;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12) !important;
+  outline: none !important;
+}
+/* Resting (non-focus) override — also pin border so any other
+   Bootstrap rule (validation/parent state) can't reapply navy. */
+.md-modal-body select.form-control.form-control.form-control,
+.md-modal-body input.form-control.form-control.form-control,
+.md-modal-body textarea.form-control.form-control.form-control,
+.md-modal-form select.form-control.form-control.form-control,
+.md-modal-form input.form-control.form-control.form-control,
+.md-modal-form textarea.form-control.form-control.form-control {
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  box-shadow: none !important;
 }
 
 /* ── Voice & Output Modal layout helpers ── */
@@ -57411,6 +59262,361 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-modal-link:hover {
   color: $la-navy;
 }
+/* Greyed-out variant used when an inline link is conditionally rendered
+   without a target (e.g. premium-required modal when no user_name is
+   present — the phrase still reads naturally but isn't clickable). */
+.md-modal-link--disabled {
+  color: $brand-slate-gray;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: default;
+  pointer-events: none;
+}
+/* When a button needs to render as an inline link (e.g. browse goals
+   in new-goal modal) — strip default button chrome so it inherits
+   the .md-modal-link look. */
+.md-modal-link--inline-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+/* New Goal modal: header layout with the icon-circle alongside the
+   h3 title. Mirrors how the dashboard cards present the title row
+   (.md-card__head — icon + title stack). */
+.md-new-goal-header__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 56px; /* clear the absolute-positioned close button */
+}
+.md-new-goal-header .md-modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: $la-navy;
+  letter-spacing: -0.01em;
+}
+.md-new-goal-icon {
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris;
+  flex-shrink: 0;
+}
+/* Render the modern-select open listbox INLINE inside the new-goal
+   modal (in normal flow, not absolutely positioned) so the modal
+   itself expands vertically to contain the open dropdown. This
+   replaces the previous "let it float outside the modal" approach,
+   which left a visible gap between the modal card and a separate
+   floating dropdown card. Scoped to new-goal so other modals keep
+   their original overlay behavior. */
+.modal-content:has(.md-new-goal-header) {
+  overflow: visible !important;
+}
+.modal-content:has(.md-new-goal-header) .modal-body,
+.modal-content:has(.md-new-goal-header) .md-modal-body,
+.modal-content:has(.md-new-goal-header) .md-modal-form {
+  overflow: visible !important;
+}
+.modal-content:has(.md-new-goal-header) .modern-select__list {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  margin-top: 6px !important;
+  z-index: auto !important;
+}
+
+/* Inline error message in modal footer — replaces ad-hoc text-danger. */
+.md-modal-error {
+  flex-basis: 100%;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #b32a4d;
+  background: rgba(179, 42, 77, 0.08);
+  border: 1px solid rgba(179, 42, 77, 0.16);
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+/* Quick Assessment modal — header icon, type-row dropdown alignment,
+   tally rows (number input + step buttons), and the large correct /
+   incorrect action squares. Uses md-modal-* base styles for the
+   shell, header, body, and footer; these rules layer the
+   assessment-specific layout on top. */
+.md-quick-assess-header__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.md-quick-assess-icon {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
+  flex: 0 0 auto;
+}
+.md-quick-assess-body {
+  text-align: left;
+}
+.md-quick-assess-type-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  position: relative;
+}
+.md-quick-assess-type-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-quick-assess-type-row .md-quick-assess-goal-menu {
+  margin-left: -1px;
+}
+.md-quick-assess-type-row .md-quick-assess-goal-btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  height: 100%;
+  min-height: 44px;
+}
+.md-quick-assess-goal-list {
+  right: 0;
+  left: auto;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+  padding: 6px;
+}
+.md-quick-assess-goal-list > li > a {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  border-radius: 8px;
+}
+.md-quick-assess-goal-list > li > a:hover,
+.md-quick-assess-goal-list > li > a:focus {
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris;
+}
+/* Tally row: single integrated stepper group [−][input][+] sharing
+   one rounded outer border with internal dividers. Reads as one
+   cohesive control instead of three loose elements. The "Adjust if
+   needed" caption to the right replaces the inline "oops?" hint —
+   same intent, less visual clutter. */
+.md-quick-assess-tally-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.md-quick-assess-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-quick-assess-stepper:hover {
+  border-color: rgba($la-navy, 0.28);
+}
+.md-quick-assess-stepper:focus-within {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.16);
+}
+.md-quick-assess-stepper__btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba($la-navy, 0.03);
+  border: none;
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-quick-assess-stepper__btn:hover {
+  background: rgba($la-navy, 0.08);
+  color: darken($la-navy, 6%);
+}
+.md-quick-assess-stepper__btn:active {
+  background: rgba($la-navy, 0.12);
+}
+.md-quick-assess-stepper__btn:focus-visible {
+  outline: none;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris;
+}
+.md-quick-assess-stepper__btn--minus {
+  border-right: 1px solid rgba($la-navy, 0.10);
+}
+.md-quick-assess-stepper__btn--plus {
+  border-left: 1px solid rgba($la-navy, 0.10);
+}
+/* Stepper number input — sits as the middle segment of the
+   integrated stepper group. Must override the generic
+   `.md-modal-body input.form-control` rules above, which apply
+   border-radius:10px / border:1px / background tint with
+   !important. We re-pin those with !important here so the input
+   reads as a flat rectangular middle segment, not a rounded inner
+   chip. */
+.md-quick-assess-stepper__input.form-control.form-control,
+.md-modal-body .md-quick-assess-stepper__input.form-control.form-control,
+.md-modal-form .md-quick-assess-stepper__input.form-control.form-control {
+  width: 72px !important;
+  flex: 0 0 72px;
+  height: 44px !important;
+  min-height: 44px;
+  padding: 0 6px !important;
+  margin: 0;
+  text-align: center;
+  font-size: 18px !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: $la-navy !important;
+  background: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.md-quick-assess-stepper__input.form-control.form-control:focus,
+.md-quick-assess-stepper__input.form-control.form-control:focus-visible,
+.md-modal-body .md-quick-assess-stepper__input.form-control.form-control.form-control:focus,
+.md-modal-body .md-quick-assess-stepper__input.form-control.form-control.form-control:focus-visible,
+.md-modal-form .md-quick-assess-stepper__input.form-control.form-control.form-control:focus,
+.md-modal-form .md-quick-assess-stepper__input.form-control.form-control.form-control:focus-visible {
+  border: none !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* Hide native number-input spinners — the custom +/- buttons replace them. */
+.md-quick-assess-stepper__input.form-control.form-control::-webkit-outer-spin-button,
+.md-quick-assess-stepper__input.form-control.form-control::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.md-quick-assess-stepper-caption {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.50);
+  letter-spacing: 0.02em;
+}
+/* Danger variant — used on the Incorrect stepper so its focus glow
+   and active-state tint read as "negative" instead of mirroring the
+   Correct stepper's verdigris (the action buttons below already
+   carry the green/red split). Desaturated tomato — matches the
+   --incorrect action button base, dimmed for control chrome. */
+.md-quick-assess-stepper--danger:focus-within {
+  border-color: #B94B4B;
+  box-shadow: 0 0 0 3px rgba(185, 75, 75, 0.16);
+}
+.md-quick-assess-stepper--danger .md-quick-assess-stepper__btn:focus-visible {
+  background: rgba(185, 75, 75, 0.10);
+  color: #9A3F3F;
+}
+.md-quick-assess-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 22px;
+  justify-content: center;
+}
+.md-quick-assess-action {
+  flex: 1 1 0;
+  min-height: 96px;
+  max-width: 240px;
+  border: none;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.md-quick-assess-action--correct {
+  background: linear-gradient(180deg, #5BBE7A 0%, #3FA361 100%);
+  box-shadow:
+    0 6px 14px rgba(63, 163, 97, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.md-quick-assess-action--correct:hover {
+  filter: brightness(1.04);
+  box-shadow:
+    0 10px 22px rgba(63, 163, 97, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.40);
+}
+.md-quick-assess-action--incorrect {
+  background: linear-gradient(180deg, #D26A6A 0%, #B94B4B 100%);
+  box-shadow:
+    0 6px 14px rgba(185, 75, 75, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.md-quick-assess-action--incorrect:hover {
+  filter: brightness(1.04);
+  box-shadow:
+    0 10px 22px rgba(185, 75, 75, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+}
+.md-quick-assess-action:active {
+  transform: translateY(1px);
+}
+.md-quick-assess-action:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba($brand-verdigris, 0.30),
+    0 6px 14px rgba($la-navy, 0.18);
+}
+
+/* Premium Required modal — gold-tinted icon and text overrides. The
+   modal uses .md-modal-* base styles; these rules add the premium
+   accent and tighten paragraph spacing for the multi-paragraph body. */
+.md-premium-required-icon {
+  background: rgba(#E0A82E, 0.14);
+  color: #B8860B;
+}
+.md-premium-required-body {
+  text-align: left;
+}
+.md-premium-required-body .md-modal-icon-row {
+  justify-content: center;
+}
+.md-premium-required-body .md-modal-message {
+  font-size: 16px;
+  text-align: center;
+  margin: 0 auto 14px;
+  max-width: 520px;
+}
+.md-premium-required-body .md-modal-message:last-child {
+  margin-bottom: 0;
+}
+/* Debug strip rendered only for the 'edi' admin user — surfaces the
+   raw modal payload (reason / action / user_name) above the icon row.
+   Compact, minimum 14px text to comply with accessibility floor. */
+.md-premium-required-debug {
+  font-size: 14px;
+  color: $brand-slate-gray;
+  background: rgba($la-navy, 0.04);
+  border: 1px dashed rgba($la-navy, 0.14);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
+  font-family: monospace;
+  word-break: break-word;
+}
 .md-modal-status {
   width: 100%;
   margin: 10px 0 0;
@@ -57752,22 +59958,39 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 8px 16px;
   margin-top: 10px;
 }
+/* Informational tag style — mirrors `.md-caseload__access-badge`
+   (flat, no shadow, soft-tinted background) so these read as
+   metadata, not interactive controls. Lighter font weight than
+   the access badge (500 vs 700) per spec — these convey passive
+   counts/dates, the access badge conveys a permission state. */
 .md-org-meta__chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--md-navy, $la-navy);
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: #5a6678;
+  background: rgba($la-navy, 0.045);
+  border: none;
+  border-radius: 8px;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 .md-org-meta__chip svg {
-  opacity: 0.6;
+  opacity: 0.55;
+  flex: 0 0 auto;
 }
 .md-org-meta__chip--muted {
-  color: var(--md-muted, $la-navy);
-  font-weight: 400;
-  opacity: 0.7;
+  color: rgba($la-navy, 0.55);
+  background: rgba($la-navy, 0.035);
 }
 
 /* Sub-navigation pills inside admin index (Managers, Supervisors, etc.) */
@@ -57858,10 +60081,21 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 /* ══════════════════════════════════════════════════════
    Caseload page
    ══════════════════════════════════════════════════════ */
+/* Sunken container holding all supervisee cards — slightly darker
+   tinted surface inset into the page surface via a top-edge inset
+   shadow. The cards inside still float (their own resting drop
+   shadow), reading as raised tiles sitting in a recessed tray. */
 .md-caseload {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px 40px;
+  padding: 24px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: var(--md-r-lg, 18px);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.10),
+    inset 0 1px 1px rgba($la-navy, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
 }
 .md-caseload__grid {
   display: grid;
@@ -57869,67 +60103,238 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 16px;
 }
 .md-caseload__card {
-  background: #fff;
-  border: 1px solid rgba($la-navy, 0.10);
-  border-radius: 14px;
-  padding: 18px;
-  transition: box-shadow 0.12s ease;
+  /* Soft SaaS surface — mirrors .md-grid .md-card (vertical gradient
+     + grounded bottom border + soft layered shadow) so the supervisee
+     card belongs to the same design system as Speak Mode / Extras /
+     Boards on the dashboard. Padding is tighter than before — the
+     card was visually bulky relative to its content. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95));
+  border: 1px solid rgba($la-navy, 0.08);
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  border-radius: var(--md-r-lg, 18px);
+  padding: 18px 20px 16px;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  /* Layered resting shadow so the card visibly lifts off the page
+     by default — ambient (close, soft) + diffuse (wider, lighter)
+     gives a clean floating feel without any motion on hover. */
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 12px rgba($la-navy, 0.07),
+    0 14px 28px rgba($la-navy, 0.06);
 }
 .md-caseload__card:hover {
-  box-shadow: 0 4px 16px rgba($la-navy, 0.08);
+  border-color: rgba($la-navy, 0.14);
+  /* Hover deepens the same shadow stack — no transform/translate so
+     the card doesn't move; just reads with more depth. */
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.08),
+    0 8px 16px rgba($la-navy, 0.09),
+    0 18px 36px rgba($la-navy, 0.08);
 }
 .md-caseload__card-top {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  /* Align children to the top of the row so the chevron lines up
+     with the View & edit badge (the first line of info), not with
+     the vertical center of the avatar+info stack. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 14px;
+  /* Divider between the header section and the tile row below.
+     8px above the line (this padding-bottom). The parent
+     .md-caseload__card has gap: 8px which provides the 8px below
+     the line. */
+  padding-bottom: 8px;
+  margin-bottom: 0;
+  border-bottom: 1.5px solid rgba($la-navy, 0.07);
 }
 .md-caseload__card-main {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
   flex: 1;
 }
 .md-caseload__card-corner {
+  margin-top: 0;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
+/* ACCESS group — small uppercase label above the access badge,
+   pinned to the top-right corner of the card. Mirrors the eyebrow
+   pattern over the username on the left side so both columns share
+   one hierarchy language. */
+.md-caseload__access {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  padding-right: 2px;
+}
+/* Full-width bottom row inside .md-caseload__card-top —
+   `flex-basis: 100%` makes it wrap to its own line within the
+   flex-wrapping card-top so the goal chip sits at the LEFT edge of
+   the card and the chevron at the RIGHT edge, ABOVE the card-top
+   border-bottom divider. */
+.md-caseload__bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 10px;
+}
+.md-caseload__bottom-row__goal {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.md-caseload__access-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.108em;
+  line-height: 1;
+  margin-right: 2px;
+}
+/* Refined avatar treatment — flatter ring, soft surface fallback,
+   subtle shadow so the photo (or default placeholder) reads as a
+   modern profile chip rather than a raw <img>. */
+/* Modern avatar treatment — soft gradient surface inside a clean
+   circular frame with a thin inner ring + outer lift shadow. The
+   internal padding (via box-shadow inset on .md-caseload__avatar)
+   keeps the supervisee image from touching the edge of the circle,
+   which removes the clip-art-y look of the default placeholder. */
+/* Glassmorphism avatar — same visual language as the eyebrow/glass
+   badges (white→teal gradient + backdrop blur + inset highlight +
+   teal glow). Reads as a refined product-grade profile chip rather
+   than a generic ring around an icon. */
+/* Polished glass avatar — multi-layer treatment that mirrors how
+   Apple Account / Stripe / Linear render profile chips:
+   1. Layered conic-then-radial gradient surface so the chip has
+      depth (highlight at top-left, deeper tint at bottom-right)
+   2. Backdrop blur for true glass look
+   3. Two-color border (white inner ring + soft navy outer hint)
+   4. Layered shadows: ambient + tight contact + soft glow */
+/* Self-contained communicator avatar — bg + ring + person glyph +
+   soft shadow are baked into the SVG, so the .md-caseload__avatar-link
+   itself is just a transparent sizing container. No extra gradient,
+   border, or shadow here. The drop shadow inside the SVG provides
+   depth via its <feDropShadow> filter. */
 .md-caseload__avatar-link {
   position: relative;
   flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;  /* Let the SVG's drop-shadow render outside the bounds. */
+}
+.md-caseload__avatar-link svg {
+  width: 100%;
+  height: 100%;
 }
 .md-caseload__avatar {
-  width: 52px;
-  height: 52px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 2px solid rgba($la-navy, 0.08);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  object-fit: cover;
+  display: block;
+}
+/* SVG variant — modern two-tone person glyph rendered when the
+   supervisee has no real uploaded avatar (legacy default PNGs are
+   detected via {{is-default-avatar}}). Sizes slightly smaller than
+   the photo variant so the figure has comfortable breathing room
+   inside the gradient circle. */
+.md-caseload__avatar--svg {
+  /* Apple "person.crop.circle.fill" style — full-bleed inside the
+     avatar frame so the silhouette dominates the card hierarchy.
+     Default state: hidden. CSS :has() rule below shows it when the
+     <img> sibling points at a legacy /avatars/avatar-N.png default. */
+  display: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+/* Pure-CSS swap mirroring the identity-dropdown pattern: when the
+   image src matches the legacy default-avatar placeholder, hide the
+   image and show the Apple-style SVG fallback as a background image
+   on the avatar-link container. No helper, no template conditional,
+   no rebuild required — purely CSS-driven. */
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) {
+  /* LingoLinq communicator avatar — concentric clean composition:
+     soft mint-blue outer gradient, white inner ring, soft inner
+     panel circle, brand teal head, brand teal→navy torso. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='16' y1='10' x2='80' y2='88' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F8FCFF'/%3E%3Cstop offset='0.55' stop-color='%23EAF5F4'/%3E%3Cstop offset='1' stop-color='%23EEF1FF'/%3E%3C/linearGradient%3E%3ClinearGradient id='i' x1='28' y1='24' x2='70' y2='74' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23F7FBFF'/%3E%3Cstop offset='1' stop-color='%23E5ECF4'/%3E%3C/linearGradient%3E%3ClinearGradient id='m' x1='35' y1='30' x2='64' y2='69' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%235BAEA4'/%3E%3Cstop offset='1' stop-color='%23222A4F'/%3E%3C/linearGradient%3E%3Cfilter id='s' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeDropShadow dx='0' dy='6' stdDeviation='6' flood-color='%231F2A4D' flood-opacity='0.14'/%3E%3C/filter%3E%3C/defs%3E%3Ccircle cx='48' cy='48' r='42' fill='url(%23b)' filter='url(%23s)'/%3E%3Ccircle cx='48' cy='48' r='40.75' fill='none' stroke='%23FFFFFF' stroke-opacity='0.85' stroke-width='2'/%3E%3Ccircle cx='48' cy='48' r='25' fill='url(%23i)' stroke='%23E8EEF4' stroke-width='1' stroke-opacity='0.7'/%3E%3Ccircle cx='48' cy='38.5' r='8.5' fill='%235BAEA4'/%3E%3Cpath d='M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z' fill='url(%23m)'/%3E%3C/svg%3E") !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) img.md-caseload__avatar {
+  display: none !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) svg.md-caseload__avatar--svg {
+  display: block !important;
 }
 .md-caseload__online {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
+  bottom: 0;
+  right: 0;
   width: 12px;
   height: 12px;
   background: $brand-verdigris;
   border: 2px solid #fff;
   border-radius: 50%;
+  z-index: 1;
 }
+/* Tight identity block: name, badge, and goal row read as a single
+   compact stack rather than three separated rows. */
 .md-caseload__info {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  /* Match the access column's gap so COMMUNICATOR → name has the
+     same vertical rhythm as ACCESS → View & Edit. */
+  gap: 5px;
+}
+/* Eyebrow label above the username — same pattern Apple Account and
+   AWS Console use to add hierarchy/premium feel to a name without
+   resorting to color or decoration. Small uppercase, generous
+   tracking, deliberate top spacing. */
+.md-caseload__eyebrow {
+  display: block;
+  margin-left: 2px;
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.108em;
+  line-height: 1;
 }
 .md-caseload__name-line {
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: 6px 8px;
 }
 .md-caseload__name-line .md-caseload__name {
   flex: 1 1 auto;
@@ -57938,40 +60343,68 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-caseload__name-line .md-caseload__access-badge {
   flex: 0 0 auto;
 }
+/* Informational status tag — explicitly NOT a button. Mirrors how
+   Apple Account ("Verified", "Trusted") and AWS Console ("Active",
+   "MFA enabled") render purely-informational chips:
+   - Small rounded rectangle (not a full pill — pills imply
+     pressable; rectangles read as labels)
+   - Tight uppercase tracking + a small leading dot indicator
+   - Solid muted tint, no shadow, no border-glow, no backdrop blur
+   - 14px text floor (project a11y minimum) with reduced visual
+     weight via letter-spacing rather than smaller size */
 .md-caseload__access-badge {
   flex: 0 0 auto;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25;
-  padding: 5px 12px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 6px;
   white-space: nowrap;
-  border: 1px solid transparent;
+  border: none;
+  letter-spacing: 0.01em;
+  cursor: default;
+  user-select: none;
+  /* Reset any prior glassy/shadow treatment so the chip reads flat. */
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
+/* Variants: muted tints with semantic color carrying meaning. Dot
+   indicator removed (too noisy at this density); the uppercase
+   tracking + cursor:default + flat surface are enough to signal
+   "informational tag, not an interactive control". Backgrounds
+   toned down ~25% from the prior pass. */
 .md-caseload__access-badge--edit {
-  color: #0d5c4d;
-  background: #e6f6f2;
-  border-color: #b8e6d9;
+  color: darken($brand-navy, 4%); /* darker variant of #120380 */
+  background: rgba($brand-dusty-denim, 0.09);
 }
 .md-caseload__access-badge--view {
-  color: #3d4a5c;
-  background: #eef2f7;
-  border-color: #d0dae8;
+  color: #5a6678;
+  background: rgba($la-navy, 0.045);
 }
 .md-caseload__access-badge--modeling {
-  color: #6b4e0a;
-  background: #fdf6e3;
-  border-color: #f0d9a8;
+  color: #8a6a14;
+  background: rgba(240, 196, 25, 0.10);
 }
 .md-caseload__name {
   display: block;
-  font-size: 1.125rem;
-  font-weight: 700;
+  margin-left: 2px;
+  /* Premium SaaS hierarchy (Apple Account / AWS Console): pair a
+     small uppercase eyebrow above with a larger, bolder name below.
+     Tight tracking + heavier weight gives the username gravitas
+     without resorting to gradients or decorative accents. */
+  font-size: 22px;
+  font-weight: 800;
   color: $la-navy;
   text-decoration: none;
+  letter-spacing: -0.025em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 .md-caseload__name:hover {
   color: $brand-verdigris;
@@ -57979,28 +60412,105 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-caseload__goal {
   display: block;
-  font-size: 1rem;
+  font-size: 14px;
+  font-weight: 500;
   color: $brand-slate-gray;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 .md-caseload__goal--empty {
-  color: #b0b8c4;
-  font-style: italic;
+  color: #8a93a3;
+  font-style: normal;
+  font-weight: 500;
 }
-.md-caseload__goal--empty a {
-  color: $brand-verdigris;
-  margin-left: 4px;
+/* Goal row: empty-state label + Add-goal action, wrapped in a soft
+   chip container so the pair reads as a single grouped status
+   element rather than two free-floating items. Subtle navy tint
+   surface + thin border keeps it quiet relative to View & edit
+   and the action tiles. */
+/* Sunken-into-the-page chip: dark inset shadow on the top edge +
+   thin highlight on the bottom edge create the depression. Slightly
+   darker bg vs the card surface reinforces the "set into the page"
+   feel. Same inset technique used on legacy macOS pressed buttons /
+   modern fintech "embedded" data chips. */
+.md-caseload__goal-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.12),
+    inset 0 1px 1px rgba($la-navy, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.md-caseload__goal-row .md-caseload__goal {
+  flex: 0 1 auto;
+  margin: 0;
+}
+/* Thin vertical separator between the empty-state label and the
+   Add-goal action — visually groups them as related but distinct. */
+.md-caseload__goal-row .md-caseload__goal-add {
+  position: relative;
+  padding-left: 8px;
+}
+.md-caseload__goal-row .md-caseload__goal-add::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: rgba($la-navy, 0.14);
+}
+/* Secondary action — subtle text+icon button (no fill, no border).
+   Lives inline next to "No goal set" so the entire row reads as a
+   single compact statement, not as a button competing with View &
+   edit or the action tiles. */
+.md-caseload__goal-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  /* Darker variant of $brand-navy (#120380) — a deep purple/indigo
+     that matches the brand identity color without using opacity. */
+  color: #0A0257;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: color 0.12s ease;
+}
+.md-caseload__goal-add:hover,
+.md-caseload__goal-add:focus-visible {
+  color: $la-navy;
+  outline: none;
+}
+.md-caseload__goal-add svg {
+  flex-shrink: 0;
 }
 .md-caseload__goal-hint {
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   font-style: normal;
   color: $brand-slate-gray;
-  font-size: 1rem;
+  font-size: 14px;
   white-space: normal;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 .md-caseload__actions {
   display: flex;
@@ -58009,7 +60519,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-items: center;
 }
 .md-caseload__actions--tiles {
-  gap: 10px;
+  gap: 6px;
   align-items: stretch;
 }
 .md-caseload__action {
@@ -58031,37 +60541,60 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-caseload__action--tile {
   box-sizing: border-box;
-  flex: 0 0 auto;
-  width: 7rem;
-  min-width: 7rem;
-  min-height: 6.75rem;
+  /* Apple-tight: smaller flex-basis + max-width so tiles fit more
+     comfortably on a card and labels don't wrap mid-word. */
+  flex: 1 1 5rem;
+  min-width: 5rem;
+  max-width: 8rem;
+  min-height: 5rem;
   height: auto;
-  padding: 10px 8px;
+  padding: 8px 5px;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
   white-space: normal;
-  gap: 8px;
+  gap: 5px;
   border-radius: 10px;
-  line-height: 1.25;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: #fff;
+  line-height: 1.2;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.04),
+    0 2px 5px rgba($la-navy, 0.05);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-caseload__action--tile:hover {
+  background: #fff;
+  border-color: rgba($la-navy, 0.18);
+  box-shadow:
+    0 2px 4px rgba($la-navy, 0.08),
+    0 4px 10px rgba($la-navy, 0.08);
+  transform: translateY(-1px);
 }
 .md-caseload__action-tile__icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  width: 100%;
 }
 .md-caseload__action--tile .md-caseload__action-tile__icon svg {
   stroke: currentColor;
 }
 .md-caseload__action-tile__label {
   display: block;
-  font-size: 0.9375rem;
+  font-size: 14px;
   font-weight: 600;
-  max-width: 100%;
-  word-break: break-word;
-  hyphens: auto;
+  width: 100%;
+  text-align: center;
+  /* Don't break mid-word — short labels (Model, Speak, Setup User,
+     Usage Reports, Modeling Ideas) stay readable. break-word/hyphens
+     produced ugly fragments like "nyc_te / st" / "Modeli / ng" at
+     narrow widths. */
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 a.md-caseload__action {
   text-decoration: none;
@@ -58072,41 +60605,68 @@ a.md-caseload__action {
   background: $surface-200;
   box-shadow: 0 1px 4px rgba($la-navy, 0.10);
 }
+/* Selected/primary state — same glass aesthetic as the
+   "ABOUT LINGOLINQ" eyebrow badge (#about-hero .la-section-eyebrow-badge):
+   layered white→teal gradient, backdrop blur+saturate, thin white
+   inset highlight on top, teal glow shadow. Adapted from a pill to
+   a tile but every visual ingredient is preserved. */
 .md-caseload__action--primary {
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
-  color: #fff;
-  border-color: transparent;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba($brand-teal, 0.12) 35%,
+    rgba($brand-teal, 0.26) 100%
+  );
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  color: #0d5c5f;
+  /* Selected ring — slightly stronger than resting tiles to read as
+     clearly active without looking like a different component. */
+  border: 1px solid rgba($brand-teal, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1px rgba($brand-teal, 0.08),
+    0 0 0 1px rgba($brand-teal, 0.14),
+    0 3px 14px rgba($brand-teal, 0.26);
 }
-.md-caseload__action--primary svg {
-  stroke: #fff !important;
-}
-.md-caseload__action--primary path,
-.md-caseload__action--primary line,
-.md-caseload__action--primary circle,
-.md-caseload__action--primary polygon {
-  stroke: #fff !important;
+.md-caseload__action--primary .md-caseload__action-tile__label {
+  color: #0d5c5f;
 }
 .md-caseload__action--primary:hover {
-  background: linear-gradient(135deg, #238b7f, #3e74c0);
-  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba($brand-teal, 0.18) 35%,
+    rgba($brand-teal, 0.34) 100%
+  );
+  border-color: rgba($brand-teal, 0.50);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 1px rgba($brand-teal, 0.15),
+    0 5px 18px rgba($brand-teal, 0.30);
 }
 /* Compact “⋯” control — top-right of card (not full action-tile size) */
 .md-caseload__action--corner-extras {
   box-sizing: border-box;
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
+  /* Square button matching the .md-caseload__goal-row chip height. */
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgba($la-navy, 0.12);
   background: #fff;
   color: $brand-slate-gray;
   flex-direction: row;
   white-space: nowrap;
+}
+.md-caseload__action--corner-extras svg {
+  width: 18px;
+  height: 18px;
 }
 .md-caseload__action--corner-extras:hover {
   background: $surface-200;
@@ -58121,15 +60681,57 @@ a.md-caseload__action {
   position: relative;
   display: inline-block;
 }
-.md-caseload__extras-dropdown .dropdown-menu > li > a,
-.md-caseload__extras-dropdown .dropdown-menu > li > button {
+/* Modern action menu — matches the .md-settings-dropdown-menu look:
+   pill container with soft shadow, rounded corners, hover-tinted rows,
+   and consistent spacing for the two-tone leading icons. Wins over the
+   global Bootstrap .dropdown-menu defaults via the .md-caseload__
+   dropdown-menu modifier. */
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu {
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li {
+  list-style: none;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button {
   display: flex;
   align-items: center;
   gap: 10px;
   text-align: left;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s ease, color 0.1s ease;
 }
-.md-caseload__extras-dropdown .dropdown-menu .md-caseload__dropdown-icon {
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a:hover,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > a:focus-visible,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button:hover,
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu > li > button:focus-visible {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+  text-decoration: none;
+  outline: none;
+}
+.md-caseload__extras-dropdown .md-caseload__dropdown-menu .md-caseload__dropdown-icon {
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
 }
 .md-caseload__badge-progress {
   margin-top: 12px;
@@ -58164,6 +60766,46 @@ a.md-caseload__action {
     max-width: calc(50% - 5px);
     height: auto;
     min-height: 6.25rem;
+  }
+  /* On narrow screens, stack the card header so the avatar/info
+     and the access/chevron columns don't overlap. card-corner moves
+     below card-main, both spanning full width. */
+  .md-caseload__card-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .md-caseload__card-main {
+    width: 100%;
+  }
+  .md-caseload__card-corner {
+    width: 100%;
+    align-items: flex-start;
+  }
+  .md-caseload__access {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+}
+/* Mid-narrow screens (480px–640px) — keep the two columns but
+   ensure the access group stays compact. */
+@media (max-width: 640px) and (min-width: 481px) {
+  .md-caseload__card-top {
+    gap: 8px 12px;
+  }
+  .md-caseload__card-main {
+    min-width: 0;
+    flex: 1 1 60%;
+  }
+  .md-caseload__card-corner {
+    flex-shrink: 0;
+  }
+}
+/* Very narrow page width — the wider sunken caseload tray padding
+   needs to shrink so cards don't get squeezed. */
+@media (max-width: 600px) {
+  .md-caseload {
+    padding: 16px;
   }
 }
 /* Caseload “…” menus use position:absolute; default workspace + sup card use overflow:hidden and clip them */
@@ -61496,4 +64138,278 @@ blockquote small {
   width: 100%;
   box-sizing: border-box;
   text-align: center;
+}
+
+/* ============================================================
+   Modern Eval Header
+   ============================================================
+   Scoped re-skin of the legacy speak header (<span id="speak">)
+   when on an eval board (key matches /^obf\/eval/, surfaced as
+   `app_state.eval_mode`). application.hbs adds `.md-eval-header`
+   on that span only in eval mode, so none of these rules touch
+   normal speak-mode boards. Mirrors the visual language of
+   `.md-board-detail-sentence-row` (frosted home button + sunken
+   sentence bar) but keeps the existing eval template structure
+   intact — every action (Start, Skip, Prev, Next, Settings,
+   Backspace, Clear, Home, button_list) renders from the original
+   elements, just restyled. This guarantees the eval flow handlers
+   (especially the on-board `button_settings` and the header
+   `assessment_settings` action) keep working unchanged.
+   ============================================================ */
+#speak.md-eval-header {
+  display: flex !important;
+  align-items: stretch;
+  gap: 13px;
+  padding: 6px 12px;
+  margin: 1px 4px 3px 4px;
+  width: calc(100% - 8px);
+  box-sizing: border-box;
+  /* Anchor for the absolutely-positioned backspace + clear buttons,
+     which we visually nest INSIDE the sentence bar (mirrors the
+     board-detail sentence bar's tool cluster). */
+  position: relative;
+}
+#speak.md-eval-header .speak-header__home-marker {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+#speak.md-eval-header #home_button {
+  width: 56px !important;
+  min-width: 56px;
+  height: auto !important;
+  min-height: 56px;
+  padding: 10px !important;
+  margin: 0 !important;
+  border-radius: 18px !important;
+  border: none !important;
+  background: rgba(110, 122, 140, 0.32) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: #fff !important;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.18),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -2px 5px rgba($la-navy, 0.18),
+    inset 0 -1px 1px rgba($la-navy, 0.10) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#speak.md-eval-header #home_button:hover {
+  background: rgba(110, 122, 140, 0.42) !important;
+}
+#speak.md-eval-header #home_button .button_icon,
+#speak.md-eval-header #home_button .glyphicon {
+  color: #fff !important;
+  font-size: 22px !important;
+  margin: 0 !important;
+}
+#speak.md-eval-header .speak-bar__eval-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  height: auto;
+  flex-shrink: 0;
+}
+#speak.md-eval-header .speak-bar__eval-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba($la-navy, 0.15) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: $la-navy !important;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.06);
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+}
+#speak.md-eval-header .speak-bar__eval-btn:hover {
+  background: #fff !important;
+  border-color: rgba($la-navy, 0.25) !important;
+}
+#speak.md-eval-header .speak-bar__eval-btn:active {
+  transform: translateY(1px);
+}
+#speak.md-eval-header .speak-bar__eval-btn:focus-visible {
+  outline: none;
+  border-color: $brand-verdigris !important;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.18);
+}
+#speak.md-eval-header .speak-bar__eval-btn .glyphicon {
+  color: $la-navy;
+  font-size: 14px;
+}
+#speak.md-eval-header .speak-bar__eval-btn--compact {
+  padding: 0 16px !important;
+}
+#speak.md-eval-header #eval_intro_start.speak-bar__eval-btn {
+  background: $brand-verdigris !important;
+  border-color: $brand-verdigris !important;
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba($brand-verdigris, 0.30);
+}
+#speak.md-eval-header #eval_intro_start.speak-bar__eval-btn:hover {
+  background: darken($brand-verdigris, 4%) !important;
+  border-color: darken($brand-verdigris, 4%) !important;
+}
+#speak.md-eval-header #eval_next_section.speak-bar__eval-btn {
+  background: rgba($brand-verdigris, 0.10) !important;
+  border-color: rgba($brand-verdigris, 0.30) !important;
+  color: $brand-verdigris !important;
+  font-weight: 700;
+}
+#speak.md-eval-header #eval_next_section.speak-bar__eval-btn:hover {
+  background: rgba($brand-verdigris, 0.18) !important;
+}
+#speak.md-eval-header #eval_next_section.speak-bar__eval-btn .glyphicon {
+  color: $brand-verdigris;
+}
+#speak.md-eval-header .speak-bar__eval-actions__label {
+  margin-left: 4px;
+}
+#speak.md-eval-header #eval_open_settings.speak-bar__eval-btn {
+  width: 44px;
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+}
+#speak.md-eval-header #eval_open_settings.speak-bar__eval-btn .glyphicon {
+  font-size: 16px;
+}
+#speak.md-eval-header .speak-bar__button-list-wrap {
+  flex: 1;
+  display: flex !important;
+  align-items: center;
+  position: relative;
+  min-height: 56px;
+  /* Reserve space at the right edge for the absolutely-positioned
+     backspace + clear tool buttons (44 + 44 + ~24 of internal gap +
+     trailing inset). They visually live INSIDE the sentence bar,
+     mirroring the board-detail tool cluster. */
+  padding: 8px 116px 8px 14px !important;
+  margin: 0 !important;
+  border-radius: 18px !important;
+  background: rgba(110, 122, 140, 0.32) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.18),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -2px 5px rgba($la-navy, 0.18),
+    inset 0 -1px 1px rgba($la-navy, 0.10);
+  border: none !important;
+  overflow: visible;
+}
+#speak.md-eval-header #button_list {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+}
+#speak.md-eval-header #button_list .button {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+/* Backspace + Clear visually nested INSIDE the sentence bar. They
+   sit absolutely at the right edge of the speak header, overlaying
+   the wrap's reserved padding-right. Styled as ghost icon buttons
+   on the frosted bar (no border, no fill) — matching the
+   board-detail sentence-bar tool buttons (mic / backspace / clear /
+   options chevron). */
+#speak.md-eval-header #backspace_button,
+#speak.md-eval-header #clear_button {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%);
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+  border: none !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #fff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: none !important;
+  transition: background 0.12s ease;
+  z-index: 2;
+}
+#speak.md-eval-header #backspace_button {
+  right: 60px !important;
+}
+#speak.md-eval-header #clear_button {
+  right: 16px !important;
+}
+#speak.md-eval-header #backspace_button:hover,
+#speak.md-eval-header #clear_button:hover {
+  background: rgba(255, 255, 255, 0.20) !important;
+}
+#speak.md-eval-header #backspace_button:active,
+#speak.md-eval-header #clear_button:active {
+  background: rgba(255, 255, 255, 0.28) !important;
+}
+#speak.md-eval-header #backspace_button img {
+  width: 18px;
+  height: 18px;
+  /* The delete.svg ships as a dark icon. Invert + brighten so it
+     reads white-on-frost against the sentence bar background. */
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
+#speak.md-eval-header #clear_button .md-eval-clear-icon {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  opacity: 0.92;
+}
+/* Defensive hide of the legacy `glyphicon-remove` X inside the
+   eval clear button. The template's {{#if eval_mode}} branch
+   already swaps the X for the trash SVG, but if any code path
+   reintroduces the glyphicon (e.g. cached partial render), this
+   CSS guarantees only the trash icon shows on eval boards. */
+#speak.md-eval-header #clear_button .glyphicon-remove,
+#speak.md-eval-header #clear_button .glyphicon.glyphicon-remove {
+  display: none !important;
+}
+#speak.md-eval-header #clear_button .glyphicon {
+  color: #fff !important;
+  font-size: 16px;
+  margin: 0 !important;
+}
+#speak.md-eval-header #backspace_button:focus-visible,
+#speak.md-eval-header #clear_button:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.55) !important;
+}
+#speak.md-eval-header #speak_options,
+#speak.md-eval-header #speak_mode_notification {
+  display: none !important;
 }
