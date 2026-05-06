@@ -109,9 +109,14 @@ export default Controller.extend({
     var route = this.appState.get('current_route') || '';
     return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
   }),
-  /** True when the current page is the regular board view (not board-alt). */
-  on_board: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'board.index';
+  /** True when the current page is the regular board view (not board-alt)
+   *  AND a board is actually loaded. When a board route fails to resolve
+   *  (error.hbs renders in the outlet), currentBoardState.id is null, and
+   *  the page should NOT pick up the `.board-view` body class — that class
+   *  triggers board-specific navbar variants (compact New Board, beta-feedback
+   *  pill) that don't make sense without a board. */
+  on_board: computed('appState.current_route', 'appState.currentBoardState.id', function() {
+    return this.appState.get('current_route') === 'board.index' && !!this.appState.get('currentBoardState.id');
   }),
   /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
   on_board_or_alt: computed('on_board', 'on_board_alt', function() {
@@ -1933,6 +1938,7 @@ export default Controller.extend({
   header_class: computed(
     'appState.header_size',
     'appState.speak_mode',
+    'appState.currentBoardState.id',
     'appState.currentUser.preferences.new_index',
     function() {
       var res = "row ";
@@ -1940,7 +1946,16 @@ export default Controller.extend({
       if(this.appState.get('header_size')) {
         res = res + this.appState.get('header_size') + ' ';
       }
-      if(this.appState.get('speak_mode')) {
+      // Only flag the header as "speaking" when we're actually rendering
+      // a board in speak mode. When the board route fails to load
+      // (error.hbs renders in the outlet), speak_mode may still be set
+      // from the prior eval initialization but the speak chrome is
+      // suppressed — emitting `.speaking` here would trigger a chain of
+      // speak-mode-specific overrides (e.g. compact #identity button
+      // at 58px, disabled user-select) that shouldn't apply when there's
+      // nothing to speak. Mirrors the same currentBoardState.id gate
+      // used on the speak-header conditional in application.hbs.
+      if (this.appState.get('speak_mode') && this.appState.get('currentBoardState.id')) {
         res = res + 'speaking advanced_selection';
       }
       return res;
@@ -2016,8 +2031,15 @@ export default Controller.extend({
       route === 'login.device') {
       return true;
     }
-    // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure
-    if (!cu && !this.appState.get('currentBoardState.id')) {
+    // No board loaded — use AppNavbar regardless of route or auth state.
+    // This catches every error path: board route rejecting, OBF lookup
+    // returning null, parent route bubbling, error.hbs rendering at any
+    // level. The legacy `<span id="nav_header">` chrome assumes a board
+    // is present (Done/Back/Speak Mode controls only make sense with
+    // currentBoardState); without one, fall back to the AppNavbar so
+    // chrome matches the home page. The user.board-alt early return at
+    // the top of this computed already protects the alt-board route.
+    if (!this.appState.get('currentBoardState.id')) {
       return true;
     }
     return false;

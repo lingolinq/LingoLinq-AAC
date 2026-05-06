@@ -129,6 +129,17 @@ export default Route.extend({
     willTransition: function(transition) {
 //      this.appState.global_transition(transition);
     },
+    error: function(error, transition) {
+      // Application-level error handler. When any route's model rejects
+      // and bubbles up to here, error.hbs renders in the application
+      // outlet. Clear board / speak state so the error chrome (header,
+      // body classes, navbar variant) matches the home page rather than
+      // inheriting "in-board" state from whatever loaded before.
+      this.appState.set('currentBoardState', null);
+      // Returning true (the default) lets Ember continue to render the
+      // error template / fallback. We just want to side-effect first.
+      return true;
+    },
     didTransition: function() {
       this.appState.finish_global_transition();
       if (!this.appState.get('skip_scroll_to_top')) {
@@ -151,7 +162,7 @@ export default Route.extend({
     newBoard: function() {
       var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+        _this.transitionTo('create-board-new');
       });
     },
     pickWhichHome: function() {
