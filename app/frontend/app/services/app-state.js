@@ -701,6 +701,14 @@ export default Service.extend({
   _persist_last_board_for_user: observer('stashes.root_board_state', function() {
     var state = this.stashes.get('root_board_state');
     var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    // Skip synthetic OBF boards (eval intro screens, emergency, stars, etc.).
+    // Their keys live under `obf/...` and their records are minted in
+    // `utils/obf.js` with throwaway ids like `b123b<timestamp>x<rand>`.
+    // Persisting them as the user's "last board" surfaces a board card
+    // on the dashboard with a useless synthetic name.
+    if(state && state.key && /^obf\//.test(state.key)) {
+      return;
+    }
     if(state && state.name && userName) {
       try {
         localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
@@ -2366,9 +2374,21 @@ export default Service.extend({
     });
     return res;
   }),
-  index_or_landing_view: computed('index_view', 'current_route', function() {
+  index_or_landing_view: computed('index_view', 'current_route', 'currentBoardState.id', function() {
     var route = this.get('current_route');
-    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento';
+    if (this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento') {
+      return true;
+    }
+    // Error fallback: when on a board route but no board is loaded
+    // (e.g. board failed to resolve, error.hbs renders in the outlet),
+    // treat the page as index-like so the body picks up the same header
+    // / chrome / footer layout used on the authenticated home page
+    // (.index-or-landing-view + .bento-default-mode-active +
+    // .bento-page-with-footer body classes).
+    if ((route === 'board.index' || (route && route.indexOf('board.') === 0)) && !this.get('currentBoardState.id')) {
+      return true;
+    }
+    return false;
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -2449,15 +2469,23 @@ export default Service.extend({
   },
   check_for_needing_purchase: function(prevent_unless_purchased) {
     var user = this.get('sessionUser');
-    // Modeling-only and expired communicator accounts have 
+    // Modeling-only and expired communicator accounts have
     // a number of features that they are prevented from using.
     // If the user is very expired, or they are modeling-only
     // then remind them about purchasing,
     // and possibly prevent the action.
     if(!user || (user.get('really_expired') || user.get('modeling_only'))) {
       var user_name = user && user.get('user_name');
-      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + (user.get('really_expired')+  "." + user.get('modeling_only')), cancel_on_close: false, remind_to_upgrade: true}).then(function() {
-        if(user.get('modeling_only') || prevent_unless_purchased) {
+      // Defensive: when called before sessionUser has resolved (e.g. on
+      // direct-URL navigation to a route whose setupController invokes
+      // this), the original `reason` interpolation called user.get()
+      // unconditionally inside the string and crashed. Build the reason
+      // suffix only when user exists.
+      var reason_suffix = user
+        ? (user.get('really_expired') + "." + user.get('modeling_only'))
+        : "no-user";
+      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + reason_suffix, cancel_on_close: false, remind_to_upgrade: true}).then(function() {
+        if((user && user.get('modeling_only')) || prevent_unless_purchased) {
           // modeling-only are prevented from the actions
           // not just reminded about them.
           return RSVP.reject({dialog: true});
@@ -4163,6 +4191,20 @@ export default Service.extend({
   remember_global_integrations: observer('sessionUser.global_integrations', function() {
     if(this.get('sessionUser.global_integrations')) {
       this.stashes.persist('global_integrations', this.get('sessionUser.global_integrations'));
+    }
+  }),
+  /** Mirror the user's symbol_background pref onto <html> via the
+   *  `.fitzgerald-soft` / `.fitzgerald-faded` classes. Putting the class
+   *  at :root means both CSS rules using var(--fitzgerald-*) and JS
+   *  reads via getComputedStyle on documentElement see the muted
+   *  variants. Fires on sessionUser change (initial load) and on every
+   *  symbol_background change (so picking a different option from
+   *  another tab/window also syncs). LingoLinq.set_fitzgerald_scope
+   *  lives in app.js and also invalidates the JS palette cache. */
+  sync_fitzgerald_scope: observer('sessionUser', 'sessionUser.preferences.symbol_background', function() {
+    var bg = this.get('sessionUser.preferences.symbol_background');
+    if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+      window.LingoLinq.set_fitzgerald_scope(bg);
     }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {

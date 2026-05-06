@@ -119,44 +119,51 @@ $ll-bento-help-btn-blue: color.adjust(#3A6BC7, $lightness: 20%);
 // Each category has a background swatch and a paired dark text color.
 // -----------------------------------------------------------------------------
 
+// Base palette — matches the LingoLinq legacy color set in
+// LingoLinq.keyed_colors (app.js). These are the vivid 1980s-style
+// Fitzgerald shades users have historically seen. The "Colored Soft"
+// background option mutes them via -12% saturation; "Colored" leaves
+// them as-is. Text colors are paired for WCAG AA contrast against
+// the vivid backgrounds.
+
 // Pronouns — Yellow
-$fitzgerald-pronoun-yellow:           #FAFAAA;
+$fitzgerald-pronoun-yellow:           #FFFFAA;
 $fitzgerald-pronoun-yellow-text:      #4A4A00;
 
 // Verbs — Soft Green
-$fitzgerald-verb-green:               #C0E8C8;
+$fitzgerald-verb-green:               #CCFFAA;
 $fitzgerald-verb-green-text:          #1A4028;
 
 // Adjectives/Descriptors — Blue
-$fitzgerald-adjective-blue:           #B9D0F6;
+$fitzgerald-adjective-blue:           #AACCFF;
 $fitzgerald-adjective-blue-text:      #1B2D5C;
 
 // Nouns / Nominative — Orange
-$fitzgerald-noun-orange:              #FDCF98;
+$fitzgerald-noun-orange:              #FFCCAA;
 $fitzgerald-noun-orange-text:         #5A2018;
 
 // Social / Social Phrase — Pink
-$fitzgerald-social-pink:              #E8B5DC;
+$fitzgerald-social-pink:              #FFAACC;
 $fitzgerald-social-pink-text:         #3E1838;
 
 // Negation / Expletive / Interjection — Red
-$fitzgerald-negation-red:             #F5A0A0;
+$fitzgerald-negation-red:             #FFAAAA;
 $fitzgerald-negation-red-text:        #5C1510;
 
 // Questions — Purple
-$fitzgerald-question-purple:          #D0B8E8;
+$fitzgerald-question-purple:          #CCAAFF;
 $fitzgerald-question-purple-text:     #2D1F5E;
 
-// Prepositions — Muted Pink
-$fitzgerald-preposition-pink:         #F5DCEA;
+// Prepositions — Rose (slightly lighter than social pink for POS distinction)
+$fitzgerald-preposition-pink:         #FFCCDD;
 $fitzgerald-preposition-pink-text:    #5A2838;
 
 // Adverbs — Brown
-$fitzgerald-adverb-brown:             #D4B896;
+$fitzgerald-adverb-brown:             #CCAA88;
 $fitzgerald-adverb-brown-text:        #4A3C1C;
 
 // Articles / Determiners — Gray
-$fitzgerald-determiner-gray:          #DCDCDC;
+$fitzgerald-determiner-gray:          #CCCCCC;
 $fitzgerald-determiner-gray-text:     #2A2A2A;
 
 // Conjunctions / Numbers — White
@@ -170,6 +177,89 @@ $fitzgerald-other-blue-text:          #0A3A5C;
 // Contrast — Black
 $fitzgerald-contrast-black:           #000000;
 $fitzgerald-contrast-black-text:      #FFFFFF;
+
+// -----------------------------------------------------------------------------
+// Fitzgerald — emit as CSS custom properties on :root.
+// SINGLE SOURCE OF TRUTH: this block is the JS-readable mirror of the SCSS
+// variables above. SCSS rules consume the $fitzgerald-* vars directly at
+// compile time; JS code (notably LingoLinq.board_detail_keyed_colors in
+// app.js) reads these custom properties at runtime via getComputedStyle.
+// To change a Fitzgerald color, edit ONLY the SCSS variable above —
+// the var() reference here updates automatically and JS picks up the
+// new value on the next palette read (LingoLinq.refresh_fitzgerald_colors()
+// invalidates the cache if needed).
+// -----------------------------------------------------------------------------
+
+:root {
+  --fitzgerald-pronoun-yellow:        #{$fitzgerald-pronoun-yellow};
+  --fitzgerald-pronoun-yellow-text:   #{$fitzgerald-pronoun-yellow-text};
+  --fitzgerald-verb-green:            #{$fitzgerald-verb-green};
+  --fitzgerald-verb-green-text:       #{$fitzgerald-verb-green-text};
+  --fitzgerald-adjective-blue:        #{$fitzgerald-adjective-blue};
+  --fitzgerald-adjective-blue-text:   #{$fitzgerald-adjective-blue-text};
+  --fitzgerald-noun-orange:           #{$fitzgerald-noun-orange};
+  --fitzgerald-noun-orange-text:      #{$fitzgerald-noun-orange-text};
+  --fitzgerald-social-pink:           #{$fitzgerald-social-pink};
+  --fitzgerald-social-pink-text:      #{$fitzgerald-social-pink-text};
+  --fitzgerald-negation-red:          #{$fitzgerald-negation-red};
+  --fitzgerald-negation-red-text:     #{$fitzgerald-negation-red-text};
+  --fitzgerald-question-purple:       #{$fitzgerald-question-purple};
+  --fitzgerald-question-purple-text:  #{$fitzgerald-question-purple-text};
+  --fitzgerald-preposition-pink:      #{$fitzgerald-preposition-pink};
+  --fitzgerald-preposition-pink-text: #{$fitzgerald-preposition-pink-text};
+  --fitzgerald-adverb-brown:          #{$fitzgerald-adverb-brown};
+  --fitzgerald-adverb-brown-text:     #{$fitzgerald-adverb-brown-text};
+  --fitzgerald-determiner-gray:       #{$fitzgerald-determiner-gray};
+  --fitzgerald-determiner-gray-text:  #{$fitzgerald-determiner-gray-text};
+  --fitzgerald-conjunction-white:     #{$fitzgerald-conjunction-white};
+  --fitzgerald-conjunction-white-text:#{$fitzgerald-conjunction-white-text};
+  --fitzgerald-other-blue:            #{$fitzgerald-other-blue};
+  --fitzgerald-other-blue-text:       #{$fitzgerald-other-blue-text};
+  --fitzgerald-contrast-black:        #{$fitzgerald-contrast-black};
+  --fitzgerald-contrast-black-text:   #{$fitzgerald-contrast-black-text};
+}
+
+// -----------------------------------------------------------------------------
+// Fitzgerald Soft palette — chromatic colors derived from the base via
+// color.adjust(..., $saturation: -25%). Editing the base $fitzgerald-* var
+// auto-updates the -soft counterpart. Text colors are NOT desaturated
+// (they're dark contrast colors; muting them weakens readability).
+// White and black are unchanged because there's no saturation to remove.
+// Determiner gray IS overridden — bumped +10% lightness so determiner
+// cards read as visually softer alongside the muted chromatic cards.
+// -----------------------------------------------------------------------------
+
+$fitzgerald-pronoun-yellow-soft:    color.adjust($fitzgerald-pronoun-yellow,    $saturation: -25%);
+$fitzgerald-verb-green-soft:        color.adjust($fitzgerald-verb-green,        $saturation: -25%);
+$fitzgerald-adjective-blue-soft:    color.adjust($fitzgerald-adjective-blue,    $saturation: -25%);
+$fitzgerald-noun-orange-soft:       color.adjust($fitzgerald-noun-orange,       $saturation: -25%);
+$fitzgerald-social-pink-soft:       color.adjust($fitzgerald-social-pink,       $saturation: -25%);
+$fitzgerald-negation-red-soft:      color.adjust($fitzgerald-negation-red,      $saturation: -25%);
+$fitzgerald-question-purple-soft:   color.adjust($fitzgerald-question-purple,   $saturation: -25%);
+$fitzgerald-preposition-pink-soft:  color.adjust($fitzgerald-preposition-pink,  $saturation: -25%);
+$fitzgerald-adverb-brown-soft:      color.adjust($fitzgerald-adverb-brown,      $saturation: -25%);
+$fitzgerald-other-blue-soft:        color.adjust($fitzgerald-other-blue,        $saturation: -25%);
+$fitzgerald-determiner-gray-soft:   color.adjust($fitzgerald-determiner-gray,   $lightness:  +10%);
+
+// When .fitzgerald-soft is present anywhere up the tree, the same
+// --fitzgerald-* CSS custom properties are reassigned to the soft variant.
+// Every SCSS rule using var(--fitzgerald-*) and every JS lookup via
+// getComputedStyle on the scoped element inherits the swap automatically.
+// White and black are intentionally not overridden (achromatic, no
+// saturation to remove).
+.fitzgerald-soft {
+  --fitzgerald-pronoun-yellow:    #{$fitzgerald-pronoun-yellow-soft};
+  --fitzgerald-verb-green:        #{$fitzgerald-verb-green-soft};
+  --fitzgerald-adjective-blue:    #{$fitzgerald-adjective-blue-soft};
+  --fitzgerald-noun-orange:       #{$fitzgerald-noun-orange-soft};
+  --fitzgerald-social-pink:       #{$fitzgerald-social-pink-soft};
+  --fitzgerald-negation-red:      #{$fitzgerald-negation-red-soft};
+  --fitzgerald-question-purple:   #{$fitzgerald-question-purple-soft};
+  --fitzgerald-preposition-pink:  #{$fitzgerald-preposition-pink-soft};
+  --fitzgerald-adverb-brown:      #{$fitzgerald-adverb-brown-soft};
+  --fitzgerald-other-blue:        #{$fitzgerald-other-blue-soft};
+  --fitzgerald-determiner-gray:   #{$fitzgerald-determiner-gray-soft};
+}
 
 // =============================================================================
 // AAC SPEECH PAGE — Design Tokens

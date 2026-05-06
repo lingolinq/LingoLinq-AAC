@@ -13,15 +13,22 @@
         </button>
       </div>
     {{/each}}
-    {{#if this.has_extra_users}}
+    {{!-- "Other User" picker — only render when there is real
+         data to show (loading state, error state, or at least one
+         extra user). Previously rendered solely on
+         `has_extra_users` (managed_orgs.length > 0), which left an
+         empty drop-up on screens where the org has no users. The
+         `dropup` class was also removed so the menu opens downward
+         like every other dropdown in the app. --}}
+    {{#if this.should_show_extras}}
       <div class="col-md-3 col-sm-4 col-xs-6">
-        <div class="btn-group dropup" style='width: 100%;'>
+        <div class="btn-group" style='width: 100%;'>
           <button type="button" class={{if this.extra_user "btn btn-info dropdown-toggle" "btn btn-default dropdown-toggle"}} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="width: 100%; padding-top: 10px; padding-bottom: 10px; margin-bottom: 20px;">
             {{#if this.extra_user}}
               {{this.extra_user.user_name}}<br>
               <img src={{this.extra_user.avatar_url}} style='width: 60px; height: 60px; object-fit: contain;'>
             {{else}}
-              {{t "Other User" key="other_user"}} 
+              {{t "Other User" key="other_user"}}
             {{/if}}
             <span class="caret"></span>
           </button>
@@ -33,6 +40,13 @@
             {{else}}
               {{#each this.extra_users as |user|}}
                 <li class={{if user.edit_permission "" "disabled"}}><a href='#' {{action "set_extra_user" user}}><img src={{user.avatar_url}} style='width: 20px; height: 20px; object-fit: contain;'> {{user.user_name}}</a></li>
+              {{else}}
+                <li class="dropdown-empty" role="presentation" aria-disabled="true">
+                  <span class="dropdown-empty__inner">
+                    <svg class="dropdown-empty__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span class="dropdown-empty__text">{{t "No users available" key="dropdown_no_users_available"}}</span>
+                  </span>
+                </li>
               {{/each}}
             {{/if}}
           </ul>

@@ -87,6 +87,7 @@
         {{#if this.error}}
           <p class="md-modal-status md-modal-status--error" role="alert">{{this.error}}</p>
         {{/if}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
         {{#if this.consent_request}}
           <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "send_consent_request"}} disabled={{this.consent_submitting}}>
             {{#if this.consent_submitting}}
@@ -114,7 +115,6 @@
             {{/if}}
           </button>
         {{/if}}
-        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{/unless}}
   </div>

@@ -213,7 +213,7 @@ class Api::LogsController < ApplicationController
       type = 'unspecified'
       type = 'obl' if params['type'] == 'obl'
       type = 'lam' if params['type'] == 'lam'
-      progress = Progress.schedule(Exporter, :process_log, params['url'] || params['content'], type, user.global_id, @api_user.global_id, @api_device_id)
+      progress = Progress.schedule(Exporter, :process_log, params['url'] || params['content'], type, user.global_id, @api_user.global_id, @api_device_id, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       remote_path = "imports/logs/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.txt"
@@ -273,7 +273,7 @@ class Api::LogsController < ApplicationController
         return unless allowed?(log.user, 'never_allow')
       end    
   
-      progress = Progress.schedule(Exporter, :export_log, log.global_id)
+      progress = Progress.schedule(Exporter, :export_log, log.global_id, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     elsif params['user_id']
       user = User.find_by_global_id(params['user_id'])
@@ -286,7 +286,7 @@ class Api::LogsController < ApplicationController
       if cutoff
         return unless allowed?(user, 'never_allow')
       end    
-      progress = Progress.schedule(Exporter, :export_logs, user.global_id, !!params['anonymized'])
+      progress = Progress.schedule(Exporter, :export_logs, user.global_id, !!params['anonymized'], for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     end
   end

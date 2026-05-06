@@ -30,7 +30,7 @@ class Api::SoundsController < ApplicationController
   
   def import
     if params['url']
-      progress = Progress.schedule(ButtonSound, :import_for, @api_user.global_id, params['url'])
+      progress = Progress.schedule(ButtonSound, :import_for, @api_user.global_id, params['url'], for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       remote_path = "imports/sounds/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.zip"
