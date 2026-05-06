@@ -122,6 +122,18 @@ export default Component.extend({
       emberSet(self, 'disabled', !!this.get('skip_me'));
     }
   }),
+  // Gate the "Other User" dropdown on actual data, not just on whether
+  // the user has any managed orgs. Without this, screens where the
+  // managed org is empty render an empty drop-up that confuses users.
+  // Show while loading / error so the user gets feedback; hide once
+  // we know the list is empty.
+  should_show_extras: computed('has_extra_users', 'extra_users.loading', 'extra_users.error', 'extra_users.length', function() {
+    if(!this.get('has_extra_users')) { return false; }
+    var ex = this.get('extra_users');
+    if(!ex) { return true; }
+    if(ex.loading || ex.error) { return true; }
+    return (ex.length || 0) > 0;
+  }),
   for_user_image: computed('users', 'selection', function() {
     var res = null;
     var user_id = this.get('selection');

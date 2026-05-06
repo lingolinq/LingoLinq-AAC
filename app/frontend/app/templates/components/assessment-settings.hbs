@@ -5,7 +5,7 @@
     </button>
     <h3 class="md-modal-title">{{t "Eval Settings" key="assessment_settings"}}</h3>
   </div>
-  <div class="modal-body md-modal-body" style="text-align: left;">
+  <div class="modal-body md-modal-body md-assessment-settings" style="text-align: left;">
     <div class="md-modal-field">
       <label for="for_user_id" class="md-modal-label">{{t "For" key="for"}}</label>
       {{#if this.settings.saved}}
@@ -92,6 +92,10 @@
       <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "abort" true}}>{{t "Abort" key="abort"}}</button>
       <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{else}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      {{#if this.save_option}}
+        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "abort"}}>{{t "Abort" key="abort"}}</button>
+      {{/if}}
       <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{action "confirm"}}>
         {{#if this.save_option}}
           {{t "Save" key="save"}}
@@ -99,10 +103,6 @@
           {{t "Update" key="update"}}
         {{/if}}
       </button>
-      {{#if this.save_option}}
-        <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "abort"}}>{{t "Abort" key="abort"}}</button>
-      {{/if}}
-      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
     {{/if}}
   </div>
 {{/modal-dialog}}

@@ -103,6 +103,24 @@ export default Component.extend({
     this._super(...arguments);
   },
 
+  /** Focus the active option when the dropdown opens. See
+   *  docs/styling-recurring-problems.md #11 for context. */
+  _focusActiveOption() {
+    if (!this.element) { return; }
+    const list = this.element.querySelector('.bound-select__list');
+    if (!list) { return; }
+    const selected = list.querySelector('.bound-select__option--selected');
+    const target = selected || list.querySelector('.bound-select__option');
+    if (target && typeof target.focus === 'function') { target.focus(); }
+  },
+
+  /** Return focus to the trigger so Tab nav resumes from the dropdown. */
+  _focusTrigger() {
+    if (!this.element) { return; }
+    const trigger = this.element.querySelector('.bound-select__trigger');
+    if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
+  },
+
   actions: {
     stopPropagation(ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
@@ -110,6 +128,10 @@ export default Component.extend({
     toggle(ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
       this.toggleProperty('isOpen');
+      if (this.get('isOpen')) {
+        const self = this;
+        scheduleOnce('afterRender', this, function() { self._focusActiveOption(); });
+      }
     },
     choose(item, ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
@@ -127,7 +149,43 @@ export default Component.extend({
       });
       scheduleOnce('afterRender', this, function() {
         this.close();
+        this._focusTrigger();
       });
+    },
+    /** Arrow/Enter/Escape navigation on a focused option. */
+    option_keydown(item, ev) {
+      if (!ev || !ev.key) { return; }
+      const key = ev.key;
+      if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
+        ev.preventDefault();
+        const target = ev.target;
+        const list = target ? target.closest('.bound-select__list') : null;
+        if (!list) { return; }
+        const items = Array.from(list.querySelectorAll('.bound-select__option:not(.bound-select__option--disabled)'));
+        const i = items.indexOf(target);
+        let next = i;
+        if (key === 'ArrowDown') { next = i < items.length - 1 ? i + 1 : 0; }
+        else if (key === 'ArrowUp') { next = i > 0 ? i - 1 : items.length - 1; }
+        else if (key === 'Home')    { next = 0; }
+        else if (key === 'End')     { next = items.length - 1; }
+        const tgt = items[next];
+        if (tgt && typeof tgt.focus === 'function') { tgt.focus(); }
+      } else if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+        ev.preventDefault();
+        this.send('choose', item, ev);
+      } else if (key === 'Escape') {
+        ev.preventDefault();
+        this.close();
+        this._focusTrigger();
+      }
+    },
+    list_keydown(ev) {
+      if (!ev || !ev.key) { return; }
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        this.close();
+        this._focusTrigger();
+      }
     }
   }
 });

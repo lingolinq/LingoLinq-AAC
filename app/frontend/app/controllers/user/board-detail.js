@@ -124,6 +124,7 @@ export default Controller.extend(prefClasses, {
   display_prefs_symbol_library_dropdown_open: false,
   display_prefs_symbol_background_dropdown_open: false,
   display_prefs_voice_height_dropdown_open: false,
+  display_prefs_skin_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
   dark_mode: true,
@@ -1039,6 +1040,43 @@ export default Controller.extend(prefClasses, {
   }),
   skin_is_mix_prefer: computed('pending_display_prefs.skin', function() {
     return (this.get('pending_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
+  }),
+
+  // CSS modifier class for the mobile-collapse skin-tones dropdown trigger
+  // swatch. The trigger renders as a single .md-settings-skin dot whose
+  // appearance must mirror the currently-active inline swatch button. Mix
+  // variants take precedence over the simple-tone string because the data
+  // field encodes both: e.g. 'mix_only::limit-100100' still has
+  // pending_display_prefs.skin starting with 'mix_only'. Simple tones
+  // map directly except 'default', which uses the --original swatch class
+  // (yellow Fitzgerald-neutral) following the existing template convention.
+  display_prefs_current_skin_class: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+    if(this.get('skin_is_mix_only'))   { return 'md-settings-skin--mix-only'; }
+    if(this.get('skin_is_mix_prefer')) { return 'md-settings-skin--mix-prefer'; }
+    if(this.get('skin_is_mix'))        { return 'md-settings-skin--mix'; }
+    var skin = this.get('pending_display_prefs.skin') || 'default';
+    if(skin === 'default') { return 'md-settings-skin--original'; }
+    return 'md-settings-skin--' + skin;
+  }),
+
+  // Human-readable label for the currently-selected skin tone, used as
+  // the tiny helper text below the swatch grid in the ≤640px popover.
+  // Returns null for the mix_only/mix_prefer variants since their
+  // suboptions row already provides context (the "Only:" / "Prefer:"
+  // sublabel + suboption swatches make the mode self-evident).
+  display_prefs_current_skin_label: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+    if(this.get('skin_is_mix_only') || this.get('skin_is_mix_prefer')) { return null; }
+    if(this.get('skin_is_mix')) { return i18n.t('skin_label_mix', "Mix of tones"); }
+    var skin = this.get('pending_display_prefs.skin') || 'default';
+    var labels = {
+      'default':      i18n.t('skin_label_original',     "Original"),
+      'light':        i18n.t('skin_label_light',        "Light"),
+      'medium-light': i18n.t('skin_label_medium_light', "Medium Light"),
+      'medium':       i18n.t('skin_label_medium',       "Medium"),
+      'medium-dark':  i18n.t('skin_label_medium_dark',  "Medium Dark"),
+      'dark':         i18n.t('skin_label_dark',         "Dark")
+    };
+    return labels[skin] || null;
   }),
 
   // Returns null when the skin isn't a mix_only/mix_prefer variant; otherwise
@@ -3108,6 +3146,32 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('description_info_expanded');
     },
 
+    // Opens the board-privacy modal so the user can change this board's
+    // public/private/protected setting from the inline header indicator.
+    // Same modal opened by the Visibility & License row in the
+    // board-details component, so the flow matches what the user gets in
+    // their preferences screen.
+    //
+    // If the user was in edit mode when they opened the modal, we restore
+    // edit_mode after the modal closes (on either success or cancel) so
+    // they land back on the board-detail edit page rather than the
+    // read-only view — the privacy POST + model reload can otherwise
+    // sometimes drop edit state via re-render.
+    open_board_privacy: function() {
+      var _this = this;
+      var was_editing = this.get('edit_mode');
+      var restore = function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (was_editing && !_this.get('edit_mode')) {
+          _this.set('edit_mode', true);
+        }
+      };
+      modal.open('modals/board-privacy', {
+        board: this.get('model'),
+        button_set: this.get('model.button_set')
+      }).then(restore, restore);
+    },
+
     speak_phrase: function(phrase) {
       if(phrase && phrase.text) {
         utterance.speak_text(phrase.text);
@@ -3249,6 +3313,53 @@ export default Controller.extend(prefClasses, {
     },
     close_display_symbol_library_dropdown: function() {
       this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+
+    // The skin-tones popover deliberately doesn't render the shared
+    // .md-settings-dropdown-backdrop overlay (it covers the whole viewport
+    // with `position: fixed; inset: 0` and blocks page scroll). Instead we
+    // attach a document-level pointerdown listener on open that closes the
+    // popover when a tap lands outside both the trigger and the popover —
+    // giving us tap-outside-to-close without sacrificing scroll. The
+    // listener is registered on `next` so the click that opened the
+    // popover doesn't immediately close it.
+    toggle_display_skin_dropdown: function() {
+      var _this = this;
+      var was_open = this.get('display_prefs_skin_dropdown_open');
+      this.toggleProperty('display_prefs_skin_dropdown_open');
+      if(!was_open) {
+        next(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var handler = function(e) {
+            var trigger = document.querySelector('.md-settings-skin-trigger');
+            var popover = document.querySelector('.md-settings-skin-popover--open');
+            if(trigger && trigger.contains(e.target)) { return; }
+            if(popover && popover.contains(e.target)) { return; }
+            _this.set('display_prefs_skin_dropdown_open', false);
+            document.removeEventListener('mousedown', handler, true);
+            document.removeEventListener('touchstart', handler, true);
+            _this._skin_dropdown_outside_handler = null;
+          };
+          _this._skin_dropdown_outside_handler = handler;
+          // Capture phase + mousedown/touchstart so we close as soon as a
+          // tap begins, before any action handler on the underlying element
+          // fires its click.
+          document.addEventListener('mousedown', handler, true);
+          document.addEventListener('touchstart', handler, true);
+        });
+      } else if(this._skin_dropdown_outside_handler) {
+        document.removeEventListener('mousedown', this._skin_dropdown_outside_handler, true);
+        document.removeEventListener('touchstart', this._skin_dropdown_outside_handler, true);
+        this._skin_dropdown_outside_handler = null;
+      }
+    },
+    close_display_skin_dropdown: function() {
+      this.set('display_prefs_skin_dropdown_open', false);
+      if(this._skin_dropdown_outside_handler) {
+        document.removeEventListener('mousedown', this._skin_dropdown_outside_handler, true);
+        document.removeEventListener('touchstart', this._skin_dropdown_outside_handler, true);
+        this._skin_dropdown_outside_handler = null;
+      }
     },
     pick_display_symbol_library: function(id) {
       this.send('set_display_pref', 'preferred_symbols', id);

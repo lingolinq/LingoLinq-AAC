@@ -305,14 +305,19 @@ LingoLinq.board_categories = [
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
 LingoLinq.registrationTypes = [
+  // Order: communicator-first → parent-and-communicator (parent group)
+  // → supervising parent (parent group) → therapist → teacher →
+  // eval device → other. "A"/"An" prefixes dropped for cleaner
+  // dropdown rendering. IDs unchanged so saved user records keep
+  // resolving correctly.
   {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
-  {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},
-  {name: i18n.t('registration_type_parent', "A supervising parent"), id: 'parent'},
-  {name: i18n.t('registration_type_eval', "An evaluation/assessment device"), id: 'eval'},
-  {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
-  {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
+  {name: i18n.t('registration_type_communicator', "Communicator"), id: 'communicator'},
+  {name: i18n.t('registration_type_parent_communicator', "Parent and communicator"), id: 'communicator'},
+  {name: i18n.t('registration_type_parent', "Supervising parent"), id: 'parent'},
+  {name: i18n.t('registration_type_slp', "Therapist"), id: 'therapist'},
+  {name: i18n.t('registration_type_teacher', "Teacher"), id: 'teacher'},
+  {name: i18n.t('registration_type_eval', "Evaluation/assessment device"), id: 'eval'},
+  {name: i18n.t('registration_type_other', "Aide, caregiver or other supporter"), id: 'other'}
 ];
 LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},

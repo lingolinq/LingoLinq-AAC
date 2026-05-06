@@ -5,7 +5,7 @@
     </button>
     <h3 class="md-modal-title">{{t "Add Board to Sidebar" key="add_board_to_sidebar"}}</h3>
   </div>
-  <div class="modal-body md-modal-body" style="text-align: left;">
+  <div class="modal-body md-modal-body md-add-to-sidebar" style="text-align: left;">
     <div class="md-modal-icon-row">
       <div class="md-modal-icon-circle">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -56,6 +56,7 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel" disabled={{this.loading}}>{{t "Cancel" key="cancel"}}</button>
     <button {{action "add"}} class="btn md-modal-btn md-modal-btn--primary" disabled={{this.loading}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
@@ -66,6 +67,5 @@
         {{t "Add to Sidebar" key="add_board_to_sidebar"}}
       {{/if}}
     </button>
-    <button {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel" disabled={{this.loading}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

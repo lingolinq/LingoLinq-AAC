@@ -11982,7 +11982,123 @@ video.button_image {
 }
 .la-board-privacy-boards {
   padding:12px 16px; background:rgba($brand-verdigris, 0.03); border:1px solid rgba($la-navy, 0.06);
-  border-radius:12px; max-height:240px; overflow-y:auto;
+  border-radius:12px;
+  /* Removed `max-height: 240px; overflow-y: auto` — instead the
+     modal-body below caps height with its own scroll, so expanding
+     the hierarchy grows the modal up to viewport height before any
+     scrollbar appears. */
+}
+/* Body grows with the boards hierarchy / privacy dropdown content —
+   no fixed max-height. Modal stretches naturally up to viewport.
+   Browser-level page scrolling kicks in if the dialog ever exceeds
+   viewport height, which is the desired fall-back behavior. */
+.la-board-privacy-wrap > .modal-body {
+  max-height: none;
+  overflow: visible;
+}
+/* Privacy dropdown's option list is `position: absolute` by default
+   (so it floats over surrounding content and doesn't push siblings).
+   Inside this modal we want the opposite — the list should occupy
+   flow space below the trigger so the modal-body's height grows to
+   contain it. position:static + auto offsets returns the list to
+   normal flow; the list's existing styling (rounded card, shadow,
+   max-height with internal scroll) is preserved. */
+.la-board-privacy-wrap .bound-select__list {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 6px;
+}
+/* Modern action links inside the board hierarchy (Select All | Expand
+   All | Collapse All). Default browser link styling reads dated; pill
+   chrome with verdigris accent matches the rest of the modal. */
+.la-board-privacy-boards .board_hierarchy_actions,
+.la-board-privacy-boards > div > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  margin: 0 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-verdigris-aa;
+  background: rgba($brand-verdigris, 0.08);
+  border: 1px solid rgba($brand-verdigris, 0.18);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.la-board-privacy-boards > div > a:hover,
+.la-board-privacy-boards > div > a:focus-visible {
+  background: rgba($brand-verdigris, 0.16);
+  color: $la-navy;
+  border-color: rgba($brand-verdigris, 0.4);
+  text-decoration: none;
+  outline: none;
+}
+/* Modern custom checkboxes inside the boards hierarchy — replaces the
+   default browser appearance with a 18px rounded square that fills with
+   verdigris when checked. Matches the `.md-edit-profile__form` pattern
+   used elsewhere in the modern modal restyles. */
+.la-board-privacy-boards input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+  border: 1.5px solid rgba($la-navy, 0.30);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.la-board-privacy-boards input[type="checkbox"]:hover {
+  border-color: rgba($brand-verdigris, 0.55);
+}
+.la-board-privacy-boards input[type="checkbox"]:checked {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris;
+}
+.la-board-privacy-boards input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg);
+}
+.la-board-privacy-boards input[type="checkbox"]:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.5);
+  outline-offset: 1px;
+}
+.la-board-privacy-boards input[type="checkbox"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Tighter list rhythm for the recursive board hierarchy items. */
+.la-board-privacy-boards .board_hierarchy ul {
+  list-style: none;
+  padding-left: 18px;
+  margin: 0;
+}
+.la-board-privacy-boards .board_hierarchy > ul {
+  padding-left: 0;
+}
+.la-board-privacy-boards .board_hierarchy li {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+  color: $brand-charcoal-dark;
 }
 .la-board-privacy-loading { font-size:1rem; color:$brand-slate-gray; font-style:italic; }
 .la-board-privacy-error { font-size:1rem; color:$brand-danger; }
@@ -37998,41 +38114,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-shadow: 0 0 0 3px rgba(44, 183, 176, 0.15);
 }
 .md-edit-profile__form .modern-select__list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
+  /* Same pattern as the privacy modal's bound-select — `position:
+     static` (instead of absolute) lets the open menu PUSH the form
+     content below it instead of floating over a clipped parent.
+     The card surrounding this form has overflow-clipping borders;
+     `position: absolute` got cut off at the card edge. Static flow
+     keeps the menu fully visible and grows the card naturally. */
+  position: static;
   margin-top: 4px;
-  z-index: 20;
+  /* Show all options at once — no internal scroll. The role
+     picker has 7 entries; hiding any behind a scrollbar made the
+     full list non-obvious. */
+  max-height: none;
+  overflow-y: visible;
+  /* z-index irrelevant in flow — kept low for safety if another rule
+     re-applies absolute positioning. */
+  z-index: 150;
   list-style: none;
-  padding: 6px 0;
-  background: rgba($brand-charcoal-dark, 1);
-  border: none;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
   border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 10px 28px rgba($la-navy, 0.18),
+    0 2px 8px rgba($la-navy, 0.10);
   max-height: 280px;
   overflow-y: auto;
 }
 .md-edit-profile__form .modern-select__option {
-  padding: 10px 18px;
+  padding: 10px 14px;
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
+  color: $la-navy;
   cursor: pointer;
+  border-radius: 8px;
   transition: background 0.12s ease, color 0.12s ease;
   line-height: 1.4;
 }
 .md-edit-profile__form .modern-select__option:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris;
 }
 .md-edit-profile__form .modern-select__option--selected {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
   font-weight: 600;
 }
 .md-edit-profile__form .modern-select__option--selected:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba($brand-verdigris, 0.22);
 }
 .md-edit-profile__form .form-control-static {
   font-size: 14px;
@@ -40132,6 +40261,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   align-self: stretch !important;
 
   height: 100% !important;
+
+  /* Always tall enough to show the board preview row in full —
+     stops the card from collapsing when the surrounding column
+     (Extras / My Organizations stack) is shorter than the boards
+     content. */
+  min-height: 362px;
 
   padding-right: calc(18px + 0.25rem) !important;
 
@@ -52045,12 +52180,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease, border-color 0.15s ease;
   flex-shrink: 0;
 }
+/* Button stays neutral (white bg, dark navy icon) in every state — no
+   hover tint, no click/focus shift. The chevron rotation on the --open
+   modifier is the only visual indication that the panel is expanded. */
 .md-board-detail-header__info-toggle:hover,
+.md-board-detail-header__info-toggle:focus,
+.md-board-detail-header__info-toggle:focus-visible,
+.md-board-detail-header__info-toggle:active {
+  background: #fff;
+  color: rgba($la-navy, 0.72);
+  border-color: rgba($la-navy, 0.15);
+}
+/* Keep a minimal keyboard focus ring for accessibility — no fill
+   change, just an outline so keyboard users can still see focus. */
 .md-board-detail-header__info-toggle:focus-visible {
-  background: rgba($brand-verdigris, 0.08);
-  color: $la-navy;
-  border-color: rgba($brand-verdigris, 0.3);
-  outline: none;
+  outline: 2px solid rgba($brand-verdigris, 0.5);
+  outline-offset: 1px;
 }
 .md-board-detail-header__info-toggle--open svg {
   transform: rotate(180deg);
@@ -52080,10 +52225,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  gap: 6px;
+  /* Pill shape — width grows to fit the icon + label inside. Padding gives
+     the pill room to breathe; the clickable variant bumps padding even
+     more for a comfortable touch target. */
   height: 28px;
-  border-radius: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
   color: rgba($la-navy, 0.72);
+}
+.md-board-detail-header__info-icon svg {
+  flex: 0 0 auto;
 }
 .md-board-detail-header__info-icon--lock {
   background: rgba($brand-dusty-denim, 0.12);
@@ -52092,6 +52244,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-header__info-icon--private {
   background: rgba($la-navy, 0.08);
   color: rgba($la-navy, 0.85);
+}
+/* Privacy text label inside the pill — sits to the right of the icon. */
+.md-board-detail-header__info-icon-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+/* Dark-mode contrast — base color/bg are dark navy on dark navy panel
+   and disappear. Force a light tint + light icon stroke + light label,
+   and explicitly set the SVG stroke so currentColor inheritance can't
+   be overridden by any descendant rule. */
+.md-board-detail--dark .md-board-detail-header__info-icon--lock,
+.md-board-detail--dark .md-board-detail-header__info-icon--private {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-detail-header__info-icon--lock svg,
+.md-board-detail--dark .md-board-detail-header__info-icon--private svg {
+  stroke: rgba(255, 255, 255, 0.92);
+}
+/* Clickable variant — when the user has edit permission, the private
+   indicator becomes a pill-shaped button that opens the board-privacy
+   modal. Resets the default <button> chrome and bumps padding so the
+   whole pill reads as a comfortable touch target (44px wide minimum
+   once the icon + label fit inside). */
+.md-board-detail-header__info-icon--clickable {
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+.md-board-detail-header__info-icon--clickable:hover {
+  background: rgba($brand-verdigris, 0.18);
+  color: $la-navy;
+  box-shadow: 0 0 0 1px rgba($brand-verdigris, 0.45);
+}
+.md-board-detail-header__info-icon--clickable:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.55);
+  outline-offset: 2px;
+}
+.md-board-detail--dark .md-board-detail-header__info-icon--clickable:hover {
+  background: rgba($brand-verdigris, 0.28);
+  color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 0 0 1px rgba($brand-verdigris, 0.6);
 }
 .md-board-detail-header__license-icon {
   height: 22px;
@@ -52109,6 +52309,54 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-header__info-description--empty {
   font-style: italic;
   color: rgba($la-navy, 0.55);
+}
+/* Editable variant — shown in edit_mode. Inherits the typography of the
+   read-only paragraph but reads as a real input: 1px ring, padding,
+   focus highlight. The textarea grows on user input but starts at 3
+   rows. Width: 100% so it fills the panel. */
+.md-board-detail-header__info-description--editable {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.9);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-detail-header__info-description--editable:focus {
+  outline: none;
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+}
+.md-board-detail-header__info-description--editable::placeholder {
+  color: rgba($la-navy, 0.45);
+  font-style: italic;
+}
+.md-board-detail--dark .md-board-detail-header__info-description--editable {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-detail-header__info-description--editable:focus {
+  border-color: rgba($brand-verdigris, 0.7);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.22);
+}
+.md-board-detail--dark .md-board-detail-header__info-description--editable::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+/* When the board has no description, hide the privacy/license icons row
+   above it so the panel doesn't show a stray indicator (e.g. the
+   private-board eye/slash icon) above the "No description provided"
+   placeholder. */
+.md-board-detail-header__info-panel:has(.md-board-detail-header__info-description--empty) .md-board-detail-header__info-icons {
+  display: none;
 }
 .md-board-detail--dark .md-board-detail-header__info-description {
   color: rgba(255, 255, 255, 0.85);
@@ -52228,6 +52476,74 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: linear-gradient(135deg, $brand-charcoal-dark, #4b5563);
   border-radius: 18px;
   box-shadow: 0 2px 8px rgba($brand-charcoal-dark, 0.25);
+}
+/* Quick-access action row (Share / Copy / Print / Download) — sits
+   BELOW the Details & Actions pill in edit mode. Each icon is a 36px
+   circle button with the same neutral chrome as other header pills.
+   The row right-aligns inside the actions wrapper (which is
+   flex-column, align-items: flex-end) and uses flex `order: 2` so it
+   visually follows the Details pill (default order: 0) without
+   reshuffling the DOM. */
+.md-board-detail-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  order: 2;
+  margin-top: 8px;
+  padding: 4px 6px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 999px;
+}
+.md-board-detail-quick-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba($la-navy, 0.78);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-board-detail-quick-actions__btn:hover {
+  background: rgba($brand-verdigris, 0.12);
+  color: $la-navy;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
+}
+.md-board-detail-quick-actions__btn:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.55);
+  outline-offset: 1px;
+}
+/* Dark-mode contrast for the quick-actions cluster — matches the
+   actions-cluster dark gradient used by Cancel/Save above. */
+.md-board-detail--dark .md-board-detail-quick-actions {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.md-board-detail--dark .md-board-detail-quick-actions__btn {
+  color: rgba(255, 255, 255, 0.85);
+}
+.md-board-detail--dark .md-board-detail-quick-actions__btn:hover {
+  background: rgba($brand-verdigris, 0.22);
+  color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.30);
+}
+/* At ≤600px the actions wrap spans the full row and centers both
+   children. `align-items: center` (vs the desktop `flex-end`) sizes
+   each child to its content along the cross-axis instead of
+   stretching, so the Details & Actions pill shrinks to wrap its
+   "Details & Actions" label rather than spanning the row. The
+   quick-actions row was already content-sized; this just shifts its
+   anchor from right to center along with the pill. */
+@media (max-width: 600px) {
+  .md-board-detail-board-actions-wrap {
+    width: 100%;
+    align-items: center;
+  }
 }
 .md-board-detail-board-actions {
   display: flex;
@@ -55272,17 +55588,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     0 1px 2px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
-/* Phone-narrow viewports: the Text section (font stepper + font dropdown
-   + 3-button text-position toggle) overflows its row at ≤420px. Allow the
-   buttons row to wrap and center each wrapped row so the controls split
-   onto two clean lines instead of clipping or scrolling. Targets the
-   inner `__section-buttons` flex container — which exists in every
-   section but only the Text section's three controls outgrow the
-   narrowest phone widths. */
-@media (max-width: 420px) {
+/* Phone-narrow viewports (≤460px): a fallback wrap for any section whose
+   controls genuinely don't fit a single row even after the 36px-row
+   collapse from the @media (max-width: 640px) block above. The Text
+   section is structurally split into Text + Text Position at all widths
+   so it fits already; this rule covers any future section that grows
+   beyond what the row can hold. */
+@media (max-width: 460px) {
   .md-board-detail-edit-toolbar__section .md-board-detail-edit-toolbar__section-buttons {
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-end;
     row-gap: 6px;
   }
 }
@@ -55422,7 +55737,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
       0 2px 6px rgba($la-navy, 0.08),
       0 1px 2px rgba(0, 0, 0, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.85);
-    overflow: hidden;
+    /* overflow: visible (default) so the skin-tones popover (and any
+       row-anchored absolute dropdowns near the panel edges) aren't
+       clipped at the panel boundary. The visually-final row already has
+       its border-bottom stripped (`:last-of-type` rule below), so the
+       rounded corners read clean without needing overflow: hidden. */
+    overflow: visible;
   }
   /* Dark mode at this breakpoint: switch the card to a dark surface
      so it sits naturally on the dark toolbar instead of looking
@@ -55451,16 +55771,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   }
   /* Each preference renders as one row. The base .md-settings-sublabel-wrap
      rule sets flex-direction: column and min-width: max-content; both must
-     be explicitly overridden here, not just `display: flex`. */
+     be explicitly overridden here, not just `display: flex`. Vertical
+     padding is 0 — the row is a strict 36px box and align-items: center
+     vertically centers the (≤32px) content with 2px clearance above/below. */
   .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 5px 14px;
+    padding: 0 14px;
     border-bottom: 1px solid rgba($la-navy, 0.08);
-    min-height: 36px;
+    height: 40px;
+    min-height: 40px;
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
@@ -55507,19 +55830,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     min-width: 32px;
     min-height: 24px;
   }
-  /* Dropdown trigger sized like a pill on the right; cap width so long
-     font names truncate instead of pushing the label off-screen. The
-     right padding (32px) reserves space for the chevron background-image
-     drawn by the base .md-settings-select rule (positioned at "right 12px
-     center"). Without this padding the chevron sits underneath the value
-     text and reads as missing. height: auto overrides the base rule's
-     explicit height: 44px so the halved vertical padding actually
-     shrinks the trigger instead of getting absorbed. */
+  /* Dropdown trigger — strict 28px height so it sits in the 36px row with
+     4px clearance. Right padding (32px) reserves chevron space drawn by
+     the base .md-settings-select rule. */
   .md-board-detail-edit-toolbar__display-prefs .md-settings-select--trigger {
-    height: auto;
+    height: 28px;
     min-height: 28px;
     max-width: 180px;
-    padding: 2px 32px 2px 12px;
+    padding: 0 32px 0 12px;
   }
   .md-board-detail-edit-toolbar__display-prefs .md-settings-select__value {
     overflow: hidden;
@@ -55527,25 +55845,36 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     white-space: nowrap;
     min-width: 0;
   }
-  /* Icon-button groups (Text Position, Shape) — slightly tighter. */
+  /* Icon-button groups (Text Position, Shape, Hidden) — 28px so they sit in
+     the 36px row with 4px clearance. */
   .md-board-detail-edit-toolbar__display-prefs .md-settings-icon-btn {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
   }
-  /* Halve the vertical padding on the icon-group pill (the gray rounded
-     wrap around the Shape and Text Position buttons). Override the base
-     rule's explicit `height: 44px` with `height: auto` so the padding
-     change actually shrinks the pill instead of being absorbed. */
+  /* Hidden row's eye-icon toggle-btns ship at 44×44 by default. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-toggle-btn {
+    width: 28px;
+    height: 28px;
+  }
+  /* Skin-Tones row's swatch wrapper has an explicit `height: 44px`. Cap at
+     28px (matching the icongroup height) so the row holds 36px. The swatches
+     themselves shrink below to fit. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-group {
+    height: 28px;
+    padding: 0 4px;
+  }
+  /* Skin swatch dots — 22px so they fit cleanly in the 28px wrapper with
+     a 3px ring for the active state. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin {
+    width: 22px;
+    height: 22px;
+  }
+  /* Icon-group pill (Shape, Text Position, Hidden). Override the base
+     `height: 44px` with a strict 28px and tight padding so the gray
+     rounded wrap matches the surrounding controls. */
   .md-board-detail-edit-toolbar__display-prefs .md-settings-icongroup {
-    height: auto;
-    padding: 1.5px 3px;
-  }
-  /* Rows whose control is an icongroup (Shape, Text Position) — halve
-     the row's vertical padding too so the gray pill hugs the row top
-     and bottom instead of floating with extra whitespace. */
-  .md-board-detail-edit-toolbar__display-prefs .md-settings-sublabel-wrap:has(.md-settings-icongroup) {
-    padding-top: 2.5px;
-    padding-bottom: 2.5px;
+    height: 28px;
+    padding: 0 2px;
   }
   /* Hidden row carries three controls (icongroup + 2 toggle-btns) on
      the right. At ≤640px the wrapper pushes the whole cluster to the
@@ -55587,6 +55916,329 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     min-width: 200px;
     width: max-content;
     max-width: calc(100vw - 32px);
+  }
+  /* ── Top edit toolbar: collapse always-visible sections into the same
+     native-settings-list pattern used by the display-prefs panel above.
+     Each section (Paint, Folders, Rows, Columns, Boards, Speak Bar, Text,
+     Levels) becomes a single row inside the toolbar's outer card —
+     section label on the left, controls on the right, hairline dividers
+     between rows. Outer card chrome (gradient, ring, layered shadow) is
+     intentionally retained from the desktop rule — it's the glassy pill
+     the rest of the edit page uses. When More Settings is open the inner
+     display-prefs panel sheds its own card chrome (rule below) and its
+     rows just continue on the toolbar's glassy surface. ── */
+  .md-board-detail-edit-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+  /* When the More Settings panel is open, the toolbar wraps both halves
+     and the display-prefs panel inside should shed its own card chrome —
+     no nested borders / rounded corners / drop shadow. The toolbar's
+     outer glassy card now provides the chrome for everything; the seam
+     between the last top section (Text/Levels) and the first display-prefs
+     row (Symbols) is just another hairline divider. The .--expanded
+     modifier is added by the template at line 876 when display_prefs_open
+     is true. */
+  .md-board-detail-edit-toolbar--expanded .md-board-detail-edit-toolbar__display-prefs {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .md-board-detail--dark .md-board-detail-edit-toolbar--expanded .md-board-detail-edit-toolbar__display-prefs {
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+  /* Each top-level section becomes one row. Strip per-section pill chrome
+     (the outer toolbar already provides the card chrome) and add the same
+     hairline divider the bottom panel uses between its rows. Strict 36px
+     height with align-items: center vertically centers the (≤28px) inner
+     controls with 4px clearance above/below. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 14px;
+    margin-left: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 1px solid rgba($la-navy, 0.08);
+    height: 40px;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* The Layout section is special: it holds two child layout-items (Rows +
+     Columns) instead of label+buttons. Make the wrapper layout-invisible
+     so each child becomes its own row at the toolbar level. The wrapper's
+     baseline `flex-direction: row` and pill chrome don't matter once the
+     box is gone. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout {
+    display: contents;
+  }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout > .md-board-detail-edit-toolbar__layout-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 14px;
+    border-bottom: 1px solid rgba($la-navy, 0.08);
+    height: 40px;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* Section labels — adopt the .md-settings-sublabel tone (navy, 500
+     weight, no uppercase tracking) so the rows visually match the bottom
+     panel. Override the desktop section-label rule (#8a96a8 muted gray,
+     bold, letter-spacing). The explicit `display: block` overrides the
+     `@media (max-width: 820px)` rule below that hides every section-label
+     for the wrap-layout (icon-only) treatment — at ≤640px we want labels
+     back since the row layout puts them on a dedicated left column. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section > .md-board-detail-edit-toolbar__section-label,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout > .md-board-detail-edit-toolbar__layout-item > .md-board-detail-edit-toolbar__section-label {
+    display: block;
+    flex: 0 0 auto;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: $la-navy;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  /* Buttons cluster pushed to the right. Override the base
+     `align-items: flex-end` (which makes buttons hug the row bottom and
+     read as misaligned against the centered label) and allow wrapping so
+     sections with multiple controls (Text: stepper + dropdown + 3-toggle;
+     Paint: 3 controls) drop excess controls onto a wrapped second line
+     instead of clipping. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section > .md-board-detail-edit-toolbar__section-buttons,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout > .md-board-detail-edit-toolbar__layout-item > .md-board-detail-edit-toolbar__section-buttons {
+    margin-left: auto;
+    flex: 0 1 auto;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 6px;
+  }
+  /* Reset the display-prefs panel's outer flex sizing for the new column
+     layout. The base rule sets `flex: 0 0 100%` so the panel takes a full
+     row in the desktop wrap-flex toolbar; in column flex that resolves to
+     "100% of main-axis height," which makes the panel try to fill the
+     whole toolbar and overlap the sections (the bug that hid the More
+     Settings rows in the previous attempt). Reset to natural sizing so
+     the panel just stacks below the section rows when expanded. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__display-prefs {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  /* Strip the bottom border on the visually-final row so the card edge
+     stays clean. Covers the Levels section (when present) being last, the
+     Text section being last (Levels not rendered), or the Columns
+     layout-item being last (no Levels, no other section after Layout). */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section:last-of-type,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout:last-of-type > .md-board-detail-edit-toolbar__layout-item:last-child {
+    border-bottom: none;
+  }
+  /* Dark-mode divider tint — match the existing display-prefs dark
+     divider so both halves look like one component family. */
+  .md-board-detail--dark .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section,
+  .md-board-detail--dark .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout > .md-board-detail-edit-toolbar__layout-item {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+  /* Swap Text Position above Text in the column-flex collapse. Defaults
+     stay at order 0 for all other sections; explicit orders 1→4 keep the
+     trio (Text Position → Text → Levels) plus the display-prefs panel
+     anchored to the bottom of the toolbar in that exact sequence,
+     regardless of their DOM order. Without ordering Levels and
+     display-prefs explicitly here, they would float up among the order-0
+     group and end up *above* Text Position. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--text-position { order: 1; }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--text          { order: 2; }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--levels        { order: 3; }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__display-prefs          { order: 4; }
+  /* Dark-mode label tone: the navy color set above is invisible against the
+     toolbar's dark gradient. Use the same pale-white the display-prefs
+     panel uses for its sublabels so both halves of the toolbar read the
+     same way in dark mode. */
+  .md-board-detail--dark .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section > .md-board-detail-edit-toolbar__section-label,
+  .md-board-detail--dark .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout > .md-board-detail-edit-toolbar__layout-item > .md-board-detail-edit-toolbar__section-label {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  /* Shrink every interior control to ≤28px so the row holds a strict 36px
+     with 4px clearance. Mirrors the display-prefs panel's compact sizing
+     above so both halves of the toolbar feel like one component family. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-board-detail-edit-toolbar__btn,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-board-detail-edit-toolbar__btn {
+    height: 28px;
+    min-height: 28px;
+    padding: 2px 8px;
+  }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-board-detail-edit-toolbar__stepper,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-board-detail-edit-toolbar__stepper {
+    height: 28px;
+  }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-board-detail-edit-toolbar__stepper-btn,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-board-detail-edit-toolbar__stepper-btn {
+    width: 32px;
+    height: 26px;
+    min-width: 32px;
+    min-height: 26px;
+  }
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-settings-icon-btn,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-settings-icon-btn {
+    width: 28px;
+    height: 28px;
+  }
+  /* Override the base icongroup's explicit `height: 44px` with strict 28px
+     so the gray pill hugs the row tightly. */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-settings-icongroup,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-settings-icongroup {
+    height: 28px;
+    padding: 0 2px;
+  }
+  /* Strict 28px on the dropdown trigger (Default font, etc.). */
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section .md-settings-select--trigger,
+  .md-board-detail-edit-toolbar > .md-board-detail-edit-toolbar__section--layout .md-settings-select--trigger {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 32px 0 12px;
+  }
+  /* ── Skin-tones dropdown collapse ── At ≤640px (the same threshold the
+     rest of the toolbar collapses at), hide the inline 9-swatch row and
+     show a single-swatch trigger button instead. The popover anchors to
+     the sublabel-wrap (`position: relative` set on the base
+     `.md-settings-sublabel-wrap--skin` rule) and pops the swatches as a
+     wrapped 3-per-row grid card so all 9 are visible at once.
+     Selectors are scoped to `.md-board-detail-edit-toolbar__display-prefs`
+     so this @media rule has higher specificity (0,3,0) than the base
+     `.md-settings-skin-trigger.md-settings-select--trigger` rule (0,2,0)
+     defined later in the file — without that boost the base would win
+     the cascade due to source order and hide the trigger at mobile too. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-trigger.md-settings-select--trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Right padding reserves space for the chevron SVG that base
+       .md-settings-select draws at `background-position: right 12px center`.
+       Without the 32px right pad, the swatch sits over the chevron and
+       hides it. */
+    padding: 0 32px 0 10px;
+    gap: 6px;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover {
+    display: none;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 101;
+    background: #fff;
+    border: 1px solid rgba($la-navy, 0.18);
+    border-radius: 12px;
+    /* Extra bottom padding (~20px) reserves space for the active-swatch
+       label that absolute-positions below the swatch button. Without it,
+       picking a swatch on the last row pushes the label past the popover
+       border. Top/sides stay at 10px. */
+    padding: 10px 10px 20px;
+    box-shadow: 0 8px 24px rgba($la-navy, 0.18);
+    min-width: 220px;
+    max-width: calc(100vw - 32px);
+  }
+  /* Inside the popover the swatch group must wrap to a 3-per-row grid
+     instead of the desktop single-row pill, so all 9 swatches are visible
+     without horizontal scrolling. Override the strict 28px height the
+     general display-prefs rule above gives the inline group. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    height: auto;
+    padding: 6px;
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  /* Bump the swatch dots back up to 28px inside the popover — the 22px
+     mobile inline-row size is for the cramped row, but the popover has
+     space. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin {
+    width: 28px;
+    height: 28px;
+  }
+  /* Cells in the popover stay layout-invisible (display: contents
+     inherited from the base rule) so the original wrap-flex swatch
+     layout in `.md-settings-skin-group` is preserved exactly. The
+     active cell's label is absolutely positioned so it overlays the
+     layout below the swatch instead of pushing the next row down —
+     when no swatch is selected the row gap is unchanged, and selecting
+     a swatch never reflows the grid. The cell needs `position:
+     relative` ONLY when its swatch is active; otherwise display:
+     contents wins and the cell has no positioning context. We use
+     `:has()` so position:relative also gates on the active state,
+     keeping the rule scoped. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-cell:has(.md-settings-skin--active) {
+    display: inline-block;
+    position: relative;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-cell .md-settings-skin-cell__label {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba($la-navy, 0.85);
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-cell:has(.md-settings-skin--active) .md-settings-skin-cell__label {
+    display: block;
+  }
+  /* The rightmost swatch (mix-prefer) sits flush against the popover's
+     right edge — center-aligning a wide label like "Prefer these"
+     pushes half of it past the rounded border. Anchor the label to the
+     cell's right edge instead so it extends leftward into the popover. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-cell:has(.md-settings-skin--mix-prefer) .md-settings-skin-cell__label {
+    left: auto;
+    right: 0;
+    transform: none;
+    text-align: right;
+  }
+  .md-board-detail--dark .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-cell .md-settings-skin-cell__label {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  /* Suboptions visible inside the popover (they're hidden via display:none
+     on the wrap when the popover is closed). Reset the display-prefs
+     override that gives them flex-basis: 100% — inside the column-flex
+     popover, normal block layout is what we want. */
+  .md-board-detail-edit-toolbar__display-prefs .md-settings-skin-popover--open .md-settings-skin-suboptions {
+    flex-basis: auto;
+    padding: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  /* Dark-mode popover — match the bottom panel's dark surface. */
+  .md-board-detail--dark .md-settings-skin-popover--open {
+    background: #2a3344;
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   }
 }
 /* (Removed: previously a media query at min-width 1201px added 140px of
@@ -55720,12 +56372,20 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: center;
+  /* Flush-left at desktop widths; centered at ≤640px (override below in
+     the @media block) so the History + Categories/Search cluster sits
+     in the middle of the wrapped mobile dock. */
+  justify-content: flex-start;
   gap: 12px;
   /* Allow the group to shrink + grow within the dock so the search
      pill keeps room to breathe. */
   flex: 1 1 auto;
   min-width: 0;
+}
+@media (max-width: 640px) {
+  .md-board-detail-edit-toolbar__actions-group {
+    justify-content: center;
+  }
 }
 /* When no filter cluster is rendered (display-prefs mode), keep the actions
    cluster anchored right instead of centered. */
@@ -56487,6 +57147,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* Mobile skin-tones dropdown — at ≤460px the inline swatch row doesn't fit
+   in the 36px collapse layout, so a single-swatch trigger is rendered
+   instead and the swatches pop as an absolute overlay. At desktop both
+   trigger and popover-wrap are layout-invisible (display: none on the
+   trigger, display: contents on the wrap), so the original inline layout
+   is preserved with no visual change. Skin row's sublabel-wrap gets
+   position: relative so the popover anchors to it. See the mobile
+   positioning rules inside the @media (max-width: 460px) block. */
+.md-settings-sublabel-wrap--skin {
+  position: relative;
+}
+.md-settings-skin-popover {
+  display: contents;
+}
+/* Chained selector — base .md-settings-select--trigger sets
+   `display: inline-flex` with the same specificity as a single class, so
+   chaining beats it without !important. Same approach in the @media
+   override below. */
+.md-settings-skin-trigger.md-settings-select--trigger {
+  display: none;
+}
+.md-settings-skin--trigger-swatch {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba($la-navy, 0.18);
+}
+
 /* Skin tone swatches */
 .md-settings-skin-group {
   display: inline-flex;
@@ -56497,6 +57185,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   box-sizing: border-box;
   border-radius: 10px;
   background: rgba($la-navy, 0.05);
+}
+/* Per-swatch cell wrapper — layout-invisible at desktop so each button
+   sits directly inside the inline-flex skin-group like before. The
+   cell's hidden label is exposed only inside the ≤640px popover, where
+   the cell becomes a flex column showing the label below the active
+   swatch (`:has(.md-settings-skin--active)` rule in the @media block). */
+.md-settings-skin-cell {
+  display: contents;
+}
+.md-settings-skin-cell__label {
+  display: none;
 }
 .md-settings-skin {
   width: 28px;
@@ -56571,6 +57270,22 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 6px;
   padding: 6px 8px 2px;
   flex-wrap: wrap;
+}
+/* Mode label preceding the suboption swatches — clarifies whether the
+   suboptions are restricting the mix ("Only:") or biasing it ("Prefer:"),
+   since the mode is otherwise only readable from which row-above swatch
+   is highlighted. Empty when no mix-* mode is active (the wrap is also
+   not rendered then), so this is purely a layout slot. */
+.md-settings-skin-suboptions__label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: $la-navy;
+  line-height: 1.2;
+  margin-right: 2px;
+}
+.md-board-detail--dark .md-settings-skin-suboptions__label {
+  color: rgba(255, 255, 255, 0.7);
 }
 .md-settings-skin-suboption {
   position: relative;
@@ -59006,7 +59721,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   left: 0;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 1050;
+  /* Below $aac-z-topbar (400) so the navbar always sits above the
+     dropdown when the user scrolls past the trigger. */
+  z-index: 150;
   margin: 0;
   padding: 6px;
   list-style: none;
@@ -59032,12 +59749,169 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transition: background 0.12s ease, color 0.12s ease;
 }
 .bound-select__option:hover,
+.bound-select__option:focus,
 .bound-select__option:focus-visible {
-  background: rgba($brand-verdigris, 0.08);
+  background: rgba($brand-verdigris, 0.10);
   color: $brand-verdigris;
   outline: none;
 }
+/* Stronger ring on keyboard-driven focus so the active option is
+   distinguishable from hover-tinted siblings during arrow-key nav.
+   See docs/styling-recurring-problems.md #11. */
+.bound-select__option:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba($brand-verdigris, 0.55);
+}
 .bound-select__option--selected {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris;
+  font-weight: 600;
+}
+/* Empty-state row inside any dropdown — shared rules covering the
+   bound-select, modern-select, and Bootstrap-style `.dropdown-empty`
+   patterns so every empty dropdown across the app reads as a single
+   modern UX instead of a blank menu. */
+.bound-select__empty,
+.modern-select__empty,
+.dropdown-menu .dropdown-empty,
+.dropdown-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: $brand-slate-gray;
+  font-style: italic;
+  cursor: default;
+  user-select: none;
+  list-style: none;
+}
+.bound-select__empty-icon,
+.modern-select__empty-icon,
+.dropdown-empty .dropdown-empty__icon,
+.dropdown-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: rgba($la-navy, 0.45);
+}
+.bound-select__empty-text,
+.modern-select__empty-text,
+.dropdown-empty .dropdown-empty__text,
+.dropdown-empty__text {
+  line-height: 1.4;
+}
+/* Bootstrap dropdown variant — wraps icon + text in `__inner` so the
+   <li>'s flex layout doesn't fight Bootstrap's anchor styling. */
+.dropdown-menu .dropdown-empty .dropdown-empty__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  width: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Base .modern-select rules — light theme.
+   The component had only scoped rules (`.la-new-board-modal-wrap`,
+   `.md-modal-modern-select`) — anywhere else (e.g. /user_name/edit
+   "Login Role" dropdown) it fell through to no styles or inherited
+   dark-mode bleed. These base rules give every modern-select a
+   consistent light pill + popover appearance and ensure the dropdown
+   list breaks out of its container instead of being clipped.
+   ────────────────────────────────────────────────────────────────── */
+.modern-select {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.modern-select__trigger {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 40px 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $la-navy;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235A6A85' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.modern-select__trigger:hover {
+  border-color: rgba($la-navy, 0.28);
+}
+.modern-select__trigger:focus,
+.modern-select__trigger:focus-visible,
+.modern-select--open .modern-select__trigger {
+  border-color: $brand-verdigris;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+}
+.modern-select__trigger-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modern-select__trigger-text--placeholder {
+  color: $brand-slate-gray;
+  font-style: italic;
+  font-weight: 500;
+}
+.modern-select__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  /* Below $aac-z-topbar (400) so the navbar / topbar always sits
+     above the dropdown when the user scrolls. Also below modal
+     overlays ($aac-z-modal: 200 — but modals declare their own
+     stacking context, so cross-stack ordering doesn't apply). */
+  z-index: 150;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  box-shadow:
+    0 10px 28px rgba($la-navy, 0.18),
+    0 2px 8px rgba($la-navy, 0.10);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.modern-select__option {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.modern-select__option:hover,
+.modern-select__option:focus,
+.modern-select__option:focus-visible {
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris;
+  outline: none;
+}
+/* Stronger ring on keyboard-driven focus so it's visually obvious
+   which single option is currently selected during arrow-key
+   navigation (without relying solely on the bg tint, which already
+   doubles as the hover state). */
+.modern-select__option:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba($brand-verdigris, 0.55);
+}
+.modern-select__option--selected {
   background: rgba($brand-verdigris, 0.14);
   color: $brand-verdigris;
   font-weight: 600;
@@ -64828,3 +65702,399 @@ blockquote small {
 #speak.md-eval-header #speak_mode_notification {
   display: none !important;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Universal modal styling — applies to every modal in the app.
+   Each per-modal rule above can still customize its inner content,
+   but these globals enforce a consistent 28px header/footer vertical
+   padding and the brand three-stop gradient skin on a light surface.
+   Defined at the very end of the file so source-order beats the
+   per-modal `.la-*-wrap > .modal-header` rules at the same
+   specificity (0,2,0).
+   `la-modal-header` is intentionally excluded — it lives on the
+   landing-alt page, not a modal.
+   ────────────────────────────────────────────────────────────────── */
+.modal-content > .modal-header,
+.modal .modal-header,
+.modal .md-modal-header,
+.modal .md-getting-started-modal__header,
+.modal .la-modal-header {
+  padding-top: 28px;
+  padding-bottom: 28px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)), $surface-100;
+}
+.modal-content > .modal-footer,
+.modal .modal-footer,
+.modal .md-modal-footer,
+.modal .la-assign-lesson-modal-footer,
+.modal .la-colors-modal-footer,
+.modal .la-devices-modal-footer,
+.modal .la-modify-core-modal-footer,
+.modal .la-new-board-modal-footer,
+.modal .la-phrases-modal-footer,
+.modal .la-record-note-modal-footer,
+.modal .la-sync-details-modal-footer,
+.modal .la-valet-modal-footer {
+  padding-top: 28px;
+  padding-bottom: 28px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)), $surface-100;
+}
+
+/* Bound-select dropdown lists inside any modal switch from the
+   default `position: absolute` to `position: static` so opening a
+   dropdown grows the modal-body to contain it (instead of floating
+   the list past the modal's bottom edge). The list's existing
+   chrome — rounded card, shadow, internal max-height scroll — is
+   preserved. */
+.modal-content .bound-select__list,
+.modal .bound-select__list {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 6px;
+}
+
+/* Add-app modal footer Close button (the .md-modal-btn--cancel button
+   in the modal footer, not the small X in the header). Scoped via
+   `:has(.md-modal-app-stores)` so the rule only applies to the
+   add-app modal — the app-stores grid is unique to that template.
+   Solid $brand-slate-blue fill — matches the about-lingolinq Learn
+   More button so the two cross-modal CTAs read as one family. */
+.modal-content:has(.md-modal-app-stores) .md-modal-btn--cancel,
+.modal-content:has(.md-modal-app-stores) .md-modal-btn--cancel:hover,
+.modal-content:has(.md-modal-app-stores) .md-modal-btn--cancel:focus,
+.modal-content:has(.md-modal-app-stores) .md-modal-btn--cancel:focus-visible,
+.modal-content:has(.md-modal-app-stores) .md-modal-btn--cancel:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* About-LingoLinq modal "Learn More" link (.md-modal-btn--primary <a>
+   in the modal body). Scoped via `:has(.usage-checklist)` so the rule
+   only applies to the about-lingolinq modal — the usage checklist is
+   unique to that template. Solid $brand-slate-blue fill — slightly
+   muted compared to the add-app close button's denim, distinguishing
+   primary actions in this modal as more secondary in tone. */
+.modal-content:has(.usage-checklist) .md-modal-btn--primary,
+.modal-content:has(.usage-checklist) .md-modal-btn--primary:hover,
+.modal-content:has(.usage-checklist) .md-modal-btn--primary:focus,
+.modal-content:has(.usage-checklist) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.usage-checklist) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Add-supervisor modal primary action (Add Supervisor / Send Consent
+   Request / Add From Start Code — all use .md-modal-btn--primary).
+   Scoped via `:has(.md-add-supervisor)` so the rule only applies to
+   the add-supervisor modal. Solid $brand-slate-blue fill matches the
+   other primary CTA restyles. */
+.modal-content:has(.md-add-supervisor) .md-modal-btn--primary,
+.modal-content:has(.md-add-supervisor) .md-modal-btn--primary:hover,
+.modal-content:has(.md-add-supervisor) .md-modal-btn--primary:focus,
+.modal-content:has(.md-add-supervisor) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.md-add-supervisor) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Add-to-Sidebar modal primary action (Add to Sidebar / Adding...).
+   Scoped via `:has(.md-add-to-sidebar)` — the marker class added to
+   the modal-body in the template. Same $brand-slate-blue fill as the
+   other primary CTAs. */
+.modal-content:has(.md-add-to-sidebar) .md-modal-btn--primary,
+.modal-content:has(.md-add-to-sidebar) .md-modal-btn--primary:hover,
+.modal-content:has(.md-add-to-sidebar) .md-modal-btn--primary:focus,
+.modal-content:has(.md-add-to-sidebar) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.md-add-to-sidebar) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Supervisors modal "Add Supervisor" button — uses .md-btn--primary
+   from the supervision-settings component (inline mode), not
+   .md-modal-btn--primary. Scoped via .md-dashboard-supervisors-modal-wrap
+   so other usages of md-btn--primary across the app are unaffected.
+   Same $brand-slate-blue fill as the other primary CTA restyles. */
+.md-dashboard-supervisors-modal-wrap .md-btn--primary,
+.md-dashboard-supervisors-modal-wrap .md-btn--primary:hover,
+.md-dashboard-supervisors-modal-wrap .md-btn--primary:focus,
+.md-dashboard-supervisors-modal-wrap .md-btn--primary:focus-visible,
+.md-dashboard-supervisors-modal-wrap .md-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Approve-Board-Share modal "Approve This Share" button — uses
+   .md-modal-btn--primary. Scoped via `:has(.md-approve-board-share)`
+   (marker class on the modal-body) so other primary buttons across
+   the app aren't affected. Same $brand-slate-blue fill as the rest
+   of the primary CTA family. */
+.modal-content:has(.md-approve-board-share) .md-modal-btn--primary,
+.modal-content:has(.md-approve-board-share) .md-modal-btn--primary:hover,
+.modal-content:has(.md-approve-board-share) .md-modal-btn--primary:focus,
+.modal-content:has(.md-approve-board-share) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.md-approve-board-share) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Assessment-settings (Eval Settings) modal Update/Save button —
+   uses .md-modal-btn--primary. Scoped via `:has(.md-assessment-settings)`
+   (marker class on the modal-body). Same $brand-slate-blue fill as
+   the rest of the primary CTA family. */
+.modal-content:has(.md-assessment-settings) .md-modal-btn--primary,
+.modal-content:has(.md-assessment-settings) .md-modal-btn--primary:hover,
+.modal-content:has(.md-assessment-settings) .md-modal-btn--primary:focus,
+.modal-content:has(.md-assessment-settings) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.md-assessment-settings) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Badge-Awarded modal "New Goal" button — uses .md-modal-btn--primary.
+   Scoped via `:has(.md-badge-awarded)` so only this modal is affected.
+   Same $brand-slate-blue fill as the rest of the primary CTA family. */
+.modal-content:has(.md-badge-awarded) .md-modal-btn--primary,
+.modal-content:has(.md-badge-awarded) .md-modal-btn--primary:hover,
+.modal-content:has(.md-badge-awarded) .md-modal-btn--primary:focus,
+.modal-content:has(.md-badge-awarded) .md-modal-btn--primary:focus-visible,
+.modal-content:has(.md-badge-awarded) .md-modal-btn--primary:active {
+  background-color: $brand-slate-blue !important;
+  background-image: none !important;
+  color: #fff !important;
+}
+
+/* Badge-Awarded modal — modern empty state shown when the modal opens
+   without any badge data (e.g. via the dev console for testing).
+   Friendly trophy + encouragement copy instead of a blank body. */
+.md-badge-awarded__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px 24px;
+  gap: 14px;
+}
+.md-badge-awarded__empty-medal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba($brand-honey-bronze, 0.18), rgba($brand-verdigris, 0.18));
+  color: $brand-verdigris-aa;
+  box-shadow:
+    0 4px 14px rgba($la-navy, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.md-badge-awarded__empty-sparkle {
+  position: absolute;
+  font-size: 16px;
+  color: $brand-honey-bronze;
+  text-shadow: 0 1px 2px rgba($la-navy, 0.12);
+  pointer-events: none;
+  animation: md-badge-empty-sparkle 2.4s ease-in-out infinite;
+}
+.md-badge-awarded__empty-sparkle--1 {
+  top: -2px;
+  right: 6px;
+  font-size: 14px;
+  animation-delay: 0s;
+}
+.md-badge-awarded__empty-sparkle--2 {
+  bottom: 4px;
+  left: -4px;
+  font-size: 18px;
+  animation-delay: 0.6s;
+}
+.md-badge-awarded__empty-sparkle--3 {
+  top: 30%;
+  right: -8px;
+  font-size: 12px;
+  animation-delay: 1.2s;
+}
+@keyframes md-badge-empty-sparkle {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.25); }
+}
+.md-badge-awarded__empty-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: $la-navy;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+.md-badge-awarded__empty-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: $brand-slate-gray;
+  max-width: 380px;
+}
+/* Inline status / error rows for the Badges and Goals view — replaces
+   raw "Error Loading Badges" / "Error Loading Goals" lines with soft
+   pill cards that read as a friendly, momentary state instead of a
+   harsh failure. */
+.md-badge-awarded__inline-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-style: italic;
+  color: $brand-slate-gray;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  line-height: 1.4;
+}
+.md-badge-awarded__inline-status--error {
+  background: rgba($brand-honey-bronze, 0.10);
+  border-color: rgba($brand-honey-bronze, 0.28);
+  color: $brand-charcoal-dark;
+  font-style: normal;
+}
+.md-badge-awarded__inline-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: $brand-honey-bronze;
+}
+
+/* Extra top padding on the approve-board-share modal-body so the
+   centered share icon has more breathing room from the header
+   gradient above. */
+.md-approve-board-share {
+  padding-top: 32px !important;
+}
+.md-approve-board-share .md-modal-icon-row {
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+/* Add-tool modal empty state — replaces the bare "No tools available"
+   line with a centered icon + heading + friendly message inviting the
+   user to check back later. */
+.md-add-tool-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px;
+  gap: 12px;
+}
+.md-add-tool-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
+}
+.md-add-tool-empty__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: $la-navy;
+  letter-spacing: -0.2px;
+}
+.md-add-tool-empty__message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $brand-slate-gray;
+  max-width: 380px;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   User-select buttons — modern card chrome.
+   Replaces the legacy heavy inset shadow with a flat rounded card,
+   vertically-centered content, and a soft hover lift. Used by the
+   add-to-sidebar / supervisee picker modal and any other user-pick UI.
+   The avatar swap below pulls the modern brand-teal SVG silhouette
+   in place of the legacy /avatars/avatar-N.png cartoons (same SVG
+   data-URI used by the caseload avatar so both contexts read as
+   one component family).
+   ────────────────────────────────────────────────────────────────── */
+.modal-content .user_select.btn,
+.user-select-modern .user_select.btn {
+  display: inline-flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba($la-navy, 0.10) !important;
+  background: $surface-100 !important;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.04),
+    0 4px 12px rgba($la-navy, 0.06) !important;
+  color: $la-navy !important;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.modal-content .user_select.btn:hover,
+.user-select-modern .user_select.btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba($brand-verdigris, 0.35) !important;
+  box-shadow:
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 20px rgba($la-navy, 0.10) !important;
+}
+.modal-content .user_select.btn-info,
+.user-select-modern .user_select.btn-info {
+  /* Selected state: subtle verdigris ring + soft tint, not the harsh
+     bootstrap btn-info blue. */
+  background: rgba($brand-verdigris, 0.08) !important;
+  border-color: rgba($brand-verdigris, 0.55) !important;
+  box-shadow:
+    0 0 0 3px rgba($brand-verdigris, 0.15),
+    0 4px 12px rgba($la-navy, 0.08) !important;
+  color: $la-navy !important;
+}
+.modal-content .user_select.btn:disabled,
+.user-select-modern .user_select.btn:disabled {
+  opacity: 0.5;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04) !important;
+  cursor: not-allowed;
+  transform: none;
+}
+.modal-content .user_select.btn img,
+.user-select-modern .user_select.btn img {
+  display: block;
+  height: 60px !important;
+  width: 60px !important;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 !important;
+}
+/* Replace `<br>` whitespace runs with explicit margin so the typography
+   sits cleanly under the avatar. */
+.modal-content .user_select.btn br,
+.user-select-modern .user_select.btn br {
+  display: none;
+}
+
+/* Avatar swap intentionally NOT applied here — per design decision,
+   the user-select buttons in modals keep the legacy
+   /avatars/avatar-N.png placeholders rather than the modern brand-teal
+   SVG silhouette used by the caseload/identity dropdown. */
