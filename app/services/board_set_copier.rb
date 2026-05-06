@@ -35,9 +35,10 @@ class BoardSetCopier
       # Seed the mapper with the already-existing starting board copy
       @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
 
-      # Phase 1: Collect downstream board IDs and copy them
-      board_ids = @starting_old.downstream_board_ids || []
-      board_ids = board_ids & @opts[:valid_ids] if @opts[:valid_ids]
+      # Phase 1: Collect downstream board IDs and copy them. When the UI sends
+      # explicit selections, trust those instead of intersecting with cached
+      # downstream_board_ids; that cache can lag behind live folder buttons.
+      board_ids = selected_board_ids || (@starting_old.downstream_board_ids || [])
       total = board_ids.size
       Rails.logger.info("[copy_perf] BoardSetCopier#copy_and_relink starting for #{@starting_old.global_id} -> #{@starting_new.global_id} (#{total} downstream boards)")
 
@@ -187,6 +188,13 @@ class BoardSetCopier
     end
 
     board_ids
+  end
+
+  def selected_board_ids
+    return nil unless @opts[:valid_ids]
+
+    ids = Board.find_all_by_path(@opts[:valid_ids]).map(&:global_id)
+    ids.uniq - [@starting_old.global_id]
   end
 
   def index_board_links(board)

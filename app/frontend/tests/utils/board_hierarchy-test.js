@@ -71,6 +71,46 @@ describe('boardHierarchy', function() {
     expect(bh.get('root.children')[0].get('open')).toEqual(true);
     expect(bh.get('root.children')[0].get('children')[0].get('open')).toEqual(undefined);
   });
+  it('should use the board global id when the record id is a key', function() {
+    var bs = LingoLinq.store.createRecord('buttonset', {
+      buttons: [
+        {board_id: '1_123', linked_board_id: '1_234', linked_board_key: 'asdf/child'},
+        {board_id: '1_234'},
+      ]
+    });
+    var brd = LingoLinq.store.createRecord('board', {
+      id: 'asdf/root',
+      _actual_id: '1_123',
+      key: 'asdf/root',
+      downstream_board_ids: ['1_234']
+    });
+    var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {}});
+    expect(bh.get('root.id')).toEqual('1_123');
+    expect(bh.get('root.children.length')).toEqual(1);
+    expect(bh.get('root.children')[0].get('id')).toEqual('1_234');
+    expect(bh.get('boards_missing')).toEqual(false);
+  });
+  it('should use live board links when the button set root links are missing', function() {
+    var bs = LingoLinq.store.createRecord('buttonset', {
+      buttons: [
+        {board_id: '1_234'}
+      ]
+    });
+    var brd = LingoLinq.store.createRecord('board', {
+      id: 'asdf/root',
+      _actual_id: '1_123',
+      key: 'asdf/root',
+      buttons: [
+        {id: 1, load_board: {id: '1_234', key: 'asdf/child'}}
+      ],
+      downstream_board_ids: ['1_234']
+    });
+    var bh = BoardHierarchy.create({board: brd, button_set: bs, options: {}});
+    expect(bh.get('root.id')).toEqual('1_123');
+    expect(bh.get('root.children.length')).toEqual(1);
+    expect(bh.get('root.children')[0].get('id')).toEqual('1_234');
+    expect(bh.get('root.children')[0].get('key')).toEqual('asdf/child');
+  });
   describe('options', function() {
     it('should apply options.deselect_on_different', function() {
       var bs = LingoLinq.store.createRecord('buttonset', {

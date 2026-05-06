@@ -2327,6 +2327,31 @@ describe('editManager', function() {
       runs();
     });
 
+    it("should create a copy using the source board global id as parent", function() {
+      stub(modal, 'flash', function() { });
+      var b = LingoLinq.store.createRecord('board', {
+        id: 'example/fred',
+        _actual_id: '1_1',
+        key: 'example/fred',
+        buttons: [],
+        grid: {}
+      });
+      var found = false;
+      queryLog.defineFixture({
+        method: 'POST',
+        type: 'board',
+        response: RSVP.reject({stub: true}),
+        compare: function(object) {
+          found = true;
+          expect(object.get('parent_board_id')).toEqual('1_1');
+          return true;
+        }
+      });
+      editManager.copy_board(b).then(null, function() { });
+      waitsFor(function() { return found; });
+      runs();
+    });
+
     it("should preserve existing links if specified", function() {
       stub(modal, 'flash', function() { });
       var model = {

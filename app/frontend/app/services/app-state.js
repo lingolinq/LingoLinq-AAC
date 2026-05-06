@@ -1220,9 +1220,7 @@ export default Service.extend({
   resolve_board_from_controller: function() {
     var c = this.controller;
     if(!c || typeof c.get !== 'function') { return null; }
-    var board = c.get('board.model');
-    if(board) { return board; }
-    var routeName = this.get('router.currentRouteName') || '';
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
     if(routeName.indexOf('board-detail') !== -1) {
       var owner = getOwner(this);
       if(owner) {
@@ -1236,6 +1234,8 @@ export default Service.extend({
         }
       }
     }
+    var board = c.get('board.model');
+    if(board) { return board; }
     return null;
   },
   /**
@@ -1295,16 +1295,18 @@ export default Service.extend({
     if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
-    this.assert_source().then(function() {
-      if(!_this.get('controller.board.model.permissions.edit')) {
-        modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+    this.assert_source().then(function(board) {
+      if(!board.get('permissions.edit')) {
+        modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
-            _this.toggle_mode('edit', {copy_on_save: true});
+            _this.controller.send('copy_and_edit_board', board, onBoardDetail);
           }
         });
         return;
-      } else if(decision == null && !_this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
-        modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
+      } else if(decision == null && !_this.get('edit_mode') && board.get('could_be_in_use')) {
+        modal.open('confirm-edit-board', {board: board}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
           }

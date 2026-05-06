@@ -18,6 +18,7 @@ var BoardHierarchy = EmberObject.extend({
     var any_meta = (button_set.get('buttons') || []).find(function(b) { return b.meta_home_id; });
     var traversed_boards = {};
     var all_boards = [];
+    var root_board_id = board.get('global_id') || board.get('id');
     var traverse_board = function(board_id, board_key) {
       downstreams[board_id] = true;
       var hierarchy_board = EmberObject.create({
@@ -61,6 +62,17 @@ var BoardHierarchy = EmberObject.extend({
       });
       hierarchy_board.set('visible', !!(button_set.get('buttons') || []).find(function(b) { return b.board_id == board_id; }));
       var linked_buttons = (button_set.get('buttons') || []).filter(function(b) { return b.board_id == board_id && b.linked_board_id; });
+      if(linked_buttons.length == 0 && board_id == root_board_id) {
+        linked_buttons = (board.get('linked_boards') || []).map(function(linked_board) {
+          return {
+            board_id: board_id,
+            linked_board_id: linked_board.id,
+            linked_board_key: linked_board.key
+          };
+        }).filter(function(linked_board) {
+          return linked_board.linked_board_id && linked_board.linked_board_key;
+        });
+      }
       linked_buttons.forEach(function(btn) {
         var linked_board = traversed_boards[btn.linked_board_id];
         if(!linked_board) {
@@ -94,7 +106,7 @@ var BoardHierarchy = EmberObject.extend({
       });
       return hierarchy_board;
     };
-    var root_board = traverse_board(board.get('id'), board.get('key'));
+    var root_board = traverse_board(root_board_id, board.get('key'));
     if(this.get('options.expand_all')) {
       all_boards.forEach(function(brd) {
         if((brd.get('children') || []).length > 0) {

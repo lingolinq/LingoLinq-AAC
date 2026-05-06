@@ -1371,7 +1371,8 @@ export default Controller.extend(prefClasses, {
     if(!btn) { return 'default'; }
     var load_board = btn.get ? btn.get('load_board') : btn.load_board;
     var folder_action = btn.get ? btn.get('folderAction') : btn.folderAction;
-    if(load_board || folder_action) {
+    var link_disabled = btn.get ? btn.get('link_disabled') : btn.link_disabled;
+    if((load_board && !link_disabled) || folder_action) {
       return 'folder';
     }
     var pos = (btn.get ? btn.get('part_of_speech') : btn.part_of_speech) ||
@@ -1636,7 +1637,7 @@ export default Controller.extend(prefClasses, {
       if(!btn) { return; }
       if(_get(btn, 'empty') || _get(btn, 'hidden')) { return; }
       // Skip folder buttons — phrase builder is for words only
-      if(_get(btn, 'load_board')) { return; }
+      if(_get(btn, 'load_board') && !_get(btn, 'link_disabled')) { return; }
       var label = (_get(btn, 'label') || _get(btn, 'vocalization') || '').toString().trim();
       if(!label) { return; }
       var key = label.toLowerCase();
@@ -1755,7 +1756,7 @@ export default Controller.extend(prefClasses, {
       raw_board.buttons.forEach(function(btn) {
         if(!btn) { return; }
         if(btn.hidden) { return; }
-        if(btn.load_board || btn.linked_board_id || btn.linked_board_key) { return; }
+        if((btn.load_board && !btn.link_disabled) || btn.linked_board_id || btn.linked_board_key) { return; }
         var label = (btn.label || btn.vocalization || '').toString().trim();
         if(!label) { return; }
         var key = label.toLowerCase();
@@ -1806,7 +1807,7 @@ export default Controller.extend(prefClasses, {
       (raw_board.buttons || []).forEach(function(btn) {
         if(!btn) { return; }
         var load_board = btn.load_board;
-        if(!load_board) { return; }
+        if(!load_board || btn.link_disabled) { return; }
         var next_key = load_board.key;
         var next_id = load_board.id;
         var lookup = next_key || next_id;
@@ -2731,23 +2732,42 @@ export default Controller.extend(prefClasses, {
             enterEditNow();
             return;
           }
-          // Non-owner path: if the board is publicly copyable, prompt
-          // the user to confirm a copy. On confirm we set the
-          // `copy_on_save` stash flag — saveButtonChanges already
-          // delegates to the application's `tweakBoard` action when the
-          // flag is set, which handles the actual board copy + jump
-          // (see controllers/application.js:tweakBoard +
-          // copy_board). On cancel we do nothing.
+          // Non-owner path: copy first, then edit the user's copy. Deferring
+          // copy until save can leave folder links pointing back to the source set.
           var session_user = _this.get('app_state.sessionUser');
           var copyable = !_this.get('model.uncopyable') && !_this.get('model.for_sale');
           if(session_user && copyable) {
             modal.open('confirm-needs-copying', { board: _this.get('model') }).then(function(confirmRes) {
               if(confirmRes === 'confirm') {
-                var board_id = _this.get('model.id') || _this.get('model.global_id') || _this.get('app_state.currentBoardState.id');
-                if(board_id) {
-                  _this.get('stashes').persist('copy_on_save', board_id);
+                var appController = _this.get('app_state.controller');
+                if(!appController || typeof appController.copy_board !== 'function') {
+                  appController = getOwner(_this).lookup('controller:application');
                 }
-                enterEditNow();
+                if(!appController || typeof appController.copy_board !== 'function') {
+                  modal.error(i18n.t('app_not_ready', "App is not ready. Please try again."));
+                  return;
+                }
+                var source_board = _this.get('model');
+                var finish_copy = function(copied_board) {
+                  if(!copied_board || _this.isDestroyed || _this.isDestroying) { return; }
+                  var copied_key = copied_board.get ? copied_board.get('key') : copied_board.key;
+                  if(!copied_key) { return; }
+                  var parts = copied_key.split(/\//);
+                  var user_name = parts.shift();
+                  var board_name = parts.join('/');
+                  _this.get('stashes').persist('copy_on_save', null);
+                  _this.get('router').transitionTo('user.board-detail.edit', user_name, board_name);
+                };
+                RSVP.resolve(source_board).then(function(copy_board) {
+                  return modal.open('copy-board', {
+                    board: copy_board,
+                    original_board: copy_board === source_board ? null : source_board,
+                    for_editing: true
+                  });
+                }).then(function(opts) {
+                  if(opts === false) { return RSVP.resolve(); }
+                  return appController.copy_board(opts, true, null, finish_copy);
+                }).then(finish_copy, function() { });
               }
             }, function() { });
             return;
@@ -3427,7 +3447,7 @@ export default Controller.extend(prefClasses, {
 
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
-      if(load_board) {
+      if(load_board && !_get(button, 'link_disabled')) {
         // Board lock: prevent navigation when sticky_board is enabled
         if(_this.get('stashes').get('sticky_board')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
@@ -4267,7 +4287,7 @@ export default Controller.extend(prefClasses, {
               var btn = row[ci];
               if(!btn) { continue; }
               var is_empty = btn.get ? btn.get('empty') : btn.empty;
-              var is_folder = btn.get ? btn.get('load_board') : btn.load_board;
+              var is_folder = (btn.get ? btn.get('load_board') : btn.load_board) && !(btn.get ? btn.get('link_disabled') : btn.link_disabled);
               var label = btn.get ? btn.get('label') : btn.label;
               if(is_empty || is_folder || !label) { continue; }
               var btn_id = btn.get ? btn.get('id') : btn.id;
@@ -4316,7 +4336,7 @@ export default Controller.extend(prefClasses, {
                   var b = row2[ci2];
                   if(!b) { continue; }
                   var bEmpty = (b.get && b.get('empty')) || b.empty;
-                  var bFolder = (b.get && b.get('load_board')) || b.load_board;
+                  var bFolder = ((b.get && b.get('load_board')) || b.load_board) && !((b.get && b.get('link_disabled')) || b.link_disabled);
                   var bBg = (b.get && b.get('background_color')) || b.background_color;
                   if(bEmpty || bFolder || !bBg) { continue; }
                   var bId = (b.get && b.get('id')) || b.id;
@@ -4407,7 +4427,7 @@ export default Controller.extend(prefClasses, {
             var btn = row[ci];
             if(!btn) { continue; }
             var is_empty = (btn.get && btn.get('empty')) || btn.empty;
-            var is_folder = (btn.get && btn.get('load_board')) || btn.load_board;
+            var is_folder = ((btn.get && btn.get('load_board')) || btn.load_board) && !((btn.get && btn.get('link_disabled')) || btn.link_disabled);
             var bg = (btn.get && btn.get('background_color')) || btn.background_color;
             if(is_empty || is_folder || !bg) { continue; }
             var btn_id = (btn.get && btn.get('id')) || btn.id;

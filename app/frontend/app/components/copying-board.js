@@ -90,18 +90,20 @@ export default Component.extend({
     }
     board.set('downstream_board_ids_to_copy', board_ids_to_include);
     const _this = this;
+    const model = this.get('model') || {};
+    const modalSvc = this.get('modal');
+    const appState = this.get('appState');
     board.set('default_locale', null);
-    if (this.get('model.default_locale') && board.get('locale') !== this.get('model.default_locale')) {
-      board.set('default_locale', this.get('model.default_locale'));
+    if (model.default_locale && board.get('locale') !== model.default_locale) {
+      board.set('default_locale', model.default_locale);
     }
-    console.debug('[copying-board] starting copy_board', _this.get('model.action'));
-    editManager.copy_board(board, _this.get('model.action'), _this.get('model.user'), _this.get('model.make_public'), _this.get('model.symbol_library'), _this.get('model.new_owner'), _this.get('model.disconnect')).then(function(copiedBoard) {
+    console.debug('[copying-board] starting copy_board', model.action);
+    editManager.copy_board(board, model.action, model.user, model.make_public, model.symbol_library, model.new_owner, model.disconnect).then(function(copiedBoard) {
       console.debug('[copying-board] copy_board resolved', copiedBoard && copiedBoard.get && copiedBoard.get('id'));
-      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
       let next = RSVP.resolve();
       const new_board_ids = board_ids_to_include ? copiedBoard.get('new_board_ids') : null;
-      if (_this.get('model.shares') && _this.get('model.shares').length > 0) {
-        _this.get('model.shares').forEach(function(share) {
+      if (model.shares && model.shares.length > 0) {
+        model.shares.forEach(function(share) {
           next = next.then(function() {
             const user_name = share.user_name;
             copiedBoard.set('sharing_key', 'add_deep-' + user_name);
@@ -113,13 +115,13 @@ export default Component.extend({
         });
       }
       next = next.then(function() {
-        if (_this.get('model.translate_locale')) {
+        if (model.translate_locale) {
           return board.load_button_set(true).then(function() {
             const translate_opts = {
               board: board,
               copy: copiedBoard,
               button_set: board.get('button_set'),
-              locale: _this.get('model.translate_locale'),
+              locale: model.translate_locale,
               old_board_ids_to_translate: board_ids_to_include,
               new_board_ids_to_translate: new_board_ids
             };
@@ -139,15 +141,13 @@ export default Component.extend({
         return RSVP.resolve(null);
       });
       next.then(function(res) {
-        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
-        const modalSvc = _this.get('modal');
         const translatedResult = !!(res && res.translated === true);
         const copyingOpen =
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen || translatedResult) {
           copiedBoard.set('should_reload', true);
-          _this.get('appState').jump_to_board({
+          appState.jump_to_board({
             id: copiedBoard.get('id'),
             key: copiedBoard.get('key')
           });
@@ -156,15 +156,17 @@ export default Component.extend({
             modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           }
         } else {
-          modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
+          if (model.copy_finished) {
+            model.copy_finished(copiedBoard);
+          } else {
+            modal.notice(i18n.t('copy_created', 'Copy created! You can find the new board in your profile.'));
+          }
         }
       }, function(err) {
-        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
-        const modalSvc = _this.get('modal');
         const copyingOpen =
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
-        if (copyingOpen) {
+        if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
           _this.set('error', err);
         } else {
           modal.error(err);
@@ -172,12 +174,10 @@ export default Component.extend({
       });
     }, function(err) {
       console.debug('[copying-board] copy_board rejected', err);
-      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
-      const modalSvc = _this.get('modal');
       const copyingOpen =
         modal.is_open('copying-board') ||
         (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
-      if (copyingOpen) {
+      if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
         _this.set('error', err);
       } else {
         modal.error(err);

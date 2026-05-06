@@ -27,6 +27,7 @@
       {{/if}}
     {{else}}
       <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}} </p>
+      <p>{{t "You can close this window and the copy will continue in the background." key="copy_continues_if_closed"}}</p>
     {{/if}}
   </div>
   <div class="modal-footer">

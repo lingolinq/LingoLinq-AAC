@@ -179,11 +179,42 @@ export default Controller.extend({
       }
     }
   },
-  copy_board: function(decision, for_editing, selected_user_name) {
+  copy_source_board: function(board) {
+    var fallback = RSVP.resolve(board);
+    if(!board) { return fallback; }
+    var board_id = board.get('id');
+    var board_global_id = board.get('global_id');
+    var board_key = board.get('key');
+    var current = this.appState.get('currentBoardState') || {};
+    var current_matches_board = current.id == board_id || current.id == board_global_id || current.key == board_key;
+    var root_state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
+    var root_id = root_state && root_state.id;
+    var root_key = root_state && root_state.key;
+    var root_ref = null;
+
+    if(current_matches_board && root_state && (root_id || root_key) && root_id != board_id && root_id != board_global_id && root_key != board_key) {
+      root_ref = root_key || root_id;
+    }
+
+    if(!root_ref) {
+      return fallback;
+    }
+
+    return LingoLinq.store.findRecord('board', root_ref).then(function(root_board) {
+      if(root_board && root_board.get('id') != board_id) {
+        root_board.set('copy_source_from_board', board);
+        return root_board;
+      }
+      return board;
+    }, function() {
+      return board;
+    });
+  },
+  copy_board: function(decision, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution) {
     if(!this || !this.get('persistence')) {
       return RSVP.reject();
     }
-    var oldBoard = this.get('board').get('model');
+    var oldBoard = source_board || (decision && decision.copy_board_source) || this.get('board').get('model');
     if(!this.get('persistence').get('online')) {
       modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
       return RSVP.reject();
@@ -213,8 +244,16 @@ export default Controller.extend({
     needs_decision = true;
 
     if(!decision && needs_decision) {
-      return modal.open('copy-board', {board: oldBoard, for_editing: for_editing, selected_user_name: selected_user_name}).then(function(opts) {
-        return _this.copy_board(opts, for_editing);
+      var source = skip_source_resolution ? RSVP.resolve(oldBoard) : this.copy_source_board(oldBoard);
+      return source.then(function(copyBoard) {
+        return modal.open('copy-board', {
+          board: copyBoard,
+          original_board: copyBoard === oldBoard ? null : oldBoard,
+          for_editing: for_editing,
+          selected_user_name: selected_user_name
+        });
+      }).then(function(opts) {
+        return _this.copy_board(opts, for_editing, null, copy_finished);
       });
     }
     decision = decision || {};
@@ -232,7 +271,8 @@ export default Controller.extend({
       default_locale: decision.default_locale, 
       translate_locale: decision.translate_locale,
       disconnect: decision.disconnect,
-      new_owner: decision.new_owner
+      new_owner: decision.new_owner,
+      copy_finished: copy_finished
     });
   },
   board_levels: computed(function () {
@@ -1041,20 +1081,21 @@ export default Controller.extend({
         modal.open('share-board', {board: _this.get('board.model')});
       }, function() { }); 
     },
-    copy_and_edit_board: function() {
+    copy_and_edit_board: function(source_board, skip_source_resolution) {
       var _this = this;
+      var edit_copy = function(board) {
+        if(board) {
+          _this.appState.jump_to_board({
+            id: board.id,
+            key: board.key
+          });
+          runLater(function() {
+            if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
+          });
+        }
+      };
       this.appState.check_for_needing_purchase().then(function() {
-        _this.copy_board(null, true).then(function(board) {
-          if(board) {
-            _this.appState.jump_to_board({
-              id: board.id,
-              key: board.key
-            });
-            runLater(function() {
-              if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
-            });
-          }
-        }, function() { });
+        _this.copy_board(null, true, null, edit_copy, source_board, skip_source_resolution).then(edit_copy, function() { });
       }, function() { });
     },
     tweakBoard: function(decision) {
