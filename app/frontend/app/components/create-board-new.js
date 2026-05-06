@@ -1051,7 +1051,12 @@ export default Component.extend({
   _sanitize_label: function(raw) {
     if(raw == null) { return ''; }
     var s = ('' + raw);
-    s = s.replace(/[\x00-\x1F\x7F]/g, ' ');
+    var sanitized = '';
+    for(var i = 0; i < s.length; i++) {
+      var code = s.charCodeAt(i);
+      sanitized += ((code >= 0 && code <= 31) || code === 127) ? ' ' : s.charAt(i);
+    }
+    s = sanitized;
     s = s.replace(/<[^>]*>/g, '');
     s = s.replace(/^[=+\-@\t\r ]+/, '');
     s = s.trim();

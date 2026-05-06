@@ -60736,7 +60736,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-quick-assess-stepper__btn:hover {
   background: rgba($la-navy, 0.08);
-  color: darken($la-navy, 6%);
+  color: color.adjust($la-navy, $lightness: -6%);
 }
 .md-quick-assess-stepper__btn:active {
   background: rgba($la-navy, 0.12);
@@ -61667,7 +61667,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    "informational tag, not an interactive control". Backgrounds
    toned down ~25% from the prior pass. */
 .md-caseload__access-badge--edit {
-  color: darken($brand-navy, 4%); /* darker variant of #120380 */
+  color: color.adjust($brand-navy, $lightness: -4%); /* darker variant of #120380 */
   background: rgba($brand-dusty-denim, 0.09);
 }
 .md-caseload__access-badge--view {
@@ -65553,8 +65553,8 @@ blockquote small {
   box-shadow: 0 2px 6px rgba($brand-verdigris, 0.30);
 }
 #speak.md-eval-header #eval_intro_start.speak-bar__eval-btn:hover {
-  background: darken($brand-verdigris, 4%) !important;
-  border-color: darken($brand-verdigris, 4%) !important;
+  background: color.adjust($brand-verdigris, $lightness: -4%) !important;
+  border-color: color.adjust($brand-verdigris, $lightness: -4%) !important;
 }
 #speak.md-eval-header #eval_next_section.speak-bar__eval-btn {
   background: rgba($brand-verdigris, 0.10) !important;
