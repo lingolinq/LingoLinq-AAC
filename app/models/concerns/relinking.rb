@@ -55,7 +55,8 @@ module Relinking
     upstream_ids = self.settings['immediately_upstream_board_ids'] || []
     if upstream_ids.length > 0
       upstreams = Board.find_all_by_global_id(upstream_ids)
-      upstreams = upstream_ids.map{|id| upstreams.detect{|u| u.global_id == id } }.compact
+      upstreams_by_id = upstreams.index_by(&:global_id)
+      upstreams = upstream_ids.uniq.filter_map { |id| upstreams_by_id[id] }
       # if all upstream boards are copies and belong to the current user, let's assume this goes with them
       if upstreams.all?{|u| u.parent_board_id } && upstreams.map(&:user_id).uniq == [self.user_id]
         parent = self.parent_board
