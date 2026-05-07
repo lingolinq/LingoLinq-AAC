@@ -274,6 +274,23 @@ describe AiApiLog, :type => :model do
           response_summary: nil
         )
         expect(log.response_summary).to be_nil
+
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: ''
+        )
+        expect(log.response_summary).to eq('')
+      end
+
+      it "does not fall back to unsanitized text on non-hash scrubber return" do
+        allow(PiiScrubber).to receive(:redact_for_ai).and_return('[REDACTED_EMAIL]')
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'contact me at test@example.com'
+        )
+        expect(log.response_summary).to eq('[REDACTED_EMAIL]')
       end
     end
 
@@ -302,6 +319,26 @@ describe AiApiLog, :type => :model do
       it "returns an empty array when there are no findings" do
         log = AiApiLog.log_ai_call(provider: 'claude', type: 'board_generation')
         expect(log.safe_pii_findings_for_digest).to eq([])
+      end
+
+      it "returns an empty array when parsed findings are not an array" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: { type: 'email', value: 'raw@example.com', position: 1 }.to_json
+        )
+        expect(log.safe_pii_findings_for_digest).to eq([])
+      end
+
+      it "drops non-hash entries from parsed findings" do
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          pii_detected: true,
+          pii_findings: [{ type: 'email', position: 2 }, 'raw@example.com'].to_json
+        )
+        expect(log.safe_pii_findings_for_digest).to eq([{ 'type' => 'email', 'position' => 2 }])
       end
     end
 

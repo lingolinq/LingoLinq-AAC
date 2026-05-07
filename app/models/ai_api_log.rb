@@ -1,6 +1,4 @@
 class AiApiLog < ApplicationRecord
-  require_relative '../../lib/pii_scrubber'
-
   # Validations
   validates :ai_provider, presence: true
   validates :request_type, presence: true
@@ -28,7 +26,8 @@ class AiApiLog < ApplicationRecord
   def pii_scrub(value)
     return value unless value.is_a?(String) && !value.empty?
     result = PiiScrubber.redact_for_ai(value)
-    result.is_a?(Hash) ? result[:payload] : value
+    scrubbed = result.is_a?(Hash) ? result[:payload] : result
+    scrubbed.is_a?(String) ? scrubbed : '[REDACTED]'
   rescue StandardError => e
     Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
     '[REDACTED]'
@@ -220,8 +219,11 @@ class AiApiLog < ApplicationRecord
   # finding keys: type, position. The :value preview field is dropped
   # entirely; consumers do not need it for digest aggregation.
   def safe_pii_findings_for_digest
-    parsed_pii_findings.map do |f|
-      next f unless f.is_a?(Hash)
+    findings = parsed_pii_findings
+    return [] unless findings.is_a?(Array)
+
+    findings.filter_map do |f|
+      next unless f.is_a?(Hash)
       {
         'type' => f['type'] || f[:type],
         'position' => f['position'] || f[:position]
