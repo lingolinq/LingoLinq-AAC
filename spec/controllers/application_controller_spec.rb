@@ -452,37 +452,46 @@ describe ApplicationController, :type => :controller do
     it "should truncate a long X-INSTALLED-LINGOLINQ header to 64 chars in the log" do
       long_header = 'x' * 200
       request.headers['X-INSTALLED-LINGOLINQ'] = long_header
-      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
-        msg.include?('[INSTALLED_HEADER]') &&
-          msg.include?('x' * 64) &&
-          !msg.include?('x' * 65)
-      })
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
       get :index
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('x' * 64)
+      expect(installed_log).not_to include('x' * 65)
     end
 
     it "should truncate a long installed_app String param to 64 chars in the log" do
       long_param = 'y' * 200
       request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
-        msg.include?('y' * 64) && !msg.include?('y' * 65)
-      })
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
       get :index, params: { 'installed_app' => long_param }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('y' * 64)
+      expect(installed_log).not_to include('y' * 65)
     end
 
     it "should preserve nil in the log when installed_app param value is nil" do
       request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
-        msg.include?('params=nil')
-      })
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
       get :index, params: { 'installed_app' => nil }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('params=nil')
     end
 
     it "should log class name instead of serializing a non-String installed_app param" do
       request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
-        msg.include?('#<Hash>') && !msg.include?('foo')
-      })
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
       get :index, params: { 'installed_app' => { 'foo' => 'bar' } }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('#<Hash>')
+      expect(installed_log).not_to include('foo')
     end
   end
 
