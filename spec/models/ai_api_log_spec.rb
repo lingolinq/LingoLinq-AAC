@@ -292,6 +292,16 @@ describe AiApiLog, :type => :model do
         )
         expect(log.response_summary).to eq('[REDACTED_EMAIL]')
       end
+
+      it "falls back to [REDACTED] on non-hash non-string scrubber return" do
+        allow(PiiScrubber).to receive(:redact_for_ai).and_return(['unexpected'])
+        log = AiApiLog.log_ai_call(
+          provider: 'claude',
+          type: 'board_generation',
+          response_summary: 'contact me at test@example.com'
+        )
+        expect(log.response_summary).to eq('[REDACTED]')
+      end
     end
 
     describe "safe_pii_findings_for_digest" do

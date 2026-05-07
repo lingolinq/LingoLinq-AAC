@@ -26,7 +26,11 @@ class AiApiLog < ApplicationRecord
   def pii_scrub(value)
     return value unless value.is_a?(String) && !value.empty?
     result = PiiScrubber.redact_for_ai(value)
-    scrubbed = result.is_a?(Hash) ? result[:payload] : result
+    scrubbed = if result.is_a?(Hash)
+                 result[:payload]
+               else
+                 result
+               end
     scrubbed.is_a?(String) ? scrubbed : '[REDACTED]'
   rescue StandardError => e
     Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
