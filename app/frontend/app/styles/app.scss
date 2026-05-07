@@ -10077,50 +10077,204 @@ video.button_image {
   padding: 8px 24px 24px;
   max-height: 70vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Force left-alignment everywhere inside the modal body — overrides
+     any inherited `text-align: center` that Bootstrap or legacy
+     stylesheets apply at the .modal / .modal-content level. */
+  text-align: left;
+}
+.la-board-details-wrap .modal-body * {
+  text-align: inherit;
 }
 
-/* Sections */
+/* Sections — compact card-like clusters. Quiet hairlines between
+   them rather than heavy borders so the eye flows down the panel
+   without speed-bumps. Modeled on the Linear / GitHub "About"
+   sidebar pattern: left-aligned eyebrow heading, tight rows of
+   property labels + values below. */
 .la-board-details-section {
-  padding: 16px 0;
-  border-bottom: 1px solid rgba($la-navy, 0.10);
+  padding: 16px 0 18px;
+  border-bottom: 1px solid rgba($la-navy, 0.06);
+  max-width: 100%;
+  min-width: 0;
+}
+.la-board-details-section:first-of-type {
+  padding-top: 4px;
 }
 .la-board-details-section:last-child {
   border-bottom: none;
 }
 .la-board-details-section__heading {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  /* WCAG AA fix — was $brand-verdigris on $surface-100 = 3.15:1. */
+  letter-spacing: 0.10em;
   color: $brand-verdigris-aa;
   margin: 0 0 10px 0;
+  /* Left-aligned eyebrow — replaces the centered "OVERVIEW /
+     LANGUAGE / VISIBILITY & LICENSE" headings that floated in the
+     middle of the modal and broke the visual rhythm. */
+  text-align: left;
 }
 
-/* Definition list grid */
+/* Definition list grid — proper two-column layout with values
+   left-aligned at a consistent left edge. Bootstrap's legacy
+   `dl-horizontal` (right-aligned dt + floated dd) is replaced
+   with a CSS grid; explicit text-align: left on dt and dd fights
+   off any global centering. */
 .la-board-details-wrap .dl-horizontal {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 0;
+  grid-template-columns: 150px minmax(0, 1fr);
+  column-gap: 20px;
+  row-gap: 0;
   margin: 0;
+  max-width: 100%;
 }
 .la-board-details-wrap .dl-horizontal dt {
-  font-size: 14px;
-  font-weight: 600;
-  color: $brand-slate-gray;
-  padding: 6px 14px 6px 0;
-  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
+  padding: 8px 0;
+  text-align: left !important;
   margin: 0;
   white-space: normal;
   width: auto;
   float: none;
+  min-width: 0;
+  line-height: 1.4;
+  /* Subtle hairline between rows for scanability — Linear /
+     Stripe Dashboard style. Skips the very last row in each
+     section via :has() below. */
+  border-top: 1px solid rgba($la-navy, 0.05);
+}
+.la-board-details-wrap .dl-horizontal dt:first-of-type,
+.la-board-details-wrap .dl-horizontal dt:first-of-type + dd {
+  border-top: none;
 }
 .la-board-details-wrap .dl-horizontal dd {
   font-size: 14px;
+  font-weight: 500;
   color: $la-navy;
-  padding: 6px 0;
+  padding: 8px 0;
   margin: 0;
   margin-left: 0;
+  text-align: left !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  line-height: 1.55;
+  border-top: 1px solid rgba($la-navy, 0.05);
+}
+
+/* Description block — full-width prominent content under the dl,
+   not center-aligned, no decorative left border. Just clean body
+   typography with preserved line breaks for the prose. */
+.la-board-details-wrap .la-board-details__description {
+  white-space: pre-line;
+  font-size: 14px;
+  color: $la-navy;
+  line-height: 1.6;
+  padding: 0;
+  margin: 0;
+  text-align: left !important;
+}
+/* When the description sits in the dd column, give it the same
+   row treatment as siblings but allow its content to scroll
+   internally if it's exceptionally long. */
+.la-board-details-wrap .dl-horizontal dd .la-board-details__description,
+.la-board-details-wrap .dl-horizontal dd.la-board-details__description {
+  max-height: none;
+}
+
+/* Overview head — name + description block sitting prominently
+   above the property grid. Replaces the previous "Name" / "Description"
+   rows in the dl so the descriptive content reads like a card
+   header rather than two more entries in a metadata table. */
+.la-board-details-overview-head {
+  margin: 4px 0 14px;
+  padding: 0;
+}
+.la-board-details-overview-head__name {
+  font-size: 18px;
+  font-weight: 700;
+  color: $la-navy;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Stat tiles — replaces the dl rows for "Stats & Connections" so
+   numeric metadata reads as glanceable cards rather than a list
+   of small text values. Pattern mirrors GitHub's "Insights"
+   tiles + Linear's project metrics row. */
+.la-board-details-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 4px 0 0;
+}
+.la-board-details-stat {
+  padding: 12px 14px;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+  background: rgba($la-navy, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.la-board-details-stat__value {
+  font-size: 22px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.la-board-details-stat__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.la-board-details-stat__link {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+.la-board-details-stat__link a {
+  color: $brand-verdigris-aa;
+  text-decoration: none;
+}
+.la-board-details-stat__link a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 540px) {
+  .la-board-details-wrap .dl-horizontal {
+    grid-template-columns: 1fr;
+  }
+  .la-board-details-wrap .dl-horizontal dt {
+    padding: 10px 0 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba($la-navy, 0.50);
+    border-top: 1px solid rgba($la-navy, 0.06);
+  }
+  .la-board-details-wrap .dl-horizontal dt:first-of-type {
+    border-top: none;
+  }
+  .la-board-details-wrap .dl-horizontal dd {
+    padding: 2px 0 12px;
+    border-top: none;
+  }
 }
 .la-board-details-wrap .dl-horizontal a {
   /* WCAG AA fix — was $brand-verdigris on $surface-100 = 3.15:1. */
@@ -10948,7 +11102,11 @@ video.button_image {
   width: 100%;
   max-width: 500px;
   border-radius: var(--md-r-lg);
-  overflow: hidden;
+  /* Visible overflow so the Categories dropdown can render past
+     the modal's bottom edge instead of getting clipped — the
+     modal still appears clipped because the rounded corners use
+     the inner element's border-radius. */
+  overflow: visible;
 }
 .modal-content:has(.la-tag-board-wrap) {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
@@ -10956,19 +11114,27 @@ video.button_image {
   border: 1px solid var(--md-line);
   box-shadow: var(--md-shadow);
   padding: 0;
-  overflow: hidden;
+  /* Same reason as above — let dropdowns overflow the rounded
+     content card. The header/body backgrounds keep the rounded
+     visual corners via their own border-radius. */
+  overflow: visible;
 }
 .la-tag-board-wrap {
   color: var(--md-ink);
   min-width: 0;
   position: relative;
 }
-.la-tag-board-wrap .la-modal-header {
+.la-tag-board-wrap .la-modal-header,
+.la-tag-board-wrap > .la-modal-header,
+.modal-content:has(.la-tag-board-wrap) .la-modal-header {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 20px 24px;
+  /* Tightened from 20px → 12px top/bottom per Traci's tweak.
+     Multiple selectors here defeat any cached or higher-specificity
+     rule that was forcing 28px. */
+  padding: 12px 24px !important;
   border-bottom: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.6);
 }
@@ -11055,62 +11221,46 @@ video.button_image {
 .la-tag-board-input::placeholder {
   color: $brand-cool-steel;
 }
-.la-tag-board-input-group {
+/* Inline category chips — replaces the Bootstrap dropdown that
+   was getting clipped by modal overflow contexts. Renders as a
+   wrap-flex row below the input; the modal grows naturally to
+   contain a long category list and the page scrolls if needed. */
+.la-tag-board-chips-hint {
+  font-size: 13px;
+  color: var(--md-muted);
+  margin: 12px 0 8px;
+}
+.la-tag-board-chips {
   display: flex;
-  gap: 0;
-}
-.la-tag-board-input-group .la-tag-board-input {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  flex: 1;
-}
-.la-tag-board-dropdown {
-  position: relative;
-}
-.la-tag-board-dropdown.open {
-  margin-bottom: 150px;
-}
-.la-tag-board-dropdown-btn {
-  height: 100%;
-  border-radius: 0 8px 8px 0;
-  border: 1px solid var(--md-line);
-  border-left: none;
-  background: rgba($brand-blue-black, 0.04);
-  color: var(--md-ink);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  transition: background 0.15s ease;
-  white-space: nowrap;
+  margin: 0;
 }
-.la-tag-board-dropdown-btn:hover {
-  background: rgba($brand-blue-black, 0.08);
-}
-.la-tag-board-dropdown-menu {
-  border-radius: 10px;
-  border: 1px solid var(--md-line);
-  box-shadow: 0 8px 24px rgba($brand-blue-black, 0.12);
-  padding: 6px;
-  margin-top: 4px;
-  background: #fff;
-}
-.la-tag-board-dropdown-menu li a {
-  border-radius: 6px;
-  padding: 9px 14px;
-  font-size: 14px;
+.la-tag-board-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  color: $la-navy;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--md-ink);
-  display: block;
-  text-decoration: none;
-  transition: background 0.1s ease;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.la-tag-board-dropdown-menu li a:hover {
-  background: var(--md-teal-soft, rgba(44, 183, 176, 0.1));
-  color: $brand-stormy-teal;
+.la-tag-board-chip:hover,
+.la-tag-board-chip:focus-visible {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.32);
+  color: $brand-slate-blue;
+  outline: none;
+}
+.la-tag-board-chip--active {
+  background: rgba($brand-slate-blue, 0.14);
+  border-color: rgba($brand-slate-blue, 0.50);
+  color: $brand-slate-blue;
+  font-weight: 600;
 }
 /* ── Find a Button modal ── */
 .modal .modal-dialog:has(.la-find-button-wrap) {
@@ -11553,26 +11703,40 @@ video.button_image {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  /* Right-align the action cluster so the primary action sits at
+     the bottom-right of the modal (Cancel left of it, per the
+     standard confirm-on-right pattern). */
+  justify-content: flex-end;
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--md-line);
 }
 .la-tag-board-submit {
-  background: $brand-dusty-denim;
-  color: $la-navy;
-  border: none;
-  padding: 10px 20px;
+  /* Brand slate-blue primary — matches the rest of the modernized
+     primary CTAs (back-to-boards, save) so the entire app's
+     "confirm" verb reads with the same color + weight. */
+  background: $brand-slate-blue;
+  color: #ffffff;
+  border: 1px solid $brand-slate-blue;
+  padding: 10px 22px;
   border-radius: 999px;
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.20);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
-  &:hover:not(:disabled) {
-    filter: brightness(1.08);
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: darken($brand-slate-blue, 6%);
+    border-color: darken($brand-slate-blue, 6%);
+    box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.30);
+    color: #ffffff;
+    outline: none;
   }
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.55;
     cursor: not-allowed;
   }
 }
@@ -15509,10 +15673,10 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   color: $la-navy !important;
   border-color: rgba(0, 0, 0, 0.06) !important;
   box-shadow: none !important;
-  transform: translateY(-2px) !important;
-
+  /* Removed translateY(-2px) — the lift felt jumpy. Hover state
+     now just shifts the white tint + border, no position change. */
+  transform: none !important;
   filter: none !important;
-
 }
 .app-navbar .md-iconbtn__label {
   font-size: 14px; /* 20% smaller than 13px */
@@ -17189,6 +17353,13 @@ header.header--unauthenticated ~ #content .la-topbar {
   white-space: nowrap;
   display: grid;
   place-items: center;
+  /* Smooth the hover/active transitions — without these the
+     :active scale(0.99) and the hover background/border swaps
+     snap instantly, making the avatar feel like it jumps. */
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 #identity.identity-with-dark-toggle #identity_button::before,
 #identity.identity-with-dark-toggle #identity_button::after {
@@ -52164,44 +52335,73 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 
 /* ── Title info-toggle: chevron that expands the board description/icons panel ───────── */
+/* "Board Description" expander — pill styled to mirror the edit
+   toolbar's "More Settings" affordance: chevron + label in a glass
+   pill, chevron rotates 180° when the description info panel is
+   open. Same gradient, border, shadow, and hover lift as the
+   toolbar pill, minus its absolute positioning. */
 .md-board-detail-header__info-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* WCAG 2.5.5 AAA touch target */
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid rgba($la-navy, 0.15);
-  border-radius: 50%;
-  background: #fff;
-  color: rgba($la-navy, 0.72);
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease, border-color 0.15s ease;
   flex-shrink: 0;
+  box-shadow:
+    0 2px 6px rgba($la-navy, 0.12),
+    0 1px 2px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  transition: box-shadow 0.15s ease, transform 0.2s ease, background 0.15s ease;
 }
-/* Button stays neutral (white bg, dark navy icon) in every state — no
-   hover tint, no click/focus shift. The chevron rotation on the --open
-   modifier is the only visual indication that the panel is expanded. */
 .md-board-detail-header__info-toggle:hover,
-.md-board-detail-header__info-toggle:focus,
-.md-board-detail-header__info-toggle:focus-visible,
-.md-board-detail-header__info-toggle:active {
-  background: #fff;
-  color: rgba($la-navy, 0.72);
-  border-color: rgba($la-navy, 0.15);
-}
-/* Keep a minimal keyboard focus ring for accessibility — no fill
-   change, just an outline so keyboard users can still see focus. */
 .md-board-detail-header__info-toggle:focus-visible {
-  outline: 2px solid rgba($brand-verdigris, 0.5);
-  outline-offset: 1px;
+  box-shadow:
+    0 4px 12px rgba($la-navy, 0.18),
+    0 1px 2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  outline: none;
+  transform: translateY(-1px);
+}
+.md-board-detail-header__info-toggle svg {
+  color: $brand-verdigris;
+  transition: transform 0.2s ease;
 }
 .md-board-detail-header__info-toggle--open svg {
   transform: rotate(180deg);
 }
-.md-board-detail-header__info-toggle svg {
-  transition: transform 0.2s ease;
+.md-board-detail-header__info-toggle-label {
+  letter-spacing: 0.01em;
+}
+.md-board-detail--dark .md-board-detail-header__info-toggle {
+  background: linear-gradient(180deg, rgba(30, 37, 48, 0.9) 0%, rgba(21, 26, 36, 0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.40),
+    0 1px 2px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-detail-header__info-toggle svg {
+  color: #8fe4df;
+}
+.md-board-detail--dark .md-board-detail-header__info-toggle:hover,
+.md-board-detail--dark .md-board-detail-header__info-toggle:focus-visible {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 /* ── Expansion panel: description text + privacy/license icons ─────────────────── */
@@ -52214,6 +52414,101 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Edit-mode unified header card — same glass/tint chrome as the
+   info-panel above so the title, Editing badge, action checklist,
+   and description editor all read as one container. The info-panel
+   toggle is gone in edit mode (the card is always shown). Stretches
+   to the full width of the title-group so the card spans the
+   header row instead of sizing to its content. */
+.md-board-detail-header__edit-card {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 10px 0 12px;
+  padding: 14px 16px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* The unclassed wrapper <div> between .md-board-detail-header__title-group
+   and the edit card is a flex item of the title-group; without an
+   explicit flex sizing it shrinks to its content, capping the card's
+   width. Force it to grow to fill the row when it contains the edit
+   card. min-width: 0 lets long titles wrap instead of forcing the
+   parent wider. */
+.md-board-detail-header__title-group > div:has(> .md-board-detail-header__edit-card) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-board-detail--dark .md-board-detail-header__edit-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+/* Edit-mode title row uses a 3-column grid so the centered Editing
+   pill anchors to the page midline regardless of left/right content
+   widths. Overrides the base flex display from .__title-row above.
+   1fr | auto | 1fr — left and right share remaining space evenly,
+   center sizes to its content. */
+.md-board-detail-header__title-row--edit {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.md-board-detail-header__title-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  justify-self: start;
+}
+.md-board-detail-header__title-row-center {
+  justify-self: center;
+}
+.md-board-detail-header__title-row-right {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Privacy/protected indicator row — sits directly beneath the title
+   row, flush left with no top spacing. */
+.md-board-detail-header__privacy-row {
+  display: flex;
+  align-items: center;
+}
+/* Save button when placed in the title-row-right cluster — sits
+   alongside the privacy pill. Inherits the toolbar btn--save
+   gradient/border via the shared classes; this rule just tunes the
+   inline spacing/height so it harmonizes with the pill next to it
+   instead of inheriting the toolbar's full-row min-height. */
+.md-board-detail-header__save-btn {
+  height: 36px;
+  padding: 0 14px;
+}
+
+/* Board icon when rendered inside the edit-card title row — smaller
+   than the standalone 81px tile so it sits inline with the title
+   without dominating the row. Sized ~30% larger than the previous
+   inline 44px tile per Traci's spec. */
+.md-board-detail-header__board-icon--in-card {
+  width: 57px;
+  height: 57px;
+  border-radius: 14px;
+  padding: 5px;
+}
+
+/* License icon sits directly inline to the right of the title (no
+   margin-left: auto) so the title and its license read as one unit.
+   The privacy pill still parks at the far right via its own --at-end
+   rule above, leaving the license clustered with the title. */
+.md-board-detail-header__license-icon--at-end {
+  align-self: center;
 }
 .md-board-detail-header__info-icons {
   display: flex;
@@ -52310,20 +52605,40 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-style: italic;
   color: rgba($la-navy, 0.55);
 }
-/* Editable variant — shown in edit_mode. Inherits the typography of the
-   read-only paragraph but reads as a real input: 1px ring, padding,
-   focus highlight. The textarea grows on user input but starts at 3
-   rows. Width: 100% so it fills the panel. */
+/* Editable variant — shown in edit_mode. Inherits the typography of
+   the read-only paragraph but reads as a real input: 1px ring,
+   padding, focus highlight. Auto-sizes to content (field-sizing) so
+   short descriptions render as a compact single line and longer ones
+   grow up to 60px before scrolling. Width: 100% with max-width:
+   100% so the textarea always fits inside the card — without the
+   explicit max-width, field-sizing: content can grow the textarea
+   wider than its container when a long single-line word is typed,
+   spilling past the card's right edge on narrow viewports. Top
+   margin separates it from the action checklist above. Horizontal
+   padding bumped 10→14 per spec. */
 .md-board-detail-header__info-description--editable {
   display: block;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 8px 14px;
   border: 1px solid rgba($la-navy, 0.18);
   border-radius: 8px;
   background: #fff;
-  resize: vertical;
-  min-height: 70px;
+  /* Remove the browser's default bottom-right resize handle on
+     <textarea> — we manage height via field-sizing + JS auto-resize,
+     and a draggable handle would imply a manual resize affordance
+     that doesn't exist. */
+  resize: none;
+  /* field-sizing: content makes the textarea auto-fit its content
+     (Chromium 123+, Safari 18.1+). Combined with max-height +
+     overflow-y, the textarea shrinks to fit when the description is
+     short and caps at 60px with a scrollbar when long. Browsers
+     without field-sizing fall back to the rows="3" attribute on the
+     Textarea component for an acceptable default height. */
+  field-sizing: content;
+  max-height: 60px;
+  overflow-y: auto;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
@@ -52334,6 +52649,12 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   outline: none;
   border-color: rgba($brand-verdigris, 0.55);
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+  /* On focus, drop the 150px cap so the textarea auto-expands to fit
+     its full content (via field-sizing: content). The internal
+     scrollbar is no longer needed while the user is editing. When the
+     user blurs, the cap returns and overflow scrolls again. */
+  max-height: none;
+  overflow-y: visible;
 }
 .md-board-detail-header__info-description--editable::placeholder {
   color: rgba($la-navy, 0.45);
@@ -52915,20 +53236,69 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Description expander styled to match the edit toolbar's
+   "More Settings" pill — same gradient, border, shadow, and
+   chevron-rotation behavior, minus the absolute positioning since
+   this lives inline in the header. */
 .md-board-detail-header__expand-link {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-top: 2px;
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin-top: 6px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
+  color: $la-navy;
+  font-size: 13px;
   font-weight: 600;
-  color: $brand-verdigris;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color 0.15s ease;
+  box-shadow:
+    0 2px 6px rgba($la-navy, 0.12),
+    0 1px 2px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  transition: box-shadow 0.15s ease, transform 0.2s ease, background 0.15s ease;
 }
-.md-board-detail-header__expand-link:hover {
-  color: #1b7a70;
-  text-decoration: underline;
+.md-board-detail-header__expand-link:hover,
+.md-board-detail-header__expand-link:focus-visible {
+  box-shadow:
+    0 4px 12px rgba($la-navy, 0.18),
+    0 1px 2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  outline: none;
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.md-board-detail-header__expand-link svg {
+  color: $brand-verdigris;
+  transition: transform 0.2s ease;
+}
+.md-board-detail-header__expand-link--open svg {
+  transform: rotate(180deg);
+}
+.md-board-detail--dark .md-board-detail-header__expand-link {
+  background: linear-gradient(180deg, rgba(30, 37, 48, 0.9) 0%, rgba(21, 26, 36, 0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.40),
+    0 1px 2px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-detail-header__expand-link svg {
+  color: #8fe4df;
+}
+.md-board-detail--dark .md-board-detail-header__expand-link:hover,
+.md-board-detail--dark .md-board-detail-header__expand-link:focus-visible {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 /* Color legend toggle */
@@ -54152,7 +54522,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: left;
 }
 .md-board-detail-actions-menu__item:hover {
-  background: rgba($brand-verdigris, 0.08);
+  /* Neutral glass overlay — no teal tint. Reads as a soft hover
+     against either the light surface or the dark glass without
+     introducing a brand-color accent. */
+  background: rgba($la-navy, 0.06);
   color: $la-navy;
 }
 .md-board-detail-actions-menu__item svg {
@@ -54160,7 +54533,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $brand-slate-gray;
 }
 .md-board-detail-actions-menu__item:hover svg {
-  color: $brand-verdigris;
+  /* Keep the icon in the slate-gray family on hover — slightly
+     darker for the "wake up" affordance, but no teal. */
+  color: $la-navy;
 }
 .md-board-detail-actions-menu__divider {
   height: 1px;
@@ -54200,7 +54575,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-board-detail-actions-menu__submenu {
   padding: 4px 0 4px 0;
-  border-left: 2px solid rgba($brand-verdigris, 0.25);
+  /* Modern hairline rail — thinner, neutral, no brand accent. The
+     teal previously drew the eye away from the menu item labels. */
+  border-left: 1px solid rgba($la-navy, 0.12);
   margin-left: 18px;
 }
 .md-board-detail-actions-menu__submenu .md-board-detail-actions-menu__item {
@@ -54209,7 +54586,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   min-height: 38px;
 }
 .md-board-detail--dark .md-board-detail-actions-menu__submenu {
-  border-left-color: rgba($brand-verdigris, 0.40);
+  border-left-color: rgba(255, 255, 255, 0.14);
 }
 .md-board-detail--dark .md-board-detail-actions-menu__section {
   border-bottom-color: rgba(255, 255, 255, 0.08);
@@ -54237,7 +54614,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: #fff !important;
 }
 .md-board-detail-actions-menu__item--edit:hover svg {
-  stroke: $brand-verdigris;
+  /* Keep the icon white on hover to match the slate-blue-grey button —
+     no teal accent (consistent with the rest of the menu's de-tealed
+     hover treatment). */
+  stroke: #fff;
 }
 .md-board-detail-actions-menu__item--exit {
   background: $brand-charcoal-blue;
@@ -54665,17 +55045,36 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    - square: fills the cell
    - tall:   full cell height, narrower column (2/3 width) — portrait card
    - wide:   full cell width, shorter row (2/3 height) — landscape card */
-.md-board-detail-grid[class*="md-board-detail-grid--shape-"] .md-board-detail-grid__cell {
+/* Cell-centering applies only to the tall/wide shapes — those need
+   the fractional-size card centered within the cell. The square
+   shape is "fit cell": no centering, let the card stretch. */
+.md-board-detail-grid.md-board-detail-grid--shape-tall .md-board-detail-grid__cell,
+.md-board-detail-grid.md-board-detail-grid--shape-wide .md-board-detail-grid__cell {
   justify-content: center;
   align-items: center;
 }
-.md-board-detail-grid[class*="md-board-detail-grid--shape-"] .md-board-detail-symbol-card {
+.md-board-detail-grid.md-board-detail-grid--shape-tall .md-board-detail-symbol-card,
+.md-board-detail-grid.md-board-detail-grid--shape-wide .md-board-detail-symbol-card {
   flex: 0 0 auto;
 }
+/* Shape-square = "Fit cell": the card should fill the entire grid
+   cell, both width and height. Earlier this used `height: 100%`,
+   but that's a percentage on a flex item whose parent (the cell)
+   doesn't always resolve to a definite height in this flex-grid
+   layout — the percentage then collapses and the card renders short
+   like the wide variant. Using `flex: 1 1 0; align-self: stretch`
+   makes the card grow to fill the cell along both axes, which is
+   what "fit cell" means semantically. Overrides the `flex: 0 0 auto`
+   above for the square case only; tall and wide still need the
+   fixed flex: 0 0 auto so their fractional widths/heights sit
+   centered without growing. */
 .md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
-  width: 100%;
-  height: 100%;
-  margin: 0;
+  flex: 1 1 0 !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
 }
 .md-board-detail-grid.md-board-detail-grid--shape-tall .md-board-detail-symbol-card {
   width: 66.6667%;
@@ -54784,6 +55183,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
   mix-blend-mode: normal;
+}
+/* Editor preview parity with runtime: when high_contrast is on, push
+   symbol images through the same contrast/saturate filter the live
+   board uses (line ~6982 — `.board.high_contrast .button img.symbol`).
+   :not(.hc) skips images already authored as high-contrast assets. */
+.high_contrast .md-board-detail-symbol-card__image img.symbol:not(.hc) {
+  filter: contrast(4.0) saturate(500);
+}
+.low_for_high_contrast .high_contrast .md-board-detail-symbol-card__image img.symbol:not(.hc) {
+  filter: contrast(4.0) saturate(100);
 }
 .md-board-detail-symbol-card__image--placeholder {
   background: rgba($brand-verdigris, 0.08);
@@ -55438,7 +55847,9 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-shell--board-detail-edit .md-board-detail-header {
   margin-bottom: 12px;
   padding-top: 0;
-  padding-bottom: 12px;
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
   position: relative;
 }
 /* ── Edit mode pill badge ── */
@@ -57794,14 +58205,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-shell--board-detail-edit .md-board-detail-overlay-backdrop {
   display: none;
 }
-/* Save button matches the Edit Board button gradient */
+/* Save Changes button — matches the left edit panel's Back to Boards
+   gradient (line ~66459) so the page's two primary CTAs read with the
+   same visual weight. Slate-blue → charcoal-blue diagonal. */
 .md-board-detail-edit-toolbar__btn--save {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue) !important;
-  border: 1px solid rgba($brand-charcoal-blue, 0.3) !important;
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue) !important;
+  border: 1px solid rgba($brand-charcoal-blue, 0.40) !important;
+  color: #ffffff !important;
   box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
-.md-board-detail-edit-toolbar__btn--save:hover {
-  background: linear-gradient(135deg, #8aa3c9, $brand-charcoal-blue) !important;
+.md-board-detail-edit-toolbar__btn--save:hover:not(:disabled) {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue) !important;
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
 
@@ -58127,7 +58541,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ── Board-Detail: Folder card — modern lifted folder ─ */
 .md-board-detail-grid__cell--folder {
-  padding-top: 12px;
+  padding-top: 10px;
   overflow: visible;
 }
 /* Folder back panel — elevated, solid with depth */
@@ -58282,18 +58696,35 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: rgba($la-navy, 0.5) !important;
 }
 
-/* Default + colored-corner folder modes + symbol_background_black:
-   the folder front is forced white, but the symbol_background_black
-   rule colors all card labels white — leaving folder labels invisible
-   (white-on-white). Override to dark navy on folder cells specifically.
-   Higher specificity than the base symbol_background_black .label rule
-   so it wins. */
-.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label,
-.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__label-input {
-  color: $la-navy !important;
+/* Folder faces follow the symbol_background_black mode — the folder
+   front normally forces white (line ~58719) so it stands out from the
+   colored folder back, but in black-bg mode users expect the face to
+   match every other button (black fill + white/yellow label). Drop the
+   forced white so the base .symbol_background_black .md-board-detail-symbol-card
+   rule (line ~54993) wins and paints the face black. Labels and
+   alt-text then inherit the standard symbol_background_black /
+   .high_contrast treatment — no folder-specific overrides needed. */
+.symbol_background_black .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+  background-color: #000 !important;
 }
-.symbol_background_black .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__alt-text {
-  color: rgba($la-navy, 0.6) !important;
+
+/* High-contrast folder icons: the folder badge (small corner chip)
+   and the placeholder folder SVG (shown on the face when the folder
+   has no image) both default to a Fitzgerald-tinted color that
+   disappears on a black/high-contrast face. Override to the same
+   high-contrast yellow used by labels (line ~55007) so the icon
+   chrome reads with the rest of the high-contrast palette. The
+   placeholder background tile drops its colored Fitzgerald wash
+   for a translucent white wash that pops on the black face. */
+.high_contrast .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__folder-placeholder {
+  color: #f8fc03 !important;
+}
+.high_contrast .md-board-detail-grid__cell--folder .md-board-detail-symbol-card__folder-badge {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #f8fc03 !important;
+}
+.high_contrast .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__image--placeholder {
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
 /* High-contrast + tab-labels mode: the folder tab label can render
@@ -58330,7 +58761,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    12px (reserved for the tab), so non-folder cells need the same reserve
    before the calc(100% - 18px) height math produces the same value. */
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-  padding-top: 12px;
+  padding-top: 10px;
   justify-content: flex-end;
 }
 .md-board-detail-grid--folder-tab-labels .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) > .md-board-detail-symbol-card {
@@ -58429,7 +58860,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    the folder cells use for their tab — so non-folder buttons render the same
    visual height as the folder fronts, keeping the grid rows aligned. */
 .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-  padding-top: 12px;
+  padding-top: 10px;
 }
 /* In default folder mode, tighten the top reveal area and make the folder
    back 2px taller on the top and bottom for a chunkier folder silhouette. */
@@ -59230,14 +59661,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: #d1d5db;
 }
 .md-board-detail--dark .md-board-detail-actions-menu__item:hover {
-  background: rgba($brand-verdigris, 0.15);
-  color: #e1e5eb;
+  /* Neutral glass overlay on dark — translucent white, no teal. */
+  background: rgba(255, 255, 255, 0.08);
+  color: #f0f4fb;
 }
 .md-board-detail--dark .md-board-detail-actions-menu__item svg {
   color: rgba(255, 255, 255, 0.45);
 }
 .md-board-detail--dark .md-board-detail-actions-menu__item:hover svg {
-  color: $brand-verdigris;
+  color: rgba(255, 255, 255, 0.85);
 }
 .md-board-detail--dark .md-board-detail-actions-menu__divider {
   background: rgba(255, 255, 255, 0.08);
@@ -66098,3 +66530,2132 @@ blockquote small {
    the user-select buttons in modals keep the legacy
    /avatars/avatar-N.png placeholders rather than the modern brand-teal
    SVG silhouette used by the caseload/identity dropdown. */
+
+
+/* ───────────────────────────────────────────────────────────────────
+   Board Edit Page — Glassy Left Side Panel
+   Phase 03 (.planning/phases/03-board-edit-side-panel/03-PLAN.md).
+   Permanent left rail visible only in edit mode. Pushes the board
+   grid + edit toolbar to the right column. Mode A (full panel,
+   ≥1024px) styling lives here; Mode B (compact rail, <1024px) lives
+   in the breakpoint block further down.
+   ─────────────────────────────────────────────────────────────────── */
+
+/* ── Layout: panel + main as two grid columns in edit mode.
+   The base rule at L57792 forces the layout to a single column in
+   edit mode (`grid-template-columns: 1fr !important`) — that was
+   correct when <main> was the only visible child. Now the new
+   `.md-board-edit-panel` is also a child, so we expand to two
+   columns. The other potential children (`.md-board-detail-sidebar`,
+   `.md-board-detail-right-panel`, the overlay backdrop) are
+   `display: none` in edit mode and therefore removed from grid
+   auto-placement, so the panel falls into column 1 and <main> into
+   column 2 naturally. ────────────────────────────────────────────── */
+.md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
+.md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
+  /* Three-column edit layout: left panel (max-content), board area
+     (1fr), right "Live Preview Edit" panel (max-content). The right
+     panel collapses to a thin rail via its own --collapsed modifier
+     (width managed inside the panel block itself). */
+  grid-template-columns: max-content 1fr max-content !important;
+  gap: 12px;
+}
+
+/* ── Panel chrome: glassy gradient + backdrop blur + soft border + shadow.
+   Light-mode gradient mirrors the edit toolbar's pill gradient
+   (`#ffffff → #f1f4f8`); dark-mode swaps to the toolbar's dark pair
+   (`#0c1018 → #151a24`). `backdrop-filter` adds the glass effect on
+   top of whatever is behind. ───────────────────────────────────── */
+.md-board-edit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* Tighter horizontal padding so the panel hugs the widest text
+     row instead of leaving an inch of unused glass on each side. */
+  padding: 16px 8px 20px;
+  width: max-content;
+  max-width: 280px;
+  /* Stretch to fill the viewport beneath the topbar so the panel
+     reads as a full-height rail rather than a card. The grid track
+     above stretches the height automatically, but min-height keeps
+     the panel from collapsing when <main> is short. */
+  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: stretch;
+  position: sticky;
+  top: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.05),
+    0 8px 24px rgba($la-navy, 0.08);
+  color: $la-navy;
+  box-sizing: border-box;
+  z-index: 5;
+}
+.md-board-detail--dark .md-board-edit-panel {
+  background: linear-gradient(180deg, #0c1018 0%, #151a24 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Top cluster: back link + Save/Cancel pair ──────────────────── */
+.md-board-edit-panel__top {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.md-board-edit-panel__back-link {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  /* Icon + label sit flush at the left edge of the button (respecting
+     the button's own padding) instead of being centered as a group —
+     removes the dead space that was sitting to the left of the arrow. */
+  justify-content: flex-start;
+  gap: 10px;
+  /* ~20% taller than original 8px-vertical pill — Traci's tweak so
+     the back action feels like a primary CTA, not a chip. */
+  padding: 12px 12px;
+  min-height: 44px;
+  border-radius: 10px;
+  /* Same diagonal slate-blue → charcoal-blue gradient as the
+     primary Save action, so the panel's lead CTA reads with the
+     same visual weight as the rest of the brand's primary buttons. */
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.md-board-edit-panel__back-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Inside the back-link the label should sit flush against the icon,
+   not flex-grow into the empty space — otherwise the icon hugs the
+   left edge while the label centers itself in the leftover (the
+   <button> default `text-align: center` then centers the text). */
+.md-board-edit-panel__back-link .md-board-edit-panel__label {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
+}
+/* Back-link icon: less transparent than the row icons since this is
+   the primary action and benefits from stronger emphasis. */
+.md-board-edit-panel__icon--back {
+  /* High-contrast white icon for AAC legibility — filled chunky
+     arrow + solid grid stand out clearly on the dark gradient. The
+     icon is rendered as filled silhouettes (fill="currentColor",
+     stroke="none" in markup), so this color drives the actual fill. */
+  color: #ffffff;
+  opacity: 1;
+  /* Sharper drop-shadow — small blur radii so the shadow reads as
+     a crisp lift off the gradient, not a soft glow. */
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35)) drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.20));
+}
+.md-board-detail--dark .md-board-edit-panel__icon--back {
+  color: #ffffff;
+}
+/* No hover color change — button stays its resting gradient on
+   hover/focus. The :active press-down (translateY) below still
+   provides tactile feedback, and the global focus-visible outline
+   keeps keyboard accessibility intact. */
+.md-board-edit-panel__back-link:hover,
+.md-board-edit-panel__back-link:focus-visible {
+  text-decoration: none;
+}
+.md-board-edit-panel__back-link:active {
+  transform: translateY(1px);
+}
+.md-board-detail--dark .md-board-edit-panel__back-link {
+  background: linear-gradient(135deg, lighten($brand-slate-blue, 4%), $brand-charcoal-blue);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.md-board-edit-panel__action-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.md-board-edit-panel__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: #ffffff;
+  color: $la-navy;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.md-board-edit-panel__btn:hover:not(:disabled),
+.md-board-edit-panel__btn:focus-visible {
+  border-color: rgba($la-navy, 0.25);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.10);
+}
+.md-board-edit-panel__btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.md-board-edit-panel__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.md-board-edit-panel__btn--cancel {
+  color: $brand-charcoal-blue;
+}
+.md-board-edit-panel__btn--cancel:hover:not(:disabled),
+.md-board-edit-panel__btn--cancel:focus-visible {
+  border-color: rgba($brand-charcoal-blue, 0.40);
+  background: rgba($brand-charcoal-blue, 0.05);
+}
+.md-board-edit-panel__btn--save {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border-color: rgba($brand-charcoal-blue, 0.40);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+}
+.md-board-edit-panel__btn--save:hover:not(:disabled),
+.md-board-edit-panel__btn--save:focus-visible {
+  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
+}
+.md-board-edit-panel__btn--saving {
+  opacity: 0.8;
+  cursor: wait;
+}
+.md-board-detail--dark .md-board-edit-panel__btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-panel__btn:hover:not(:disabled),
+.md-board-detail--dark .md-board-edit-panel__btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.md-board-detail--dark .md-board-edit-panel__btn--cancel {
+  color: #cfd8e8;
+}
+.md-board-detail--dark .md-board-edit-panel__btn--save {
+  background: linear-gradient(135deg, lighten($brand-slate-blue, 4%), $brand-charcoal-blue);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+/* ── Search input — same state as the toolbar's search field
+   (`board_search_string` + `update_board_search` + `clear_board_search`).
+   Restyled for the panel context. ──────────────────────────────── */
+.md-board-edit-panel__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Allow the wrap (and its <input> child) to shrink with the panel's
+     max-content width — otherwise the input's default intrinsic
+     ~20ch width forces the panel wider than the longest text row. */
+  min-width: 0;
+  width: 100%;
+}
+.md-board-edit-panel__search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba($la-navy, 0.55);
+  pointer-events: none;
+}
+.md-board-edit-panel__search-input {
+  width: 100%;
+  /* Pair with size="1" on the <input> in the template — together
+     they release the input's default intrinsic max-content width so
+     the panel can collapse to its longest text row. */
+  min-width: 0;
+  height: 36px;
+  padding: 6px 30px 6px 32px;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.md-board-edit-panel__search-input::placeholder {
+  color: rgba($la-navy, 0.50);
+  font-weight: 400;
+}
+.md-board-edit-panel__search-input:focus {
+  outline: none;
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.04),
+    0 0 0 3px rgba($brand-verdigris, 0.18);
+  background: #ffffff;
+}
+.md-board-edit-panel__search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba($la-navy, 0.10);
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.md-board-edit-panel__search-clear:hover,
+.md-board-edit-panel__search-clear:focus-visible {
+  background: rgba($la-navy, 0.18);
+}
+.md-board-detail--dark .md-board-edit-panel__search-icon {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-board-edit-panel__search-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f0f4fb;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+.md-board-detail--dark .md-board-edit-panel__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.50);
+}
+.md-board-detail--dark .md-board-edit-panel__search-input:focus {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba($brand-verdigris, 0.65);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.25);
+}
+.md-board-detail--dark .md-board-edit-panel__search-clear {
+  background: rgba(255, 255, 255, 0.10);
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-panel__search-clear:hover,
+.md-board-detail--dark .md-board-edit-panel__search-clear:focus-visible {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+/* ── Groups: subheader + rows ──────────────────────────────────── */
+.md-board-edit-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-board-edit-panel__subheader {
+  /* Small uppercase label — matches the modern-UI pattern used in
+     other side rails. Slightly muted so it reads as a section
+     header without competing with the row labels. */
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.55);
+  padding: 6px 8px 4px;
+  margin: 0;
+}
+.md-board-detail--dark .md-board-edit-panel__subheader {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.md-board-edit-panel__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  /* Tighter row padding — content sets the column width via
+     max-content, so trim chrome on the sides. */
+  padding: 9px 8px;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.md-board-edit-panel__row:hover,
+.md-board-edit-panel__row:focus-visible {
+  background: rgba($brand-slate-blue, 0.08);
+  border-color: rgba($brand-slate-blue, 0.20);
+  color: $brand-slate-blue;
+}
+.md-board-edit-panel__row:active {
+  transform: translateY(1px);
+}
+.md-board-edit-panel__row:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.md-board-edit-panel__icon {
+  flex: 0 0 auto;
+  color: $brand-slate-blue;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+/* Lift opacity on hover/focus so the icon "wakes up" with the row. */
+.md-board-edit-panel__row:hover .md-board-edit-panel__icon,
+.md-board-edit-panel__row:focus-visible .md-board-edit-panel__icon,
+.md-board-edit-panel__back-link:hover .md-board-edit-panel__icon,
+.md-board-edit-panel__back-link:focus-visible .md-board-edit-panel__icon,
+.md-board-edit-panel__btn:hover:not(:disabled) .md-board-edit-panel__icon,
+.md-board-edit-panel__btn:focus-visible .md-board-edit-panel__icon {
+  opacity: 0.95;
+}
+.md-board-edit-panel__search-icon {
+  opacity: 0.65;
+}
+.md-board-edit-panel__search:focus-within .md-board-edit-panel__search-icon {
+  opacity: 0.9;
+}
+.md-board-edit-panel__label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-board-detail--dark .md-board-edit-panel__row {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-panel__row:hover,
+.md-board-detail--dark .md-board-edit-panel__row:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-panel__icon {
+  color: #cfd8e8;
+}
+
+/* ── Share & Export grid — 2x2 of square-ish tiles ─────────────── */
+.md-board-edit-panel__share-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+.md-board-edit-panel__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  min-height: 70px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.md-board-edit-panel__tile:hover,
+.md-board-edit-panel__tile:focus-visible {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.30);
+  color: $brand-slate-blue;
+  outline: none;
+}
+.md-board-edit-panel__tile:active {
+  transform: translateY(1px);
+}
+.md-board-edit-panel__tile .md-board-edit-panel__icon {
+  /* Slightly stronger presence than the 0.6 default since the tile
+     icon is the dominant visual; label sits beneath for context. */
+  opacity: 0.75;
+}
+.md-board-edit-panel__tile:hover .md-board-edit-panel__icon,
+.md-board-edit-panel__tile:focus-visible .md-board-edit-panel__icon {
+  opacity: 1;
+}
+.md-board-edit-panel__tile-label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.md-board-detail--dark .md-board-edit-panel__tile {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-panel__tile:hover,
+.md-board-detail--dark .md-board-edit-panel__tile:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* In compact-rail mode the panel collapses to icons; the 2x2 grid
+   would crush badly in 52–64px, so collapse to a single column
+   stack of the same tiles (still icon-only, since the
+   .md-board-edit-panel__label hide rule from earlier doesn't
+   target __tile-label specifically). */
+@media (max-width: 1023px) {
+  .md-board-edit-panel__share-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .md-board-edit-panel__tile {
+    min-height: 38px;
+    padding: 8px 0;
+  }
+  .md-board-edit-panel__tile-label {
+    display: none;
+  }
+}
+
+/* ── Divider between groups ─────────────────────────────────────── */
+.md-board-edit-panel__divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba($la-navy, 0.10);
+}
+.md-board-detail--dark .md-board-edit-panel__divider {
+  background: rgba(255, 255, 255, 0.10);
+}
+/* Extra breathing room above the divider that sits directly under
+   the Filter by Category control — separates the filter cluster
+   from the BOARD DETAILS group below. */
+.md-board-edit-panel__filter + .md-board-edit-panel__divider {
+  margin-top: 16px;
+}
+/* Pull the filter toggle visually closer to the search input — the
+   two are a related pair (input + filter button) and benefit from
+   tighter coupling. Negative margin offsets the panel's 14px gap. */
+.md-board-edit-panel__search + .md-board-edit-panel__filter {
+  margin-top: -8px;
+}
+
+/* ── Mode B: compact rail at <1024px ───────────────────────────────
+   Panel narrows to an icon-only rail, labels collapse to tooltips
+   (using the existing `data-tooltip` attribute already on each row),
+   subheaders disappear (replaced by the divider alone), and the
+   search input collapses to an icon-button placeholder. ──────────── */
+@media (max-width: 1023px) {
+  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
+  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
+    grid-template-columns: 64px 1fr !important;
+    gap: 8px;
+  }
+  .md-board-edit-panel {
+    padding: 12px 6px 16px;
+    gap: 10px;
+    align-items: center;
+  }
+  .md-board-edit-panel__top {
+    width: 100%;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .md-board-edit-panel__back-link,
+  .md-board-edit-panel__btn,
+  .md-board-edit-panel__row {
+    justify-content: center;
+    padding: 8px 0;
+    min-height: 38px;
+    width: 100%;
+  }
+  .md-board-edit-panel__action-pair {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .md-board-edit-panel__label {
+    /* Hide labels — icons + tooltips carry the meaning. */
+    display: none;
+  }
+  .md-board-edit-panel__subheader {
+    /* Subheaders consume horizontal space; replace with the divider. */
+    display: none;
+  }
+  .md-board-edit-panel__search {
+    width: 100%;
+  }
+  .md-board-edit-panel__search-icon {
+    /* Center the icon when the input collapses. */
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .md-board-edit-panel__search-input {
+    /* Visually collapses to an icon-button hit-area; the input is
+       still focusable but its content is hidden. Clicking/tapping
+       (or focusing via keyboard) expands the input below. */
+    padding: 0;
+    color: transparent;
+    text-indent: -9999px;
+    cursor: pointer;
+  }
+  .md-board-edit-panel__search-input::placeholder {
+    color: transparent;
+  }
+  .md-board-edit-panel__search-input:focus {
+    /* Re-expand on focus so the user can type. */
+    text-indent: 0;
+    color: $la-navy;
+    padding: 6px 30px 6px 32px;
+  }
+  .md-board-edit-panel__search-input:focus::placeholder {
+    color: rgba($la-navy, 0.50);
+  }
+  .md-board-edit-panel__search-input:focus + .md-board-edit-panel__search-icon,
+  .md-board-edit-panel__search:focus-within .md-board-edit-panel__search-icon {
+    left: 10px;
+    transform: translateY(-50%);
+  }
+
+  /* Tooltip on hover/focus (CSS-only, leveraging `data-tooltip`
+     already wired on each row + back-link + buttons). Positioned
+     to the right of the rail so it doesn't get clipped. */
+  .md-board-edit-panel [data-tooltip] {
+    position: relative;
+  }
+  .md-board-edit-panel [data-tooltip]:hover::after,
+  .md-board-edit-panel [data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 5px 9px;
+    background: $la-navy;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba($la-navy, 0.25);
+    pointer-events: none;
+    z-index: 20;
+  }
+}
+
+@media (max-width: 819px) {
+  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
+  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
+    grid-template-columns: 56px 1fr !important;
+    gap: 6px;
+  }
+  .md-board-edit-panel {
+    padding: 10px 4px 14px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
+  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
+    grid-template-columns: 52px 1fr !important;
+    gap: 4px;
+  }
+  .md-board-edit-panel {
+    padding: 8px 4px 12px;
+    gap: 6px;
+  }
+  .md-board-edit-panel__row,
+  .md-board-edit-panel__btn,
+  .md-board-edit-panel__back-link {
+    min-height: 36px;
+    padding: 7px 0;
+  }
+}
+/* ── Filter by Category — expandable section under search input.
+   Header reuses the row look + chevron rotates open. Body shows
+   each Fitzgerald-coded part-of-speech category with a small
+   color swatch + label, mirroring the panel's row aesthetic. ── */
+.md-board-edit-panel__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-board-edit-panel__filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  min-height: 38px;
+  /* Permanent outline — reads as a discrete control surface within
+     the panel rather than a flat row. Border + subtle inset bg use
+     the same la-navy alpha vocabulary as the panel's other inputs
+     (search field, etc.) for visual consistency. */
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-edit-panel__filter-toggle:hover,
+.md-board-edit-panel__filter-toggle:focus-visible {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.32);
+  color: $brand-slate-blue;
+  outline: none;
+}
+/* Stronger outline when the dropdown is open so the toggle reads
+   as the "active" control within the panel. */
+.md-board-edit-panel__filter--open .md-board-edit-panel__filter-toggle {
+  border-color: rgba($brand-slate-blue, 0.40);
+  background: rgba($brand-slate-blue, 0.06);
+}
+/* Two-line label stack: "Filter by Category" on top, the active
+   category name as a smaller, muted sub-line below it (only when
+   a filter other than All is set). Replaces the prior right-side
+   pill so the active filter reads as a status note, not a tag. */
+.md-board-edit-panel__filter-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  /* Bigger gap so the active-category pill sits clearly below the
+     "Filter by Category" label with breathing room — the previous
+     1px gap had it crammed against the title. */
+  gap: 5px;
+  min-width: 0;
+  align-items: flex-start;
+}
+.md-board-edit-panel__filter-toggle .md-board-edit-panel__label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Active-category indicator — a subtle pill that hugs the label
+   width. Sits below the title so the toggle reads as
+   "Filter by Category / [active filter]" stacked rather than
+   competing on one line. */
+.md-board-edit-panel__filter-sublabel {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba($brand-slate-blue, 0.14);
+  color: $brand-slate-blue;
+  border: 1px solid rgba($brand-slate-blue, 0.22);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.md-board-detail--dark .md-board-edit-panel__filter-sublabel {
+  background: rgba(255, 255, 255, 0.10);
+  color: #cfd8e8;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+/* Give the toggle a touch more vertical padding when the pill is
+   present so the two stacked lines sit comfortably. */
+.md-board-edit-panel__filter-text:has(.md-board-edit-panel__filter-sublabel) {
+  padding: 3px 0;
+}
+.md-board-edit-panel__filter-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  opacity: 0.6;
+  transition: transform 0.18s ease, opacity 0.15s ease;
+}
+.md-board-edit-panel__filter--open .md-board-edit-panel__filter-chevron {
+  transform: rotate(180deg);
+  opacity: 0.9;
+}
+.md-board-edit-panel__filter-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Indent slightly to read as a sub-section of the parent toggle. */
+  margin-left: 8px;
+  border-left: 1px solid rgba($la-navy, 0.10);
+  padding-left: 8px;
+}
+.md-board-edit-panel__filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-board-edit-panel__filter-item:hover,
+.md-board-edit-panel__filter-item:focus-visible {
+  background: rgba($brand-slate-blue, 0.08);
+  border-color: rgba($brand-slate-blue, 0.18);
+  outline: none;
+}
+.md-board-edit-panel__filter-item--active {
+  background: rgba($brand-slate-blue, 0.12);
+  border-color: rgba($brand-slate-blue, 0.30);
+  color: $brand-slate-blue;
+  font-weight: 600;
+}
+.md-board-edit-panel__filter-name {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-board-edit-panel__filter-check {
+  flex: 0 0 auto;
+  color: $brand-slate-blue;
+}
+/* Color swatch — Fitzgerald-coded for each part of speech. The
+   swatch is a small rounded square with a thin border so the
+   lighter colors (white/yellow) are still visible on the panel. */
+.md-board-edit-panel__filter-swatch {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: rgba($la-navy, 0.08);
+}
+.md-board-edit-panel__filter-item--pronoun     .md-board-edit-panel__filter-swatch { background: $fitzgerald-pronoun-yellow; }
+.md-board-edit-panel__filter-item--verb        .md-board-edit-panel__filter-swatch { background: $fitzgerald-verb-green; }
+.md-board-edit-panel__filter-item--adjective   .md-board-edit-panel__filter-swatch { background: $fitzgerald-adjective-blue; }
+.md-board-edit-panel__filter-item--noun        .md-board-edit-panel__filter-swatch { background: $fitzgerald-noun-orange; }
+.md-board-edit-panel__filter-item--social      .md-board-edit-panel__filter-swatch { background: $fitzgerald-social-pink; }
+.md-board-edit-panel__filter-item--negation    .md-board-edit-panel__filter-swatch { background: $fitzgerald-negation-red; }
+.md-board-edit-panel__filter-item--question    .md-board-edit-panel__filter-swatch { background: $fitzgerald-question-purple; }
+.md-board-edit-panel__filter-item--preposition .md-board-edit-panel__filter-swatch { background: $fitzgerald-preposition-pink; }
+.md-board-edit-panel__filter-item--adverb      .md-board-edit-panel__filter-swatch { background: $fitzgerald-adverb-brown; }
+.md-board-edit-panel__filter-item--determiner  .md-board-edit-panel__filter-swatch { background: $fitzgerald-determiner-gray; }
+.md-board-edit-panel__filter-item--conjunction .md-board-edit-panel__filter-swatch { background: $fitzgerald-conjunction-white; }
+.md-board-edit-panel__filter-item--other       .md-board-edit-panel__filter-swatch { background: $fitzgerald-other-blue; }
+.md-board-edit-panel__filter-item--folder      .md-board-edit-panel__filter-swatch {
+  background: linear-gradient(135deg, $brand-slate-blue 50%, #ffffff 50%);
+}
+
+/* Dark-mode counterparts */
+.md-board-detail--dark .md-board-edit-panel__filter-toggle {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #e5ecf8;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.20);
+}
+.md-board-detail--dark .md-board-edit-panel__filter-toggle:hover,
+.md-board-detail--dark .md-board-edit-panel__filter-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-panel__filter--open .md-board-edit-panel__filter-toggle {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+.md-board-detail--dark .md-board-edit-panel__filter-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #cfd8e8;
+}
+.md-board-detail--dark .md-board-edit-panel__filter-list {
+  border-left-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-edit-panel__filter-item {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-panel__filter-item:hover,
+.md-board-detail--dark .md-board-edit-panel__filter-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.md-board-detail--dark .md-board-edit-panel__filter-item--active {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-panel__filter-swatch {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+.md-board-detail--dark .md-board-edit-panel__filter-check {
+  color: #cfd8e8;
+}
+
+/* In compact-rail mode the panel collapses to icons; the filter's
+   expanded list would consume too much horizontal space, so we
+   force the section closed and hide the badge/chevron. The header
+   still shows as an icon-only row that opens the toolbar's
+   existing categories dropdown for filtering. */
+@media (max-width: 1023px) {
+  .md-board-edit-panel__filter-toggle .md-board-edit-panel__filter-text,
+  .md-board-edit-panel__filter-toggle .md-board-edit-panel__filter-chevron {
+    display: none;
+  }
+  .md-board-edit-panel__filter-list {
+    display: none;
+  }
+  .md-board-edit-panel__filter-toggle {
+    justify-content: center;
+    padding: 8px 0;
+    width: 100%;
+  }
+}
+
+/* ── Confirm-Leave-Edit modal — Discard + Save glass pills that
+   mirror the toolbar's Cancel/Save aesthetic. ───────────────── */
+.md-modal-icon-circle--leave-edit {
+  background: rgba($brand-slate-blue, 0.10);
+  color: $brand-slate-blue;
+}
+.md-leave-edit-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+/* Shared pill styling — both buttons sit in the dark glass family
+   used by the edit toolbar's Save/Cancel; same gradient family,
+   border, shadow, and 38px touch-target height for AAC. */
+.md-leave-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  min-height: 40px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.md-leave-edit-btn svg {
+  flex: 0 0 auto;
+}
+.md-leave-edit-btn:active {
+  transform: translateY(1px);
+}
+
+/* Discard — neutral dark-glass pill (light-mode: subtle slate
+   surface; danger color reveals on hover so the verb still reads
+   as destructive). Matches the toolbar Cancel button's
+   "neutral-then-warn-on-hover" pattern. */
+.md-leave-edit-btn--discard {
+  background: rgba($brand-slate-gray, 0.10);
+  border: 1px solid rgba($brand-slate-gray, 0.22);
+  color: $brand-charcoal-dark;
+}
+.md-leave-edit-btn--discard:hover,
+.md-leave-edit-btn--discard:focus-visible {
+  background: rgba($brand-danger, 0.10);
+  border-color: rgba($brand-danger, 0.30);
+  color: $brand-danger;
+  box-shadow: 0 1px 4px rgba($brand-danger, 0.12);
+  outline: none;
+}
+
+/* Save — same slate-blue → charcoal gradient as the panel's
+   primary CTA, with white text + soft shadow for a confident
+   "confirm" affordance. */
+.md-leave-edit-btn--save {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+}
+.md-leave-edit-btn--save:hover,
+.md-leave-edit-btn--save:focus-visible {
+  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  border-color: rgba($brand-charcoal-blue, 0.55);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
+  outline: none;
+}
+
+@media (max-width: 540px) {
+  .md-leave-edit-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .md-leave-edit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+/* ── Set Home Board modal — overrides scoped to the unique
+   `md-set-as-home` body class. Bumps internal padding, adds
+   breathing room above the Preferred Symbols field, and switches
+   the primary action button to the brand slate-blue. ────────── */
+.md-modal-body.md-set-as-home {
+  /* Generous vertical padding so the home icon, prompt, and field
+     cluster all breathe — was 24/24, now 36/40. */
+  padding: 36px 28px 40px;
+}
+.md-set-as-home .md-modal-icon-row {
+  margin: 4px 0 22px;
+}
+.md-set-as-home .md-modal-message {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+.md-set-as-home .md-modal-field {
+  /* Extra space above the Preferred Symbols cluster so it reads as
+     a distinct configuration step rather than running into the
+     question paragraph above it. */
+  margin-top: 22px;
+}
+.md-set-as-home .md-modal-field + .md-modal-field {
+  margin-top: 18px;
+}
+
+/* Primary action — slate-blue brand color. Scoped to this modal
+   only so other modals' --primary buttons keep their existing
+   verdigris/charcoal treatment. */
+.md-set-as-home-footer .md-modal-btn--primary,
+.md-modal-footer.md-set-as-home-footer .md-modal-btn--primary {
+  background: $brand-slate-blue;
+  border-color: $brand-slate-blue;
+  color: #ffffff;
+}
+.md-set-as-home-footer .md-modal-btn--primary:hover,
+.md-modal-footer.md-set-as-home-footer .md-modal-btn--primary:hover,
+.md-set-as-home-footer .md-modal-btn--primary:focus-visible {
+  background: darken($brand-slate-blue, 6%);
+  border-color: darken($brand-slate-blue, 6%);
+  color: #ffffff;
+}
+.md-set-as-home-footer .md-modal-btn--primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Add Board to Sidebar modal — match the same generous body
+   padding rhythm used on Set Home Board so the icon, prompt,
+   form fields, and checkbox all breathe. ────────────────────── */
+.md-modal-body.md-add-to-sidebar {
+  padding: 28px 28px;
+}
+/* ── Manage Languages modal — primary CTA in brand slate-blue,
+   matching the rest of the modernized confirm actions across
+   the app. Scoped via :has() so other modals' --primary buttons
+   keep their existing treatment. ───────────────────────────── */
+.modal-content:has(.md-manage-languages) .md-modal-btn--primary {
+  background: $brand-slate-blue;
+  border-color: $brand-slate-blue;
+  color: #ffffff;
+}
+.modal-content:has(.md-manage-languages) .md-modal-btn--primary:hover:not(:disabled),
+.modal-content:has(.md-manage-languages) .md-modal-btn--primary:focus-visible {
+  background: darken($brand-slate-blue, 6%);
+  border-color: darken($brand-slate-blue, 6%);
+  color: #ffffff;
+  outline: none;
+}
+.modal-content:has(.md-manage-languages) .md-modal-btn--primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* ───────────────────────────────────────────────────────────────────
+   Board Edit Page — Right Panel ("Live Preview Edit")
+   Mirrors the left panel's glassy aesthetic. Top-level container
+   that collapses/expands; inside, two subheader groups (Button
+   Settings, Board Settings) of accordion sections that each open
+   to surface their tools. All controls are wired to the existing
+   controller actions/state so live-preview behavior is preserved.
+   ─────────────────────────────────────────────────────────────────── */
+.md-board-edit-right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 280px;
+  max-width: 320px;
+  padding: 14px 12px 18px;
+  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: stretch;
+  position: sticky;
+  top: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.05),
+    0 8px 24px rgba($la-navy, 0.08);
+  color: $la-navy;
+  box-sizing: border-box;
+  z-index: 5;
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+.md-board-edit-right-panel--collapsed {
+  /* Collapsed rail — VS Code / Notion-style activity-bar pattern:
+     section icons in a vertical strip so the user always sees what
+     the panel contains and can jump straight into a section by
+     clicking its icon. */
+  width: 56px;
+  padding: 12px 6px 16px;
+}
+/* In collapsed-rail mode: keep the icons visible, hide labels,
+   chevrons, group subheaders, accordion bodies, and the divider
+   bar between groups (replaced with a thin gap). */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__body {
+  gap: 4px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__group {
+  gap: 4px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__subheader {
+  /* Replace the uppercase section heading with a quiet hairline
+     marker so the user still feels the BUTTON / BOARD grouping
+     separation in the rail, just without consuming label width. */
+  display: block;
+  height: 1px;
+  padding: 0;
+  margin: 6px 12px 4px;
+  background: rgba($la-navy, 0.10);
+  color: transparent;
+  font-size: 0;
+  letter-spacing: 0;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__group:first-of-type .md-board-edit-right-panel__subheader:first-child {
+  /* The first subheader at the top of the BUTTON SETTINGS group
+     reads as a top-of-rail accent — drop the line so it doesn't
+     paint against the panel's top edge. */
+  display: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__divider {
+  /* The full-width divider isn't needed in rail mode — the
+     subheader-as-hairline already separates the two groups. */
+  display: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-toggle {
+  /* Icon-only button: center the chip, drop padding/border, no
+     hover background tint (the chip's own hover handles that). */
+  justify-content: center;
+  padding: 4px 0;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  gap: 0;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-toggle {
+  background: transparent;
+  border: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-toggle:hover,
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-toggle:focus-visible {
+  background: transparent;
+  border: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-label,
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-chevron,
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-body {
+  display: none;
+}
+.md-board-detail--dark .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__subheader {
+  background: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel {
+  background: linear-gradient(180deg, #0c1018 0%, #151a24 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* Header — title + collapse chevron pill */
+.md-board-edit-right-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 4px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__header {
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+}
+.md-board-edit-right-panel__collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.2s ease;
+}
+.md-board-edit-right-panel__collapse-btn:hover,
+.md-board-edit-right-panel__collapse-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  outline: none;
+}
+.md-board-edit-right-panel__collapse-btn svg {
+  transition: transform 0.2s ease;
+}
+.md-board-edit-right-panel:not(.md-board-edit-right-panel--collapsed) .md-board-edit-right-panel__collapse-btn svg {
+  transform: rotate(180deg);
+}
+.md-board-edit-right-panel__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: $brand-verdigris-aa;
+  white-space: nowrap;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__title {
+  display: none;
+}
+.md-board-detail--dark .md-board-edit-right-panel__collapse-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__title {
+  color: #8fe4df;
+}
+
+/* Body — group + sections */
+.md-board-edit-right-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-board-edit-right-panel__divider {
+  height: 1px;
+  margin: 8px 4px 4px;
+  background: rgba($la-navy, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__divider {
+  background: rgba(255, 255, 255, 0.10);
+}
+.md-board-edit-right-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-board-edit-right-panel__subheader {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.55);
+  padding: 6px 8px 4px;
+}
+.md-board-detail--dark .md-board-edit-right-panel__subheader {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Accordion section — header (toggle) + body (revealed when open).
+   When closed, only the toggle has chrome (background/border on
+   hover/focus). When open, the chrome moves to the section parent
+   so toggle + body read as a single unified container — no separate
+   left-border on the body. */
+.md-board-edit-right-panel__section {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-edit-right-panel__section--open {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.30);
+}
+.md-board-detail--dark .md-board-edit-right-panel__section--open {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.md-board-edit-right-panel__section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-board-edit-right-panel__section-toggle:hover,
+.md-board-edit-right-panel__section-toggle:focus-visible {
+  background: rgba($brand-slate-blue, 0.08);
+  border-color: rgba($brand-slate-blue, 0.20);
+  color: $brand-slate-blue;
+  outline: none;
+}
+/* Open-state toggle: the section parent now carries the bg/border,
+   so the toggle itself renders transparent — they merge into one
+   container. Keep the slate-blue text + bolder weight so the open
+   state still reads. */
+.md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-toggle {
+  background: transparent;
+  border-color: transparent;
+  color: $brand-slate-blue;
+  font-weight: 600;
+}
+/* Icon "chip" — small rounded square that holds the section's
+   glyph. Same neutral slate at rest across every section so the
+   eye isn't pulled around by a rainbow of brand colors; the
+   chip itself flips to a filled slate-blue + white glyph when
+   its section is open, giving a single clear "you are here"
+   accent without dyeing every row. */
+.md-board-edit-right-panel__section-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.08);
+  color: rgba($la-navy, 0.65);
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.md-board-edit-right-panel__section-toggle:hover .md-board-edit-right-panel__section-icon,
+.md-board-edit-right-panel__section-toggle:focus-visible .md-board-edit-right-panel__section-icon {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.22);
+  color: $brand-slate-blue;
+}
+.md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border-color: rgba($brand-charcoal-blue, 0.35);
+  color: #ffffff;
+  transform: scale(1.04);
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.20);
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-icon {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.60);
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-toggle:hover .md-board-edit-right-panel__section-icon,
+.md-board-detail--dark .md-board-edit-right-panel__section-toggle:focus-visible .md-board-edit-right-panel__section-icon {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon {
+  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: #ffffff;
+}
+.md-board-edit-right-panel__section-label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-board-edit-right-panel__section-chevron {
+  flex: 0 0 auto;
+  opacity: 0.55;
+  transition: transform 0.2s ease, opacity 0.15s ease;
+}
+.md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-chevron {
+  transform: rotate(180deg);
+  opacity: 0.95;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-toggle {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-toggle:hover,
+.md-board-detail--dark .md-board-edit-right-panel__section-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-toggle {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #ffffff;
+}
+
+/* Section body — sits inside the open section's unified container,
+   so it no longer needs its own left-border accent. Top padding
+   gives the first body row breathing room from the toggle header.
+   align-items: center horizontally centers each row inside the
+   unified card for a balanced, focused look. */
+.md-board-edit-right-panel__section-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px 14px 12px;
+}
+
+/* Custom dropdowns (.md-settings-dropdown-menu) inside the right
+   panel anchor to the trigger's RIGHT edge instead of the left, so
+   they open toward the page interior. Without this, the dropdown
+   extends past the panel and gets cut off at the page edge — the
+   font dropdown's longer option names ("Architect's Daughter (small)")
+   were rendering as "(sm" before this. */
+.md-board-edit-right-panel .md-settings-dropdown-menu {
+  left: auto;
+  right: 0;
+}
+
+/* Active text-position button inside the right panel uses the
+   darker end of the activated-section gradient as a solid fill —
+   $brand-charcoal-blue. Reads as a clear "you are here" indicator
+   without competing with the section icon chip's gradient. The
+   btnmock inside inherits white via currentColor. */
+.md-board-edit-right-panel .md-settings-icon-btn--active,
+.md-board-edit-right-panel .md-settings-icon-btn--active:hover {
+  background: $brand-charcoal-blue;
+  border-color: rgba($brand-charcoal-blue, 0.35);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+}
+.md-board-edit-right-panel__hint {
+  font-size: 12px;
+  color: rgba($la-navy, 0.65);
+  margin: 0;
+  line-height: 1.45;
+}
+.md-board-detail--dark .md-board-edit-right-panel__hint {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ── Inline tool bits used inside section bodies ──────────────── */
+
+/* Color swatches grid (Paint Tool) */
+.md-board-edit-right-panel__swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.md-board-edit-right-panel__swatch {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid rgba($la-navy, 0.18);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+  padding: 0;
+}
+.md-board-edit-right-panel__swatch:hover,
+.md-board-edit-right-panel__swatch:focus-visible {
+  transform: scale(1.08);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.25);
+  outline: none;
+}
+
+/* Pill button row (Paint, Hidden Tool) */
+.md-board-edit-right-panel__btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.md-board-edit-right-panel__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-board-edit-right-panel__pill:hover,
+.md-board-edit-right-panel__pill:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  border-color: rgba($brand-slate-blue, 0.32);
+  color: $brand-slate-blue;
+  outline: none;
+}
+.md-board-edit-right-panel__pill--active {
+  background: rgba($brand-slate-blue, 0.16);
+  border-color: rgba($brand-slate-blue, 0.50);
+  color: $brand-slate-blue;
+  font-weight: 600;
+}
+.md-board-detail--dark .md-board-edit-right-panel__pill {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__pill:hover,
+.md-board-detail--dark .md-board-edit-right-panel__pill:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+/* Row pair: small label on left, control cluster on right */
+/* Label-above-control layout with a subtle tile around each pair so
+   the individual controls read as small sub-cards inside the
+   section's larger unified container — instead of floating loose
+   on the section background. Tile chrome is intentionally lighter
+   than the section's own border so the section still wins as the
+   dominant grouping. */
+.md-board-edit-right-panel__row-pair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: 8px;
+}
+.md-board-detail--dark .md-board-edit-right-panel__row-pair {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.md-board-edit-right-panel__row-pair-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.70);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.md-board-detail--dark .md-board-edit-right-panel__row-pair-label {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+/* Stepper (text size, rows/cols) */
+.md-board-edit-right-panel__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+.md-board-edit-right-panel__stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: $la-navy;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.md-board-edit-right-panel__stepper-btn:hover:not(:disabled),
+.md-board-edit-right-panel__stepper-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.10);
+  outline: none;
+}
+.md-board-edit-right-panel__stepper-btn:disabled {
+  opacity: 0.40;
+  cursor: not-allowed;
+}
+.md-board-edit-right-panel__stepper-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $la-navy;
+  border-left: 1px solid rgba($la-navy, 0.10);
+  border-right: 1px solid rgba($la-navy, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__stepper {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.md-board-detail--dark .md-board-edit-right-panel__stepper-btn {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__stepper-btn:hover:not(:disabled),
+.md-board-detail--dark .md-board-edit-right-panel__stepper-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__stepper-value {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Bound-select wrapper */
+.md-board-edit-right-panel__select-wrap {
+  width: 100%;
+}
+.md-board-edit-right-panel__select-wrap .bound-select {
+  width: 100%;
+}
+
+/* Icon group + button mock (Text Position, Speak Bar) */
+.md-board-edit-right-panel__icongroup {
+  display: flex;
+  gap: 6px;
+}
+.md-board-edit-right-panel__icon-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-edit-right-panel__icon-toggle:hover,
+.md-board-edit-right-panel__icon-toggle:focus-visible {
+  background: rgba($brand-slate-blue, 0.10);
+  border-color: rgba($brand-slate-blue, 0.30);
+  outline: none;
+}
+.md-board-edit-right-panel__icon-toggle--active {
+  background: rgba($brand-slate-blue, 0.14);
+  border-color: rgba($brand-slate-blue, 0.50);
+}
+.md-board-edit-right-panel__btnmock {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  gap: 1px;
+}
+.md-board-edit-right-panel__btnmock-img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #FDCF98, #4C86D8);
+}
+.md-board-edit-right-panel__btnmock-text {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.85);
+  line-height: 1;
+}
+.md-board-edit-right-panel__btnmock--text-only {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.85);
+}
+.md-board-detail--dark .md-board-edit-right-panel__icon-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.md-board-detail--dark .md-board-edit-right-panel__btnmock-text,
+.md-board-detail--dark .md-board-edit-right-panel__btnmock--text-only {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Undo / Redo footer cluster — segmented-control pattern: two
+   buttons sharing a single rounded outer border with no gap and
+   a thin internal divider between them. Centered horizontally
+   under the bottom divider. */
+.md-board-edit-right-panel__history {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+  padding: 0 4px 4px;
+}
+.md-board-edit-right-panel__history-group {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.70);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04);
+}
+.md-board-edit-right-panel__history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  min-height: 34px;
+  border: none;
+  background: transparent;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+/* Internal divider between the two segments. */
+.md-board-edit-right-panel__history-btn + .md-board-edit-right-panel__history-btn {
+  border-left: 1px solid rgba($la-navy, 0.14);
+}
+.md-board-edit-right-panel__history-btn:hover:not(:disabled),
+.md-board-edit-right-panel__history-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  color: $brand-slate-blue;
+  outline: none;
+}
+.md-board-edit-right-panel__history-btn:active:not(:disabled) {
+  background: rgba($brand-slate-blue, 0.18);
+}
+.md-board-edit-right-panel__history-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.md-board-edit-right-panel__history-btn svg {
+  flex: 0 0 auto;
+}
+.md-board-detail--dark .md-board-edit-right-panel__history-group {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+.md-board-detail--dark .md-board-edit-right-panel__history-btn {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__history-btn + .md-board-edit-right-panel__history-btn {
+  border-left-color: rgba(255, 255, 255, 0.14);
+}
+.md-board-detail--dark .md-board-edit-right-panel__history-btn:hover:not(:disabled),
+.md-board-detail--dark .md-board-edit-right-panel__history-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+}
+/* In dark mode, lift the two-tone stroke contrast on the
+   undo/redo arrows the same way we do for section icons. */
+.md-board-detail--dark .md-board-edit-right-panel__history-btn svg [stroke="#46505F"] {
+  stroke: #cfd8e8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__history-btn svg [stroke="#2A9D8F"] {
+  stroke: #4cd7c8;
+}
+/* In rail-collapsed mode the history cluster doesn't fit; hide
+   it (the user can re-expand the panel to access undo/redo). */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__history {
+  display: none;
+}
+
+/* "OR" divider — small uppercase text centered between two
+   hairlines, used inside the Paint Tool body to separate the
+   manual color picker from the auto Recolor-by-Word-Type
+   shortcut. */
+.md-board-edit-right-panel__or {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  color: rgba($la-navy, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+.md-board-edit-right-panel__or::before,
+.md-board-edit-right-panel__or::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba($la-navy, 0.10);
+}
+.md-board-edit-right-panel__or-text {
+  flex: 0 0 auto;
+}
+.md-board-detail--dark .md-board-edit-right-panel__or {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-board-edit-right-panel__or::before,
+.md-board-detail--dark .md-board-edit-right-panel__or::after {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Paint Tool — color palette + brush row + popover swatch grid.
+   Mirrors the toolbar's paint dropdown but rendered inline inside
+   the accordion section so it grows the panel naturally. */
+.md-board-edit-right-panel__paint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-board-edit-right-panel__palette,
+.md-board-edit-right-panel__brush {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-edit-right-panel__palette {
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+}
+.md-board-edit-right-panel__brush {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 0;
+}
+.md-board-edit-right-panel__palette:hover,
+.md-board-edit-right-panel__palette:focus-visible,
+.md-board-edit-right-panel__brush:hover,
+.md-board-edit-right-panel__brush:focus-visible {
+  border-color: rgba($brand-slate-blue, 0.32);
+  background: rgba($brand-slate-blue, 0.06);
+  outline: none;
+}
+.md-board-edit-right-panel__palette--open {
+  border-color: rgba($brand-slate-blue, 0.40);
+  background: rgba($brand-slate-blue, 0.10);
+}
+.md-board-edit-right-panel__brush--active {
+  border-color: rgba($brand-verdigris, 0.45);
+  background: rgba($brand-verdigris, 0.12);
+}
+.md-board-edit-right-panel__palette-preview {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba($la-navy, 0.20);
+  background: #ffffff;
+  flex: 0 0 auto;
+}
+/* "SELECT COLOR" eyebrow inside the palette button — small,
+   muted, uppercase to read as a quiet hint rather than a heavy
+   label. Centered between the swatch preview and the chevron. */
+.md-board-edit-right-panel__palette-label {
+  flex: 1 1 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.65);
+  text-align: center;
+}
+.md-board-detail--dark .md-board-edit-right-panel__palette-label {
+  color: rgba(255, 255, 255, 0.65);
+}
+/* Two-column color pill grid — each pill is a labeled row
+   (dot + part-of-speech name) mirroring the toolbar's color
+   picker dropdown but laid out compactly for the panel. */
+.md-board-edit-right-panel__paint-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+}
+.md-board-edit-right-panel__paint-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.md-board-edit-right-panel__paint-pill:hover,
+.md-board-edit-right-panel__paint-pill:focus-visible {
+  background: rgba($brand-slate-blue, 0.08);
+  border-color: rgba($brand-slate-blue, 0.18);
+  outline: none;
+}
+.md-board-edit-right-panel__paint-pill--active {
+  background: rgba($brand-slate-blue, 0.12);
+  border-color: rgba($brand-slate-blue, 0.40);
+  color: $brand-slate-blue;
+  font-weight: 600;
+}
+.md-board-edit-right-panel__paint-pill-dot {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba($la-navy, 0.20);
+}
+.md-board-edit-right-panel__paint-pill-label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill {
+  color: #e5ecf8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill:hover,
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill--active {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill-dot {
+  border-color: rgba(255, 255, 255, 0.30);
+}
+
+/* Custom Color pill — spans the full grid width with a hairline
+   above so it reads as the "footer" of the swatch list. Its dot
+   is a conic-gradient rainbow indicating "any color you want". */
+.md-board-edit-right-panel__paint-pill--custom {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding: 8px 10px;
+  /* Match the surrounding pill rounding instead of the previous
+     hard-rounded "999px on bottom only" treatment that produced
+     an oversized rounded bottom edge. */
+  border-radius: 999px;
+  position: relative;
+}
+.md-board-edit-right-panel__paint-pill--custom::before {
+  /* Hairline above the Custom Color pill — visually separates
+     the named POS swatches from the custom-color affordance. */
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -3px;
+  height: 1px;
+  background: rgba($la-navy, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill--custom::before {
+  background: rgba(255, 255, 255, 0.10);
+}
+.md-board-edit-right-panel__paint-pill-dot--custom {
+  background: conic-gradient(
+    from 0deg,
+    #ff5b5b,
+    #ffb84a,
+    #ffe14a,
+    #5cd05c,
+    #4a8cff,
+    #a45cff,
+    #ff5b5b
+  );
+  border-color: rgba($la-navy, 0.20);
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-pill--custom {
+  border-top-color: rgba(255, 255, 255, 0.10);
+}
+
+/* Custom Color inline picker — sits as a full-width grid row
+   directly below the Custom Color pill (so it reads as that
+   pill's expanded body). Slight indent + soft surface differentiates
+   it from the surrounding swatch pills. */
+.md-board-edit-right-panel__custom-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid rgba($brand-slate-blue, 0.20);
+  border-radius: 10px;
+  background: rgba($brand-slate-blue, 0.05);
+}
+.md-board-edit-right-panel__custom-picker-input {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.md-board-edit-right-panel__custom-picker-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 12px;
+  font-weight: 500;
+  color: $la-navy;
+}
+.md-board-edit-right-panel__custom-picker-hex:focus,
+.md-board-edit-right-panel__custom-picker-hex:focus-visible {
+  outline: none;
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.18);
+}
+.md-board-edit-right-panel__custom-picker-apply {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid $brand-slate-blue;
+  border-radius: 999px;
+  background: $brand-slate-blue;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-edit-right-panel__custom-picker-apply:hover,
+.md-board-edit-right-panel__custom-picker-apply:focus-visible {
+  background: darken($brand-slate-blue, 6%);
+  border-color: darken($brand-slate-blue, 6%);
+  outline: none;
+}
+.md-board-detail--dark .md-board-edit-right-panel__custom-picker {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__custom-picker-hex {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #f0f4fb;
+}
+.md-board-detail--dark .md-board-edit-right-panel__palette,
+.md-board-detail--dark .md-board-edit-right-panel__brush {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.md-board-detail--dark .md-board-edit-right-panel__palette:hover,
+.md-board-detail--dark .md-board-edit-right-panel__palette:focus-visible,
+.md-board-detail--dark .md-board-edit-right-panel__brush:hover,
+.md-board-detail--dark .md-board-edit-right-panel__brush:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.md-board-detail--dark .md-board-edit-right-panel__paint-grid {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-edit-right-panel__palette-preview {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+/* Two-tone icon strokes (verdigris + charcoal-blue) are inlined
+   on the SVG paths in the template. When the section is open, the
+   chip flips to a slate-blue→charcoal gradient — flatten the
+   icons to white in that state so they pop on the dark chip
+   instead of disappearing into it. Same fill-opacity flip for
+   any filled accents (the green color-drop on the Background
+   icon, the dotted speak-bar nodes, etc.). */
+.md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [stroke] {
+  stroke: #ffffff !important;
+}
+.md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon svg [fill]:not([fill="none"]) {
+  fill: #ffffff !important;
+  fill-opacity: 1 !important;
+}
+
+/* Dark-mode contrast lift — charcoal-blue strokes (#46505F) and
+   the small filled accents (#46505F/#2A9D8F at low alpha)
+   disappear against the panel's near-black gradient. Bump them
+   to a lighter slate / brighter teal so the two-tone icons pass
+   AA contrast on the dark surface. Open-state white still
+   overrides this via the rule above. */
+.md-board-detail--dark .md-board-edit-right-panel__section-icon svg [stroke="#46505F"],
+.md-board-detail--dark .md-board-edit-right-panel__collapse-btn svg [stroke="#46505F"] {
+  stroke: #cfd8e8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-icon svg [stroke="#2A9D8F"],
+.md-board-detail--dark .md-board-edit-right-panel__collapse-btn svg [stroke="#2A9D8F"] {
+  stroke: #4cd7c8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-icon svg [fill="#46505F"]:not([fill="none"]),
+.md-board-detail--dark .md-board-edit-right-panel__collapse-btn svg [fill="#46505F"]:not([fill="none"]) {
+  fill: #cfd8e8;
+}
+.md-board-detail--dark .md-board-edit-right-panel__section-icon svg [fill="#2A9D8F"]:not([fill="none"]),
+.md-board-detail--dark .md-board-edit-right-panel__collapse-btn svg [fill="#2A9D8F"]:not([fill="none"]) {
+  fill: #4cd7c8;
+}
+
+/* Compact-rail fallback for narrow viewports — collapse to 0 width
+   so the right panel doesn't crush the left panel + board grid. */
+@media (max-width: 1023px) {
+  .md-board-edit-right-panel {
+    display: none;
+  }
+}
+/* ── Confirm Recolor Board modal — primary action in brand
+   slate-blue, scoped via :has() so other modals' --primary
+   buttons keep their existing treatment. ────────────────────── */
+.modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary {
+  background: $brand-slate-blue;
+  border-color: $brand-slate-blue;
+  color: #ffffff;
+}
+.modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary:hover:not(:disabled),
+.modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary:focus-visible {
+  background: darken($brand-slate-blue, 6%);
+  border-color: darken($brand-slate-blue, 6%);
+  color: #ffffff;
+  outline: none;
+}
+.modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* End Phase 03 — Board Edit Side Panel */

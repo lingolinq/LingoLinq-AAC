@@ -1,0 +1,47 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+  <div class="md-modal-header">
+    <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Save your changes?" key="save_your_changes_title"}}</h3>
+  </div>
+  <div class="md-modal-body">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle md-modal-icon-circle--leave-edit">
+        {{!-- Floppy/disk save mark — same SVG as the Save pill in
+             the footer so the icon and the action read as one
+             gesture. --}}
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+      </div>
+    </div>
+    <p class="md-modal-message">
+      {{t "Would you like to save your changes before leaving this board?" key="confirm_leave_edit_message"}}
+    </p>
+  </div>
+  <div class="md-modal-footer md-leave-edit-footer">
+    {{!-- Two glass-pill buttons mirroring the toolbar's Cancel/Save
+         look. Discard sits left, Save right (confirm-on-right
+         pattern). The X (close) button in the header is the
+         "back-out" affordance — there's no third Keep-Editing
+         button per Traci's spec. --}}
+    <button type="button" class="md-leave-edit-btn md-leave-edit-btn--discard" {{action "discard"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      <span>{{t "Discard" key="discard"}}</span>
+    </button>
+    <button type="button" class="md-leave-edit-btn md-leave-edit-btn--save" {{action "save"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      <span>{{t "Save" key="save"}}</span>
+    </button>
+  </div>
+{{/modal-dialog}}

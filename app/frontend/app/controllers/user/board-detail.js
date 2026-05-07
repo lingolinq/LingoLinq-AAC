@@ -60,6 +60,16 @@ export default Controller.extend(prefClasses, {
   show_color_legend: false,
   show_quick_phrases: false,
   show_categories: false,
+  /* Edit-panel "Filter by Category" expander state — independent
+     of the toolbar's `show_categories` so the two UIs can be open
+     simultaneously without fighting; both write to the same
+     `active_category` so the underlying grid filter stays in sync. */
+  panel_filter_open: false,
+
+  /* Right-panel "Live Preview Edit" — collapsed/expanded state for
+     the whole panel + the currently-open accordion section id. */
+  right_panel_collapsed: false,
+  right_panel_open_section: null,
   panels_collapsed: false,
   board_search_string: '',
 
@@ -1031,15 +1041,18 @@ export default Controller.extend(prefClasses, {
   // Simple prefix checks for the three compound skin variants. Concrete tones
   // (default/light/medium-light/medium/medium-dark/dark) compare directly
   // against pending_display_prefs.skin in the template — no indirection.
-  skin_is_mix: computed('pending_display_prefs.skin', function() {
-    var s = this.get('pending_display_prefs.skin') || '';
+  // Skin computeds read current_display_prefs (which falls back to
+  // user.preferences.skin when pending is null) so they work both
+  // inside More Settings and in the right panel.
+  skin_is_mix: computed('current_display_prefs.skin', function() {
+    var s = this.get('current_display_prefs.skin') || '';
     return s === 'mix' || s.indexOf('mix::') === 0;
   }),
-  skin_is_mix_only: computed('pending_display_prefs.skin', function() {
-    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_only') === 0;
+  skin_is_mix_only: computed('current_display_prefs.skin', function() {
+    return (this.get('current_display_prefs.skin') || '').indexOf('mix_only') === 0;
   }),
-  skin_is_mix_prefer: computed('pending_display_prefs.skin', function() {
-    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
+  skin_is_mix_prefer: computed('current_display_prefs.skin', function() {
+    return (this.get('current_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
   }),
 
   // CSS modifier class for the mobile-collapse skin-tones dropdown trigger
@@ -1050,11 +1063,11 @@ export default Controller.extend(prefClasses, {
   // pending_display_prefs.skin starting with 'mix_only'. Simple tones
   // map directly except 'default', which uses the --original swatch class
   // (yellow Fitzgerald-neutral) following the existing template convention.
-  display_prefs_current_skin_class: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+  display_prefs_current_skin_class: computed('current_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
     if(this.get('skin_is_mix_only'))   { return 'md-settings-skin--mix-only'; }
     if(this.get('skin_is_mix_prefer')) { return 'md-settings-skin--mix-prefer'; }
     if(this.get('skin_is_mix'))        { return 'md-settings-skin--mix'; }
-    var skin = this.get('pending_display_prefs.skin') || 'default';
+    var skin = this.get('current_display_prefs.skin') || 'default';
     if(skin === 'default') { return 'md-settings-skin--original'; }
     return 'md-settings-skin--' + skin;
   }),
@@ -1064,10 +1077,10 @@ export default Controller.extend(prefClasses, {
   // Returns null for the mix_only/mix_prefer variants since their
   // suboptions row already provides context (the "Only:" / "Prefer:"
   // sublabel + suboption swatches make the mode self-evident).
-  display_prefs_current_skin_label: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+  display_prefs_current_skin_label: computed('current_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
     if(this.get('skin_is_mix_only') || this.get('skin_is_mix_prefer')) { return null; }
     if(this.get('skin_is_mix')) { return i18n.t('skin_label_mix', "Mix of tones"); }
-    var skin = this.get('pending_display_prefs.skin') || 'default';
+    var skin = this.get('current_display_prefs.skin') || 'default';
     var labels = {
       'default':      i18n.t('skin_label_original',     "Original"),
       'light':        i18n.t('skin_label_light',        "Light"),
@@ -1095,8 +1108,8 @@ export default Controller.extend(prefClasses, {
     return !!(pm && pm.hidden === false);
   }),
 
-  skin_suboptions: computed('pending_display_prefs.skin', function() {
-    var s = this.get('pending_display_prefs.skin') || '';
+  skin_suboptions: computed('current_display_prefs.skin', function() {
+    var s = this.get('current_display_prefs.skin') || '';
     var is_only = s.indexOf('mix_only') === 0;
     var is_prefer = s.indexOf('mix_prefer') === 0;
     if(!is_only && !is_prefer) { return null; }
@@ -1120,17 +1133,31 @@ export default Controller.extend(prefClasses, {
   // built from the live user preferences when not. Lets the same toolbar
   // markup work in both contexts (toolbar-direct and More Settings).
   current_display_prefs: computed(
+    // Observe BOTH the pending object as a whole AND each individual
+    // sub-property. Without the per-key observers a `set('pending_display_prefs.X', val)`
+    // mutation wouldn't invalidate this computed in Ember 3.x — it tracks
+    // sub-property changes only when the path is explicitly listed.
     'pending_display_prefs',
     'pending_display_prefs.button_text',
     'pending_display_prefs.button_text_position',
     'pending_display_prefs.button_style',
+    'pending_display_prefs.button_spacing',
+    'pending_display_prefs.button_border',
     'pending_display_prefs.utterance_text_only',
+    'pending_display_prefs.preferred_symbols',
+    'pending_display_prefs.symbol_background',
+    'pending_display_prefs.high_contrast',
+    'pending_display_prefs.hidden_buttons',
+    'pending_display_prefs.stretch_buttons',
+    'pending_display_prefs.skin',
+    'pending_display_prefs.vocalization_height',
     'app_state.currentUser.preferences.device.button_text',
     'app_state.currentUser.preferences.device.button_text_position',
     'app_state.currentUser.preferences.device.button_style',
     'app_state.currentUser.preferences.device.button_spacing',
     'app_state.currentUser.preferences.device.button_border',
     'app_state.currentUser.preferences.device.utterance_text_only',
+    'app_state.currentUser.preferences.device.vocalization_height',
     'app_state.currentUser.preferences.preferred_symbols',
     'app_state.currentUser.preferences.symbol_background',
     'app_state.currentUser.preferences.high_contrast',
@@ -1148,6 +1175,7 @@ export default Controller.extend(prefClasses, {
         button_text:          device.button_text          || 'medium',
         button_text_position: device.button_text_position || 'bottom',
         button_style:         device.button_style         || 'default',
+        vocalization_height:  device.vocalization_height  || 'medium',
         hidden_buttons:       prefs.hidden_buttons        || 'grid',
         stretch_buttons:      prefs.stretch_buttons       || 'none',
         preferred_symbols:    prefs.preferred_symbols     || 'original',
@@ -1167,20 +1195,26 @@ export default Controller.extend(prefClasses, {
     var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_text'));
     return idx >= 3;
   }),
-  display_prefs_border_at_min: computed('pending_display_prefs.button_border', function() {
-    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+  // current_display_prefs falls back to live user prefs when pending
+  // is null, so these computeds work in BOTH contexts: the center
+  // toolbar (which seeds pending when More Settings opens) and the
+  // right panel (which never seeds pending). Without the fallback the
+  // stepper's "thinner"/"tighter" buttons stayed perpetually disabled
+  // outside More Settings.
+  display_prefs_border_at_min: computed('current_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_border'));
     return idx <= 0;
   }),
-  display_prefs_border_at_max: computed('pending_display_prefs.button_border', function() {
-    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+  display_prefs_border_at_max: computed('current_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_border'));
     return idx >= 4;
   }),
-  display_prefs_spacing_at_min: computed('pending_display_prefs.button_spacing', function() {
-    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+  display_prefs_spacing_at_min: computed('current_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_spacing'));
     return idx <= 0;
   }),
-  display_prefs_spacing_at_max: computed('pending_display_prefs.button_spacing', function() {
-    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+  display_prefs_spacing_at_max: computed('current_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_spacing'));
     return idx >= 6;
   }),
   grid_rows_at_min: computed('current_grid.rows', function() {
@@ -1212,8 +1246,8 @@ export default Controller.extend(prefClasses, {
     });
   }),
 
-  display_prefs_current_symbol_library_label: computed('pending_display_prefs.preferred_symbols', 'preferred_symbols_options', function() {
-    var current = this.get('pending_display_prefs.preferred_symbols');
+  display_prefs_current_symbol_library_label: computed('current_display_prefs.preferred_symbols', 'preferred_symbols_options', function() {
+    var current = this.get('current_display_prefs.preferred_symbols');
     var opts = this.get('preferred_symbols_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Original';
@@ -1224,18 +1258,32 @@ export default Controller.extend(prefClasses, {
   // the dropdown displays "High Contrast" regardless of the stored
   // symbol_background value, so the two prefs appear as a single 4-option list
   // to the user.
-  display_prefs_current_symbol_background_id: computed('pending_display_prefs.symbol_background', 'pending_display_prefs.high_contrast', function() {
-    if(this.get('pending_display_prefs.high_contrast')) { return 'high_contrast'; }
-    return this.get('pending_display_prefs.symbol_background') || 'clear';
-  }),
+  // Falls back to the live user prefs when pending_display_prefs is null
+  // (e.g. right-panel use where the center "More Settings" panel hasn't been
+  // opened) so the dropdown reflects the current setting at all times.
+  // Mirrors the utterance_text_only_str pattern above.
+  display_prefs_current_symbol_background_id: computed(
+    'pending_display_prefs.symbol_background',
+    'pending_display_prefs.high_contrast',
+    'app_state.currentUser.preferences.symbol_background',
+    'app_state.currentUser.preferences.high_contrast',
+    function() {
+      var pending = this.get('pending_display_prefs');
+      var hc = pending ? this.get('pending_display_prefs.high_contrast')
+                       : this.get('app_state.currentUser.preferences.high_contrast');
+      if(hc) { return 'high_contrast'; }
+      var bg = pending ? this.get('pending_display_prefs.symbol_background')
+                       : this.get('app_state.currentUser.preferences.symbol_background');
+      return bg || 'clear';
+    }),
   display_prefs_current_symbol_background_label: computed('display_prefs_current_symbol_background_id', 'symbol_background_options', function() {
     var current = this.get('display_prefs_current_symbol_background_id');
     var opts = this.get('symbol_background_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
   }),
-  display_prefs_current_voice_height_label: computed('pending_display_prefs.vocalization_height', 'voice_height_options', function() {
-    var current = this.get('pending_display_prefs.vocalization_height') || 'medium';
+  display_prefs_current_voice_height_label: computed('current_display_prefs.vocalization_height', 'voice_height_options', function() {
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
     var opts = this.get('voice_height_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Medium (100px)';
@@ -2420,6 +2468,14 @@ export default Controller.extend(prefClasses, {
       // non-edit page shows up with the saving overlay still stuck on.
       var finish = function() {
         _this.set('board_saving', false);
+        // Stay-in-edit-mode path (header Save button): the save
+        // round-trip and post-save fetch are done; keep edit_mode
+        // true and don't transition out. Reset the flag so subsequent
+        // back_to_boards saves exit normally.
+        if(_this.get('_save_keep_editing')) {
+          _this.set('_save_keep_editing', false);
+          return;
+        }
         runLater(function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           _this.set('edit_mode', false);
@@ -2432,7 +2488,15 @@ export default Controller.extend(prefClasses, {
           stashes.persist('current_mode', 'default');
           _this.set('panels_collapsed', true);
           _this.set('board_collapsed', true);
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          // Honor "Save & Continue" flow from the panel's "Back to
+          // Boards" prompt — redirect to the user's boards list rather
+          // than the board view page when that flag is set.
+          if(_this.get('_save_exit_to_boards')) {
+            _this.set('_save_exit_to_boards', false);
+            _this.get('router').transitionTo('user.boards', _this.get('user.user_name'));
+          } else {
+            _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          }
         }, 0);
       };
       persistence.ajax('/api/v1/boards/' + board.get('key'), { type: 'GET' }).then(function(data) {
@@ -3146,6 +3210,30 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('description_info_expanded');
     },
 
+    // Edit-card description textarea auto-resize. On focus and on
+    // each keystroke, expand the textarea to fit its full content
+    // (style.height = scrollHeight). The CSS still caps the unfocused
+    // height at 150px with internal scroll; this action runs while
+    // focused, so the user always sees their full text without the
+    // textarea's internal scrollbar — the page scroll handles content
+    // taller than the viewport. Reset height to 'auto' first so
+    // shrinking on delete works too.
+    auto_resize_description: function(ev) {
+      var el = ev && ev.target;
+      if(!el) { return; }
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    },
+    // On blur, clear the inline height so the CSS rules (max-height:
+    // 150px + overflow-y: auto in the unfocused state) take over
+    // again. Without this the inline style.height set on focus would
+    // keep the textarea at its expanded size after blurring.
+    auto_resize_description_blur: function(ev) {
+      var el = ev && ev.target;
+      if(!el) { return; }
+      el.style.height = '';
+    },
+
     // Opens the board-privacy modal so the user can change this board's
     // public/private/protected setting from the inline header indicator.
     // Same modal opened by the Visibility & License row in the
@@ -3288,7 +3376,22 @@ export default Controller.extend(prefClasses, {
     },
 
     pick_display_font: function(font_id) {
+      // [TEMP DEBUG] Remove after we've diagnosed the right-panel
+      // font dropdown not updating the preview.
+      try {
+        console.log('[trace] pick_display_font fired', {
+          font_id: font_id,
+          font_id_type: typeof font_id,
+          before_button_style: this.get('app_state.currentUser.preferences.device.button_style'),
+          pending_set: !!this.get('pending_display_prefs')
+        });
+      } catch(e) { /* ignore */ }
       this.send('set_display_pref', 'button_style', font_id);
+      try {
+        console.log('[trace] pick_display_font after set_display_pref', {
+          after_button_style: this.get('app_state.currentUser.preferences.device.button_style')
+        });
+      } catch(e) { /* ignore */ }
       this.set('display_prefs_font_dropdown_open', false);
       this.set('display_prefs_font_filter', '');
     },
@@ -3382,12 +3485,39 @@ export default Controller.extend(prefClasses, {
       // .fitzgerald-soft / .fitzgerald-faded class to be emitted by
       // pref-classes.js#symbol_background_class, swapping the
       // --fitzgerald-* CSS custom properties to the muted variants.
-      if(id === 'high_contrast') {
-        this.send('set_display_pref', 'high_contrast', true);
-        this.send('set_display_pref', 'symbol_background', 'black');
-      } else {
-        this.send('set_display_pref', 'high_contrast', false);
-        this.send('set_display_pref', 'symbol_background', id);
+      //
+      // We CAN'T just call set_display_pref twice (the natural-looking
+      // approach) because each call triggers user.save() when the
+      // More Settings panel is closed (pending_display_prefs is null).
+      // The first save sends a snapshot with symbol_background still
+      // at its OLD value (we update it on the second call) — and if
+      // that first save's response comes back AFTER the second save's,
+      // the server-echoed old value clobbers the model and the
+      // sync_fitzgerald_scope observer reapplies the old class. Users
+      // see the buttons flash to the new bg, then revert. To prevent
+      // the race we mutate both fields on the local model first, then
+      // call user.save() once at the end with both new values in the
+      // payload.
+      var pending = this.get('pending_display_prefs');
+      var user = this.get('app_state.currentUser');
+      var hc = (id === 'high_contrast');
+      var bg = hc ? 'black' : id;
+      if(user) {
+        user.set('preferences.high_contrast', hc);
+        user.set('preferences.symbol_background', bg);
+      }
+      if(pending) {
+        this.set('pending_display_prefs.high_contrast', hc);
+        this.set('pending_display_prefs.symbol_background', bg);
+      }
+      if(!pending && user && user.save) {
+        // Ember Data doesn't reliably mark `preferences` (DS.attr('raw'))
+        // as dirty when only sub-properties are mutated, so a plain
+        // user.save() can ship the OLD preferences blob and the server
+        // echo back overwrites our local change. The center's
+        // save_display_preferences uses this same trick on line 3732.
+        user.set('preferences.device.updated', true);
+        user.save();
       }
       this.set('display_prefs_symbol_background_dropdown_open', false);
       // Apply the Fitzgerald-soft / -faded class at <html> so :root has
@@ -3509,6 +3639,14 @@ export default Controller.extend(prefClasses, {
       if(!pending && user && user.save) {
         // Toolbar use (no pending session): persist immediately, like
         // set_folder_style. No Save button is in scope here.
+        // Ember Data doesn't reliably mark `preferences` (DS.attr('raw'))
+        // as dirty when only sub-properties are mutated, so a plain
+        // user.save() can ship the OLD preferences blob and the server
+        // echo overwrites our local change. The center's
+        // save_display_preferences uses this same trick on line 3732 —
+        // setting any sub-property of `preferences.device` forces the
+        // raw attribute's dirty bit on so the new full blob is sent.
+        user.set('preferences.device.updated', true);
         user.save();
       }
     },
@@ -4044,6 +4182,41 @@ export default Controller.extend(prefClasses, {
       this._apply_category_filter(category_id);
     },
 
+    /* Edit-panel: toggle the "Filter by Category" expander. */
+    toggle_panel_filter: function() {
+      this.toggleProperty('panel_filter_open');
+    },
+
+    /* Edit-panel: pick a category from the expanded list. Mirrors
+       set_category but keeps the panel expander open so the user
+       can switch filters without re-clicking the header — and
+       leaves the toolbar's show_categories alone. */
+    set_panel_category: function(category_id) {
+      this.set('active_category', category_id);
+      this._apply_category_filter(category_id);
+    },
+
+    /* Right panel: collapse/expand the entire Live Preview Edit
+       container (independent of any open accordion section). */
+    toggle_right_panel: function() {
+      this.toggleProperty('right_panel_collapsed');
+    },
+
+    /* Right panel: open one accordion section at a time (clicking
+       the same section closes it). Keeps the panel uncluttered.
+       If the panel is collapsed (icon-rail mode), clicking a
+       section icon re-expands the panel AND opens that section
+       — VS Code / Notion-style "click rail icon to jump back in". */
+    toggle_right_panel_section: function(section_id) {
+      if(this.get('right_panel_collapsed')) {
+        this.set('right_panel_collapsed', false);
+        this.set('right_panel_open_section', section_id);
+        return;
+      }
+      var current = this.get('right_panel_open_section');
+      this.set('right_panel_open_section', current === section_id ? null : section_id);
+    },
+
     nav_select: function(item_id) {
       var user = this.get('user');
       if(!user) { return; }
@@ -4215,11 +4388,61 @@ export default Controller.extend(prefClasses, {
       editManager.redo();
     },
 
-    save_board: function() {
+    save_board: function(stay_in_edit) {
+      // The header's Save button passes true so we stay in edit mode
+      // after the save (Traci's spec: Save = persist current work,
+      // keep editing). The back_to_boards flow calls save_board with
+      // no arg → exits to view mode as before. Flag is read inside
+      // saveButtonChanges' finish() helper.
+      if(stay_in_edit) {
+        this.set('_save_keep_editing', true);
+      }
       if(this.get('display_prefs_open')) {
         this.send('save_display_preferences');
       }
       this.saveButtonChanges();
+    },
+
+    /**
+     * Triggered by the edit-panel's "Back to Boards" button. Always
+     * presents a Save / Discard modal so the user is never able to
+     * leave with unsaved work by accident. Both branches end on
+     * the speak-mode board-detail page (the non-edit view of the
+     * same board).
+     */
+    back_to_boards: function() {
+      var _this = this;
+      modal.open('confirm-leave-edit', {}).then(function(result) {
+        if(result === 'save') {
+          // save_board's existing finish() path already transitions
+          // to user.board-detail.index after a successful save —
+          // exactly where we want to land, so no flag/redirect
+          // override is needed.
+          _this.send('save_board');
+        } else if(result === 'discard') {
+          if(_this.get('display_prefs_open')) {
+            _this.send('close_display_preferences');
+          }
+          _this.set('edit_mode', false);
+          _this.set('paint_mode', null);
+          _this.set('color_picker_button', null);
+          _this.set('board_recolored', false);
+          _this.set('_saved_recolor', null);
+          _this.set('borders_matched', false);
+          _this.set('_saved_border_colors', null);
+          _this.get('stashes').persist('current_mode', 'default');
+          _this.get('stashes').persist('copy_on_save', null);
+          _this.get('model').rollbackAttributes();
+          _this.set('ordered_buttons', null);
+          _this.set('panels_collapsed', true);
+          _this.set('board_collapsed', true);
+          // Speak-mode board-detail page (the non-edit view), NOT
+          // the boards list — Traci's spec: discard reverts and
+          // returns to the same board in view mode.
+          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+        }
+        // result undefined → modal closed via X; stay put.
+      });
     },
 
     cancel_edit: function() {
@@ -4630,6 +4853,12 @@ export default Controller.extend(prefClasses, {
 
       modal.open('confirm-recolor-board', {}).then(function(result) {
         if(result === 'recolor') {
+          // Collapse the right panel's Recolor Tool accordion now
+          // that the user has confirmed — the action is committing,
+          // there's no reason to keep the section expanded.
+          if(_this.get('right_panel_open_section') === 'recolor') {
+            _this.set('right_panel_open_section', null);
+          }
           var ob = _this.get('ordered_buttons') || [];
           var colors = window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
           var savedColors = {};
