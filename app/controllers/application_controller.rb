@@ -285,10 +285,12 @@ class ApplicationController < ActionController::Base
     return if h.blank? && !params.key?('installed_app')
     h_log = h[0, 64]
     raw_p = params['installed_app']
-    p_log = if raw_p.nil?
+    p_log = if raw_p.nil? || (raw_p.is_a?(String) && raw_p.empty?)
       nil
     elsif raw_p.is_a?(String)
       raw_p[0, 64]
+    elsif raw_p.is_a?(ActionController::Parameters) || raw_p.is_a?(Hash)
+      '#<Hash>'
     else
       "#<#{raw_p.class.name}>"
     end
