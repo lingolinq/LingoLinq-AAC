@@ -1529,7 +1529,7 @@
         <svg class="board-picker__filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" class="board-picker__filter-input" placeholder={{t "Filter boards..." key="filter_boards"}} value={{this.boardPickerFilter}} oninput={{action "updateBoardPickerFilter" value="target.value"}} autocomplete="off">
+        <input type="text" class="board-picker__filter-input" placeholder={{t "Filter boards..." key="filter_boards_placeholder"}} value={{this.boardPickerFilter}} oninput={{action "updateBoardPickerFilter" value="target.value"}} autocomplete="off">
         {{#if this.boardPickerFilter}}
           <button type="button" class="board-picker__filter-clear" {{action "updateBoardPickerFilter" ""}} aria-label={{t "Clear filter" key="clear_filter"}}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14" aria-hidden="true">

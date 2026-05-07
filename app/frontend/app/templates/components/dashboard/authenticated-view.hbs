@@ -45,7 +45,7 @@
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
       {{else}}
-        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
