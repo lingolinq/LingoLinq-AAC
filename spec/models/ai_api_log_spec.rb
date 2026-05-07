@@ -283,7 +283,7 @@ describe AiApiLog, :type => :model do
         expect(log.response_summary).to eq('')
       end
 
-      it "does not fall back to unsanitized text on non-hash scrubber return" do
+      it "uses scrubber result directly when scrubber returns a string" do
         allow(PiiScrubber).to receive(:redact_for_ai).and_return('[REDACTED_EMAIL]')
         log = AiApiLog.log_ai_call(
           provider: 'claude',

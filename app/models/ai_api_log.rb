@@ -1,4 +1,6 @@
 class AiApiLog < ApplicationRecord
+  REDACTED_PLACEHOLDER = '[REDACTED]'.freeze
+
   # Validations
   validates :ai_provider, presence: true
   validates :request_type, presence: true
@@ -31,10 +33,10 @@ class AiApiLog < ApplicationRecord
                else
                  result
                end
-    scrubbed.is_a?(String) ? scrubbed : '[REDACTED]'
+    scrubbed.is_a?(String) ? scrubbed : REDACTED_PLACEHOLDER
   rescue StandardError => e
     Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
-    '[REDACTED]'
+    REDACTED_PLACEHOLDER
   end
 
   # Scopes
