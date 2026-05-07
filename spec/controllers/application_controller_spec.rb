@@ -445,6 +445,60 @@ describe ApplicationController, :type => :controller do
     end
   end
 
+  describe "log_installed_client_signal" do
+    controller do
+      def index
+        log_installed_client_signal('test')
+        render plain: 'ok'
+      end
+    end
+
+    it "should truncate a long X-INSTALLED-LINGOLINQ header to 64 chars in the log" do
+      long_header = 'x' * 200
+      request.headers['X-INSTALLED-LINGOLINQ'] = long_header
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
+      get :index
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('x' * 64)
+      expect(installed_log).not_to include('x' * 65)
+    end
+
+    it "should truncate a long installed_app String param to 64 chars in the log" do
+      long_param = 'y' * 200
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
+      get :index, params: { 'installed_app' => long_param }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('y' * 64)
+      expect(installed_log).not_to include('y' * 65)
+    end
+
+    it "should preserve nil in the log when installed_app param value is nil" do
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
+      get :index, params: { 'installed_app' => nil }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('params=nil')
+    end
+
+    it "should log class name instead of serializing a non-String installed_app param" do
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
+      get :index, params: { 'installed_app' => { 'foo' => 'bar' } }
+      installed_log = logged.find { |m| m.include?('[INSTALLED_HEADER]') }
+      expect(installed_log).to be_present
+      expect(installed_log).to include('#<Hash>')
+      expect(installed_log).not_to include('foo')
+    end
+  end
+
   describe "load_domains" do
     it "should load the domain-override settings" do
       get :index
