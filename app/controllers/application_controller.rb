@@ -283,8 +283,15 @@ class ApplicationController < ActionController::Base
   def log_installed_client_signal(source)
     h = installed_app_header
     return if h.blank? && !params.key?('installed_app')
-    h_log = h.to_s[0, 64]
-    p_log = params['installed_app'].to_s[0, 64]
+    h_log = h[0, 64]
+    raw_p = params['installed_app']
+    p_log = if raw_p.nil?
+      nil
+    elsif raw_p.is_a?(String)
+      raw_p[0, 64]
+    else
+      "#<#{raw_p.class.name}>"
+    end
     Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h_log.inspect} effective=#{installed_app_header_effective.inspect} params=#{p_log.inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
   end
 end

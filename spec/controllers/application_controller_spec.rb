@@ -441,6 +441,51 @@ describe ApplicationController, :type => :controller do
     end
   end
 
+  describe "log_installed_client_signal" do
+    controller do
+      def index
+        log_installed_client_signal('test')
+        render plain: 'ok'
+      end
+    end
+
+    it "should truncate a long X-INSTALLED-LINGOLINQ header to 64 chars in the log" do
+      long_header = 'x' * 200
+      request.headers['X-INSTALLED-LINGOLINQ'] = long_header
+      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
+        msg.include?('[INSTALLED_HEADER]') &&
+          msg.include?('x' * 64) &&
+          !msg.include?('x' * 65)
+      })
+      get :index
+    end
+
+    it "should truncate a long installed_app String param to 64 chars in the log" do
+      long_param = 'y' * 200
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
+        msg.include?('y' * 64) && !msg.include?('y' * 65)
+      })
+      get :index, params: { 'installed_app' => long_param }
+    end
+
+    it "should preserve nil in the log when installed_app param value is nil" do
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
+        msg.include?('params=nil')
+      })
+      get :index, params: { 'installed_app' => nil }
+    end
+
+    it "should log class name instead of serializing a non-String installed_app param" do
+      request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
+      expect(Rails.logger).to receive(:info).with(satisfy { |msg|
+        msg.include?('#<Hash>') && !msg.include?('foo')
+      })
+      get :index, params: { 'installed_app' => { 'foo' => 'bar' } }
+    end
+  end
+
   describe "load_domains" do
     it "should load the domain-override settings" do
       get :index
