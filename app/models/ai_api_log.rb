@@ -28,12 +28,14 @@ class AiApiLog < ApplicationRecord
   def pii_scrub(value)
     return value unless value.is_a?(String) && !value.empty?
     result = PiiScrubber.redact_for_ai(value)
-    scrubbed = if result.is_a?(Hash)
-                 result[:payload]
-               else
-                 result
-               end
-    scrubbed.is_a?(String) ? scrubbed : REDACTED_PLACEHOLDER
+    return result if result.is_a?(String)
+
+    if result.is_a?(Hash)
+      payload = result[:payload]
+      return payload if payload.is_a?(String)
+    end
+
+    REDACTED_PLACEHOLDER
   rescue StandardError => e
     Rails.logger.error("AiApiLog: pii_scrub failed: #{e.message}") if defined?(Rails)
     REDACTED_PLACEHOLDER
