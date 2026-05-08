@@ -20,7 +20,7 @@
     {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
       {{#if this.hierarchyRootOnlyWarning}}
-        <p class="text-warning">{{t "The linked board list could not be loaded. Copy all linked boards to preserve the full board set, or close and try again." key="copy_hierarchy_root_only_warning"}}</p>
+        <p class="text-warning">{{t "The saved linked board list could not be loaded, so this list was rebuilt from the board's folder links. All discovered linked boards are selected for copying." key="copy_hierarchy_live_links_warning"}}</p>
       {{/if}}
       {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
       {{#if this.hierarchyRootOnlyWarning}}

@@ -2552,6 +2552,20 @@ export default Controller.extend(prefClasses, {
     this.set('app_state.board_detail_nav_history', history);
   },
 
+  _preferred_board_detail_key: function(key) {
+    if(!key || key.indexOf('/') === -1) { return RSVP.resolve(key); }
+    var parts = key.split('/');
+    var routeUser = this.get('user.user_name') || (this.get('model.key') || '').split('/')[0];
+    if(!routeUser || parts[0] == routeUser) { return RSVP.resolve(key); }
+
+    var preferredKey = routeUser + '/' + parts.slice(1).join('/');
+    return LingoLinq.store.findRecord('board', preferredKey).then(function() {
+      return preferredKey;
+    }, function() {
+      return key;
+    });
+  },
+
   // Helper to extract button ID (Button objects use .get, plain objects use direct access)
   _btn_id: function(btn) {
     if(!btn) { return null; }
@@ -3829,10 +3843,12 @@ export default Controller.extend(prefClasses, {
         }
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
-          var key_parts = board_key.split('/');
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
             _this._push_nav_history();
-            return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            return _this._preferred_board_detail_key(board_key).then(function(preferred_key) {
+              var key_parts = preferred_key.split('/');
+              return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            });
           }, {timeout: 5000});
           return;
         }
@@ -3844,10 +3860,12 @@ export default Controller.extend(prefClasses, {
           // taps don't queue duplicate transitions.
           var cached_raw = boardDetailCache.get(lookup);
           if(cached_raw && cached_raw.key && cached_raw.key.indexOf('/') !== -1) {
-            var cached_parts = cached_raw.key.split('/');
             actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + cached_raw.key, function() {
               _this._push_nav_history();
-              return _this.get('router').transitionTo('user.board-detail', cached_parts[0], cached_parts.slice(1).join('/'));
+              return _this._preferred_board_detail_key(cached_raw.key).then(function(preferred_key) {
+                var cached_parts = preferred_key.split('/');
+                return _this.get('router').transitionTo('user.board-detail', cached_parts[0], cached_parts.slice(1).join('/'));
+              });
             }, {timeout: 5000});
             return;
           }
@@ -3859,8 +3877,10 @@ export default Controller.extend(prefClasses, {
             return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
               if(data && data.board && data.board.key) {
                 boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-                var parts = data.board.key.split('/');
-                return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+                return _this._preferred_board_detail_key(data.board.key).then(function(preferred_key) {
+                  var parts = preferred_key.split('/');
+                  return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+                });
               }
             });
           }, {timeout: 5000});

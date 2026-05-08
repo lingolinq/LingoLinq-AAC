@@ -9,13 +9,15 @@ import modal from 'frontend/utils/modal';
 const QUnit = window.QUnit;
 
 QUnit.module('Unit | Controller | copying-board', function() {
-  QUnit.test('users can copy all boards when hierarchy loading fails', async function(assert) {
-    assert.expect(5);
+  QUnit.test('users can select live linked boards when hierarchy loading fails', async function(assert) {
+    assert.expect(7);
 
     const controller = CopyingBoardController.create();
     const originalLoader = BoardHierarchy.load_with_button_set;
     const board = EmberObject.create({
-      linked_boards: [{ id: 'child-board' }],
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }],
       downstream_boards: 1,
       downstream_board_ids: ['child-board'],
       key: 'example/board'
@@ -39,8 +41,10 @@ QUnit.module('Unit | Controller | copying-board', function() {
       });
 
       assert.false(controller.get('loading'), 'stops loading after hierarchy failure');
-      assert.true(controller.get('hierarchyLoadFailed'), 'marks hierarchy load failure as recoverable');
-      assert.strictEqual(controller.get('error'), 'Failed loading board links for copying');
+      assert.false(controller.get('hierarchyLoadFailed'), 'does not show the hard error state when live links are available');
+      assert.strictEqual(controller.get('error'), null, 'does not show the load error when live links are available');
+      assert.true(controller.get('hierarchyRootOnlyWarning'), 'warns that the hierarchy is incomplete');
+      assert.strictEqual(controller.get('hierarchy.root.children.length'), 1, 'shows the live linked board for selection');
 
       controller.send('copy_all');
 

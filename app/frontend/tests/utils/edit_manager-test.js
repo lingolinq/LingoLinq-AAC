@@ -2623,6 +2623,7 @@ describe('editManager', function() {
             swap_library: undefined,
             make_public: undefined,
             ids_to_copy: "",
+            expand_selected_board_ids: undefined,
             new_owner: undefined,
             disconnect: undefined,
             copy_prefix: undefined
@@ -2974,6 +2975,7 @@ describe('editManager', function() {
             swap_library: undefined,
             make_public: undefined,
             ids_to_copy: "",
+            expand_selected_board_ids: undefined,
             new_owner: undefined,
             disconnect: undefined,
             copy_prefix: undefined

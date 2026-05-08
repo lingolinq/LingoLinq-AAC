@@ -52,7 +52,7 @@ class Api::WordsController < ApplicationController
     sentence = params['sentence'].to_s.strip
     return api_error(400, {error: "sentence required"}) if sentence.blank?
 
-    return api_error(400, {error: "ai_word_prediction is not enabled for this user"}) if @api_user && !FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', @api_user)
+    return api_error(400, {error: "ai_word_prediction is not enabled for this user"}) if !@api_user || !FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', @api_user)
     return api_error(403, {error: "parental consent required"}) if FeatureFlags.coppa_blocks_ai_for?(@api_user)
 
     locale = params['locale'] || 'en'

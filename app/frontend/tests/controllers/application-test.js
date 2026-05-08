@@ -163,6 +163,42 @@ describe('ApplicationController', 'controller:application', function() {
         expect(resolvedBoard).toEqual(visibleBoard);
       });
     });
+
+    it('uses a linked top page as the copy root when no active root is available', function() {
+      var controller = testOwner.lookup('controller:application');
+      var visibleBoard = EmberObject.create({
+        id: '1_2',
+        global_id: '1_2',
+        key: 'example/lunch',
+        linked_boards: [
+          { id: '1_1', key: 'example/top-page', name: 'Top Page' }
+        ]
+      });
+      var topBoard = EmberObject.create({ id: '1_1', global_id: '1_1', key: 'example/top-page' });
+      var requestedRef = null;
+      var resolvedBoard = null;
+
+      controller.set('appState.currentBoardState', { id: '1_2', key: 'example/lunch' });
+      controller.set('stashes', EmberObject.create({
+        temporary_root_board_state: null,
+        root_board_state: null
+      }));
+      LingoLinq.store.findRecord = function(type, ref) {
+        requestedRef = ref;
+        return RSVP.resolve(topBoard);
+      };
+
+      controller.copy_source_board(visibleBoard).then(function(board) {
+        resolvedBoard = board;
+      });
+
+      waitsFor(function() { return resolvedBoard; });
+      runs(function() {
+        expect(requestedRef).toEqual('example/top-page');
+        expect(resolvedBoard).toEqual(topBoard);
+        expect(topBoard.get('copy_source_from_board')).toEqual(visibleBoard);
+      });
+    });
   });
 
   describe('copy_and_edit_board', function() {
@@ -213,6 +249,102 @@ describe('ApplicationController', 'controller:application', function() {
       waitsFor(function() { return toggled; });
       runs(function() {
         expect(skipped).toEqual(true);
+      });
+    });
+  });
+
+  describe('openBoardPicker', function() {
+    var originalQuery;
+    var originalPersistence;
+    var originalAppState;
+
+    beforeEach(function() {
+      var controller = testOwner.lookup('controller:application');
+      originalQuery = LingoLinq.store.query;
+      originalPersistence = controller.get('persistence');
+      originalAppState = controller.get('appState');
+    });
+
+    afterEach(function() {
+      var controller = testOwner.lookup('controller:application');
+      LingoLinq.store.query = originalQuery;
+      controller.set('persistence', originalPersistence);
+      controller.set('appState', originalAppState);
+    });
+
+    it('loads all pages of boards for the modal picker', function() {
+      var controller = testOwner.lookup('controller:application');
+      var calls = [];
+      var firstBoard = EmberObject.create({ id: '1_1', global_id: '1_1', key: 'example/a', name: 'A' });
+      var secondBoard = EmberObject.create({ id: '1_2', global_id: '1_2', key: 'example/b', name: 'B' });
+      var loaded = null;
+
+      controller.set('appState', EmberObject.create({
+        referenced_user: EmberObject.create({
+          id: 'user-1',
+          preferences: { home_board: { key: 'example/b' } }
+        })
+      }));
+      controller.set('persistence', EmberObject.create({
+        meta: function(type, boards) {
+          if(boards[0] === firstBoard) {
+            return { more: true, per_page: 1, next_offset: 1 };
+          }
+          return { more: false };
+        }
+      }));
+      LingoLinq.store.query = function(type, args) {
+        calls.push(Object.assign({}, args));
+        if(args.offset == 1) {
+          return RSVP.resolve([secondBoard]);
+        }
+        return RSVP.resolve([firstBoard]);
+      };
+
+      controller.send('openBoardPicker');
+      waitsFor(function() {
+        loaded = controller.get('boardPickerBoards');
+        return loaded && loaded.length === 2;
+      });
+      runs(function() {
+        expect(calls.length).toEqual(2);
+        expect(calls[0].per_page).toEqual(100);
+        expect(calls[1].offset).toEqual(1);
+        expect(loaded[0]).toEqual(secondBoard);
+        expect(loaded[1]).toEqual(firstBoard);
+        expect(controller.get('boardPickerLoading')).toEqual(false);
+      });
+    });
+
+    it('sorts favorite boards before other boards in the modal picker', function() {
+      var controller = testOwner.lookup('controller:application');
+      var favoriteBoard = EmberObject.create({ id: '1_1', global_id: '1_1', key: 'example/z', name: 'Z Favorite', starred: true });
+      var normalBoard = EmberObject.create({ id: '1_2', global_id: '1_2', key: 'example/a', name: 'A Normal', starred: false });
+      var loaded = null;
+
+      controller.set('appState', EmberObject.create({
+        referenced_user: EmberObject.create({
+          id: 'user-1',
+          preferences: { home_board: {} }
+        })
+      }));
+      controller.set('persistence', EmberObject.create({
+        meta: function() {
+          return { more: false };
+        }
+      }));
+      LingoLinq.store.query = function() {
+        return RSVP.resolve([normalBoard, favoriteBoard]);
+      };
+
+      controller.send('openBoardPicker');
+      waitsFor(function() {
+        loaded = controller.get('boardPickerBoards');
+        return loaded && loaded.length === 2;
+      });
+      runs(function() {
+        expect(loaded[0]).toEqual(favoriteBoard);
+        expect(loaded[1]).toEqual(normalBoard);
       });
     });
   });

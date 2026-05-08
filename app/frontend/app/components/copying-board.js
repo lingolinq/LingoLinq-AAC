@@ -60,11 +60,19 @@ export default Component.extend({
         console.debug('[copying-board] hierarchy load rejected', err);
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
-        _this.set('error', err);
-        _this.set('hierarchyLoadFailed', true);
-        if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
-          _this.set('isTimeoutError', true);
-        }
+        BoardHierarchy.load_from_live_links(board, { expand_all: true }).then(function(fallbackHierarchy) {
+          if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+          if (fallbackHierarchy && fallbackHierarchy.get('root')) {
+            _this.set('hierarchyRootOnlyWarning', true);
+            _this.set('hierarchy', fallbackHierarchy);
+            return;
+          }
+          _this.set('error', err);
+          _this.set('hierarchyLoadFailed', true);
+          if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
+            _this.set('isTimeoutError', true);
+          }
+        });
       });
     }
   },
@@ -89,6 +97,7 @@ export default Component.extend({
       this.set('hierarchy', null);
     }
     board.set('downstream_board_ids_to_copy', board_ids_to_include);
+    board.set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
     const _this = this;
     const model = this.get('model') || {};
     const modalSvc = this.get('modal');

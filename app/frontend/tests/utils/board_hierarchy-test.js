@@ -9,11 +9,16 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
 import BoardHierarchy from '../../utils/board_hierarchy';
 import LingoLinq from '../../app';
 
 describe('boardHierarchy', function() {
+  afterEach(function() {
+    queryLog.fixtures = null;
+  });
+
   it('should generate a valid hierarchy', function() {
     var bs = LingoLinq.store.createRecord('buttonset', {
       buttons: [
@@ -110,6 +115,51 @@ describe('boardHierarchy', function() {
     expect(bh.get('root.children.length')).toEqual(1);
     expect(bh.get('root.children')[0].get('id')).toEqual('1_234');
     expect(bh.get('root.children')[0].get('key')).toEqual('asdf/child');
+  });
+  it('should recursively load live links when the button set cannot load', function() {
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      id: '1_234',
+      response: RSVP.resolve({board: {
+        id: '1_234',
+        key: 'asdf/child',
+        buttons: [
+          {id: 1, load_board: {id: '1_345', key: 'asdf/grandchild'}}
+        ]
+      }})
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'board',
+      id: '1_345',
+      response: RSVP.resolve({board: {
+        id: '1_345',
+        key: 'asdf/grandchild',
+        buttons: []
+      }})
+    });
+    var brd = LingoLinq.store.createRecord('board', {
+      id: 'asdf/root',
+      _actual_id: '1_123',
+      key: 'asdf/root',
+      buttons: [
+        {id: 1, load_board: {id: '1_234', key: 'asdf/child'}}
+      ]
+    });
+    var bh = null;
+    BoardHierarchy.load_from_live_links(brd, {expand_all: true}).then(function(hierarchy) {
+      bh = hierarchy;
+    });
+    waitsFor(function() { return bh; });
+    runs(function() {
+      expect(bh.get('root.children.length')).toEqual(1);
+      expect(bh.get('root.children')[0].get('id')).toEqual('1_234');
+      expect(bh.get('root.children')[0].get('open')).toEqual(true);
+      expect(bh.get('root.children')[0].get('children.length')).toEqual(1);
+      expect(bh.get('root.children')[0].get('children')[0].get('id')).toEqual('1_345');
+      expect(bh.get('live_links_incomplete')).toEqual(false);
+    });
   });
   describe('options', function() {
     it('should apply options.deselect_on_different', function() {

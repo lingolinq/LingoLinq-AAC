@@ -109,18 +109,12 @@ describe Api::WordsController, :type => :controller do
   end
 
   describe "post 'predict'" do
-    it "should not require an api token" do
+    it "should reject unauthenticated prediction requests" do
       allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
-      expect(AiWordPredictor).to receive(:predict).with(hash_including(
-        sentence: 'I want to',
-        locale: 'en',
-        count: 4,
-        user: nil
-      )).and_return(%w[play go eat help])
+      expect(AiWordPredictor).not_to receive(:predict)
 
       post 'predict', params: { 'sentence' => 'I want to' }
-      json = assert_success_json
-      expect(json).to eq({ 'words' => %w[play go eat help] })
+      assert_error('ai_word_prediction is not enabled for this user')
     end
 
     it "should require a sentence" do

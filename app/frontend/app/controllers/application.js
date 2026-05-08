@@ -142,6 +142,7 @@ export default Controller.extend({
   boardPickerLoading: false,
   boardPickerBoards: null,
   boardPickerFilter: '',
+  boardPickerListId: null,
   filteredBoardPickerBoards: computed('boardPickerBoards.[]', 'boardPickerFilter', function() {
     var boards = this.get('boardPickerBoards');
     if(!boards) { return []; }
@@ -202,7 +203,29 @@ export default Controller.extend({
     }
 
     if(!root_ref) {
-      return fallback;
+      var linked_boards = board.get('linked_boards') || [];
+      var owner = board_key && board_key.split(/\//)[0];
+      var linked_root = linked_boards.find(function(linked) {
+        var key = linked && linked.key;
+        var name = linked && linked.name;
+        var same_owner = !owner || (key && key.split(/\//)[0] == owner);
+        var topish_key = key && key.match(/(^|[-/])(top[-_]?page|home)([-/]|$)/);
+        var topish_name = name && name.match(/(^|\s)(top page|home)(\s|$)/i);
+        return linked && !linked.link_disabled && same_owner && (linked.home_board || topish_key || topish_name);
+      });
+      var linked_ref = linked_root && (linked_root.key || linked_root.id);
+      if(!linked_ref) {
+        return fallback;
+      }
+      return LingoLinq.store.findRecord('board', linked_ref).then(function(root_board) {
+        if(root_board && root_board.get('id') != board_id && root_board.get('key') != board_key) {
+          root_board.set('copy_source_from_board', board);
+          return root_board;
+        }
+        return board;
+      }, function() {
+        return board;
+      });
     }
 
     return LingoLinq.store.findRecord('board', root_ref).then(function(root_board) {
@@ -713,26 +736,55 @@ export default Controller.extend({
     },
     openBoardPicker: function() {
       var _this = this;
+      var listId = Math.random().toString();
       _this.set('boardPickerVisible', true);
       _this.set('boardPickerLoading', true);
       _this.set('boardPickerBoards', null);
       _this.set('boardPickerFilter', '');
+      _this.set('boardPickerListId', listId);
       var userId = _this.appState.get('referenced_user.id');
-      LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
+      var args = {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 100};
+      var loadedBoards = [];
+      var loadBoards = function() {
+        return LingoLinq.store.query('board', args).then(function(boards) {
+          if(_this.get('boardPickerListId') != listId) { return RSVP.resolve(); }
+          loadedBoards.pushObjects(boards.map(function(i) { return i; }));
+          var seen = {};
+          loadedBoards = loadedBoards.filter(function(board) {
+            var id = board.get('global_id') || board.get('id') || board.get('key');
+            if(seen[id]) { return false; }
+            seen[id] = true;
+            return true;
+          });
+          var meta = _this.persistence.meta('board', boards);
+          if(meta && meta.more) {
+            args.per_page = meta.per_page;
+            args.offset = meta.next_offset;
+            return loadBoards();
+          }
+          return RSVP.resolve();
+        });
+      };
+      loadBoards().then(function() {
+        if(_this.get('boardPickerListId') != listId) { return; }
         var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        var arr = boards.toArray().sort(function(a, b) {
+        var arr = loadedBoards.sort(function(a, b) {
           if(a.get('key') === homeKey) { return -1; }
           if(b.get('key') === homeKey) { return 1; }
+          if(a.get('starred') && !b.get('starred')) { return -1; }
+          if(b.get('starred') && !a.get('starred')) { return 1; }
           return (a.get('name') || '').localeCompare(b.get('name') || '');
         });
         _this.set('boardPickerBoards', arr);
         _this.set('boardPickerLoading', false);
       }, function() {
+        if(_this.get('boardPickerListId') != listId) { return; }
         _this.set('boardPickerLoading', false);
       });
     },
     closeBoardPicker: function() {
       this.set('boardPickerVisible', false);
+      this.set('boardPickerListId', null);
     },
     pickBoard: function(key) {
       this.set('boardPickerVisible', false);

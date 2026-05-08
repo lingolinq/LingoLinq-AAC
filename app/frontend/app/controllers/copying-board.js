@@ -32,11 +32,18 @@ export default modal.ModalController.extend({
         }
       }, function(err) {
         _this.set('loading', false);
-        _this.set('error', err);
-        _this.set('hierarchyLoadFailed', true);
-        if(err && (err.error == 'buttonset load timed out' || err.error == 'generation_stalled')) {
-          _this.set('isTimeoutError', true);
-        }
+        BoardHierarchy.load_from_live_links(board, { expand_all: true }).then(function(fallbackHierarchy) {
+          if(fallbackHierarchy && fallbackHierarchy.get('root')) {
+            _this.set('hierarchyRootOnlyWarning', true);
+            _this.set('hierarchy', fallbackHierarchy);
+            return;
+          }
+          _this.set('error', err);
+          _this.set('hierarchyLoadFailed', true);
+          if(err && (err.error == 'buttonset load timed out' || err.error == 'generation_stalled')) {
+            _this.set('isTimeoutError', true);
+          }
+        });
       });
     }
   },
@@ -52,6 +59,7 @@ export default modal.ModalController.extend({
       this.set('hierarchy', null);
     }
     this.get('model.board').set('downstream_board_ids_to_copy', board_ids_to_include);
+    this.get('model.board').set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
     var _this = this;
     _this.set('model.board.default_locale', null);
     if(this.get('model.default_locale') && this.get('model.board.locale') != this.get('model.default_locale')) {
