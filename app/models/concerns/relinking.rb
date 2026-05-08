@@ -250,7 +250,8 @@ module Relinking
           copy_prefix: opts[:copy_prefix],
           old_default_locale: opts[:old_default_locale],
           new_default_locale: opts[:new_default_locale],
-          valid_ids: opts[:valid_ids]
+          valid_ids: opts[:valid_ids],
+          expand_selected_board_ids: opts[:expand_selected_board_ids]
         }
       )
       copier.copy_and_relink

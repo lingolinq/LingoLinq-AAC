@@ -254,6 +254,10 @@ BoardHierarchy.load_from_live_links = function(board, opts) {
       if(linked.link_disabled) { return RSVP.resolve(null); }
       var ref = linked_ref_for(linked);
       if(!ref || seen[ref]) { return RSVP.resolve(null); }
+      if(!LingoLinq.store || typeof LingoLinq.store.findRecord !== 'function') {
+        missing_links = true;
+        return RSVP.resolve(null);
+      }
       return LingoLinq.store.findRecord('board', ref).then(function(linked_board) {
         queue.push(linked_board);
       }, function() {

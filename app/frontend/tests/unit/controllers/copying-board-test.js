@@ -1,15 +1,17 @@
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
+import Service from '@ember/service';
+import { module, test } from 'qunit';
+import { setupTest } from 'ember-qunit';
 import CopyingBoardController from 'frontend/controllers/copying-board';
-import CopyingBoardComponent from 'frontend/components/copying-board';
 import BoardHierarchy from 'frontend/utils/board_hierarchy';
 import editManager from 'frontend/utils/edit_manager';
 import modal from 'frontend/utils/modal';
 
-const QUnit = window.QUnit;
+module('Unit | Controller | copying-board', function(hooks) {
+  setupTest(hooks);
 
-QUnit.module('Unit | Controller | copying-board', function() {
-  QUnit.test('users can select live linked boards when hierarchy loading fails', async function(assert) {
+  test('users can select live linked boards when hierarchy loading fails', async function(assert) {
     assert.expect(7);
 
     const controller = CopyingBoardController.create();
@@ -56,7 +58,7 @@ QUnit.module('Unit | Controller | copying-board', function() {
     }
   });
 
-  QUnit.test('copy completion continues after the modal is closed', async function(assert) {
+  test('copy completion continues after the modal is closed', async function(assert) {
     assert.expect(2);
 
     const originalCopyBoard = editManager.copy_board;
@@ -80,18 +82,6 @@ QUnit.module('Unit | Controller | copying-board', function() {
         return RSVP.resolve();
       }
     });
-    const modalService = EmberObject.create({
-      isOpen() {
-        return false;
-      },
-      close() {}
-    });
-    const appState = EmberObject.create({
-      jump_to_board() {
-        assert.ok(false, 'closed copying modal should not force navigation');
-      }
-    });
-
     editManager.copy_board = function() {
       return new RSVP.Promise(function(resolve) {
         resolveCopy = resolve;
@@ -108,9 +98,21 @@ QUnit.module('Unit | Controller | copying-board', function() {
     };
 
     try {
-      const component = CopyingBoardComponent.create({
-        modal: modalService,
-        appState: appState,
+      this.owner.register('service:modal', Service.extend({
+        getSettingsFor() {
+          return null;
+        },
+        isOpen() {
+          return false;
+        },
+        close() {}
+      }));
+      this.owner.register('service:app-state', Service.extend({
+        jump_to_board() {
+          assert.ok(false, 'closed copying modal should not force navigation');
+        }
+      }));
+      const component = this.owner.factoryFor('component:copying-board').create({
         model: {
           action: 'keep_links',
           board: board,
@@ -134,7 +136,7 @@ QUnit.module('Unit | Controller | copying-board', function() {
     }
   });
 
-  QUnit.test('closed copy modal can notify a copy-and-edit completion callback', async function(assert) {
+  test('closed copy modal can notify a copy-and-edit completion callback', async function(assert) {
     assert.expect(2);
 
     const originalCopyBoard = editManager.copy_board;
@@ -169,16 +171,19 @@ QUnit.module('Unit | Controller | copying-board', function() {
     };
 
     try {
-      const component = CopyingBoardComponent.create({
-        modal: EmberObject.create({
-          isOpen() {
-            return false;
-          },
-          close() {}
-        }),
-        appState: EmberObject.create({
-          jump_to_board() {}
-        }),
+      this.owner.register('service:modal', Service.extend({
+        getSettingsFor() {
+          return null;
+        },
+        isOpen() {
+          return false;
+        },
+        close() {}
+      }));
+      this.owner.register('service:app-state', Service.extend({
+        jump_to_board() {}
+      }));
+      const component = this.owner.factoryFor('component:copying-board').create({
         model: {
           action: 'keep_links',
           board: board,

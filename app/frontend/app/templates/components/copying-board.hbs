@@ -24,7 +24,8 @@
       {{/if}}
       {{board-hierarchy selectable=true hierarchy=this.hierarchy}}
       {{#if this.hierarchyRootOnlyWarning}}
-        <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
+        <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
+        <button class='btn btn-default' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
       {{else}}
         <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
       {{/if}}

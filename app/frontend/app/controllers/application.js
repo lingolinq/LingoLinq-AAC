@@ -281,7 +281,7 @@ export default Controller.extend({
           selected_user_name: selected_user_name
         });
       }).then(function(opts) {
-        return _this.copy_board(opts, for_editing, null, copy_finished);
+        return _this.copy_board(opts, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution);
       });
     }
     decision = decision || {};
