@@ -126,6 +126,7 @@ LingoLinq.Buttonset = DS.Model.extend({
         settle();
       }, SERIAL_TAIL_TIMEOUT_MS);
     });
+    var start_work = function() {
     // Tracks the active progress_tracker track id (if regenerate is called) so that
     // every settlement path (resolve, reject, master timeout) can untrack and stop
     // the 2.5s polling loop. Without this the poller leaks: track() returns an id,
@@ -339,8 +340,11 @@ LingoLinq.Buttonset = DS.Model.extend({
         settle_reject({error: 'buttonset load timed out', board_id: board_id, buttons_count: buttons_count});
       }, WORK_TIMEOUT_MS);
     });
-    bs.__loadButtonsSerialTail = wait.then(function() { return work_with_timeout; }, function() { return work_with_timeout; });
     return work_with_timeout;
+    };
+    var queued_work = wait.then(start_work, start_work);
+    bs.__loadButtonsSerialTail = queued_work;
+    return queued_work;
   },
   redepth: function(from_board_id) {
     var buttons = this.get('buttons') || [];

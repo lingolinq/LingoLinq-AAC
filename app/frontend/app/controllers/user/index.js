@@ -562,7 +562,7 @@ export default Controller.extend({
   set_show_all_boards: function() {
     this.set('show_all_boards', true);
   },
-  reload_logs: observer('persistence.online', function() {
+  reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
@@ -573,7 +573,7 @@ export default Controller.extend({
       return;
     }
     var perms = this.get('model.permissions');
-    if(perms && !perms.supervise) {
+    if(!perms || !perms.supervise) {
       if(this.get('model')) {
         this.set('model.logs', []);
       }

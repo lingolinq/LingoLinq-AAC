@@ -49,6 +49,7 @@ Rails.application.config.content_security_policy do |policy|
                      'https://cdn.jsdelivr.net',
                      'https://checkout.stripe.com',
                      'https://js.stripe.com',
+                     'https://app.covidspeak.org',
                      'https://translate.google.com'
 
   policy.style_src   :self,
