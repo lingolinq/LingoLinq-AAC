@@ -1031,6 +1031,38 @@ describe('Buttonset', function() {
       });
     });
 
+    it('should wait for the current tail before starting the next load_buttons work', function() {
+      var release_prev = null;
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: '1',
+        root_url: 'https://example.com/bs.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+      bs.__loadButtonsSerialTail = new RSVP.Promise(function(resolve) {
+        release_prev = resolve;
+      });
+
+      var find_calls = 0;
+      var resolved = false;
+      stub(bs.persistence, 'find_json', function() {
+        find_calls++;
+        return RSVP.resolve([{label: 'cached', depth: 0, board_id: '1'}]);
+      });
+
+      bs.load_buttons().then(function() {
+        resolved = true;
+      });
+
+      expect(find_calls).toEqual(0);
+      release_prev();
+
+      waitsFor(function() { return resolved; });
+      runs(function() {
+        expect(find_calls).toEqual(1);
+      });
+    });
+
     it('should not block subsequent load_buttons calls after a timeout', function() {
       var bs = LingoLinq.store.createRecord('buttonset', {
         id: 'bs-recover',
