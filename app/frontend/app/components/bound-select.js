@@ -148,8 +148,8 @@ export default Component.extend({
         }
       });
       scheduleOnce('afterRender', this, function() {
-        this.close();
-        this._focusTrigger();
+        self.close();
+        self._focusTrigger();
       });
     },
     /** Arrow/Enter/Escape navigation on a focused option. */

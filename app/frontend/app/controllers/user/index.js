@@ -740,7 +740,7 @@ export default Controller.extend({
         if(key == 'mine') {
           _this.generate_or_append_to_list({user_id: model.get('id')}, 'model.my_boards', list_id);
         } else if(key == 'public') {
-          _this.generate_or_append_to_list({user_id: model.get('id'), public: true}, 'model.public_boards', list_id);
+          _this.generate_or_append_to_list({q: '', locale: 'en', sort: 'popularity'}, 'model.public_boards', list_id);
         } else if(key == 'private') {
           _this.generate_or_append_to_list({user_id: model.get('id'), private: true}, 'model.private_boards', list_id);
         } else if(key == 'root') {

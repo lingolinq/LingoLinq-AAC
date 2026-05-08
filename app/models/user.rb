@@ -2015,6 +2015,7 @@ class User < ActiveRecord::Base
     starting_new_board_id = opts[:new_board_id]
     ids_to_copy = opts[:ids_to_copy] || []
     make_public = opts[:make_public] || false
+    expand_selected_board_ids = opts[:expand_selected_board_ids] == true || opts[:expand_selected_board_ids].to_s == 'true' || opts[:expand_selected_board_ids].to_s == '1'
     whodunnit = opts[:user_for_paper_trail] || nil
     swap_library = opts[:swap_library]
 
@@ -2035,6 +2036,7 @@ class User < ActiveRecord::Base
       :new_default_locale => opts[:new_default_locale],
       :copy_prefix => opts[:copy_prefix],
       :valid_ids => valid_ids, 
+      :expand_selected_board_ids => expand_selected_board_ids,
       :copier => User.find_by_path(opts[:copier_id]),
       :make_public => make_public, 
       :new_owner => opts[:new_owner],

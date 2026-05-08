@@ -65,7 +65,7 @@ var Button = EmberObject.extend({
     'book',
     'link_disabled',
     function() {
-      if(this.get('load_board')) {
+      if(this.get('load_board') && !this.get('link_disabled')) {
         this.set('buttonAction', 'folder');
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');

@@ -609,6 +609,7 @@ class Api::UsersController < ApplicationController
         old_default_locale: params['old_default_locale'], 
         new_default_locale: params['new_default_locale'], 
         ids_to_copy: params['ids_to_copy'], 
+        expand_selected_board_ids: params['expand_selected_board_ids'],
         copy_prefix: params['copy_prefix'],
         make_public: make_public,
         copier_id: @api_user && @api_user.global_id,
