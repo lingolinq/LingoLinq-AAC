@@ -1,5 +1,5 @@
 class Board < ActiveRecord::Base
-  DEFAULT_ICON = "https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png"
+  DEFAULT_ICON = "/images/lingolinq-board-icon.png"
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25

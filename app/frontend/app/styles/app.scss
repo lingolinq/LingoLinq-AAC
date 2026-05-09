@@ -7067,6 +7067,33 @@ body > .popover.bottom {
 .button.touched, .button:focus-visible {
   border-color: #888;
 }
+
+/* Public boards — kill the mouse-hover outline thickening on
+   buttons, but keep the keyboard-focus ring intact. The base
+   `.button:hover` rule above bumps `outline` from 3px transparent
+   to 4px solid (and the inset ring from 3px → 4px) which reads as
+   visual noise when a viewer can't actually edit the board. The
+   `:focus-visible` rule (a few lines up) is a separate selector
+   and remains unaffected, so keyboard navigation still shows a
+   focus indicator. */
+.md-shell--board-public .button:hover {
+  outline: 3px solid transparent;
+  outline-offset: -3px;
+  box-shadow: inset 0 0 0 3px var(--btn-ring-color, transparent);
+}
+
+/* Level paint — slow red back-glow pulse used while
+   "Remove level rules" is the armed paint action. Stops on
+   its own when the section is yanked from the DOM after the
+   last rule is cleared (toast fires concurrently from the
+   controller observer). */
+@keyframes md-level-paint-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(192,57,43,0.25), 0 0 2px rgba(192,57,43,0.35); }
+  50%      { box-shadow: 0 0 22px rgba(192,57,43,0.55), 0 0 6px rgba(192,57,43,0.65); }
+}
+.md-level-paint-pulse {
+  animation: md-level-paint-pulse 1.8s ease-in-out infinite;
+}
 .button.hidden_button, .button.empty {
   visibility: hidden;
 }
@@ -12530,7 +12557,7 @@ video.button_image {
 }
 .la-button-stash-wrap > .modal-header .close:hover { background:#fff; color:$brand-charcoal-dark; }
 .la-button-stash-wrap > .modal-body { padding:24px; max-height:70vh; overflow-y:auto; }
-.la-button-stash-desc { font-size:1rem; color:$brand-charcoal-dark; line-height:1.5; margin-bottom:16px; }
+.la-button-stash-desc { font-size:14px; color:$brand-charcoal-dark; line-height:1.5; margin-bottom:16px; }
 .la-button-stash-grid { margin-bottom:12px; }
 
 /* Footer */
@@ -37564,8 +37591,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     ". sup" !important;
   grid-template-rows: auto auto auto auto auto 0 !important;
 }
-/* Caseload card */
-.md-card--caseload {
+/* Caseload card — multi-radial composition over a soft white→cream
+   linear base. Sizes scaled from the original 1400px design width
+   down to the caseload card's actual width (583px), so the blobs
+   read at the same relative proportion they did in the source.
+   Specificity bumped to .md-grid .md-card.md-card--caseload so this
+   wins over the base .md-grid .md-card { background: ... !important }
+   rule (line ~40604), which would otherwise override our radial
+   stack via the shorthand. */
+.md-grid .md-card.md-card--caseload {
   grid-area: caseload !important;
   display: flex !important;
   flex-direction: row !important;
@@ -37575,8 +37609,15 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   gap: 16px !important;
   padding: 20px 24px !important;
   border-radius: var(--md-r-lg) !important;
-  background: linear-gradient(135deg, rgba($brand-verdigris, 0.08) 0%, rgba($brand-dusty-denim, 0.06) 100%) !important;
-  border: 1px solid rgba($brand-verdigris, 0.12) !important;
+  background:
+    radial-gradient(583px 292px at 10% 5%, rgba(49, 111, 112, 0.09), rgba(0, 0, 0, 0) 50%),
+    radial-gradient(500px 250px at 90% 15%, rgba(70, 80, 95, 0.03), rgba(0, 0, 0, 0) 50%),
+    radial-gradient(458px 292px at 50% 95%, rgba(55, 65, 81, 0.03), rgba(0, 0, 0, 0) 50%),
+    radial-gradient(375px 208px at 80% 55%, rgba(42, 157, 143, 0.07), rgba(0, 0, 0, 0) 45%),
+    radial-gradient(333px 167px at 25% 65%, rgba(76, 134, 216, 0.025), rgba(0, 0, 0, 0) 50%),
+    linear-gradient(rgb(255, 255, 255) 0%, rgb(252, 254, 253) 50%, rgb(244, 250, 249) 100%) !important;
+  border: 1px solid var(--md-line) !important;
+  border-bottom: 2px solid rgba($la-navy, 0.08) !important;
 }
 .md-card--caseload .md-card__head {
   flex: 1 1 auto !important;
@@ -39337,6 +39378,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   max-width: 800px;
   margin: 0 auto;
   color: var(--md-ink);
+}
+/* Fix A from docs/styling-recurring-problems.md §1 — flow-positioned
+   dropdown. The preferences page uses Basics/Notifications/Styling
+   accordion cards with `overflow: hidden` rounded edges, so an
+   absolute-positioned dropdown gets clipped at the card boundary.
+   Make the dropdown lists static so they push siblings down when
+   open and the parent grows to fit. */
+.md-preferences .bound-select__list,
+.md-preferences .modern-select__list {
+  position: static;
 }
 .md-preferences__header {
   display: flex;
@@ -52425,7 +52476,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-board-detail-header__edit-card {
   width: 100%;
   box-sizing: border-box;
-  margin: 10px 0 12px;
+  margin: 10px 0 0;
   padding: 14px 16px;
   background: rgba($la-navy, 0.04);
   border: 1px solid rgba($la-navy, 0.08);
@@ -54520,13 +54571,30 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   cursor: pointer;
   transition: background 0.12s ease;
   text-align: left;
+  /* Items that render as <a> (LinkTo, e.g. "Public Boards") inherit
+     Bootstrap's a:hover { text-decoration: underline } default. Kill
+     it on the rest state to keep the menu reading consistent across
+     <button> and <a> items. The :focus-visible override below
+     restores a focus indicator for keyboard users. */
+  text-decoration: none;
 }
 .md-board-detail-actions-menu__item:hover {
   /* Neutral glass overlay — no teal tint. Reads as a soft hover
      against either the light surface or the dark glass without
-     introducing a brand-color accent. */
+     introducing a brand-color accent. The text-decoration: none
+     here overrides the default anchor underline on hover. */
   background: rgba($la-navy, 0.06);
   color: $la-navy;
+  text-decoration: none;
+}
+/* Keyboard focus — keep an outline so non-mouse users can see
+   which menu item is targeted. Lives on this scoped class so the
+   page-wide focus-visible behavior (e.g. board buttons) is
+   untouched. */
+.md-board-detail-actions-menu__item:focus-visible {
+  outline: 2px solid $la-navy;
+  outline-offset: -2px;
+  text-decoration: none;
 }
 .md-board-detail-actions-menu__item svg {
   flex-shrink: 0;
@@ -58529,6 +58597,30 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   background: #0b1220 !important;
   --btn-bg: #0b1220 !important;
 }
+
+/* Preview Levels — hidden buttons look fully disabled.
+   When `md-board-detail-grid--preview-levels` is on the grid, every
+   button currently flagged hidden by the active preview level gets a
+   uniform gray background, desaturated/dimmed image, dimmed label,
+   and a not-allowed cursor. Higher specificity (`.md-shell--board-detail-edit
+   .md-board-detail-grid--preview-levels …`) so it wins against the
+   edit-mode override above. */
+.md-shell--board-detail-edit .md-board-detail-grid--preview-levels .md-board-detail-symbol-card--hidden {
+  background: rgba(140, 148, 160, 0.18) !important;
+  --btn-bg: rgba(140, 148, 160, 0.18) !important;
+  outline-color: rgba(140, 148, 160, 0.35) !important;
+  cursor: not-allowed;
+  opacity: 0.55 !important;
+  filter: grayscale(0.75);
+}
+.md-shell--board-detail-edit .md-board-detail-grid--preview-levels .md-board-detail-symbol-card--hidden img.symbol {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.md-shell--board-detail-edit .md-board-detail-grid--preview-levels .md-board-detail-symbol-card--hidden .button-label {
+  color: rgba(140, 148, 160, 0.85) !important;
+}
+
 .md-board-detail-symbol-card--swapping {
   outline: 3px dashed $brand-verdigris;
   outline-offset: -3px;
@@ -60058,6 +60150,98 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-modal-btn--secondary:hover {
   background: rgba($la-navy, 0.15);
   color: $la-navy;
+}
+/* Save / Update primary action — uses brand slate blue so it reads as
+   the affirmative action without competing visually with the darker
+   .md-modal-btn--primary (charcoal blue). Disabled state dims the
+   pill so users see the saving / submitting moment. */
+.md-modal-btn--save {
+  background: $brand-slate-blue !important;
+  color: #fff !important;
+  box-shadow: 0 2px 6px rgba($brand-slate-blue, 0.25);
+}
+.md-modal-btn--save:hover,
+.md-modal-btn--save:focus-visible {
+  background: darken($brand-slate-blue, 6%) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba($brand-slate-blue, 0.30);
+  outline: none;
+}
+.md-modal-btn--save:disabled,
+.md-modal-btn--save[disabled] {
+  background: rgba($brand-slate-blue, 0.55) !important;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Edit Room Details modal — curriculum row repeater ──────────── */
+.md-edit-unit-curriculum {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-edit-unit-curriculum__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.md-edit-unit-curriculum__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: transparent;
+  color: rgba($la-navy, 0.55);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-edit-unit-curriculum__remove:hover,
+.md-edit-unit-curriculum__remove:focus-visible {
+  background: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.25);
+  color: #dc3545;
+  outline: none;
+}
+.md-edit-unit-curriculum__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  margin-top: 4px;
+  border-radius: 999px;
+  border: 1px dashed rgba($brand-slate-blue, 0.45);
+  background: rgba($brand-slate-blue, 0.06);
+  color: $brand-slate-blue;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.md-edit-unit-curriculum__add:hover,
+.md-edit-unit-curriculum__add:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  border-color: rgba($brand-slate-blue, 0.70);
+  border-style: solid;
+  outline: none;
+}
+@media (max-width: 550px) {
+  .md-edit-unit-curriculum__row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title  remove"
+      "url    url";
+    row-gap: 6px;
+  }
+  .md-edit-unit-curriculum__title { grid-area: title; }
+  .md-edit-unit-curriculum__url   { grid-area: url; }
+  .md-edit-unit-curriculum__remove { grid-area: remove; }
 }
 /* Reusable modern-select styling for any modal — mirrors the
    .la-new-board-modal-wrap .modern-select pattern so the dropdown
@@ -62536,6 +62720,14 @@ a.md-caseload__action {
 .md-shell--caseload .md-card.md-card--sup {
   overflow: visible !important;
 }
+/* Match the Speak Mode card's background treatment from the
+   dashboard (subtle vertical gradient + grounded bottom border)
+   so the My Caseload card on /caseload reads with the same
+   surface aesthetic as the Speak Mode card on the dashboard. */
+.md-shell--caseload .md-card.md-card--sup {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95)) !important;
+  border-bottom: 2px solid rgba($la-navy, 0.08) !important;
+}
 
 /* ── People I Supervise link card ── */
 .md-org-supervisees-link {
@@ -63632,27 +63824,43 @@ a.md-caseload__action {
   flex-shrink: 0;
 }
 .md-org-room-card__action-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  gap: 6px;
   height: 34px;
+  padding: 0 12px;
   border-radius: 10px;
   border: 1px solid rgba($la-navy, 0.08);
   background: transparent;
   color: var(--md-navy, $la-navy);
-  opacity: 0.5;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.75;
   cursor: pointer;
-  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.md-org-room-card__action-btn:hover {
+.md-org-room-card__action-btn-icon {
+  flex-shrink: 0;
+}
+.md-org-room-card__action-btn-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.md-org-room-card__action-btn:hover,
+.md-org-room-card__action-btn:focus-visible {
   opacity: 1;
   background: rgba($brand-dusty-denim, 0.08);
-  border-color: rgba($brand-dusty-denim, 0.2);
+  border-color: rgba($brand-dusty-denim, 0.25);
+  outline: none;
 }
-.md-org-room-card__action-btn--danger:hover {
+.md-org-room-card__action-btn--danger:hover,
+.md-org-room-card__action-btn--danger:focus-visible {
   background: rgba(220, 53, 69, 0.08);
-  border-color: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.25);
   color: #dc3545;
 }
 .md-org-room-card__body {
@@ -63668,12 +63876,44 @@ a.md-caseload__action {
 }
 .md-org-room-add-users__group {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 320px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+}
+.md-org-room-add-users__group-body {
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
+.md-org-room-add-users__group--stacked .md-org-room-add-users__group-body {
+  flex-direction: column;
+  align-items: stretch;
+}
 .md-org-room-add-users__select-wrap {
-  min-width: 160px;
+  min-width: 200px;
+  position: relative;
+}
+.md-org-room-add-users__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.65);
+}
+/* Open dropdown list inside the rooms-add-users panel grows to fit
+   its longest option instead of being capped to the trigger's width.
+   Overrides the default `.bound-select__list { left:0; right:0 }`
+   that pins the menu to the trigger edges. */
+.md-org-room-add-users .bound-select__list {
+  right: auto;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(420px, 90vw);
 }
 .md-org-room-add-users__btn-group {
   display: flex;
@@ -63853,6 +64093,13 @@ a.md-caseload__action {
   .md-org-room-add-users__group {
     flex-direction: column;
     align-items: stretch;
+  }
+  .md-org-room-add-users__group-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .md-org-room-add-users__select-wrap {
+    min-width: 0;
   }
   .md-org-report-field--inline {
     flex-direction: column;
@@ -66179,7 +66426,26 @@ blockquote small {
    chrome — rounded card, shadow, internal max-height scroll — is
    preserved. */
 .modal-content .bound-select__list,
-.modal .bound-select__list {
+.modal .bound-select__list,
+/* Same fix extended to modern-select — every modal using
+   {{modern-select}} otherwise gets its menu clipped at the
+   modal-content's overflow:hidden boundary. Covers
+   generate-board, new-board, new-goal, create-board-new, etc. */
+.modal-content .modern-select__list,
+.modal .modern-select__list {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-top: 6px;
+}
+
+/* Same flow-positioned fix for the .md-pref-box pattern used in
+   /u/<user>/edit (Account Type / External Access Method selectors).
+   Each preference box is a rounded card with overflow:hidden, so
+   the absolutely-positioned dropdown gets clipped without this. */
+.md-pref-box .modern-select__list,
+.md-pref-box .bound-select__list {
   position: static;
   top: auto;
   left: auto;

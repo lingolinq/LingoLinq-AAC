@@ -286,6 +286,41 @@ var Button = EmberObject.extend({
       return str || null;
     }
   }),
+  // Lowest level number attached to this button (the "starts at"
+  // level). Used to color the level badge on the board grid in
+  // edit mode.
+  primary_level: computed('level_modifications', function() {
+    var mods = this.get('level_modifications') || {};
+    var levels = [];
+    for(var idx in mods) {
+      var n = parseInt(idx, 10);
+      if(n > 0) { levels.push(n); }
+    }
+    if(!levels.length) { return null; }
+    return Math.min.apply(null, levels);
+  }),
+  // Color for the badge — derived from primary_level. Mirrors the
+  // controller's level_color_map (controllers/user/board-detail.js)
+  // so panel pills and button badges agree on the palette. Modern
+  // Tailwind-inspired progression: cool blues at low levels, warm
+  // mids, emerald at level 10.
+  level_badge_color: computed('primary_level', function() {
+    var lvl = this.get('primary_level');
+    if(!lvl) { return null; }
+    var palette = {
+      1:  '#0EA5E9',
+      2:  '#3B82F6',
+      3:  '#6366F1',
+      4:  '#8B5CF6',
+      5:  '#A855F7',
+      6:  '#EC4899',
+      7:  '#F43F5E',
+      8:  '#F97316',
+      9:  '#F59E0B',
+      10: '#10B981'
+    };
+    return palette[lvl] || '#2A9D8F';
+  }),
   apply_level: function(level) {
     var mods = this.get('level_modifications') || {};
     var _this = this;

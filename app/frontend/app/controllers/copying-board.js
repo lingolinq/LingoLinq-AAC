@@ -124,6 +124,19 @@ export default modal.ModalController.extend({
     },
     start_copying: function() {
       this.start_copying();
+    },
+    // Override the default close so callers can distinguish a clean
+    // cancel from a backend-error close. When an error has been set
+    // on this modal (loadHierarchy / editManager.copy_board / share /
+    // translate paths all set _this.error), pass the error along to
+    // modal.close so tweakBoard (application.js) can surface it and
+    // clear the copy_on_save stash. Otherwise close cleanly.
+    close: function() {
+      if(this.get('error')) {
+        modal.close({error: this.get('error')});
+      } else {
+        modal.close();
+      }
     }
   }
 });

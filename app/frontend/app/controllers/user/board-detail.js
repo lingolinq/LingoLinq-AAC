@@ -124,6 +124,20 @@ export default Controller.extend(prefClasses, {
   show_paint_color_picker: false,
   custom_paint_color: '#4a90d9',
   paint_mode: null,
+  // Button Levels paint state — UI selections in the right panel's
+  // Button Levels accordion. They feed into editManager.set_paint_mode('level', action, level)
+  // (the same call the legacy paint-level modal uses), so the underlying
+  // edit-manager + save-state machinery is shared. UI-only — not persisted.
+  level_paint_action: null,
+  level_paint_level: null,
+  // Toggled true by edit_manager.paint_button when a level paint is
+  // applied to a button — provides a reactive signal for the
+  // button_level_count computed since plain `@each.level_modifications`
+  // doesn't always fire when a sub-property of a JSON blob mutates.
+  levels_change: false,
+  // Nested expand-state inside the Session submenu in the actions
+  // menu (Button Levels row). Starts collapsed.
+  levels_submenu_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -1106,6 +1120,142 @@ export default Controller.extend(prefClasses, {
   paint_mode_is_show: computed('paint_mode', function() {
     var pm = this.get('paint_mode');
     return !!(pm && pm.hidden === false);
+  }),
+
+  // ──── Button Levels paint computeds ─────────────────────────────
+  // The legacy paint-level modal sets `paint_mode = { level, attribute, paint_id }`.
+  // We use the same shape, so any computed reading paint_mode.level reflects
+  // whether a level paint is currently armed.
+  level_paint_armed: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    return !!(pm && pm.level);
+  }),
+  // True for actions that need a level (hidden/link_disabled). 'clear' doesn't.
+  level_paint_needs_level: computed('level_paint_action', function() {
+    var a = this.get('level_paint_action');
+    return a === 'hidden' || a === 'link_disabled';
+  }),
+  // True when the chosen action is one of the "add" variants
+  // (hidden / link_disabled). The remove ('clear') action shows
+  // inline with a red glow rather than collapsing to the banner,
+  // so we gate the banner-collapse behavior on this.
+  level_paint_action_is_add: computed('level_paint_action', function() {
+    var a = this.get('level_paint_action');
+    return a === 'hidden' || a === 'link_disabled';
+  }),
+
+  // (Previous observer that watched for the last level-rule
+  // removal removed — Remove level rules is now an instant batch
+  // action handled directly in set_level_paint_action.)
+  // True when user has made enough selections to arm paint mode.
+  level_paint_can_apply: computed('level_paint_action', 'level_paint_level', 'level_paint_needs_level', function() {
+    if(!this.get('level_paint_action')) { return false; }
+    if(!this.get('level_paint_needs_level')) { return true; } // clear
+    return !!this.get('level_paint_level');
+  }),
+  // Available level options (1-10), filtering out the empty placeholder
+  // entry that LingoLinq.board_levels carries for the legacy bound-select.
+  level_paint_options: computed(function() {
+    return (LingoLinq.board_levels || []).filter(function(l) { return l.id; });
+  }),
+  // Per-level color palette — modern Tailwind-inspired progression
+  // (cool blues at lower levels → warmer / achievement-green at the
+  // top). Keys are stringified level numbers so {{get}} can look
+  // them up by opt.id from LingoLinq.board_levels.
+  // Mirrors the same map in utils/button.js so the side-panel pill
+  // and the button-card badge always agree.
+  level_color_map: computed(function() {
+    return {
+      '1':  '#0EA5E9', // sky
+      '2':  '#3B82F6', // blue
+      '3':  '#6366F1', // indigo
+      '4':  '#8B5CF6', // violet
+      '5':  '#A855F7', // purple
+      '6':  '#EC4899', // pink
+      '7':  '#F43F5E', // rose
+      '8':  '#F97316', // orange
+      '9':  '#F59E0B', // amber
+      '10': '#10B981'  // emerald (achievement / full vocab)
+    };
+  }),
+  // Color for the Preview Levels badge — looks up the current
+  // preview_level (number) in the same palette so the badge matches
+  // the Step 2 pill that paints the same level.
+  preview_level_color: computed('preview_level', 'level_color_map', function() {
+    var lvl = this.get('preview_level');
+    if(!lvl) { return null; }
+    var map = this.get('level_color_map') || {};
+    return map[String(lvl)] || null;
+  }),
+
+  // 1-10 as strings for the speak-mode level picker in the actions
+  // menu's Session submenu. {{get level_color_map lvl}} works
+  // because keys are strings.
+  speak_level_options: computed(function() {
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  }),
+
+  // Currently-selected board level (read from stashes — same source
+  // board/index.js#current_level reads from). Falls back to the
+  // board's default_level, then 10. Returned as a string so the
+  // template's {{is-equal}} check matches the speak_level_options
+  // entries.
+  current_speak_level: computed(
+    'stashes.board_level',
+    'model.default_level',
+    function() {
+      var lvl = this.get('stashes.board_level');
+      if(lvl) { return String(lvl); }
+      var def = this.get('model.default_level');
+      if(def) { return String(def); }
+      return '10';
+    }
+  ),
+  // Counts how many cells on the board grid have at least one level
+  // rule attached. Includes empty cells in the total since they're
+  // still part of the grid the user is configuring. Used by the
+  // Button Levels section to show progress like "3 of 24 buttons
+  // have level rules". Mirrors the dependency keys used by
+  // board/index.js#button_levels — @each.level_modifications +
+  // levels_change — so the count updates reactively as the user
+  // paints rules.
+  button_level_count: computed('ordered_buttons.@each.level_modifications', 'levels_change', 'model.buttons.[]', 'model.id', function() {
+    var rows = this.get('ordered_buttons') || [];
+    var total = 0;
+    var with_rules = 0;
+    rows.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        if(!btn) { return; }
+        total += 1;
+        var mods = btn.get('level_modifications');
+        if(mods && Object.keys(mods).length > 0) {
+          with_rules += 1;
+        }
+      });
+    });
+    // Reset the levels_change flag so future edits can re-trigger
+    // the computed (mirrors board/index.js#button_levels pattern).
+    if(this.get('levels_change')) {
+      var _this = this;
+      next(function() {
+        if(!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('levels_change', false);
+        }
+      });
+    }
+    return { with_rules: with_rules, total: total };
+  }),
+  // Human-readable summary of what's currently being painted.
+  level_paint_active_summary: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    if(!pm || !pm.level) { return null; }
+    if(pm.level === 'clear') {
+      return i18n.t('level_paint_clearing_v2', "Removing level rules — click buttons to apply");
+    }
+    var phrase = pm.level === 'hidden'
+      ? i18n.t('level_paint_show_starting_phrase', "Showing button starting at level")
+      : i18n.t('level_paint_activate_folder_phrase', "Activating folder starting at level");
+    return phrase + ' ' + pm.attribute + ' — ' + i18n.t('level_paint_click_to_apply', "click buttons to apply");
   }),
 
   skin_suboptions: computed('current_display_prefs.skin', function() {
@@ -5119,10 +5269,20 @@ export default Controller.extend(prefClasses, {
     // ── Level Preview ──
 
     toggle_preview_levels: function() {
-      this.toggleProperty('preview_levels_mode');
-      if(!this.get('preview_levels_mode')) {
-        this.set('preview_level', null);
+      var on = this.get('preview_levels_mode');
+      if(on) {
+        // Turning OFF: editManager.clear_preview_levels resets every
+        // button to level 10 (full vocab) and clears preview_level /
+        // preview_levels_mode on the controller.
+        editManager.clear_preview_levels();
+        return;
       }
+      // Turning ON: always start at Level 1 (the most basic / most
+      // restricted view) so the user sees the "starting state" first
+      // and can step up from there.
+      editManager.preview_levels();
+      this.set('preview_level', 1);
+      editManager.apply_preview_level(1);
     },
 
     shift_level: function(direction) {
@@ -5136,11 +5296,114 @@ export default Controller.extend(prefClasses, {
       } else if(direction === 'down') {
         idx = Math.max(idx - 1, 0);
       } else if(direction === 'done') {
-        this.set('preview_level', null);
-        this.set('preview_levels_mode', false);
+        // Exit preview entirely — same path as toggle off.
+        editManager.clear_preview_levels();
         return;
       }
-      this.set('preview_level', levels[idx]);
+      var nextLevel = levels[idx];
+      this.set('preview_level', nextLevel);
+      // Apply the new level to every button on the grid so the
+      // preview actually reflects the change.
+      editManager.apply_preview_level(nextLevel);
+    },
+
+    // ── Button Levels paint actions ──
+    // These delegate to the same editManager.set_paint_mode call the legacy
+    // paint-level modal uses (components/paint-level.js), so the underlying
+    // paint engine + dirty/save tracking is unchanged.
+    set_level_paint_action: function(action) {
+      // 'clear' is an instant batch action, not a paint mode. One
+      // click wipes every button's level_modifications across the
+      // whole board, which makes the badges disappear from the
+      // preview, hides the OR + Remove sub-card via the
+      // button_level_count gate, and toasts confirmation.
+      if(action === 'clear') {
+        var rows = this.get('ordered_buttons') || [];
+        var any_cleared = false;
+        rows.forEach(function(row) {
+          (row || []).forEach(function(btn) {
+            if(!btn) { return; }
+            var mods = btn.get && btn.get('level_modifications');
+            if(mods && Object.keys(mods).length > 0) {
+              emberSet(btn, 'level_modifications', null);
+              any_cleared = true;
+            }
+          });
+        });
+        // Toggle the levels_change signal so button_level_count
+        // recomputes synchronously and the section gate updates.
+        this.set('levels_change', !this.get('levels_change'));
+        if(any_cleared) {
+          modal.notice(i18n.t('all_level_rules_removed', "All level rules have been removed from this board."));
+        }
+        return;
+      }
+
+      var current = this.get('level_paint_action');
+      // Toggle off if clicking the same add-action again — clears
+      // paint mode too if it was armed by that action.
+      if(current === action) {
+        this.set('level_paint_action', null);
+        this.set('level_paint_level', null);
+        editManager.clear_paint_mode();
+        return;
+      }
+      this.set('level_paint_action', action);
+      // Switching to an add-action while a level was already chosen:
+      // re-arm paint mode with the new action + existing level so the
+      // user doesn't have to re-click the level pill.
+      var lvl = this.get('level_paint_level');
+      if(lvl) {
+        editManager.set_paint_mode('level', action, parseInt(lvl, 10));
+      } else {
+        // No level yet — clear any previously-armed paint while the
+        // user picks a level.
+        editManager.clear_paint_mode();
+      }
+    },
+    set_level_paint_level: function(level) {
+      var current = this.get('level_paint_level');
+      // Click same level again → unarm (paint off).
+      if(current === level) {
+        this.set('level_paint_level', null);
+        editManager.clear_paint_mode();
+        return;
+      }
+      this.set('level_paint_level', level);
+      // Auto-arm paint mode now that both action + level are set.
+      var action = this.get('level_paint_action');
+      if(action) {
+        editManager.set_paint_mode('level', action, parseInt(level, 10));
+      }
+    },
+    clear_level_paint: function() {
+      this.set('level_paint_action', null);
+      this.set('level_paint_level', null);
+      editManager.clear_paint_mode();
+    },
+
+    set_speak_level: function(level) {
+      // Available to anyone with the actions menu open (no edit
+      // permission required) — changing the viewable level is a
+      // caregiving concern, not an editing one. Writes to
+      // stashes.board_level so board/index.js#current_level picks
+      // it up on its next render.
+      var n = parseInt(level, 10);
+      if(!n || n < 1 || n > 10) { return; }
+      this.get('stashes').persist('board_level', n);
+      // Notify the board controller (if any) so its current_level
+      // computed re-evaluates and re-renders the grid.
+      var ctrl = this.get('app_state.controller');
+      if(ctrl && ctrl.notifyPropertyChange) {
+        ctrl.notifyPropertyChange('current_level');
+      }
+    },
+
+    toggle_levels_submenu: function() {
+      // Nested expand-state inside the Session submenu so the level
+      // pill grid stays out of the way until the user explicitly
+      // wants it.
+      this.toggleProperty('levels_submenu_open');
     },
 
     // ── Misc actions dispatched by raw_events or other systems ──
