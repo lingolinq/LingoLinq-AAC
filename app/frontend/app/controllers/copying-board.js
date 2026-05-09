@@ -1,9 +1,97 @@
 import RSVP from 'rsvp';
+import { later, cancel } from '@ember/runloop';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import app_state from '../utils/app_state';
 import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
+
+// After this many ms of waiting on the buttonset hierarchy load, kick off the
+// live-links walk in parallel and accept whichever returns a usable hierarchy
+// first. The buttonset path can hang up to 60s when its remote data is missing
+// or stale (typical right after a bulk copy while the :slow Resque queue
+// drains the deferred update_for jobs).
+var EARLY_LIVE_LINKS_DELAY_MS = 6000;
+
+function loadHierarchyForCopyModal(board, opts) {
+  opts = opts || {};
+  var earlyDelay = opts.early_live_links_delay_ms != null
+    ? opts.early_live_links_delay_ms
+    : EARLY_LIVE_LINKS_DELAY_MS;
+
+  return new RSVP.Promise(function(resolve, reject) {
+    var settled = false;
+    var bs_done = false;
+    var ll_done = false;
+    var ll_started = false;
+    var bs_err = null;
+    var early_handle = null;
+
+    var settle_with = function(hierarchy, source) {
+      if(settled) { return; }
+      settled = true;
+      if(early_handle) { cancel(early_handle); early_handle = null; }
+      resolve({ hierarchy: hierarchy, source: source });
+    };
+
+    var maybe_finalize = function() {
+      if(settled) { return; }
+      if(bs_done && ll_done) {
+        settled = true;
+        if(early_handle) { cancel(early_handle); early_handle = null; }
+        if(bs_err) {
+          reject(bs_err);
+        } else {
+          resolve({ hierarchy: null, source: 'none' });
+        }
+      }
+    };
+
+    var start_live_links = function() {
+      if(ll_started || settled) { return; }
+      ll_started = true;
+      if(early_handle) { cancel(early_handle); early_handle = null; }
+      BoardHierarchy.load_from_live_links(board, {
+        expand_all: opts.expand_all
+      }).then(function(hierarchy) {
+        ll_done = true;
+        if(hierarchy && hierarchy.get && hierarchy.get('root')) {
+          settle_with(hierarchy, 'live_links');
+        } else {
+          maybe_finalize();
+        }
+      }, function() {
+        ll_done = true;
+        maybe_finalize();
+      });
+    };
+
+    BoardHierarchy.load_with_button_set(board, {
+      skipBoardReloadForCopyModal: opts.skipBoardReloadForCopyModal,
+      expand_all: opts.expand_all
+    }).then(function(hierarchy) {
+      bs_done = true;
+      if(hierarchy && hierarchy.get && hierarchy.get('root')) {
+        settle_with(hierarchy, 'button_set');
+      } else {
+        // null hierarchy from buttonset (no buttonset for this board); try
+        // live-links immediately rather than waiting for the early-fire timer.
+        start_live_links();
+      }
+    }, function(err) {
+      bs_done = true;
+      bs_err = err;
+      // Buttonset rejected (timeout, generation_stalled, etc). Try live-links
+      // immediately, do not wait for the early-fire timer.
+      start_live_links();
+    });
+
+    early_handle = later(function() {
+      early_handle = null;
+      start_live_links();
+    }, earlyDelay);
+  });
+}
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -16,36 +104,41 @@ export default modal.ModalController.extend({
     var board = _this.get('model.board');
     if(this.get('model.action') == 'keep_links' || this.get('model.action') == 'remove_links') {
       _this.start_copying();
-    } else {
-      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true, expand_all: true }).then(function(hierarchy) {
-        _this.set('loading', false);
-        if(hierarchy && hierarchy.get('root')) {
-          var rootChildren = hierarchy.get('root.children') || [];
-          var expectedLinkedBoards =
-            (board.get('linked_boards.length') || 0) > 0 ||
-            (board.get('downstream_boards') || 0) > 0 ||
-            (board.get('downstream_board_ids.length') || 0) > 0;
-          _this.set('hierarchyRootOnlyWarning', expectedLinkedBoards && rootChildren.length === 0);
-          _this.set('hierarchy', hierarchy);
-        } else {
-          _this.start_copying();
-        }
-      }, function(err) {
-        _this.set('loading', false);
-        BoardHierarchy.load_from_live_links(board, { expand_all: true }).then(function(fallbackHierarchy) {
-          if(fallbackHierarchy && fallbackHierarchy.get('root')) {
-            _this.set('hierarchyRootOnlyWarning', true);
-            _this.set('hierarchy', fallbackHierarchy);
-            return;
-          }
-          _this.set('error', err);
-          _this.set('hierarchyLoadFailed', true);
-          if(err && (err.error == 'buttonset load timed out' || err.error == 'generation_stalled')) {
-            _this.set('isTimeoutError', true);
-          }
-        });
-      });
+      return;
     }
+
+    loadHierarchyForCopyModal(board, {
+      skipBoardReloadForCopyModal: true,
+      expand_all: true,
+      early_live_links_delay_ms: this.get('earlyLiveLinksDelayMs')
+    }).then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('loading', false);
+      var hierarchy = result.hierarchy;
+      if(!hierarchy) {
+        _this.start_copying();
+        return;
+      }
+      if(result.source == 'live_links') {
+        _this.set('hierarchyRootOnlyWarning', true);
+      } else {
+        var rootChildren = hierarchy.get('root.children') || [];
+        var expectedLinkedBoards =
+          (board.get('linked_boards.length') || 0) > 0 ||
+          (board.get('downstream_boards') || 0) > 0 ||
+          (board.get('downstream_board_ids.length') || 0) > 0;
+        _this.set('hierarchyRootOnlyWarning', expectedLinkedBoards && rootChildren.length === 0);
+      }
+      _this.set('hierarchy', hierarchy);
+    }, function(err) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('loading', false);
+      _this.set('error', err);
+      _this.set('hierarchyLoadFailed', true);
+      if(err && (err.error == 'buttonset load timed out' || err.error == 'generation_stalled')) {
+        _this.set('isTimeoutError', true);
+      }
+    });
   },
   start_copying: function() {
     this.set('loading', false);
