@@ -11757,8 +11757,8 @@ video.button_image {
 
   &:hover:not(:disabled),
   &:focus-visible {
-    background: darken($brand-slate-blue, 6%);
-    border-color: darken($brand-slate-blue, 6%);
+    background: color.adjust($brand-slate-blue, $lightness: -6%);
+    border-color: color.adjust($brand-slate-blue, $lightness: -6%);
     box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.30);
     color: #ffffff;
     outline: none;
@@ -60175,7 +60175,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 }
 .md-modal-btn--save:hover,
 .md-modal-btn--save:focus-visible {
-  background: darken($brand-slate-blue, 6%) !important;
+  background: color.adjust($brand-slate-blue, $lightness: -6%) !important;
   color: #fff !important;
   box-shadow: 0 4px 12px rgba($brand-slate-blue, 0.30);
   outline: none;
@@ -66957,7 +66957,7 @@ blockquote small {
   transform: translateY(1px);
 }
 .md-board-detail--dark .md-board-edit-panel__back-link {
-  background: linear-gradient(135deg, lighten($brand-slate-blue, 4%), $brand-charcoal-blue);
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
   border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
@@ -67011,7 +67011,7 @@ blockquote small {
 }
 .md-board-edit-panel__btn--save:hover:not(:disabled),
 .md-board-edit-panel__btn--save:focus-visible {
-  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 6%), $brand-charcoal-blue);
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
 .md-board-edit-panel__btn--saving {
@@ -67033,7 +67033,7 @@ blockquote small {
   color: #cfd8e8;
 }
 .md-board-detail--dark .md-board-edit-panel__btn--save {
-  background: linear-gradient(135deg, lighten($brand-slate-blue, 4%), $brand-charcoal-blue);
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
   border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
@@ -67777,7 +67777,7 @@ blockquote small {
 }
 .md-leave-edit-btn--save:hover,
 .md-leave-edit-btn--save:focus-visible {
-  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 6%), $brand-charcoal-blue);
   border-color: rgba($brand-charcoal-blue, 0.55);
   color: #ffffff;
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
@@ -67832,8 +67832,8 @@ blockquote small {
 .md-set-as-home-footer .md-modal-btn--primary:hover,
 .md-modal-footer.md-set-as-home-footer .md-modal-btn--primary:hover,
 .md-set-as-home-footer .md-modal-btn--primary:focus-visible {
-  background: darken($brand-slate-blue, 6%);
-  border-color: darken($brand-slate-blue, 6%);
+  background: color.adjust($brand-slate-blue, $lightness: -6%);
+  border-color: color.adjust($brand-slate-blue, $lightness: -6%);
   color: #ffffff;
 }
 .md-set-as-home-footer .md-modal-btn--primary:disabled {
@@ -67858,8 +67858,8 @@ blockquote small {
 }
 .modal-content:has(.md-manage-languages) .md-modal-btn--primary:hover:not(:disabled),
 .modal-content:has(.md-manage-languages) .md-modal-btn--primary:focus-visible {
-  background: darken($brand-slate-blue, 6%);
-  border-color: darken($brand-slate-blue, 6%);
+  background: color.adjust($brand-slate-blue, $lightness: -6%);
+  border-color: color.adjust($brand-slate-blue, $lightness: -6%);
   color: #ffffff;
   outline: none;
 }
@@ -68164,7 +68164,7 @@ blockquote small {
   color: #ffffff;
 }
 .md-board-detail--dark .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-icon {
-  background: linear-gradient(135deg, lighten($brand-slate-blue, 6%), $brand-charcoal-blue);
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 6%), $brand-charcoal-blue);
   border-color: rgba(255, 255, 255, 0.20);
   color: #ffffff;
 }
@@ -68840,8 +68840,8 @@ blockquote small {
 }
 .md-board-edit-right-panel__custom-picker-apply:hover,
 .md-board-edit-right-panel__custom-picker-apply:focus-visible {
-  background: darken($brand-slate-blue, 6%);
-  border-color: darken($brand-slate-blue, 6%);
+  background: color.adjust($brand-slate-blue, $lightness: -6%);
+  border-color: color.adjust($brand-slate-blue, $lightness: -6%);
   outline: none;
 }
 .md-board-detail--dark .md-board-edit-right-panel__custom-picker {
@@ -68928,8 +68928,8 @@ blockquote small {
 }
 .modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary:hover:not(:disabled),
 .modal-content:has(.md-confirm-recolor-board) .md-modal-btn--primary:focus-visible {
-  background: darken($brand-slate-blue, 6%);
-  border-color: darken($brand-slate-blue, 6%);
+  background: color.adjust($brand-slate-blue, $lightness: -6%);
+  border-color: color.adjust($brand-slate-blue, $lightness: -6%);
   color: #ffffff;
   outline: none;
 }
