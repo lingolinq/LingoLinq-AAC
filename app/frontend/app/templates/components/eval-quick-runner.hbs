@@ -1,0 +1,70 @@
+{{!-- Subtest runner — sequences items, captures correct/incorrect events --}}
+<section class="evq-runner" aria-labelledby="evq-runner-title">
+  <div class="evq-runner__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={{this.subtestProgressPct}} aria-label={{t "Quick Screen progress" key="runner_progress_aria"}}>
+    <div class="evq-runner__progress-fill" style={{safe-style (concat "width:" this.subtestProgressPct "%")}}></div>
+  </div>
+
+  <header class="evq-runner__header">
+    <span class="evq-runner__step">
+      {{t "Step %{n} of %{total}" key="runner_step_of" n=this.subtestNumber total=this.totalSubtests}}
+    </span>
+    <h2 id="evq-runner-title" class="evq-runner__title">{{this.currentSubtestLabel}}</h2>
+    {{#if this.hasItems}}
+      <span class="evq-runner__item-count" aria-live="polite">{{this.itemProgressLabel}}</span>
+    {{/if}}
+  </header>
+
+  {{#if this.isWrap}}
+    <div class="evq-runner__wrap">
+      <p class="evq-runner__wrap-message">
+        {{t "All items complete. Generate the recommendation when you're ready." key="runner_wrap_message"}}
+      </p>
+      <div class="evq-runner__actions">
+        <button type="button" class="evq-btn evq-btn--primary" {{action "finishEval"}}>
+          {{t "Generate recommendation" key="runner_generate_recommendation"}}
+        </button>
+      </div>
+    </div>
+  {{else if this.hasItems}}
+    <div class="evq-runner__item">
+      <div class="evq-runner__item-card" aria-live="polite">
+        {{#if this.currentItem.id}}
+          <span class="evq-runner__item-id">{{this.currentItem.id}}</span>
+        {{/if}}
+        <p class="evq-runner__item-prompt">
+          {{t "Score the communicator's response below." key="runner_item_prompt"}}
+        </p>
+      </div>
+
+      <div class="evq-runner__score-row" role="group" aria-label={{t "Score response" key="runner_score_aria"}}>
+        <button type="button" class="evq-score evq-score--correct" {{action "correct"}} aria-label={{t "Correct" key="correct"}}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>
+          <span>{{t "Correct" key="correct"}}</span>
+        </button>
+        <button type="button" class="evq-score evq-score--skip" {{action "skip"}} aria-label={{t "Skip / no response" key="runner_skip_aria"}}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          <span>{{t "Skip" key="skip"}}</span>
+        </button>
+        <button type="button" class="evq-score evq-score--incorrect" {{action "incorrect"}} aria-label={{t "Incorrect" key="incorrect"}}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          <span>{{t "Incorrect" key="incorrect"}}</span>
+        </button>
+      </div>
+
+      <div class="evq-runner__actions">
+        <button type="button" class="evq-btn evq-btn--ghost" {{action "finishSubtest"}}>
+          {{t "Skip rest of subtest" key="runner_skip_subtest"}}
+        </button>
+      </div>
+    </div>
+  {{else}}
+    <div class="evq-runner__empty">
+      <p class="evq-runner__empty-message">
+        {{t "No items configured for this subtest yet. Continue to the next step." key="runner_empty"}}
+      </p>
+      <button type="button" class="evq-btn evq-btn--primary" {{action "finishSubtest"}}>
+        {{t "Continue" key="continue"}}
+      </button>
+    </div>
+  {{/if}}
+</section>

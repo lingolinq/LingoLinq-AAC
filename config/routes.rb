@@ -12,7 +12,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml'
+  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
 ]
 require 'resque/server'
 require 'admin_constraint'
@@ -252,6 +252,9 @@ LingoLinq::Application.routes.draw do
     resources :profiles do
       get 'latest', on: :collection
     end
+
+    resources :eval_protocols, only: [:index, :show], param: :id
+    post 'users/:user_id/eval_recommend' => 'eval_protocols#recommend'
     
     resources :badges
     
