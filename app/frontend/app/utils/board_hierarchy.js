@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
+import LingoLinq from '../app';
 import i18n from './i18n';
 import { computed } from '@ember/object';
 
@@ -18,6 +19,7 @@ var BoardHierarchy = EmberObject.extend({
     var any_meta = (button_set.get('buttons') || []).find(function(b) { return b.meta_home_id; });
     var traversed_boards = {};
     var all_boards = [];
+    var root_board_id = board.get('global_id') || board.get('id');
     var traverse_board = function(board_id, board_key) {
       downstreams[board_id] = true;
       var hierarchy_board = EmberObject.create({
@@ -61,6 +63,17 @@ var BoardHierarchy = EmberObject.extend({
       });
       hierarchy_board.set('visible', !!(button_set.get('buttons') || []).find(function(b) { return b.board_id == board_id; }));
       var linked_buttons = (button_set.get('buttons') || []).filter(function(b) { return b.board_id == board_id && b.linked_board_id; });
+      if(linked_buttons.length == 0 && board_id == root_board_id) {
+        linked_buttons = (board.get('linked_boards') || []).map(function(linked_board) {
+          return {
+            board_id: board_id,
+            linked_board_id: linked_board.id,
+            linked_board_key: linked_board.key
+          };
+        }).filter(function(linked_board) {
+          return linked_board.linked_board_id && linked_board.linked_board_key;
+        });
+      }
       linked_buttons.forEach(function(btn) {
         var linked_board = traversed_boards[btn.linked_board_id];
         if(!linked_board) {
@@ -94,7 +107,14 @@ var BoardHierarchy = EmberObject.extend({
       });
       return hierarchy_board;
     };
-    var root_board = traverse_board(board.get('id'), board.get('key'));
+    var root_board = traverse_board(root_board_id, board.get('key'));
+    if(this.get('options.expand_all')) {
+      all_boards.forEach(function(brd) {
+        if((brd.get('children') || []).length > 0) {
+          brd.set('open', true);
+        }
+      });
+    }
     var any_missing = false;
     for(var id in downstreams) {
       if(downstreams[id] === false) {
@@ -181,6 +201,80 @@ BoardHierarchy.load_with_button_set = function(board, opts) {
   });
 
   return load_hierarchy;
+};
+
+BoardHierarchy.load_from_live_links = function(board, opts) {
+  opts = opts || {};
+  if(!board || !(board.get('linked_boards.length') > 0)) {
+    return RSVP.resolve(null);
+  }
+
+  var seen = {};
+  var buttons = [];
+  var queue = [board];
+  var missing_links = false;
+
+  var board_id_for = function(record) {
+    return record && (record.get('global_id') || record.get('id'));
+  };
+  var linked_ref_for = function(linked) {
+    return linked.id || linked.key || linked.path || linked.data_url || linked.url;
+  };
+  var collect_links = function(record) {
+    var record_id = board_id_for(record);
+    (record.get('linked_boards') || []).forEach(function(linked) {
+      if(linked.link_disabled) { return; }
+      var linked_id = linked.id || linked.key;
+      if(!record_id || !linked_id || !linked.key) { return; }
+      buttons.push({
+        board_id: record_id,
+        linked_board_id: linked_id,
+        linked_board_key: linked.key
+      });
+    });
+  };
+
+  var load_next = function() {
+    var record = queue.shift();
+    if(!record) {
+      return RSVP.resolve(BoardHierarchy.create({
+        board: board,
+        button_set: EmberObject.create({buttons: buttons}),
+        options: opts
+      }));
+    }
+
+    var record_id = board_id_for(record);
+    if(!record_id || seen[record_id]) {
+      return load_next();
+    }
+    seen[record_id] = true;
+    collect_links(record);
+
+    var loads = (record.get('linked_boards') || []).map(function(linked) {
+      if(linked.link_disabled) { return RSVP.resolve(null); }
+      var ref = linked_ref_for(linked);
+      if(!ref || seen[ref]) { return RSVP.resolve(null); }
+      if(!LingoLinq.store || typeof LingoLinq.store.findRecord !== 'function') {
+        missing_links = true;
+        return RSVP.resolve(null);
+      }
+      return LingoLinq.store.findRecord('board', ref).then(function(linked_board) {
+        queue.push(linked_board);
+      }, function() {
+        missing_links = true;
+      });
+    });
+    return RSVP.all(loads).then(load_next);
+  };
+
+  return load_next().then(function(hierarchy) {
+    if(hierarchy && hierarchy.get('root.children.length') > 0) {
+      hierarchy.set('live_links_incomplete', missing_links);
+      return hierarchy;
+    }
+    return null;
+  });
 };
 
 export default BoardHierarchy;

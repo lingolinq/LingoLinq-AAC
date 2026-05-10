@@ -706,6 +706,116 @@ describe('app_state', function() {
       expect(found_template).toEqual(null);
       expect(toggle_called).toEqual(true);
     });
+
+    it("should copy before editing when the board cannot be edited directly", function() {
+      var board = EmberObject.create({
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: board
+      }));
+      var found_template = null;
+      var found_settings = null;
+      stub(modal, 'open', function(template, settings) {
+        found_template = template;
+        found_settings = settings;
+        return RSVP.resolve('confirm');
+      });
+      var copy_and_edit_called = false;
+      var copy_and_edit_board = null;
+      var skip_source_resolution = null;
+      app_state.controller.send = function(action, board_to_copy, skip_resolution) {
+        copy_and_edit_called = action == 'copy_and_edit_board';
+        copy_and_edit_board = board_to_copy;
+        skip_source_resolution = skip_resolution;
+      };
+      var toggle_called = false;
+      stub(app_state, 'toggle_mode', function() {
+        toggle_called = true;
+      });
+      stub(editManager, 'clear_history', function() { });
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return copy_and_edit_called; });
+      runs(function() {
+        expect(found_template).toEqual('confirm-needs-copying');
+        expect(found_settings.board).toEqual(board);
+        expect(copy_and_edit_called).toEqual(true);
+        expect(copy_and_edit_board).toEqual(board);
+        expect(skip_source_resolution).toEqual(false);
+        expect(toggle_called).toEqual(false);
+      });
+    });
+
+    it("should copy the resolved board instead of a stale application board", function() {
+      var staleBoard = EmberObject.create({
+        key: 'template/quick-core-think',
+        permissions: {edit: false}
+      });
+      var detailBoard = EmberObject.create({
+        key: 'marcus_williams_slp/communikate-top-page',
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: staleBoard
+      }));
+      stub(app_state, 'assert_source', function() {
+        return RSVP.resolve(detailBoard);
+      });
+      var found_settings = null;
+      stub(modal, 'open', function(template, settings) {
+        found_settings = settings;
+        return RSVP.resolve('confirm');
+      });
+      var copy_and_edit_board = null;
+      app_state.controller.send = function(action, board_to_copy) {
+        if(action == 'copy_and_edit_board') {
+          copy_and_edit_board = board_to_copy;
+        }
+      };
+      stub(editManager, 'clear_history', function() { });
+      app_state.set('current_route', 'user.board-detail.index');
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return copy_and_edit_board; });
+      runs(function() {
+        expect(found_settings.board).toEqual(detailBoard);
+        expect(copy_and_edit_board).toEqual(detailBoard);
+      });
+    });
+
+    it("should skip source re-resolution when copying from board-detail", function() {
+      var detailBoard = EmberObject.create({
+        key: 'marcus_williams_slp/communikate-top-page',
+        permissions: {edit: false}
+      });
+      app_state.controller.set('board', EmberObject.create({
+        model: detailBoard
+      }));
+      app_state.set('current_route', 'user.board-detail.index');
+      stub(app_state, 'assert_source', function() {
+        return RSVP.resolve(detailBoard);
+      });
+      stub(modal, 'open', function() {
+        return RSVP.resolve('confirm');
+      });
+      var skip_source_resolution = null;
+      app_state.controller.send = function(action, board_to_copy, skip_resolution) {
+        if(action == 'copy_and_edit_board') {
+          skip_source_resolution = skip_resolution;
+        }
+      };
+      stub(editManager, 'clear_history', function() { });
+
+      app_state.toggle_edit_mode();
+
+      waitsFor(function() { return skip_source_resolution !== null; });
+      runs(function() {
+        expect(skip_source_resolution).toEqual(true);
+      });
+    });
   });
 
   describe('toggle_mode', function() {

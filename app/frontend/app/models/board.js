@@ -819,7 +819,7 @@ LingoLinq.Board = DS.Model.extend({
   }),
   create_copy: function(user, make_public, swap_library, new_owner, disconnect) {
     var board = LingoLinq.store.createRecord('board', {
-      parent_board_id: this.get('id'),
+      parent_board_id: this.get('global_id') || this.get('id'),
       key: this.get('key').split(/\//)[1],
       name: this.get('copy_name') || this.get('name'),
       prefix: this.get('copy_prefix') || this.get('prefix'),

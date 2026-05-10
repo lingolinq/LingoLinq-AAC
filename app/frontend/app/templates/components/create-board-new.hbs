@@ -111,7 +111,7 @@
             <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
             <ul class="nb-checklist nb-checklist--inset nb-section__head-checklist">
               <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
-              <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_grouping"}}</li>
+              <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_label"}}</li>
               <li class="nb-checklist__item">{{t "Type, paste, or upload CSV" key="new_board_size_hint_input"}}</li>
             </ul>
             <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
@@ -235,7 +235,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter, paste a list, or import a csv file" key="labels_chip_placeholder")}}
+                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter, paste a list, or import a csv file" key="labels_chip_placeholder_import")}}
                   {{#if this.label_count}}
                     <div class="nb-labels-disclosure">
                       <button type="button" class="nb-link nb-labels-disclosure__toggle" aria-expanded={{if this.labels_list_open "true" "false"}} {{action "toggleLabelsList"}}>

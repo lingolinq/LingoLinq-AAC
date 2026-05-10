@@ -359,7 +359,7 @@ class Api::UsersController < ApplicationController
       'immediate' => true,
       'associated_user_id' => (associated_user && associated_user.global_id),
       'button_id' => params['button_id']
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
@@ -380,7 +380,7 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless allowed?(user, 'delete')
     return api_error(400, {'flushed' => 'false', 'user_name_math' => (user.user_name == params['user_name']), 'user_id_match' => (user.global_id == params['confirm_user_id'])}) unless user.user_name == params['user_name'] && user.global_id == params['confirm_user_id']
-    progress = Progress.schedule(Flusher, :flush_user_logs, user.global_id, user.user_name)
+    progress = Progress.schedule(Flusher, :flush_user_logs, user.global_id, user.user_name, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
@@ -434,7 +434,7 @@ class Api::UsersController < ApplicationController
     if existing.instance_variable_get('@fresh')
       render json: existing
     else
-      progress = Progress.schedule(WordData, :update_activities_for, user.global_id, true)
+      progress = Progress.schedule(WordData, :update_activities_for, user.global_id, true, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true)
     end
   end
@@ -526,18 +526,25 @@ class Api::UsersController < ApplicationController
     if params['type'] == 'gift_code'
       return require_api_token unless @api_user
       return unless allowed?(user, 'edit')
-      progress = Progress.schedule(user, :redeem_gift_token, token['code'])
+      progress = Progress.schedule(user, :redeem_gift_token, token['code'], for_user: @api_user)
     elsif['never_expires', 'eval', 'add_1', 'add_5_years', 'manual_supporter', 'add_voice', 'communicator_trial', 'force_logout', 'enable_extras', 'supporter_credit', 'check_remote', 'restore', 'manual_modeler'].include?(params['type'])
       return require_api_token unless @api_user
       return unless allowed?(user, 'admin_support_actions')
-      progress = Progress.schedule(user, :subscription_override, params['type'], @api_user && @api_user.global_id)
+      progress = Progress.schedule(user, :subscription_override, params['type'], @api_user && @api_user.global_id, for_user: @api_user)
     else
       if user.registration_code && params['confirmation'] == user.registration_code
       else
         return require_api_token unless @api_user
         return unless allowed?(user, 'edit')
       end
-      progress = Progress.schedule(user, :process_subscription_token, token, params['type'], params['code'])
+      # for_user: @api_user (NOT `|| user`). The confirmation-code branch
+      # above intentionally allows anonymous calls (no @api_user). The
+      # frontend then polls /api/v1/progress/<id> anonymously, and
+      # Api::ProgressController authorizes against @api_user. Owner-scoping
+      # to the target user would 401 those polls and hang the purchase UI.
+      # When @api_user is nil here, the progress falls back to legacy
+      # permissive view (protected by the global_id nonce on Progress).
+      progress = Progress.schedule(user, :process_subscription_token, token, params['type'], params['code'], for_user: @api_user)
     end
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
@@ -549,7 +556,7 @@ class Api::UsersController < ApplicationController
     user.settings['subscription'] ||= {}
     user.settings['subscription']['unsubscribe_reason'] = params['reason'] if params['reason']
     user.save_with_sync('unsubscribe')
-    progress = Progress.schedule(user, :process_subscription_token, 'token', 'unsubscribe')
+    progress = Progress.schedule(user, :process_subscription_token, 'token', 'unsubscribe', for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
 
@@ -557,7 +564,7 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
-    progress = Progress.schedule(user, :verify_receipt, params['receipt_data'])
+    progress = Progress.schedule(user, :verify_receipt, params['receipt_data'], for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
@@ -571,19 +578,19 @@ class Api::UsersController < ApplicationController
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true
     progress = Progress.schedule(user, :replace_board, {
-      old_board_id: params['old_board_id'], 
-      new_board_id: params['new_board_id'], 
-      old_default_locale: params['old_default_locale'], 
-      new_default_locale: params['new_default_locale'], 
-      ids_to_copy: params['ids_to_copy'], 
+      old_board_id: params['old_board_id'],
+      new_board_id: params['new_board_id'],
+      old_default_locale: params['old_default_locale'],
+      new_default_locale: params['new_default_locale'],
+      ids_to_copy: params['ids_to_copy'],
       copy_prefix: params['copy_prefix'],
-      update_inline: params['update_inline'], 
+      update_inline: params['update_inline'],
       copier_id: @api_user && @api_user.global_id,
       new_owner: params['new_owner'],
       disconnect: params['disconnect'],
       make_public: make_public,
       user_for_paper_trail: user_for_paper_trail
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
@@ -602,14 +609,15 @@ class Api::UsersController < ApplicationController
         old_default_locale: params['old_default_locale'], 
         new_default_locale: params['new_default_locale'], 
         ids_to_copy: params['ids_to_copy'], 
+        expand_selected_board_ids: params['expand_selected_board_ids'],
         copy_prefix: params['copy_prefix'],
-        make_public: make_public, 
+        make_public: make_public,
         copier_id: @api_user && @api_user.global_id,
         new_owner: params['new_owner'],
         disconnect: params['disconnect'],
         user_for_paper_trail: user_for_paper_trail,
-        swap_library: params['swap_library']      
-    })
+        swap_library: params['swap_library']
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
   
@@ -939,7 +947,7 @@ class Api::UsersController < ApplicationController
     if !target || !target.valid_password?(params['password'])
       return api_error(400, {error: 'invalid_credentials'})
     end
-    progress = Progress.schedule(user, :transfer_eval_to, target.global_id, @api_device_id, true)
+    progress = Progress.schedule(user, :transfer_eval_to, target.global_id, @api_device_id, true, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
 
@@ -967,7 +975,7 @@ class Api::UsersController < ApplicationController
       opts['expires'] = params['expires']
     end
 
-    progress = Progress.schedule(user, :reset_eval, @api_device_id, opts)
+    progress = Progress.schedule(user, :reset_eval, @api_device_id, opts, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
 

@@ -35,9 +35,10 @@ class BoardSetCopier
       # Seed the mapper with the already-existing starting board copy
       @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
 
-      # Phase 1: Collect downstream board IDs and copy them
-      board_ids = @starting_old.downstream_board_ids || []
-      board_ids = board_ids & @opts[:valid_ids] if @opts[:valid_ids]
+      # Phase 1: Collect downstream board IDs and copy them. Prefer live folder
+      # links so copy-all and fallback one-level selections don't depend on the
+      # cached downstream_board_ids, which can lag behind live button links.
+      board_ids = selected_board_ids
       total = board_ids.size
       Rails.logger.info("[copy_perf] BoardSetCopier#copy_and_relink starting for #{@starting_old.global_id} -> #{@starting_new.global_id} (#{total} downstream boards)")
 
@@ -187,6 +188,49 @@ class BoardSetCopier
     end
 
     board_ids
+  end
+
+  def selected_board_ids
+    if @opts[:valid_ids]
+      boards = Board.find_all_by_path(@opts[:valid_ids])
+      ids = @opts[:expand_selected_board_ids] ? expand_linked_board_ids(boards) : boards.map(&:global_id)
+    else
+      ids = expand_linked_board_ids([@starting_old])
+    end
+
+    ids.uniq - [@starting_old.global_id]
+  end
+
+  def expand_linked_board_ids(boards)
+    ids = []
+    seen = {}
+    queue = boards.compact
+
+    until queue.empty?
+      board = queue.shift
+      next if seen[board.global_id]
+
+      seen[board.global_id] = true
+      ids << board.global_id
+
+      (board.buttons || []).each do |button|
+        next unless button['load_board']
+        next if button['link_disabled']
+
+        linked = board_from_load_board(button['load_board'])
+        queue << linked if linked && !seen[linked.global_id]
+      end
+    end
+
+    ids
+  end
+
+  def board_from_load_board(load_board)
+    [load_board['id'], load_board['key'], load_board['path'], load_board['data_url'], load_board['url']].compact.each do |ref|
+      board = Board.find_by_path(ref)
+      return board if board
+    end
+    nil
   end
 
   def index_board_links(board)

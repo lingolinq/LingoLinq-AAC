@@ -52416,7 +52416,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   transition: box-shadow 0.15s ease, transform 0.2s ease, background 0.15s ease;
 }
+/* Button stays neutral (white bg, dark navy icon) in every state — no
+   hover tint, no click/focus shift. The chevron rotation on the --open
+   modifier is the only visual indication that the panel is expanded. */
 .md-board-detail-header__info-toggle:hover,
+.md-board-detail-header__info-toggle:focus,
+.md-board-detail-header__info-toggle:focus-visible,
+.md-board-detail-header__info-toggle:active {
+  background: #fff;
+  color: rgba($la-navy, 0.72);
+  border-color: rgba($la-navy, 0.15);
+}
+/* Keep a minimal keyboard focus ring for accessibility — no fill
+   change, just an outline so keyboard users can still see focus. */
 .md-board-detail-header__info-toggle:focus-visible {
   box-shadow:
     0 4px 12px rgba($la-navy, 0.18),
