@@ -1077,43 +1077,6 @@ export default Controller.extend(prefClasses, {
   // pending_display_prefs.skin starting with 'mix_only'. Simple tones
   // map directly except 'default', which uses the --original swatch class
   // (yellow Fitzgerald-neutral) following the existing template convention.
-  display_prefs_current_skin_class: computed('current_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
-    if(this.get('skin_is_mix_only'))   { return 'md-settings-skin--mix-only'; }
-    if(this.get('skin_is_mix_prefer')) { return 'md-settings-skin--mix-prefer'; }
-    if(this.get('skin_is_mix'))        { return 'md-settings-skin--mix'; }
-    var skin = this.get('current_display_prefs.skin') || 'default';
-    if(skin === 'default') { return 'md-settings-skin--original'; }
-    return 'md-settings-skin--' + skin;
-  }),
-
-  // Human-readable label for the currently-selected skin tone, used as
-  // the tiny helper text below the swatch grid in the ≤640px popover.
-  // Returns null for the mix_only/mix_prefer variants since their
-  // suboptions row already provides context (the "Only:" / "Prefer:"
-  // sublabel + suboption swatches make the mode self-evident).
-  display_prefs_current_skin_label: computed('current_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
-    if(this.get('skin_is_mix_only') || this.get('skin_is_mix_prefer')) { return null; }
-    if(this.get('skin_is_mix')) { return i18n.t('skin_label_mix', "Mix of tones"); }
-    var skin = this.get('current_display_prefs.skin') || 'default';
-    var labels = {
-      'default':      i18n.t('skin_label_original',     "Original"),
-      'light':        i18n.t('skin_label_light',        "Light"),
-      'medium-light': i18n.t('skin_label_medium_light', "Medium Light"),
-      'medium':       i18n.t('skin_label_medium',       "Medium"),
-      'medium-dark':  i18n.t('skin_label_medium_dark',  "Medium Dark"),
-      'dark':         i18n.t('skin_label_dark',         "Dark")
-    };
-    return labels[skin] || null;
-  }),
-
-  // CSS modifier class for the mobile-collapse skin-tones dropdown trigger
-  // swatch. The trigger renders as a single .md-settings-skin dot whose
-  // appearance must mirror the currently-active inline swatch button. Mix
-  // variants take precedence over the simple-tone string because the data
-  // field encodes both: e.g. 'mix_only::limit-100100' still has
-  // pending_display_prefs.skin starting with 'mix_only'. Simple tones
-  // map directly except 'default', which uses the --original swatch class
-  // (yellow Fitzgerald-neutral) following the existing template convention.
   display_prefs_current_skin_class: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
     if(this.get('skin_is_mix_only'))   { return 'md-settings-skin--mix-only'; }
     if(this.get('skin_is_mix_prefer')) { return 'md-settings-skin--mix-prefer'; }

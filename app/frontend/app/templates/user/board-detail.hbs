@@ -1647,7 +1647,7 @@
                       {{t "Preview Levels" key="level_preview_label"}}
                     </div>
                     <p class="md-board-edit-right-panel__hint" style="margin: 0 0 10px; text-align: center; font-size: 11.5px;">{{t "Step through levels to see how the board looks at each one." key="level_preview_hint"}}</p>
-                    <button type="button" class="md-board-edit-right-panel__pill" style="display: flex; align-items: center; justify-content: center; width: 100%; text-align: center; {{if this.preview_levels 'background: #C0392B; border-color: #A33324; color: #fff;' 'background: #4A6FA5; border-color: #355489; color: #fff;'}}" {{action "toggle_preview_levels"}}>
+                    <button type="button" class="md-board-edit-right-panel__pill" style={{safe-style (concat "display: flex; align-items: center; justify-content: center; width: 100%; text-align: center; " (if this.preview_levels "background: #C0392B; border-color: #A33324; color: #fff;" "background: #4A6FA5; border-color: #355489; color: #fff;"))}} {{action "toggle_preview_levels"}}>
                       {{#if this.preview_levels}}{{t "Stop Preview" key="button_levels_stop_preview"}}{{else}}{{t "Preview Levels" key="board_detail_preview_levels"}}{{/if}}
                     </button>
                   {{#if this.preview_levels}}
