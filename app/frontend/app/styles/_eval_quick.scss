@@ -1,73 +1,120 @@
-// Quick Screen eval (Mode 1) baseline styles.
+// Quick Screen eval (Mode 1) — modern dashboard surface treatment.
 // Class prefix: .evq* (eval-quick).
 // Layout is full-page, designed for iPad landscape (the most common AAC form factor).
-// All design tokens come from _variables.scss.
+// All design tokens come from _variables.scss; surface aesthetic mirrors the
+// .md-card.md-card--caseload pattern (multi-radial gradients over a white→cream
+// linear base) so the eval flow reads as part of the supervisor dashboard.
 
 @use "variables" as *;
 @use "sass:color";
 
-$evq-radius: 14px;
-$evq-radius-sm: 10px;
-$evq-shadow: 0 18px 40px -22px rgba(11, 23, 50, 0.32);
-$evq-shadow-sm: 0 8px 18px -10px rgba(11, 23, 50, 0.22);
-$evq-bg: $brand-stone-100;
-$evq-card-bg: #ffffff;
+$evq-radius: 18px;
+$evq-radius-sm: 12px;
+$evq-radius-pill: 999px;
+$evq-shadow: 0 24px 48px -28px rgba(11, 23, 50, 0.32),
+             0 4px 12px -6px rgba(11, 23, 50, 0.08);
+$evq-shadow-sm: 0 8px 18px -10px rgba(11, 23, 50, 0.18);
+$evq-shadow-pill: 0 6px 18px -8px rgba(40, 96, 201, 0.45);
 $evq-text: $brand-charcoal-dark;
 $evq-text-muted: $brand-slate-gray;
 $evq-accent: $brand-verdigris-aa;
-$evq-accent-soft: rgba(42, 157, 143, 0.12);
+$evq-accent-soft: rgba(42, 157, 143, 0.10);
 $evq-primary: $brand-dusty-denim-aa;
-$evq-primary-soft: rgba(40, 96, 201, 0.10);
-$evq-border: rgba(70, 80, 95, 0.14);
-$evq-border-strong: rgba(70, 80, 95, 0.28);
+$evq-primary-soft: rgba(40, 96, 201, 0.08);
+$evq-border: rgba($la-navy, 0.10);
+$evq-border-strong: rgba($la-navy, 0.18);
 $evq-danger: $brand-danger;
+// Multi-radial composition layered over a white→cream linear base.
+// Same pattern as .md-card.md-card--caseload so the surfaces feel
+// like one product. Reused on the header card and the intake/runner/
+// report cards (with reduced opacity on the inner cards so the hero
+// header still reads as the primary surface).
+@mixin evq-hero-surface($accent-strength: 1) {
+  background:
+    radial-gradient(720px 320px at 12% 0%, rgba(42, 157, 143, calc(0.08 * #{$accent-strength})), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(560px 260px at 92% 12%, rgba(40, 96, 201, calc(0.06 * #{$accent-strength})), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(400px 280px at 80% 88%, rgba(70, 80, 95, calc(0.04 * #{$accent-strength})), rgba(0, 0, 0, 0) 50%),
+    linear-gradient(rgb(255, 255, 255) 0%, rgb(252, 254, 253) 60%, rgb(244, 250, 249) 100%);
+}
+
+// Page chrome ---------------------------------------------------------
 
 .evq {
   display: block;
   min-height: 100vh;
-  background: $evq-bg;
   color: $evq-text;
   font-family: inherit;
+  // Soft warmth behind the cards. The radial puts a hint of teal at
+  // the upper-right and dusty-denim at the lower-left so the eye
+  // wants to track from header (top) → submit CTA (bottom).
+  background:
+    radial-gradient(900px 500px at 100% 0%, rgba(42, 157, 143, 0.06), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(800px 600px at 0% 100%, rgba(40, 96, 201, 0.04), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, #ffffff 0%, $brand-stone-100 100%);
 }
 
 .evq__shell {
-  max-width: 1200px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: clamp(16px, calc(16px + 1vw), 32px);
+  padding: clamp(20px, calc(20px + 1vw), 40px);
+  // Push the entire eval flow 5rem below the shell's natural top
+  // so the header card lands well below the global navbar instead
+  // of butting up against it.
+  padding-top: calc(5rem + clamp(20px, calc(20px + 1vw), 40px));
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
+
+// Header card ---------------------------------------------------------
 
 .evq__header {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 16px;
-  padding: 16px 20px;
-  background: $evq-card-bg;
+  padding: 22px 28px;
   border-radius: $evq-radius;
-  box-shadow: $evq-shadow-sm;
   border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  box-shadow: $evq-shadow;
+  @include evq-hero-surface;
+
+  @media (max-width: 720px) {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "back  meta"
+      "title title";
+    .evq__back        { grid-area: back; }
+    .evq__header-meta { grid-area: meta; justify-self: end; }
+    .evq__header-title { grid-area: title; padding-top: 4px; }
+  }
 }
 
 .evq__back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.7);
   border: 1px solid $evq-border;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 14px;
+  border-radius: $evq-radius-pill;
+  padding: 8px 14px 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: $evq-text-muted;
   cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease, transform 80ms ease, box-shadow 140ms ease;
+
+  svg { transition: transform 140ms ease; }
 
   &:hover, &:focus-visible {
-    color: $evq-text;
+    color: $la-navy;
     border-color: $evq-border-strong;
-    background: rgba(70, 80, 95, 0.04);
+    background: #ffffff;
+    box-shadow: $evq-shadow-sm;
+    outline: none;
+
+    svg { transform: translateX(-2px); }
   }
 }
 
@@ -76,171 +123,298 @@ $evq-danger: $brand-danger;
   flex-direction: column;
   gap: 2px;
   text-align: center;
-
+  // Premium SaaS hierarchy: small uppercase eyebrow, oversized title,
+  // and a quiet subtitle. Negative letter-spacing on the title gives
+  // the heading the same visual gravity as $la-navy product titles.
   .evq__eyebrow {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.16em;
     color: $evq-accent;
-    font-weight: 600;
+    font-weight: 700;
   }
   .evq__title {
     margin: 0;
-    font-size: clamp(20px, calc(18px + 0.6vw), 26px);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: clamp(22px, calc(20px + 0.7vw), 32px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.15;
   }
   .evq__subtitle {
     font-size: 13px;
     color: $evq-text-muted;
+    margin-top: 2px;
   }
 }
 
 .evq__user-chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: $evq-primary-soft;
-  color: $evq-primary;
-  font-weight: 600;
+  gap: 8px;
+  padding: 7px 16px 7px 8px;
+  border-radius: $evq-radius-pill;
+  background: #ffffff;
+  border: 1px solid $evq-border;
+  color: $la-navy;
+  font-weight: 700;
   font-size: 13px;
+  letter-spacing: -0.005em;
+  box-shadow: $evq-shadow-sm;
+  // Avatar dot on the leading edge of the chip — same teal gradient
+  // as the report progress fill so the user identity reads as a
+  // first-class affordance, not a label.
+  &::before {
+    content: '';
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+    flex-shrink: 0;
+  }
 }
 
 .evq__body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  // Each eval-screen content (intake, runner, report) sits 5rem
+  // below the header card so the active step has clear breathing
+  // room and the SLP's eye lands on the content, not the chrome.
+  margin-top: 5rem;
 }
 
-// --- Intake ----------------------------------------------------------
+// Intake card ---------------------------------------------------------
 
 .evq-intake {
-  background: $evq-card-bg;
   border-radius: $evq-radius;
   border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
   box-shadow: $evq-shadow;
-  padding: clamp(20px, calc(20px + 1vw), 36px);
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
+  @include evq-hero-surface($accent-strength: 0.55);
 }
 
 .evq-intake__header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid $evq-border;
 
   .evq-intake__title {
     margin: 0 0 6px 0;
-    font-size: clamp(20px, calc(18px + 0.6vw), 26px);
-    font-weight: 700;
-    color: $evq-text;
+    font-size: clamp(22px, calc(20px + 0.7vw), 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
   }
   .evq-intake__caption {
     margin: 0;
     color: $evq-text-muted;
     font-size: 14px;
+    line-height: 1.5;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
 .evq-intake__form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  // Bumped from 24px so each section reads as its own grouped step
+  // rather than a packed list of choices.
+  gap: 32px;
 }
 
+// Each fieldset is now a soft glass panel — frosted-white card with
+// 1px hairline border, an inner top highlight, and a two-layer drop
+// shadow so it visibly lifts off the parent intake card. The result:
+// the form becomes a stack of discrete "step" panels (Age band →
+// Etiology → Current communication → Suspected access) that read as
+// raised surfaces, not flat sections.
 .evq-intake__field {
-  border: none;
-  padding: 0;
+  border: 1px solid rgba($la-navy, 0.07);
+  border-radius: $evq-radius-sm;
   margin: 0;
+  padding: 18px 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(252, 254, 253, 0.65) 100%);
+  // Two-layer drop shadow for clear elevation:
+  //   • soft 24px diffuse — gives the card "weight" against the page
+  //   • tight 4px — paints a crisp grounding edge under the card
+  // Inner top highlight stays for the lit-edge glass effect.
+  box-shadow:
+    0 14px 32px -18px rgba($la-navy, 0.22),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: box-shadow 200ms ease, transform 120ms ease;
 }
 
+// Section legend with a small accent dot — quiet but unmistakably
+// "modern dashboard". Verdigris dot keeps the eye anchored to the
+// section start without competing with the active pill colors.
 .evq-intake__legend {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: $evq-text-muted;
-  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: $la-navy;
+  font-weight: 700;
   margin: 0;
   padding: 0;
+
+  &::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $evq-accent;
+    box-shadow:
+      0 0 0 3px rgba(42, 157, 143, 0.14),
+      0 0 12px rgba(42, 157, 143, 0.35);
+    flex-shrink: 0;
+  }
 }
 
 .evq-pillgroup {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
+// Pills: true frosted-glass when inactive — translucent gradient
+// base + backdrop blur + double-layer shadow (inner top highlight
+// for a "lit" edge, outer 1px hairline shadow for elevation).
+// Active state is the brand denim→charcoal gradient with a soft
+// reflective inset highlight, so the selected option reads as a
+// "pressed glass" tile, not a flat fill.
 .evq-pill {
-  background: transparent;
-  border: 1px solid $evq-border-strong;
-  border-radius: 999px;
-  padding: 10px 16px;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 251, 253, 0.65) 100%);
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: $evq-radius-pill;
+  padding: 11px 20px;
   font-size: 14px;
-  color: $evq-text;
+  font-weight: 600;
+  color: $la-navy;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 12px -8px rgba($la-navy, 0.08);
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 120ms ease,
+    box-shadow 200ms ease;
 
   &:hover, &:focus-visible {
-    border-color: $evq-primary;
+    border-color: rgba($brand-dusty-denim-aa, 0.42);
     color: $evq-primary;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 252, 255, 0.85) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 8px 22px -12px rgba($brand-dusty-denim-aa, 0.35);
+    transform: translateY(-1px);
+    outline: none;
   }
 
   &--active,
   &[aria-checked='true'] {
-    background: $evq-primary;
+    background:
+      linear-gradient(135deg, $brand-dusty-denim-aa 0%, $brand-charcoal-blue 100%);
     color: #ffffff;
-    border-color: $evq-primary;
+    border-color: rgba($brand-dusty-denim-aa, 0.5);
+    box-shadow:
+      $evq-shadow-pill,
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.10);
+
+    &:hover, &:focus-visible {
+      color: #ffffff;
+      border-color: rgba($brand-dusty-denim-aa, 0.6);
+      transform: translateY(-1px);
+      box-shadow:
+        0 12px 28px -10px rgba($brand-dusty-denim-aa, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.32),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.10);
+    }
   }
 
   &:active {
-    transform: translateY(1px);
+    transform: translateY(0);
+    box-shadow:
+      inset 0 1px 3px rgba($la-navy, 0.10),
+      0 1px 2px rgba($la-navy, 0.04);
   }
 }
 
+// Inline preview of the matched item-bank profile. Soft teal panel
+// with a leading bar accent — same affordance pattern as the
+// .md-board-detail-actions-menu callouts.
 .evq-intake__preview {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: $evq-accent-soft;
   border-radius: $evq-radius-sm;
   border-left: 3px solid $evq-accent;
   font-size: 14px;
+  color: $evq-text;
 
   .evq-intake__preview-name {
     color: $evq-accent;
     font-family: ui-monospace, "SF Mono", "Menlo", monospace;
     font-size: 13px;
     padding: 2px 8px;
-    background: rgba(42, 157, 143, 0.08);
-    border-radius: 4px;
+    background: rgba(42, 157, 143, 0.10);
+    border-radius: 6px;
+    font-weight: 700;
   }
 }
 
 .evq-intake__actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
-// --- Buttons ---------------------------------------------------------
+// Buttons -------------------------------------------------------------
 
 .evq-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  border-radius: $evq-radius-sm;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: $evq-radius-pill;
   border: 1px solid transparent;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 80ms ease;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 100ms ease, box-shadow 160ms ease;
 
   &:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
+    // Note: NO opacity here. Each variant handles its disabled state
+    // explicitly so the button surface stays legible on light cards.
+    // (Setting 0.45 opacity blends the gradient with the white card
+    // beneath, which is why the button used to look gray-washed.)
   }
 
   &:active:not(:disabled) {
@@ -249,70 +423,104 @@ $evq-danger: $brand-danger;
 }
 
 .evq-btn--primary {
-  background: $evq-primary;
+  // Matches the Save and Exit button on board-detail edit mode
+  // (.md-board-edit-panel__back-link) — same slate-blue → charcoal
+  // diagonal gradient + 1px charcoal-tinted border + soft charcoal
+  // drop shadow. Reads as the same primary CTA family across the
+  // app.
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
   color: #ffffff;
-  border-color: $evq-primary;
+  padding: 14px 28px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  box-shadow: 0 12px 28px -14px rgba($brand-charcoal-blue, 0.45),
+              0 2px 6px rgba($brand-charcoal-blue, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.18);
 
   &:hover:not(:disabled),
   &:focus-visible:not(:disabled) {
-    background: color.adjust($brand-dusty-denim-aa, $lightness: -6%);
-    border-color: color.adjust($brand-dusty-denim-aa, $lightness: -6%);
+    box-shadow: 0 16px 32px -14px rgba($brand-charcoal-blue, 0.50),
+                0 4px 10px rgba($brand-charcoal-blue, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  svg { transition: transform 160ms ease; }
+  &:hover:not(:disabled) svg { transform: translateX(2px); }
+
+  // Disabled: keep the gradient solid against the light card so the
+  // button never washes out. Text + icon stay full white; the only
+  // disabled signal is dropping the lift shadow + hover lift, plus
+  // the not-allowed cursor from the base .evq-btn rule.
+  &:disabled {
+    box-shadow:
+      0 2px 6px rgba($brand-charcoal-blue, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    transform: none;
   }
 }
 
 .evq-btn--ghost {
-  background: transparent;
-  color: $evq-text;
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
   border-color: $evq-border-strong;
 
   &:hover:not(:disabled),
   &:focus-visible:not(:disabled) {
-    border-color: $evq-text;
-    background: rgba(70, 80, 95, 0.04);
+    border-color: $la-navy;
+    background: #ffffff;
+    box-shadow: $evq-shadow-sm;
+    outline: none;
   }
 }
 
-// --- Runner ---------------------------------------------------------
+// Runner --------------------------------------------------------------
 
 .evq-runner {
-  background: $evq-card-bg;
   border-radius: $evq-radius;
   border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
   box-shadow: $evq-shadow;
-  padding: clamp(20px, calc(20px + 1vw), 36px);
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  @include evq-hero-surface($accent-strength: 0.55);
 }
 
 .evq-runner__progress {
-  height: 6px;
-  background: rgba(70, 80, 95, 0.08);
-  border-radius: 999px;
+  height: 8px;
+  background: rgba($la-navy, 0.06);
+  border-radius: $evq-radius-pill;
   overflow: hidden;
 }
 
 .evq-runner__progress-fill {
   height: 100%;
   background: linear-gradient(90deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
-  transition: width 240ms ease;
+  border-radius: $evq-radius-pill;
+  transition: width 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .evq-runner__header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 
   .evq-runner__step {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: $evq-text-muted;
+    letter-spacing: 0.14em;
+    color: $evq-accent;
+    font-weight: 700;
   }
   .evq-runner__title {
     margin: 0;
-    font-size: clamp(20px, calc(18px + 0.6vw), 28px);
-    font-weight: 700;
+    font-size: clamp(22px, calc(20px + 0.7vw), 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.2;
   }
   .evq-runner__item-count {
     color: $evq-text-muted;
@@ -321,34 +529,38 @@ $evq-danger: $brand-danger;
 }
 
 .evq-runner__item-card {
-  background: $evq-bg;
-  border: 1px dashed $evq-border-strong;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1.5px dashed $evq-border-strong;
   border-radius: $evq-radius;
-  padding: clamp(20px, calc(16px + 2vw), 40px);
+  padding: clamp(24px, calc(16px + 2vw), 48px);
   text-align: center;
-  min-height: 220px;
+  min-height: 240px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .evq-runner__item-id {
   font-family: ui-monospace, "SF Mono", "Menlo", monospace;
-  font-size: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: $evq-text-muted;
-  background: $evq-card-bg;
-  border-radius: 999px;
+  background: #ffffff;
+  border-radius: $evq-radius-pill;
   padding: 4px 12px;
   border: 1px solid $evq-border;
 }
 
 .evq-runner__item-prompt {
   margin: 0;
-  font-size: 16px;
-  color: $evq-text;
-  max-width: 480px;
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  max-width: 520px;
+  line-height: 1.4;
 }
 
 .evq-runner__score-row {
@@ -367,25 +579,26 @@ $evq-danger: $brand-danger;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 18px;
-  border-radius: $evq-radius;
-  border: 1px solid $evq-border;
-  background: $evq-card-bg;
-  font-weight: 600;
+  gap: 8px;
+  padding: 20px;
+  border-radius: $evq-radius-sm;
+  border: 1.5px solid $evq-border;
+  background: #ffffff;
+  font-weight: 700;
   font-size: 14px;
-  color: $evq-text;
+  color: $la-navy;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 160ms ease;
 
   &:hover, &:focus-visible {
-    transform: translateY(-1px);
-    box-shadow: $evq-shadow-sm;
+    transform: translateY(-2px);
+    box-shadow: $evq-shadow;
+    outline: none;
   }
 
   &--correct {
     color: $evq-accent;
-    border-color: rgba(42, 157, 143, 0.4);
+    border-color: rgba(42, 157, 143, 0.35);
 
     &:hover, &:focus-visible {
       background: $evq-accent-soft;
@@ -395,10 +608,10 @@ $evq-danger: $brand-danger;
 
   &--incorrect {
     color: $evq-danger;
-    border-color: rgba(192, 57, 43, 0.4);
+    border-color: rgba(192, 57, 43, 0.35);
 
     &:hover, &:focus-visible {
-      background: rgba(192, 57, 43, 0.08);
+      background: rgba(192, 57, 43, 0.06);
       border-color: $evq-danger;
     }
   }
@@ -407,7 +620,7 @@ $evq-danger: $brand-danger;
     color: $evq-text-muted;
 
     &:hover, &:focus-visible {
-      color: $evq-text;
+      color: $la-navy;
       border-color: $evq-border-strong;
     }
   }
@@ -426,22 +639,23 @@ $evq-danger: $brand-danger;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 24px 0;
+  gap: 18px;
+  padding: 32px 0;
   text-align: center;
 }
 
-// --- Report ---------------------------------------------------------
+// Report --------------------------------------------------------------
 
 .evq-report {
-  background: $evq-card-bg;
   border-radius: $evq-radius;
   border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
   box-shadow: $evq-shadow;
-  padding: clamp(20px, calc(20px + 1vw), 36px);
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
+  @include evq-hero-surface($accent-strength: 0.55);
 }
 
 .evq-report__header {
@@ -449,20 +663,22 @@ $evq-danger: $brand-danger;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 6px;
+  gap: 8px;
 
   .evq-report__eyebrow {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.16em;
     color: $evq-accent;
-    font-weight: 600;
+    font-weight: 700;
   }
   .evq-report__title {
     margin: 0;
-    font-size: clamp(22px, calc(20px + 0.7vw), 30px);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: clamp(24px, calc(20px + 1vw), 34px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.15;
   }
 }
 
@@ -476,34 +692,47 @@ $evq-danger: $brand-danger;
 .evq-report__chip {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
-  background: $evq-bg;
+  padding: 5px 14px;
+  background: #ffffff;
   border: 1px solid $evq-border;
-  border-radius: 999px;
+  border-radius: $evq-radius-pill;
   font-size: 12px;
+  font-weight: 600;
   color: $evq-text-muted;
+  letter-spacing: -0.005em;
 
   &--confidence {
     background: $evq-primary-soft;
     color: $evq-primary;
-    border-color: rgba(40, 96, 201, 0.2);
+    border-color: rgba(40, 96, 201, 0.22);
   }
 }
 
 .evq-report__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
+// Cards on the report page: glass over a subtle gradient so the
+// numeric values (grid size, library, etc) read like KPI tiles
+// rather than form rows.
 .evq-card {
-  background: $evq-bg;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(252, 254, 253, 0.85));
   border-radius: $evq-radius-sm;
   border: 1px solid $evq-border;
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  transition: box-shadow 160ms ease, transform 100ms ease;
+
+  &:hover {
+    box-shadow: $evq-shadow-sm;
+    transform: translateY(-1px);
+  }
 
   &--wide {
     grid-column: span 2;
@@ -515,17 +744,19 @@ $evq-danger: $brand-danger;
 }
 
 .evq-card__label {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
   color: $evq-text-muted;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .evq-card__value {
-  font-size: 18px;
-  font-weight: 700;
-  color: $evq-text;
+  font-size: 20px;
+  font-weight: 800;
+  color: $la-navy;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
 }
 
 .evq-card__hint {
@@ -545,27 +776,28 @@ $evq-danger: $brand-danger;
 .evq-card__chip {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 4px 12px;
+  border-radius: $evq-radius-pill;
   background: $evq-accent-soft;
   color: $evq-accent;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .evq-report__promote {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 18px;
-  background: rgba(242, 185, 90, 0.12);
+  gap: 6px;
+  padding: 16px 20px;
+  background: rgba(242, 185, 90, 0.10);
   border-left: 3px solid $brand-honey-bronze;
   border-radius: $evq-radius-sm;
 }
 
 .evq-report__promote-title {
-  color: $evq-text;
+  color: $la-navy;
   font-size: 14px;
+  font-weight: 700;
 }
 
 .evq-report__promote-reasons {
@@ -579,4 +811,436 @@ $evq-danger: $brand-danger;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+// =====================================================================
+// Item dispatcher (.evq-item) — Phase 1B
+// =====================================================================
+// Renders the in-app item presentation: big button, choice grid,
+// access grid, library compare, sequence, observe. Each kind has its
+// own variant within the same wrapper so the manual-override panel
+// at the bottom works regardless of kind.
+
+.evq-item {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(20px, calc(16px + 1.2vw), 36px);
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  box-shadow:
+    0 14px 32px -18px rgba($la-navy, 0.22),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(252, 254, 253, 0.65) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+// Prompt row — instruction text + small id chip on the right.
+.evq-item__prompt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.evq-item__prompt {
+  margin: 0;
+  font-size: clamp(18px, calc(16px + 0.5vw), 22px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: $la-navy;
+  line-height: 1.35;
+  flex: 1 1 auto;
+}
+
+.evq-item__id {
+  flex-shrink: 0;
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: $evq-text-muted;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid $evq-border;
+  border-radius: $evq-radius-pill;
+  padding: 4px 10px;
+}
+
+.evq-item__hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: $evq-text-muted;
+}
+
+// ── Cause-effect ──────────────────────────────────────────────────
+.evq-item__cause-effect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 0;
+}
+
+.evq-item__big-button {
+  width: clamp(180px, calc(140px + 18vw), 280px);
+  height: clamp(180px, calc(140px + 18vw), 280px);
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+  color: #ffffff;
+  font-size: clamp(20px, calc(16px + 1vw), 28px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 24px 48px -16px rgba($brand-verdigris-aa, 0.45),
+    0 6px 16px -8px rgba($brand-dusty-denim-aa, 0.40),
+    inset 0 4px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 120ms ease, box-shadow 200ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 28px 56px -16px rgba($brand-verdigris-aa, 0.55),
+      0 10px 22px -8px rgba($brand-dusty-denim-aa, 0.45),
+      inset 0 4px 0 rgba(255, 255, 255, 0.22);
+    outline: none;
+  }
+
+  &:active {
+    transform: translateY(2px) scale(0.98);
+    box-shadow:
+      0 8px 16px -8px rgba($brand-verdigris-aa, 0.4),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.10);
+  }
+}
+
+.evq-item__big-button-label {
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+// ── Choice grid (multi-choice + sequence reuse this) ──────────────
+.evq-item__choice-grid {
+  display: grid;
+  // Default: 2 columns. Variant classes below override for 3/4/6.
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  &--cols-3 { grid-template-columns: repeat(3, 1fr); }
+  &--cols-4 { grid-template-columns: repeat(2, 1fr); }
+  &--cols-6 { grid-template-columns: repeat(3, 1fr); }
+  &--sequence { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+.evq-item__choice-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 18px 16px;
+  border-radius: $evq-radius-sm;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 251, 253, 0.78) 100%);
+  color: $la-navy;
+  font-size: clamp(16px, calc(14px + 0.4vw), 19px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 4px 12px -8px rgba($la-navy, 0.10);
+  transition: transform 120ms ease, box-shadow 200ms ease, border-color 160ms ease, background 160ms ease;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-dusty-denim-aa, 0.45);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 12px 28px -12px rgba($brand-dusty-denim-aa, 0.32);
+    outline: none;
+  }
+
+  &:active {
+    transform: translateY(1px);
+    background:
+      linear-gradient(180deg, rgba(248, 251, 253, 0.95) 0%, rgba(240, 245, 250, 0.85) 100%);
+  }
+}
+
+.evq-item__choice-label { pointer-events: none; }
+
+// ── Access-snapshot grid ──────────────────────────────────────────
+.evq-item__access-grid {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: $evq-radius-sm;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid $evq-border;
+  // Cap the visual size so rows stay tappable but not absurd.
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.evq-item__access-cell {
+  aspect-ratio: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid rgba($la-navy, 0.10);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 160ms ease;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-dusty-denim-aa, 0.45);
+    background: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px -8px rgba($la-navy, 0.20);
+    outline: none;
+  }
+
+  &--target {
+    background:
+      linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+    border-color: rgba($brand-verdigris-aa, 0.5);
+    color: #ffffff;
+    box-shadow:
+      0 8px 18px -8px rgba($brand-verdigris-aa, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+
+    &:hover, &:focus-visible {
+      background:
+        linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+      transform: translateY(-2px);
+      box-shadow:
+        0 14px 26px -10px rgba($brand-verdigris-aa, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    }
+  }
+}
+
+// ── Library compare ───────────────────────────────────────────────
+.evq-item__library-compare {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.evq-item__library-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 36px;
+  border-radius: $evq-radius;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: $la-navy;
+  cursor: pointer;
+  min-width: 220px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 8px 22px -12px rgba($la-navy, 0.18);
+  transition: transform 120ms ease, box-shadow 200ms ease, border-color 160ms ease;
+
+  &--a { border-top: 4px solid $brand-verdigris-aa; }
+  &--b { border-top: 4px solid $brand-dusty-denim-aa; }
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 18px 36px -16px rgba($la-navy, 0.30);
+    outline: none;
+  }
+}
+
+.evq-item__library-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: $evq-text-muted;
+  font-weight: 700;
+}
+
+.evq-item__library-word {
+  font-size: clamp(28px, calc(20px + 1.2vw), 40px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: $la-navy;
+}
+
+// ── Sequence (syntax / sequencing) ────────────────────────────────
+.evq-item__sequence-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: $evq-radius-sm;
+  background: rgba($brand-verdigris-aa, 0.06);
+  border: 1px solid rgba($brand-verdigris-aa, 0.22);
+}
+
+.evq-item__sequence-progress {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $evq-accent;
+  font-weight: 700;
+}
+
+.evq-item__sequence-buffer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evq-item__sequence-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: $evq-radius-pill;
+  background: $evq-accent;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+// ── Observation card (manual scoring kinds) ───────────────────────
+.evq-item__observe {
+  padding: 24px;
+  border-radius: $evq-radius-sm;
+  background: rgba($brand-honey-bronze, 0.08);
+  border-left: 3px solid $brand-honey-bronze;
+}
+
+.evq-item__observe-message {
+  margin: 0;
+  font-size: 14px;
+  color: $la-navy;
+  line-height: 1.5;
+}
+
+// ── Manual override panel (always visible at bottom) ──────────────
+.evq-item__manual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid $evq-border;
+}
+
+.evq-item__manual-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $evq-text-muted;
+  font-weight: 700;
+}
+
+.evq-item__manual-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.evq-item__manual-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $evq-radius-pill;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  &--correct {
+    color: $evq-accent;
+    border-color: rgba(42, 157, 143, 0.35);
+    &:hover, &:focus-visible {
+      background: rgba(42, 157, 143, 0.10);
+      border-color: $evq-accent;
+    }
+  }
+  &--skip {
+    color: $evq-text-muted;
+    &:hover, &:focus-visible {
+      background: rgba($la-navy, 0.04);
+      border-color: $evq-border-strong;
+      color: $la-navy;
+    }
+  }
+  &--incorrect {
+    color: $evq-danger;
+    border-color: rgba(192, 57, 43, 0.35);
+    &:hover, &:focus-visible {
+      background: rgba(192, 57, 43, 0.08);
+      border-color: $evq-danger;
+    }
+  }
+}
+
+// ── Runner kind badge (auto-scored vs observation) ────────────────
+.evq-runner__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.evq-runner__kind-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: $evq-radius-pill;
+  background: rgba($brand-honey-bronze, 0.10);
+  border: 1px solid rgba($brand-honey-bronze, 0.30);
+  color: color.adjust($brand-honey-bronze, $lightness: -25%);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+
+  &--auto {
+    background: rgba(42, 157, 143, 0.10);
+    border-color: rgba(42, 157, 143, 0.32);
+    color: $evq-accent;
+  }
+}
+
+.evq-runner__kind-badge-divider {
+  opacity: 0.55;
+  margin: 0 2px;
 }

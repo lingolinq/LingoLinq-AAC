@@ -2,15 +2,21 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import eval_items from '../utils/eval_items';
+import auto_score from '../utils/eval_auto_score';
 
 /*
  * eval-quick-runner — sequences the subtests defined by the active session.
  *
- * Phase 1A scaffolds the SLP-driven scoring path: the SLP records correct/
- * incorrect taps for each item (mirrors the manual quick-assessment pattern).
- * Phase 1B+ will replace this with auto-scored OBF item rendering — the
- * scoring contract (events emitted via onEvent) stays the same so future
- * automation slots in cleanly.
+ * Phase 1B: items render directly via {{eval-quick-item}} which handles
+ * communicator interaction (taps, sequencing, latency, timeouts) and
+ * emits a structured response payload. The runner converts that into
+ * a LogSession event via auto_score.buildEvent and forwards it to the
+ * session via the existing onEvent callback so the recommendation
+ * engine sees the same event shape as before.
+ *
+ * Manual SLP override is always available inside the item card so
+ * observation kinds (attention, joint_attention, preferred_*) and
+ * any ambiguous response can still be scored by the SLP.
  */
 export default Component.extend({
   classNames: ['evq__runner'],
@@ -65,22 +71,25 @@ export default Component.extend({
     return this.get('currentSubtest') === 'wrap';
   }),
 
-  recordResponse(response) {
+  // Surface item kind context to the SLP so they know what's about
+  // to render (helpful while watching the communicator engage).
+  currentItemKindLabel: computed('currentItem.kind', function() {
+    return labelForKind(this.get('currentItem.kind'));
+  }),
+
+  isAutoScored: computed('currentItem', function() {
+    return auto_score.isAutoScorable(this.get('currentItem'));
+  }),
+
+  // ── response handling ──────────────────────────────────────────
+
+  emitEvent(payload) {
     const item = this.get('currentItem');
     const subtest = this.get('currentSubtest');
+    const judgement = payload.judgement || 'no_response';
+    const event = auto_score.buildEvent(subtest, item, payload, judgement);
     const onEvent = this.get('onEvent');
-    if (onEvent) {
-      onEvent({
-        subtest: subtest,
-        item_id: item ? item.id : null,
-        response: response,
-        latency_ms: this.get('itemStartedAt') ? (Date.now() - this.get('itemStartedAt')) : 0,
-        access_method: this.get('session.intake.suspected_access') || 'touch',
-        grid: item ? item.grid : null,
-        library: item ? item.library : null
-      });
-    }
-    this.advanceItem();
+    if (onEvent) { onEvent(event); }
   },
 
   advanceItem() {
@@ -89,27 +98,28 @@ export default Component.extend({
       this.advanceSubtest();
     } else {
       this.set('itemIndex', next);
-      this.set('itemStartedAt', Date.now());
     }
   },
 
   advanceSubtest() {
     this.set('itemIndex', 0);
-    this.set('itemStartedAt', Date.now());
     const onAdvance = this.get('onAdvance');
     if (onAdvance) { onAdvance(); }
   },
 
-  didInsertElement() {
-    this._super(...arguments);
-    this.set('itemStartedAt', Date.now());
-  },
-
   actions: {
-    correct() { this.recordResponse('correct'); },
-    incorrect() { this.recordResponse('incorrect'); },
-    skip() { this.recordResponse('skip'); },
+    handleItemResponse(payload) {
+      this.emitEvent(payload);
+      this.advanceItem();
+    },
+
+    handleItemTimeout(payload) {
+      this.emitEvent(payload);
+      this.advanceItem();
+    },
+
     finishSubtest() { this.advanceSubtest(); },
+
     finishEval() {
       const onFinish = this.get('onFinish');
       if (onFinish) { onFinish(); }
@@ -128,5 +138,31 @@ function labelForSubtest(id) {
     case 'cognitive_probe': return i18n.t('subtest_cognitive_probe', "Cognitive probe");
     case 'wrap':            return i18n.t('subtest_wrap', "Wrap up");
     default:                return id;
+  }
+}
+
+function labelForKind(kind) {
+  switch (kind) {
+    case 'cause_effect':     return i18n.t('kind_cause_effect',     "Cause and effect");
+    case 'choice':           return i18n.t('kind_choice',           "Choice");
+    case 'match':            return i18n.t('kind_match',            "Symbol match");
+    case 'category':         return i18n.t('kind_category',         "Category");
+    case 'attribute':        return i18n.t('kind_attribute',        "Attribute");
+    case 'syntax':           return i18n.t('kind_syntax',           "Syntax sequence");
+    case 'sequencing':       return i18n.t('kind_sequencing',       "Sequencing");
+    case 'recognition':      return i18n.t('kind_recognition',      "Recognition");
+    case 'orientation':      return i18n.t('kind_orientation',      "Orientation");
+    case 'word_to_picture':  return i18n.t('kind_word_to_picture',  "Word ↔ picture");
+    case 'first_letter':     return i18n.t('kind_first_letter',     "First letter");
+    case 'attention':        return i18n.t('kind_attention',        "Attention");
+    case 'joint_attention':  return i18n.t('kind_joint_attention',  "Joint attention");
+    case 'preferred_object': return i18n.t('kind_preferred_object', "Preferred object");
+    case 'preferred_activity': return i18n.t('kind_preferred_activity', "Preferred activity");
+    case 'reject':           return i18n.t('kind_reject',           "Rejection signal");
+    case 'request_more':     return i18n.t('kind_request_more',     "Request more");
+    case 'access_snapshot':  return i18n.t('kind_access_snapshot',  "Grid access");
+    case 'library_compare':  return i18n.t('kind_library_compare',  "Library comparison");
+    case 'vocab_probe':      return i18n.t('kind_vocab_probe',      "Vocabulary find");
+    default:                 return kind || '';
   }
 }

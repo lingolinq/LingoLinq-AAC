@@ -165,6 +165,25 @@
                             <span>{{t "Run Evaluation" key="run_evaluation"}}</span>
                           </button>
                         </li>
+                        {{#if this.appState.feature_flags.quick_screen_eval}}
+                          {{!-- Tiered eval Quick Screen — gated on the
+                               quick_screen_eval feature flag
+                               (lib/feature_flags.rb). Stopwatch icon to
+                               convey the 5-minute time-box; routes to
+                               eval.quick with this card's supervisee
+                               as the :user_id segment. --}}
+                          <li>
+                            <LinkTo @route="eval.quick" @model={{supervisee.user_name}}>
+                              <svg class="md-caseload__dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="14" r="8" stroke="#46505F"/>
+                                <path d="M12 10v4l2 2" stroke="#2A9D8F"/>
+                                <path d="M9 2h6" stroke="#46505F"/>
+                                <path d="M19 5l1-1" stroke="#46505F"/>
+                              </svg>
+                              <span>{{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}</span>
+                            </LinkTo>
+                          </li>
+                        {{/if}}
                       </ul>
                     </div>
                   </div>

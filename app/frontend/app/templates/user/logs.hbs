@@ -140,14 +140,6 @@
             {{#unless this.model.supporter_role}}
               <li><a href="#" {{action "recordNote"}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
               <li><a href="#" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
-              {{#if this.app_state.feature_flags.quick_screen_eval}}
-                {{!-- Tiered eval Quick Screen — gated on the
-                     quick_screen_eval feature flag (lib/feature_flags.rb).
-                     Routes supervisors to the 5-minute screening flow
-                     for the user whose log this is. The route
-                     resolves :user_id via findRecord('user', ...). --}}
-                <li><LinkTo @route="eval.quick" @model={{this.model.user_name}} @disabled={{not this.model.permissions.supervise}}>{{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}</LinkTo></li>
-              {{/if}}
             {{/unless}}
             <li><a href="#" {{action "generate"}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
             <li style='position: relative;'>

@@ -44971,6 +44971,19 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   padding: 4rem 8rem 4rem 8rem !important;
 
 }
+/* On narrow viewports the 8rem horizontal padding squeezes the
+   communicator cards so much they wrap or clip. Drop the left/right
+   padding entirely at the same breakpoint we collapse the rest of
+   the caseload layout. Vertical padding stays so the card still
+   reads as a distinct surface. (The background-gradient override
+   for this breakpoint lives directly after the gradient-defining
+   rule near the end of this file so it wins on source order.) */
+@media (max-width: 1024px) {
+  .md-card--sup {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
 /* Tight title/subtitle stack on the My Caseload card. Visible gap
    between "My Caseload" and "People you support" is eliminated
    structurally:
@@ -62328,6 +62341,17 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   color: $brand-verdigris;
   text-decoration: none;
 }
+/* Caseload card squeezes at ≤1024px once the layout collapses to a
+   single column. Drop the communicator name to 18px at the
+   breakpoint and let it scale down linearly with viewport width to
+   a 14px floor — anchored so 1024px → 18 and 320px → 14. The
+   clamp + calc wrapper keeps SassC happy with the mixed px/vw
+   middle expression (per docs/CSS_SCSS_GUIDELINES.md). */
+@media (max-width: 1024px) {
+  .md-caseload__name {
+    font-size: clamp(14px, calc(12.18px + 0.568vw), 18px) !important;
+  }
+}
 .md-caseload__goal {
   display: block;
   font-size: 14px;
@@ -62740,6 +62764,17 @@ a.md-caseload__action {
 .md-shell--caseload .md-card.md-card--sup {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95)) !important;
   border-bottom: 2px solid rgba($la-navy, 0.08) !important;
+}
+/* At ≤1024px the page chrome contracts to a single column; the
+   surface-on-surface look stops earning its keep, so we drop the
+   gradient, the 1px outline (border from the base .md-card rule),
+   and the bottom border. Placed AFTER the gradient rule so
+   source-order wins (specificity is identical — same selector). */
+@media (max-width: 1024px) {
+  .md-shell--caseload .md-card.md-card--sup {
+    background: transparent !important;
+    border: 0 !important;
+  }
 }
 
 /* ── People I Supervise link card ── */
