@@ -1,0 +1,76 @@
+{{!-- Intake form — 4 quick fields with pill-button pickers --}}
+<section class="evq-intake" aria-labelledby="evq-intake-title">
+  <header class="evq-intake__header">
+    <h2 id="evq-intake-title" class="evq-intake__title">
+      {{#if this.user}}
+        {{t "Tell us about %{user_name}" key="intake_tell_us_about" user_name=this.user.user_name}}
+      {{else}}
+        {{t "Tell us about this communicator" key="intake_tell_us_generic"}}
+      {{/if}}
+    </h2>
+    <p class="evq-intake__caption">
+      {{t "Four quick questions route the screen to age- and etiology-appropriate items." key="intake_caption"}}
+    </p>
+  </header>
+
+  <form class="evq-intake__form" {{action "begin" on="submit"}}>
+    <fieldset class="evq-intake__field">
+      <legend class="evq-intake__legend">{{t "Age band" key="intake_age_band"}}</legend>
+      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Age band" key="intake_age_band"}}>
+        {{#each this.ageBands as |opt|}}
+          <button type="button" role="radio" class="evq-pill {{if (is_equal this.ageBand opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.ageBand opt.value) "true" "false"}} {{action "pick" "ageBand" opt.value}}>
+            {{opt.label}}
+          </button>
+        {{/each}}
+      </div>
+    </fieldset>
+
+    <fieldset class="evq-intake__field">
+      <legend class="evq-intake__legend">{{t "Etiology" key="intake_etiology"}}</legend>
+      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Etiology" key="intake_etiology"}}>
+        {{#each this.etiologyOptions as |opt|}}
+          <button type="button" role="radio" class="evq-pill {{if (is_equal this.etiology opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.etiology opt.value) "true" "false"}} {{action "pick" "etiology" opt.value}}>
+            {{opt.label}}
+          </button>
+        {{/each}}
+      </div>
+    </fieldset>
+
+    <fieldset class="evq-intake__field">
+      <legend class="evq-intake__legend">{{t "Current communication" key="intake_current_comm"}}</legend>
+      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Current communication" key="intake_current_comm"}}>
+        {{#each this.currentCommOptions as |opt|}}
+          <button type="button" role="radio" class="evq-pill {{if (is_equal this.currentComm opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.currentComm opt.value) "true" "false"}} {{action "pick" "currentComm" opt.value}}>
+            {{opt.label}}
+          </button>
+        {{/each}}
+      </div>
+    </fieldset>
+
+    <fieldset class="evq-intake__field">
+      <legend class="evq-intake__legend">{{t "Suspected access channel" key="intake_suspected_access"}}</legend>
+      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Suspected access channel" key="intake_suspected_access"}}>
+        {{#each this.accessOptions as |opt|}}
+          <button type="button" role="radio" class="evq-pill {{if (is_equal this.suspectedAccess opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.suspectedAccess opt.value) "true" "false"}} {{action "pick" "suspectedAccess" opt.value}}>
+            {{opt.label}}
+          </button>
+        {{/each}}
+      </div>
+    </fieldset>
+
+    {{#if this.previewProfile}}
+      <aside class="evq-intake__preview" aria-live="polite">
+        <span class="evq-intake__preview-label">{{t "We'll use the" key="intake_preview_prefix"}}</span>
+        <strong class="evq-intake__preview-name">{{this.previewProfile}}</strong>
+        <span class="evq-intake__preview-suffix">{{t "item bank." key="intake_preview_suffix"}}</span>
+      </aside>
+    {{/if}}
+
+    <div class="evq-intake__actions">
+      <button type="submit" class="evq-btn evq-btn--primary" disabled={{unless this.isComplete "disabled"}}>
+        {{t "Begin Quick Screen" key="intake_begin"}}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </form>
+</section>
