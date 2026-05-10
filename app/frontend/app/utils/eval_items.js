@@ -61,6 +61,104 @@ const ITEM_BANK = {
       { id: 'ec_choice_03', kind: 'reject' },
       { id: 'ec_choice_04', kind: 'request_more' }
     ]
+  },
+  'peds-established': {
+    // Phrase-level+ kids (6-21). Items emphasize categories, simple
+    // syntax targets, and a literacy probe per protocol definition.
+    stage_probe: [
+      { id: 'ps_stage_01', kind: 'category',  prompt: 'category_food',     targets: 6 },
+      { id: 'ps_stage_02', kind: 'syntax',    prompt: 'two_word_request',  targets: 4 },
+      { id: 'ps_stage_03', kind: 'attribute', prompt: 'attribute_color',   targets: 4 }
+    ],
+    access_snapshot: [
+      { id: 'ps_access_01', grid: [3, 3], target: 4 },
+      { id: 'ps_access_02', grid: [3, 4], target: 6 },
+      { id: 'ps_access_03', grid: [4, 6], target: 14 },
+      { id: 'ps_access_04', grid: [4, 6], target: 19 },
+      { id: 'ps_access_05', grid: [6, 8], target: 23 },
+      { id: 'ps_access_06', grid: [6, 10], target: 41 }
+    ],
+    library_compare: [
+      { id: 'ps_lib_01', word: 'happy',    library: 'a' },
+      { id: 'ps_lib_02', word: 'happy',    library: 'b' },
+      { id: 'ps_lib_03', word: 'school',   library: 'a' },
+      { id: 'ps_lib_04', word: 'school',   library: 'b' },
+      { id: 'ps_lib_05', word: 'because',  library: 'a' },
+      { id: 'ps_lib_06', word: 'because',  library: 'b' }
+    ],
+    vocab_probe: [
+      { id: 'ps_vocab_01', word: 'they',     part_of_speech: 'pronoun' },
+      { id: 'ps_vocab_02', word: 'because',  part_of_speech: 'conjunction' },
+      { id: 'ps_vocab_03', word: 'feelings', part_of_speech: 'category' },
+      { id: 'ps_vocab_04', word: 'remember', part_of_speech: 'verb' }
+    ],
+    literacy_probe: [
+      { id: 'ps_lit_01', kind: 'word_to_picture',  prompt: 'literacy_word_picture',  targets: 4 },
+      { id: 'ps_lit_02', kind: 'first_letter',     prompt: 'literacy_first_letter',  targets: 4 }
+    ]
+  },
+  'adult-motor': {
+    // Adult acquired (stroke, TBI). Multi-access weighted; adds a
+    // fast cognitive probe (orientation/recognition) and skips the
+    // pediatric stage probe.
+    access_snapshot: [
+      { id: 'am_access_01', grid: [2, 3], target: 1 },
+      { id: 'am_access_02', grid: [3, 3], target: 4 },
+      { id: 'am_access_03', grid: [3, 4], target: 7 },
+      { id: 'am_access_04', grid: [4, 4], target: 10 },
+      { id: 'am_access_05', grid: [4, 6], target: 14 },
+      { id: 'am_access_06', grid: [4, 6], target: 21 },
+      { id: 'am_access_07', grid: [6, 8], target: 23 },
+      { id: 'am_access_08', grid: [6, 10], target: 35 }
+    ],
+    cognitive_probe: [
+      { id: 'am_cog_01', kind: 'orientation',   prompt: 'cognitive_today_is',     targets: 3 },
+      { id: 'am_cog_02', kind: 'recognition',   prompt: 'cognitive_familiar_face', targets: 4 },
+      { id: 'am_cog_03', kind: 'sequencing',    prompt: 'cognitive_three_step',    targets: 3 },
+      { id: 'am_cog_04', kind: 'category',      prompt: 'cognitive_belongs_with',  targets: 4 }
+    ],
+    library_compare: [
+      { id: 'am_lib_01', word: 'pain',  library: 'a' },
+      { id: 'am_lib_02', word: 'pain',  library: 'b' },
+      { id: 'am_lib_03', word: 'help',  library: 'a' },
+      { id: 'am_lib_04', word: 'help',  library: 'b' }
+    ],
+    vocab_probe: [
+      { id: 'am_vocab_01', word: 'help',     part_of_speech: 'verb' },
+      { id: 'am_vocab_02', word: 'family',   part_of_speech: 'noun' },
+      { id: 'am_vocab_03', word: 'feelings', part_of_speech: 'category' }
+    ]
+  },
+  'adult-progressive': {
+    // Progressive etiology (ALS, MND). Gaze-first multi-access — the
+    // grid widths stay manageable for dwell selection. Cognitive
+    // probe is light because progressive AAC users typically retain
+    // intact cognition. Vocab leans toward life-participation
+    // (caregiving, comfort, identity).
+    access_snapshot: [
+      { id: 'ap_access_01', grid: [2, 3], target: 1 },
+      { id: 'ap_access_02', grid: [3, 3], target: 4 },
+      { id: 'ap_access_03', grid: [3, 4], target: 5 },
+      { id: 'ap_access_04', grid: [3, 4], target: 9 },
+      { id: 'ap_access_05', grid: [4, 4], target: 10 },
+      { id: 'ap_access_06', grid: [4, 6], target: 13 },
+      { id: 'ap_access_07', grid: [4, 6], target: 17 },
+      { id: 'ap_access_08', grid: [4, 6], target: 22 },
+      { id: 'ap_access_09', grid: [6, 8], target: 25 },
+      { id: 'ap_access_10', grid: [6, 8], target: 41 }
+    ],
+    cognitive_probe: [
+      { id: 'ap_cog_01', kind: 'recognition',  prompt: 'cognitive_familiar_face', targets: 4 },
+      { id: 'ap_cog_02', kind: 'category',     prompt: 'cognitive_belongs_with',  targets: 4 },
+      { id: 'ap_cog_03', kind: 'attribute',    prompt: 'cognitive_attribute',     targets: 4 },
+      { id: 'ap_cog_04', kind: 'sequencing',   prompt: 'cognitive_three_step',    targets: 3 }
+    ],
+    vocab_probe: [
+      { id: 'ap_vocab_01', word: 'comfortable', part_of_speech: 'adjective' },
+      { id: 'ap_vocab_02', word: 'caregiver',   part_of_speech: 'noun' },
+      { id: 'ap_vocab_03', word: 'I',           part_of_speech: 'pronoun' },
+      { id: 'ap_vocab_04', word: 'feelings',    part_of_speech: 'category' }
+    ]
   }
 };
 

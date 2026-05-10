@@ -27,18 +27,6 @@ class Api::EvalProtocolsController < ApplicationController
     render json: JsonApi::EvalProtocol.as_json(protocol, wrapper: true, permissions: @api_user)
   end
 
-  def recommend
-    return unless feature_enabled?
-    user = User.find_by_path(params['user_id'])
-    return unless exists?(user, params['user_id'])
-    return unless allowed?(user, 'supervise')
-
-    events = params['events'] || []
-    intake = params['intake'] || {}
-    rec = EvalRecommend.from_quick_screen(events, intake)
-    render json: { 'recommendation' => rec, 'protocol_profile' => EvalProtocol.profile_for_intake(intake) }
-  end
-
   protected
 
   def feature_enabled?

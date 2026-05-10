@@ -4,7 +4,11 @@ class EvalProtocol < ApplicationRecord
   include Processable
   include SecureSerialize
 
-  protect_global_id
+  # Note: not using protect_global_id — protocol records have stable
+  # human-readable codes (peds-emerging, etc.) and don't need
+  # nonce-protected IDs. The migration intentionally omits the nonce
+  # column. Adding protect_global_id back would require a follow-up
+  # migration to add :nonce + a backfill.
 
   belongs_to :user, optional: true
   belongs_to :organization, optional: true
@@ -42,7 +46,12 @@ class EvalProtocol < ApplicationRecord
   end
 
   def self.profile_for_intake(intake)
-    intake = (intake || {}).each_with_object({}) {|(k, v), h| h[k.to_s] = v }
+    intake ||= {}
+    # Same ActionController::Parameters guard as EvalRecommend — controllers
+    # hand us params, jobs/specs hand us plain Hashes. Normalize to a
+    # string-keyed Hash before running the population rules.
+    intake = intake.respond_to?(:to_unsafe_h) ? intake.to_unsafe_h : intake.to_h
+    intake = intake.each_with_object({}) {|(k, v), h| h[k.to_s] = v }
     rule = POPULATION_RULES.find {|r| r[:match].call(intake) }
     rule ? rule[:profile] : 'peds-emerging'
   end

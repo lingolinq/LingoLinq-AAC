@@ -385,6 +385,13 @@ end
 # From command line: bundle exec rake db:seed_organization
 load Rails.root.join('lib', 'seed_organization.rb')
 
+# Eval protocol seeds: persists the five baseline Quick Screen profiles
+# so SLP-authored overrides have a starting point in the DB. The model
+# falls back to in-memory static_template lookups if rows are missing,
+# so this load is idempotent and safe to skip in environments that
+# don't need DB-backed protocols.
+load Rails.root.join('db', 'seeds', 'eval_protocols.rb')
+
 
 # ============================================================
 # Organization Seeding Complete!

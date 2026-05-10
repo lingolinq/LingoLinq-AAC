@@ -254,7 +254,12 @@ LingoLinq::Application.routes.draw do
     end
 
     resources :eval_protocols, only: [:index, :show], param: :id
-    post 'users/:user_id/eval_recommend' => 'eval_protocols#recommend'
+    # Per-user Quick Screen session actions live on a separate
+    # EvalSessionsController so EvalProtocols stays read-only catalog.
+    # The legacy `users/:user_id/eval_recommend` path is preserved as
+    # an alias so anything that was already calling it keeps working.
+    post 'users/:user_id/eval_sessions/recommend' => 'eval_sessions#recommend'
+    post 'users/:user_id/eval_recommend' => 'eval_sessions#recommend'
     
     resources :badges
     

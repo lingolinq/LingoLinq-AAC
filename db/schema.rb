@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_09_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -259,6 +259,21 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
     t.integer "developer_key_id"
     t.integer "user_integration_id"
     t.index ["user_id"], name: "index_devices_on_user_id"
+  end
+
+  create_table "eval_protocols", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "parent_id"
+    t.string "public_protocol_id"
+    t.string "protocol_version", default: "1.0"
+    t.string "population_profile"
+    t.text "settings"
+    t.boolean "communicator"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["population_profile"], name: "index_eval_protocols_on_population_profile"
+    t.index ["public_protocol_id"], name: "index_eval_protocols_on_public_protocol_id"
   end
 
   create_table "external_nonces", id: :serial, force: :cascade do |t|

@@ -27,7 +27,12 @@ module EvalRecommend
   def self.from_quick_screen(events, intake)
     events ||= []
     intake ||= {}
+    # Controllers pass intake through as ActionController::Parameters;
+    # tests/jobs may hand in a plain Hash. Normalize to a string-keyed
+    # Hash so subsequent lookups like intake['age_band'] always work.
+    intake = intake.respond_to?(:to_unsafe_h) ? intake.to_unsafe_h : intake.to_h
     intake = intake.each_with_object({}) {|(k, v), h| h[k.to_s] = v }
+    events = events.map {|e| e.respond_to?(:to_unsafe_h) ? e.to_unsafe_h : e }
 
     access     = pick_access(events_for(events, 'access_snapshot'), intake)
     grid       = pick_grid(events_for(events, 'access_snapshot'))
