@@ -58,6 +58,233 @@ module('Unit | Controller | copying-board', function(hooks) {
     }
   });
 
+  test('falls back to live links after the early-fire delay when buttonset hangs', async function(assert) {
+    assert.expect(5);
+
+    const controller = CopyingBoardController.create();
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    const board = EmberObject.create({
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }],
+      downstream_boards: 1,
+      downstream_board_ids: ['child-board'],
+      key: 'example/board'
+    });
+
+    let buttonsetSettled = false;
+    let liveLinksCalled = false;
+    BoardHierarchy.load_with_button_set = function() {
+      return new RSVP.Promise(function() {
+        // never settles - simulates the buttonset master timeout case
+      });
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      liveLinksCalled = true;
+      return RSVP.resolve(EmberObject.create({
+        root: EmberObject.create({
+          children: [EmberObject.create({ id: 'child-board' })]
+        }),
+        selected_board_ids: function() { return ['child-board']; }
+      }));
+    };
+    controller.start_copying = function() {
+      controller.set('startCopyingCalled', true);
+    };
+
+    try {
+      controller.set('earlyLiveLinksDelayMs', 5);
+      controller.set('model', {
+        action: 'links_copy',
+        board: board
+      });
+      controller.opening();
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 30);
+      });
+
+      assert.true(liveLinksCalled, 'live-links fallback is invoked after the early-fire delay');
+      assert.false(controller.get('loading'), 'loading flag clears once live-links resolves');
+      assert.strictEqual(controller.get('hierarchy.root.children.length'), 1, 'live-links hierarchy is shown');
+      assert.true(controller.get('hierarchyRootOnlyWarning'), 'warns that the hierarchy is incomplete');
+      assert.notOk(buttonsetSettled, 'buttonset never had to settle for the modal to be usable');
+    } finally {
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+      controller.destroy();
+    }
+  });
+
+  test('uses buttonset hierarchy when it returns before the early-fire delay', async function(assert) {
+    assert.expect(4);
+
+    const controller = CopyingBoardController.create();
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    const board = EmberObject.create({
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }],
+      downstream_boards: 1,
+      downstream_board_ids: ['child-board'],
+      key: 'example/board'
+    });
+
+    let liveLinksCalled = false;
+    BoardHierarchy.load_with_button_set = function() {
+      return RSVP.resolve(EmberObject.create({
+        root: EmberObject.create({
+          children: [
+            EmberObject.create({ id: 'child-board' }),
+            EmberObject.create({ id: 'grandchild-board' })
+          ]
+        }),
+        selected_board_ids: function() { return ['child-board', 'grandchild-board']; }
+      }));
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      liveLinksCalled = true;
+      return RSVP.resolve(null);
+    };
+    controller.start_copying = function() {
+      controller.set('startCopyingCalled', true);
+    };
+
+    try {
+      controller.set('earlyLiveLinksDelayMs', 200);
+      controller.set('model', {
+        action: 'links_copy',
+        board: board
+      });
+      controller.opening();
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 0);
+      });
+
+      assert.false(controller.get('loading'), 'stops loading after buttonset resolves');
+      assert.strictEqual(controller.get('hierarchy.root.children.length'), 2, 'shows the full buttonset hierarchy');
+      assert.false(controller.get('hierarchyRootOnlyWarning'), 'no incomplete-hierarchy warning when buttonset wins');
+      assert.false(liveLinksCalled, 'does not invoke live-links when buttonset wins fast');
+    } finally {
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+      controller.destroy();
+    }
+  });
+
+  test('component falls back to live links after the early-fire delay when buttonset hangs', async function(assert) {
+    assert.expect(4);
+
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    const board = EmberObject.create({
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }],
+      downstream_boards: 1,
+      downstream_board_ids: ['child-board'],
+      key: 'example/board'
+    });
+    let liveLinksCalled = false;
+    let component = null;
+
+    BoardHierarchy.load_with_button_set = function() {
+      return new RSVP.Promise(function() {
+        // never settles - simulates the buttonset master timeout case
+      });
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      liveLinksCalled = true;
+      return RSVP.resolve(EmberObject.create({
+        root: EmberObject.create({
+          children: [EmberObject.create({ id: 'child-board' })]
+        }),
+        selected_board_ids: function() { return ['child-board']; }
+      }));
+    };
+
+    try {
+      this.owner.register('service:modal', Service.extend({
+        getSettingsFor() {
+          return null;
+        },
+        isOpen() {
+          return true;
+        },
+        close() {}
+      }));
+      this.owner.register('service:app-state', Service.extend({
+        jump_to_board() {}
+      }));
+      component = this.owner.factoryFor('component:copying-board').create({
+        earlyLiveLinksDelayMs: 5,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
+      });
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 30);
+      });
+
+      assert.true(liveLinksCalled, 'component invokes live-links fallback after the early-fire delay');
+      assert.false(component.get('loading'), 'component clears loading once live-links resolves');
+      assert.strictEqual(component.get('hierarchy.root.children.length'), 1, 'component shows the live-links hierarchy');
+      assert.true(component.get('hierarchyRootOnlyWarning'), 'component warns that the hierarchy came from live links');
+    } finally {
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+      if(component) {
+        component.destroy();
+      }
+    }
+  });
+
+  test('shows the timeout error when both buttonset and live-links fail', async function(assert) {
+    assert.expect(4);
+
+    const controller = CopyingBoardController.create();
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    const board = EmberObject.create({
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [],
+      downstream_boards: 0,
+      downstream_board_ids: [],
+      key: 'example/board'
+    });
+
+    BoardHierarchy.load_with_button_set = function() {
+      return RSVP.reject({ error: 'buttonset load timed out', board_id: 'root-board' });
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      return RSVP.resolve(null);
+    };
+
+    try {
+      controller.set('earlyLiveLinksDelayMs', 200);
+      controller.set('model', {
+        action: 'links_copy',
+        board: board
+      });
+      controller.opening();
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 10);
+      });
+
+      assert.false(controller.get('loading'), 'stops loading after both paths fail');
+      assert.true(controller.get('hierarchyLoadFailed'), 'shows the hard-error UI state');
+      assert.true(controller.get('isTimeoutError'), 'flags the failure as a timeout');
+      assert.strictEqual(controller.get('error.error'), 'buttonset load timed out', 'preserves the buttonset error for display');
+    } finally {
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+      controller.destroy();
+    }
+  });
+
   test('copy completion continues after the modal is closed', async function(assert) {
     assert.expect(2);
 
