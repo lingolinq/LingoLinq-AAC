@@ -173,6 +173,74 @@ module('Unit | Controller | copying-board', function(hooks) {
     }
   });
 
+  test('component falls back to live links after the early-fire delay when buttonset hangs', async function(assert) {
+    assert.expect(4);
+
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    const board = EmberObject.create({
+      id: 'root-board',
+      global_id: 'root-board',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }],
+      downstream_boards: 1,
+      downstream_board_ids: ['child-board'],
+      key: 'example/board'
+    });
+    let liveLinksCalled = false;
+    let component = null;
+
+    BoardHierarchy.load_with_button_set = function() {
+      return new RSVP.Promise(function() {
+        // never settles - simulates the buttonset master timeout case
+      });
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      liveLinksCalled = true;
+      return RSVP.resolve(EmberObject.create({
+        root: EmberObject.create({
+          children: [EmberObject.create({ id: 'child-board' })]
+        }),
+        selected_board_ids: function() { return ['child-board']; }
+      }));
+    };
+
+    try {
+      this.owner.register('service:modal', Service.extend({
+        getSettingsFor() {
+          return null;
+        },
+        isOpen() {
+          return true;
+        },
+        close() {}
+      }));
+      this.owner.register('service:app-state', Service.extend({
+        jump_to_board() {}
+      }));
+      component = this.owner.factoryFor('component:copying-board').create({
+        earlyLiveLinksDelayMs: 5,
+        model: {
+          action: 'links_copy',
+          board: board
+        }
+      });
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 30);
+      });
+
+      assert.true(liveLinksCalled, 'component invokes live-links fallback after the early-fire delay');
+      assert.false(component.get('loading'), 'component clears loading once live-links resolves');
+      assert.strictEqual(component.get('hierarchy.root.children.length'), 1, 'component shows the live-links hierarchy');
+      assert.true(component.get('hierarchyRootOnlyWarning'), 'component warns that the hierarchy came from live links');
+    } finally {
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+      if(component) {
+        component.destroy();
+      }
+    }
+  });
+
   test('shows the timeout error when both buttonset and live-links fail', async function(assert) {
     assert.expect(4);
 

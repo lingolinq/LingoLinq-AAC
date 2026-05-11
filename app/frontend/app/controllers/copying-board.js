@@ -1,97 +1,9 @@
 import RSVP from 'rsvp';
-import { later, cancel } from '@ember/runloop';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import app_state from '../utils/app_state';
-import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
-
-// After this many ms of waiting on the buttonset hierarchy load, kick off the
-// live-links walk in parallel and accept whichever returns a usable hierarchy
-// first. The buttonset path can hang up to 60s when its remote data is missing
-// or stale (typical right after a bulk copy while the :slow Resque queue
-// drains the deferred update_for jobs).
-var EARLY_LIVE_LINKS_DELAY_MS = 6000;
-
-function loadHierarchyForCopyModal(board, opts) {
-  opts = opts || {};
-  var earlyDelay = opts.early_live_links_delay_ms != null
-    ? opts.early_live_links_delay_ms
-    : EARLY_LIVE_LINKS_DELAY_MS;
-
-  return new RSVP.Promise(function(resolve, reject) {
-    var settled = false;
-    var bs_done = false;
-    var ll_done = false;
-    var ll_started = false;
-    var bs_err = null;
-    var early_handle = null;
-
-    var settle_with = function(hierarchy, source) {
-      if(settled) { return; }
-      settled = true;
-      if(early_handle) { cancel(early_handle); early_handle = null; }
-      resolve({ hierarchy: hierarchy, source: source });
-    };
-
-    var maybe_finalize = function() {
-      if(settled) { return; }
-      if(bs_done && ll_done) {
-        settled = true;
-        if(early_handle) { cancel(early_handle); early_handle = null; }
-        if(bs_err) {
-          reject(bs_err);
-        } else {
-          resolve({ hierarchy: null, source: 'none' });
-        }
-      }
-    };
-
-    var start_live_links = function() {
-      if(ll_started || settled) { return; }
-      ll_started = true;
-      if(early_handle) { cancel(early_handle); early_handle = null; }
-      BoardHierarchy.load_from_live_links(board, {
-        expand_all: opts.expand_all
-      }).then(function(hierarchy) {
-        ll_done = true;
-        if(hierarchy && hierarchy.get && hierarchy.get('root')) {
-          settle_with(hierarchy, 'live_links');
-        } else {
-          maybe_finalize();
-        }
-      }, function() {
-        ll_done = true;
-        maybe_finalize();
-      });
-    };
-
-    BoardHierarchy.load_with_button_set(board, {
-      skipBoardReloadForCopyModal: opts.skipBoardReloadForCopyModal,
-      expand_all: opts.expand_all
-    }).then(function(hierarchy) {
-      bs_done = true;
-      if(hierarchy && hierarchy.get && hierarchy.get('root')) {
-        settle_with(hierarchy, 'button_set');
-      } else {
-        // null hierarchy from buttonset (no buttonset for this board); try
-        // live-links immediately rather than waiting for the early-fire timer.
-        start_live_links();
-      }
-    }, function(err) {
-      bs_done = true;
-      bs_err = err;
-      // Buttonset rejected (timeout, generation_stalled, etc). Try live-links
-      // immediately, do not wait for the early-fire timer.
-      start_live_links();
-    });
-
-    early_handle = later(function() {
-      early_handle = null;
-      start_live_links();
-    }, earlyDelay);
-  });
-}
+import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 
 export default modal.ModalController.extend({
   opening: function() {

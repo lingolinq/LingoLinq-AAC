@@ -19,6 +19,19 @@ For `board-detail` routes, "Edit a Copy" uses the visible route model directly a
 
 The `copying-board` progress modal loads a selectable hierarchy through `BoardHierarchy`. When the user confirms, selected board ids are stored on the source board as `downstream_board_ids_to_copy` and sent through `editManager.copy_board`.
 
+### Copy Modal Hierarchy Loading
+
+The active rendered copy progress modal is the component-based `copying-board` modal from `modal-container`, with a legacy modal controller still present for older modal plumbing. Both paths use `copy_hierarchy_loader.loadHierarchyForCopyModal` so they stay behaviorally aligned.
+
+The hierarchy loader intentionally races two data sources:
+
+- `BoardHierarchy.load_with_button_set` starts immediately. This is the preferred path because a healthy button set can provide the most complete hierarchy from the persisted downstream board graph.
+- `BoardHierarchy.load_from_live_links` starts after a short delay if the button-set path has not returned yet. It walks the live `load_board` links on the board records and accepts the first usable hierarchy that resolves.
+
+This avoids making users wait for the full button-set timeout when a newly copied root board does not have a generated button set yet. That situation is common after large board-set copies because deferred `BoardDownstreamButtonSet.update_for` jobs run on the slow queue and may not have drained by the time the user immediately copies or edits another board. If the button-set path is healthy and returns quickly, the live-links path is canceled before it runs, avoiding unnecessary board fetches.
+
+When the live-links path wins, the modal sets `hierarchyRootOnlyWarning` so the UI explains that the list was rebuilt from folder links. If any live linked board cannot be fetched, the hierarchy is marked incomplete and the backend can still expand selected boards defensively. If both hierarchy sources fail, the existing `hierarchyLoadFailed` / timeout error UI is shown.
+
 ## Backend Flow
 
 The first board copy is created through `Board#create_copy`, which sends the source board's backend `global_id` as `parent_board_id`.
@@ -29,4 +42,4 @@ For linked-board copies, `editManager.copy_board` posts to `copy_board_links`, w
 
 ## Known Follow-Up
 
-The selectable hierarchy is only as deep as the data available to `BoardHierarchy`. It can recurse through the button set, but if the button set is stale or incomplete it may only show immediate folder buttons from the root board. In that case, the backend will copy the selected boards correctly, but deeper linked pages that were not discovered by the modal will not be included.
+The modal can now build a hierarchy from either a button set or live board links, but both paths still depend on the frontend being able to resolve board records for the linked ids/keys. If a linked board cannot be loaded in the browser, the modal marks the live-link hierarchy incomplete and relies on the backend copy expansion as the final safety net.
