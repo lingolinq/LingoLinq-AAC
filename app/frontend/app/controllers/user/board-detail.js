@@ -20,7 +20,6 @@ import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
-import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
@@ -850,30 +849,11 @@ export default Controller.extend(prefClasses, {
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
+          topic_context: (_this.get('model') && _this.get('model.name')) || '',
           board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
         }).then(function(result) {
           if(_this.isDestroyed || _this.isDestroying) { return; }
-          if(result && result.length > 0) {
-            _this.set('suggestions', { ready: true, list: result });
-          } else {
-            // Fallback to AI predictor if n-gram data has no match
-            var sentence = button_list.map(function(b) {
-              return b.label || b.vocalization || '';
-            }).join(' ').trim();
-            if(sentence) {
-              _this.set('suggestions', { loading: true });
-              aiPredictor.predict(sentence, {
-                locale: _this.get('app_state.label_locale') || 'en'
-              }).then(function(words) {
-                if(_this.isDestroyed || _this.isDestroying) { return; }
-                var list = words.map(function(w) { return { word: w }; });
-                _this.set('suggestions', { ready: true, list: list });
-              }, function() {
-                if(_this.isDestroyed || _this.isDestroying) { return; }
-                _this.set('suggestions', { ready: true, list: [] });
-              });
-            }
-          }
+          _this.set('suggestions', { ready: true, list: result || [] });
         }, function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           _this.set('suggestions', { ready: true, list: [] });
@@ -3634,6 +3614,13 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       if(!word) { return; }
       var text = word.word;
+
+      try {
+        var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
+        if(word_suggestions && typeof word_suggestions.record_selection === 'function') {
+          word_suggestions.record_selection(text);
+        }
+      } catch(e) { }
 
       // Add to the global utterance so sentence bar + logging stay in sync
       utterance.add_button({
