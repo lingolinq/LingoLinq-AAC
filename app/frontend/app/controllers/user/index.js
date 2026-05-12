@@ -562,7 +562,7 @@ export default Controller.extend({
   set_show_all_boards: function() {
     this.set('show_all_boards', true);
   },
-  reload_logs: observer('persistence.online', function() {
+  reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
@@ -573,7 +573,7 @@ export default Controller.extend({
       return;
     }
     var perms = this.get('model.permissions');
-    if(perms && !perms.supervise) {
+    if(!perms || !perms.supervise) {
       if(this.get('model')) {
         this.set('model.logs', []);
       }
@@ -740,7 +740,7 @@ export default Controller.extend({
         if(key == 'mine') {
           _this.generate_or_append_to_list({user_id: model.get('id')}, 'model.my_boards', list_id);
         } else if(key == 'public') {
-          _this.generate_or_append_to_list({user_id: model.get('id'), public: true}, 'model.public_boards', list_id);
+          _this.generate_or_append_to_list({q: '', locale: 'en', sort: 'popularity'}, 'model.public_boards', list_id);
         } else if(key == 'private') {
           _this.generate_or_append_to_list({user_id: model.get('id'), private: true}, 'model.private_boards', list_id);
         } else if(key == 'root') {

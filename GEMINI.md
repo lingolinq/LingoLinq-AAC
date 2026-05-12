@@ -66,7 +66,7 @@ bundle exec rspec spec/models/user_spec.rb:42
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**

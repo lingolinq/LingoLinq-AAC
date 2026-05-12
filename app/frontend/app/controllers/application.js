@@ -65,8 +65,21 @@ export default Controller.extend({
     }
   ),
 
+  /** Same visibility as View Beta Feedback / schema tools (admin or admin_support_actions). */
+  showDatabaseExplorerLink: alias('showBetaFeedbackAdminLink'),
+
   landingNavOpen: false,
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
+  betaFeedbackDrawerOpen: false,
+
+  hide_header: computed('appState.current_route', function() {
+    var route = this.appState.get('current_route') || '';
+    return route === 'demo.speak';
+  }),
+
+  showBetaFeedbackDrawer: computed('hide_header', 'appState.speak_mode', function() {
+    return !this.get('hide_header') || this.appState.get('speak_mode');
+  }),
 
   /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
   footer: computed('appState.currentBoardState', 'appState.current_route', function() {
@@ -96,9 +109,14 @@ export default Controller.extend({
     var route = this.appState.get('current_route') || '';
     return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
   }),
-  /** True when the current page is the regular board view (not board-alt). */
-  on_board: computed('appState.current_route', function() {
-    return this.appState.get('current_route') === 'board.index';
+  /** True when the current page is the regular board view (not board-alt)
+   *  AND a board is actually loaded. When a board route fails to resolve
+   *  (error.hbs renders in the outlet), currentBoardState.id is null, and
+   *  the page should NOT pick up the `.board-view` body class — that class
+   *  triggers board-specific navbar variants (compact New Board, beta-feedback
+   *  pill) that don't make sense without a board. */
+  on_board: computed('appState.current_route', 'appState.currentBoardState.id', function() {
+    return this.appState.get('current_route') === 'board.index' && !!this.appState.get('currentBoardState.id');
   }),
   /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
   on_board_or_alt: computed('on_board', 'on_board_alt', function() {
@@ -124,6 +142,7 @@ export default Controller.extend({
   boardPickerLoading: false,
   boardPickerBoards: null,
   boardPickerFilter: '',
+  boardPickerListId: null,
   filteredBoardPickerBoards: computed('boardPickerBoards.[]', 'boardPickerFilter', function() {
     var boards = this.get('boardPickerBoards');
     if(!boards) { return []; }
@@ -166,11 +185,64 @@ export default Controller.extend({
       }
     }
   },
-  copy_board: function(decision, for_editing, selected_user_name) {
+  copy_source_board: function(board) {
+    var fallback = RSVP.resolve(board);
+    if(!board) { return fallback; }
+    var board_id = board.get('id');
+    var board_global_id = board.get('global_id');
+    var board_key = board.get('key');
+    var current = this.appState.get('currentBoardState') || {};
+    var current_matches_board = current.id == board_id || current.id == board_global_id || current.key == board_key;
+    var root_state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
+    var root_id = root_state && root_state.id;
+    var root_key = root_state && root_state.key;
+    var root_ref = null;
+
+    if(current_matches_board && root_state && (root_id || root_key) && root_id != board_id && root_id != board_global_id && root_key != board_key) {
+      root_ref = root_key || root_id;
+    }
+
+    if(!root_ref) {
+      var linked_boards = board.get('linked_boards') || [];
+      var owner = board_key && board_key.split(/\//)[0];
+      var linked_root = linked_boards.find(function(linked) {
+        var key = linked && linked.key;
+        var name = linked && linked.name;
+        var same_owner = !owner || (key && key.split(/\//)[0] == owner);
+        var topish_key = key && key.match(/(^|[-/])(top[-_]?page|home)([-/]|$)/);
+        var topish_name = name && name.match(/(^|\s)(top page|home)(\s|$)/i);
+        return linked && !linked.link_disabled && same_owner && (linked.home_board || topish_key || topish_name);
+      });
+      var linked_ref = linked_root && (linked_root.key || linked_root.id);
+      if(!linked_ref) {
+        return fallback;
+      }
+      return LingoLinq.store.findRecord('board', linked_ref).then(function(root_board) {
+        if(root_board && root_board.get('id') != board_id && root_board.get('key') != board_key) {
+          root_board.set('copy_source_from_board', board);
+          return root_board;
+        }
+        return board;
+      }, function() {
+        return board;
+      });
+    }
+
+    return LingoLinq.store.findRecord('board', root_ref).then(function(root_board) {
+      if(root_board && root_board.get('id') != board_id) {
+        root_board.set('copy_source_from_board', board);
+        return root_board;
+      }
+      return board;
+    }, function() {
+      return board;
+    });
+  },
+  copy_board: function(decision, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution) {
     if(!this || !this.get('persistence')) {
       return RSVP.reject();
     }
-    var oldBoard = this.get('board').get('model');
+    var oldBoard = source_board || (decision && decision.copy_board_source) || this.get('board').get('model');
     if(!this.get('persistence').get('online')) {
       modal.error(i18n.t('need_online_for_copying', "You must be connected to the Internet to make copies of boards."));
       return RSVP.reject();
@@ -200,8 +272,16 @@ export default Controller.extend({
     needs_decision = true;
 
     if(!decision && needs_decision) {
-      return modal.open('copy-board', {board: oldBoard, for_editing: for_editing, selected_user_name: selected_user_name}).then(function(opts) {
-        return _this.copy_board(opts, for_editing);
+      var source = skip_source_resolution ? RSVP.resolve(oldBoard) : this.copy_source_board(oldBoard);
+      return source.then(function(copyBoard) {
+        return modal.open('copy-board', {
+          board: copyBoard,
+          original_board: copyBoard === oldBoard ? null : oldBoard,
+          for_editing: for_editing,
+          selected_user_name: selected_user_name
+        });
+      }).then(function(opts) {
+        return _this.copy_board(opts, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution);
       });
     }
     decision = decision || {};
@@ -219,7 +299,8 @@ export default Controller.extend({
       default_locale: decision.default_locale, 
       translate_locale: decision.translate_locale,
       disconnect: decision.disconnect,
-      new_owner: decision.new_owner
+      new_owner: decision.new_owner,
+      copy_finished: copy_finished
     });
   },
   board_levels: computed(function () {
@@ -469,7 +550,21 @@ export default Controller.extend({
       this.get('router').transitionTo('support');
     },
     openBetaFeedback: function() {
-      modal.open('beta-feedback-modal');
+      if (this.get('appState.currentUser') || this.get('appState.sessionUser')) {
+        this.set('betaFeedbackDrawerOpen', true);
+      } else {
+        this.get('router').transitionTo('beta-feedback');
+      }
+    },
+    toggleBetaFeedbackDrawer: function() {
+      if (this.get('appState.currentUser') || this.get('appState.sessionUser')) {
+        this.toggleProperty('betaFeedbackDrawerOpen');
+      } else {
+        this.get('router').transitionTo('beta-feedback');
+      }
+    },
+    closeBetaFeedbackDrawer: function() {
+      this.set('betaFeedbackDrawerOpen', false);
     },
     goToNewStyle: function() {
       var key = this.appState.get('currentBoardState.key');
@@ -641,26 +736,55 @@ export default Controller.extend({
     },
     openBoardPicker: function() {
       var _this = this;
+      var listId = Math.random().toString();
       _this.set('boardPickerVisible', true);
       _this.set('boardPickerLoading', true);
       _this.set('boardPickerBoards', null);
       _this.set('boardPickerFilter', '');
+      _this.set('boardPickerListId', listId);
       var userId = _this.appState.get('referenced_user.id');
-      LingoLinq.store.query('board', {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 50}).then(function(boards) {
+      var args = {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 100};
+      var loadedBoards = [];
+      var loadBoards = function() {
+        return LingoLinq.store.query('board', args).then(function(boards) {
+          if(_this.get('boardPickerListId') != listId) { return RSVP.resolve(); }
+          loadedBoards.pushObjects(boards.map(function(i) { return i; }));
+          var seen = {};
+          loadedBoards = loadedBoards.filter(function(board) {
+            var id = board.get('global_id') || board.get('id') || board.get('key');
+            if(seen[id]) { return false; }
+            seen[id] = true;
+            return true;
+          });
+          var meta = _this.persistence.meta('board', boards);
+          if(meta && meta.more) {
+            args.per_page = meta.per_page;
+            args.offset = meta.next_offset;
+            return loadBoards();
+          }
+          return RSVP.resolve();
+        });
+      };
+      loadBoards().then(function() {
+        if(_this.get('boardPickerListId') != listId) { return; }
         var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        var arr = boards.toArray().sort(function(a, b) {
+        var arr = loadedBoards.sort(function(a, b) {
           if(a.get('key') === homeKey) { return -1; }
           if(b.get('key') === homeKey) { return 1; }
+          if(a.get('starred') && !b.get('starred')) { return -1; }
+          if(b.get('starred') && !a.get('starred')) { return 1; }
           return (a.get('name') || '').localeCompare(b.get('name') || '');
         });
         _this.set('boardPickerBoards', arr);
         _this.set('boardPickerLoading', false);
       }, function() {
+        if(_this.get('boardPickerListId') != listId) { return; }
         _this.set('boardPickerLoading', false);
       });
     },
     closeBoardPicker: function() {
       this.set('boardPickerVisible', false);
+      this.set('boardPickerListId', null);
     },
     pickBoard: function(key) {
       this.set('boardPickerVisible', false);
@@ -1014,20 +1138,21 @@ export default Controller.extend({
         modal.open('share-board', {board: _this.get('board.model')});
       }, function() { }); 
     },
-    copy_and_edit_board: function() {
+    copy_and_edit_board: function(source_board, skip_source_resolution) {
       var _this = this;
+      var edit_copy = function(board) {
+        if(board) {
+          _this.appState.jump_to_board({
+            id: board.id,
+            key: board.key
+          });
+          runLater(function() {
+            if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
+          });
+        }
+      };
       this.appState.check_for_needing_purchase().then(function() {
-        _this.copy_board(null, true).then(function(board) {
-          if(board) {
-            _this.appState.jump_to_board({
-              id: board.id,
-              key: board.key
-            });
-            runLater(function() {
-              if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
-            });
-          }
-        }, function() { });
+        _this.copy_board(null, true, null, edit_copy, source_board, skip_source_resolution).then(edit_copy, function() { });
       }, function() { });
     },
     tweakBoard: function(decision) {
@@ -1906,6 +2031,7 @@ export default Controller.extend({
   header_class: computed(
     'appState.header_size',
     'appState.speak_mode',
+    'appState.currentBoardState.id',
     'appState.currentUser.preferences.new_index',
     function() {
       var res = "row ";
@@ -1913,7 +2039,16 @@ export default Controller.extend({
       if(this.appState.get('header_size')) {
         res = res + this.appState.get('header_size') + ' ';
       }
-      if(this.appState.get('speak_mode')) {
+      // Only flag the header as "speaking" when we're actually rendering
+      // a board in speak mode. When the board route fails to load
+      // (error.hbs renders in the outlet), speak_mode may still be set
+      // from the prior eval initialization but the speak chrome is
+      // suppressed — emitting `.speaking` here would trigger a chain of
+      // speak-mode-specific overrides (e.g. compact #identity button
+      // at 58px, disabled user-select) that shouldn't apply when there's
+      // nothing to speak. Mirrors the same currentBoardState.id gate
+      // used on the speak-header conditional in application.hbs.
+      if (this.appState.get('speak_mode') && this.appState.get('currentBoardState.id')) {
         res = res + 'speaking advanced_selection';
       }
       return res;
@@ -1980,6 +2115,7 @@ export default Controller.extend({
       (route === 'offline_boards' && cu) ||
       (route === 'caseload' && cu) ||
       route === 'support' ||
+      route === 'database' ||
       route === 'faq' ||
       route === 'beta-feedback' ||
       (route && route.indexOf('beta-feedback-admin') === 0) ||
@@ -1988,8 +2124,15 @@ export default Controller.extend({
       route === 'login.device') {
       return true;
     }
-    // Unauthenticated pages (not on a board) also use AppNavbar for consistent header structure
-    if (!cu && !this.appState.get('currentBoardState.id')) {
+    // No board loaded — use AppNavbar regardless of route or auth state.
+    // This catches every error path: board route rejecting, OBF lookup
+    // returning null, parent route bubbling, error.hbs rendering at any
+    // level. The legacy `<span id="nav_header">` chrome assumes a board
+    // is present (Done/Back/Speak Mode controls only make sense with
+    // currentBoardState); without one, fall back to the AppNavbar so
+    // chrome matches the home page. The user.board-alt early return at
+    // the top of this computed already protects the alt-board route.
+    if (!this.appState.get('currentBoardState.id')) {
       return true;
     }
     return false;

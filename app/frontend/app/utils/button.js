@@ -13,6 +13,7 @@ import utterance from './utterance';
 import persistence from './persistence';
 import capabilities from './capabilities';
 import i18n from './i18n';
+import { pick_aac_color } from './parts_of_speech';
 import stashes from './_stashes';
 import progress_tracker from './progress_tracker';
 import { htmlSafe } from '@ember/template';
@@ -64,7 +65,7 @@ var Button = EmberObject.extend({
     'book',
     'link_disabled',
     function() {
-      if(this.get('load_board')) {
+      if(this.get('load_board') && !this.get('link_disabled')) {
         this.set('buttonAction', 'folder');
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');
@@ -353,7 +354,11 @@ var Button = EmberObject.extend({
       var btnInlineStyle = this.get('computed_style') + '';
       var bg = this.get('background_color');
       if(bg && window.tinycolor) {
-        btnInlineStyle = btnInlineStyle + 'outline-color:' + window.tinycolor(bg).darken(20).toRgbString() + ';';
+        var darkenedRing = window.tinycolor(bg).darken(20).toRgbString();
+        btnInlineStyle = btnInlineStyle + 'outline-color:' + darkenedRing + ';';
+        // Also drive the CSS variable that `.button`'s box-shadow inset
+        // ring reads — see comment in app.scss `.button` rule.
+        btnInlineStyle = btnInlineStyle + '--btn-ring-color:' + darkenedRing + ';';
       }
       res = res + "<a href='#' style='" + btnInlineStyle + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
       if(this.get('pending')) {
@@ -715,23 +720,16 @@ var Button = EmberObject.extend({
         if(!_this || !_this.get) { return; }
         if(!colors || !colors.forEach) { return; }
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
-          var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
-          res.types.forEach(function(type) {
-            if(!found) {
-              colors.forEach(function(color) {
-                if(!found && color.types && color.types.indexOf(type) >= 0) {
-                  _this.set('background_color', color.fill);
-                  _this.set('border_color', color.border);
-                  _this.set('part_of_speech', type);
-                  _this.set('suggested_part_of_speech', type);
-                  boundClasses.add_rule(_this);
-                  boundClasses.add_classes(_this);
-                  found = true;
-                }
-              });
-            }
-          });
+          var picked = pick_aac_color(res.types, colors, res.word || text);
+          if(picked) {
+            _this.set('background_color', picked.color.fill);
+            _this.set('border_color', picked.color.border);
+            _this.set('part_of_speech', picked.type);
+            _this.set('suggested_part_of_speech', picked.type);
+            boundClasses.add_rule(_this);
+            boundClasses.add_classes(_this);
+          }
         }
       };
       if(prefetchedRes) {
@@ -832,6 +830,9 @@ Button.computed_style = function(pos, button) {
     if(bg && window.tinycolor) {
       var darkenedBorder = window.tinycolor(bg).darken(20).toRgbString();
       str = str + "outline-color:" + darkenedBorder + ";";
+      // Also expose as a CSS variable so the `.button`'s box-shadow
+      // inset (which renders uniformly on all sides) picks it up.
+      str = str + "--btn-ring-color:" + darkenedBorder + ";";
     }
     return htmlSafe(str);
 };

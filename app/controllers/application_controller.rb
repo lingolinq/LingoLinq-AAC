@@ -7,7 +7,7 @@ class ApplicationController < ActionController::Base
   before_action :load_domain
   before_action :set_paper_trail_whodunnit
   after_action :log_api_call
-  before_bugsnag_notify :add_user_info_to_bugsnag
+  before_action :set_sentry_user
   around_action :with_request_caching
 
   # Clears request-scoped Thread.current caches after each request to prevent
@@ -42,10 +42,18 @@ class ApplicationController < ActionController::Base
     true
   end
   
-  def add_user_info_to_bugsnag(report)
-    report.user = {
-      id: GoSecure.sha512(request.remote_ip, 'user_ip')
-    }
+  # Hash the requester IP and attach to the Sentry scope as the synthetic
+  # user id so issues group per-requester without exposing raw IPs.
+  # CoppaSentryScrub redacts the event entirely if a logged-in user turns
+  # out to be COPPA-pending. The actual User reference for that consent
+  # check rides on RequestStore (NOT on the Sentry event itself), because
+  # Sentry.user_hash[:id] is the IP hash and won't resolve to a database id.
+  def set_sentry_user
+    return unless defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
+    Sentry.set_user(id: GoSecure.sha512(request.remote_ip, 'user_ip'))
+    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = @api_user if defined?(@api_user) && @api_user
+  rescue StandardError
+    nil
   end
   
   def check_api_token
@@ -311,6 +319,17 @@ class ApplicationController < ActionController::Base
   def log_installed_client_signal(source)
     h = installed_app_header
     return if h.blank? && !params.key?('installed_app')
-    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} effective=#{installed_app_header_effective.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+    h_log = h[0, 64]
+    raw_p = params['installed_app']
+    p_log = if raw_p.nil? || (raw_p.is_a?(String) && raw_p.empty?)
+      nil
+    elsif raw_p.is_a?(String)
+      raw_p[0, 64]
+    elsif raw_p.is_a?(ActionController::Parameters) || raw_p.is_a?(Hash)
+      '#<Hash>'
+    else
+      "#<#{raw_p.class.name}>"
+    end
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h_log.inspect} effective=#{installed_app_header_effective.inspect} params=#{p_log.inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
   end
 end

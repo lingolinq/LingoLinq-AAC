@@ -717,7 +717,7 @@ LingoLinq.User = DS.Model.extend({
     var localize_connections = function(sups) {
       (sups || []).forEach(function(sup) {
         if(LingoLinq.remote_url(sup.avatar_url)) {
-          this.persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
+          _this.persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
             emberSet(sup, 'original_avatar_url', sup.avatar_url);
             emberSet(sup, 'avatar_url', uri);
           }, function() { });

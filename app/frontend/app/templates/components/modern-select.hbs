@@ -1,5 +1,6 @@
-<div class="modern-select {{if this.isOpen "modern-select--open"}} {{this.class}}" id={{this.selectId}}>
+<div class="modern-select {{if this.isOpen "modern-select--open"}} {{this.class}}">
   <button
+    id={{this.selectId}}
     type="button"
     class="modern-select__trigger"
     aria-haspopup="listbox"
@@ -10,15 +11,29 @@
     <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="modern-select__list" role="listbox" {{action "stopPropagation" on="click"}}>
+    <ul class="modern-select__list" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
       {{#each this.content as |item|}}
         <li
           class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"
           role="option"
+          tabindex="0"
           aria-selected={{is-equal this.selection item.id}}
           {{action "choose" item preventDefault=false}}
+          {{action "option_keydown" item on="keydown"}}
         >
           {{item.name}}
+        </li>
+      {{else}}
+        {{!-- Empty-state row — modern alternative to a blank dropdown. --}}
+        <li class="modern-select__empty" role="presentation" aria-disabled="true">
+          <span class="modern-select__empty-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </span>
+          <span class="modern-select__empty-text">{{t "No options available" key="bound_select_no_options"}}</span>
         </li>
       {{/each}}
     </ul>

@@ -55,6 +55,21 @@ describe Flusher do
       Flusher.flush_user_logs(u.global_id, u.user_name)
     end
 
+    it "should remove ai api logs for the user only" do
+      u = User.create
+      u2 = User.create
+      log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', user_global_id: u.global_id)
+      log2 = AiApiLog.create!(ai_provider: 'gemini', request_type: 'word_suggestion', user_global_id: u.global_id)
+      other_user_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', user_global_id: u2.global_id)
+      anonymous_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation')
+
+      Flusher.flush_user_logs(u.global_id, u.user_name)
+      expect(AiApiLog.where(:id => log.id).count).to eq(0)
+      expect(AiApiLog.where(:id => log2.id).count).to eq(0)
+      expect(AiApiLog.where(:id => other_user_log.id).count).to eq(1)
+      expect(AiApiLog.where(:id => anonymous_log.id).count).to eq(1)
+    end
+
     it "should remove all log sessions and log session versions", :versioning => true do
       PaperTrail.request.whodunnit = 'user:jane'
       u = User.create

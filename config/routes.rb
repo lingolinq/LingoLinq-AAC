@@ -1,5 +1,5 @@
 LingoLinq::RESERVED_ROUTES ||= [
-  'admin', 'etc', 'settings', 'status', 'reports', 'stats', 'search', 
+  'admin', 'database', 'etc', 'settings', 'status', 'reports', 'stats', 'search', 
   'messages', 'inbox', 'log', 'logs', 'session', 'sessions', 'imports', 
   'boards', 'users', 'groups', 'organizations', 'pages', 'people', 'videos', 
   'root', 'www', 'add', 'self', 'files', 'feeds', 
@@ -74,6 +74,7 @@ LingoLinq::Application.routes.draw do
   get 'search/:query' => ember_handler
   get 'search/:locale/:query' => ember_handler
   get 'setup' => ember_handler
+  get 'database' => ember_handler
   get 'beta-feedback/admin' => ember_handler
   get 'beta-feedback/admin/:feedback_id' => ember_handler, :constraints => {:feedback_id => /[\w\-]+/}
   get 'u/:reply_code' => 'boards#utterance_redirect'
@@ -107,6 +108,13 @@ LingoLinq::Application.routes.draw do
     namespace :v1 do
       post 'csp-reports' => 'csp_reports#create'
     end
+
+    # Internal, machine-to-machine endpoints. Auth is a shared-secret header
+    # (X-Internal-Token), not a user session, so these are mounted outside the
+    # legacy api/v1 scope to keep the security boundary obvious.
+    namespace :internal do
+      get 'ai_api_logs/daily_summary' => 'ai_api_logs#daily_summary'
+    end
   end
 
   scope 'api/v1', module: 'api' do
@@ -114,9 +122,15 @@ LingoLinq::Application.routes.draw do
     post 'forgot_password' => 'users#forgot_password'
     post 'users/resend_parental_consent' => 'users#resend_parental_consent'
     post 'messages' => 'messages#create'
+    post 'beta_feedback_recordings' => 'beta_feedback_recordings#create'
+    post 'beta_feedback_recordings/:id/upload' => 'beta_feedback_recordings#upload'
+    post 'beta_feedback_recordings/:id/confirm' => 'beta_feedback_recordings#confirm'
+    get 'beta_feedback_recordings/:id/download' => 'beta_feedback_recordings#download'
     get 'beta_feedback' => 'beta_feedback#index'
     patch 'beta_feedback/:id' => 'beta_feedback#update'
     get 'beta_feedback/:id' => 'beta_feedback#show'
+    get 'database_schema' => 'database_schema#index'
+    get 'database_contents' => 'database_contents#index'
     post 'callback' => 'callbacks#callback'
     get 'domain_settings' => 'integrations#domain_settings'
     get 'start_code' => 'organizations#start_code_lookup'

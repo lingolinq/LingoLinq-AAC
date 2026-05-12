@@ -45,7 +45,7 @@
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
       {{else}}
-        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
@@ -91,27 +91,6 @@
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
       </div>
       {{/if}}
-      {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
-        <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
-          </div>
-          <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
-            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
-          </div>
-        </div>
-        {{#if this.all_orgs.length}}
-          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
-        {{else}}
-          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
-            {{t "Add Organization" key="add_organization"}}
-          </button>
-        {{/if}}
-      </article>
-      {{/if}}
-
       <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
@@ -123,14 +102,17 @@
           </div>
         </div>
         <div class="md-card__row">
-          <div class="md-chip md-chip--soft">
-            <span class="md-chip__dot" aria-hidden="true"></span>
-            {{#if this.last_board_name}}
+          {{#if this.last_board_name}}
+            <button type="button" class="md-chip md-chip--soft md-chip--button" {{action "go" "last_board"}}>
+              <span class="md-chip__dot" aria-hidden="true"></span>
               {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
-            {{else}}
+            </button>
+          {{else}}
+            <div class="md-chip md-chip--soft">
+              <span class="md-chip__dot" aria-hidden="true"></span>
               {{t "Last board: None" key="md_last_board_none"}}
-            {{/if}}
-          </div>
+            </div>
+          {{/if}}
           <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
             {{t "Continue Speaking" key="continue_speaking"}}
           </button>
@@ -155,6 +137,27 @@
         </div>
         <div class="md-card__extras-wave" aria-hidden="true"></div>
       </article>
+
+      {{#if this.has_management_responsibility}}
+      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+          </div>
+        </div>
+        {{#if this.all_orgs.length}}
+          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
+        {{else}}
+          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
+            {{t "Add Organization" key="add_organization"}}
+          </button>
+        {{/if}}
+      </article>
+      {{/if}}
 
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">

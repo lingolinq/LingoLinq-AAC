@@ -1,6 +1,7 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
+import boardDetailCache from '../../../utils/board_detail_cache';
 
 function scrollAllToTop() {
   window.scrollTo(0, 0);
@@ -34,6 +35,14 @@ export default Route.extend({
       boardDetailController.set('edit_mode', true);
       boardDetailController.set('board_collapsed', false);
       _this.stashes.persist('current_mode', 'edit');
+      // Drop the raw cache for this board so any subsequent re-entry
+      // refetches fresh server state. Save flow re-populates after the
+      // round-trip; this guards the case where edits are abandoned and
+      // the next read should still come from the server.
+      var key = model && model.get && model.get('key');
+      var id = model && model.get && (model.get('id') || model.get('global_id'));
+      if(key) { boardDetailCache.invalidate(key); }
+      if(id) { boardDetailCache.invalidate(id); }
       runLater(scrollAllToTop, 50);
       runLater(scrollAllToTop, 200);
     }, function() {

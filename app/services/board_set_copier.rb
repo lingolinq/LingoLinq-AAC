@@ -20,119 +20,141 @@ class BoardSetCopier
 
   # Full copy-and-relink flow (replaces copy_board_links_for + copy_board_links_batch)
   def copy_and_relink
-    # Ensure starting_new_board has a copy_id
-    if !@starting_new.settings['copy_id']
-      @starting_new.settings['copy_id'] = @starting_new.global_id
-      @starting_new.save_subtly
-    end
-
-    # Seed the mapper with the already-existing starting board copy
-    @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
-
-    # Phase 1: Collect downstream board IDs and copy them
-    board_ids = @starting_old.downstream_board_ids || []
-    board_ids = board_ids & @opts[:valid_ids] if @opts[:valid_ids]
-    total = board_ids.size
-
-    @user.instance_variable_set('@already_updating_available_boards', true)
-
-    Board.find_batches_by_global_id(board_ids, batch_size: 15) do |orig|
-      next if @mapper.key?(orig.global_id)
-
-      # Progress outside any transaction to avoid holding locks during IO
-      Progress.update_minutes_estimate((total * 3) + (total - @mapper.size), "copying #{orig.key}, #{total - @mapper.size} left")
-
-      if !orig.allows?(@user, +'view') && !orig.allows?(@auth_user, +'view')
-        # Permission denied -- skip (mirrors relinking.rb:432-433)
-        next
+    overall_started = Time.now
+    # Capture prior so nested calls (or any other caller that already set this flag)
+    # don't get their state stomped when our ensure block runs.
+    prior_bulk_copy = Thread.current[:bulk_copy_in_progress]
+    Thread.current[:bulk_copy_in_progress] = true
+    begin
+      # Ensure starting_new_board has a copy_id
+      if !@starting_new.settings['copy_id']
+        @starting_new.settings['copy_id'] = @starting_new.global_id
+        @starting_new.save_subtly
       end
 
-      copy = orig.copy_for(@user,
-        make_public: @opts[:make_public],
-        copy_id: @starting_new.global_id,
-        prefix: @opts[:copy_prefix],
-        new_owner: @opts[:new_owner],
-        disconnect: @opts[:disconnect],
-        copier: @copier,
-        unshallow: true,
-        skip_user_update: true
-      )
-      copy.update_default_locale!(@opts[:old_default_locale], @opts[:new_default_locale])
+      # Seed the mapper with the already-existing starting board copy
+      @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
 
-      @mapper[orig.global_id] = { id: copy.global_id, key: copy.key }
-      if orig.shallow_source
-        @mapper[orig.shallow_source[:id]] = { id: copy.global_id, key: copy.key }
+      # Phase 1: Collect downstream board IDs and copy them. Prefer live folder
+      # links so copy-all and fallback one-level selections don't depend on the
+      # cached downstream_board_ids, which can lag behind live button links.
+      board_ids = selected_board_ids
+      total = board_ids.size
+      Rails.logger.info("[copy_perf] BoardSetCopier#copy_and_relink starting for #{@starting_old.global_id} -> #{@starting_new.global_id} (#{total} downstream boards)")
+
+      @user.instance_variable_set('@already_updating_available_boards', true)
+
+      phase1_started = Time.now
+      Board.find_batches_by_global_id(board_ids, batch_size: 15) do |orig|
+        next if @mapper.key?(orig.global_id)
+
+        # Progress outside any transaction to avoid holding locks during IO
+        Progress.update_minutes_estimate((total * 3) + (total - @mapper.size), "copying #{orig.key}, #{total - @mapper.size} left")
+
+        if !orig.allows?(@user, +'view') && !orig.allows?(@auth_user, +'view')
+          # Permission denied, skip (mirrors relinking.rb:432-433)
+          next
+        end
+
+        copy = orig.copy_for(@user,
+          make_public: @opts[:make_public],
+          copy_id: @starting_new.global_id,
+          prefix: @opts[:copy_prefix],
+          new_owner: @opts[:new_owner],
+          disconnect: @opts[:disconnect],
+          copier: @copier,
+          unshallow: true,
+          skip_user_update: true
+        )
+        copy.update_default_locale!(@opts[:old_default_locale], @opts[:new_default_locale])
+
+        @mapper[orig.global_id] = { id: copy.global_id, key: copy.key }
+        if orig.shallow_source
+          @mapper[orig.shallow_source[:id]] = { id: copy.global_id, key: copy.key }
+        end
+
+        # Build reverse link index (which boards link TO each board)
+        index_board_links(orig)
       end
+      Rails.logger.info("[copy_perf] Phase 1 (clone #{total} boards) took #{(Time.now - phase1_started).round(2)}s")
 
-      # Build reverse link index (which boards link TO each board)
-      index_board_links(orig)
+      # Also index links from starting boards
+      index_board_links(@starting_old)
+      index_board_links(@starting_new)
+
+      @user.instance_variable_set('@already_updating_available_boards', false)
+
+      # Phase 2: Relink all copies to point to each other
+      phase2_started = Time.now
+      all_board_ids = [@starting_old.global_id] + board_ids
+      relink_boards(all_board_ids, 'update_inline')
+      Rails.logger.info("[copy_perf] Phase 2 (relink) took #{(Time.now - phase2_started).round(2)}s")
+
+      @user.update_available_boards
+
+      Rails.logger.info("[copy_perf] BoardSetCopier#copy_and_relink total #{(Time.now - overall_started).round(2)}s for #{@starting_old.global_id}")
+      @mapper
+    ensure
+      Thread.current[:bulk_copy_in_progress] = prior_bulk_copy
     end
-
-    # Also index links from starting boards
-    index_board_links(@starting_old)
-    index_board_links(@starting_new)
-
-    @user.instance_variable_set('@already_updating_available_boards', false)
-
-    # Phase 2: Relink all copies to point to each other
-    all_board_ids = [@starting_old.global_id] + board_ids
-    relink_boards(all_board_ids, 'update_inline')
-
-    @user.update_available_boards
-
-    @mapper
   end
 
   # Relink-only flow (replaces replace_board_for)
   # Used when swapping a board in a user's existing set
   def replace_and_relink
-    @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
+    prior_bulk_copy = Thread.current[:bulk_copy_in_progress]
+    Thread.current[:bulk_copy_in_progress] = true
+    begin
+      @mapper[@starting_old.global_id] = { id: @starting_new.global_id, key: @starting_new.key }
 
-    # Collect all board IDs from user's home + sidebar
-    board_ids = collect_user_board_ids
-    sidebar_ids = @sidebar_ids || {}
+      # Collect all board IDs from user's home + sidebar
+      board_ids = collect_user_board_ids
+      sidebar_ids = @sidebar_ids || {}
 
-    update_preference = @opts[:update_inline] ? 'update_inline' : nil
+      update_preference = @opts[:update_inline] ? 'update_inline' : nil
 
-    @user.instance_variable_set('@already_updating_available_boards', true)
+      @user.instance_variable_set('@already_updating_available_boards', true)
 
-    # Relink phase -- may create copies for boards that aren't private to the user
-    user_home_changed = relink_boards(board_ids, update_preference)
+      # Relink phase, may create copies for boards that aren't private to the user
+      user_home_changed = relink_boards(board_ids, update_preference)
 
-    @user.instance_variable_set('@already_updating_available_boards', false)
+      @user.instance_variable_set('@already_updating_available_boards', false)
 
-    # Update sidebar if any sidebar boards were replaced
-    sidebar_changed = false
-    sidebar = @user.sidebar_boards
-    sidebar_ids.each do |key, id|
-      if @mapper[id]
-        idx = sidebar.index { |s| s['key'] == key }
-        sidebar[idx]['key'] = @mapper[id][:key] if idx
-        sidebar_changed = true
+      # Update sidebar if any sidebar boards were replaced
+      sidebar_changed = false
+      sidebar = @user.sidebar_boards
+      sidebar_ids.each do |key, id|
+        if @mapper[id]
+          idx = sidebar.index { |s| s['key'] == key }
+          sidebar[idx]['key'] = @mapper[id][:key] if idx
+          sidebar_changed = true
+        end
       end
+
+      # Update user preferences if home board or sidebar changed
+      if user_home_changed || sidebar_changed
+        if user_home_changed
+          @user.update_setting({
+            'preferences' => { 'home_board' => {
+              'id' => user_home_changed[:id],
+              'key' => user_home_changed[:key]
+            }}
+          })
+        end
+        if sidebar_changed
+          @user.settings['preferences']['sidebar_boards'] = sidebar
+          @user.save
+        end
+      elsif @user.settings.dig('preferences', 'home_board')
+        home = Board.find_by_path(@user.settings['preferences']['home_board']['id'])
+        home.track_downstream_boards! if home
+      end
+
+      @user.update_available_boards
+      true
+    ensure
+      Thread.current[:bulk_copy_in_progress] = prior_bulk_copy
     end
-
-    # Update user preferences if home board or sidebar changed
-    if user_home_changed || sidebar_changed
-      if user_home_changed
-        @user.update_setting({
-          'preferences' => { 'home_board' => {
-            'id' => user_home_changed[:id],
-            'key' => user_home_changed[:key]
-          }}
-        })
-      end
-      if sidebar_changed
-        @user.settings['preferences']['sidebar_boards'] = sidebar
-        @user.save
-      end
-    elsif @user.settings.dig('preferences', 'home_board')
-      home = Board.find_by_path(@user.settings['preferences']['home_board']['id'])
-      home.track_downstream_boards! if home
-    end
-
-    @user.update_available_boards
-    true
   end
 
   private
@@ -166,6 +188,49 @@ class BoardSetCopier
     end
 
     board_ids
+  end
+
+  def selected_board_ids
+    if @opts[:valid_ids]
+      boards = Board.find_all_by_path(@opts[:valid_ids])
+      ids = @opts[:expand_selected_board_ids] ? expand_linked_board_ids(boards) : boards.map(&:global_id)
+    else
+      ids = expand_linked_board_ids([@starting_old])
+    end
+
+    ids.uniq - [@starting_old.global_id]
+  end
+
+  def expand_linked_board_ids(boards)
+    ids = []
+    seen = {}
+    queue = boards.compact
+
+    until queue.empty?
+      board = queue.shift
+      next if seen[board.global_id]
+
+      seen[board.global_id] = true
+      ids << board.global_id
+
+      (board.buttons || []).each do |button|
+        next unless button['load_board']
+        next if button['link_disabled']
+
+        linked = board_from_load_board(button['load_board'])
+        queue << linked if linked && !seen[linked.global_id]
+      end
+    end
+
+    ids
+  end
+
+  def board_from_load_board(load_board)
+    [load_board['id'], load_board['key'], load_board['path'], load_board['data_url'], load_board['url']].compact.each do |ref|
+      board = Board.find_by_path(ref)
+      return board if board
+    end
+    nil
   end
 
   def index_board_links(board)

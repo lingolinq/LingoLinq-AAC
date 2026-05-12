@@ -10,4 +10,19 @@ require 'oj'
 
 # Make sure your secret_key_base is kept private
 # if you're sharing your code publicly.
-LingoLinq::Application.config.secret_key_base = ENV['SECRET_KEY_BASE'] || ENV['COOKIE_KEY']
+# Authoritative source: SECRET_KEY_BASE. The legacy COOKIE_KEY fallback is
+# preserved for non-production environments only, until CI is updated to
+# set SECRET_KEY_BASE directly. Prod must fail loud rather than silently
+# fall back to a different encryption domain.
+fetch_nonblank_env = lambda do |key|
+  value = ENV[key]
+  value unless value.nil? || value.strip.empty?
+end
+
+LingoLinq::Application.config.secret_key_base = fetch_nonblank_env.call('SECRET_KEY_BASE') || begin
+  if Rails.env.production?
+    raise 'SECRET_KEY_BASE env var must be set in production'
+  end
+
+  fetch_nonblank_env.call('COOKIE_KEY') || SecureRandom.hex(64)
+end

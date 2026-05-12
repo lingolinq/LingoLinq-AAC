@@ -2,6 +2,10 @@
 
 Quick guide for rotating shared API keys. Anyone with access to 1Password Shared Dev (or Admin for Render) can do this.
 
+Only rotate keys if you can complete the full flow including verification.
+
+Typical rotation time: ~5-10 minutes (15-20 for Stripe).
+
 ## When to rotate
 
 - A key was committed to git or pasted somewhere public.
@@ -12,7 +16,7 @@ Quick guide for rotating shared API keys. Anyone with access to 1Password Shared
 
 | Key | Provider URL | 1Password location |
 |---|---|---|
-| GitHub PAT (org/MCP use) | https://github.com/settings/tokens | Shared Dev → "GitHub PAT" |
+| GitHub PAT (`GITHUB_PERSONAL_ACCESS_TOKEN`, org/MCP use) | https://github.com/settings/tokens | Shared Dev → "GitHub PAT" |
 | Render API key | https://dashboard.render.com/u/settings#api-keys | Admin → "Render API key" |
 | Notion integration | https://www.notion.so/profile/integrations | Shared Dev → "Notion" |
 | n8n API key | https://lingolinq-n8n.onrender.com/settings/api | Shared Dev → "n8n API" |
@@ -22,17 +26,24 @@ Quick guide for rotating shared API keys. Anyone with access to 1Password Shared
 The same 5 steps for any of the four keys:
 
 ```
-1. Go to the provider URL above and revoke the old key.
-2. Generate a new key. Copy the value.
-3. Open the corresponding 1Password item and update the value field.
+1. Go to the provider URL above and generate a new key. Copy the value.
+   Do not revoke the old key yet.
+2. Open the corresponding 1Password item and update the value field.
    (Field name varies per item - look for the CONCEALED field with caps name like NOTION_API_KEY.)
-4. From the LingoLinq-AAC repo root, run:
+3. From the LingoLinq-AAC repo root, run:
      node scripts/sync-render-env.js --apply --source op
    This pushes the new value to all 6 Render services (dev, staging, prod, workers, scheduler).
-5. Update your local LingoLinq-AAC/.env with the new value so your dev server uses it.
+   It updates all Render services, may trigger deploys/restarts, and takes ~1-3 minutes to propagate.
+   It posts to #key-rotations when values change.
+   Update your local LingoLinq-AAC/.env with the new value so your dev server uses it.
+   ⚠️ Skipping this will cause local dev to use stale keys and fail silently.
+4. Verify the new key works.
+5. Revoke the old key.
 ```
 
-That's it. The hourly GitHub Actions workflow `.github/workflows/sync-render-secrets.yml` re-runs step 4 on a cron, so even if you forget step 4, prod will be in sync within an hour.
+That's it. The hourly GitHub Actions workflow `.github/workflows/sync-render-secrets.yml` re-runs the Render sync step on a cron, so even if you forget sync, prod will be in sync within an hour.
+
+Revoking first can cause downtime if key generation, 1Password update, Render sync, or verification fails.
 
 ### Auto-notification on rotation
 
@@ -82,9 +93,83 @@ Each should return a non-empty value. If any fail, check the corresponding 1Pass
 ## Common gotchas
 
 - **Render API key has no expiration** but Render allows multiple active keys. Always revoke the old one explicitly after rotation, otherwise it stays valid forever.
-- **n8n JWTs expire**. Current rotation cycle: when the `exp` claim is within 30 days, regenerate.
-- **Notion integration access**: after rotation, double-check the integration still has the right pages/databases connected (notion.so/my-integrations → Access tab). New tokens inherit access, but it's worth verifying.
+- **n8n JWTs expire**. Current rotation cycle: rotate when expiration is within 30 days (check the `exp` claim).
+- **Notion integration access**: after rotation, confirm the expected pages/databases are still connected (notion.so/my-integrations → Access tab). New tokens inherit access, but it's worth verifying.
 - **GitHub PAT scopes**: when generating, copy scope set from the old token's settings. If you get a 403 from gh CLI after rotation, you probably missed a scope.
+
+## Stripe rotation (manual n8n step required)
+
+Stripe rotation requires a manual n8n credential update.
+
+Stripe is rotated separately from the four shared keys above because the n8n credential cannot be auto-synced. n8n's `stripeApi` schema requires a `signatureSecret` (the webhook signing secret) that is not tracked in our `.env`, so `sync-configs.js` intentionally skips the Stripe credential. Every other surface gets the new key automatically; the n8n credential must be updated by hand.
+
+> **Manual n8n update required:** the Stripe credential in n8n must be updated by hand; the sync scripts do not touch it.
+
+Two Stripe values can rotate:
+
+- `STRIPE_SECRET_KEY`: API secret key. Used by the Rails app, the `stripe` MCP, and n8n.
+- `STRIPE_WEBHOOK_SECRET`: webhook signing secret. Only rotate if compromised. Used by the Rails app and the n8n credential's `signatureSecret` field.
+
+### Flow for STRIPE_SECRET_KEY
+
+```
+1. Stripe Dashboard → Developers → API keys: roll the secret key.
+   Choose a grace period (1 hour or longer) so the rest of the steps
+   can finish before the old key dies.
+2. Update STRIPE_SECRET_KEY in ~/ai-company-brain/config/.env.
+3. Update STRIPE_SECRET_KEY in 1Password Shared Dev (item "Stripe").
+4. node ~/ai-company-brain/scripts/sync-configs.js
+   This pushes the new key to all MCP clients and posts a key-rotation
+   notification to the #key-rotations Google Chat space via the
+   GOOGLE_CHAT_WEBHOOK_KEY_ROTATION integration.
+5. node ~/ai-company-brain/scripts/sync-render-env.js --apply --source op
+   Pushes the new key to the Rails app on all 6 Render services.
+6. MANUAL REQUIRED: open https://lingolinq-n8n.onrender.com → Credentials →
+   "Stripe account". Paste the new STRIPE_SECRET_KEY. Leave
+   signatureSecret unchanged. Save. sync-configs.js does NOT touch
+   this credential, so this step is on you.
+7. Stripe Dashboard: revoke the old key ("Expire now" on the rolled key).
+8. Verify (see below).
+```
+
+### Flow for STRIPE_WEBHOOK_SECRET (only if compromised)
+
+```
+1. Stripe Dashboard → Developers → Webhooks → select endpoint →
+   Roll signing secret.
+2. Update STRIPE_WEBHOOK_SECRET in ~/ai-company-brain/config/.env
+   and 1Password Shared Dev.
+3. node ~/ai-company-brain/scripts/sync-render-env.js --apply --source op
+4. MANUAL REQUIRED: open the n8n "Stripe account" credential and paste the new
+   value into the signatureSecret field. Save.
+5. Stripe Dashboard: revoke the old signing secret.
+```
+
+### Verifying after Stripe rotation
+
+```
+# Old key should return 401
+curl -s -o /dev/null -w "%{http_code}\n" -u sk_OLD_KEY: \
+  https://api.stripe.com/v1/customers
+# expect: 401
+
+# New key should return JSON
+curl -s -u "$STRIPE_SECRET_KEY:" https://api.stripe.com/v1/customers \
+  | jq '.object'
+# expect: "list"
+```
+
+Then test one MCP call (`mcp__stripe`) and trigger one n8n workflow that uses the Stripe credential to confirm the n8n update took.
+
+### Why Stripe is special
+
+Future-you will read this and wonder why Stripe is the only key with its own section. The reason: every other auto-synced n8n credential has a single rotating field (an API key or token). The n8n `stripeApi` schema bundles the API key together with the webhook signing secret as required fields, and we have no clean way to track the signing secret in `.env` without leaking it into MCP client configs that don't need it. Treating Stripe as manual is the simplest correct answer. The exclusion is documented at the source in `~/ai-company-brain/config/mcp-servers.json` under the `n8n` description.
+
+## Do NOT
+
+- Do not revoke before verifying.
+- Do not share keys in chat tools.
+- Do not skip sync unless relying on cron intentionally.
 
 ## Cross-references
 

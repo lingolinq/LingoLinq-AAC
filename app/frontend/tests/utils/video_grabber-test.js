@@ -39,9 +39,6 @@ describe('videoGrabber', function() {
       send: function(message) {
         this.sentMessages[message] = arguments;
       },
-      sendAction: function(action) {
-        this.sentMessages[action] = arguments;
-      },
       model: EmberObject.create({id: '456'})
     }).create({
       sentMessages: {},
