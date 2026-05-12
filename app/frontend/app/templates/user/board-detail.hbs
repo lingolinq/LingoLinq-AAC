@@ -1334,6 +1334,7 @@
         folderLabelsOnTab=this.folder_labels_on_tab
         folderColoredCorner=this.folder_colored_corner
         folderColoredFace=this.folder_colored_face
+        shrinkLabelsToFit=this.shrink_labels_to_fit
         buttonTextSizeClass=this.button_text_size_class
         buttonTextPositionClass=this.button_text_position_class
         hiddenButtonsClass=this.hidden_buttons_class
@@ -2082,6 +2083,30 @@
                       </button>
                     </div>
                   </div>
+
+                  {{!-- Shrink labels to fit — opt-in on/off switch.
+                       Default (off) matches modern AAC industry
+                       convention: labels keep the user's chosen font
+                       size and wrap to multiple lines. On switches
+                       to single-line auto-shrink down to a 7px floor
+                       so every button face reads at the same visual
+                       size even when phrases are long. Persists to
+                       user.preferences.shrink_labels_to_fit. --}}
+                  <div class="md-folder-toggle-row">
+                    <span class="md-folder-toggle-row__label" id="shrink-labels-to-fit-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
+                    <div class="md-folder-toggle-row__control">
+                      <span class="md-folder-toggle-row__state {{unless this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "Off" key="off"}}</span>
+                      <button type="button"
+                        role="switch"
+                        aria-checked={{if this.shrink_labels_to_fit "true" "false"}}
+                        aria-labelledby="shrink-labels-to-fit-label"
+                        class="nb-toggle__switch {{if this.shrink_labels_to_fit 'nb-toggle__switch--on'}}"
+                        {{action "toggle_shrink_labels_to_fit"}}>
+                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                      </button>
+                      <span class="md-folder-toggle-row__state {{if this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "On" key="on"}}</span>
+                    </div>
+                  </div>
                 </div>
               {{/if}}
             </div>
@@ -2120,7 +2145,7 @@
               {{#if (is-equal this.right_panel_open_section 'background')}}
                 <div class="md-board-edit-right-panel__section-body">
                   <div class="md-settings-sublabel-wrap" style="display: flex; flex-direction: column; align-items: center;">
-                    <span class="md-settings-sublabel" style="text-align: center; white-space: normal; word-wrap: break-word; max-width: 100%; line-height: 1.3;">{{t "Background Color for All Board Buttons" key="board_detail_settings_image_background_color_all"}}</span>
+                    <span class="md-settings-sublabel" style="display: block; width: 100%; text-align: center; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.3;">{{t "Background Color for All Board Buttons" key="board_detail_settings_image_background_color_all"}}</span>
                     <div class="md-settings-dropdown-wrap">
                       <button type="button" class="md-settings-select md-settings-select--trigger md-settings-select--img-bg {{if this.display_prefs_symbol_background_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_symbol_background_dropdown_open "true" "false"}} data-tooltip={{t "Background color behind symbol images" key="board_detail_prefs_image_background_tooltip"}} aria-label={{t "Background color behind symbol images" key="board_detail_prefs_image_background_tooltip"}} {{action "toggle_display_symbol_background_dropdown"}}>
                         <span class="md-settings-select__value">{{this.display_prefs_current_symbol_background_label}}</span>
@@ -2276,62 +2301,74 @@
                 </svg>
               </button>
               {{#if (is-equal this.right_panel_open_section 'folders')}}
-                {{!-- Folder controls — copied verbatim from the
-                     center toolbar's Folders section (was at
-                     ~line 1071) so the right panel and toolbar
-                     share the same markup, classes, action
-                     handlers (toggle_folder_dropdown,
-                     set_folder_style, toggle_folder_colored_face,
-                     folder_dropdown_keydown) and computed
-                     bindings (folder_dropdown_open,
-                     folder_display_style, folder_colored_face).
-                     The dropdown-wrap--folder class is preserved
-                     so the outside-click handler in board-detail.js
-                     (line ~170) treats clicks in here as "inside"
-                     and doesn't close the dropdown. --}}
+                {{!-- Folder controls — surfaced as a labeled radio list
+                     (display style) plus an on/off switch (colored
+                     front), replacing the prior dropdown + icon-toggle
+                     pair. Actions and persistence are unchanged —
+                     set_folder_style still writes to
+                     user.preferences.folder_display_style and
+                     toggle_folder_colored_face still writes
+                     user.preferences.folder_colored_face. --}}
                 <div class="md-board-edit-right-panel__section-body">
-                  <div class="md-board-edit-right-panel__btn-row md-board-detail-edit-toolbar__dropdown-wrap md-board-detail-edit-toolbar__dropdown-wrap--folder" style="position: relative;" {{action "folder_dropdown_keydown" on="keyDown" preventDefault=false}}>
-                    {{!-- Folder Display Style Dropdown (left) --}}
-                    <button type="button"
-                      class="md-board-detail-edit-toolbar__btn md-board-detail-edit-toolbar__btn--folder-toggle {{unless (is-equal this.folder_display_style 'default') 'md-board-detail-edit-toolbar__btn--active'}}"
-                      data-tooltip={{t "Folder display style" key="board_detail_folder_style"}} aria-label={{t "Folder display style" key="board_detail_folder_style"}}
-                      aria-expanded={{if this.folder_dropdown_open "true" "false"}} aria-haspopup="menu"
-                      {{action "toggle_folder_dropdown"}}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" stroke="#46505F"/><line x1="9" y1="14" x2="15" y2="14" stroke="#2A9D8F"/></svg>
+                  <span class="md-board-edit-right-panel__row-pair-label" style="display: block; margin-bottom: 8px;">{{t "Display Style" key="board_detail_folder_display_style_label"}}</span>
+                  <div class="md-folder-style-list" role="radiogroup" aria-label={{t "Folder display style" key="board_detail_folder_style"}}>
+                    <button type="button" role="radio"
+                      aria-checked={{if (is-equal this.folder_display_style "default") "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'default') 'md-folder-style-option--active'}}"
+                      {{action "set_folder_style" "default"}}>
+                      <span class="md-folder-style-option__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+                      </span>
+                      <span class="md-folder-style-option__label">{{t "Default" key="board_detail_folder_default"}}</span>
+                      <span class="md-folder-style-option__check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+                      </span>
                     </button>
-                    {{!-- Colored Folder Front toggle (right). Activates the
-                         filled-face look across all folder display styles. --}}
-                    <button type="button"
-                      class="md-board-detail-edit-toolbar__btn {{if this.folder_colored_face 'md-board-detail-edit-toolbar__btn--active'}}"
-                      aria-pressed={{if this.folder_colored_face "true" "false"}}
-                      data-tooltip={{t "Colored Folder Front" key="board_detail_folder_colored_face"}} aria-label={{t "Colored Folder Front" key="board_detail_folder_colored_face"}}
-                      {{action "toggle_folder_colored_face"}}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" stroke="#46505F" fill="#FDCF98"/>
-                      </svg>
+                    <button type="button" role="radio"
+                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
+                      {{action "set_folder_style" "tab_labels"}}>
+                      <span class="md-folder-style-option__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                      </span>
+                      <span class="md-folder-style-option__label">{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
+                      <span class="md-folder-style-option__check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+                      </span>
                     </button>
-                    {{#if this.folder_dropdown_open}}
-                      <div class="md-board-detail-folder-dropdown" role="menu">
-                        <button type="button"
-                          role="menuitem" class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'default') 'md-board-detail-folder-dropdown__item--active'}}"
-                          {{action "set_folder_style" "default"}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
-                          <span>{{t "Default" key="board_detail_folder_default"}}</span>
-                        </button>
-                        <button type="button"
-                          role="menuitem" class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'tab_labels') 'md-board-detail-folder-dropdown__item--active'}}"
-                          {{action "set_folder_style" "tab_labels"}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-                          <span>{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
-                        </button>
-                        <button type="button"
-                          role="menuitem" class="md-board-detail-folder-dropdown__item {{if (is-equal this.folder_display_style 'colored_corner') 'md-board-detail-folder-dropdown__item--active'}}"
-                          {{action "set_folder_style" "colored_corner"}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
-                          <span>{{t "Colored Corner Tab" key="board_detail_folder_colored_corner"}}</span>
-                        </button>
-                      </div>
-                    {{/if}}
+                    <button type="button" role="radio"
+                      aria-checked={{if (is-equal this.folder_display_style "colored_corner") "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'colored_corner') 'md-folder-style-option--active'}}"
+                      {{action "set_folder_style" "colored_corner"}}>
+                      <span class="md-folder-style-option__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
+                      </span>
+                      <span class="md-folder-style-option__label">{{t "Colored Corner Tab" key="board_detail_folder_colored_corner"}}</span>
+                      <span class="md-folder-style-option__check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+                      </span>
+                    </button>
+                  </div>
+
+                  {{!-- Colored Folder Front: separate setting, applies
+                       on top of whichever display style is active.
+                       Reuses the .nb-toggle__switch chrome from
+                       create-board-new so all switches in the app
+                       read the same. --}}
+                  <div class="md-folder-toggle-row">
+                    <span class="md-folder-toggle-row__label" id="folder-colored-face-label">{{t "Colored Folder Front" key="board_detail_folder_colored_face"}}</span>
+                    <div class="md-folder-toggle-row__control">
+                      <span class="md-folder-toggle-row__state {{unless this.folder_colored_face 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "Off" key="off"}}</span>
+                      <button type="button"
+                        role="switch"
+                        aria-checked={{if this.folder_colored_face "true" "false"}}
+                        aria-labelledby="folder-colored-face-label"
+                        class="nb-toggle__switch {{if this.folder_colored_face 'nb-toggle__switch--on'}}"
+                        {{action "toggle_folder_colored_face"}}>
+                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                      </button>
+                      <span class="md-folder-toggle-row__state {{if this.folder_colored_face 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "On" key="on"}}</span>
+                    </div>
                   </div>
                 </div>
               {{/if}}

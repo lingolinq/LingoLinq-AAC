@@ -20,6 +20,32 @@ function resolveSuperviseeHomeBoardKey(s) {
 function decorateSuperviseeForCaseload(s) {
   var copy = Object.assign({}, s);
   copy.resolved_home_board_key = resolveSuperviseeHomeBoardKey(s);
+  // Surface a count + multi-goal flag derived from whatever the
+  // payload provides. Prefer an explicit active_goals array if
+  // present; otherwise fall back to 1/0 based on the legacy
+  // primary_goal (`goal`) field. Templates can't use a `gt` helper
+  // (none registered in this project), so the flag is computed here.
+  var list = s && s.active_goals;
+  var hasList = !!(list && list.length != null);
+  var n = hasList ? list.length : (s && s.goal ? 1 : 0);
+  copy.goals_count = n;
+  copy.has_multiple_goals = n > 1;
+  // Resolve which goal text the chip should show in the collapsed
+  // summary state, and whether to render a PRIMARY tag next to it.
+  // Plain JS arrays from the API don't expose `firstObject`, so we
+  // index into [0] here rather than rely on Ember array helpers.
+  var displayed = (s && s.goal) || (hasList && list[0]) || null;
+  copy.displayed_goal_summary = displayed && displayed.summary;
+  copy.displayed_goal_is_primary = !!(
+    (s && s.goal) ||
+    (hasList && list[0] && list[0].primary)
+  );
+  // Status for the displayed goal — picks up the value the backend
+  // sends on active_goals[0]. Default 'active' when the legacy
+  // primary_goal slot fires (no per-goal status in user settings).
+  copy.displayed_goal_status =
+    (hasList && list[0] && list[0].status) ||
+    (s && s.goal ? 'active' : null);
   return copy;
 }
 
@@ -29,9 +55,41 @@ export default Controller.extend({
   router: service('router'),
   store: service(),
 
+  // Free-text filter for the supervisee grid — matches against
+  // user_name and goal summary (case-insensitive substring). Bound
+  // to the search input rendered above the grid.
+  superviseeFilter: '',
+
   supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
     var list = this.get('model.known_supervisees') || [];
     return list.map(decorateSuperviseeForCaseload);
+  }),
+
+  // Filtered view of supervisees driven by superviseeFilter. Falls
+  // back to the unfiltered list when the input is empty so an
+  // empty filter doesn't accidentally hide everyone.
+  filteredSupervisees: computed('supervisees.[]', 'superviseeFilter', function() {
+    var list = this.get('supervisees') || [];
+    var q = (this.get('superviseeFilter') || '').trim().toLowerCase();
+    if (!q) {
+      return list;
+    }
+    return list.filter(function(s) {
+      var name = (s && s.user_name ? String(s.user_name) : '').toLowerCase();
+      var goal = (s && s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
+      return name.indexOf(q) !== -1 || goal.indexOf(q) !== -1;
+    });
+  }),
+
+  // Show the filter when there's more than one supervisee, or the
+  // filter has text in it (so an active filter that just narrowed
+  // the list to one match doesn't hide the input the user is typing
+  // into). Computed in JS to avoid needing a `gt` truth-helper in
+  // Handlebars — this project doesn't register one.
+  showSuperviseeFilter: computed('supervisees.length', 'superviseeFilter', function() {
+    var count = (this.get('supervisees') || []).length;
+    var q = this.get('superviseeFilter') || '';
+    return count > 1 || q.length > 0;
   }),
 
   // When a communicator's home is the eval board (obf/eval…), opening "Model for" would
@@ -89,6 +147,13 @@ export default Controller.extend({
   },
 
   actions: {
+    // Reset the supervisee text filter. Bound to the × inside the
+    // filter input and to the "Clear filter" CTA in the no-matches
+    // empty state.
+    clearSuperviseeFilter: function() {
+      this.set('superviseeFilter', '');
+    },
+
     // Same API as index route / dashboard: set_speak_mode_user(id, true, keep_as_self).
     // Modeling uses findRecord first so we can avoid opening obf/eval (eval tools) when
     // that is only the communicator's eval placeholder home — same symptom as Run evaluation.
@@ -154,8 +219,20 @@ export default Controller.extend({
       if (rawId == null) {
         return;
       }
+      var _this = this;
       this.get('store').findRecord('user', rawId).then(function(user_model) {
-        modal.open('new-goal', { user: user_model });
+        // modal.open resolves with the saved goal record when Add Goal
+        // succeeds, and rejects when the user cancels. Reload the
+        // current user on success so the goal we just saved appears
+        // in the supervisee card's goal slot without a manual page
+        // refresh.
+        modal.open('new-goal', { user: user_model }).then(function(res) {
+          if (!res) { return; }
+          var current = _this.get('appState.currentUser');
+          if (current && typeof current.reload === 'function') {
+            current.reload();
+          }
+        }, function() { });
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });

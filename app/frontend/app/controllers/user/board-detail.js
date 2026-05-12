@@ -41,6 +41,12 @@ export default Controller.extend(prefClasses, {
   // dropdown; persisted on user.preferences.folder_colored_face.
   folder_colored_face: false,
   folder_dropdown_open: false,
+  // When true, button labels render on a single line and shrink to
+  // fit the button width (down to a 7px floor). When false (the
+  // default — matches modern AAC industry standard), labels keep
+  // the user's chosen font size and wrap to up to 3 lines at word
+  // boundaries. Persisted on user.preferences.shrink_labels_to_fit.
+  shrink_labels_to_fit: false,
   boardname: null,
   active_category: 'all',
 
@@ -5145,6 +5151,23 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.folder_colored_face', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Shrink labels to fit" preference — when true,
+    // button labels stay on a single line and shrink down to a 7px
+    // floor to fit the button width. When false (default — modern
+    // AAC industry standard), labels keep the user's chosen font
+    // size and wrap to up to 3 lines at word boundaries. Persists
+    // to user.preferences.shrink_labels_to_fit.
+    toggle_shrink_labels_to_fit: function() {
+      var _this = this;
+      var next = !_this.get('shrink_labels_to_fit');
+      _this.set('shrink_labels_to_fit', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.shrink_labels_to_fit', next);
         user.save();
       }
     },
