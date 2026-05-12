@@ -16,7 +16,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
 
 ## Development considerations
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
@@ -49,8 +49,7 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-# or
-# heroku local (Deprecated)
+foreman start
 
 # Stop all running processes
 bin/kill_all
@@ -76,12 +75,16 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Local console (includes audit safeguards)
-bin/rails console
+# Local console (includes audit safeguards via AuditEvent)
+bin/heroku_console   # legacy filename; runs the audit-safe console wrapper
 
 # Production console (on Render)
-# Use 'render shell' or specific task runner bin if available
+bin/heroku_console   # Use this wrapper, not 'rails console', so access is audited
 ```
+
+> Note: `bin/heroku_console` is the script's literal filename, kept from the
+> pre-Render deployment. It runs the audit-safe console wrapper; renaming the
+> script to something deployment-neutral is a separate refactor.
 
 **Scheduled tasks (run periodically in production):**
 ```bash

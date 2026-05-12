@@ -37,10 +37,9 @@ Once you have your shared secret, add it to your environment configuration.
 
 Add the `OPENSYMBOLS_SECRET` environment variable to your production environment using your hosting platform's configuration method:
 
-- **Heroku**: `heroku config:set OPENSYMBOLS_SECRET=your_secret`
-- **Render**: Add to environment variables in the dashboard
-- **Docker**: Add to your docker-compose.yml or environment file
-- **Other platforms**: Follow your platform's documentation for setting environment variables
+- **Render** (our production hosting): Add `OPENSYMBOLS_SECRET` as an environment variable on the service in the Render dashboard (Settings → Environment).
+- **Docker**: Add to your docker-compose.yml or environment file.
+- **Other platforms**: Follow your platform's documentation for setting environment variables.
 
 ## Step 3: Test the Integration
 
@@ -62,13 +61,10 @@ You should see output indicating successful token generation and symbol searches
 For the changes to take effect, restart your Rails application:
 
 ```bash
-# If using foreman
+# Using foreman (recommended for local dev)
 foreman start
 
-# If using heroku local
-heroku local
-
-# If running rails server directly
+# Or running rails server directly
 rails server
 ```
 
