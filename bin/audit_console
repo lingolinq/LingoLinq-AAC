@@ -1,0 +1,8 @@
+#!/bin/sh
+# TODO: this wrapper still invokes the Heroku CLI (`heroku auth:whoami`,
+# `heroku run -a lingolinq`). LingoLinq runs on Render now, so this script
+# only works against the legacy Heroku environment. Follow-up: rewrite the
+# body to attach to a Render service shell while still exporting USER_KEY
+# so the Rails console records an AuditEvent per session.
+heroku_id=`heroku auth:whoami`
+heroku run "export USER_KEY=$heroku_id && bundle exec rails console" -a lingolinq
