@@ -500,7 +500,7 @@ Perform an immediate review when:
 | Automated security scanning via `security-hotfix` skill (run before deploys) | Done (2026-02-22) |
 | React migration plan in progress — incremental, feature-by-feature | In progress |
 | Build pipeline runs in isolated CI environment, not on user-facing servers | Already in place |
-| Content Security Policy (CSP) headers limit what scripts can execute in browser | Planned (not yet deployed; report-only initializer in progress on `feat/csp-headers-report-only-v2`) |
+| Content Security Policy (CSP) report-only headers monitor browser script/content policy violations | Report-only headers configured; violation reports collected at `/api/v1/csp-reports` before enforcement |
 
 **What would change this assessment:**
 - A CVE is discovered in `ember-source 3.28` or `ember-data 3.28` (the runtime packages) — would trigger an emergency patch or accelerated migration of affected features.

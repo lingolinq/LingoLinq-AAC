@@ -150,7 +150,7 @@
           </div>
         </div>
         {{#if this.all_orgs.length}}
-          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
+          <LinkTo @route="organizations" class="md-btn md-btn--primary">{{t "View Organizations" key="view_organizations"}}</LinkTo>
         {{else}}
           <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
             {{t "Add Organization" key="add_organization"}}

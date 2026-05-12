@@ -61329,6 +61329,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   font-weight: 600;
 }
 
+.md-org-context-actions,
+.md-org-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--md-muted, $la-navy);
+  font-size: 14px;
+}
+.md-org-hero-actions {
+  margin: 10px 0 0;
+}
+.md-org-context-actions__link,
+.md-org-hero-actions__link {
+  color: $brand-dusty-denim-aa;
+  font-weight: 700;
+  text-decoration: none;
+}
+.md-org-context-actions__link:hover,
+.md-org-hero-actions__link:hover {
+  text-decoration: underline;
+}
+.md-org-context-actions__divider {
+  color: rgba($la-navy, 0.35);
+}
+
 /* Stats grid */
 .md-org-stats {
   margin-bottom: 28px;
@@ -62268,6 +62296,24 @@ a.md-caseload__action {
   margin: 0 0 16px;
   letter-spacing: -0.01em;
 }
+.md-org-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+.md-org-section-head .md-org-section-title {
+  margin-bottom: 6px;
+}
+.md-org-section-desc,
+.md-org-directory__intro {
+  margin: 0;
+  color: var(--md-muted, $la-navy);
+  font-size: 1rem;
+  line-height: 1.45;
+}
 .md-org-section-title__sub {
   font-size: 14px;
   font-weight: 400;
@@ -62292,6 +62338,12 @@ a.md-caseload__action {
 }
 .md-org-user-row:hover {
   background: rgba($brand-dusty-denim, 0.04);
+}
+.md-org-user-row--parent {
+  background: rgba($brand-dusty-denim, 0.05);
+}
+.md-org-user-row--child {
+  margin-left: 24px;
 }
 .md-org-user-row--indented {
   margin-left: 24px;
@@ -62451,6 +62503,62 @@ a.md-caseload__action {
 .md-org-search-wrap {
   margin-bottom: 16px;
   max-width: 280px;
+}
+.md-org-section-head .md-org-search-wrap {
+  margin-bottom: 0;
+}
+
+/* Organization directory */
+.md-shell--org-directory .md-main--org {
+  max-width: 980px;
+  margin: 0 auto;
+}
+.md-org-directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.md-org-directory-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba($la-navy, 0.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba($brand-dusty-denim, 0.045));
+  color: var(--md-ink, $brand-blue-black);
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba($la-navy, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.md-org-directory-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba($brand-dusty-denim, 0.22);
+  box-shadow: 0 12px 30px rgba($la-navy, 0.08);
+  color: var(--md-ink, $brand-blue-black);
+  text-decoration: none;
+}
+.md-org-directory-card__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.md-org-directory-card__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.md-org-directory-card__meta {
+  color: var(--md-muted, $la-navy);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.md-org-directory-card__arrow {
+  color: rgba($la-navy, 0.45);
+  flex-shrink: 0;
 }
 
 /* Alphabetical letter groups */
