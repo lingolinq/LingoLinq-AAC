@@ -76,15 +76,16 @@ bundle exec rspec spec/models/user_spec.rb:42
 **Console access:**
 ```bash
 # Local console (includes audit safeguards via AuditEvent)
-bin/heroku_console   # legacy filename; runs the audit-safe console wrapper
+bin/audit_console
 
 # Production console (on Render)
-bin/heroku_console   # Use this wrapper, not 'rails console', so access is audited
+bin/audit_console   # Use this wrapper, not 'rails console', so access is audited
 ```
 
-> Note: `bin/heroku_console` is the script's literal filename, kept from the
-> pre-Render deployment. It runs the audit-safe console wrapper; renaming the
-> script to something deployment-neutral is a separate refactor.
+> Note: this script was previously named `bin/heroku_console`. It was renamed
+> for clarity; the body still invokes the Heroku CLI and needs a follow-up
+> rewrite to target Render's shell. Until then, the wrapper records an
+> `AuditEvent` per session but only works against the legacy Heroku environment.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -291,7 +292,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/heroku_console`, not `rails console`)
+- Console access audited via `AuditEvent` model (use `bin/audit_console`, not `rails console`)
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup
