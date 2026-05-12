@@ -819,10 +819,10 @@ class Api::UsersController < ApplicationController
     # Authentication is enforced by require_api_token before_action (daily_use is not in :except).
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
-    # Own data, site admin tools, or supervisors with +supervise+ (same trust as +daily_stats+).
+    # Cross-user daily usage logs stay limited to admin_support_actions to avoid privilege escalation.
     unless user.global_id == @api_user.global_id
       scopes = api_permission_scopes
-      ok = user.allows?(@api_user, 'admin_support_actions', scopes) || user.allows?(@api_user, 'supervise', scopes)
+      ok = user.allows?(@api_user, 'admin_support_actions', scopes)
       unless ok
         api_error 400, {error: 'Not authorized', unauthorized: true}
         return
