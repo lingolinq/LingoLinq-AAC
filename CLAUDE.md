@@ -75,11 +75,8 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Local console (includes audit safeguards via AuditEvent)
+# Audited console wrapper (currently legacy Heroku-backed)
 bin/audit_console
-
-# Production console (on Render)
-bin/audit_console   # Use this wrapper, not 'rails console', so access is audited
 ```
 
 > Note: this script was previously named `bin/heroku_console`. It was renamed
