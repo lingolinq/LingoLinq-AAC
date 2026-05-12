@@ -59,7 +59,7 @@
 
           {{#if this.orgs.data}}
             <div class="md-org-user-list">
-              {{#if this.filtered_orgs}}
+              {{#if this.has_org_filter}}
                 {{#each this.filtered_orgs as |org|}}
                   <div class="md-org-user-row">
                     <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
@@ -77,6 +77,8 @@
                       </button>
                     {{/unless}}
                   </div>
+                {{else}}
+                  <p class="md-muted">{{t "None found" key="none_found"}}</p>
                 {{/each}}
               {{else}}
                 {{#each this.alphabetized_orgs as |letter|}}

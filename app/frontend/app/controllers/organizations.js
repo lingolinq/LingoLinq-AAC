@@ -58,7 +58,7 @@ export default Controller.extend({
 
   has_admin_access: computed('all_orgs', function() {
     return !!(this.get('all_orgs') || []).find(function(org) {
-      return org.admin;
+      return org.admin && org.full_manager;
     });
   }),
 
@@ -88,18 +88,21 @@ export default Controller.extend({
     return letters;
   }),
 
+  has_org_filter: computed('org_filter', function() {
+    return !!(this.get('org_filter') || '').trim();
+  }),
+
   filtered_orgs: computed('sorted_orgs', 'org_filter', function() {
     var filter = this.get('org_filter');
     if(!filter || filter == '') { return null; }
     var res = [];
-    try {
-      var re = new RegExp(filter, 'i');
-      (this.get('sorted_orgs') || []).forEach(function(org) {
-        if((org.get('name') || '').match(re)) {
-          res.push(org);
-        }
-      });
-    } catch(e) { }
+    var escaped = filter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var re = new RegExp(escaped, 'i');
+    (this.get('sorted_orgs') || []).forEach(function(org) {
+      if((org.get('name') || '').match(re)) {
+        res.push(org);
+      }
+    });
     return res.slice(0, 10);
   }),
 
