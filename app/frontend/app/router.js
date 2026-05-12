@@ -109,6 +109,7 @@ Router.map(function() {
   this.route('gift_purchase', { path: '/gift' });
   this.route('bulk_purchase', { path: '/purchase/:id'});
   this.route('support', { path: '/support' });
+  this.route('database', { path: '/database' });
   this.route('beta-feedback', { path: '/beta-feedback' });
   this.route('beta-feedback-admin', { path: '/beta-feedback/admin' }, function() {
     this.route('entry', { path: '/:feedback_id' });
@@ -148,6 +149,11 @@ Router.map(function() {
     this.route('password_reset', { path: '/password_reset/:code' });
   });
   this.route('speech', { path: '/speech' });
+  this.route('demo', { path: '/demo' }, function() {
+    this.route('index', { path: '/' });
+    this.route('speak');
+    this.route('style');
+  });
   this.route('board', { resetNamespace: true, path: '/*key'}, function() {
 //    this.route('error');
     this.route('stats');

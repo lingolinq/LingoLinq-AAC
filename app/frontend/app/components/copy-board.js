@@ -76,8 +76,11 @@ export default Component.extend({
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;
   }),
 
-  linked: computed('model.board.buttons', function() {
-    return (this.get('model.board.linked_boards') || []).length > 0;
+  linked: computed('model.board.buttons', 'model.board.downstream_boards', 'model.board.downstream_board_ids', 'model.original_board', function() {
+    return (this.get('model.board.linked_boards') || []).length > 0 ||
+      (this.get('model.board.downstream_boards') || 0) > 0 ||
+      (this.get('model.board.downstream_board_ids.length') || 0) > 0 ||
+      !!this.get('model.original_board');
   }),
 
   locales: computed(function() {
@@ -137,9 +140,11 @@ export default Component.extend({
       });
       find_user.then(function(user) {
         const in_board_set = (user.get('stats.board_set_ids') || []).indexOf(_this.get('model.board.id')) >= 0;
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('current_user', user);
         _this.set('symbol_library', user.get('preferences.preferred_symbols'));
         setTimeout(function() {
+          if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
           _this.set('symbol_library', user.get('preferences.preferred_symbols'));
         }, 100);
         _this.set('loading', false);
@@ -149,7 +154,7 @@ export default Component.extend({
           sidebar_keys.forEach(function(key) {
             if (!key) { return; }
             LingoLinq.store.findRecord('board', key).then(function(board) {
-              if (_this.get('current_user') === user) {
+              if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                 if (board.get('key') === _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
@@ -158,7 +163,7 @@ export default Component.extend({
               }
               LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 const board_ids = bs.board_ids_for(board.get('id'));
-                if (_this.get('current_user') === user) {
+                if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
                   user.set('stats.sidebar_board_ids', sidebar_ids.concat(board_ids).uniq());
                   if (board_ids.indexOf(_this.get('model.board.id')) >= 0) {
@@ -171,6 +176,7 @@ export default Component.extend({
         }
         _this.set('home_board', user.get('preferences.home_board.id') === _this.get('model.board.id'));
       }, function() {
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
         _this.set('error', true);
       });
@@ -231,6 +237,7 @@ export default Component.extend({
       const lib = this.get('symbol_library') || 'original';
       this.get('modal').close({
         action: decision,
+        copy_board_source: this.get('model.board'),
         user: this.get('current_user'),
         shares: shares,
         board_name: name,

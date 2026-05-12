@@ -259,7 +259,7 @@ module Uploader
     nil
   end
   
-  def self.remote_upload_params(remote_path, content_type)
+  def self.remote_upload_params(remote_path, content_type, max_bytes: CONTENT_LENGTH_RANGE, private_upload: false)
     config = remote_upload_config
     
     res = {
@@ -271,12 +271,12 @@ module Uploader
     
     conditions = [
       {'key' => remote_path},
-      ['content-length-range', 1, (CONTENT_LENGTH_RANGE)],
+      ['content-length-range', 1, max_bytes],
       {'bucket' => config[:bucket_name]},
       {'success_action_status' => '200'},
       {'content-type' => content_type}
     ]
-    use_acl = !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+    use_acl = !private_upload && !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
     conditions.insert(1, {'acl' => 'public-read'}) if use_acl
 
     policy = {
@@ -312,6 +312,35 @@ module Uploader
       :bucket_name => ENV['UPLOADS_S3_BUCKET'].to_s.strip,
       :static_bucket_name => ENV['STATIC_S3_BUCKET'].to_s.strip
     }
+  end
+
+  def self.remote_upload_exists?(url_or_path)
+    remote_path = url_or_path.to_s
+    remote_path = remote_path.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
+    remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
+    remote_path = remote_path.sub(/^https?:\/\/[^\/]+\//, '') if remote_path.match?(/^https?:\/\//)
+    remote_path = remote_path[1..-1] if remote_path.start_with?('/')
+
+    config = remote_upload_config
+    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+
+    client = s3_client(config)
+    client.head_object(bucket: config[:bucket_name], key: remote_path)
+    true
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    false
+  end
+
+  def self.remote_remove_upload_path(path)
+    remote_path = path.to_s.sub(/\A\//, '')
+    raise "scary delete, not a beta feedback recording path: #{remote_path}" unless remote_path.match(/\Abeta_feedback_recordings\/\d{4}\/\d{2}\/\d{2}\/[\w\-]+\.(webm|mp4)\z/)
+
+    config = remote_upload_config
+    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+
+    client = s3_client(config)
+    client.delete_object(bucket: config[:bucket_name], key: remote_path)
+    true
   end
   
   def self.remote_zip(url, &block)

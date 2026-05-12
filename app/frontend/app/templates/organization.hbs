@@ -1,8 +1,8 @@
 <div class="md-shell md-shell--org">
   <div class="md-workspace">
     <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Organization Navigation" key="org_navigation"}}>
-      <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Admin" key="admin"}}</LinkTo>
-      <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "People" key="people"}}</LinkTo>
+      <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Dashboard" key="dashboard"}}</LinkTo>
+      <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "Admin" key="admin"}}</LinkTo>
       <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
       <LinkTo @route="organization.rooms" @model={{this.model.id}} class="md-pillnav__pill">{{t "Rooms" key="rooms"}}</LinkTo>
       {{#if (and this.app_state.feature_flags.lessons this.model.permissions.edit)}}

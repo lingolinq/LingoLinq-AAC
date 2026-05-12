@@ -170,7 +170,11 @@ export default Controller.extend({
     },
 
     quick_assessment: function(supervisee) {
-      modal.open('quick-assessment', { user_name: supervisee.user_name });
+      if (!supervisee) {
+        return;
+      }
+      var uid = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      modal.open('quick-assessment', { user: { user_name: supervisee.user_name, id: uid } });
     },
 
     run_eval: function(supervisee) {

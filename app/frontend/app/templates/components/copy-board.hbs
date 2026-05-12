@@ -19,6 +19,9 @@
       </div>
     </div>
     <p class="md-modal-board-name">{{t "Copy of " key="copy_of"}}{{this.model.board.name}}</p>
+    {{#if this.model.original_board}}
+      <p class="md-modal-hint">{{t "This board is part of a larger board set, so the copy will start from the top-level board to preserve navigation links." key="copy_starts_from_top_level_board"}}</p>
+    {{/if}}
 
     <div class="md-modal-field">
       <label class="md-modal-label" for="board_name">{{t "Name:" key="name_colon"}}</label>
@@ -156,26 +159,14 @@
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key="copy_linked_boards_to_sidebar"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_board_set}}
-      <div class="btn-group dropup">
-        <button class="btn md-modal-btn md-modal-btn--primary dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-          {{t "Copy Into the Communication Set" key="use_new_copy"}} <span class="caret"></span>
-        </button>
-        <ul class="dropdown-menu" role="menu">
-          <li><a href="#" {{action "tweakBoard" "modify_links_copy"}}><strong>{{t "Make Brand New Copies of Everything" key="update_replace"}}</strong></a></li>
-          <li><a href="#" {{action "tweakBoard" "modify_links_update"}}>{{t "Use Existing Copies if I Have Any" key="update_in_place"}}</a></li>
-        </ul>
-      </div>
+      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
+        {{t "Copy Board & All Linked Boards" key="copy_everything"}}
+      </button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_sidebar_set}}
-      <div class="btn-group dropup">
-        <button class="btn md-modal-btn md-modal-btn--primary dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-          {{t "Copy Into the Sidebar Set" key="use_new_sidebar_copy"}} <span class="caret"></span>
-        </button>
-        <ul class="dropdown-menu" role="menu">
-          <li><a href="#" {{action "tweakBoard" "modify_links_copy"}}><strong>{{t "Make Brand New Copies of Everything" key="update_replace"}}</strong></a></li>
-          <li><a href="#" {{action "tweakBoard" "modify_links_update"}}>{{t "Use Existing Copies if I Have Any" key="update_in_place"}}</a></li>
-        </ul>
-      </div>
+      <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
+        {{t "Copy Board & All Linked Boards" key="copy_everything"}}
+      </button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.linked}}
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>

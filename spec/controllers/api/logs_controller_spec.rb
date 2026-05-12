@@ -1117,10 +1117,12 @@ describe Api::LogsController, :type => :controller do
 
     it 'should return events data if no encryption header sent' do
       token_user
+      event1_ts = 4.seconds.ago.to_i
+      event2_ts = 3.seconds.ago.to_i
       log = LogSession.process_new({
         :events => [
-          {'timestamp' => 4.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
-          {'timestamp' => 3.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => event1_ts, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => event2_ts, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => @user, :device => @device, :author => @user})
       get :show, params: {:id => log.global_id}
@@ -1130,13 +1132,13 @@ describe Api::LogsController, :type => :controller do
         "parts_of_speech"=>{"types"=>["other"]},
         "spoken"=>false,
         "summary"=>"ok",
-        "timestamp"=>4.seconds.ago.to_i,
+        "timestamp"=>event1_ts.to_f,
         "type"=>"button"},
       {"id"=>2,
         "parts_of_speech"=>{"types"=>["other"]},
         "spoken"=>false,
         "summary"=>"never mind",
-        "timestamp"=>3.seconds.ago.to_i,
+        "timestamp"=>event2_ts.to_f,
         "type"=>"button"
       }])
       expect(json['log']['data_url']).to eq(nil)

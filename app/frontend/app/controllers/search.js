@@ -7,9 +7,12 @@ import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { debounce } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Controller.extend({
+  router: service('router'),
+
   title: computed('searchString', function() {
     return "Search results for " + this.get('searchString');
   }),
@@ -107,12 +110,12 @@ export default Controller.extend({
     if(this.isDestroyed || this.isDestroying) { return; }
     var str = this.get('searchString') || '';
     this.load_results(str);
-    this.transitionToRoute('search', this.get('locale'), encodeURIComponent(str || '_'));
+    this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   actions: {
     searchBoards: function() {
       this.load_results(this.get('searchString'));
-      this.transitionToRoute('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
+      this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
     }
   }
 });

@@ -819,7 +819,7 @@ LingoLinq.Board = DS.Model.extend({
   }),
   create_copy: function(user, make_public, swap_library, new_owner, disconnect) {
     var board = LingoLinq.store.createRecord('board', {
-      parent_board_id: this.get('id'),
+      parent_board_id: this.get('global_id') || this.get('id'),
       key: this.get('key').split(/\//)[1],
       name: this.get('copy_name') || this.get('name'),
       prefix: this.get('copy_prefix') || this.get('prefix'),
@@ -1629,10 +1629,18 @@ LingoLinq.Board = DS.Model.extend({
 
 LingoLinq.Board.reopenClass({
   clear_fast_html: function() {
+    var hasUnsavedImages = LingoLinq.store.peekAll('image').any(function(img) {
+      return img.get('isSaving');
+    });
+    if (hasUnsavedImages) {
+      console.log('[BOARD] Skipping clear_fast_html because image uploads are in progress');
+      return;
+    }
     LingoLinq.store.peekAll('board').forEach(function(b) {
       b.set('fast_html', null);
     });
-    if(this.appState && this.appState.get && this.appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
+    var appState = this.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    if(appState && appState.get && appState.get('currentBoardState.id') && editManager.controller && !editManager.controller.get('ordered_buttons')) {
       editManager.process_for_displaying();
     }
   },

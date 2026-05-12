@@ -43,6 +43,24 @@ export default Component.extend({
     return !this.get('isOnUserHomeDashboard');
   }),
 
+  showBetaFeedbackDrawerTab: computed(
+    'isAuthenticated',
+    'application.showBetaFeedbackDrawer',
+    'appState.speak_mode',
+    'appState.currentBoardState.id',
+    function() {
+      // Hide while a board is actively rendered in speak mode (the speak
+      // header crowds the chrome there). When a board route fails to
+      // load, currentBoardState.id is null even though speak_mode may
+      // still be set — in that case the speak header is suppressed
+      // (see application.hbs) and the drawer tab should show, matching
+      // home-page behavior.
+      return this.get('isAuthenticated') &&
+        this.get('application.showBetaFeedbackDrawer') &&
+        (!this.appState.get('speak_mode') || !this.appState.get('currentBoardState.id'));
+    }
+  ),
+
   /** When true, the mobile drawer (landing-alt nav) is open. */
   isLandingDrawerOpen: false,
 
@@ -58,6 +76,9 @@ export default Component.extend({
     },
     closeLandingDrawer() {
       this.set('isLandingDrawerOpen', false);
+    },
+    toggleBetaFeedbackDrawer() {
+      this.get('application').send('toggleBetaFeedbackDrawer');
     },
   }
 });

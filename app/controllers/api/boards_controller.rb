@@ -1,5 +1,7 @@
+require_relative '../../../lib/method_tracer'
+
 class Api::BoardsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   before_action :require_api_token, :except => [:user_index, :show, :simple_obf, :download, :index]
   # index: allowed unauthenticated for public board search (no user_id or user_id=cache). cache: requires auth (not in except list).
 
@@ -284,7 +286,7 @@ class Api::BoardsController < ApplicationController
       if !params['q'].blank? && !params['public']
         limited_boards = boards
         if params['allow_job'] #&& boards.limit(26).select('id').length > 25
-          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []))
+          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []), for_user: @api_user)
           boards = []
         else
           # For private user searches this will limit to the user's first 25 boards
@@ -648,7 +650,7 @@ class Api::BoardsController < ApplicationController
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])
     return unless allowed?(board, 'edit')
-    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id))
+    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id), for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -724,13 +726,13 @@ class Api::BoardsController < ApplicationController
       'text_only' => params['text_only'] == '1',
       'text_case' => params['text_case'],
       'font' => params['font']
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
   
   def import
     if params['url']
-      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'])
+      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'], for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       type = (params['type'] == 'obz' ? 'obz' : 'obf')
@@ -761,7 +763,7 @@ class Api::BoardsController < ApplicationController
       'board_ids' => ids,
       'default' => set_as_default,
       'user_key' => user_for_paper_trail
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -772,7 +774,7 @@ class Api::BoardsController < ApplicationController
     ids = params['board_ids_to_convert'] || []
     ids << board.global_id
     ids << "new:#{board.global_id}" if params['include_new']
-    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -782,7 +784,7 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'edit')
     ids = params['board_ids_to_update'] || []
     ids << board.global_id
-    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 

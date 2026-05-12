@@ -27,21 +27,24 @@ export function fastHtmlHasRenderableContent(fast) {
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
-    return this._services.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return (this._services && this._services.appState) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
+    this._services = this._services || {};
     this._services.appState = val;
   },
   get persistence() {
-    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+    return (this._services && this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
   set persistence(val) {
+    this._services = this._services || {};
     this._services.persistence = val;
   },
   get stashes() {
-    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+    return (this._services && this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
   set stashes(val) {
+    this._services = this._services || {};
     this._services.stashes = val;
   },
 
@@ -1246,15 +1249,17 @@ var editManager = EmberObject.extend({
     }
   },
   bogus_id_counter: 0,
-  fake_button: function() {
+  fake_button: function(board) {
     var button = editManager.Button.create({
       empty: true,
       label: '',
       id: --this.bogus_id_counter
     });
     var controller = this.controller;
-    var board = controller.get('model');
-    button.set('board', board);
+    board = board || (controller && controller.get && controller.get('model'));
+    if(board) {
+      button.set('board', board);
+    }
     return button;
   },
   modify_size: function(type, action, index) {
@@ -1646,7 +1651,9 @@ var editManager = EmberObject.extend({
     if(this.controller) {
       (this.controller.get('ordered_buttons') || []).forEach(function(row) {
         row.forEach(function(button) {
-          button.apply_level(level);
+          if(button && typeof button.apply_level === 'function') {
+            button.apply_level(level);
+          }
         });
       });
       this.update_color_key_id();
@@ -1906,7 +1913,7 @@ var editManager = EmberObject.extend({
               button = editManager.Button.create(buttons[kdx], more_args);
             }
           }
-          button = button || _this.fake_button();
+          button = button || _this.fake_button(board);
           if(!button.everything_local() && need_everything_local) {
             allButtonsReady = false;
             pending_buttons.push(button);
@@ -2338,6 +2345,7 @@ var editManager = EmberObject.extend({
   copy_board: function(old_board, decision, user, make_public, swap_library, new_owner, disconnect) {
     return new RSVP.Promise(function(resolve, reject) {
       var ids_to_copy = old_board.get('downstream_board_ids_to_copy') || [];
+      var expand_selected_ids = old_board.get('expand_selected_board_ids_to_copy');
       var prefix = old_board.get('copy_prefix');
       var level = user.get('copy_level');
       user.set('copy_level', null);
@@ -2451,6 +2459,7 @@ var editManager = EmberObject.extend({
               new_default_locale: old_board.get('default_locale') || old_board.get('locale'),
               swap_library: swap_library,
               ids_to_copy: ids_to_copy.join(','),
+              expand_selected_board_ids: expand_selected_ids,
               new_owner: new_owner,
               disconnect: disconnect,
               copy_prefix: prefix,

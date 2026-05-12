@@ -701,6 +701,14 @@ export default Service.extend({
   _persist_last_board_for_user: observer('stashes.root_board_state', function() {
     var state = this.stashes.get('root_board_state');
     var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    // Skip synthetic OBF boards (eval intro screens, emergency, stars, etc.).
+    // Their keys live under `obf/...` and their records are minted in
+    // `utils/obf.js` with throwaway ids like `b123b<timestamp>x<rand>`.
+    // Persisting them as the user's "last board" surfaces a board card
+    // on the dashboard with a useless synthetic name.
+    if(state && state.key && /^obf\//.test(state.key)) {
+      return;
+    }
     if(state && state.name && userName) {
       try {
         localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
@@ -813,8 +821,9 @@ export default Service.extend({
     }
   },
   /**
-   * Prefer the same URL style as the current screen: `user/board/…` (board-alt),
-   * `user/board-detail/…`, or legacy glob `board` for obf/integrations/single-segment keys.
+   * Default to `user/board-detail/…`. Preserve `user/board/…` (board-alt) only when the
+   * current screen is already board-alt. Legacy glob `board` is used for obf/, integrations/,
+   * and single-segment keys where the user/boardname split doesn't apply.
    */
   transitionToBoardForCurrentUiStyle: function(router, boardKey) {
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
@@ -841,12 +850,10 @@ export default Service.extend({
       router.transitionTo('board', boardKey);
       return;
     }
-    if(routeName.indexOf('board-detail') !== -1) {
-      router.transitionTo('user.board-detail', userName, boardSlug);
-    } else if(routeName.indexOf('board-alt') !== -1) {
+    if(routeName.indexOf('board-alt') !== -1) {
       router.transitionTo('user.board-alt', userName, boardSlug);
     } else {
-      router.transitionTo('board', boardKey);
+      router.transitionTo('user.board-detail', userName, boardSlug);
     }
   },
   jump_to_board: function(new_state, old_state) {
@@ -1221,9 +1228,7 @@ export default Service.extend({
   resolve_board_from_controller: function() {
     var c = this.controller;
     if(!c || typeof c.get !== 'function') { return null; }
-    var board = c.get('board.model');
-    if(board) { return board; }
-    var routeName = this.get('router.currentRouteName') || '';
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
     if(routeName.indexOf('board-detail') !== -1) {
       var owner = getOwner(this);
       if(owner) {
@@ -1237,6 +1242,8 @@ export default Service.extend({
         }
       }
     }
+    var board = c.get('board.model');
+    if(board) { return board; }
     return null;
   },
   /**
@@ -1296,16 +1303,18 @@ export default Service.extend({
     if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
-    this.assert_source().then(function() {
-      if(!_this.get('controller.board.model.permissions.edit')) {
-        modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+    this.assert_source().then(function(board) {
+      if(!board.get('permissions.edit')) {
+        modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
-            _this.toggle_mode('edit', {copy_on_save: true});
+            _this.controller.send('copy_and_edit_board', board, onBoardDetail);
           }
         });
         return;
-      } else if(decision == null && !_this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
-        modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
+      } else if(decision == null && !_this.get('edit_mode') && board.get('could_be_in_use')) {
+        modal.open('confirm-edit-board', {board: board}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
           }
@@ -2365,9 +2374,21 @@ export default Service.extend({
     });
     return res;
   }),
-  index_or_landing_view: computed('index_view', 'current_route', function() {
+  index_or_landing_view: computed('index_view', 'current_route', 'currentBoardState.id', function() {
     var route = this.get('current_route');
-    return this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento';
+    if (this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento') {
+      return true;
+    }
+    // Error fallback: when on a board route but no board is loaded
+    // (e.g. board failed to resolve, error.hbs renders in the outlet),
+    // treat the page as index-like so the body picks up the same header
+    // / chrome / footer layout used on the authenticated home page
+    // (.index-or-landing-view + .bento-default-mode-active +
+    // .bento-page-with-footer body classes).
+    if ((route === 'board.index' || (route && route.indexOf('board.') === 0)) && !this.get('currentBoardState.id')) {
+      return true;
+    }
+    return false;
   }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
@@ -2448,15 +2469,23 @@ export default Service.extend({
   },
   check_for_needing_purchase: function(prevent_unless_purchased) {
     var user = this.get('sessionUser');
-    // Modeling-only and expired communicator accounts have 
+    // Modeling-only and expired communicator accounts have
     // a number of features that they are prevented from using.
     // If the user is very expired, or they are modeling-only
     // then remind them about purchasing,
     // and possibly prevent the action.
     if(!user || (user.get('really_expired') || user.get('modeling_only'))) {
       var user_name = user && user.get('user_name');
-      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + (user.get('really_expired')+  "." + user.get('modeling_only')), cancel_on_close: false, remind_to_upgrade: true}).then(function() {
-        if(user.get('modeling_only') || prevent_unless_purchased) {
+      // Defensive: when called before sessionUser has resolved (e.g. on
+      // direct-URL navigation to a route whose setupController invokes
+      // this), the original `reason` interpolation called user.get()
+      // unconditionally inside the string and crashed. Build the reason
+      // suffix only when user exists.
+      var reason_suffix = user
+        ? (user.get('really_expired') + "." + user.get('modeling_only'))
+        : "no-user";
+      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + reason_suffix, cancel_on_close: false, remind_to_upgrade: true}).then(function() {
+        if((user && user.get('modeling_only')) || prevent_unless_purchased) {
           // modeling-only are prevented from the actions
           // not just reminded about them.
           return RSVP.reject({dialog: true});
@@ -4164,6 +4193,20 @@ export default Service.extend({
       this.stashes.persist('global_integrations', this.get('sessionUser.global_integrations'));
     }
   }),
+  /** Mirror the user's symbol_background pref onto <html> via the
+   *  `.fitzgerald-soft` / `.fitzgerald-faded` classes. Putting the class
+   *  at :root means both CSS rules using var(--fitzgerald-*) and JS
+   *  reads via getComputedStyle on documentElement see the muted
+   *  variants. Fires on sessionUser change (initial load) and on every
+   *  symbol_background change (so picking a different option from
+   *  another tab/window also syncs). LingoLinq.set_fitzgerald_scope
+   *  lives in app.js and also invalidates the JS palette cache. */
+  sync_fitzgerald_scope: observer('sessionUser', 'sessionUser.preferences.symbol_background', function() {
+    var bg = this.get('sessionUser.preferences.symbol_background');
+    if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+      window.LingoLinq.set_fitzgerald_scope(bg);
+    }
+  }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
     if(change == 'sessionUser.preferences.cookies') {
       state = !!this.get('sessionUser.preferences.cookies');
@@ -4194,16 +4237,16 @@ export default Service.extend({
   board_virtual_dom: computed(function() {
     var _this = this;
     var dom = {
-      sendAction: function() {
+      triggerAction: function() {
       },
       trigger: function(event, id, args) {
         var useVirtualDom = _this.get('currentUser.preferences.device.canvas_render') || _this.get('speak_mode');
         if(useVirtualDom && LingoLinq.customEvents[event]) {
-          var sendAction = _this.get('board_virtual_dom.sendAction');
-          if(typeof sendAction === 'function') {
-            sendAction(LingoLinq.customEvents[event], id, {event: args});
+          var triggerAction = _this.get('board_virtual_dom.triggerAction');
+          if(typeof triggerAction === 'function') {
+            triggerAction(LingoLinq.customEvents[event], id, {event: args});
           } else {
-            dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
+            dom.triggerAction(LingoLinq.customEvents[event], id, {event: args});
           }
         }
       },
@@ -4226,7 +4269,7 @@ export default Service.extend({
           dom.each_button(function(b) {
             if(b.id == id && !emberGet(b, state)) {
               emberSet(b, state, true);
-              dom.sendAction('redraw', b.id);
+              dom.triggerAction('redraw', b.id);
             }
           });
         }
@@ -4235,17 +4278,17 @@ export default Service.extend({
         dom.each_button(function(b) {
           if(b.id != except_id && emberGet(b, state)) {
             emberSet(b, state, false);
-            dom.sendAction('redraw', b.id);
+            dom.triggerAction('redraw', b.id);
           }
         });
       },
       clear_touched: function() {
         dom.clear_state('touched');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       clear_hover: function() {
         dom.clear_state('hover');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       button_result: function(b) {
         var pos = b.positioning;

@@ -105,7 +105,7 @@ rake clean_old_deleted_boards          # daily
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**
@@ -262,7 +262,7 @@ rake extras:desktop
 
 **Functionality and styling:**
 - Do NOT remove or change functionality when refactoring.
-- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
+- Preserve existing class names used for styling unless there is a clear need to change them - if so, prompt the user first.
 
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
@@ -272,8 +272,8 @@ rake extras:desktop
 - Generation script: `i18n_generator.rb`
 
 **CSS / SCSS:**
-- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` — SassC cannot evaluate mixed units at compile time
-- CSS compression is disabled in production (`config.assets.css_compressor = nil`) — do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
+- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` - SassC cannot evaluate mixed units at compile time
+- CSS compression is disabled in production (`config.assets.css_compressor = nil`) - do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
 
 **Platform-Specific Code:**
 - Extract platform-specific code or wrap in `capabilities` library
@@ -406,7 +406,7 @@ This repo includes a full audit orchestration system for continuous code quality
 | Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
 
 ### Audit Rules
-- NEVER modify code during audits — read-only until "apply fixes" is explicitly said
+- NEVER modify code during audits - read-only until "apply fixes" is explicitly said
 - Always show diffs before proposing changes
 - Subagents scan only their declared domain
 - All findings include file paths and line numbers where possible

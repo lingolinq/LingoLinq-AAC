@@ -21,7 +21,7 @@ describe Api::PurchasingController, :type => :controller do
     it "should call the purchasing library and return a progress object" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => nil, 'extras' => false, 'supporters' => 0, 'donate' => false}).and_return(p)
+      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => nil, 'extras' => false, 'supporters' => 0, 'donate' => false}, for_user: @user).and_return(p)
       post :purchase_gift, params: {:token => {'id' => 'abc'}, :type => 'long_term_200'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -31,7 +31,7 @@ describe Api::PurchasingController, :type => :controller do
     it "should pass the code if specified" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => 'asdfasdf', 'extras' => false, 'supporters' => 0, 'donate' => false}).and_return(p)
+      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => 'asdfasdf', 'extras' => false, 'supporters' => 0, 'donate' => false}, for_user: @user).and_return(p)
       post :purchase_gift, params: {:token => {'id' => 'abc'}, :type => 'long_term_200', :code => 'asdfasdf'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -41,7 +41,7 @@ describe Api::PurchasingController, :type => :controller do
     it "should pass extra options if specified" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => 'asdfasdf', 'extras' => true, 'supporters' => 0, 'donate' => true}).and_return(p)
+      expect(Progress).to receive(:schedule).with(GiftPurchase, :process_subscription_token, {'id' => 'abc'}, {'type' => 'long_term_200', 'email' => nil, 'user_id' => @user.global_id, 'code' => 'asdfasdf', 'extras' => true, 'supporters' => 0, 'donate' => true}, for_user: @user).and_return(p)
       post :purchase_gift, params: {:token => {'id' => 'abc'}, :type => 'long_term_200', :code => 'asdfasdf', 'extras' => true, 'donate' => true}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)

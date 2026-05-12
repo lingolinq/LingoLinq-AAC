@@ -109,13 +109,15 @@ describe Api::WordsController, :type => :controller do
   end
 
   describe "post 'predict'" do
-    it "should require an api token" do
+    it "should reject unauthenticated prediction requests" do
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      expect(AiWordPredictor).not_to receive(:predict)
+
       post 'predict', params: { 'sentence' => 'I want to' }
-      assert_missing_token
+      assert_error('ai_word_prediction is not enabled for this user')
     end
 
     it "should require a sentence" do
-      token_user
       post 'predict', params: { 'sentence' => '' }
       assert_error('sentence required')
     end
