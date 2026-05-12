@@ -36359,6 +36359,17 @@ a.la-footer-bottom-a11y-wcag {
   overflow: visible !important;
 
 }
+/* Reports/stats route: default .md-workspace is flex:1 + min-height:0 + overflow:hidden, which
+   clips long report content on viewports >820px (mobile has a separate fix). Grow with content
+   so the page scrolls like other tall dashboard views. */
+.md-shell--reports-view > .md-workspace {
+  flex: 0 1 auto !important;
+
+  min-height: auto !important;
+
+  overflow: visible !important;
+
+}
 .md-workspace--boards-full {
   min-width: 0 !important;
 
@@ -62831,6 +62842,65 @@ a.md-caseload__action {
   text-overflow: ellipsis;
   flex-basis: 100%;
 }
+
+/* ═══════════════ Organization Telemetry ═══════════════ */
+.md-org-telemetry__summary {
+  margin-bottom: 22px;
+}
+.md-org-telemetry__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.md-org-telemetry__heatmap-note {
+  font-size: 1.05rem;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  max-width: 72ch;
+}
+.md-org-telemetry__zero-hint {
+  background: rgba(76, 134, 216, 0.06);
+  border: 1px solid rgba($la-navy, 0.1);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.md-org-telemetry__zero-hint-lead {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-org-telemetry__zero-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--md-muted-ink, $la-navy);
+}
+.md-org-telemetry-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: 16px;
+  padding: 18px;
+}
+.md-org-telemetry-card--wide {
+  margin-bottom: 16px;
+}
+.md-org-telemetry-card__title {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-org-telemetry .col-sm-8 {
+  float: none;
+  width: 100%;
+}
+.md-org-telemetry .touch_locations {
+  border-radius: 14px;
+}
 .md-org-report-row__remove {
   position: absolute;
   top: 8px;
@@ -63468,6 +63538,9 @@ a.md-caseload__action {
 /* Responsive */
 @media (max-width: 820px) {
   .md-org-charts {
+    grid-template-columns: 1fr;
+  }
+  .md-org-telemetry__grid {
     grid-template-columns: 1fr;
   }
   .md-org-stats__grid {

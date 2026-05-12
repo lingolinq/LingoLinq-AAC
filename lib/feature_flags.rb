@@ -11,7 +11,8 @@ module FeatureFlags
               'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation',
               'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search',
-              'ai_compliance_logging', 'supervisor_consent_flow',
+              'ai_compliance_logging', 'supervisor_consent_flow', 'product_telemetry',
+              'telemetry_admin_panel',
               'tarheel_reader', 'auth_spa_transition']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',

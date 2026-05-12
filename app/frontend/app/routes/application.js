@@ -40,6 +40,7 @@ export default Route.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  telemetry: service('telemetry'),
   activate: function() {
     var session = this.get('session');
     if(session && typeof session.restore === 'function') {
@@ -142,6 +143,7 @@ export default Route.extend({
     },
     didTransition: function() {
       this.appState.finish_global_transition();
+      this.telemetry.trackRoute(this.router.currentRouteName);
       if (!this.appState.get('skip_scroll_to_top')) {
         window.scrollTo(0, 0);
         var content = document.getElementById('content');
