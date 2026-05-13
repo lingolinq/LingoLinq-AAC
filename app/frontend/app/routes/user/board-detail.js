@@ -126,6 +126,7 @@ export default Route.extend({
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
     controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
     controller.set('folder_dropdown_open', false);
+    controller.set('shrink_labels_to_fit', !!(user && user.get && user.get('preferences.shrink_labels_to_fit')));
 
     // Re-apply the user's symbol_background scope on every board-detail
     // entry. The app-state `sync_fitzgerald_scope` observer covers the

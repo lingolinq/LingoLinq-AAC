@@ -147,36 +147,46 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
+    {{!-- Modern modal convention: Cancel is the leftmost (secondary)
+         button, primary copy action is on the right. Every branch
+         renders Cancel first so it's consistent across all copy
+         scenarios. --}}
     {{#if this.set_as_home}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_home"}}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         {{t "Copy as Full Board Set" key="copy_linked_boards_as"}}
       </button>
     {{else if this.home_board}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_home"}}>{{t "Copy as New Home Board" key="copy_linked_boards_as_home"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.sidebar_board}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy_as_sidebar"}}>{{t "Copy To The Sidebar" key="copy_linked_boards_to_sidebar"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_board_set}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
         {{t "Copy Board & All Linked Boards" key="copy_everything"}}
       </button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.in_sidebar_set}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
         {{t "Copy Board & All Linked Boards" key="copy_everything"}}
       </button>
       <CopyJustThisBoard @parent={{this}} />
     {{else if this.linked}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      <CopyJustThisBoard @parent={{this}} />
       <button class="btn md-modal-btn md-modal-btn--primary" {{action "tweakBoard" "links_copy"}}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         {{t "Copy the Full Board Set" key="copy_linked_boards"}}
       </button>
-      <CopyJustThisBoard @parent={{this}} />
     {{else}}
+      <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
       <CopyJustThisBoard @parent={{this}} />
     {{/if}}
-    <button class="btn md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
   </div>
 {{/modal-dialog}}

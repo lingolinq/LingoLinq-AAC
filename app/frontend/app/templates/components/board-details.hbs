@@ -19,21 +19,26 @@
       </div>
     {{/if}}
 
-    {{!-- Overview Section --}}
+    {{!-- Overview: name + description as the prominent header,
+         then a tight property grid for the metadata. Description
+         lives outside the dl so it spans full width and reads
+         like body copy rather than a value in a key/value row. --}}
     <div class="la-board-details-section">
       <h4 class="la-board-details-section__heading">{{t "Overview" key="board_detail_overview"}}</h4>
+      <div class="la-board-details-overview-head">
+        <h2 class="la-board-details-overview-head__name">
+          {{this.model.name}}
+          {{#if this.model.permissions.edit}}
+            <a href="#" class="la-board-details-rename-link" {{action "renameBoard"}} title={{t "Rename board" key="rename_board"}} aria-label={{t "Rename board" key="rename_board"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </a>
+          {{/if}}
+        </h2>
+        {{#if this.model.description}}
+          <p class="la-board-details__description">{{this.model.description}}</p>
+        {{/if}}
+      </div>
       <dl class="dl-horizontal">
-        <dt>{{t "Name" key="name"}}</dt>
-          <dd>
-            {{this.model.name}}
-            {{#if this.model.permissions.edit}}
-              <a href="#" class="la-board-details-rename-link" {{action "renameBoard"}} title={{t "Rename board" key="rename_board"}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              </a>
-            {{/if}}
-          </dd>
-        <dt>{{t "Description" key="description"}}</dt>
-          <dd style="white-space: pre-line;">{{this.model.description}}</dd>
         <dt>{{t "Dimensions" key="dimensions"}}</dt>
           <dd>{{this.model.grid.rows}} x {{this.model.grid.columns}}</dd>
         <dt>{{t "Created" key="created"}}</dt>
@@ -55,14 +60,7 @@
         <h4 class="la-board-details-section__heading">{{t "Language" key="language"}}</h4>
         <dl class="dl-horizontal">
           <dt>{{t "Default Language" key="default_language"}}</dt>
-            <dd>
-              {{this.language}}
-              {{#if this.model.permissions.edit}}
-                <a href="#" class="la-board-details-rename-link" {{action "translate"}} title={{t "Translate board" key="translate_this_board"}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </a>
-              {{/if}}
-            </dd>
+            <dd>{{this.language}}</dd>
           {{#if this.multiple_locales}}
             <dt>{{t "Translations" key="translations"}}</dt>
               <dd>{{this.languages}}</dd>
@@ -81,11 +79,6 @@
             {{t "Anyone can see this board" key="anyone_can_see"}}
           {{else}}
             {{t "This board is private" key="this_board_is_private"}}
-          {{/if}}
-          {{#if this.model.permissions.edit}}
-            <a href="#" class="la-board-details-rename-link" {{action "privacy"}} title={{t "Change privacy" key="change_privacy"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </a>
           {{/if}}
           </dd>
         <dt>{{t "License" key="license"}}</dt>
@@ -110,32 +103,41 @@
       </dl>
     </div>
 
-    {{!-- Stats & Connections Section --}}
+    {{!-- Stats & Connections — rendered as a glanceable tile grid
+         (number + label) instead of a dl, so the numeric metadata
+         reads at a glance like a GitHub Insights / Linear metrics
+         row. Trailing helper links sit beneath each tile that has
+         a deeper drill-down available. --}}
     {{#unless this.model.local_only}}
       <div class="la-board-details-section">
         <h4 class="la-board-details-section__heading">{{t "Stats & Connections" key="board_detail_stats_connections"}}</h4>
-        <dl class="dl-horizontal">
-          <dt>{{t "People Using" key="people_using"}}</dt>
-            <dd>
-              {{this.model.non_author_uses}}
-              <a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a>
-            </dd>
-          <dt>{{t "Connected Boards" key="connected_boards"}}</dt>
-            <dd>{{this.model.downstream_boards}}</dd>
-          <dt>{{t "Total Unlinked Buttons" key="unlinked_buttons"}}</dt>
-            <dd>
-              {{this.model.unlinked_buttons}}
-              {{#if this.model.button_set}}
-                <a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a>
-              {{/if}}
-            </dd>
-          <dt>{{t "Likes" key="stars"}}</dt>
-            <dd>{{this.model.stars}}</dd>
-          <dt>{{t "Revisions" key="revisions"}}</dt>
-            <dd>
-              <LinkTo @route="board.history" @model={{this.model.key}}>{{t "see board edit history" key="see_history"}}</LinkTo>
-            </dd>
-        </dl>
+        <div class="la-board-details-stats">
+          <div class="la-board-details-stat">
+            <span class="la-board-details-stat__value">{{this.model.non_author_uses}}</span>
+            <span class="la-board-details-stat__label">{{t "People Using" key="people_using"}}</span>
+            <span class="la-board-details-stat__link"><a href="#" {{action "boardStats"}}>{{t "more info" key="more_info"}}</a></span>
+          </div>
+          <div class="la-board-details-stat">
+            <span class="la-board-details-stat__value">{{this.model.downstream_boards}}</span>
+            <span class="la-board-details-stat__label">{{t "Connected Boards" key="connected_boards"}}</span>
+          </div>
+          <div class="la-board-details-stat">
+            <span class="la-board-details-stat__value">{{this.model.unlinked_buttons}}</span>
+            <span class="la-board-details-stat__label">{{t "Unlinked Buttons" key="unlinked_buttons"}}</span>
+            {{#if this.model.button_set}}
+              <span class="la-board-details-stat__link"><a href="#" {{action "button_set_words"}}>{{t "see full button list" key="button_list"}}</a></span>
+            {{/if}}
+          </div>
+          <div class="la-board-details-stat">
+            <span class="la-board-details-stat__value">{{this.model.stars}}</span>
+            <span class="la-board-details-stat__label">{{t "Likes" key="stars"}}</span>
+          </div>
+          <div class="la-board-details-stat">
+            <span class="la-board-details-stat__value">&mdash;</span>
+            <span class="la-board-details-stat__label">{{t "Revisions" key="revisions"}}</span>
+            <span class="la-board-details-stat__link"><LinkTo @route="board.history" @model={{this.model.key}}>{{t "see edit history" key="see_history"}}</LinkTo></span>
+          </div>
+        </div>
       </div>
 
       {{!-- Linked Boards Section --}}

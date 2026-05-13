@@ -12,7 +12,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml'
+  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
 ]
 require 'resque/server'
 require 'admin_constraint'
@@ -252,6 +252,17 @@ LingoLinq::Application.routes.draw do
     resources :profiles do
       get 'latest', on: :collection
     end
+
+    resources :eval_protocols, only: [:index, :show], param: :id
+    # Per-user Quick Screen session actions live on a separate
+    # EvalSessionsController so EvalProtocols stays read-only catalog.
+    # The legacy `users/:user_id/eval_recommend` path is preserved as
+    # an alias so anything that was already calling it keeps working.
+    post 'users/:user_id/eval_sessions/recommend' => 'eval_sessions#recommend'
+    post 'users/:user_id/eval_recommend' => 'eval_sessions#recommend'
+    # Comprehensive Eval (Mode 3) AI narration. Gated by the
+    # comprehensive_eval_ai feature flag inside the controller.
+    post 'eval_sessions/narrate' => 'eval_sessions#narrate'
     
     resources :badges
     
@@ -308,6 +319,7 @@ LingoLinq::Application.routes.draw do
     
     resources :logs do
       get 'lam'
+      get 'eval_pdf'
       get 'obl', on: :collection
       post 'import' => 'logs#import', on: :collection
       post 'code_check' => 'logs#code_check', on: :collection

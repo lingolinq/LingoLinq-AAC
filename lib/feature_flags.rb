@@ -12,7 +12,8 @@ module FeatureFlags
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation',
               'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search',
               'ai_compliance_logging', 'supervisor_consent_flow',
-              'tarheel_reader', 'auth_spa_transition']
+              'tarheel_reader', 'auth_spa_transition', 'quick_screen_eval',
+              'comprehensive_eval_ai']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -21,7 +22,8 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation']
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              'quick_screen_eval']
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -45,7 +47,9 @@ module FeatureFlags
     'ai_compliance_logging' => 'Feb 21, 2026',
     'supervisor_consent_flow' => 'Mar 22, 2026',
     'tarheel_reader' => 'Apr 14, 2026',
-    'auth_spa_transition' => 'Apr 25, 2026'
+    'auth_spa_transition' => 'Apr 25, 2026',
+    'quick_screen_eval' => 'May 9, 2026',
+    'comprehensive_eval_ai' => 'May 12, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging].freeze

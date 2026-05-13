@@ -1,0 +1,222 @@
+import Component from '@ember/component';
+import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
+import i18n from '../utils/i18n';
+import modal from '../utils/modal';
+import editManager from '../utils/edit_manager';
+import persistence from '../utils/persistence';
+import eval_board_builder from '../utils/eval_board_builder';
+import goals_grid from '../utils/eval_goals_grid';
+
+/*
+ * eval-quick-report — final summary card.
+ *
+ * Reads the recommendation off the session and surfaces it in an SLP-friendly
+ * card with action buttons for "Save", "Build starter board", and
+ * "Promote to Targeted Eval". Build-starter-board posts the
+ * recommendation-derived payload to /api/v1/boards (same endpoint the
+ * generate-board flow uses) so the SLP gets a working board on day 1.
+ */
+export default Component.extend({
+  appState: service('app-state'),
+  router: service('router'),
+  classNames: ['evq__report'],
+  tagName: 'div',
+  session: null,
+  user: null,
+  buildingBoard: false,
+  buildError: null,
+
+  recommendation: computed('session.recommendation', function() {
+    return this.get('session.recommendation') || {};
+  }),
+
+  durationLabel: computed('session', function() {
+    const seconds = this.get('session') ? this.get('session').durationSeconds() : 0;
+    const minutes = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return i18n.t('report_duration', "%{m}m %{s}s", { m: minutes, s: sec });
+  }),
+
+  confidencePct: computed('recommendation.confidence', function() {
+    return Math.round((this.get('recommendation.confidence') || 0) * 100);
+  }),
+
+  shouldPromote: computed('recommendation.next_action', function() {
+    return this.get('recommendation.next_action') === 'promote_to_targeted';
+  }),
+  shouldPromoteToComprehensive: computed('recommendation.next_action', function() {
+    return this.get('recommendation.next_action') === 'promote_to_comprehensive';
+  }),
+
+  promoteReasonsLabel: computed('recommendation.promote_reasons', function() {
+    const reasons = this.get('recommendation.promote_reasons') || [];
+    if (!reasons.length) { return null; }
+    return reasons.map(function(r) {
+      switch (r) {
+        case 'low_event_count':   return i18n.t('promote_reason_low_count', "Limited data captured");
+        case 'access_ambiguous':  return i18n.t('promote_reason_access', "Two access methods scored close");
+        case 'library_tie':       return i18n.t('promote_reason_library', "Symbol libraries scored evenly");
+        case 'stage_borderline':  return i18n.t('promote_reason_stage', "Communicator stage borderline");
+        default:                  return r;
+      }
+    }).join(' · ');
+  }),
+
+  // Targeted-eval extras — surface the per-subtest data when this
+  // session has been promoted (recommendation.eval_mode = 'targeted'
+  // or 'comprehensive', since comprehensive merges targeted data).
+  isTargetedReport: computed('recommendation.eval_mode', function() {
+    const mode = this.get('recommendation.eval_mode');
+    return mode === 'targeted' || mode === 'comprehensive';
+  }),
+  isComprehensiveReport: computed('recommendation.eval_mode', function() {
+    return this.get('recommendation.eval_mode') === 'comprehensive';
+  }),
+  comprehensiveReport: computed('recommendation.comprehensive_report', function() {
+    return this.get('recommendation.comprehensive_report') || {};
+  }),
+  daSummary: computed('comprehensiveReport.dynamic_assessment', function() {
+    return this.get('comprehensiveReport.dynamic_assessment') || null;
+  }),
+  literacySummary: computed('comprehensiveReport.literacy_probe', function() {
+    return this.get('comprehensiveReport.literacy_probe') || null;
+  }),
+  literacyAccuracyPct: computed('literacySummary.accuracy', function() {
+    const a = this.get('literacySummary.accuracy');
+    return a == null ? null : Math.round(a * 100);
+  }),
+  comprehensiveSett: computed('comprehensiveReport.sett', function() {
+    return this.get('comprehensiveReport.sett') || null;
+  }),
+
+  // DAGG-style goals grid — derived from the recommendation across
+  // Light's four communicative competencies. Always available;
+  // SLPs can drop the comprehensive eval's goals straight into an
+  // IEP draft. The grid lists four categories with 1–2 goals each.
+  goalsGrid: computed('recommendation', function() {
+    const rec = this.get('recommendation');
+    if (!rec) { return []; }
+    return goals_grid.generateGoalsGrid(rec);
+  }),
+  targetedReport: computed('recommendation.targeted_report', function() {
+    return this.get('recommendation.targeted_report') || {};
+  }),
+  adaptiveGridReport: computed('targetedReport.adaptive_grid', function() {
+    return this.get('targetedReport.adaptive_grid') || null;
+  }),
+  library3wayReport: computed('targetedReport.library_3way', function() {
+    return this.get('targetedReport.library_3way') || null;
+  }),
+  accessCoTrialReport: computed('targetedReport.access_co_trial', function() {
+    return this.get('targetedReport.access_co_trial') || null;
+  }),
+  syntaxProbeReport: computed('targetedReport.syntax_probe', function() {
+    return this.get('targetedReport.syntax_probe') || null;
+  }),
+  motorMapReport: computed('targetedReport.motor_map', function() {
+    return this.get('targetedReport.motor_map') || null;
+  }),
+  motorMapHits: computed('motorMapReport.hit_locations', function() {
+    return this.get('motorMapReport.hit_locations') || [];
+  }),
+  motorMapAccuracyPct: computed('motorMapReport.accuracy', function() {
+    const a = this.get('motorMapReport.accuracy');
+    return a == null ? null : Math.round(a * 100);
+  }),
+  syntaxReceptivePct: computed('syntaxProbeReport.receptive_accuracy', function() {
+    const a = this.get('syntaxProbeReport.receptive_accuracy');
+    return a == null ? null : Math.round(a * 100);
+  }),
+  syntaxExpressivePct: computed('syntaxProbeReport.expressive_accuracy', function() {
+    const a = this.get('syntaxProbeReport.expressive_accuracy');
+    return a == null ? null : Math.round(a * 100);
+  }),
+  libraryPicksList: computed('library3wayReport.picks', function() {
+    const picks = this.get('library3wayReport.picks') || {};
+    return Object.keys(picks).map(function(k) {
+      return { id: k, count: picks[k] };
+    });
+  }),
+  accessSummaryList: computed('accessCoTrialReport.tallies', function() {
+    const tallies = this.get('accessCoTrialReport.tallies') || {};
+    return Object.keys(tallies).map(function(k) {
+      const t = tallies[k];
+      const attempts = (t.hits || 0) + (t.misses || 0);
+      const accuracy = attempts ? Math.round((t.hits / attempts) * 100) : null;
+      return { method: k, attempts: attempts, accuracy: accuracy, hits: t.hits || 0 };
+    });
+  }),
+
+  gridLabel: computed('recommendation.grid_size', function() {
+    const grid = this.get('recommendation.grid_size');
+    if (!grid) { return ''; }
+    return i18n.t('report_grid_label', "%{rows} × %{cols} (%{band})", { rows: grid.rows, cols: grid.cols, band: grid.band });
+  }),
+
+  actions: {
+    notesChanged(value) {
+      const session = this.get('session');
+      if (session && session.set) {
+        session.set('slpNotes', value || '');
+      }
+    },
+    save() {
+      const onSave = this.get('onSave');
+      if (onSave) { onSave(); }
+    },
+    promote() {
+      const onPromote = this.get('onPromote');
+      if (onPromote) { onPromote(); }
+    },
+    promoteComprehensive() {
+      const onPromoteComprehensive = this.get('onPromoteComprehensive');
+      if (onPromoteComprehensive) { onPromoteComprehensive(); }
+    },
+    buildStarterBoard() {
+      const _this = this;
+      if (this.get('buildingBoard')) { return; }
+      if (!persistence.get('online')) {
+        this.set('buildError', i18n.t('eval_build_board_offline', "Board creation requires an Internet connection."));
+        return;
+      }
+      const spec = this.get('recommendation.starter_board_spec');
+      if (!spec) {
+        this.set('buildError', i18n.t('eval_build_board_no_spec', "No starter-board spec on this evaluation."));
+        return;
+      }
+      const user = this.get('user');
+      const forUserId = (user && user.get) ? user.get('user_name') : 'self';
+      const payload = eval_board_builder.fromSpec(spec, {
+        for_user_id: forUserId || 'self',
+        locale: (user && user.get && user.get('preferences.locale')) || 'en'
+      });
+      this.set('buildingBoard', true);
+      this.set('buildError', null);
+      persistence.ajax('/api/v1/boards', {
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ board: payload })
+      }).then(function(res) {
+        _this.set('buildingBoard', false);
+        const board = res && res.board;
+        if (!board || !board.key) {
+          _this.set('buildError', i18n.t('eval_build_board_unknown', "Board was created but couldn't be opened. Check My Boards."));
+          return;
+        }
+        editManager.auto_edit(board.id);
+        _this.get('appState').set('referenced_board', { id: board.id, key: board.key });
+        const parts = String(board.key).split('/');
+        if (parts.length >= 2) {
+          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        } else {
+          _this.get('router').transitionTo('board', board.key);
+        }
+      }, function(err) {
+        _this.set('buildingBoard', false);
+        const msg = (err && err.error) || i18n.t('eval_build_board_failed', "Could not build the starter board. Please try again.");
+        _this.set('buildError', msg);
+      });
+    }
+  }
+});

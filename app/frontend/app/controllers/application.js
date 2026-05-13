@@ -1168,6 +1168,22 @@ export default Controller.extend({
             _this.appState.toggle_mode('edit');
           }
           _this.copy_board(decision).then(function(board) {
+            // Distinguish three close payloads from copying-board:
+            //   { copied: true, id, key } — success: jump to the new board
+            //   { error: <msg> }          — backend error: notify user and
+            //                                clear the copy_on_save stash so
+            //                                the user isn't stuck repeating
+            //                                a broken save → copy → fail loop
+            //   undefined                 — clean cancel (decision modal X'd
+            //                                or copying-board closed before
+            //                                an error appeared): stay silent
+            //                                so the user can retry from edit
+            //                                mode
+            if(board && board.error) {
+              _this.stashes.persist('copy_on_save', null);
+              modal.error(i18n.t('copy_failed_msg', "Couldn't copy this board to save your changes. Please try again, or cancel to discard your edits."));
+              return;
+            }
             if(board) {
               _this.stashes.persist('label_locale', update_locale);
               _this.stashes.persist('vocalization_locale', update_locale);
@@ -1175,7 +1191,7 @@ export default Controller.extend({
               _this.stashes.persist('override_vocalization_locale', update_locale);
               if(update_locale) {
                 _this.appState.set('label_locale', update_locale);
-                _this.appState.set('vocalization_locale', update_locale);  
+                _this.appState.set('vocalization_locale', update_locale);
               }
               _this.appState.jump_to_board({
                 id: board.id,
