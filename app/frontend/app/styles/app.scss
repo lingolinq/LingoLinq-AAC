@@ -631,11 +631,11 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
-/* Search page: extra 48px breathing room above the hero.
+/* Search page: extra 48px + 5rem breathing room above the hero.
    !important needed to beat `#within_ember:has(header.header--unauthenticated) #content { padding-top: var(--topbar-height) !important }`
    (defined later in this file) when the search page is viewed signed-out. */
 #within_ember #content:has(.search-page) {
-  padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px) + 48px) !important;
+  padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px) + 48px + 5rem) !important;
 }
 /* User settings pages (preferences, billing, edit profile, account index):
    outlet grows with content; #content scrolls (same pattern as stats/search) */
@@ -39311,13 +39311,16 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-goals__card .well {
   background: rgba(248, 250, 252, 0.8);
   border: 1px solid var(--md-line);
-  border-radius: 14px;
+  border-radius: 20px;
   box-shadow: none;
 }
 .md-goals__card h4 {
   font-size: 14px;
   font-weight: 700;
   color: var(--md-ink);
+}
+.md-goals__card h3 {
+  margin-top: 0;
 }
 .md-goals__card .btn-default {
   border: 1px solid rgba($brand-blue-black, 0.12);
@@ -39372,6 +39375,475 @@ a.md-pillnav__pill.active .md-pillnav__badge,
     padding: 20px 18px;
     border-radius: 16px;
   }
+}
+
+/* ── Goal-list item — modern row inside the goals card ── */
+/* Action group (right side of each goal row): icon-tile buttons with
+   labels below the icon. Replaces the prior bootstrap btn-lg float-
+   right group so the actions read as a deliberate toolbar instead of
+   stacked text buttons. */
+.md-goal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  clear: both;
+}
+/* Pass-through wrapper — keeps the existing template grouping for the
+   active-goal pair (New Note + Quick Assessment) but flows children
+   directly into the parent flex layout so all tiles share one even
+   gap rule. */
+.md-goal-actions__group {
+  display: contents;
+}
+.md-goal-action {
+  flex: 1 1 0;
+  min-width: 5rem;
+  min-height: 5rem;
+  padding: 8px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba($la-navy, 0.02) 0%, rgba($la-navy, 0.07) 100%);
+  color: $brand-charcoal-dark;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.04);
+}
+.md-goal-action:hover {
+  background: linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.12) 100%);
+  border-color: rgba($la-navy, 0.20);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+.md-goal-action__icon {
+  font-size: 18px;
+  color: $la-navy;
+  line-height: 1;
+}
+.md-goal-action__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: $la-navy;
+  text-align: center;
+  white-space: normal;
+}
+
+/* Role-color modifiers — match the caseload action tile palette:
+     Note     → blue   (communication / writing)
+     Assess   → teal   (measurement / diagnostic)
+     Prio     → violet (priority / setting)
+     Retire   → coral  (completion)
+     Restore  → teal   (revival)
+     Delete   → coral  (destruction) */
+.md-goal-action--note {
+  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.04) 0%, rgba($brand-dusty-denim, 0.18) 100%);
+  border-color: rgba($brand-dusty-denim, 0.20);
+}
+.md-goal-action--note:hover {
+  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.06) 0%, rgba($brand-dusty-denim, 0.30) 100%);
+  border-color: rgba($brand-dusty-denim, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 4px rgba($brand-dusty-denim, 0.10),
+    0 6px 12px -3px rgba($brand-dusty-denim, 0.18);
+}
+.md-goal-action--assess {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.05) 0%, rgba($brand-verdigris, 0.20) 100%);
+  border-color: rgba($brand-verdigris, 0.22);
+}
+.md-goal-action--assess:hover {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.08) 0%, rgba($brand-verdigris, 0.32) 100%);
+  border-color: rgba($brand-verdigris, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 4px rgba($brand-verdigris, 0.12),
+    0 6px 12px -3px rgba($brand-verdigris, 0.20);
+}
+.md-goal-action--prio {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.04) 0%, rgba(139, 92, 246, 0.18) 100%);
+  border-color: rgba(139, 92, 246, 0.20);
+}
+.md-goal-action--prio:hover {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.06) 0%, rgba(139, 92, 246, 0.30) 100%);
+  border-color: rgba(139, 92, 246, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 4px rgba(139, 92, 246, 0.10),
+    0 6px 12px -3px rgba(139, 92, 246, 0.18);
+}
+.md-goal-action--retire,
+.md-goal-action--delete {
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.05) 0%, rgba(232, 122, 111, 0.20) 100%);
+  border-color: rgba(232, 122, 111, 0.22);
+}
+.md-goal-action--retire:hover,
+.md-goal-action--delete:hover {
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.08) 0%, rgba(232, 122, 111, 0.32) 100%);
+  border-color: rgba(232, 122, 111, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 4px rgba(232, 122, 111, 0.12),
+    0 6px 12px -3px rgba(232, 122, 111, 0.20);
+}
+.md-goal-action--restore {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.05) 0%, rgba($brand-verdigris, 0.20) 100%);
+  border-color: rgba($brand-verdigris, 0.22);
+}
+.md-goal-action--restore:hover {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.08) 0%, rgba($brand-verdigris, 0.32) 100%);
+  border-color: rgba($brand-verdigris, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 4px rgba($brand-verdigris, 0.12),
+    0 6px 12px -3px rgba($brand-verdigris, 0.20);
+}
+
+/* Contain the floated flag/avatar so the goal-item card grows to
+   fit its content (and the action toolbar that now sits centered
+   below it) instead of letting floats spill out below the bottom
+   border. */
+.md-goals__card .well.goal {
+  display: flow-root;
+}
+
+/* Coaching Strategies panel — clean caseload-card-style surface
+   with AAC industry-standard partner strategies. Neutral navy
+   vocabulary (no teal tint), modern icon badges replacing numbered
+   chips, and subtle layered shadow for depth. The supervisor's
+   original goal.description is preserved as a "Therapist note"
+   callout at the bottom when present. */
+.md-goal-coaching {
+  margin-top: 18px;
+  padding: 22px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.02) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 3px rgba($la-navy, 0.04),
+    0 6px 18px -6px rgba($la-navy, 0.10);
+}
+/* details/summary collapsible behavior — closed by default, expands
+   on click. The summary IS the head, so it's clickable. Default
+   marker hidden in favor of the rounded chevron badge on the right. */
+.md-goal-coaching:not([open]) .md-goal-coaching__head {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.md-goal-coaching__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba($la-navy, 0.07);
+  user-select: none;
+  transition: margin 0.15s ease, padding 0.15s ease, border-color 0.15s ease;
+}
+.md-goal-coaching__head::-webkit-details-marker {
+  display: none;
+}
+.md-goal-coaching__head::marker {
+  content: '';
+}
+.md-goal-coaching__head-text {
+  flex: 1;
+  min-width: 0;
+}
+.md-goal-coaching__chevron {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.10);
+  color: $la-navy;
+  transition: transform 0.18s ease, background 0.12s ease;
+}
+.md-goal-coaching__head:hover .md-goal-coaching__chevron {
+  background: rgba($la-navy, 0.08);
+}
+.md-goal-coaching[open] .md-goal-coaching__chevron {
+  transform: rotate(180deg);
+}
+.md-goal-coaching__eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+  margin-bottom: 6px;
+}
+.md-goal-coaching__lead {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.5;
+}
+.md-goal-coaching__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.md-goal-coaching__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.md-goal-coaching__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba($la-navy, 0.02) 0%, rgba($la-navy, 0.07) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  color: $la-navy;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.04);
+}
+.md-goal-coaching__body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+.md-goal-coaching__body strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.md-goal-coaching__body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.72);
+}
+.md-goal-coaching__note {
+  position: relative;
+  margin-top: 18px;
+  padding: 14px 16px 14px 19px;
+  background: rgba($la-navy, 0.03);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.md-goal-coaching__note::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, $brand-verdigris 0%, $brand-stormy-teal 100%);
+}
+.md-goal-coaching__note-label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.60);
+  margin-bottom: 4px;
+}
+.md-goal-coaching__note p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.80);
+}
+/* Override the legacy `.goal .description` rule (white-space:nowrap +
+   ellipsis + max-width: calc(100% - 200px)) so the full goal
+   description wraps across the available width in the modern card.
+   The 200px reserve was for the old float-right button cluster; now
+   that the actions sit centered below the content, the description
+   can take the full row. */
+.md-goals__card .well.goal .description {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+
+/* Modern dimensional flag icon — sits in the 50px badge slot where
+   no badge image is available. */
+.md-goal-flag-icon {
+  display: block;
+  margin-top: 4px;
+}
+
+/* Info pill for the goal's "started/ended X ago" timestamp — gray
+   glassy gradient surface with a hairline navy outline and a soft
+   contact shadow so it reads as a raised metadata badge sitting
+   beside the flag, directly under the goal summary. */
+.md-goal-time-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba($la-navy, 0.08) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba($la-navy, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  color: rgba($la-navy, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Primary Goal — sunken section. Tray-style recess that pulls the
+   primary goal INTO the page (vs the secondary/past goals that sit
+   on the page surface), using the same sunken vocabulary as the
+   caseload tray: inset shadow + soft navy-tinted bg + hairline
+   border. */
+.md-goal-primary-section {
+  margin: 12px 0 28px;
+  padding: 20px 22px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: var(--md-r-lg, 18px);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.10),
+    inset 0 1px 1px rgba($la-navy, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+}
+.md-goal-primary-section__title {
+  margin: 0 0 14px;
+}
+
+/* Past Goals — pulled out of the main goals card into its own
+   archival section beneath. Same card vocabulary as the primary
+   section (sunken tray) so retired goals feel like history, not
+   active work. */
+.md-goals__past-section {
+  margin: 28px 0;
+  padding: 20px 22px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.06);
+  border-radius: var(--md-r-lg, 18px);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.10),
+    inset 0 1px 1px rgba($la-navy, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
+}
+.md-goals__past-title {
+  margin: 0 0 14px;
+}
+.md-goals__past-section .well.goal {
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid var(--md-line);
+  border-radius: 20px;
+  box-shadow: none;
+  padding: 19px;
+  display: flow-root;
+  margin-bottom: 12px;
+}
+.md-goals__past-section .well.goal:last-child {
+  margin-bottom: 0;
+}
+.md-goals__past-section .well.goal .description {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+/* Primary goal's inner well — lighter than secondary/past with a
+   soft white→cool-gray gradient so the highest-priority goal feels
+   elevated within the sunken tray that contains it. */
+.md-goal-primary-section .well.goal {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.86) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 2px rgba($la-navy, 0.04);
+  padding: 19px;
+  display: flow-root;
+}
+.md-goal-primary-section .well.goal .description {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: 100%;
+}
+
+/* Centered row of goal-page navigation buttons (Set a New Goal /
+   Browse Community Goals / See User Badges). Matches the caseload
+   .md-caseload__action style: soft white surface, hairline border,
+   8px radius, 14px semibold ink. */
+.md-goal-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  clear: both;
+}
+.md-goal-nav-action,
+a.md-goal-nav-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  min-height: 42px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 2px rgba($la-navy, 0.04);
+}
+.md-goal-nav-action:hover,
+a.md-goal-nav-action:hover,
+.md-goal-nav-action:focus-visible {
+  background: $surface-100;
+  border-color: rgba($brand-teal, 0.30);
+  color: $brand-charcoal-dark;
+  text-decoration: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 6px rgba($la-navy, 0.08);
 }
 
 /* ── Preferences page (modern) ── */
@@ -62639,75 +63111,67 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   text-align: center !important;
 }
 
-/* Mobile-tile variant of the More Actions dropdown — hidden by
-   default at desktop widths since the corner chevron in the
-   goal-row covers this surface. !important is required because
-   the base .md-caseload__extras-dropdown { display: inline-block }
-   rule sits later in source order and would otherwise win. The
-   media query below flips it back to block for ≤950px. */
-.md-caseload__extras-dropdown--mobile {
-  display: none !important;
-}
-
-/* ≤950px: swap the corner chevron for a "More Actions" tile and
-   force the tile grid into a 3-per-row layout. The 5 action tiles
-   (Model / Speak / Setup / Usage Reports / Modeling Ideas) plus
-   the new More Actions tile = 6 tiles → 2 rows of 3.
-   Grid columns: repeat(3, 1fr) ensures uniform width. Grid rows:
+/* The OPTIONS dropdown ships as the 6th action tile ("More
+   Actions") at every width — the standalone OPTIONS row above
+   the goals section is suppressed, and the mobile-tile variant is
+   always visible. The 5 role tiles (Model / Speak / Setup / Usage
+   Reports / Modeling Ideas) plus More Actions = 6 tiles → 2 rows
+   of 3. Grid columns: repeat(3, 1fr) for uniform width; grid rows:
    1fr so both rows share the same height. Tile-base flex/min/max
    constraints are explicitly cleared since grid sizing now drives
    layout. */
-@media (max-width: 950px) {
-  .md-caseload__extras-dropdown:not(.md-caseload__extras-dropdown--mobile) {
-    display: none !important;
-  }
-  .md-caseload__extras-dropdown--mobile {
-    display: block !important;
-  }
-  /* With the corner chevron hidden, the bottom-row only contains
-     the goal area. The base rule uses justify-content:
-     space-between (designed for goal-left + chevron-right), which
-     can produce visually-skewed alignment when only one child
-     remains. Force the goal chip flush to the left edge and let
-     the goal area span the card width. */
-  .md-caseload__bottom-row {
-    justify-content: flex-start !important;
-  }
-  .md-caseload__bottom-row__goal {
-    width: 100%;
-  }
-  .md-caseload__goal-row {
-    max-width: 100%;
-  }
-  .md-caseload__actions--tiles {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    grid-auto-rows: 1fr !important;
-    gap: 6px;
-  }
-  /* Override the base tile's 8rem max-width / 5rem basis so tiles
-     stretch to fill their grid cell evenly. */
-  .md-caseload__actions--tiles > .md-caseload__action--tile {
-    flex: initial !important;
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    height: 100% !important;
-  }
-  /* The More Actions wrapper sits as a grid item; stretch it to
-     fill the cell and force its inner button to fill the wrapper
-     so it visually matches the other tiles in both width and
-     height. */
-  .md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile {
-    width: 100%;
-    height: 100%;
-  }
-  .md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile .md-caseload__action--more {
-    width: 100%;
-    height: 100%;
-    max-width: none !important;
-    min-width: 0 !important;
-  }
+.md-caseload__options-row {
+  display: none !important;
+}
+.md-caseload__extras-dropdown:not(.md-caseload__extras-dropdown--mobile) {
+  display: none !important;
+}
+.md-caseload__extras-dropdown--mobile {
+  display: block !important;
+}
+/* With the corner chevron hidden, the bottom-row only contains
+   the goal area. The base rule uses justify-content:
+   space-between (designed for goal-left + chevron-right), which
+   can produce visually-skewed alignment when only one child
+   remains. Force the goal chip flush to the left edge and let
+   the goal area span the card width. */
+.md-caseload__bottom-row {
+  justify-content: flex-start !important;
+}
+.md-caseload__bottom-row__goal {
+  width: 100%;
+}
+.md-caseload__goal-row {
+  max-width: 100%;
+}
+.md-caseload__actions--tiles {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-auto-rows: 1fr !important;
+  gap: 6px;
+}
+/* Override the base tile's 8rem max-width / 5rem basis so tiles
+   stretch to fill their grid cell evenly. */
+.md-caseload__actions--tiles > .md-caseload__action--tile {
+  flex: initial !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+}
+/* The More Actions wrapper sits as a grid item; stretch it to
+   fill the cell and force its inner button to fill the wrapper
+   so it visually matches the other tiles in both width and
+   height. */
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile {
+  width: 100%;
+  height: 100%;
+}
+.md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile .md-caseload__action--more {
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 /* Caseload search filter — sits above the grid, mirrors the SaaS
    "rounded input with leading icon" pattern used elsewhere in the
@@ -62801,15 +63265,208 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-caseload__empty--no-matches .md-modal-btn {
   margin-top: 14px;
 }
+
+/* ── Google Classroom-style compact student list ────────────────
+   Rows of supervisees, each with an avatar, name + current goal,
+   and a strip of quick-action icons (Model / Note / Assessment /
+   Reports). Clicking a row sets selectedSupervisee in the
+   controller, which collapses the list to that one row and expands
+   the full caseload card below. The "Full List" button (rendered
+   above the list when a selection is active) restores the full
+   roster. */
+.md-caseload__list-controls {
+  display: flex;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.md-caseload__back-to-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 999px;
+  background: #fff;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba($la-navy, 0.04);
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__back-to-list:hover,
+.md-caseload__back-to-list:focus-visible {
+  background: $surface-100;
+  border-color: rgba($brand-verdigris, 0.35);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
+}
+.md-caseload__back-to-list svg {
+  color: rgba($la-navy, 0.70);
+}
+.md-caseload__list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.md-caseload__list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.02) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 1px 2px rgba($la-navy, 0.04);
+  /* The entire row is clickable — selectSupervisee is bound to
+     <li> via {{action}}. Inner quick-action buttons are still
+     clickable independently because the controller checks the
+     event.target and skips toggling when the click originated
+     inside .md-caseload__list-quick. */
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__list-row:hover {
+  border-color: rgba($brand-verdigris, 0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+.md-caseload__list-row--active {
+  border-color: rgba($brand-verdigris, 0.50);
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.08) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($brand-verdigris, 0.12);
+}
+.md-caseload__list-trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+  color: inherit;
+}
+.md-caseload__list-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: $surface-100;
+  border: 1px solid rgba($la-navy, 0.08);
+}
+.md-caseload__list-avatar--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba($la-navy, 0.04) 0%, rgba($la-navy, 0.08) 100%);
+  color: $la-navy;
+}
+.md-caseload__list-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-caseload__list-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-caseload__list-goal {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.65);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-caseload__list-quick {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.md-caseload__quick-action,
+a.md-caseload__quick-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 9px;
+  background: rgba($la-navy, 0.02);
+  color: $la-navy;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-caseload__quick-action:hover,
+a.md-caseload__quick-action:hover,
+.md-caseload__quick-action:focus-visible {
+  background: rgba($brand-verdigris, 0.08);
+  border-color: rgba($brand-verdigris, 0.30);
+  box-shadow: 0 1px 3px rgba($la-navy, 0.06);
+  text-decoration: none;
+}
+.md-caseload__list-chevron {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  color: rgba($la-navy, 0.45);
+  margin-left: 2px;
+  transition: transform 0.18s ease, color 0.12s ease;
+}
+.md-caseload__list-row--active .md-caseload__list-chevron {
+  transform: rotate(180deg);
+  color: $brand-verdigris-aa;
+}
+@media (max-width: 640px) {
+  .md-caseload__list-quick {
+    /* On narrow screens, reduce to the two most-used quick actions
+       (Note + Assessment) to keep the row readable. Model + Reports
+       are still accessible from the full card below. */
+    gap: 3px;
+  }
+  .md-caseload__quick-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .md-caseload__quick-action--model,
+  .md-caseload__quick-action--reports {
+    display: none;
+  }
+}
+
 .md-caseload__grid {
   display: grid;
-  /* Track minimum is min(400px, 100%): on viewports wider than
-     400px (effectively every desktop/tablet width), each card
-     grows to at least 400px and the grid auto-fills as many
-     columns as fit; on viewports narrower than 400px the track
-     collapses to 100% of the container so the card spans the
-     available width without horizontal overflow. */
-  grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
+  /* Single-card layout: the grid now only ever renders the
+     selected supervisee's card (the rest collapse into the compact
+     list above). Center the column on the page and cap its width
+     at 800px so the card reads as a focused detail panel rather
+     than a roster cell. min(800px, 100%) keeps it edge-to-edge on
+     narrow viewports. */
+  grid-template-columns: minmax(0, min(800px, 100%));
+  justify-content: center;
   gap: 16px;
 }
 .md-caseload__card {
@@ -63030,7 +63687,7 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      white→tinted gradient, controlled blur on the surface for
      glass quality, directional shadow biased to match the card's
      upper-left light source. */
-  margin: 0;
+  margin: 14px 0 0;
   padding: 16px 18px;
   border-radius: 14px;
   background:
@@ -63191,22 +63848,24 @@ details.md-caseload__goal-row--list {
      wider than its column. */
   padding: 10px 14px;
   min-height: 52px;
-  background: linear-gradient(
-    180deg,
-    rgba($brand-verdigris, 0.05) 0%,
-    rgba($brand-verdigris, 0.12) 100%
-  );
-  /* Match the crisper border + tighter shadow of the unified
-     .md-caseload__goal-row chip so single-goal and multi-goal
-     states stay visually identical. */
-  border: 1.5px solid rgba($brand-verdigris, 0.55);
+  /* Glass surface — mirrors the landing-alt "Why LingoLinq"
+     eyebrow pill (.la-section-eyebrow-badge): teal tint with
+     backdrop-filter blur, teal border, soft teal lift shadow.
+     Layered on a subtle gradient + inset top highlight to give the
+     surface a true glass-rim quality (the parent's own
+     backdrop-filter blocks the chip's blur from rendering, so we
+     simulate the glass quality with explicit layering). */
+  background:
+    linear-gradient(180deg, rgba($brand-teal, 0.05) 0%, rgba($brand-teal, 0.11) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba($brand-teal, 0.28);
   border-radius: 10px;
   cursor: pointer;
   overflow: hidden;
   box-shadow:
-    0 1px 2px rgba($brand-verdigris, 0.08),
-    0 2px 6px -2px rgba($brand-verdigris, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 2px 10px rgba($brand-teal, 0.10);
 }
 .md-caseload__goal-row--list > summary::-webkit-details-marker {
   display: none;
@@ -63315,25 +63974,25 @@ details.md-caseload__goal-row--list {
 .md-caseload__goal-list__dot {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal-list__dot--in_progress {
   background: $brand-honey-bronze;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal-list__dot--achieved {
   background: color.adjust($brand-verdigris, $lightness: 6%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal-list__dot--paused {
   background: transparent;
   box-shadow:
     inset 0 0 0 2px rgba($brand-slate-gray, 0.6),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 /* "Primary" tag — small uppercase pill marking which active goal
    is the user's designated primary. Soft verdigris fill so it
@@ -63403,7 +64062,7 @@ details.md-caseload__goal-row--list {
   background: $brand-dusty-denim;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 /* Status variants — compound selectors so the variant backgrounds
    always win over the base rule regardless of source-order tie.
@@ -63425,11 +64084,36 @@ details.md-caseload__goal-row--list {
   background: transparent;
   box-shadow:
     inset 0 0 0 2px rgba($brand-slate-gray, 0.55),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal-list__text {
   flex: 1;
   min-width: 0;
+}
+/* Link variant of the goal-list text — rendered when the supporter
+   has edit permission. Keeps the slate body color at rest and uses
+   a quiet underline + deeper navy on hover/focus so the affordance
+   reads as "open this goal to edit" without competing with the
+   clinical Primary/Status pills next to it. */
+.md-caseload__goal-list__link,
+a.md-caseload__goal-list__link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.12s ease, text-decoration-color 0.12s ease;
+}
+.md-caseload__goal-list__link:hover,
+.md-caseload__goal-list__link:focus-visible {
+  color: rgba($la-navy, 0.92);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba($brand-verdigris-aa, 0.55);
+}
+.md-caseload__goal-list__link:focus-visible {
+  outline: 2px solid rgba($brand-verdigris-aa, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 /* Refined avatar treatment — flatter ring, soft surface fallback,
    subtle shadow so the photo (or default placeholder) reads as a
@@ -63580,11 +64264,20 @@ details.md-caseload__goal-row--list {
   height: 100%;
   border-radius: 50%;
 }
-/* Pure-CSS swap mirroring the identity-dropdown pattern: when the
-   image src matches the legacy default-avatar placeholder, hide the
-   image and show the Apple-style SVG fallback as a background image
-   on the avatar-link container. No helper, no template conditional,
-   no rebuild required — purely CSS-driven. */
+/* Caseload card avatar — KEEPS the inline SVG fallback. Every
+   other avatar surface in the app now uses the redesigned colored
+   PNGs in public/avatars/, but the big card on the caseload page
+   intentionally renders the teal LingoLinq SVG composition so the
+   primary supervisee identity stays visually consistent across all
+   communicators. The :has() rule below hides the <img> and shows
+   the .md-caseload__avatar--svg element from the template whenever
+   the src is a placeholder `/avatars/avatar-N.png`. */
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) img.md-caseload__avatar {
+  display: none !important;
+}
+.md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) svg.md-caseload__avatar--svg {
+  display: block !important;
+}
 .md-caseload__avatar-link:has(img.md-caseload__avatar[src*="/avatars/avatar-"]) {
   /* LingoLinq communicator avatar — concentric clean composition:
      soft mint-blue outer gradient, white inner ring, soft inner
@@ -63760,6 +64453,12 @@ details.md-caseload__goal-row--list {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.3;
+  /* The status-bullet `::before` dot has a 1px outset box-shadow as
+     its dark outline. Without left padding, the span's overflow:
+     hidden (needed for text-overflow ellipsis) clips that 1px
+     outline on the dot's left edge. 1px of left padding gives the
+     outline room to render fully. */
+  padding-left: 1px;
 }
 /* Status bullet before each goal — DEFAULT (active) is verdigris.
    Status modifiers below let the bullet flex into a true status
@@ -63798,7 +64497,7 @@ details.md-caseload__goal-row--list {
   background: $brand-dusty-denim;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal--empty::before {
   display: none;
@@ -63814,13 +64513,13 @@ details.md-caseload__goal-row--list {
   background: #16a34a;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal--status-paused::before {
   background: transparent;
   box-shadow:
     inset 0 0 0 2px rgba($brand-slate-gray, 0.55),
-    0 0 0 1px rgba($la-navy, 0.16);
+    0 0 0 1px rgba($la-navy, 0.55);
 }
 .md-caseload__goal--empty {
   color: #8a93a3;
@@ -64099,11 +64798,11 @@ details.md-caseload__goal-row--list {
      - Hover values stay punchy (~2× the resting tint) so the
        interaction reads as deliberate.
    Hierarchy:
-     Model    → teal     (PRIMARY — full glass tile, separate rule)
-     Speak    → blue     (communication)
-     Setup    → violet   (user/admin)
-     Reports  → slate    (neutral data)
-     Ideas    → amber    (guidance) */
+     Model    → teal      (PRIMARY — full glass tile, separate rule)
+     Speak    → blue      (communication)
+     Setup    → violet    (user/admin)
+     Reports  → terracotta (data — warm coral from $la-cta-gradient)
+     Ideas    → amber     (guidance) */
 /* Role color tints — kept the gradient floor so the chroma still
    reads, but borders dropped (35→18, 45→24) and outer drop
    shadows replaced with crisp inset highlights so the tiles feel
@@ -64136,17 +64835,17 @@ details.md-caseload__goal-row--list {
     0 6px 12px -3px rgba(139, 92, 246, 0.18);
 }
 .md-caseload__action--reports {
-  background: linear-gradient(180deg, rgba(100, 116, 139, 0.04) 0%, rgba(100, 116, 139, 0.14) 100%);
-  border-color: rgba(100, 116, 139, 0.16);
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.05) 0%, rgba(232, 122, 111, 0.20) 100%);
+  border-color: rgba(232, 122, 111, 0.22);
 }
 .md-caseload__action--reports:hover {
-  background: linear-gradient(180deg, rgba(100, 116, 139, 0.06) 0%, rgba(100, 116, 139, 0.24) 100%);
-  border-color: rgba(100, 116, 139, 0.38);
+  background: linear-gradient(180deg, rgba(232, 122, 111, 0.08) 0%, rgba(232, 122, 111, 0.32) 100%);
+  border-color: rgba(232, 122, 111, 0.48);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba(100, 116, 139, 0.10),
-    0 6px 12px -3px rgba(100, 116, 139, 0.16);
+    0 2px 4px rgba(232, 122, 111, 0.12),
+    0 6px 12px -3px rgba(232, 122, 111, 0.20);
 }
 .md-caseload__action--ideas {
   background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.05) 0%, rgba($brand-honey-bronze, 0.22) 100%);
@@ -64205,7 +64904,7 @@ details.md-caseload__goal-row--list {
 .md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#2A9D8F"],
 .md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#4C86D8"],
 .md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#8B5CF6"],
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#5A6A85"],
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#E87A6F"],
 .md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#F2B95A"] {
   stroke-width: 1.7;
 }
@@ -64385,6 +65084,13 @@ a.md-caseload__action {
      contents instead of stretching across the column. */
   display: inline-flex;
   align-self: center;
+  /* Lift the wrapper's stacking context above every other element
+     on the caseload card so the open dropdown menu (z:9999 below)
+     paints above tiles, pills, ring, goals row — everything. */
+  z-index: 9000;
+}
+.md-caseload__extras-dropdown.open {
+  z-index: 9999;
 }
 /* Modern action menu — matches the .md-settings-dropdown-menu look:
    pill container with soft shadow, rounded corners, hover-tinted rows,
@@ -64406,11 +65112,12 @@ a.md-caseload__action {
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
-  /* High z-index so the open menu always sits ABOVE the action
-     tiles below — without this, the role-color tints on the
-     Speak / Setup / Ideas tiles bleed through where the menu
-     overlaps them. */
-  z-index: 1050;
+  /* Highest z-index on the caseload card — guarantees the open
+     menu sits ABOVE every other element (action tiles, pills, goal
+     row, identity ring, etc.). Combined with the wrapper's
+     z-index: 9999 stacking context, nothing on the card can paint
+     above the menu. */
+  z-index: 99999;
   /* Isolate creates a fresh stacking context so the menu's items
      can't get caught in a transformed parent's layering. */
   isolation: isolate;
@@ -64527,14 +65234,6 @@ a.md-caseload__action {
 @media (max-width: 480px) {
   .md-caseload__grid {
     grid-template-columns: 1fr;
-  }
-  .md-caseload__actions--tiles .md-caseload__action--tile {
-    width: calc(50% - 5px);
-    min-width: 0;
-    flex: 1 1 calc(50% - 5px);
-    max-width: calc(50% - 5px);
-    height: auto;
-    min-height: 6.25rem;
   }
   /* On narrow screens, stack the card header so the avatar/info
      and the access/chevron columns don't overlap. card-corner moves

@@ -28,11 +28,28 @@
   </div>
 {{else if this.isLibraryCompare}}
   <div class="evq-item__library-compare">
-    <button type="button" class="evq-item__library-tile evq-item__library-tile--{{this.item.library}}" {{action "libraryCompareTap"}}>
-      <span class="evq-item__library-tag">{{t "Library" key="evq_library_label"}} {{this.item.library}}</span>
-      <span class="evq-item__library-word">{{this.item.word}}</span>
-    </button>
-    <p class="evq-item__hint">{{t "Tap if the symbol clearly represents the word." key="evq_library_compare_hint"}}</p>
+    <p class="evq-item__library-word">{{this.item.word}}</p>
+    {{#if this.item.library_options}}
+      {{!-- New 3-way bake-off: tile per library, all images for the same word --}}
+      <div class="evq-item__library-row">
+        {{#each this.shuffledLibraryOptions as |opt|}}
+          <button type="button" class="evq-item__library-tile" {{action "libraryCompareTap" opt}}>
+            <img src={{opt.image}} class="evq-item__library-image" alt="" loading="lazy"/>
+          </button>
+        {{/each}}
+      </div>
+    {{else}}
+      {{!-- Legacy single-tile fallback for profiles whose library_compare items
+           haven't been upgraded to the 3-way shape yet (adult-motor,
+           peds-established). Renders the word's symbol so the SLP can still
+           score "is this symbol clear?" with a visual instead of text-only. --}}
+      <div class="evq-item__library-row evq-item__library-row--single">
+        <button type="button" class="evq-item__library-tile" {{action "libraryCompareTap"}}>
+          {{eval-symbol slug=this.item.word size=120}}
+        </button>
+      </div>
+    {{/if}}
+    <p class="evq-item__hint">{{t "Tap the picture that reads clearest for this word." key="evq_library_compare_hint_v2"}}</p>
   </div>
 {{else if this.isSequence}}
   <div class="evq-item__sequence-status">
@@ -48,8 +65,11 @@
     {{/if}}
   </div>
   <div class="evq-item__choice-grid evq-item__choice-grid--sequence">
-    {{#each this.item.options as |opt|}}
-      <button type="button" class="evq-item__choice-tile" {{action "pickOption" opt}}>
+    {{#each this.decoratedOptions as |opt|}}
+      <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{action "pickOption" opt}}>
+        {{#if opt.symbol_slug}}
+          {{eval-symbol slug=opt.symbol_slug size=80}}
+        {{/if}}
         <span class="evq-item__choice-label">{{opt.label}}</span>
       </button>
     {{/each}}
@@ -62,8 +82,11 @@
   </div>
 {{else if this.isChoiceLike}}
   <div class="evq-item__choice-grid evq-item__choice-grid--cols-{{this.item.options.length}}">
-    {{#each this.item.options as |opt|}}
-      <button type="button" class="evq-item__choice-tile" {{action "pickOption" opt}}>
+    {{#each this.decoratedOptions as |opt|}}
+      <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{action "pickOption" opt}}>
+        {{#if opt.symbol_slug}}
+          {{eval-symbol slug=opt.symbol_slug size=90}}
+        {{/if}}
         <span class="evq-item__choice-label">{{opt.label}}</span>
       </button>
     {{/each}}

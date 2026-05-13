@@ -260,6 +260,9 @@ LingoLinq::Application.routes.draw do
     # an alias so anything that was already calling it keeps working.
     post 'users/:user_id/eval_sessions/recommend' => 'eval_sessions#recommend'
     post 'users/:user_id/eval_recommend' => 'eval_sessions#recommend'
+    # Comprehensive Eval (Mode 3) AI narration. Gated by the
+    # comprehensive_eval_ai feature flag inside the controller.
+    post 'eval_sessions/narrate' => 'eval_sessions#narrate'
     
     resources :badges
     
@@ -316,6 +319,7 @@ LingoLinq::Application.routes.draw do
     
     resources :logs do
       get 'lam'
+      get 'eval_pdf'
       get 'obl', on: :collection
       post 'import' => 'logs#import', on: :collection
       post 'code_check' => 'logs#code_check', on: :collection

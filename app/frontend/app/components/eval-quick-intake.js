@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import eval_recommend from '../utils/eval_recommend';
+import eval_access_detect from '../utils/eval_access_detect';
 
 /*
  * eval-quick-intake — 60-second intake form.
@@ -53,12 +54,50 @@ export default Component.extend({
     ];
   }),
 
-  accessOptions: computed(function() {
+  // Detected hardware availability for each access method. Computed
+  // once on intake mount so the badges below the access pills reflect
+  // what the eval can actually run in (see eval_access_detect.js).
+  accessDetection: computed(function() {
+    try { return eval_access_detect.detect(); }
+    catch (e) { return { touch: { status: 'ready' }, scan: { status: 'software_fallback' }, gaze: { status: 'unavailable' } }; }
+  }),
+
+  accessOptions: computed('accessDetection', function() {
+    const det = this.get('accessDetection');
+    const statusLabel = function(s) {
+      if (s === 'ready') { return i18n.t('access_status_ready', "Detected"); }
+      if (s === 'software_fallback') { return i18n.t('access_status_fallback', "Software fallback"); }
+      return i18n.t('access_status_unavailable', "No hardware detected");
+    };
     return [
-      { value: 'touch', label: i18n.t('access_touch', "Direct touch") },
-      { value: 'scan',  label: i18n.t('access_scan', "Switch / scanning") },
-      { value: 'gaze',  label: i18n.t('access_gaze', "Eye gaze") },
-      { value: 'unknown', label: i18n.t('access_unknown', "Unknown — try multiple") }
+      {
+        value: 'touch',
+        label: i18n.t('access_touch', "Direct touch"),
+        status: det.touch.status,
+        statusLabel: statusLabel(det.touch.status),
+        unavailable: det.touch.status === 'unavailable'
+      },
+      {
+        value: 'scan',
+        label: i18n.t('access_scan', "Switch / scanning"),
+        status: det.scan.status,
+        statusLabel: statusLabel(det.scan.status),
+        unavailable: det.scan.status === 'unavailable'
+      },
+      {
+        value: 'gaze',
+        label: i18n.t('access_gaze', "Eye gaze"),
+        status: det.gaze.status,
+        statusLabel: statusLabel(det.gaze.status),
+        unavailable: det.gaze.status === 'unavailable'
+      },
+      {
+        value: 'unknown',
+        label: i18n.t('access_unknown', "Unknown — try multiple"),
+        status: 'ready',
+        statusLabel: null,
+        unavailable: false
+      }
     ];
   }),
 

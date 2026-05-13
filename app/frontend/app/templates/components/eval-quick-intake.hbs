@@ -49,10 +49,26 @@
 
     <div class="evq-intake__field">
       <p class="evq-intake__legend">{{t "Suspected access channel" key="intake_suspected_access"}}</p>
-      <div class="evq-pillgroup" role="radiogroup" aria-label={{t "Suspected access channel" key="intake_suspected_access"}}>
+      <div class="evq-pillgroup evq-pillgroup--access" role="radiogroup" aria-label={{t "Suspected access channel" key="intake_suspected_access"}}>
         {{#each this.accessOptions as |opt|}}
-          <button type="button" role="radio" class="evq-pill {{if (is_equal this.suspectedAccess opt.value) 'evq-pill--active'}}" aria-checked={{if (is_equal this.suspectedAccess opt.value) "true" "false"}} {{action "pick" "suspectedAccess" opt.value}}>
-            {{opt.label}}
+          <button type="button" role="radio"
+                  class="evq-pill evq-pill--access {{if (is_equal this.suspectedAccess opt.value) 'evq-pill--active'}} evq-pill--access-status-{{opt.status}}"
+                  aria-checked={{if (is_equal this.suspectedAccess opt.value) "true" "false"}}
+                  disabled={{opt.unavailable}}
+                  {{action "pick" "suspectedAccess" opt.value}}>
+            <span class="evq-pill__label">{{opt.label}}</span>
+            {{#if opt.statusLabel}}
+              <span class="evq-pill__status-badge evq-pill__status-badge--{{opt.status}}" aria-label={{opt.statusLabel}}>
+                {{#if (is_equal opt.status 'ready')}}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 13 10 18 19 7"/></svg>
+                {{else if (is_equal opt.status 'software_fallback')}}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{else}}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                {{/if}}
+                {{opt.statusLabel}}
+              </span>
+            {{/if}}
           </button>
         {{/each}}
       </div>

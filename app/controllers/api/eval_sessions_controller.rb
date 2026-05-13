@@ -28,11 +28,43 @@ class Api::EvalSessionsController < ApplicationController
     }
   end
 
+  # POST /api/v1/eval_sessions/narrate
+  #
+  # Comprehensive Eval (Mode 3) AI narration. Takes the session
+  # payload (eval_mode, intake, recommendation, events, sett,
+  # slp_notes) and returns an SLP-readable narrative drafted by the
+  # configured AI provider. Gated by the comprehensive_eval_ai
+  # feature flag so it only runs for opted-in orgs.
+  #
+  # Uses EvalNarrator with prompt caching on the system prompt (per
+  # CLAUDE.md `claude-api` skill) so the per-session cost stays low —
+  # the system prompt + few-shot examples are cached, only the
+  # per-session evaluation data varies.
+  def narrate
+    return unless ai_feature_enabled?
+    eval_data = params['eval_session'] || {}
+    if !eval_data.respond_to?(:present?) || !eval_data.present?
+      api_error(400, { error: 'eval_session payload required' })
+      return
+    end
+    payload = eval_data.respond_to?(:to_unsafe_h) ? eval_data.to_unsafe_h : eval_data.to_h
+    narrative = EvalNarrator.draft_narrative(payload.with_indifferent_access)
+    render json: { 'narrative' => narrative }
+  rescue EvalNarrator::NarrationError => e
+    api_error 502, { error: e.message }
+  end
+
   protected
 
   def feature_enabled?
     return true if FeatureFlags.feature_enabled_for?('quick_screen_eval', @api_user)
     api_error 400, { error: 'feature not enabled' }
+    false
+  end
+
+  def ai_feature_enabled?
+    return true if FeatureFlags.feature_enabled_for?('comprehensive_eval_ai', @api_user)
+    api_error 400, { error: 'comprehensive_eval_ai feature not enabled' }
     false
   end
 end

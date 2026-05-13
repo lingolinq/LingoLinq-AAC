@@ -62,9 +62,17 @@ function judgeSequence(item, response) {
 }
 
 function judgeAccessSnapshot(item, response) {
-  // For grid-tap items the picked index must match item.target.
+  // The runtime randomizes the target cell each render, so we trust
+  // the `runtime_target` value on the response (falling back to the
+  // source item's `target` for any legacy code path that doesn't
+  // populate it). `correct` is also emitted from the runner — prefer
+  // that when present.
   if (response.picked_index == null) { return 'no_response'; }
-  return response.picked_index === item.target ? 'correct' : 'incorrect';
+  if (typeof response.correct === 'boolean') {
+    return response.correct ? 'correct' : 'incorrect';
+  }
+  const target = response.runtime_target != null ? response.runtime_target : item.target;
+  return response.picked_index === target ? 'correct' : 'incorrect';
 }
 
 function judgeCauseEffect(item, response) {
@@ -109,6 +117,14 @@ function buildEvent(subtest, item, response, judgement) {
   }
   if (item.library) {
     event.library = item.library;
+  }
+  // 3-way bake-off: log which library the user actually picked.
+  // The recommendation engine pickLibrary() tallies these.
+  if (response && response.library_picked) {
+    event.library_picked = response.library_picked;
+  }
+  if (response && response.word) {
+    event.word = response.word;
   }
   if (response && response.hit_pos) {
     event.hit_pos = response.hit_pos;

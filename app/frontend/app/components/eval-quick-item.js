@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { later, cancel } from '@ember/runloop';
 import auto_score from '../utils/eval_auto_score';
+import eval_symbols from '../utils/eval_symbols';
 import speecher from '../utils/speecher';
 
 /*
@@ -79,6 +80,7 @@ export default Component.extend({
     this.set('itemStartedAt', Date.now());
     this.set('pickedSequence', []);
     this.set('resolved', false);
+    this._rollRuntimeTarget();
 
     if (this.get('speakPrompts') && speecher && speecher.speak_text && this.get('item.prompt_default')) {
       try { speecher.speak_text(this.get('item.prompt_default')); }
@@ -130,15 +132,67 @@ export default Component.extend({
     return auto_score.isAutoScorable(this.get('item'));
   }),
 
+  // Decorate each option with a symbol slug (consumed by the
+  // eval-symbol component) AND shuffle the order so the correct
+  // answer doesn't always sit in the top-left tile. The eval-item
+  // source order always puts `is_target: true` first; without a
+  // shuffle, a student could pass the eval by always tapping the
+  // first option. Auto-scoring keys off `is_target` on the option
+  // object, not position, so shuffling is safe across every kind
+  // (choice, match, category, syntax, sequencing — sequencing in
+  // particular relies on shuffle so the prompt "Tap 1, 2, 3" is
+  // non-trivial).
+  //
+  // Shuffle is cached per item because the computed dep
+  // `item.options.[]` only fires when the item changes (each subtest
+  // step replaces `currentItem`, which re-instances this component,
+  // which clears the cache). So the SLP sees a stable layout while
+  // looking at a given item, and a fresh shuffle for the next item.
+  decoratedOptions: computed('item.options.[]', function() {
+    const decorated = eval_symbols.decorateOptions(this.get('item.options'));
+    return this._fisherYates(decorated);
+  }),
+
+  // Shuffled library tiles for the 3-way bake-off. Reshuffled once
+  // per item so library A isn't always on the left (would bias the
+  // pick toward whichever library is rendered first).
+  shuffledLibraryOptions: computed('item.id', 'item.library_options.[]', function() {
+    return this._fisherYates(this.get('item.library_options') || []);
+  }),
+
+  _fisherYates(arr) {
+    const a = (arr || []).slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  },
+
   // ── access_snapshot grid bookkeeping ───────────────────────────
 
-  gridCells: computed('item', function() {
+  // Plain property set by startItem() so every item-arm (including
+  // re-arms via the itemDidChange observer when the runner swaps in
+  // a new item) gets a freshly-rolled target index. We tried a
+  // computed-based approach earlier; the cache invalidation didn't
+  // fire reliably on attr-driven item changes in classic Components.
+  runtimeTargetIndex: 0,
+
+  _rollRuntimeTarget() {
+    const item = this.get('item');
+    if (!item || !item.grid) { this.set('runtimeTargetIndex', 0); return; }
+    const total = item.grid[0] * item.grid[1];
+    this.set('runtimeTargetIndex', total > 1 ? Math.floor(Math.random() * total) : 0);
+  },
+
+  gridCells: computed('item', 'runtimeTargetIndex', function() {
     const item = this.get('item');
     if (!item || !item.grid) { return []; }
     const total = item.grid[0] * item.grid[1];
+    const target = this.get('runtimeTargetIndex');
     const cells = [];
     for (let i = 0; i < total; i++) {
-      cells.push({ index: i, isTarget: i === item.target });
+      cells.push({ index: i, isTarget: i === target });
     }
     return cells;
   }),
@@ -216,11 +270,12 @@ export default Component.extend({
     },
 
     pickGridCell(cell) {
-      const item = this.get('item');
-      const target_pos = item ? [item.target, 0] : null;
+      const target = this.get('runtimeTargetIndex');
       this.resolveWith({
         picked_index: cell.index,
-        target_pos: target_pos,
+        runtime_target: target,
+        correct: cell.index === target,
+        target_pos: [target, 0],
         hit_pos: [cell.index, 0]
       });
     },
@@ -231,12 +286,15 @@ export default Component.extend({
       this.resolveWith({ picked: { label: this.get('item.button_label') || 'press', is_target: true } });
     },
 
-    libraryCompareTap() {
-      // For the library comparison the communicator simply taps the
-      // word — the recommendation engine compares latency / accuracy
-      // across the paired (a/b) items.
+    libraryCompareTap(opt) {
+      // 3-way library bake-off: the user taps the symbol they read
+      // clearest. We log the library they picked so the engine can
+      // tally winners across trials. `is_target` is always true —
+      // every pick is a valid data point, not a correct/incorrect.
       this.resolveWith({
-        picked: { label: this.get('item.word'), is_target: true }
+        picked: { label: this.get('item.word'), is_target: true },
+        library_picked: opt && opt.library,
+        word: this.get('item.word')
       });
     },
 

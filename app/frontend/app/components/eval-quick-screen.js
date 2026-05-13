@@ -28,6 +28,12 @@ export default Component.extend({
   isReviewing: computed('session.state', function() {
     return this.get('session.state') === 'reviewing';
   }),
+  isTargeting: computed('session.state', function() {
+    return this.get('session.state') === 'targeting';
+  }),
+  isComprehensive: computed('session.state', function() {
+    return this.get('session.state') === 'comprehensive';
+  }),
 
   estimatedMinutes: computed(function() {
     return 5;
@@ -74,7 +80,22 @@ export default Component.extend({
     },
 
     promoteToTargeted() {
-      modal.notice(i18n.t('eval_targeted_coming_soon', "Targeted Eval (10-minute mode) is coming soon. The current screen has been saved."));
+      const session = this.get('session');
+      // Preserves all Quick Screen events + intake + the Quick
+      // Screen recommendation as a checkpoint; flips mode to
+      // 'targeted' and resets the subtest cursor onto the targeted
+      // protocol's subtest order.
+      session.promoteToTargeted();
+      this.notifyPropertyChange('session');
+    },
+
+    promoteToComprehensive() {
+      const session = this.get('session');
+      // Preserves the screening + targeted events + recommendation;
+      // flips mode to 'comprehensive' and routes into the
+      // dynamic-assessment / SETT / AI-narration subtests.
+      session.promoteToComprehensive();
+      this.notifyPropertyChange('session');
     },
 
     cancel() {

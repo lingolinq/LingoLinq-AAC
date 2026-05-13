@@ -17,9 +17,42 @@ function resolveSuperviseeHomeBoardKey(s) {
   );
 }
 
+// Palette for the 10 colored avatar PNGs in public/avatars/. The
+// caseload card renders its outer glass frame from the inline SVG
+// (kept constant across all communicators) but the inner silhouette
+// pulls its head/shadow colors from this palette so the card's
+// silhouette matches the avatar PNG used everywhere else for that
+// communicator.
+var CASELOAD_AVATAR_PALETTE = [
+  { head: '#5BAEA4', shadow: '#222A4F' }, // 0: teal
+  { head: '#5B9BE0', shadow: '#1F2D55' }, // 1: blue
+  { head: '#9B7BF7', shadow: '#2D1A4D' }, // 2: violet
+  { head: '#F0913E', shadow: '#5C3014' }, // 3: orange
+  { head: '#F2C26E', shadow: '#8A6B44' }, // 4: amber
+  { head: '#D8478A', shadow: '#4D1531' }, // 5: magenta
+  { head: '#34C99A', shadow: '#0E4D3B' }, // 6: emerald
+  { head: '#5BBEEF', shadow: '#0C4A6E' }, // 7: sky
+  { head: '#4E8E8E', shadow: '#0F2A2B' }, // 8: stormy teal
+  { head: '#B98DEC', shadow: '#3B1759' }  // 9: plum
+];
+
 function decorateSuperviseeForCaseload(s) {
   var copy = Object.assign({}, s);
   copy.resolved_home_board_key = resolveSuperviseeHomeBoardKey(s);
+  // Extract avatar slot 0-9 from the user's avatar_url path so the
+  // inline silhouette SVG on the caseload card matches the PNG
+  // assigned by the backend.
+  var slot = 0;
+  if (s && s.avatar_url) {
+    var match = String(s.avatar_url).match(/\/avatars\/avatar-(\d+)\.png/);
+    if (match) {
+      slot = parseInt(match[1], 10);
+      if (isNaN(slot) || slot < 0 || slot > 9) { slot = 0; }
+    }
+  }
+  var palette = CASELOAD_AVATAR_PALETTE[slot];
+  copy.avatar_head_color = palette.head;
+  copy.avatar_shadow_color = palette.shadow;
   // Surface a count + multi-goal flag derived from whatever the
   // payload provides. Prefer an explicit active_goals array if
   // present; otherwise fall back to 1/0 based on the legacy
@@ -60,6 +93,33 @@ export default Controller.extend({
   // to the search input rendered above the grid.
   superviseeFilter: '',
 
+  // Google Classroom-style flow: the caseload page renders a compact
+  // student list by default. The full supervisee card only renders
+  // when the supporter clicks a row in the list. selectedSupervisee
+  // holds the user_name of the currently expanded row (null = list
+  // only, no card showing).
+  selectedSupervisee: null,
+
+  selectedSuperviseeRecord: computed('supervisees.[]', 'selectedSupervisee', function() {
+    var name = this.get('selectedSupervisee');
+    if (!name) { return null; }
+    var list = this.get('supervisees') || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].user_name === name) { return list[i]; }
+    }
+    return null;
+  }),
+
+  // The list rows actually rendered. When a supervisee is selected,
+  // the list collapses to JUST that one row (with the full card
+  // expanded underneath). When nothing is selected, the list shows
+  // the standard filtered roster.
+  visibleSupervisees: computed('filteredSupervisees.[]', 'selectedSuperviseeRecord', function() {
+    var selected = this.get('selectedSuperviseeRecord');
+    if (selected) { return [selected]; }
+    return this.get('filteredSupervisees') || [];
+  }),
+
   supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
     var list = this.get('model.known_supervisees') || [];
     return list.map(decorateSuperviseeForCaseload);
@@ -67,7 +127,11 @@ export default Controller.extend({
 
   // Filtered view of supervisees driven by superviseeFilter. Falls
   // back to the unfiltered list when the input is empty so an
-  // empty filter doesn't accidentally hide everyone.
+  // empty filter doesn't accidentally hide everyone. Matches the
+  // query against the user_name AND every goal-text source we
+  // surface for a supervisee: legacy primary_goal (s.goal.summary),
+  // the displayed-goal computed (s.displayed_goal_summary), and
+  // every entry in the active_goals array.
   filteredSupervisees: computed('supervisees.[]', 'superviseeFilter', function() {
     var list = this.get('supervisees') || [];
     var q = (this.get('superviseeFilter') || '').trim().toLowerCase();
@@ -75,9 +139,23 @@ export default Controller.extend({
       return list;
     }
     return list.filter(function(s) {
-      var name = (s && s.user_name ? String(s.user_name) : '').toLowerCase();
-      var goal = (s && s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
-      return name.indexOf(q) !== -1 || goal.indexOf(q) !== -1;
+      if (!s) { return false; }
+      var name = (s.user_name ? String(s.user_name) : '').toLowerCase();
+      if (name.indexOf(q) !== -1) { return true; }
+      var legacy = (s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
+      if (legacy.indexOf(q) !== -1) { return true; }
+      var displayed = (s.displayed_goal_summary ? String(s.displayed_goal_summary) : '').toLowerCase();
+      if (displayed.indexOf(q) !== -1) { return true; }
+      var actives = s.active_goals;
+      if (actives && actives.length) {
+        for (var i = 0; i < actives.length; i++) {
+          var g = actives[i];
+          if (g && g.summary && String(g.summary).toLowerCase().indexOf(q) !== -1) {
+            return true;
+          }
+        }
+      }
+      return false;
     });
   }),
 
@@ -147,6 +225,38 @@ export default Controller.extend({
   },
 
   actions: {
+    // Toggle the selected supervisee. Clicking a row in the compact
+    // student list opens that supervisee's full card below; clicking
+    // the same row again (or another row) collapses or switches.
+    selectSupervisee: function(supervisee, event) {
+      // The action is bound to the entire <li> row so clicking
+      // anywhere on the row (including the chevron) toggles the
+      // selection. Skip if the click originated from a quick-action
+      // button or LinkTo inside .md-caseload__list-quick so those
+      // controls handle their own click without also toggling the
+      // card.
+      if (event && event.target && event.target.closest) {
+        if (event.target.closest('.md-caseload__list-quick button, .md-caseload__list-quick a')) {
+          return;
+        }
+      }
+      var name = supervisee && supervisee.user_name;
+      if (!name) { return; }
+      if (this.get('selectedSupervisee') === name) {
+        this.set('selectedSupervisee', null);
+      } else {
+        this.set('selectedSupervisee', name);
+      }
+    },
+
+    // Reset the selection AND clear the text filter so the full
+    // supervisee roster is visible again. Bound to the "Full List"
+    // button that renders above the collapsed single-row list.
+    clearSelectedSupervisee: function() {
+      this.set('selectedSupervisee', null);
+      this.set('superviseeFilter', '');
+    },
+
     // Reset the supervisee text filter. Bound to the × inside the
     // filter input and to the "Clear filter" CTA in the no-matches
     // empty state.

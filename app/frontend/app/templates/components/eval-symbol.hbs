@@ -1,0 +1,7 @@
+{{#if this.isPng}}
+  <img src={{this.pngUrl}} width={{this.size}} height={{this.size}} class="evq-symbol evq-symbol--png evq-symbol--{{this.resolvedSlug}}" alt="" loading="lazy"/>
+{{else if this.isMulberry}}
+  <img src={{this.mulberryUrl}} width={{this.size}} height={{this.size}} class="evq-symbol evq-symbol--mulberry evq-symbol--{{this.resolvedSlug}}" alt="" loading="lazy"/>
+{{else}}
+  {{{this.customMarkup}}}
+{{/if}}

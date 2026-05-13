@@ -74,8 +74,70 @@
             </div>
           {{/if}}
           {{#if this.filteredSupervisees.length}}
+          {{!-- Compact student list (Google Classroom-style). When
+               nothing is selected, every supervisee shows as a row.
+               Clicking a row collapses the list to just that one
+               supervisee and expands their full caseload card below.
+               The "Full List" button restores the full roster. --}}
+          {{#if this.selectedSupervisee}}
+            <div class="md-caseload__list-controls">
+              <button type="button" class="md-caseload__back-to-list" {{action "clearSelectedSupervisee"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                <span>{{t "Full List" key="full_list"}}</span>
+              </button>
+            </div>
+          {{/if}}
+          <ul class="md-caseload__list">
+            {{#each this.visibleSupervisees as |supervisee|}}
+              <li class="md-caseload__list-row {{if (is-equal supervisee.user_name this.selectedSupervisee) "md-caseload__list-row--active"}}" {{action "selectSupervisee" supervisee}}>
+                <div class="md-caseload__list-trigger">
+                  {{#if supervisee.avatar_url}}
+                    <img src={{supervisee.avatar_url}} alt="" class="md-caseload__list-avatar">
+                  {{else}}
+                    <span class="md-caseload__list-avatar md-caseload__list-avatar--placeholder" aria-hidden="true">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4" stroke="#46505F"/><path d="M4 21a8 8 0 0 1 16 0" stroke="#2A9D8F"/></svg>
+                    </span>
+                  {{/if}}
+                  <span class="md-caseload__list-identity">
+                    <span class="md-caseload__list-name">{{supervisee.user_name}}</span>
+                    {{#if supervisee.displayed_goal_summary}}
+                      <span class="md-caseload__list-goal" title={{supervisee.displayed_goal_summary}}>{{supervisee.displayed_goal_summary}}</span>
+                    {{/if}}
+                  </span>
+                </div>
+                <div class="md-caseload__list-quick" role="group" aria-label={{t "Quick actions" key="quick_actions"}}>
+                  {{#if supervisee.resolved_home_board_key}}
+                    <button type="button" class="md-caseload__quick-action md-caseload__quick-action--model" {{action "caseload_model_for" supervisee}} aria-label={{concat (t "Model for" key="model_for") " " supervisee.user_name}} title={{concat (t "Model for" key="model_for") " " supervisee.user_name}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/><line x1="3" y1="14.5" x2="21" y2="14.5" stroke="#46505F"/><rect x="10" y="10.5" width="4" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/></svg>
+                    </button>
+                  {{/if}}
+                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--note" {{action "record_note" supervisee}} aria-label={{concat (t "New note for" key="new_note_for_lower") " " supervisee.user_name}} title={{t "New Note" key="new_note"}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg>
+                  </button>
+                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--assess" {{action "quick_assessment" supervisee}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg>
+                  </button>
+                  <LinkTo @route="user.stats" @model={{supervisee.user_name}} class="md-caseload__quick-action md-caseload__quick-action--reports" aria-label={{concat (t "Usage reports for" key="usage_reports_for") " " supervisee.user_name}} title={{t "Usage Reports" key="usage_reports"}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#E87A6F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg>
+                  </LinkTo>
+                  {{#if this.appState.feature_flags.quick_screen_eval}}
+                    <LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="md-caseload__quick-action md-caseload__quick-action--eval-quick" aria-label={{concat (t "Quick Screen Eval for" key="quick_screen_eval_for") " " supervisee.user_name}} title={{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="8" stroke="#46505F"/><path d="M12 10v4l2 2" stroke="#2A9D8F"/><path d="M9 2h6" stroke="#46505F"/><path d="M19 5l1-1" stroke="#46505F"/></svg>
+                    </LinkTo>
+                    <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="md-caseload__quick-action md-caseload__quick-action--eval-history" aria-label={{concat (t "Eval history for" key="eval_history_for") " " supervisee.user_name}} title={{t "Eval History" key="eval_history_link"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/><polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/><path d="M12 8v4l3 2" stroke="#2A9D8F"/></svg>
+                    </LinkTo>
+                  {{/if}}
+                  <span class="md-caseload__list-chevron" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </span>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+          {{#if this.selectedSuperviseeRecord}}
           <div class="md-caseload__grid">
-            {{#each this.filteredSupervisees as |supervisee|}}
+            {{#let this.selectedSuperviseeRecord as |supervisee|}}
               <div class="md-caseload__card">
                 <div class="md-caseload__card-top">
                   {{!-- Identity-row pill — wraps the avatar, COMMUNICATOR
@@ -107,8 +169,8 @@
                             <stop offset="1" stop-color="#E5ECF4"/>
                           </linearGradient>
                           <linearGradient id="ll-avatar-mark-{{supervisee.user_name}}" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stop-color="#5BAEA4"/>
-                            <stop offset="1" stop-color="#222A4F"/>
+                            <stop offset="0" stop-color="{{supervisee.avatar_head_color}}"/>
+                            <stop offset="1" stop-color="{{supervisee.avatar_shadow_color}}"/>
                           </linearGradient>
                           <filter id="ll-avatar-shadow-{{supervisee.user_name}}" x="-20%" y="-20%" width="140%" height="140%">
                             <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#1F2A4D" flood-opacity="0.14"/>
@@ -117,7 +179,7 @@
                         <circle cx="48" cy="48" r="42" fill="url(#ll-avatar-bg-{{supervisee.user_name}})" filter="url(#ll-avatar-shadow-{{supervisee.user_name}})"/>
                         <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
                         <circle cx="48" cy="48" r="25" fill="url(#ll-avatar-inner-{{supervisee.user_name}})" stroke="#E8EEF4" stroke-width="1" stroke-opacity="0.7"/>
-                        <circle cx="48" cy="38.5" r="8.5" fill="#5BAEA4"/>
+                        <circle cx="48" cy="38.5" r="8.5" fill="{{supervisee.avatar_head_color}}"/>
                         <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-avatar-mark-{{supervisee.user_name}})"/>
                       </svg>
                       <img src={{supervisee.avatar_url}} alt="" class="md-caseload__avatar">
@@ -230,6 +292,16 @@
                             <span>{{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}</span>
                           </LinkTo>
                         </li>
+                        <li>
+                          <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}}>
+                            <svg class="md-caseload__dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/>
+                              <polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/>
+                              <path d="M12 8v4l3 2" stroke="#2A9D8F"/>
+                            </svg>
+                            <span>{{t "Eval History" key="eval_history_link"}}</span>
+                          </LinkTo>
+                        </li>
                       {{/if}}
                     </ul>
                   </div>
@@ -314,7 +386,11 @@
                           {{#each supervisee.active_goals as |g|}}
                             <li class="md-caseload__goal-list__item">
                               <span class="md-caseload__goal-list__dot md-caseload__goal-list__dot--{{g.status}}" aria-hidden="true"></span>
-                              <span class="md-caseload__goal-list__text" title={{g.summary}}>{{g.summary}}</span>
+                              {{#if supervisee.edit_permission}}
+                                <LinkTo @route="user.goal" @models={{array supervisee.user_name g.id}} class="md-caseload__goal-list__text md-caseload__goal-list__link" title={{g.summary}}>{{g.summary}}</LinkTo>
+                              {{else}}
+                                <span class="md-caseload__goal-list__text" title={{g.summary}}>{{g.summary}}</span>
+                              {{/if}}
                               <span class="md-caseload__goal-tags">
                                 {{#if g.primary}}
                                   <span class="md-caseload__goal-primary-tag" aria-label={{t "Primary goal" key="primary_goal"}}>{{t "Primary" key="primary"}}</span>
@@ -407,7 +483,7 @@
                   <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--reports" {{action "stats" supervisee.user_name}}>
                     <span class="md-caseload__action-tile__icon" aria-hidden="true">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#5A6A85"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
+                        <line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#E87A6F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/>
                       </svg>
                     </span>
                     <span class="md-caseload__action-tile__label">{{t "Usage Reports" key="usage_reports"}}</span>
@@ -503,6 +579,16 @@
                             <span>{{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}</span>
                           </LinkTo>
                         </li>
+                        <li>
+                          <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}}>
+                            <svg class="md-caseload__dropdown-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/>
+                              <polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/>
+                              <path d="M12 8v4l3 2" stroke="#2A9D8F"/>
+                            </svg>
+                            <span>{{t "Eval History" key="eval_history_link"}}</span>
+                          </LinkTo>
+                        </li>
                       {{/if}}
                     </ul>
                   </div>
@@ -516,8 +602,9 @@
                   {{/if}}
                 {{/if}}
               </div>
-            {{/each}}
+            {{/let}}
           </div>
+          {{/if}}
           {{else}}
             {{!-- No matches for the active filter — empty state mirrors
                  the "no communicators yet" layout but with copy and an

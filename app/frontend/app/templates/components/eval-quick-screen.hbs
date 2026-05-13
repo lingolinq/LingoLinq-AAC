@@ -30,12 +30,31 @@
         onFinish=(action "reviewSession")}}
     {{/if}}
 
+    {{#if this.isTargeting}}
+      {{eval-targeted-runner
+        session=this.session
+        user=this.user
+        onEvent=(action "subtestEvent")
+        onAdvance=(action "advanceSubtest")
+        onFinish=(action "reviewSession")}}
+    {{/if}}
+
+    {{#if this.isComprehensive}}
+      {{eval-comprehensive-runner
+        session=this.session
+        user=this.user
+        onEvent=(action "subtestEvent")
+        onAdvance=(action "advanceSubtest")
+        onFinish=(action "reviewSession")}}
+    {{/if}}
+
     {{#if this.isReviewing}}
       {{eval-quick-report
         session=this.session
         user=this.user
         onSave=(action "saveSession")
-        onPromote=(action "promoteToTargeted")}}
+        onPromote=(action "promoteToTargeted")
+        onPromoteComprehensive=(action "promoteToComprehensive")}}
     {{/if}}
   </main>
 </div>

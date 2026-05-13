@@ -1,8 +1,11 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
+import { later as runLater, cancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import eval_items from '../utils/eval_items';
 import auto_score from '../utils/eval_auto_score';
+import eval_scanner from '../utils/eval_scanner';
+import eval_gazer from '../utils/eval_gazer';
 
 /*
  * eval-quick-runner — sequences the subtests defined by the active session.
@@ -27,6 +30,81 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     this.set('itemIndex', 0);
+  },
+
+  // Scan-mode lifecycle. When the intake's suspected_access is 'scan',
+  // start the soft-switch scanner once the runner mounts and refresh
+  // its cell list every time the item/subtest changes. The scanner
+  // cycles through the cells with a dwell timer; spacebar (the
+  // soft-switch) selects the highlighted cell.
+  isScanMode: computed('session.intake.suspected_access', function() {
+    return this.get('session.intake.suspected_access') === 'scan';
+  }),
+
+  isGazeMode: computed('session.intake.suspected_access', function() {
+    return this.get('session.intake.suspected_access') === 'gaze';
+  }),
+
+  studentCellSelector: 'button.evq-item__choice-tile, button.evq-item__access-cell, button.evq-item__library-tile, button.evq-item__big-button',
+
+  didInsertElement() {
+    this._super(...arguments);
+    if (this.get('isScanMode')) {
+      // Defer to next runloop so the eval-quick-item child has
+      // rendered its cells before we scan the DOM for them.
+      this._scanStartTimer = runLater(this, this._startScanner, 50);
+    } else if (this.get('isGazeMode')) {
+      this._gazeStartTimer = runLater(this, this._startGazer, 80);
+    }
+  },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    if (this._scanStartTimer) { cancel(this._scanStartTimer); }
+    if (this._scanRescanTimer) { cancel(this._scanRescanTimer); }
+    if (this._gazeStartTimer) { cancel(this._gazeStartTimer); }
+    try { eval_scanner.stop(); } catch (e) { /* noop */ }
+    try { eval_gazer.stop(); } catch (e) { /* noop */ }
+  },
+
+  // Re-scan the cell list whenever the runner moves to a new item
+  // or subtest. The scanner walks the DOM live, so a short delay
+  // gives the new item time to render. Gaze mode polls the DOM
+  // on every tick so no rescan is needed for that mode.
+  rescanOnItem: observer('currentItem.id', 'currentSubtest', function() {
+    if (!this.get('isScanMode')) { return; }
+    if (this._scanRescanTimer) { cancel(this._scanRescanTimer); }
+    this._scanRescanTimer = runLater(this, function() {
+      if (this.isDestroying || this.isDestroyed) { return; }
+      if (eval_scanner.isActive()) {
+        eval_scanner.rescan();
+      } else {
+        this._startScanner();
+      }
+    }, 60);
+  }),
+
+  _startScanner() {
+    if (this.isDestroying || this.isDestroyed) { return; }
+    if (!this.get('isScanMode')) { return; }
+    eval_scanner.start({
+      root: this.element,
+      // Selectors for the student-facing tappable cells across all
+      // subtest kinds. SLP-only buttons (manual score, skip) are
+      // intentionally excluded — those stay direct-click for SLP.
+      selector: this.get('studentCellSelector'),
+      dwellMs: 1500
+    });
+  },
+
+  _startGazer() {
+    if (this.isDestroying || this.isDestroyed) { return; }
+    if (!this.get('isGazeMode')) { return; }
+    eval_gazer.start({
+      root: this.element,
+      selector: this.get('studentCellSelector'),
+      dwellMs: 1000
+    });
   },
 
   currentSubtest: computed('session.subtestIndex', function() {

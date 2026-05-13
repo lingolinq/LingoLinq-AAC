@@ -51,7 +51,7 @@ const ITEM_BANK = {
           { label: 'Book',  is_target: false }
         ] },
       { id: 'pe_stage_04', kind: 'category', prompt: 'category_animals', targets: 4,
-        prompt_default: 'Find an animal.',
+        prompt_default: 'Tap any animal.',
         options: [
           { label: 'Dog',   is_target: true  },
           { label: 'Cat',   is_target: true  },
@@ -60,20 +60,46 @@ const ITEM_BANK = {
         ] }
     ],
     access_snapshot: [
-      { id: 'pe_access_01', grid: [1, 3], target: 1, prompt_default: 'Tap the green target.' },
-      { id: 'pe_access_02', grid: [2, 3], target: 4, prompt_default: 'Tap the green target.' },
-      { id: 'pe_access_03', grid: [3, 3], target: 7, prompt_default: 'Tap the green target.' },
-      { id: 'pe_access_04', grid: [3, 4], target: 6, prompt_default: 'Tap the green target.' },
-      { id: 'pe_access_05', grid: [4, 4], target: 11, prompt_default: 'Tap the green target.' },
-      { id: 'pe_access_06', grid: [4, 6], target: 17, prompt_default: 'Tap the green target.' }
+      { id: 'pe_access_01', grid: [1, 3], target: 1, prompt_default: 'Tap the highlighted target.' },
+      { id: 'pe_access_02', grid: [2, 3], target: 4, prompt_default: 'Tap the highlighted target.' },
+      { id: 'pe_access_03', grid: [3, 3], target: 7, prompt_default: 'Tap the highlighted target.' },
+      { id: 'pe_access_04', grid: [3, 4], target: 6, prompt_default: 'Tap the highlighted target.' },
+      { id: 'pe_access_05', grid: [4, 4], target: 11, prompt_default: 'Tap the highlighted target.' },
+      { id: 'pe_access_06', grid: [4, 6], target: 17, prompt_default: 'Tap the highlighted target.' }
     ],
+    // 3-way library bake-off. Each trial shows the same word in three
+    // different symbol libraries side-by-side; the user picks the
+    // one that's clearest. Tally per library across trials drives
+    // the recommendation engine's library winner. Assets live at
+    // public/images/eval-lib-{word}-{a|b|c}.{ext}.
+    //   a = Mulberry        (illustrated, CC BY-SA)
+    //   b = ARASAAC         (flat pictogram, CC BY-NC-SA)
+    //   c = Twemoji         (emoji-style, CC BY 4.0)
     library_compare: [
-      { id: 'pe_lib_01', word: 'eat',   library: 'a', prompt_default: 'Tap the symbol that means "eat".' },
-      { id: 'pe_lib_02', word: 'eat',   library: 'b', prompt_default: 'Tap the symbol that means "eat".' },
-      { id: 'pe_lib_03', word: 'play',  library: 'a', prompt_default: 'Tap the symbol that means "play".' },
-      { id: 'pe_lib_04', word: 'play',  library: 'b', prompt_default: 'Tap the symbol that means "play".' },
-      { id: 'pe_lib_05', word: 'help',  library: 'a', prompt_default: 'Tap the symbol that means "help".' },
-      { id: 'pe_lib_06', word: 'help',  library: 'b', prompt_default: 'Tap the symbol that means "help".' }
+      { id: 'pe_lib_01', word: 'eat',  prompt_default: 'Tap the picture that best shows "eat".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-eat-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-eat-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-eat-c.svg' }
+        ] },
+      { id: 'pe_lib_02', word: 'play', prompt_default: 'Tap the picture that best shows "play".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-play-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-play-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-play-c.svg' }
+        ] },
+      { id: 'pe_lib_03', word: 'help', prompt_default: 'Tap the picture that best shows "help".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-help-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-help-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-help-c.svg' }
+        ] },
+      { id: 'pe_lib_04', word: 'more', prompt_default: 'Tap the picture that best shows "more".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-more-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-more-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-more-c.svg' }
+        ] }
     ],
     vocab_probe: [
       { id: 'pe_vocab_01', word: 'I',       part_of_speech: 'pronoun',
@@ -93,7 +119,7 @@ const ITEM_BANK = {
           { label: 'Cup',    is_target: false }
         ] },
       { id: 'pe_vocab_03', word: 'animals', part_of_speech: 'category',
-        prompt_default: 'Find an animal.',
+        prompt_default: 'Tap any animal.',
         options: [
           { label: 'Dog',   is_target: true  },
           { label: 'Cat',   is_target: true  },
@@ -124,12 +150,12 @@ const ITEM_BANK = {
         prompt_default: 'Direct the communicator\'s attention to a shared object (point, gaze, vocalize). Score whether they engage.' }
     ],
     access_snapshot: [
-      { id: 'ec_access_01', grid: [1, 1], target: 0, prompt_default: 'Tap the green target.' },
-      { id: 'ec_access_02', grid: [1, 2], target: 1, prompt_default: 'Tap the green target.' },
-      { id: 'ec_access_03', grid: [2, 2], target: 2, prompt_default: 'Tap the green target.' },
-      { id: 'ec_access_04', grid: [2, 3], target: 3, prompt_default: 'Tap the green target.' },
-      { id: 'ec_access_05', grid: [3, 3], target: 4, prompt_default: 'Tap the green target.' },
-      { id: 'ec_access_06', grid: [3, 4], target: 6, prompt_default: 'Tap the green target.' }
+      { id: 'ec_access_01', grid: [1, 1], target: 0, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ec_access_02', grid: [1, 2], target: 1, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ec_access_03', grid: [2, 2], target: 2, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ec_access_04', grid: [2, 3], target: 3, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ec_access_05', grid: [3, 3], target: 4, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ec_access_06', grid: [3, 4], target: 6, prompt_default: 'Tap the highlighted target.' }
     ],
     choice_probe: [
       { id: 'ec_choice_01', kind: 'preferred_object', observe: true,
@@ -145,7 +171,7 @@ const ITEM_BANK = {
   'peds-established': {
     stage_probe: [
       { id: 'ps_stage_01', kind: 'category',  prompt: 'category_food',    targets: 6,
-        prompt_default: 'Find a food.',
+        prompt_default: 'Tap any food.',
         options: [
           { label: 'Apple',   is_target: true  },
           { label: 'Bread',   is_target: true  },
@@ -172,20 +198,31 @@ const ITEM_BANK = {
         ] }
     ],
     access_snapshot: [
-      { id: 'ps_access_01', grid: [3, 3], target: 4,  prompt_default: 'Tap the green target.' },
-      { id: 'ps_access_02', grid: [3, 4], target: 6,  prompt_default: 'Tap the green target.' },
-      { id: 'ps_access_03', grid: [4, 6], target: 14, prompt_default: 'Tap the green target.' },
-      { id: 'ps_access_04', grid: [4, 6], target: 19, prompt_default: 'Tap the green target.' },
-      { id: 'ps_access_05', grid: [6, 8], target: 23, prompt_default: 'Tap the green target.' },
-      { id: 'ps_access_06', grid: [6, 10], target: 41, prompt_default: 'Tap the green target.' }
+      { id: 'ps_access_01', grid: [3, 3], target: 4,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ps_access_02', grid: [3, 4], target: 6,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ps_access_03', grid: [4, 6], target: 14, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ps_access_04', grid: [4, 6], target: 19, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ps_access_05', grid: [6, 8], target: 23, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ps_access_06', grid: [6, 10], target: 41, prompt_default: 'Tap the highlighted target.' }
     ],
+    // peds-established 3-way bake-off. "happy" and "school" have
+    // assets in all 3 libraries; "because" has no clean Mulberry
+    // representation, so it falls back to the legacy single-tile
+    // path (template handles both shapes).
     library_compare: [
-      { id: 'ps_lib_01', word: 'happy',    library: 'a', prompt_default: 'Tap the symbol that means "happy".' },
-      { id: 'ps_lib_02', word: 'happy',    library: 'b', prompt_default: 'Tap the symbol that means "happy".' },
-      { id: 'ps_lib_03', word: 'school',   library: 'a', prompt_default: 'Tap the symbol that means "school".' },
-      { id: 'ps_lib_04', word: 'school',   library: 'b', prompt_default: 'Tap the symbol that means "school".' },
-      { id: 'ps_lib_05', word: 'because',  library: 'a', prompt_default: 'Tap the symbol that means "because".' },
-      { id: 'ps_lib_06', word: 'because',  library: 'b', prompt_default: 'Tap the symbol that means "because".' }
+      { id: 'ps_lib_01', word: 'happy', prompt_default: 'Tap the picture that best shows "happy".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-happy-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-happy-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-happy-c.svg' }
+        ] },
+      { id: 'ps_lib_02', word: 'school', prompt_default: 'Tap the picture that best shows "school".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-school-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-school-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-school-c.svg' }
+        ] },
+      { id: 'ps_lib_03', word: 'because', prompt_default: 'Tap the symbol that means "because".' }
     ],
     vocab_probe: [
       { id: 'ps_vocab_01', word: 'they',     part_of_speech: 'pronoun',
@@ -242,22 +279,22 @@ const ITEM_BANK = {
   },
   'adult-motor': {
     access_snapshot: [
-      { id: 'am_access_01', grid: [2, 3], target: 1,  prompt_default: 'Tap the green target.' },
-      { id: 'am_access_02', grid: [3, 3], target: 4,  prompt_default: 'Tap the green target.' },
-      { id: 'am_access_03', grid: [3, 4], target: 7,  prompt_default: 'Tap the green target.' },
-      { id: 'am_access_04', grid: [4, 4], target: 10, prompt_default: 'Tap the green target.' },
-      { id: 'am_access_05', grid: [4, 6], target: 14, prompt_default: 'Tap the green target.' },
-      { id: 'am_access_06', grid: [4, 6], target: 21, prompt_default: 'Tap the green target.' },
-      { id: 'am_access_07', grid: [6, 8], target: 23, prompt_default: 'Tap the green target.' },
-      { id: 'am_access_08', grid: [6, 10], target: 35, prompt_default: 'Tap the green target.' }
+      { id: 'am_access_01', grid: [2, 3], target: 1,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_02', grid: [3, 3], target: 4,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_03', grid: [3, 4], target: 7,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_04', grid: [4, 4], target: 10, prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_05', grid: [4, 6], target: 14, prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_06', grid: [4, 6], target: 21, prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_07', grid: [6, 8], target: 23, prompt_default: 'Tap the highlighted target.' },
+      { id: 'am_access_08', grid: [6, 10], target: 35, prompt_default: 'Tap the highlighted target.' }
     ],
     cognitive_probe: [
-      { id: 'am_cog_01', kind: 'orientation',  prompt: 'cognitive_today_is',     targets: 3,
-        prompt_default: 'Today is…',
+      { id: 'am_cog_01', kind: 'choice',  prompt: 'cognitive_when_sleep',   targets: 3,
+        prompt_default: 'When do people sleep?',
         options: [
-          { label: 'Morning',   is_target: true  },
-          { label: 'Bedtime',   is_target: false },
-          { label: 'Last week', is_target: false }
+          { label: 'Bedtime',   is_target: true  },
+          { label: 'Morning',   is_target: false },
+          { label: 'Daytime',   is_target: false }
         ] },
       { id: 'am_cog_02', kind: 'recognition',  prompt: 'cognitive_familiar_face', targets: 4,
         prompt_default: 'Show a familiar photo. Which one is family?',
@@ -283,11 +320,24 @@ const ITEM_BANK = {
           { label: 'Cloud',  is_target: false }
         ] }
     ],
+    // adult-motor 3-way bake-off. Reuses the eat/play/help/more
+    // assets where the word matches; pain has its own asset set.
+    // Mulberry "headache" stands in as the most readable Mulberry
+    // approximation of pain (Mulberry doesn't have a direct "pain"
+    // pictogram — see eval-lib-pain-a.svg).
     library_compare: [
-      { id: 'am_lib_01', word: 'pain',  library: 'a', prompt_default: 'Tap the symbol that means "pain".' },
-      { id: 'am_lib_02', word: 'pain',  library: 'b', prompt_default: 'Tap the symbol that means "pain".' },
-      { id: 'am_lib_03', word: 'help',  library: 'a', prompt_default: 'Tap the symbol that means "help".' },
-      { id: 'am_lib_04', word: 'help',  library: 'b', prompt_default: 'Tap the symbol that means "help".' }
+      { id: 'am_lib_01', word: 'pain', prompt_default: 'Tap the picture that best shows "pain".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-pain-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-pain-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-pain-c.svg' }
+        ] },
+      { id: 'am_lib_02', word: 'help', prompt_default: 'Tap the picture that best shows "help".',
+        library_options: [
+          { library: 'mulberry', image: '/images/eval-lib-help-a.svg' },
+          { library: 'arasaac',  image: '/images/eval-lib-help-b.png' },
+          { library: 'twemoji',  image: '/images/eval-lib-help-c.svg' }
+        ] }
     ],
     vocab_probe: [
       { id: 'am_vocab_01', word: 'help',     part_of_speech: 'verb',
@@ -318,16 +368,16 @@ const ITEM_BANK = {
   },
   'adult-progressive': {
     access_snapshot: [
-      { id: 'ap_access_01', grid: [2, 3], target: 1,  prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_02', grid: [3, 3], target: 4,  prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_03', grid: [3, 4], target: 5,  prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_04', grid: [3, 4], target: 9,  prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_05', grid: [4, 4], target: 10, prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_06', grid: [4, 6], target: 13, prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_07', grid: [4, 6], target: 17, prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_08', grid: [4, 6], target: 22, prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_09', grid: [6, 8], target: 25, prompt_default: 'Tap the green target.' },
-      { id: 'ap_access_10', grid: [6, 8], target: 41, prompt_default: 'Tap the green target.' }
+      { id: 'ap_access_01', grid: [2, 3], target: 1,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_02', grid: [3, 3], target: 4,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_03', grid: [3, 4], target: 5,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_04', grid: [3, 4], target: 9,  prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_05', grid: [4, 4], target: 10, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_06', grid: [4, 6], target: 13, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_07', grid: [4, 6], target: 17, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_08', grid: [4, 6], target: 22, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_09', grid: [6, 8], target: 25, prompt_default: 'Tap the highlighted target.' },
+      { id: 'ap_access_10', grid: [6, 8], target: 41, prompt_default: 'Tap the highlighted target.' }
     ],
     cognitive_probe: [
       { id: 'ap_cog_01', kind: 'recognition', prompt: 'cognitive_familiar_face', targets: 4,

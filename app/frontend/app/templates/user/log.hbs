@@ -1,5 +1,19 @@
 {{#opening-observer done_opening=(action "draw_charts")}}
-{{#if this.model.note_type}}
+{{#if this.model.tiered_eval_type}}
+  {{!-- New tiered-eval shape (Quick Screen / Targeted Eval) — render
+       the saved recommendation + targeted_report block via a
+       dedicated component that mirrors the live flow's report card. --}}
+  <h2>
+    {{#if this.model.tiered_eval_is_comprehensive}}
+      {{t "Comprehensive Eval Details" key="comprehensive_eval_details"}}
+    {{else if this.model.tiered_eval_is_targeted}}
+      {{t "Targeted Eval Details" key="targeted_eval_details"}}
+    {{else}}
+      {{t "Quick Screen Details" key="quick_screen_details"}}
+    {{/if}}
+  </h2>
+  {{eval-saved-summary log=this.model}}
+{{else if this.model.note_type}}
   <h2>{{t "Message Details" key="message_summary"}}</h2>
 {{else if this.model.assessment_type}}
   <h2>{{t "Assessment Details" key="assessment_details"}}</h2>
@@ -602,6 +616,9 @@
     {{/if}}
   {{/if}}
   <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
+  {{#if this.model.tiered_eval_type}}
+    <button type="button" {{action "eval_pdf_export"}} class='btn btn-default'>{{t "Download PDF" key="download_eval_pdf"}}</button>
+  {{/if}}
   {{#if this.model.previous_log_id}}
     <LinkTo @route="user.log" @models={{array this.user.user_name this.model.previous_log_id}} class="btn btn-default">
       <span class="glyphicon glyphicon-arrow-left"></span>
