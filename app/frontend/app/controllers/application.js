@@ -32,6 +32,7 @@ export default Controller.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  telemetry: service('telemetry'),
   app_state: alias('appState'),
   board: inject('board.index'),
   session: session,
@@ -1731,6 +1732,7 @@ export default Controller.extend({
       obj.prior_percent_y = location.prior_percent_y;
       obj.percent_travel = location.percent_travel;
     }
+    this.telemetry.trackBoardActivation(obj);
     _this.set('last_highlight_explore_action', (new Date()).getTime());
 
     var highlight_buttons = _this.get('button_highlights') || [];
