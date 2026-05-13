@@ -16,7 +16,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
 
 ## Development considerations
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
@@ -49,8 +49,7 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-# or
-# heroku local (Deprecated)
+foreman start
 
 # Stop all running processes
 bin/kill_all
@@ -76,12 +75,14 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Local console (includes audit safeguards)
-bin/rails console
-
-# Production console (on Render)
-# Use 'render shell' or specific task runner bin if available
+# Audited console wrapper (currently legacy Heroku-backed)
+bin/audit_console
 ```
+
+> Note: this script was previously named `bin/heroku_console`. It was renamed
+> for clarity; the body still invokes the Heroku CLI and needs a follow-up
+> rewrite to target Render's shell. Until then, the wrapper records an
+> `AuditEvent` per session but only works against the legacy Heroku environment.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -288,7 +289,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/heroku_console`, not `rails console`)
+- Console access audited via `AuditEvent` model (use `bin/audit_console`, not `rails console`)
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup

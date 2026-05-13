@@ -73,9 +73,8 @@ export default Controller.extend({
     var session_id = this.get('appState.sessionUser.id');
     var is_self = session_id && this.get('model.id') === session_id;
     var is_admin_support = !!this.get('model.permissions.admin_support_actions');
-    var can_supervise = !!this.get('model.permissions.supervise');
-    // Match Api::UsersController#daily_use: own profile, site admin, or supervisor with +supervise+.
-    if(!is_self && !is_admin_support && !can_supervise) {
+    // Match Api::UsersController#daily_use: own profile or admin-support access only.
+    if(!is_self && !is_admin_support) {
       this.set('daily_use', null);
       return;
     }

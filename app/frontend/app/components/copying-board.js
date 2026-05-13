@@ -3,8 +3,8 @@ import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
-import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
+import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 
 /**
  * Copying Board progress modal (Phase 2).
@@ -41,38 +41,37 @@ export default Component.extend({
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
       _this.start_copying();
     } else {
-      BoardHierarchy.load_with_button_set(board, { skipBoardReloadForCopyModal: true, expand_all: true }).then(function(hierarchy) {
-        console.debug('[copying-board] hierarchy load resolved', hierarchy && hierarchy.get && hierarchy.get('root'));
+      loadHierarchyForCopyModal(board, {
+        skipBoardReloadForCopyModal: true,
+        expand_all: true,
+        early_live_links_delay_ms: this.get('earlyLiveLinksDelayMs')
+      }).then(function(result) {
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
+        const hierarchy = result.hierarchy;
         if (hierarchy && hierarchy.get('root')) {
-          const rootChildren = hierarchy.get('root.children') || [];
-          const expectedLinkedBoards =
-            (board.get('linked_boards.length') || 0) > 0 ||
-            (board.get('downstream_boards') || 0) > 0 ||
-            (board.get('downstream_board_ids.length') || 0) > 0;
-          _this.set('hierarchyRootOnlyWarning', expectedLinkedBoards && rootChildren.length === 0);
+          if (result.source === 'live_links') {
+            _this.set('hierarchyRootOnlyWarning', true);
+          } else {
+            const rootChildren = hierarchy.get('root.children') || [];
+            const expectedLinkedBoards =
+              (board.get('linked_boards.length') || 0) > 0 ||
+              (board.get('downstream_boards') || 0) > 0 ||
+              (board.get('downstream_board_ids.length') || 0) > 0;
+            _this.set('hierarchyRootOnlyWarning', expectedLinkedBoards && rootChildren.length === 0);
+          }
           _this.set('hierarchy', hierarchy);
         } else {
           _this.start_copying();
         }
       }, function(err) {
-        console.debug('[copying-board] hierarchy load rejected', err);
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
-        BoardHierarchy.load_from_live_links(board, { expand_all: true }).then(function(fallbackHierarchy) {
-          if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
-          if (fallbackHierarchy && fallbackHierarchy.get('root')) {
-            _this.set('hierarchyRootOnlyWarning', true);
-            _this.set('hierarchy', fallbackHierarchy);
-            return;
-          }
-          _this.set('error', err);
-          _this.set('hierarchyLoadFailed', true);
-          if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
-            _this.set('isTimeoutError', true);
-          }
-        });
+        _this.set('error', err);
+        _this.set('hierarchyLoadFailed', true);
+        if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
+          _this.set('isTimeoutError', true);
+        }
       });
     }
   },

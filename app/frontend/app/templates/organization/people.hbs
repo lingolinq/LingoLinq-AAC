@@ -12,11 +12,6 @@
 
   {{!-- Sub-navigation pills for people sections --}}
   <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
-    {{#if this.model.admin}}
-      <button type="button" class="md-pillnav__pill {{if this.show_organizations "is-active"}}" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</button>
-    {{else if this.model.children_orgs}}
-      <button type="button" class="md-pillnav__pill {{if this.show_organizations "is-active"}}" {{action "pick" "organizations"}}>{{t "Organizations" key="organizations"}}</button>
-    {{/if}}
     <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{action "pick" "managers"}}>{{t "Managers" key="managers"}}</button>
     <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{action "pick" "supervisors"}}>{{t "Supervisors" key="supervisors"}}</button>
     <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{action "pick" "communicators"}}>{{t "Communicators" key="communicators"}}</button>
@@ -251,96 +246,6 @@
     </section>
   {{/if}}
 
-  {{!-- Organizations --}}
-  {{#if this.show_organizations}}
-    <section class="md-org-section" aria-label={{t "Organizations" key="organizations"}}>
-      {{#if this.model.children_orgs}}
-        <h3 class="md-org-section-title">{{t "sub-organization" key="n_sub_organizations" count=this.model.children_orgs.length}}</h3>
-        <div class="md-org-user-list">
-          {{#each this.model.children_orgs as |org|}}
-            <div class="md-org-user-row">
-              <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
-                <span class="md-org-user-row__org-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                </span>
-                <span class="md-org-user-row__name">{{org.name}}</span>
-              </LinkTo>
-            </div>
-          {{/each}}
-        </div>
-      {{else if this.model.admin}}
-        {{#if this.model.permissions.manage}}
-          {{#if this.orgs.data}}
-            <h3 class="md-org-section-title">{{t "organization" key="n_organizations" count=this.orgs.data.length}}</h3>
-            <div class="md-org-search-wrap">
-              <Input type="text" @value={{this.org_filter}} class="md-org-input" placeholder="search orgs" />
-            </div>
-            <div class="md-org-user-list">
-              {{#if this.filtered_orgs}}
-                {{#each this.filtered_orgs as |org|}}
-                  <div class="md-org-user-row">
-                    <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
-                      <span class="md-org-user-row__org-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                      </span>
-                      <span class="md-org-user-row__name">{{#if org.premium}}<strong>{{org.name}}</strong>{{else}}{{org.name}}{{/if}}</span>
-                    </LinkTo>
-                    <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    </LinkTo>
-                    {{#unless org.admin}}
-                      <button type="button" class="md-org-user-row__remove" {{action "remove_org" org}} aria-label={{t "Delete" key="delete"}}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                      </button>
-                    {{/unless}}
-                  </div>
-                {{/each}}
-              {{else}}
-                {{#each this.alphabetized_orgs as |letter|}}
-                  <div class="md-org-letter-group">
-                    <button type="button" class="md-org-letter-group__toggle" {{action "toggle_letter" letter}}>
-                      <span class="md-org-letter-group__letter">{{letter.letter}}</span>
-                      <span class="md-muted">{{t "org" count=letter.orgs.length key="n_orgs"}}</span>
-                      <span class="md-org-letter-group__chevron {{if letter.expanded "is-open"}}" aria-hidden="true"></span>
-                    </button>
-                    {{#if letter.expanded}}
-                      {{#each letter.orgs as |org|}}
-                        <div class="md-org-user-row md-org-user-row--indented">
-                          <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
-                            <span class="md-org-user-row__org-icon">
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            </span>
-                            <span class="md-org-user-row__name">{{#if org.premium}}<strong>{{org.name}}</strong>{{else}}{{org.name}}{{/if}}</span>
-                          </LinkTo>
-                          <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </LinkTo>
-                          {{#unless org.admin}}
-                            <button type="button" class="md-org-user-row__remove" {{action "remove_org" org}} aria-label={{t "Delete" key="delete"}}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                            </button>
-                          {{/unless}}
-                        </div>
-                      {{/each}}
-                    {{/if}}
-                  </div>
-                {{/each}}
-              {{/if}}
-            </div>
-          {{else if this.orgs.loading}}
-            <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading organizations..." key="loading_orgs"}}</p></div>
-          {{else}}
-            <p class="md-muted">{{t "None found" key="none_found"}}</p>
-          {{/if}}
-          <div class="md-org-add-row">
-            <Input @value={{this.org_org_name}} placeholder="org name" class="md-org-input" />
-            <Input @value={{this.org_user_name}} placeholder="admin user name" class="md-org-input" />
-            <button class="md-btn md-btn--primary md-btn--sm" {{action "add_org"}}>{{t "Add Organization" key="add_org"}}</button>
-          </div>
-        {{/if}}
-      {{/if}}
-    </section>
-  {{/if}}
 {{else if this.loading_org}}
   <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading..." key="loading"}}</p></div>
 {{else}}

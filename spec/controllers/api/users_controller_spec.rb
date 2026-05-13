@@ -2637,18 +2637,14 @@ describe Api::UsersController, :type => :controller do
       expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
-    it "should allow a supervisor with supervise access to check a supervisee's daily use" do
+    it "should not allow a supervisor with supervise access to check a supervisee's daily use" do
       sup = User.create
       comm = User.create
       dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'daily_use_sup')
       request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
       User.link_supervisor_to_user(sup, comm, nil, true)
       get :daily_use, params: {:user_id => comm.global_id}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['log']).to_not eq(nil)
-      expect(json['log']['daily_use']).to eq([])
-      expect(json['log']['empty_daily_use_log']).to eq(true)
+      assert_unauthorized
     end
 
     it "should not allow a modeling-only supervisor to check another user's daily use" do
