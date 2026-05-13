@@ -36,7 +36,7 @@ describe Api::TelemetryController, :type => :controller do
       @user.settings['feature_flags'] ||= {}
       @user.settings['feature_flags']['telemetry_admin_panel'] = true
       @user.save!
-      org = Organization.create(settings: {'total_licenses' => 1})
+      org = Organization.create(settings: {'total_licenses' => 2})
       org.add_manager(@user.user_name)
       alice = User.create
       bob = User.create
