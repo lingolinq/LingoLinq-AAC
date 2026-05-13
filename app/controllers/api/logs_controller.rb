@@ -258,6 +258,41 @@ class Api::LogsController < ApplicationController
       render plain: Stats.lam([log])
     end
   end
+
+  # GET /api/v1/logs/:log_id/eval_pdf
+  #
+  # Prawn-rendered PDF of a tiered-eval LogSession (Quick Screen,
+  # Targeted, or Comprehensive). Authorization mirrors `show` so the
+  # caller must be the log owner with view_detailed/model, or a
+  # supervisor. Returns 404 unless the log carries a tiered_eval
+  # payload (`data['eval_mode']`). The PDF includes recommendation
+  # summary, subtest detail, DAGG-style goals grid, AI narrative
+  # (if drafted), and SLP notes — suitable for an IEP attachment.
+  def eval_pdf
+    log = LogSession.find_by_global_id(params['log_id'])
+    return unless exists?(log, params['log_id'])
+    user = log && log.user
+    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
+    if user.private_logging? && (@true_user || @api_user) != user
+      return unless allowed?(user, 'never_allow')
+    end
+    cutoff = user.effective_logging_cutoff_for(@api_user, logging_code_for(user))
+    if cutoff && log.started_at < cutoff.hours.ago
+      return unless allowed?(user, 'never_allow')
+    end
+    if !log.data || !log.data['eval_mode']
+      api_error 404, { error: 'log is not a tiered-eval session' }
+      return
+    end
+
+    require 'eval_goals_grid'
+    require 'eval_pdf'
+    pdf_bytes = EvalPdf.render(log)
+    filename = "lingolinq-eval-#{log.global_id}.pdf"
+    send_data pdf_bytes,
+      type: 'application/pdf',
+      disposition: "attachment; filename=\"#{filename}\""
+  end
   
   def obl
     if params['log_id']

@@ -176,6 +176,12 @@ export default Controller.extend({
     lam_export: function() {
       capabilities.window_open('/api/v1/logs/' + this.get('model.id') + '/lam?nonce=' + this.get('model.nonce'), '_system');
     },
+    eval_pdf_export: function() {
+      var token = capabilities.access_token || (LingoLinq.session && LingoLinq.session.get('access_token'));
+      var url = '/api/v1/logs/' + this.get('model.id') + '/eval_pdf';
+      if(token) { url += '?access_token=' + encodeURIComponent(token); }
+      capabilities.window_open(url, '_system');
+    },
     obl_export: function() {
       modal.open('download-log', {log: this.get('model')});
     },

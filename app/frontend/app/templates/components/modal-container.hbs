@@ -156,6 +156,8 @@
     {{confirm-delete-board}}
   {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
     {{confirm-discard-changes}}
+  {{else if (is-equal this.currentTemplate "confirm-leave-edit")}}
+    {{confirm-leave-edit}}
   {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
     {{confirm-recolor-board}}
   {{else if (is-equal this.currentTemplate "speak-menu")}}

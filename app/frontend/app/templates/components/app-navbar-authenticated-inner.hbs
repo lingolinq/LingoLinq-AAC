@@ -98,6 +98,7 @@
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
+        <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Boards" key="find_boards_nav"}}</LinkTo></li>
         <li><LinkTo @route="user.boards" @model={{this.appState.currentUser.user_name}}>{{t "My Boards" key="my_boards"}}</LinkTo></li>
         <li><a href="#" {{action "openSupport" preventDefault=true}}>{{t "Help" key="help"}}</a></li>
         {{#if this.application.showBetaFeedbackAdminLink}}

@@ -1,6 +1,6 @@
 {{#button-listener buttonEvent=(action "button_event")}}
 {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
   style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
@@ -96,6 +96,20 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
             </button>
           </div>
+          {{!-- Level badge (edit mode only) — pinned to the bottom-left
+               corner, surfaces the button's level rules so therapists
+               can see at a glance which levels each button is wired
+               to. Reads the existing button.levels_list computed
+               (utils/button.js#270) which produces strings like "L3"
+               or "L2 4 5". --}}
+          {{#if btn.levels_list}}
+            <span class="md-board-detail-symbol-card__level-badge"
+              title={{t "Level rules" key="board_detail_level_rules_tooltip"}}
+              aria-label={{t "Level rules" key="board_detail_level_rules_tooltip"}}
+              style={{safe-style (concat "position: absolute; bottom: 6px; left: 6px; display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; background: " btn.level_badge_color "; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.2; box-shadow: 0 0 6px " btn.level_badge_color "80; pointer-events: none; z-index: 2;")}}>
+              {{btn.levels_list}}
+            </span>
+          {{/if}}
         {{/if}}
         {{#if btn.image_url}}
           <div class="md-board-detail-symbol-card__image">

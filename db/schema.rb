@@ -261,6 +261,21 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_12_150000) do
     t.index ["user_id"], name: "index_devices_on_user_id"
   end
 
+  create_table "eval_protocols", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "parent_id"
+    t.string "public_protocol_id"
+    t.string "protocol_version", default: "1.0"
+    t.string "population_profile"
+    t.text "settings"
+    t.boolean "communicator"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["population_profile"], name: "index_eval_protocols_on_population_profile"
+    t.index ["public_protocol_id"], name: "index_eval_protocols_on_public_protocol_id"
+  end
+
   create_table "external_nonces", id: :serial, force: :cascade do |t|
     t.string "purpose"
     t.string "nonce"
