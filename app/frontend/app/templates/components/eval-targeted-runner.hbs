@@ -169,7 +169,7 @@
           {{t "Watch the highlighted cell. Tap where the student actually pressed." key="motor_map_prompt"}}
         </p>
         <div class="evq-targeted__motor-map-grid"
-             style="grid-template-columns: repeat({{this.motorGridCols}}, 1fr);"
+             style={{safe-style (concat "grid-template-columns: repeat(" this.motorGridCols ", 1fr);")}}
              role="grid"
              aria-label={{t "Motor map grid" key="motor_map_grid_aria"}}>
           {{#each this.motorGridCells as |cell|}}

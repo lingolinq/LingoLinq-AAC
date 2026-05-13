@@ -23,15 +23,23 @@
         </span>
         <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
       </summary>
-      <ul class="md-pillnav-dropdown__list" role="menu">
+      {{!-- Disclosure widget — <details>/<summary> handles its own
+            interaction model. Dropped role="menu" / role="menuitem"
+            since the WAI-ARIA menu pattern requires keyboard arrow-
+            key navigation between items, which conflicts with
+            <details>'s built-in disclosure semantics (Ember template
+            lint no-nested-interactive). The LinkTo + aria-current
+            already provide adequate accessibility for what is
+            functionally a navigation submenu, not a true menu. --}}
+      <ul class="md-pillnav-dropdown__list">
         <li>
-          <LinkTo @route="index" class="md-pillnav-dropdown__option" role="menuitem">
+          <LinkTo @route="index" class="md-pillnav-dropdown__option">
             <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
             {{t "Home" key="home"}}
           </LinkTo>
         </li>
         <li>
-          <span class="md-pillnav-dropdown__option is-active" role="menuitem" aria-current="page">
+          <span class="md-pillnav-dropdown__option is-active" aria-current="page">
             <svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             {{t "My Caseload" key="my_caseload"}}
           </span>
