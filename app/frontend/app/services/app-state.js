@@ -2374,6 +2374,9 @@ export default Service.extend({
     });
     return res;
   }),
+  beta_program_access: computed('currentUser.preferences.beta_program_access', function() {
+    return !!this.get('currentUser.preferences.beta_program_access');
+  }),
   index_or_landing_view: computed('index_view', 'current_route', 'currentBoardState.id', function() {
     var route = this.get('current_route');
     if (this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento') {

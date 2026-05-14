@@ -166,7 +166,7 @@ Job queues backed up? `Worker.method_stats(queue_name)`
 
 Want to remove all instances of a method from the background? `Worker.prune_jobs(queue_name, method_name)`
 
-See also docs/CODE_INVESTIGATION.md
+See also docs/CODE_INVESTIGATION.md and docs/BETA_PROGRAM_ACCESS.md (opt-in beta tester UI via `beta_program_access` preference).
 
 ### Contribution Ideas
 

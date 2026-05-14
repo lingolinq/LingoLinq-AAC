@@ -143,6 +143,15 @@ describe JsonApi::User do
       expect(json['vocalizations'][1]['sentence']).to eq('cat frog')
     end
 
+    it "should include beta_program_access in preferences when set" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['beta_program_access'] = true
+      u.save!
+      hash = JsonApi::User.build_json(u, permissions: u)
+      expect(hash['preferences']['beta_program_access']).to eq(true)
+    end
+
     it "should include board tags" do
       u = User.create(:settings => {'vocalizations' => [
         {'list' => [{'label' => 'whatevs'}], 'sentence' => 'whatevs'},
