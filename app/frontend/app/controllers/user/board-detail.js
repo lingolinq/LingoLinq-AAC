@@ -3524,6 +3524,11 @@ export default Controller.extend(prefClasses, {
       );
     },
 
+    toggle_modeling_pause: function() {
+      var appState = this.get('app_state');
+      appState.set('modeling_paused', !appState.get('modeling_paused'));
+    },
+
     toggle_details_dropdown: function() {
       var was_open = this.get('details_dropdown_open');
       this.toggleProperty('details_dropdown_open');
@@ -4730,6 +4735,30 @@ export default Controller.extend(prefClasses, {
       this.set('show_paint_color_picker', false);
       if(editManager.controller === this) {
         editManager.clear_paint_mode();
+      }
+    },
+
+    // Bulk reveal: walks every cell in ordered_buttons and forces
+    // hidden=false on each. Leaves level_modifications intact — if a
+    // button has a pre.hidden=true rule, it'll re-hide at the matching
+    // preview level, but the in-edit-mode rendering shows it visible.
+    reveal_all_hidden_buttons: function() {
+      var count = 0;
+      (this.get('ordered_buttons') || []).forEach(function(row) {
+        (row || []).forEach(function(btn) {
+          if(btn && btn.get && btn.get('hidden')) {
+            btn.set('hidden', false);
+            count++;
+          }
+        });
+      });
+      // Bump the color key so the grid re-renders the hidden→visible
+      // transitions in a single pass.
+      editManager.update_color_key_id();
+      if(count > 0) {
+        modal.notice(i18n.t('reveal_all_done', "Revealed %{count} hidden buttons.", { count: count }));
+      } else {
+        modal.notice(i18n.t('reveal_all_none', "No hidden buttons to reveal."));
       }
     },
 

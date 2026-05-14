@@ -1000,6 +1000,15 @@ export default Service.extend({
     var res = !!(this.get('manual_modeling') || this.get('modeling_for_user'));
     return res;
   }),
+  // True whenever a modeling session is *initiated*, regardless of the
+  // current route's mode. `modeling` flips false during edit mode because
+  // `current_mode` switches from 'speak' to 'edit' (which cascades through
+  // `speak_mode` → `modeling_for_user`). The badge needs a session-level
+  // signal that survives that transition so the supervisor still sees
+  // "modeling paused" while editing a supervisee's board.
+  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'modeling_ts', function() {
+    return !!(this.get('manual_modeling') || this.get('modeling_for_user') || this.get('modeling_for_self') || this.get('referenced_speak_mode_user'));
+  }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
     var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
     res = res || this.get('modeling_for_self');
@@ -2648,7 +2657,14 @@ export default Service.extend({
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
-        if(this.get('last_speak_mode') !== false) {
+        // Entering edit mode temporarily flips speak_mode false, but the
+        // supervisor's modeling session should survive the round-trip. Skip
+        // the state teardown (referenced_speak_mode_user et al.) when the
+        // transition target is 'edit' — the edit route's resetController
+        // restores current_mode='speak' on exit, at which point this observer
+        // re-enters the setup branch and the session is intact.
+        var entering_edit = this.stashes.get('current_mode') === 'edit';
+        if(this.get('last_speak_mode') !== false && !entering_edit) {
           if(this.get('sessionUser')) {
             this.set('sessionUser.request_alert', null);
           }
@@ -3431,10 +3447,15 @@ export default Service.extend({
     // track modeling events correctly
     var now = (new Date()).getTime();
     var skip_navigation = false;
-    if(this.get('modeling')) {
-      obj.modeling = true;
-    } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
-      obj.modeling = true;
+    // When `modeling_paused` is set (e.g. supervisor is on the supervisee's
+    // edit page), the session is still live but taps must NOT be logged as
+    // modeled actions — they'd pollute the communicator's report data.
+    if(!this.get('modeling_paused')) {
+      if(this.get('modeling')) {
+        obj.modeling = true;
+      } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
+        obj.modeling = true;
+      }
     }
 
 

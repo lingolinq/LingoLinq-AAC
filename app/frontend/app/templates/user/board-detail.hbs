@@ -368,13 +368,36 @@
             </svg>
           </button>
         {{/if}}
-        {{#if this.app_state.modeling}}
-          <span class="md-board-detail-sentence-bar__modeling-badge" role="status" aria-label={{t "Modeling mode is active" key="board_detail_modeling_active"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-              <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
-            </svg>
-            {{t "Modeling" key="board_detail_modeling_label"}}
-          </span>
+        {{#if this.app_state.modeling_session_active}}
+          {{#if this.edit_mode}}
+            <span class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
+              <span class="md-board-detail-sentence-bar__modeling-badge__row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+                </svg>
+                {{t "Modeling" key="board_detail_modeling_label"}}
+              </span>
+              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
+            </span>
+          {{else if this.app_state.modeling_paused}}
+            <button type="button" class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" {{action "toggle_modeling_pause"}} aria-label={{t "Modeling paused — click to resume" key="board_detail_modeling_paused_resume"}}>
+              <span class="md-board-detail-sentence-bar__modeling-badge__row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+                </svg>
+                {{t "Modeling" key="board_detail_modeling_label"}}
+              </span>
+              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
+            </button>
+          {{else}}
+            <button type="button" class="md-board-detail-sentence-bar__modeling-badge" {{action "toggle_modeling_pause"}} aria-label={{t "Modeling mode is active — click to pause" key="board_detail_modeling_active_pause"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <rect x="6" y="5" width="4" height="14" rx="1.5"/>
+                <rect x="14" y="5" width="4" height="14" rx="1.5"/>
+              </svg>
+              {{t "Modeling" key="board_detail_modeling_label"}}
+            </button>
+          {{/if}}
         {{/if}}
         <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite">
           {{#if this.has_sentence}}
@@ -508,7 +531,7 @@
                     <circle cx="11" cy="11" r="8"/>
                     <path d="m21 21-4.35-4.35"/>
                   </svg>
-                  <span>{{t "Public Boards" key="public_boards"}}</span>
+                  <span>{{t "Find Boards" key="find_boards"}}</span>
                 </LinkTo>
               </div>
 
@@ -522,6 +545,22 @@
                         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                       </svg>
                       <span>{{t "Find a Button" key="find_a_button"}}</span>
+                    </button>
+                  {{/unless}}
+                {{/if}}
+                {{#if this.app_state.feature_flags.focus_word_highlighting}}
+                  {{#unless this.app_state.eval_mode}}
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_focus"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                      </svg>
+                      <span>
+                        {{#if this.app_state.focus_words}}
+                          {{t "Clear Focus Words" key="clear_focus_words"}}
+                        {{else}}
+                          {{t "Focus Words" key="focus_words"}}
+                        {{/if}}
+                      </span>
                     </button>
                   {{/unless}}
                 {{/if}}
@@ -545,22 +584,6 @@
                         </span>
                       </button>
                     {{/unless}}
-                  {{/unless}}
-                {{/if}}
-                {{#if this.app_state.feature_flags.focus_word_highlighting}}
-                  {{#unless this.app_state.eval_mode}}
-                    <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_focus"}}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-                      </svg>
-                      <span>
-                        {{#if this.app_state.focus_words}}
-                          {{t "Clear Focus Words" key="clear_focus_words"}}
-                        {{else}}
-                          {{t "Focus Words" key="focus_words"}}
-                        {{/if}}
-                      </span>
-                    </button>
                   {{/unless}}
                 {{/if}}
               </div>
@@ -891,6 +914,17 @@
                       {{/if}}
                     </div>
                     <div class="md-board-detail-header__title-row-right">
+                      {{#unless (is-equal this.user.user_name this.app_state.currentUser.user_name)}}
+                        <span class="md-board-detail-header__editing-badge" role="status">
+                          <span class="md-board-detail-header__editing-badge__row">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                            {{this.user.user_name}}
+                          </span>
+                          <span class="md-board-detail-header__editing-badge__caption">{{t "Editing their board" key="board_detail_editing_others_board_caption"}}</span>
+                        </span>
+                      {{/unless}}
                       {{!-- Save button commented out — may bring back later.
                            Save flow still available via the "Save and Exit"
                            button (top-left back-link, action: back_to_boards
@@ -1743,7 +1777,7 @@
                     </div>
                   </div>
                   <span class="md-board-edit-right-panel__row-pair-label" style="display: block; margin-bottom: 6px;">{{t "Paint mode" key="hidden_paint_mode_label"}}</span>
-                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
                       <button type="button" class="md-settings-icon-btn {{if this.paint_mode_is_hide 'md-settings-icon-btn--active'}}" aria-pressed={{if this.paint_mode_is_hide "true" "false"}} data-tooltip={{t "Paint buttons as hidden (click buttons on the board to mark them hidden)" key="board_detail_settings_paint_hide"}} aria-label={{t "Paint buttons as hidden (click buttons on the board to mark them hidden)" key="board_detail_settings_paint_hide"}} {{action "toggle_paint_hide"}}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1762,6 +1796,17 @@
                         </svg>
                       </button>
                       <span style="font-size: 11px; line-height: 1.2; text-align: center;">{{t "Reveal buttons" key="paint_show_buttons"}}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                      <button type="button" class="md-settings-icon-btn" data-tooltip={{t "Reveal every hidden button on this board" key="board_detail_settings_reveal_all_tip"}} aria-label={{t "Reveal every hidden button on this board" key="board_detail_settings_reveal_all_tip"}} {{action "reveal_all_hidden_buttons"}}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <rect x="3" y="3" width="7" height="7" rx="1.2"/>
+                          <rect x="14" y="3" width="7" height="7" rx="1.2"/>
+                          <rect x="3" y="14" width="7" height="7" rx="1.2"/>
+                          <rect x="14" y="14" width="7" height="7" rx="1.2"/>
+                        </svg>
+                      </button>
+                      <span style="font-size: 11px; line-height: 1.2; text-align: center;">{{t "Reveal All" key="paint_reveal_all"}}</span>
                     </div>
                   </div>
                 </div>

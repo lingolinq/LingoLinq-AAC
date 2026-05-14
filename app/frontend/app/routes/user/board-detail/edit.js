@@ -35,6 +35,12 @@ export default Route.extend({
       boardDetailController.set('edit_mode', true);
       boardDetailController.set('board_collapsed', false);
       _this.stashes.persist('current_mode', 'edit');
+      // If a modeling session is live (e.g. supervisor speaking-as / modeling-for
+      // a supervisee), pause the modeled-event tagging while on the edit page.
+      // The session itself stays intact and resumes automatically on resetController.
+      if(_this.appState.get('modeling')) {
+        _this.appState.set('modeling_paused', true);
+      }
       // Drop the raw cache for this board so any subsequent re-entry
       // refetches fresh server state. Save flow re-populates after the
       // round-trip; this guards the case where edits are abandoned and
@@ -56,7 +62,18 @@ export default Route.extend({
       boardDetailController.set('edit_mode', false);
       boardDetailController.set('paint_mode', null);
       boardDetailController.set('color_picker_button', null);
-      this.stashes.persist('current_mode', 'default');
+      // Clear level-paint + preview state on exit so re-entry starts fresh.
+      boardDetailController.send('clear_level_paint');
+      // If a modeling session was active when the user entered edit, return
+      // them to speak mode (not 'default') so `speak_mode` flips true again,
+      // `modeling` re-evaluates true, and the active Modeling badge re-appears.
+      // The parent route's setupController does NOT re-run on sibling-subroute
+      // transitions, so its current_mode='speak' guard wouldn't fire here.
+      var sessionActive = !!(this.appState.get('referenced_speak_mode_user') || this.appState.get('speakModeUser') || this.appState.get('modeling_for_self'));
+      this.stashes.persist('current_mode', sessionActive ? 'speak' : 'default');
+      // Resume modeled-event tagging. Fires for Save and Exit, Discard, and
+      // browser-back — all route exits trigger isExiting=true.
+      this.appState.set('modeling_paused', false);
     }
   }
 });

@@ -52485,7 +52485,7 @@ a.md-goal-nav-action:hover,
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  color: #fff;
+  color: $indigo;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.12s ease;
   box-shadow:
@@ -52508,6 +52508,9 @@ a.md-goal-nav-action:hover,
     inset 0 -2px 5px rgba($la-navy, 0.18),
     inset 0 -1px 1px rgba($la-navy, 0.10),
     0 0 0 3px $brand-verdigris;
+}
+.md-board-detail--dark .md-board-detail-home-btn {
+  color: #fff;
 }
 
 .md-board-detail-sentence-bar {
@@ -52594,13 +52597,14 @@ a.md-goal-nav-action:hover,
 }
 /* Modeling mode badge — appears inside the sentence bar when modeling
    is active so the supporter always knows their taps are being logged
-   as modeling actions, not communicator actions. */
+   as modeling actions, not communicator actions. Click to pause/resume. */
 .md-board-detail-sentence-bar__modeling-badge {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
+  border: none;
   border-radius: 999px;
   background: rgba($brand-verdigris, 0.18);
   color: $brand-verdigris-aa;
@@ -52608,15 +52612,79 @@ a.md-goal-nav-action:hover,
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  animation: modeling-badge-pulse 2s ease-in-out infinite;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
-@keyframes modeling-badge-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+.md-board-detail-sentence-bar__modeling-badge:hover {
+  background: rgba($brand-verdigris, 0.28);
+}
+.md-board-detail-sentence-bar__modeling-badge:active {
+  transform: scale(var(--md-tap, 0.97));
+}
+.md-board-detail-sentence-bar__modeling-badge:focus-visible {
+  outline: 2px solid $brand-verdigris-aa;
+  outline-offset: 2px;
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge {
   background: rgba($brand-verdigris, 0.25);
   color: $brand-verdigris;
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge:hover {
+  background: rgba($brand-verdigris, 0.38);
+}
+/* Paused variant — applied when modeling logging is paused. Two render
+   contexts:
+   - <button> (manual pause via badge click): stays interactive so the
+     clinician can resume the session with one tap.
+   - <span> (auto pause on the supervisee's edit page): static info chip;
+     resumes automatically on exit. */
+.md-board-detail-sentence-bar__modeling-badge--paused {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 14px 6px;
+  background: rgba($brand-verdigris, 0.10);
+  opacity: 0.75;
+}
+.md-board-detail-sentence-bar__modeling-badge__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-left: -8px;
+}
+.md-board-detail-sentence-bar__modeling-badge__caption {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+  line-height: 1.1;
+  width: 100%;
+  text-align: center;
+}
+.md-board-detail-sentence-bar__modeling-badge--paused:hover {
+  background: rgba($brand-verdigris, 0.18);
+}
+span.md-board-detail-sentence-bar__modeling-badge--paused {
+  cursor: default;
+}
+span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
+  background: rgba($brand-verdigris, 0.10);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused {
+  background: rgba($brand-verdigris, 0.22);
+  color: lighten($brand-verdigris, 22%);
+  opacity: 1;
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused:hover {
+  background: rgba($brand-verdigris, 0.32);
+}
+.md-board-detail--dark span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
+  background: rgba($brand-verdigris, 0.22);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused .md-board-detail-sentence-bar__modeling-badge__caption {
+  opacity: 1;
 }
 .md-board-detail-sentence-bar__text {
   flex: 1;
@@ -53055,6 +53123,50 @@ a.md-goal-nav-action:hover,
   display: flex;
   align-items: center;
   gap: 8px;
+}
+/* Editing-as-supervisee badge — top-right of the edit-mode header.
+   Visual style mirrors `.md-board-detail-sentence-bar__modeling-badge--paused`
+   (verdigris pill, two-row column layout) so the two informational chips
+   read as a coordinated set when both are present. */
+.md-board-detail-header__editing-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 14px 6px;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.md-board-detail-header__editing-badge__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-left: -8px;
+}
+.md-board-detail-header__editing-badge__caption {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  opacity: 1;
+}
+.md-board-detail--dark .md-board-detail-header__editing-badge {
+  background: rgba($brand-verdigris, 0.22);
+  color: lighten($brand-verdigris, 22%);
+}
+.md-board-detail--dark .md-board-detail-header__editing-badge__caption {
+  opacity: 1;
 }
 /* Privacy/protected indicator row — sits directly beneath the title
    row, flush left with no top spacing. */
