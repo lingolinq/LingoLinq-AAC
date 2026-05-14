@@ -42,11 +42,18 @@ export default Controller.extend({
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
     var _this = this;
-    setTimeout(function() {
-      if(window.weblinger) {
-        _this.set('weblinger_enabled', true);
-      }
-    }, 1000);
+    _this._weblinger_ready_listener = function() {
+      _this.set('weblinger_enabled', !!window.weblinger);
+      _this.check_calibration();
+    };
+    _this._weblinger_error_listener = function() {
+      _this.set('weblinger_enabled', false);
+    };
+    window.addEventListener('weblinger-script-load', _this._weblinger_ready_listener);
+    window.addEventListener('weblinger-script-error', _this._weblinger_error_listener);
+    if(window.weblinger) {
+      _this._weblinger_ready_listener();
+    }
 
     // If arriving from the Voice & Output modal's "More options" link,
     // auto-expand the Voice Settings section and scroll to it.
@@ -59,6 +66,16 @@ export default Controller.extend({
       }, 300);
     } else {
       this.set('auto_open_voice', false);
+    }
+  },
+
+  willDestroy: function() {
+    this._super(...arguments);
+    if(this._weblinger_ready_listener) {
+      window.removeEventListener('weblinger-script-load', this._weblinger_ready_listener);
+    }
+    if(this._weblinger_error_listener) {
+      window.removeEventListener('weblinger-script-error', this._weblinger_error_listener);
     }
   },
   speecher: speecher,

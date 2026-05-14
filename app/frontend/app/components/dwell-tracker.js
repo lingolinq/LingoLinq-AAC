@@ -2,8 +2,11 @@ import Component from '@ember/component';
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
+import RSVP from 'rsvp';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
+import i18n from '../utils/i18n';
+import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -188,15 +191,32 @@ export default Component.extend({
           source: e.pointer ? {head: true} : {eyegaze: true}
         });
       };
-      if(head_pointer) {
-        capabilities.head_tracking.listen({head_pointing: true, tilt: capabilities.tracking.tilt_factor(_this.get('preferences.device.dwell_tilt_sensitivity'))});
-      } else {
-        capabilities.eye_gaze.listen({level: 'noisy', expressions: true, external_accessory: _this.get('preferences.device.dwell_type') == 'eyegaze_external'});
-      }
-      capabilities.eye_gaze.calibrating_or_testing = true;
-      this.set('eye_listener', eye_listener);
-      document.addEventListener('gazelinger', eye_listener);
-      this.set('eye_gaze', capabilities.eye_gaze);
+      var ext_gaze = _this.get('preferences.device.dwell_type') == 'eyegaze_external';
+      var start_eye_tracking_test = function() {
+        if(head_pointer) {
+          capabilities.head_tracking.listen({head_pointing: true, tilt: capabilities.tracking.tilt_factor(_this.get('preferences.device.dwell_tilt_sensitivity'))});
+        } else {
+          capabilities.eye_gaze.listen({level: 'noisy', expressions: true, external_accessory: ext_gaze});
+        }
+        capabilities.eye_gaze.calibrating_or_testing = true;
+        _this.set('eye_listener', eye_listener);
+        document.addEventListener('gazelinger', eye_listener);
+        _this.set('eye_gaze', capabilities.eye_gaze);
+        _this.check_timeout();
+      };
+      RSVP.resolve(capabilities.eye_gaze.prepare_tracking_environment({
+        timeoutMs: 25000,
+        skip_browser_camera: ext_gaze,
+        before_camera_prompt: ext_gaze ? undefined : function() {
+          runLater(function() {
+            app_state.show_toast(i18n.t('eye_gaze_camera_notice_short', "When your browser asks, allow camera access so eye gaze can run."), 'info', 9000);
+          });
+        }
+      })).then(start_eye_tracking_test).catch(function(err) {
+        runLater(function() {
+          app_state.notify_eye_gaze_environment_error(err);
+        });
+      });
     }
 
     if(_this.get('preferences.device.dwell_type') == 'mouse_dwell') {
@@ -272,10 +292,23 @@ export default Component.extend({
       _this.set('gp_update', buttonTracker.gamepadupdate);
 
       if(_this.get('preferences.device.dwell_type') == 'head' || _this.get('preferences.device.dwell_selection') == 'expression') {
-        if(capabilities.head_tracking.available || window.weblinger) {
-          var tilt_factor = capabilities.tracking.tilt_factor(_this.get('preferences.device.dwell_tilt_sensitivity'));
-          capabilities.head_tracking.listen({tilt: tilt_factor});
-        }  
+        RSVP.resolve(capabilities.eye_gaze.prepare_tracking_environment({
+          timeoutMs: 25000,
+          before_camera_prompt: function() {
+            runLater(function() {
+              app_state.show_toast(i18n.t('eye_gaze_camera_notice_short', "When your browser asks, allow camera access so face tracking can run."), 'info', 9000);
+            });
+          }
+        })).then(function() {
+          if(capabilities.head_tracking.available || window.weblinger) {
+            var tilt_factor_inner = capabilities.tracking.tilt_factor(_this.get('preferences.device.dwell_tilt_sensitivity'));
+            capabilities.head_tracking.listen({tilt: tilt_factor_inner});
+          }
+        }).catch(function(err) {
+          runLater(function() {
+            app_state.notify_eye_gaze_environment_error(err);
+          });
+        });
       }
 
       buttonTracker.gamepadupdate.speed = _this.get('preferences.device.dwell_arrow_speed');
@@ -306,8 +339,21 @@ export default Component.extend({
       document.addEventListener('facechange', expression_listener);
       this.set('expression_listener', expression_listener)
       if(!this.get('head_tracking')) {
-        capabilities.head_tracking.listen();
-        this.set('head_tracking', capabilities.head_tracking);
+        RSVP.resolve(capabilities.eye_gaze.prepare_tracking_environment({
+          timeoutMs: 25000,
+          before_camera_prompt: function() {
+            runLater(function() {
+              app_state.show_toast(i18n.t('eye_gaze_camera_notice_short', "When your browser asks, allow camera access so face tracking can run."), 'info', 9000);
+            });
+          }
+        })).then(function() {
+          capabilities.head_tracking.listen();
+          _this.set('head_tracking', capabilities.head_tracking);
+        }).catch(function(err) {
+          runLater(function() {
+            app_state.notify_eye_gaze_environment_error(err);
+          });
+        });
       }
     }
     _this.check_timeout();

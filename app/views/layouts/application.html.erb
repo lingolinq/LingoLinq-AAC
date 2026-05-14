@@ -98,7 +98,27 @@
     </div>
   </div>
 <% end %>
-<script src='https://app.covidspeak.org/weblinger.js/weblinger.js' async='true'></script>
+<%#
+  Eye gaze loads weblinger from covidspeak. Use defer (+ load/onerror handlers) so the script executes
+  in order before the Ember app boots, and readiness can be signaled to capabilities.eye_gaze.ensure_ready().
+%>
+<script defer='defer' crossorigin='anonymous' id='lingolinq-weblinger-script' src='https://app.covidspeak.org/weblinger.js/weblinger.js' onerror='window.__weblinger_failed=true;(function(){try{window.dispatchEvent(new CustomEvent("weblinger-script-error",{bubbles:true}));}catch(e){}})();'></script>
+<script type='text/javascript'>
+(function(){
+  function signal(){ try { window.dispatchEvent(new CustomEvent('weblinger-script-load', {bubbles: true})); } catch(e){} }
+  var s=document.getElementById('lingolinq-weblinger-script');
+  if(window.weblinger) {
+    signal();
+  } else if(s) {
+    s.addEventListener('load', function(){
+      signal();
+      if(window.__weblinger_failed) {
+        delete window.__weblinger_failed;
+      }
+    });
+  }
+})();
+</script>
 <script src='/mespeak/mespeak.js' async='true'></script>
 <script type='text/javascript'>
   <% if ENV['SYMBOL_PROXY_KEY'] %>

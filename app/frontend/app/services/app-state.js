@@ -1808,15 +1808,39 @@ export default Service.extend({
         buttonTracker.dwell_gravity = _this.get('currentUser.preferences.device.dwell_gravity');
         buttonTracker.head_tracking = !!  (buttonTracker.dwell_type == 'head' && !head_pointer);
         if(buttonTracker.dwell_type == 'eyegaze' || buttonTracker.dwell_type == 'eyegaze_external') {
-          capabilities.eye_gaze.listen({level: 'noisy', expressions: buttonTracker.dwell_selection == 'expression', external_accessory: buttonTracker.dwell_type == 'eyegaze_external'});
+          var ext_gaze = buttonTracker.dwell_type == 'eyegaze_external';
+          RSVP.resolve(capabilities.eye_gaze.prepare_tracking_environment({
+            timeoutMs: 25000,
+            skip_browser_camera: ext_gaze,
+            before_camera_prompt: ext_gaze ? undefined : function() {
+              runLater(function() {
+                _this.show_toast(i18n.t('eye_gaze_camera_notice_short', "When your browser asks, allow camera access so eye gaze can run."), 'info', 9000);
+              });
+            }
+          })).then(function() {
+            capabilities.eye_gaze.listen({level: 'noisy', expressions: buttonTracker.dwell_selection == 'expression', external_accessory: ext_gaze});
+          }).catch(function(err) {
+            _this.notify_eye_gaze_environment_error(err);
+          });
         } else if(buttonTracker.dwell_type == 'head' || buttonTracker.dwell_selection == 'expression') {
           if(head_pointer) {
             buttonTracker.dwell_type = 'eyegaze';
           }
           var head_opts = {head_pointing: head_pointer};
           head_opts.tilt = capabilities.tracking.tilt_factor(_this.get('currentUser.preferences.device.dwell_tilt_sensitivity'));
-  
-          capabilities.head_tracking.listen(head_opts);
+
+          RSVP.resolve(capabilities.eye_gaze.prepare_tracking_environment({
+            timeoutMs: 25000,
+            before_camera_prompt: function() {
+              runLater(function() {
+                _this.show_toast(i18n.t('eye_gaze_camera_notice_short', "When your browser asks, allow camera access so face tracking can run."), 'info', 9000);
+              });
+            }
+          })).then(function() {
+            capabilities.head_tracking.listen(head_opts);
+          }).catch(function(err) {
+            _this.notify_eye_gaze_environment_error(err);
+          });
         }
       } else {
         buttonTracker.dwell_enabled = false;
@@ -2929,6 +2953,12 @@ export default Service.extend({
       _this.set('toast', null);
       _this._toast_timer = null;
     }, duration);
+  },
+
+  notify_eye_gaze_environment_error: function(err) {
+    var code = (err && err.code) || 'eye_gaze_environment_error';
+    var msg = i18n.t(code, "Eye gaze tracking could not start.");
+    this.show_toast(msg, 'error', 12000);
   },
 
   hide_toast: function() {

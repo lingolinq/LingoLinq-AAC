@@ -345,26 +345,102 @@ var capabilities;
         return false;
       },
 
-      eye_gaze: { 
+      /* Eye gaze (webrtc + weblinger/WebGazer). weblinger is injected in application.html.erb.
+         Calibration tries weblinger hooks first; if absent, probes window.webgazer method names seen
+         across WebGazer 2–3 forks. CDN responses are not always actionable from this repo. */
+      eye_gaze: {
+        prepare_tracking_environment: function(opts) {
+          opts = opts || {};
+          return capabilities.eye_gaze.ensure_ready(opts).then(function() {
+            if(opts.skip_browser_camera) {
+              return Promise.resolve(null);
+            }
+            return capabilities.tracking.preflight_browser_camera_if_needed(opts || {});
+          });
+        },
+        ensure_ready: function(opts) {
+          opts = opts || {};
+          var ms = opts.timeoutMs || 25000;
+          return new Promise(function(resolve, reject) {
+            if(window.weblinger) {
+              resolve(window.weblinger);
+              return;
+            }
+            if(window.__weblinger_failed) {
+              reject({code: 'eye_gaze_script_error'});
+              return;
+            }
+
+            var done = false;
+            var intervalHandle = null;
+            var timeoutHandle = null;
+
+            function cleanup() {
+              window.removeEventListener('weblinger-script-load', onScriptEvent);
+              window.removeEventListener('weblinger-script-error', onScriptEvent);
+              if(intervalHandle !== null) {
+                window.clearInterval(intervalHandle);
+                intervalHandle = null;
+              }
+              if(timeoutHandle !== null) {
+                window.clearTimeout(timeoutHandle);
+                timeoutHandle = null;
+              }
+            }
+
+            function onScriptEvent() {
+              if(done) {
+                return;
+              }
+              if(window.weblinger) {
+                done = true;
+                cleanup();
+                resolve(window.weblinger);
+              } else if(window.__weblinger_failed) {
+                done = true;
+                cleanup();
+                reject({code: 'eye_gaze_script_error'});
+              }
+            }
+
+            window.addEventListener('weblinger-script-load', onScriptEvent);
+            window.addEventListener('weblinger-script-error', onScriptEvent);
+
+            intervalHandle = window.setInterval(onScriptEvent, 100);
+
+            timeoutHandle = window.setTimeout(function() {
+              if(done) {
+                return;
+              }
+              done = true;
+              cleanup();
+              if(window.weblinger) {
+                resolve(window.weblinger);
+              } else if(window.__weblinger_failed) {
+                reject({code: 'eye_gaze_script_error'});
+              } else {
+                reject({code: 'eye_gaze_script_timeout'});
+              }
+            }, ms);
+          });
+        },
         listen: function(opts) {
           opts = opts || {};
-          var listen_level = opts.level || 'noisy';
-          var expression_watch = !!opts.expressions;
           if(window.weblinger) {
-            var start = function() {            
-              window.weblinger.start_options = "gaze";
+            var start = function() {
+              window.weblinger.start_options = 'gaze';
               var native_canvas = capabilities.tracking.setup_canvas();
-              var prefix = "https://app.covidspeak.org/weblinger.js/";
+              var prefix = 'https://app.covidspeak.org/weblinger.js/';
               if(capabilities.installed_app) {
-                prefix = "weblinger/";
+                prefix = 'weblinger/';
               }
               window.weblinger.start({
-                webgazer_source: prefix + "lib/webgazer.js/webgazer.js",
-                weboji_source: prefix + "lib/jeelizWeboji/jeelizFaceTransfer.js",
-                weboji_nnc_source: prefix + "lib/jeelizWeboji/jeelizFaceTransferNNC.json.js",
+                webgazer_source: prefix + 'lib/webgazer.js/webgazer.js',
+                weboji_source: prefix + 'lib/jeelizWeboji/jeelizFaceTransfer.js',
+                weboji_nnc_source: prefix + 'lib/jeelizWeboji/jeelizFaceTransferNNC.json.js',
                 canvas: native_canvas,
                 source: 'gaze',
-                selection_type: expression_watch ? 'expression' : 'none',
+                selection_type: opts.expressions ? 'expression' : 'none',
                 selection_action: 'none',
                 cursor: 'none',
                 mode: 'pointer',
@@ -379,13 +455,13 @@ var capabilities;
                     evt.ts = (new Date()).getTime();
                     evt.target.dispatchEvent(evt);
                   } else if(e.type == 'expression') {
-                    var evt = new CustomEvent('facechange', { bubbles: true, cancelable: true });
-                    evt.clientX = 0;
-                    evt.clientY = 0;
-                    evt.expression = e.expression.replace(/-/, '_');
-                    evt.ts = (new Date()).getTime();
-                    evt.target = document.body;
-                    evt.target.dispatchEvent(evt);
+                    var fevt = new CustomEvent('facechange', { bubbles: true, cancelable: true });
+                    fevt.clientX = 0;
+                    fevt.clientY = 0;
+                    fevt.expression = e.expression.replace(/-/, '_');
+                    fevt.ts = (new Date()).getTime();
+                    fevt.target = document.body;
+                    fevt.target.dispatchEvent(fevt);
                   } else if(e.type == 'stop' || e.type == 'fail') {
                     window.weblinger.start_options = null;
                     capabilities.tracking.stop_canvas();
@@ -393,34 +469,212 @@ var capabilities;
                 }
               });
             };
-            if(window.weblinger.start_options && window.weblinger.start_options != "gaze") {
-              window.weblinger.stop(true).then(function(res) {
+            if(window.weblinger.start_options && window.weblinger.start_options != 'gaze') {
+              window.weblinger.stop(true).then(function(/* res */) {
                 start();
               });
             } else if(window.weblinger.start_options) {
-              // already running
+              /* already running */
             } else {
-              start();              
+              start();
             }
           }
         },
         stop_listening: function() {
           if(window.weblinger) {
             window.weblinger.start_options = null;
-            window.weblinger.stop({teardown: true});
-            // TODO: this should be fixed by an update to weblinger
+            window.weblinger.stop({ teardown: true });
+            /* TODO: this should be fixed by an update to weblinger */
             var ovr = document.querySelector('#weblinger_overlay');
-            if(ovr) { ovr.style.display = 'none'; }
+            if(ovr) {
+              ovr.style.display = 'none';
+            }
             capabilities.tracking.stop_canvas();
           }
         },
         calibrate: function() {
+          var wl = window.weblinger;
+          if(wl) {
+            if(typeof wl.calibrate === 'function') {
+              wl.calibrate();
+              return;
+            }
+            if(typeof wl.show_calibration === 'function') {
+              wl.show_calibration();
+              return;
+            }
+            if(typeof wl.calibration === 'function') {
+              wl.calibration();
+              return;
+            }
+            if(typeof wl.restart_calibration === 'function') {
+              wl.restart_calibration();
+              return;
+            }
+          }
+          var wg = window.webgazer || window.WebGazer;
+          if(!wg) {
+            return;
+          }
+          var attempts = [
+            ['showCalibrationPoints', []],
+            ['showCalibration', [true]],
+            ['showCalibration', []],
+            ['beginCalibration', []],
+            ['startCalibration', []],
+            ['showPredictionPoints', [true]],
+            ['showPredictionPoints', []]
+          ];
+          var cal_idx = null;
+          for(cal_idx = 0; cal_idx < attempts.length; cal_idx++) {
+            var nm = attempts[cal_idx][0];
+            var args = attempts[cal_idx][1];
+            if(typeof wg[nm] === 'function') {
+              wg[nm].apply(wg, args);
+              break;
+            }
+          }
         },
         calibratable: function(cb) {
-          cb(false);
+          cb(!!window.weblinger);
         }
       },
       tracking: {
+        needs_browser_camera_source: function() {
+          return !(window.cordova && window.plugin && window.plugin.CanvasCamera);
+        },
+        browser_gaze_stream_is_live: function() {
+          var stream = capabilities.tracking.browser_gaze_media_stream;
+          if(!stream || !stream.getTracks) {
+            return false;
+          }
+          var ok = false;
+          stream.getTracks().forEach(function(tr) {
+            if(tr.readyState === 'live') {
+              ok = true;
+            }
+          });
+          return ok;
+        },
+        ensure_browser_mirror_canvas: function() {
+          if(capabilities.tracking.browser_mirror_canvas && document.body.contains(capabilities.tracking.browser_mirror_canvas)) {
+            return capabilities.tracking.browser_mirror_canvas;
+          }
+          var c = document.createElement('canvas');
+          c.id = 'browser_gaze_mirror_canvas';
+          c.setAttribute('aria-hidden', 'true');
+          c.width = 640;
+          c.height = 480;
+          c.style.width = '2px';
+          c.style.height = '2px';
+          c.style.position = 'absolute';
+          c.style.opacity = '0.02';
+          c.style.pointerEvents = 'none';
+          c.style.top = '0';
+          c.style.right = '0';
+          c.style.zIndex = '-1';
+          document.body.appendChild(c);
+          capabilities.tracking.browser_mirror_canvas = c;
+          return c;
+        },
+        stop_browser_gaze_mirror_loop: function() {
+          if(capabilities.tracking.browser_gaze_mirror_raf) {
+            window.cancelAnimationFrame(capabilities.tracking.browser_gaze_mirror_raf);
+            capabilities.tracking.browser_gaze_mirror_raf = null;
+          }
+        },
+        stop_browser_gaze_mirror: function() {
+          capabilities.tracking.stop_browser_gaze_mirror_loop();
+          var stream = capabilities.tracking.browser_gaze_media_stream;
+          if(stream && stream.getTracks) {
+            stream.getTracks().forEach(function(tr) {
+              tr.stop();
+            });
+          }
+          capabilities.tracking.browser_gaze_media_stream = null;
+          var vid = document.getElementById('lingolinq_browser_gaze_video');
+          if(vid) {
+            vid.pause();
+            vid.srcObject = null;
+          }
+        },
+        attach_browser_camera_stream: function(stream) {
+          capabilities.tracking.browser_gaze_media_stream = stream;
+          var vid = document.getElementById('lingolinq_browser_gaze_video');
+          if(!vid) {
+            vid = document.createElement('video');
+            vid.id = 'lingolinq_browser_gaze_video';
+            vid.setAttribute('playsinline', '');
+            vid.setAttribute('aria-hidden', 'true');
+            vid.muted = true;
+            vid.autoplay = true;
+            vid.width = 640;
+            vid.height = 480;
+            vid.style.display = 'none';
+            vid.style.position = 'absolute';
+            document.body.appendChild(vid);
+          }
+          vid.srcObject = stream;
+          var pp = vid.play();
+          if(pp && pp.catch) {
+            pp.catch(function(/* err */) { });
+          }
+          capabilities.tracking.stop_browser_gaze_mirror_loop();
+          var canvas = capabilities.tracking.ensure_browser_mirror_canvas();
+          function draw_frame() {
+            if(!capabilities.tracking.browser_gaze_media_stream) {
+              return;
+            }
+            if(!vid || !vid.videoWidth) {
+              capabilities.tracking.browser_gaze_mirror_raf = window.requestAnimationFrame(draw_frame);
+              return;
+            }
+            var w = canvas.width;
+            var h = canvas.height;
+            var ctx = canvas.getContext('2d');
+            ctx.save();
+            ctx.translate(w, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(vid, 0, 0, w, h);
+            ctx.restore();
+            capabilities.tracking.browser_gaze_mirror_raf = window.requestAnimationFrame(draw_frame);
+          }
+          capabilities.tracking.browser_gaze_mirror_raf = window.requestAnimationFrame(draw_frame);
+        },
+        /* Requests camera access for browser weblinger/WebGazer builds. Cordova uses CanvasCamera instead. */
+        preflight_browser_camera_if_needed: function(opts) {
+          opts = opts || {};
+          if(!capabilities.tracking.needs_browser_camera_source()) {
+            return Promise.resolve(null);
+          }
+          if(capabilities.tracking.browser_gaze_stream_is_live()) {
+            return Promise.resolve(capabilities.tracking.browser_mirror_canvas);
+          }
+          if(!window.isSecureContext) {
+            return Promise.reject({code: 'eye_gaze_insecure_context'});
+          }
+          if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return Promise.reject({code: 'eye_gaze_no_getusermedia'});
+          }
+          if(typeof opts.before_camera_prompt === 'function') {
+            opts.before_camera_prompt();
+          }
+          return navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: false
+          }).then(function(stream) {
+            capabilities.tracking.attach_browser_camera_stream(stream);
+            return capabilities.tracking.ensure_browser_mirror_canvas();
+          }).catch(function(err) {
+            var code = 'eye_gaze_camera_blocked';
+            if(err && err.name === 'NotAllowedError') {
+              code = 'eye_gaze_camera_denied';
+            } else if(err && err.name === 'NotFoundError') {
+              code = 'eye_gaze_camera_not_found';
+            }
+            return Promise.reject({code: code, error: err});
+          });
+        },
         setup_canvas: function() {
           if(window.cordova && window.plugin && window.plugin.CanvasCamera) {
             var canvas = capabilities.head_tracking.native_canvas;
@@ -486,6 +740,7 @@ var capabilities;
             canvas.drawing = true;
             return canvas2;
           }
+          return capabilities.tracking.ensure_browser_mirror_canvas();
         },
         stop_canvas: function() {
           if(window.cordova && window.plugin && window.plugin.CanvasCamera) {
@@ -495,6 +750,7 @@ var capabilities;
               canvas.drawing = false;
             }
           }
+          capabilities.tracking.stop_browser_gaze_mirror();
         },
         tilt_factor: function(level) {
           var res = 1.0;
