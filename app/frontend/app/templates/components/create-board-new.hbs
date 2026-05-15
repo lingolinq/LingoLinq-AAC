@@ -890,6 +890,64 @@
                           <polyline points="6 9 12 15 18 9"/>
                         </svg>
                       </button>
+                      {{#if (is-equal this.create_rail_open_section sec.id)}}
+                        <div class="md-board-edit-right-panel__section-body">
+                          {{#if (is-equal sec.id "text")}}
+                            {{!-- Text Settings — structure + styles copied
+                                 from the board-detail right panel. NOT
+                                 wired yet: actions/bindings stripped, so
+                                 these are inert visual controls. --}}
+                            <div class="md-board-edit-right-panel__row-pair">
+                              <span class="md-board-edit-right-panel__row-pair-label">{{t "Text Size" key="text_size"}}</span>
+                              <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
+                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Smaller" key="board_detail_settings_smaller"}}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                                </button>
+                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Larger" key="board_detail_settings_larger"}}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
+                                </button>
+                              </div>
+                            </div>
+
+                            <div class="md-board-edit-right-panel__row-pair">
+                              <span class="md-board-edit-right-panel__row-pair-label">{{t "Font Type" key="font_type"}}</span>
+                              <div class="md-settings-dropdown-wrap">
+                                <button type="button" class="md-settings-select md-settings-select--trigger" aria-haspopup="listbox" aria-expanded="false" aria-label={{t "Font style" key="board_detail_prefs_font_style"}}>
+                                  <span class="md-settings-select__value">{{t "Default" key="font_default"}}</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <div class="md-board-edit-right-panel__row-pair">
+                              <span class="md-board-edit-right-panel__row-pair-label">{{t "Text Position" key="text_position"}}</span>
+                              <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Text position" key="board_detail_prefs_text_position"}}>
+                                <button type="button" role="radio" aria-checked="true" class="md-settings-icon-btn md-settings-icon-btn--active" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} aria-label={{t "Text on top" key="board_detail_settings_text_top"}}>
+                                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--top">Aa</span><span class="md-settings-btnmock__img"></span></span>
+                                </button>
+                                <button type="button" role="radio" aria-checked="false" class="md-settings-icon-btn" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} aria-label={{t "Text on bottom" key="board_detail_settings_text_bottom"}}>
+                                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
+                                </button>
+                                <button type="button" role="radio" aria-checked="false" class="md-settings-icon-btn" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}}>
+                                  <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <div class="md-folder-toggle-row">
+                              <span class="md-folder-toggle-row__label" id="nb-shrink-labels-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
+                              <div class="md-folder-toggle-row__control">
+                                <span class="md-folder-toggle-row__state md-folder-toggle-row__state--active" aria-hidden="true">{{t "Off" key="off"}}</span>
+                                <button type="button" role="switch" aria-checked="false" aria-labelledby="nb-shrink-labels-label" class="nb-toggle__switch">
+                                  <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                                </button>
+                                <span class="md-folder-toggle-row__state" aria-hidden="true">{{t "On" key="on"}}</span>
+                              </div>
+                            </div>
+                          {{else}}
+                            <p class="md-board-edit-right-panel__hint" style="font-style: italic; opacity: 0.6; margin: 0;">{{t "Controls coming soon." key="rail_section_coming_soon"}}</p>
+                          {{/if}}
+                        </div>
+                      {{/if}}
                     </div>
                   {{/each}}
                 </div>
