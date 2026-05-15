@@ -42459,6 +42459,21 @@ a.md-goal-nav-action:hover,
   background: rgba(255, 255, 255, 0.88) !important;
 
 }
+/* Top-right Create Board: visually match the footer primary CTA
+   (teal→blue gradient) instead of inheriting the neutral header
+   action-button look. Higher specificity than the rule above. */
+.new-board--modern .create-board-actions .new-board__submit--top {
+  /* Push only this button to the far right of the flex row; the
+     Import / Paste HTML / Generate group stays left-aligned. */
+  margin-left: auto !important;
+  border: 1px solid rgba(44, 183, 176, 0.18) !important;
+  font-weight: 850 !important;
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.24), rgba(91, 141, 239, 0.20)) !important;
+  color: var(--md-ink) !important;
+}
+.new-board--modern .create-board-actions .new-board__submit--top:hover {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.32), rgba(91, 141, 239, 0.28)) !important;
+}
 /* Import Board(s) wraps its button in a .file_select_holder span (so the
    hidden file input can intercept clicks). In a flex row, force the span
    to behave like a sibling button — and use overflow: visible so the
@@ -42654,6 +42669,96 @@ a.md-goal-nav-action:hover,
      italic-lowercase styling should win regardless of whose child
      element it lives in. */
   text-decoration: none;
+}
+/* Required-field pill — same shape as the optional pill but a warm
+   accent so "required" reads as a stronger signal than "optional". */
+.nb-field__required-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  color: #b8761c;
+  background: rgba(232, 163, 23, 0.12);
+  border: 1px solid rgba(232, 163, 23, 0.32);
+  border-radius: 999px;
+  vertical-align: middle;
+  text-decoration: none;
+}
+
+/* ── Segmented create-mode switch (Create | Generate with AI) ──────── */
+.nb-mode-switch {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 3px;
+  border-radius: 16px;
+  background: rgba(13, 36, 56, 0.05);
+  border: 1px solid rgba(13, 36, 56, 0.09);
+}
+.nb-mode-switch__opt {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 7px 16px;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.62);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.nb-mode-switch__opt:hover {
+  color: $la-navy;
+}
+.nb-mode-switch__opt--active {
+  color: var(--md-ink, #1f2933);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.24), rgba(91, 141, 239, 0.20));
+  box-shadow:
+    0 1px 2px rgba(13, 36, 56, 0.08),
+    inset 0 0 0 1px rgba(44, 183, 176, 0.22);
+}
+
+/* ── AI "Generate Labels" gate (Size & Labels body, pre-generation) ── */
+.nb-ai-generate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 20px;
+  text-align: center;
+}
+.nb-ai-generate__lead {
+  margin: 0;
+  max-width: 480px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.7);
+}
+.nb-ai-generate .nb-alert {
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+}
+.nb-ai-generate__btn.btn.btn-primary {
+  padding: 12px 28px;
+  border-radius: 16px;
+  border: 1px solid rgba(44, 183, 176, 0.18);
+  font-weight: 850;
+  font-size: 15px;
+  color: var(--md-ink, #1f2933);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.30), rgba(91, 141, 239, 0.26));
+  box-shadow: 0 2px 6px rgba(13, 36, 56, 0.08);
+}
+.nb-ai-generate__btn.btn.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.40), rgba(91, 141, 239, 0.34));
+}
+.nb-ai-generate__btn.btn.btn-primary[aria-disabled="true"] {
+  opacity: 0.65;
+  cursor: progress;
 }
 .new-board--modern .modal-footer .new-board__cancel {
   padding: 12px 24px !important;
@@ -43601,8 +43706,8 @@ a.md-goal-nav-action:hover,
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;
-  max-width: 680px;
-  max-height: 480px;
+  max-width: 850px;
+  max-height: 700px;
   margin: 0 auto;
   padding: 14px;
   border-radius: 18px;
@@ -43806,6 +43911,27 @@ a.md-goal-nav-action:hover,
    the edge, then two soft outer falloffs at 10px and 22px radii.
    The inset 1.5px ring matches the painted-cell pattern so painted+
    duplicate cells stay readable. */
+/* No-Fitzgerald-category highlight. A cool indigo ring — deliberately
+   a different hue from the amber duplicate glow so the two states are
+   distinguishable at a glance. No !important, so when a cell is BOTH
+   duplicate and uncolored the amber duplicate ring (which is
+   !important) takes visual precedence. */
+.md-board-detail-grid__cell--no-category {
+  position: relative;
+  z-index: 1;
+}
+.md-board-detail-symbol-card--no-category {
+  /* Amber to match the "no color category" warning banner. Plus a
+     second outline OUTSIDE the button (outline-offset gap) so the
+     flagged buttons stand out beyond their own border. */
+  box-shadow:
+    0 0 0 2px rgba(232, 163, 23, 0.80),
+    0 0 10px 0 rgba(232, 163, 23, 0.50),
+    0 0 22px 4px rgba(232, 163, 23, 0.24),
+    inset 0 0 0 1.5px rgba(232, 163, 23, 0.70);
+  outline: 2px solid rgba(232, 163, 23, 0.85);
+  outline-offset: 4px;
+}
 .md-board-detail-grid__cell--duplicate {
   position: relative;
   z-index: 1;
@@ -43980,6 +44106,12 @@ a.md-goal-nav-action:hover,
   aspect-ratio: var(--board-columns, 4) / var(--board-rows, 4);
   margin: 0 auto;
   gap: clamp(4px, 1vw, 12px) !important;
+}
+/* Left ("Fit cell" / square) shape: the cards already fill the cell
+   height, so the full inter-row gap reads as too much dead space in
+   the preview. Tighten only the vertical gap; column spacing stays. */
+.md-board-detail-grid--preview.md-board-detail-grid--shape-square {
+  row-gap: clamp(2px, 0.35vw, 5px) !important;
 }
 /* Preview cells: drop the live-page interactive affordances so the mockup
    reads as a static visual. We deliberately do NOT override --empty or
@@ -45789,6 +45921,12 @@ a.md-goal-nav-action:hover,
 .nb-checkbox input[type="checkbox"] {
   width: 18px;
   height: 18px;
+  /* Lock the box size: in the inline-flex row a long label would
+     otherwise let the checkbox shrink, so the two rows rendered at
+     different sizes. flex-shrink + min dimensions keep both 18x18. */
+  flex-shrink: 0;
+  min-width: 18px;
+  min-height: 18px;
   accent-color: var(--md-teal, #2cb7b0);
   cursor: pointer;
 }
@@ -45903,6 +46041,8 @@ a.md-goal-nav-action:hover,
   transform: scale(1) !important;
 
   min-width: 170px !important;
+
+  max-width: 175px !important;
 
   border: 1.5px solid rgba($la-navy, 0.08) !important;
 

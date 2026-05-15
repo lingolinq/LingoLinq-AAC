@@ -17,10 +17,35 @@
           {{t "Paste HTML" key="paste_html"}}
         </button>
         {{#if this.ai_board_generation_enabled}}
-          <button type="button" class="btn btn-default" {{action "generateWithAi"}}>
-            {{t "Generate with AI" key="generate_with_ai"}}
-          </button>
+          {{!-- Segmented mode switch: regular creation vs AI generation.
+               Import / Paste HTML stay as their own buttons. --}}
+          <div class="nb-mode-switch" role="group" aria-label={{t "Creation mode" key="creation_mode"}}>
+            <button type="button"
+                    class="nb-mode-switch__opt {{unless this.ai_mode 'nb-mode-switch__opt--active'}}"
+                    aria-pressed={{if this.ai_mode "false" "true"}}
+                    {{action "set_create_mode" "regular"}}>{{t "Create" key="create_mode_regular"}}</button>
+            <button type="button"
+                    class="nb-mode-switch__opt {{if this.ai_mode 'nb-mode-switch__opt--active'}}"
+                    aria-pressed={{if this.ai_mode "true" "false"}}
+                    {{action "set_create_mode" "ai"}}>{{t "Generate with AI" key="generate_with_ai"}}</button>
+          </div>
         {{/if}}
+        {{!-- Top-right Create Board: same action as the footer button,
+             but only rendered once the form is valid (createBoardDisabled
+             is false) so it stays hidden until the user has filled out
+             the required fields. --}}
+        {{#unless this.createBoardDisabled}}
+          <button {{action "attemptSave"}}
+                  class="btn btn-primary new-board__submit new-board__submit--top">
+            {{#if this.status.saving}}
+              {{t "Creating Board..." key="creating_board"}}
+            {{else if this.status.error}}
+              {{t "Error Creating Board" key="error_creating_board"}}
+            {{else}}
+              {{t "Create Board" key="create_board"}}
+            {{/if}}
+          </button>
+        {{/unless}}
       </div>
     </div>
     {{else}}
@@ -46,9 +71,16 @@
           {{t "Paste HTML" key="paste_html"}}
         </button>
         {{#if this.ai_board_generation_enabled}}
-          <button type="button" class="la-btn la-btn--ghost" {{action "generateWithAi"}}>
-            {{t "Generate with AI" key="generate_with_ai"}}
-          </button>
+          <div class="nb-mode-switch" role="group" aria-label={{t "Creation mode" key="creation_mode"}}>
+            <button type="button"
+                    class="nb-mode-switch__opt {{unless this.ai_mode 'nb-mode-switch__opt--active'}}"
+                    aria-pressed={{if this.ai_mode "false" "true"}}
+                    {{action "set_create_mode" "regular"}}>{{t "Create" key="create_mode_regular"}}</button>
+            <button type="button"
+                    class="nb-mode-switch__opt {{if this.ai_mode 'nb-mode-switch__opt--active'}}"
+                    aria-pressed={{if this.ai_mode "true" "false"}}
+                    {{action "set_create_mode" "ai"}}>{{t "Generate with AI" key="generate_with_ai"}}</button>
+          </div>
         {{/if}}
       </div>
       {{/unless}}
@@ -76,7 +108,10 @@
                   {{/if}}
                 </div>
                 <div class="nb-field new-board-field--description">
-                  <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span></label>
+                  <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}{{#if this.ai_mode}}<span class="nb-field__required-pill">{{t "required" key="required"}}</span>{{else}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span>{{/if}}</label>
+                  {{#if this.ai_mode}}
+                    <p class="nb-field__hint">{{t "The AI uses this description to generate your board's labels — be specific (who it's for, the setting, the vocabulary focus)." key="ai_description_hint"}}</p>
+                  {{/if}}
                   <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" @rows="1" />
                 </div>
               </div>
@@ -109,6 +144,7 @@
         <section class="nb-section">
           <div class="nb-section__head">
             <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
+            {{#if this.show_full_size_section}}
             <ul class="nb-checklist nb-checklist--inset nb-section__head-checklist">
               <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
               <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_label"}}</li>
@@ -136,8 +172,10 @@
                 </button>
               </div>
             </div>
+            {{/if}}
           </div>
           <div class="nb-section__body">
+            {{#if this.show_full_size_section}}
             <div class="nb-words-grid">
               <div class="nb-basics-grid__col nb-words-grid__col--labels">
                 <div class="nb-field new-board-field--labels">
@@ -235,6 +273,25 @@
                       </div>
                     </div>
                   {{/if}}
+                  {{#if this.no_fitzgerald_count}}
+                    {{!-- Buttons whose label matched no Fitzgerald part
+                         of speech get no key color. They're highlighted
+                         in the preview; this banner explains why and what
+                         to do about it. --}}
+                    <div class="nb-alert nb-alert--warning nb-alert--fitzgerald" role="status">
+                      <span class="nb-alert__icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                          <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                          <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                          <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                        </svg>
+                      </span>
+                      <div class="nb-alert__body">
+                        <p class="nb-alert__title">{{t "Some buttons have no color category" key="no_fitzgerald_title"}}</p>
+                        <p class="nb-alert__text">{{t "These buttons didn't match a Fitzgerald part of speech, so they have no key color and will appear plain on the board: %{words}. You can color them by hand in the preview, or adjust the labels." key="no_fitzgerald_message" words=this.no_fitzgerald_labels_display}}</p>
+                      </div>
+                    </div>
+                  {{/if}}
                   {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter, paste a list, or import a csv file" key="labels_chip_placeholder_import")}}
                   {{#if this.label_count}}
                     <div class="nb-labels-disclosure">
@@ -321,7 +378,7 @@
             {{#if this.label_count}}
             <div class="new-board-prefs-collapsible {{if this.prefs_open "new-board-prefs-collapsible--open"}}">
               <button type="button" class="new-board-prefs-toggle" aria-expanded={{if this.prefs_open "true" "false"}} {{action "togglePrefs"}}>
-                <span class="new-board-prefs-toggle__label">{{t "Preferences" key="preferences_section"}}</span>
+                <span class="new-board-prefs-toggle__label">{{#if this.prefs_open}}{{t "Hide Preferences" key="hide_preferences"}}{{else}}{{t "Show Preferences" key="show_preferences"}}{{/if}}</span>
                 <svg class="new-board-prefs-toggle__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               {{#if this.prefs_open}}
@@ -694,7 +751,7 @@
                    ondrop={{action "previewDrop"}}>
                 {{#each this.preview_grid as |row rowIdx|}}
                   {{#each row as |cell colIdx|}}
-                    <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}}"
+                    <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
                          draggable={{if cell.draggable "true" "false"}}
                          onclick={{action "cellClicked" cell.idx}}
@@ -702,7 +759,7 @@
                          ondragover={{action "cellDragOver"}}
                          ondrop={{action "cellDrop" rowIdx colIdx}}
                          ondragend={{action "cellDragEnd"}}>
-                      <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}}"
+                      <div class="button md-board-detail-symbol-card md-board-detail-symbol-card--default {{unless cell.has_color "md-board-detail-symbol-card--no-color"}} {{if cell.empty "md-board-detail-symbol-card--empty"}} {{if cell.is_duplicate "md-board-detail-symbol-card--duplicate"}} {{if cell.no_category "md-board-detail-symbol-card--no-category"}}"
                            style={{cell.bg_style}}>
                         {{#unless cell.empty}}
                           {{#if cell.is_duplicate}}
@@ -779,6 +836,39 @@
                 {{/each}}
               </div>
             </div>
+            {{else}}
+              {{!-- AI mode, pre-generation: the whole Size & Labels UI
+                   is gated behind this button. It calls the AI with the
+                   required description, fills the labels, then flips
+                   show_full_size_section so the full section renders. --}}
+              <div class="nb-ai-generate">
+                <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
+                {{#if this.ai_generate_error}}
+                  <div class="nb-alert nb-alert--warning" role="alert">
+                    <span class="nb-alert__icon" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <div class="nb-alert__body">
+                      <p class="nb-alert__text">{{this.ai_generate_error}}</p>
+                    </div>
+                  </div>
+                {{/if}}
+                <button type="button"
+                        class="btn btn-primary nb-ai-generate__btn"
+                        aria-disabled={{if this.ai_generating "true" "false"}}
+                        {{action "generate_labels_with_ai"}}>
+                  {{#if this.ai_generating}}
+                    {{t "Generating Labels…" key="ai_generating_labels"}}
+                  {{else}}
+                    {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}
+                  {{/if}}
+                </button>
+              </div>
+            {{/if}}
           </div>
         </section>
 

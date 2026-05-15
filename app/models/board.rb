@@ -30,6 +30,7 @@ class Board < ActiveRecord::Base
   before_save :require_key
   before_save :check_inflections
   before_save :check_content_overrides
+  before_save :process_client_supplied_images
   before_save :process_suggested_symbols
   before_save :process_suggested_sounds
   after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
@@ -1171,6 +1172,43 @@ class Board < ActiveRecord::Base
     if @check_for_parts_of_speech
       self.check_for_parts_of_speech_and_inflections(false)
       @check_for_parts_of_speech = nil
+    end
+  end
+
+  def process_client_supplied_images
+    # When the client pre-builds buttons (e.g. create-board-new bakes in
+    # the symbol it previewed) it sends an `image_url` but no `image_id`.
+    # process_suggested_symbols only runs for the populate-from-labels
+    # path, so those buttons would otherwise be saved with a bare URL
+    # and no ButtonImage — and the board renders no symbol (it resolves
+    # images via image_id). Turn each provided URL into a real
+    # ButtonImage here so the saved board shows what the user previewed.
+    buttons = self.settings['buttons'] || []
+    pending = buttons.select { |b| b['image_url'].present? && b['image_id'].blank? }
+    return if pending.empty?
+
+    begin
+      pending.each do |button|
+        bi = ButtonImage.process_new({
+          'url' => button['image_url'],
+          'content_type' => 'image/png',
+          'public' => true,
+          'protected' => false
+        }, {:user => self.user})
+
+        if bi && bi.id
+          button['image_id'] = bi.global_id
+          # Let TTS-sound suggestion also run for these buttons, but
+          # never clobber the 'populated_from_labels' flag that
+          # process_suggested_symbols depends on (that path has no
+          # client image_url, so this loop won't run there anyway).
+          @buttons_changed = 'suggested_symbols_added' unless @buttons_changed == 'populated_from_labels'
+        end
+      end
+    rescue => e
+      Rails.logger.error "Failed to process client-supplied button images: #{e.message}"
+      # Don't raise - board creation should continue even if image
+      # processing fails.
     end
   end
 

@@ -255,6 +255,17 @@ export default Component.extend({
     return cls;
   }),
 
+  // ── AI board-generation mode ──────────────────────────────────────────
+  // When true the page is in "Generate with AI" mode (selected via the
+  // segmented mode switch) instead of regular creation. In AI mode the
+  // description is required and the Size & Labels section stays hidden
+  // behind a "Generate Labels with AI" button until that button has
+  // successfully produced labels (ai_labels_generated).
+  ai_mode: false,
+  ai_labels_generated: false,
+  ai_generating: false,
+  ai_generate_error: null,
+
   // ── Display Preferences toolbar (ported from board-detail) ────────────
   // Dropdown open-state flags
   display_prefs_font_dropdown_open: false,
@@ -529,10 +540,17 @@ export default Component.extend({
   license_options: LingoLinq.licenseOptions,
   public_options: LingoLinq.publicOptions,
 
-  createBoardDisabled: computed('model.name', 'status.saving', 'show_user_options', 'creating_for_someone_else', 'model.for_user_id', function() {
+  createBoardDisabled: computed('model.name', 'status.saving', 'show_user_options', 'creating_for_someone_else', 'model.for_user_id', 'ai_mode', 'model.description', 'ai_labels_generated', function() {
     var name = (this.get('model.name') || '').trim();
     if(this.get('status.saving') || name.length === 0) {
       return true;
+    }
+    // AI mode: the description feeds the generation, so it's required,
+    // and the user must have run "Generate Labels with AI" (which
+    // reveals the full Size & Labels section) before they can create.
+    if(this.get('ai_mode')) {
+      if(!(this.get('model.description') || '').trim().length) { return true; }
+      if(!this.get('ai_labels_generated')) { return true; }
     }
     // Conditional: when the toggle is "Yes", the user must actually pick
     // a supervisee. The teal glow on the dropdown (`for_user_needs_attention`)
@@ -542,6 +560,13 @@ export default Component.extend({
       if(!picked || picked === 'self') { return true; }
     }
     return false;
+  }),
+
+  /** Regular creation always shows the full Size & Labels section. In
+   *  AI mode it stays hidden behind the "Generate Labels with AI"
+   *  button until that has produced labels. */
+  show_full_size_section: computed('ai_mode', 'ai_labels_generated', function() {
+    return !this.get('ai_mode') || this.get('ai_labels_generated');
   }),
 
   /** Live "what's missing" list for the Create button hint. Mirrors the
@@ -755,6 +780,16 @@ export default Component.extend({
         }
         var editing = (editIdx !== null && editIdx !== undefined && editIdx === idx);
         var is_duplicate = !!(label && counts[label.toLowerCase()] > 1);
+        // "No Fitzgerald category": the POS lookup has RESOLVED for this
+        // label (entry present in _label_colors) but produced no
+        // Fitzgerald key color (no fill — pick_aac_color found no
+        // matching part of speech) AND the user hasn't manually painted
+        // it. Only flags after the async lookup completes so a label the
+        // user is still typing doesn't false-positive. Clear/gray POS
+        // (conjunctions/articles) carry a real fill, so they are NOT
+        // flagged — they do have a category.
+        var lc_entry = label ? label_colors[label.toLowerCase()] : null;
+        var no_category = !!(label && !painted && lc_entry && !lc_entry.fill);
         // Symbol image preview — the OpenSymbols search result for this
         // label, looked up async via `_lookup_label_images`. Falls back
         // to a placeholder square in the template when the URL is
@@ -777,6 +812,7 @@ export default Component.extend({
           draggable: !!(label && !editing && !paint_active),
           painted: !!painted,
           is_duplicate: is_duplicate,
+          no_category: no_category,
           bg_style: bg_style,
           image_url: image_url,
           // A near-white POS fill (conjunction/article) counts as no
@@ -789,6 +825,43 @@ export default Component.extend({
       grid.push(row);
     }
     return grid;
+  }),
+
+  /** Unique labels whose POS lookup resolved with no Fitzgerald key
+   *  color (and the user hasn't painted them). Drives the preview
+   *  highlight + the warning banner. Mirrors the per-cell `no_category`
+   *  rule so the count matches what's highlighted. */
+  no_fitzgerald_labels: computed('parsed_labels.[]', '_label_colors', '_painted_colors', function() {
+    var labels = this.get('parsed_labels') || [];
+    var lc = this.get('_label_colors') || {};
+    var painted = this.get('_painted_colors') || {};
+    var seen = {};
+    var out = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key]) { return; }
+      seen[key] = true;
+      if(painted[key]) { return; }
+      var entry = lc[key];
+      if(entry && !entry.fill) { out.push(l); }
+    });
+    return out;
+  }),
+
+  no_fitzgerald_count: computed('no_fitzgerald_labels.[]', function() {
+    return (this.get('no_fitzgerald_labels') || []).length;
+  }),
+
+  /** Short, comma-joined preview of the uncolored labels for the
+   *  banner copy — capped so a big paste doesn't blow out the alert. */
+  no_fitzgerald_labels_display: computed('no_fitzgerald_labels.[]', function() {
+    var list = this.get('no_fitzgerald_labels') || [];
+    var shown = list.slice(0, 8);
+    var str = shown.join(', ');
+    if(list.length > shown.length) {
+      str += ', …';
+    }
+    return str;
   }),
 
   /** Whenever the parsed labels change, schedule a Fitzgerald color
@@ -1184,11 +1257,71 @@ export default Component.extend({
       }
       modalUtil.open('import-from-html');
     },
+    // Legacy entry point — now just switches the page into AI mode
+    // instead of opening the old generate-board modal.
     generateWithAi: function() {
-      if(!this.get('standalone')) {
-        this.get('modal').close();
+      this.send('set_create_mode', 'ai');
+    },
+
+    /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
+     *  button. Leaving AI mode keeps any generated labels so toggling
+     *  back and forth doesn't lose work. */
+    set_create_mode: function(mode) {
+      this.set('ai_mode', mode === 'ai');
+      this.set('ai_generate_error', null);
+    },
+
+    /** AI label generation, in-page. Uses the (required) board
+     *  description as the prompt, calls the same endpoint the old
+     *  generate-board modal used, writes the result into the board's
+     *  labels, then reveals the full Size & Labels section. */
+    generate_labels_with_ai: function() {
+      var _this = this;
+      if(this.get('ai_generating')) { return; }
+      if(persistence && persistence.get && !persistence.get('online')) {
+        this.set('ai_generate_error', i18n.t('generate_requires_online', "AI board generation requires an Internet connection."));
+        return;
       }
-      modalUtil.open('generate-board');
+      var prompt = (this.get('model.description') || '').trim();
+      if(!prompt) {
+        this.set('ai_generate_error', i18n.t('ai_description_required', "Add a description above — it's what the AI uses to generate labels."));
+        return;
+      }
+      this.set('ai_generate_error', null);
+      this.set('ai_generating', true);
+      var payload = {
+        prompt: prompt,
+        rows: parseInt(this.get('model.grid.rows'), 10) || 2,
+        columns: parseInt(this.get('model.grid.columns'), 10) || 4,
+        include_core_words: true,
+        labels_order: this.get('model.grid.labels_order') || 'columns',
+        locale: (this.get('model.locale') || 'en')
+      };
+      persistence.ajax('/api/v1/boards/generate_labels', {
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify(payload)
+      }).then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var labels = (res && res.labels) || '';
+        _this.set('model.grid.labels', labels);
+        if(res && res.name && !(_this.get('model.name') || '').trim().length) {
+          _this.set('model.name', res.name);
+        }
+        _this.set('ai_generating', false);
+        _this.set('ai_labels_generated', true);
+      }, function(err) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var msg = i18n.t('generate_failed', "Generation failed");
+        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
+        if(resp && resp.error) {
+          msg = resp.error;
+          if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
+        }
+        _this.set('ai_generating', false);
+        _this.set('ai_generate_error', msg);
+      });
     },
     opening: function() {
       if (this.get('standalone')) { return; }
