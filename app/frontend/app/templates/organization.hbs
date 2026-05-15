@@ -4,6 +4,9 @@
       <LinkTo @route="organization.index" @model={{this.model.id}} class="md-pillnav__pill">{{t "Dashboard" key="dashboard"}}</LinkTo>
       <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "Admin" key="admin"}}</LinkTo>
       <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
+      {{#if (and this.model.permissions.edit (or this.app_state.feature_flags.telemetry_admin_panel this.app_state.currentUser.admin))}}
+        <LinkTo @route="organization.telemetry" @model={{this.model.id}} class="md-pillnav__pill">{{t "Telemetry" key="telemetry"}}</LinkTo>
+      {{/if}}
       <LinkTo @route="organization.rooms" @model={{this.model.id}} class="md-pillnav__pill">{{t "Rooms" key="rooms"}}</LinkTo>
       {{#if (and this.app_state.feature_flags.lessons this.model.permissions.edit)}}
         <LinkTo @route="organization.lessons" @model={{this.model.id}} class="md-pillnav__pill">{{t "Trainings" key="trainings"}}</LinkTo>

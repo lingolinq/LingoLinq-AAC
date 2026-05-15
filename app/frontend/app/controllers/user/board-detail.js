@@ -3788,7 +3788,20 @@ export default Controller.extend(prefClasses, {
     pick_display_font: function(font_id) {
       // [TEMP DEBUG] Remove after we've diagnosed the right-panel
       // font dropdown not updating the preview.
+      try {
+        console.log('[trace] pick_display_font fired', {
+          font_id: font_id,
+          font_id_type: typeof font_id,
+          before_button_style: this.get('app_state.currentUser.preferences.device.button_style'),
+          pending_set: !!this.get('pending_display_prefs')
+        });
+      } catch(e) { /* ignore */ }
       this.send('set_display_pref', 'button_style', font_id);
+      try {
+        console.log('[trace] pick_display_font after set_display_pref', {
+          after_button_style: this.get('app_state.currentUser.preferences.device.button_style')
+        });
+      } catch(e) { /* ignore */ }
       this.set('display_prefs_font_dropdown_open', false);
       this.set('display_prefs_font_filter', '');
     },

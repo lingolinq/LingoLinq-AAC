@@ -471,7 +471,8 @@ class User < ActiveRecord::Base
         'role' => 'communicator',
         'auto_open_speak_mode' => true,
         'share_notifications' => 'email',
-        'cookies' => true
+        'cookies' => true,
+        'beta_program_access' => false
       }
     }
   end
@@ -921,7 +922,7 @@ class User < ActiveRecord::Base
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards', 'board_view_style'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
@@ -1073,6 +1074,10 @@ class User < ActiveRecord::Base
     end
     inflections_were_set = self.settings['preferences']['activation_location'] == 'swipe' || self.settings['preferences']['inflections_overlay']
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
+    # Beta program access is staff-controlled only (console or admin API); never self-service via prefs API.
+    if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
+      params['preferences'].delete('beta_program_access')
+    end
     PREFERENCE_PARAMS.each do |attr|
       if params['preferences'] && params['preferences'][attr] != nil
         val = params['preferences'][attr]

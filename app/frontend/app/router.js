@@ -95,6 +95,7 @@ Router.map(function() {
   this.route('organization', { path: '/organizations/:id' }, function() {
     this.route('people');
     this.route('reports');
+    this.route('telemetry');
     this.route('subscription');
     this.route('extras');
     this.route('lessons');

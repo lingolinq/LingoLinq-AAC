@@ -292,6 +292,7 @@ LingoLinq::Application.routes.draw do
       get 'licenses'
       get 'logs'
       get 'stats'
+      get 'telemetry' => 'telemetry#organization'
       get 'admin_reports'
       get 'blocked_emails'
       get 'blocked_cells'
@@ -318,6 +319,8 @@ LingoLinq::Application.routes.draw do
     get "search/audio" => "search#audio"
     get "search/focus" => "search#focuses"
     get "progress/:id" => "progress#progress"
+    get "telemetry" => "telemetry#index"
+    resources :telemetry_events, only: [:create]
     
     resources :logs do
       get 'lam'

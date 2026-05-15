@@ -534,6 +534,21 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(true)
     end
 
+    it "should ignore beta_program_access from preferences unless updater is admin" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {})
+      expect(u.settings['preferences']['beta_program_access']).to eq(nil)
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {'updater' => u})
+      expect(u.settings['preferences']['beta_program_access']).to eq(nil)
+      admin = User.new
+      admin.settings = {'admin' => true}
+      u.process_params({'preferences' => {'beta_program_access' => true}}, {'updater' => admin})
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
+      u.process_params({'preferences' => {'beta_program_access' => 'false'}}, {'updater' => admin})
+      expect(u.settings['preferences']['beta_program_access']).to eq(false)
+    end
+
     it "should remove spaces from email" do
       u = User.new
       u.process({'email' => 'bob@ example.com '})
