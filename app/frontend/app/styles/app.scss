@@ -53244,7 +53244,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused {
   background: rgba($brand-verdigris, 0.22);
-  color: lighten($brand-verdigris, 22%);
+  color: color.adjust($brand-verdigris, $lightness: 22%);
   opacity: 1;
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused:hover {
@@ -53787,7 +53787,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-board-detail-header__editing-badge {
   background: rgba($brand-verdigris, 0.22);
-  color: lighten($brand-verdigris, 22%);
+  color: color.adjust($brand-verdigris, $lightness: 22%);
 }
 .md-board-detail--dark .md-board-detail-header__editing-badge__caption {
   opacity: 1;

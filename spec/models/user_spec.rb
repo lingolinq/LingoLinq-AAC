@@ -277,7 +277,7 @@ describe User, :type => :model do
       expect(u.settings['preferences']['activation_location']).to eq('end')
       expect(u.settings['preferences']['logging']).to eq(false)
       expect(u.settings['preferences']['geo_logging']).to eq(false)
-      expect(u.settings['preferences']['auto_home_return']).to eq(true)
+      expect(u.settings['preferences']['auto_home_return']).to eq(false)
       expect(u.settings['preferences']['auto_open_speak_mode']).to eq(true)
       expect(u.user_name).to match(/\Ano-name(_\d+)?\z/)
       expect(u.email_hash).not_to eq(nil)

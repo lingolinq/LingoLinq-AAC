@@ -635,7 +635,7 @@ describe Api::UsersController, :type => :controller do
       user = json['user']
       expect(user).not_to eq(nil)
       expect(user['preferences']).not_to eq(nil)
-      expect(user['preferences']['auto_home_return']).to eq(true)
+      expect(user['preferences']['auto_home_return']).to eq(false)
       expect(user['preferences']['clear_on_vocalize']).to eq(true)
       expect(user['preferences']['logging']).to eq(false)
     end
