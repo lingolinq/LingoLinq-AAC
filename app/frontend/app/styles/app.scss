@@ -43750,6 +43750,16 @@ a.md-goal-nav-action:hover,
   display: flex;
   flex-direction: column;
 }
+/* Light/Dark toggle relocated into the rail header, pinned top-right. */
+.nb-create-rail .md-board-edit-right-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nb-create-rail__theme-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
 .new-board-mockup-wrap {
   position: relative;

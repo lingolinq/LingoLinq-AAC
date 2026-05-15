@@ -727,27 +727,10 @@
             {{!-- Preview stage: the board mockup sits flush against an
                  (empty for now) right rail styled exactly like the
                  board-detail edit panel. Functionality comes later. --}}
-            <div class="nb-preview-stage">
+            <div class="nb-preview-stage {{if (is_equal this.preview_mode "dark") "md-board-detail--dark"}}">
             <div class="new-board-mockup-wrap {{if (is_equal this.preview_mode "dark") "md-board-detail--dark new-board-mockup-wrap--dark"}}"
                  role="region"
                  aria-label={{t "Board preview" key="board_preview"}}>
-              <div class="new-board-mockup-toolbar">
-                <button type="button"
-                        class="new-board-mockup-toggle {{if (is_equal this.preview_mode "dark") "new-board-mockup-toggle--dark"}}"
-                        role="switch"
-                        aria-checked={{if (is_equal this.preview_mode "dark") "true" "false"}}
-                        aria-label={{t "Toggle preview light or dark mode" key="toggle_preview_mode"}}
-                        title={{t "Toggle preview light or dark mode" key="toggle_preview_mode"}}
-                        {{action "togglePreviewMode"}}>
-                  <span class="new-board-mockup-toggle__icon new-board-mockup-toggle__icon--sun" aria-hidden="true">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-                  </span>
-                  <span class="new-board-mockup-toggle__thumb" aria-hidden="true"></span>
-                  <span class="new-board-mockup-toggle__icon new-board-mockup-toggle__icon--moon" aria-hidden="true">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                  </span>
-                </button>
-              </div>
               <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}}"
                    style={{this.preview_style}}
                    role="grid"
@@ -846,6 +829,23 @@
             <aside class="md-board-edit-right-panel nb-create-rail" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
               <div class="md-board-edit-right-panel__header">
                 <h3 class="md-board-edit-right-panel__title">{{t "Edit Tools" key="board_edit_tools_title"}}</h3>
+                {{!-- Light/Dark toggle relocated here from the grid; it
+                     themes the whole stage (grid + this panel). --}}
+                <button type="button"
+                        class="new-board-mockup-toggle nb-create-rail__theme-toggle {{if (is_equal this.preview_mode "dark") "new-board-mockup-toggle--dark"}}"
+                        role="switch"
+                        aria-checked={{if (is_equal this.preview_mode "dark") "true" "false"}}
+                        aria-label={{t "Toggle preview light or dark mode" key="toggle_preview_mode"}}
+                        title={{t "Toggle preview light or dark mode" key="toggle_preview_mode"}}
+                        {{action "togglePreviewMode"}}>
+                  <span class="new-board-mockup-toggle__icon new-board-mockup-toggle__icon--sun" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                  </span>
+                  <span class="new-board-mockup-toggle__thumb" aria-hidden="true"></span>
+                  <span class="new-board-mockup-toggle__icon new-board-mockup-toggle__icon--moon" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  </span>
+                </button>
               </div>
               <div class="md-board-edit-right-panel__body">
                 <div class="md-board-edit-right-panel__group">
