@@ -43760,6 +43760,31 @@ a.md-goal-nav-action:hover,
   margin-left: auto;
   flex-shrink: 0;
 }
+/* When an edit-tool section is expanded, give the whole stage more
+   vertical room so the grid grows alongside the taller panel. Both
+   children already stretch (align-items: stretch), so a min-height on
+   the stage lifts the grid and the rail together. */
+.nb-preview-stage {
+  transition: min-height 0.2s ease;
+}
+.nb-preview-stage--expanded {
+  min-height: 760px;
+}
+.nb-preview-stage--expanded .new-board-mockup-wrap,
+.nb-preview-stage--expanded .md-board-detail-grid--preview {
+  max-height: none !important;
+}
+/* Sentence-bar + home mockup that sits inside the board preview,
+   above the top row. Flex item that doesn't grow (the grid takes the
+   remaining height). */
+.nb-preview-sentence-row {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+.nb-preview-sentence-bar__placeholder {
+  opacity: 0.55;
+  font-style: italic;
+}
 
 .new-board-mockup-wrap {
   position: relative;

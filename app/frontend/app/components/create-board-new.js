@@ -350,6 +350,11 @@ export default Component.extend({
     { id: 'trebuchet',       label: 'Trebuchet MS' },
     { id: 'verdana',         label: 'Verdana' }
   ],
+  // Which edit-rail section is expanded (single-open accordion). When
+  // a section is open the preview stage grows (see CSS) so the grid
+  // gets more room alongside the taller panel.
+  create_rail_open_section: null,
+
   // Section labels for the (currently empty) create-board edit rail.
   // Shell only — no controls wired yet; mirrors the board-detail edit
   // panel's section list (subset that applies to board creation).
@@ -1629,6 +1634,16 @@ export default Component.extend({
     },
     togglePrefs: function() {
       this.toggleProperty('prefs_open');
+    },
+    // Edit-rail accordion: clicking a section opens it (and closes any
+    // other). Clicking the open one closes it. Drives the grid's
+    // max-height expansion via the .nb-preview-stage--expanded class.
+    toggle_create_rail_section: function(id) {
+      if(this.get('create_rail_open_section') === id) {
+        this.set('create_rail_open_section', null);
+      } else {
+        this.set('create_rail_open_section', id);
+      }
     },
     toggleLabelsList: function() {
       this.toggleProperty('labels_list_open');

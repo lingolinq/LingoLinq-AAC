@@ -374,8 +374,9 @@
                 {{/if}}
               {{/if}}
             {{/if}}
-            {{!-- ── Preferences (collapsible, above preview) ── --}}
-            {{#if this.label_count}}
+            {{!-- ── Preferences (collapsible, above preview). Always
+                 shown so the existing wired controls stay reachable
+                 while the new rail is built out. ── --}}
             <div class="new-board-prefs-collapsible {{if this.prefs_open "new-board-prefs-collapsible--open"}}">
               <button type="button" class="new-board-prefs-toggle" aria-expanded={{if this.prefs_open "true" "false"}} {{action "togglePrefs"}}>
                 <span class="new-board-prefs-toggle__label">{{#if this.prefs_open}}{{t "Hide Preferences" key="hide_preferences"}}{{else}}{{t "Show Preferences" key="show_preferences"}}{{/if}}</span>
@@ -723,14 +724,39 @@
             </div>
               {{/if}}
             </div>
-            {{/if}}
             {{!-- Preview stage: the board mockup sits flush against an
                  (empty for now) right rail styled exactly like the
                  board-detail edit panel. Functionality comes later. --}}
-            <div class="nb-preview-stage {{if (is_equal this.preview_mode "dark") "md-board-detail--dark"}}">
+            <div class="nb-preview-stage {{if (is_equal this.preview_mode "dark") "md-board-detail--dark"}} {{if this.create_rail_open_section "nb-preview-stage--expanded"}}">
             <div class="new-board-mockup-wrap {{if (is_equal this.preview_mode "dark") "md-board-detail--dark new-board-mockup-wrap--dark"}}"
                  role="region"
                  aria-label={{t "Board preview" key="board_preview"}}>
+              {{!-- Sentence bar + home mockup, inside the board, above
+                   the top row (visual only for now). --}}
+              <div class="md-board-detail-sentence-row nb-preview-sentence-row">
+                <button type="button" class="md-board-detail-home-btn" title={{t "Home" key="board_detail_home"}} aria-label={{t "Home" key="board_detail_home"}}>
+                  <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12 12 3l9 9"/>
+                    <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
+                  </svg>
+                </button>
+                <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
+                  <div class="md-board-detail-sentence-bar__text">
+                    <span class="nb-preview-sentence-bar__placeholder">{{t "Tapped words will appear here" key="preview_sentence_placeholder"}}</span>
+                  </div>
+                  <div class="md-board-detail-sentence-bar__actions">
+                    <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-label={{t "Speak sentence" key="board_detail_speak_sentence"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    </button>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Backspace" key="backspace"}} aria-label={{t "Backspace" key="backspace"}}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+                    </button>
+                    <button type="button" class="md-board-detail-sentence-bar__tool-btn" title={{t "Clear" key="board_detail_clear"}} aria-label={{t "Clear" key="board_detail_clear"}}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
               <div class="md-board-detail-grid md-board-detail-grid--preview {{this.button_text_position_class}} {{this.button_text_size_class}} {{this.button_shape_class}} {{this.preview_background_class}} {{if this.paint_mode 'md-board-detail-grid--paint-mode'}}"
                    style={{this.preview_style}}
                    role="grid"
@@ -851,8 +877,8 @@
                 <div class="md-board-edit-right-panel__group">
                   <div class="md-board-edit-right-panel__subheader">{{t "Appearance" key="board_edit_appearance_group"}}</div>
                   {{#each this.create_rail_sections as |sec|}}
-                    <div class="md-board-edit-right-panel__section">
-                      <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded="false" disabled>
+                    <div class="md-board-edit-right-panel__section {{if (is-equal this.create_rail_open_section sec.id) 'md-board-edit-right-panel__section--open'}}">
+                      <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded={{if (is-equal this.create_rail_open_section sec.id) "true" "false"}} {{action "toggle_create_rail_section" sec.id}}>
                         <span class="md-board-edit-right-panel__section-icon" aria-hidden="true">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="8" stroke="#46505F"/>
