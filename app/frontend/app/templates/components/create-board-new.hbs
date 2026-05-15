@@ -387,93 +387,6 @@
             <div class="new-board-prefs-inset md-board-detail-edit-toolbar md-board-detail-edit-toolbar--expanded" role="toolbar" aria-label={{t "Preferences" key="preferences_section"}}>
               <div class="md-board-detail-edit-toolbar__display-prefs">
 
-                {{!-- ── Text Size + Font + Position ── --}}
-                <div class="md-board-detail-edit-toolbar__section md-board-detail-edit-toolbar__section--text-typography">
-                  <div class="md-board-detail-edit-toolbar__section-buttons">
-
-                    {{!-- Group: Text Size + Font Type. display:contents on desktop keeps
-                         the existing flex layout; on mobile (≤640px) this wrapper
-                         becomes a standalone pill containing both controls. --}}
-                    <div class="md-settings-group md-settings-group--text-font">
-                    <div class="md-settings-sublabel-wrap">
-                      <span class="md-settings-sublabel">{{t "Text Size" key="board_detail_settings_text_size_label"}}</span>
-                      <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
-                        <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_min}} data-tooltip={{t "Smaller" key="board_detail_settings_smaller"}} aria-label={{t "Smaller" key="board_detail_settings_smaller"}} {{action "step_display_pref" "button_text" -1}}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                        </button>
-                        <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_max}} data-tooltip={{t "Larger" key="board_detail_settings_larger"}} aria-label={{t "Larger" key="board_detail_settings_larger"}} {{action "step_display_pref" "button_text" 1}}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="md-settings-sublabel-wrap">
-                      <span class="md-settings-sublabel">{{t "Font Type" key="board_detail_settings_type"}}</span>
-                      <div class="md-settings-dropdown-wrap">
-                        <button type="button" class="md-settings-select md-settings-select--trigger {{if this.display_prefs_font_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_font_dropdown_open "true" "false"}} data-tooltip={{t "Font style" key="board_detail_prefs_font_style"}} aria-label={{t "Font style" key="board_detail_prefs_font_style"}} {{action "toggle_display_font_dropdown"}}>
-                          <span class="md-settings-select__value">{{this.display_prefs_current_font_label}}</span>
-                        </button>
-                        {{#if this.display_prefs_font_dropdown_open}}
-                          <div class="md-settings-dropdown-backdrop" {{action "close_display_font_dropdown"}} aria-hidden="true"></div>
-                          <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Font style" key="board_detail_prefs_font_style"}}>
-                            <li class="md-settings-dropdown-search-row" role="presentation">
-                              <input type="text"
-                                     id="nb-font-dropdown-search"
-                                     class="md-settings-dropdown-search__input"
-                                     placeholder={{t "Search fonts..." key="search_fonts_placeholder"}}
-                                     value={{this.display_prefs_font_filter}}
-                                     oninput={{action "filter_display_fonts" value="target.value"}}
-                                     onkeydown={{action "font_dropdown_keydown"}}
-                                     autocomplete="off"
-                                     aria-label={{t "Search fonts" key="search_fonts_label"}} />
-                            </li>
-                            {{#each this.filtered_button_style_options as |opt|}}
-                              {{#if opt.divider}}
-                                <li class="md-settings-dropdown-divider" role="separator" aria-hidden="true"></li>
-                              {{else}}
-                                <li>
-                                  <button type="button" role="option" aria-selected={{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{action "pick_display_font" opt.id}}>
-                                    {{#if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id)}}
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                                    {{else}}
-                                      <span class="md-settings-dropdown-item__spacer" aria-hidden="true"></span>
-                                    {{/if}}
-                                    <span>{{opt.label}}</span>
-                                  </button>
-                                </li>
-                              {{/if}}
-                            {{/each}}
-                          </ul>
-                        {{/if}}
-                      </div>
-                    </div>
-
-                    </div>{{!-- /md-settings-group--text-font --}}
-
-                    {{!-- Group: Text Position. Same display:contents pattern — desktop unchanged,
-                         on mobile this becomes its own pill below the Text Size + Font Type pill. --}}
-                    <div class="md-settings-group md-settings-group--text-position">
-                    <div class="md-settings-sublabel-wrap">
-                      <span class="md-settings-sublabel">{{t "Text Position" key="board_detail_settings_position"}}</span>
-                      <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Text position" key="board_detail_prefs_text_position"}}>
-                        <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "top") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'top') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} aria-label={{t "Text on top" key="board_detail_settings_text_top"}} {{action "set_display_pref" "button_text_position" "top"}}>
-                          <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--top">Aa</span><span class="md-settings-btnmock__img"></span></span>
-                        </button>
-                        <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "bottom") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'bottom') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} aria-label={{t "Text on bottom" key="board_detail_settings_text_bottom"}} {{action "set_display_pref" "button_text_position" "bottom"}}>
-                          <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
-                        </button>
-                        <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "text_only") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'text_only') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}} {{action "set_display_pref" "button_text_position" "text_only"}}>
-                          <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
-                        </button>
-                      </div>
-                    </div>
-                    </div>{{!-- /md-settings-group--text-position --}}
-
-                  </div>
-                </div>
-
-                <div class="md-board-detail-edit-toolbar__divider"></div>
-
                 {{!-- ── Paint ── --}}
                 {{!-- Mirrors the board-detail edit toolbar's Paint section.
                      Picking a swatch (or applying a custom hex) arms
@@ -893,17 +806,18 @@
                       {{#if (is-equal this.create_rail_open_section sec.id)}}
                         <div class="md-board-edit-right-panel__section-body">
                           {{#if (is-equal sec.id "text")}}
-                            {{!-- Text Settings — structure + styles copied
-                                 from the board-detail right panel. NOT
-                                 wired yet: actions/bindings stripped, so
-                                 these are inert visual controls. --}}
+                            {{!-- Text Settings — moved (not copied) from
+                                 the old Preferences toolbar. Same actions
+                                 and computed bindings the component
+                                 already exposes; this is now the
+                                 canonical editor for these prefs. --}}
                             <div class="md-board-edit-right-panel__row-pair">
                               <span class="md-board-edit-right-panel__row-pair-label">{{t "Text Size" key="text_size"}}</span>
                               <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
-                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Smaller" key="board_detail_settings_smaller"}}>
+                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_min}} data-tooltip={{t "Smaller" key="board_detail_settings_smaller"}} aria-label={{t "Smaller" key="board_detail_settings_smaller"}} {{action "step_display_pref" "button_text" -1}}>
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
                                 </button>
-                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" aria-label={{t "Larger" key="board_detail_settings_larger"}}>
+                                <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_text_size_at_max}} data-tooltip={{t "Larger" key="board_detail_settings_larger"}} aria-label={{t "Larger" key="board_detail_settings_larger"}} {{action "step_display_pref" "button_text" 1}}>
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
                                 </button>
                               </div>
@@ -912,35 +826,56 @@
                             <div class="md-board-edit-right-panel__row-pair">
                               <span class="md-board-edit-right-panel__row-pair-label">{{t "Font Type" key="font_type"}}</span>
                               <div class="md-settings-dropdown-wrap">
-                                <button type="button" class="md-settings-select md-settings-select--trigger" aria-haspopup="listbox" aria-expanded="false" aria-label={{t "Font style" key="board_detail_prefs_font_style"}}>
-                                  <span class="md-settings-select__value">{{t "Default" key="font_default"}}</span>
+                                <button type="button" class="md-settings-select md-settings-select--trigger {{if this.display_prefs_font_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_font_dropdown_open "true" "false"}} data-tooltip={{t "Font style" key="board_detail_prefs_font_style"}} aria-label={{t "Font style" key="board_detail_prefs_font_style"}} {{action "toggle_display_font_dropdown"}}>
+                                  <span class="md-settings-select__value">{{this.display_prefs_current_font_label}}</span>
                                 </button>
+                                {{#if this.display_prefs_font_dropdown_open}}
+                                  <div class="md-settings-dropdown-backdrop" {{action "close_display_font_dropdown"}} aria-hidden="true"></div>
+                                  <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Font style" key="board_detail_prefs_font_style"}}>
+                                    <li class="md-settings-dropdown-search-row" role="presentation">
+                                      <input type="text"
+                                             id="nb-font-dropdown-search"
+                                             class="md-settings-dropdown-search__input"
+                                             placeholder={{t "Search fonts..." key="search_fonts_placeholder"}}
+                                             value={{this.display_prefs_font_filter}}
+                                             oninput={{action "filter_display_fonts" value="target.value"}}
+                                             onkeydown={{action "font_dropdown_keydown"}}
+                                             autocomplete="off"
+                                             aria-label={{t "Search fonts" key="search_fonts_label"}} />
+                                    </li>
+                                    {{#each this.filtered_button_style_options as |opt|}}
+                                      {{#if opt.divider}}
+                                        <li class="md-settings-dropdown-divider" role="separator" aria-hidden="true"></li>
+                                      {{else}}
+                                        <li>
+                                          <button type="button" role="option" aria-selected={{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{action "pick_display_font" opt.id}}>
+                                            {{#if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id)}}
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                            {{else}}
+                                              <span class="md-settings-dropdown-item__spacer" aria-hidden="true"></span>
+                                            {{/if}}
+                                            <span>{{opt.label}}</span>
+                                          </button>
+                                        </li>
+                                      {{/if}}
+                                    {{/each}}
+                                  </ul>
+                                {{/if}}
                               </div>
                             </div>
 
                             <div class="md-board-edit-right-panel__row-pair">
                               <span class="md-board-edit-right-panel__row-pair-label">{{t "Text Position" key="text_position"}}</span>
                               <div class="md-settings-icongroup" role="radiogroup" aria-label={{t "Text position" key="board_detail_prefs_text_position"}}>
-                                <button type="button" role="radio" aria-checked="true" class="md-settings-icon-btn md-settings-icon-btn--active" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} aria-label={{t "Text on top" key="board_detail_settings_text_top"}}>
+                                <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "top") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'top') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on top" key="board_detail_settings_text_top"}} aria-label={{t "Text on top" key="board_detail_settings_text_top"}} {{action "set_display_pref" "button_text_position" "top"}}>
                                   <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--top">Aa</span><span class="md-settings-btnmock__img"></span></span>
                                 </button>
-                                <button type="button" role="radio" aria-checked="false" class="md-settings-icon-btn" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} aria-label={{t "Text on bottom" key="board_detail_settings_text_bottom"}}>
+                                <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "bottom") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'bottom') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text on bottom" key="board_detail_settings_text_bottom"}} aria-label={{t "Text on bottom" key="board_detail_settings_text_bottom"}} {{action "set_display_pref" "button_text_position" "bottom"}}>
                                   <span class="md-settings-btnmock"><span class="md-settings-btnmock__img"></span><span class="md-settings-btnmock__text md-settings-btnmock__text--bottom">Aa</span></span>
                                 </button>
-                                <button type="button" role="radio" aria-checked="false" class="md-settings-icon-btn" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}}>
+                                <button type="button" role="radio" aria-checked={{if (is-equal this.appState.sessionUser.preferences.device.button_text_position "text_only") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.appState.sessionUser.preferences.device.button_text_position 'text_only') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}} {{action "set_display_pref" "button_text_position" "text_only"}}>
                                   <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
                                 </button>
-                              </div>
-                            </div>
-
-                            <div class="md-folder-toggle-row">
-                              <span class="md-folder-toggle-row__label" id="nb-shrink-labels-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
-                              <div class="md-folder-toggle-row__control">
-                                <span class="md-folder-toggle-row__state md-folder-toggle-row__state--active" aria-hidden="true">{{t "Off" key="off"}}</span>
-                                <button type="button" role="switch" aria-checked="false" aria-labelledby="nb-shrink-labels-label" class="nb-toggle__switch">
-                                  <span class="nb-toggle__thumb" aria-hidden="true"></span>
-                                </button>
-                                <span class="md-folder-toggle-row__state" aria-hidden="true">{{t "On" key="on"}}</span>
                               </div>
                             </div>
                           {{else}}
