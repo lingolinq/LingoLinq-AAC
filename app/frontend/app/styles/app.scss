@@ -43785,6 +43785,12 @@ a.md-goal-nav-action:hover,
   opacity: 0.55;
   font-style: italic;
 }
+/* Drop the right-side 1px divider on the mockup's speak bar (the
+   live board-detail bar keeps it; the preview mockup doesn't need
+   it). */
+.nb-preview-sentence-row .md-board-detail-sentence-bar::after {
+  display: none;
+}
 
 .new-board-mockup-wrap {
   position: relative;
