@@ -43703,6 +43703,54 @@ a.md-goal-nav-action:hover,
    wrapper toggles between dark and light by adding/removing the
    .md-board-detail--dark class (which the existing board-detail dark-mode
    rules cascade into). */
+/* ── Preview stage: board mockup flush against the (empty) edit rail ──
+   Mirrors the board-detail edit layout: a fixed-width right panel with
+   the grid attached to its left edge (shared seam, no gap). */
+.nb-preview-stage {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.nb-preview-stage .new-board-mockup-wrap {
+  flex: 1 1 auto;
+  /* Bigger: fill the stage instead of the prior fixed caps. */
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  /* Attach to the rail — square the seam-side corners, drop the
+     shared border so the two read as one surface. */
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+.nb-create-rail.md-board-edit-right-panel {
+  /* Reuse all the board-detail panel styling, but neutralise the
+     page-level sticky/full-viewport rules for in-modal use. */
+  position: static;
+  top: auto;
+  flex: 0 0 300px;
+  width: 300px;
+  max-width: 300px;
+  min-height: 0;
+  align-self: stretch;
+  /* Attach to the grid — square the seam-side corners. */
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+/* Grid grows to match the rail's height so the two are equal-height
+   and visually "attached". */
+.nb-preview-stage .md-board-detail-grid--preview {
+  max-height: none !important;
+  height: 100% !important;
+}
+.nb-preview-stage .new-board-mockup-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;

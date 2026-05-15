@@ -724,6 +724,10 @@
               {{/if}}
             </div>
             {{/if}}
+            {{!-- Preview stage: the board mockup sits flush against an
+                 (empty for now) right rail styled exactly like the
+                 board-detail edit panel. Functionality comes later. --}}
+            <div class="nb-preview-stage">
             <div class="new-board-mockup-wrap {{if (is_equal this.preview_mode "dark") "md-board-detail--dark new-board-mockup-wrap--dark"}}"
                  role="region"
                  aria-label={{t "Board preview" key="board_preview"}}>
@@ -835,6 +839,36 @@
                   {{/each}}
                 {{/each}}
               </div>
+            </div>
+            {{!-- Empty edit rail (shell only) — same chrome/styles as
+                 the board-detail edit panel. No functionality wired
+                 yet; labels present so the layout can be reviewed. --}}
+            <aside class="md-board-edit-right-panel nb-create-rail" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
+              <div class="md-board-edit-right-panel__header">
+                <h3 class="md-board-edit-right-panel__title">{{t "Edit Tools" key="board_edit_tools_title"}}</h3>
+              </div>
+              <div class="md-board-edit-right-panel__body">
+                <div class="md-board-edit-right-panel__group">
+                  <div class="md-board-edit-right-panel__subheader">{{t "Appearance" key="board_edit_appearance_group"}}</div>
+                  {{#each this.create_rail_sections as |sec|}}
+                    <div class="md-board-edit-right-panel__section">
+                      <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded="false" disabled>
+                        <span class="md-board-edit-right-panel__section-icon" aria-hidden="true">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="8" stroke="#46505F"/>
+                            <circle cx="12" cy="12" r="3" stroke="#2A9D8F"/>
+                          </svg>
+                        </span>
+                        <span class="md-board-edit-right-panel__section-label">{{sec.label}}</span>
+                        <svg class="md-board-edit-right-panel__section-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                      </button>
+                    </div>
+                  {{/each}}
+                </div>
+              </div>
+            </aside>
             </div>
             {{else}}
               {{!-- AI mode, pre-generation: the whole Size & Labels UI

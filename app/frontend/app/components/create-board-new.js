@@ -350,6 +350,21 @@ export default Component.extend({
     { id: 'trebuchet',       label: 'Trebuchet MS' },
     { id: 'verdana',         label: 'Verdana' }
   ],
+  // Section labels for the (currently empty) create-board edit rail.
+  // Shell only — no controls wired yet; mirrors the board-detail edit
+  // panel's section list (subset that applies to board creation).
+  create_rail_sections: [
+    { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") },
+    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
+    { id: 'background', label: i18n.t('board_detail_background', "Background") },
+    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
+    { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
+    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
+    { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
+    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
+    { id: 'gap',        label: i18n.t('board_detail_settings_gap', "Gap") }
+  ],
+
   preferred_symbols_options: [
     { id: 'original', label: 'Original' },
     { id: 'opensymbols', label: 'OpenSymbols' },
