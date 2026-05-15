@@ -54,26 +54,81 @@ export default Route.extend({
       return RSVP.resolve(cached_record);
     }
 
-    // Cache miss — existing AJAX path. Populate the cache on success so
-    // the next visit hits the fast path.
+    // Cache miss — fetch via /api/v1/boards/:id/tree (root + every
+    // reachable descendant in one response). NO loading overlay: the
+    // grid renders as soon as the root is ready; descendants are
+    // cached + pushed to the Ember Data store as background work so
+    // every subsequent folder tap is a synchronous cache HIT (instant,
+    // no overlay, no network). Images warm in the background too.
+    //
+    // Resolve the route the moment the ROOT board is ready — we do
+    // NOT block on descendant caching or image preloads. Descendant
+    // work continues after resolve(); by the time the user reads the
+    // board and taps a folder, it's done.
+    //
+    // Fallback: if /tree fails (older deploy, network) we retry with
+    // the single-board endpoint so the page still works.
     return new RSVP.Promise(function(resolve) {
-      persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          // Save raw data BEFORE normalize (normalize may mutate the input)
-          var raw_copy = JSON.parse(JSON.stringify(data.board));
-          _this.set('_raw_board_data', raw_copy);
-          // Cache for future navigations.
-          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-          // Push into store to get Ember Data record with correct ID
-          var store = _this.store;
-          var normalized = store.normalize('board', data.board);
-          var record = store.push(normalized);
-          resolve(record);
-        } else {
-          resolve({ error: true, boardname: params.boardname });
+      var handleRoot = function(boardData) {
+        var raw_copy = JSON.parse(JSON.stringify(boardData));
+        _this.set('_raw_board_data', raw_copy);
+        boardDetailCache.set(JSON.parse(JSON.stringify(boardData)));
+        var store = _this.store;
+        var normalized = store.normalize('board', boardData);
+        var record = store.push(normalized);
+        // Warm current board's images in the background (no await).
+        if (boardDetailCache.warm_images) {
+          try { boardDetailCache.warm_images(raw_copy); } catch (e) { /* ignore */ }
         }
+        // Resolve immediately — grid renders now, no overlay.
+        resolve(record);
+      };
+
+      var fallbackSingleBoard = function() {
+        persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+          if(data && data.board) {
+            handleRoot(data.board);
+          } else {
+            resolve({ error: true, boardname: params.boardname });
+          }
+        }, function() {
+          resolve({ error: true, boardname: params.boardname });
+        });
+      };
+
+      persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
+        if(!data || !data.root || !data.root.board) {
+          fallbackSingleBoard();
+          return;
+        }
+        var rootBoardData = data.root.board;
+        if (data.root.images) { rootBoardData.images = data.root.images; }
+        if (data.root.sounds) { rootBoardData.sounds = data.root.sounds; }
+        // Resolve the route with the root FIRST so the user sees the
+        // board immediately — descendant caching happens after.
+        handleRoot(rootBoardData);
+
+        // Background: cache + Ember-Data-push every descendant so
+        // sub-board navigation is a true synchronous cache hit
+        // (boardDetailCache.get → raw AND store.peekAll → record).
+        // This is the work that makes folder taps instant.
+        var subStore = _this.store;
+        (data.descendants || []).forEach(function(wrapped) {
+          var sub_raw = wrapped && wrapped.board;
+          if (!sub_raw) { return; }
+          if (wrapped.images) { sub_raw.images = wrapped.images; }
+          if (wrapped.sounds) { sub_raw.sounds = wrapped.sounds; }
+          boardDetailCache.set(sub_raw);
+          try {
+            var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
+            subStore.push(sub_normalized);
+          } catch (e) { /* serializer edge cases shouldn't block prefetch */ }
+          if (boardDetailCache.warm_images) {
+            try { boardDetailCache.warm_images(sub_raw); } catch(e) { /* ignore */ }
+          }
+        });
       }, function() {
-        resolve({ error: true, boardname: params.boardname });
+        fallbackSingleBoard();
       });
     });
   },
@@ -219,16 +274,10 @@ export default Route.extend({
     var raw = _this.get('_raw_board_data');
     if(raw) {
       controller._build_from_raw(raw);
-      // Background-prefetch immediate child boards + warm their image
-      // cache so folder navigation feels instant. Deferred 500ms so
-      // initial paint lands first; also gives the edit subroute time to
-      // flip edit_mode = true (we skip prefetch in edit mode to avoid
-      // any chance of stale reads while the user mutates buttons).
-      runLater(function() {
-        if(controller.isDestroyed || controller.isDestroying) { return; }
-        if(controller.get('edit_mode')) { return; }
-        boardDetailCache.prefetch_linked(raw);
-      }, 500);
+      // The tree (root + all descendants) was fetched and cached up
+      // front in model(). Every folder tap from here on will hit a
+      // boardDetailCache cache hit and resolve synchronously — no
+      // network, no overlay, instant transition.
     }
 
     // Store original name for rename detection

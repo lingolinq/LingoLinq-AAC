@@ -1,6 +1,6 @@
 {{#button-listener buttonEvent=(action "button_event")}}
 {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember {{action}} on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{action "select_button"}} for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
   style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
@@ -45,7 +45,7 @@
            bubbles=false. Screen readers handle this via the outer
            aria-label and each inner button's own title. --}}
       <div
-        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if btn.hidden 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
+        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if (or btn.display_as_hidden (and this.previewLevelsMode btn.hidden)) 'md-board-detail-symbol-card--hidden'}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
         role={{if this.editMode "group" "button"}}
         tabindex={{if this.editMode "-1" "0"}}
         aria-label={{or btn.label btn.vocalization}}
@@ -146,7 +146,7 @@
             </svg>
           </span>
         {{/if}}
-        {{#if (and this.editMode btn.hidden)}}
+        {{#if (or (and this.editMode btn.display_as_hidden) (and this.editMode this.previewLevelsMode btn.hidden))}}
           <span class="md-board-detail-symbol-card__hidden-badge" aria-label={{t "Hidden button" key="board_detail_hidden_badge"}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>

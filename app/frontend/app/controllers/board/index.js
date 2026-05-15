@@ -31,6 +31,14 @@ export default Controller.extend(prefClasses, {
   app_state: alias('appState'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  router: service('router'),
+  // The user's saved board-UI preference. 'modern' = the board-detail
+  // panelled experience; 'classic' = this board-alt grid. Defaults to
+  // 'modern'. Drives the edit-mode view toggle's active state + the
+  // conditional "open the other view" jump link.
+  board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
+  }),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -1202,6 +1210,56 @@ export default Controller.extend(prefClasses, {
   boardMenuOpen: false,
 
   actions: {
+    // Persist the user's preferred board UI shell. 'classic' = this
+    // board-alt grid, 'modern' = board-detail. Saves only — navigation
+    // is the separate go_to_modern_edit action so flipping the
+    // preference doesn't yank the user away mid-edit. Same dirty-bit
+    // trick board-detail uses: poke preferences.device.updated so
+    // Ember Data ships the full raw preferences blob.
+    set_board_view_style: function(style) {
+      if(style !== 'modern' && style !== 'classic') { return; }
+      var user = this.get('appState.currentUser');
+      if(!user) { return; }
+      user.set('preferences.board_view_style', style);
+      this.notifyPropertyChange('board_view_style');
+      if(user.save) {
+        user.set('preferences.device.updated', true);
+        user.save();
+      }
+    },
+
+    // "Take me to the Modern View (in edit mode)". board-detail HAS a
+    // dedicated /edit subroute, so we transition straight into it.
+    go_to_modern_edit: function() {
+      var user_name = this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var boardname = key ? key.split('/').slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      this.get('router').transitionTo('user.board-detail.edit', user_name, boardname);
+    },
+
+    // Normal-mode "Modern View" button: persist the user's preference
+    // to 'modern' (so future logins land in the modern view) AND then
+    // take them straight to the modern (board-detail) view.
+    go_to_modern: function() {
+      var user = this.get('appState.currentUser');
+      if(user) {
+        user.set('preferences.board_view_style', 'modern');
+        this.notifyPropertyChange('board_view_style');
+        if(user.save) {
+          user.set('preferences.device.updated', true);
+          user.save();
+        }
+      }
+      var user_name = this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var boardname = key ? key.split('/').slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      this.get('router').transitionTo('user.board-detail', user_name, boardname);
+    },
+
     toggleBoardMenu: function() {
       this.toggleProperty('boardMenuOpen');
       if(this.get('boardMenuOpen')) {

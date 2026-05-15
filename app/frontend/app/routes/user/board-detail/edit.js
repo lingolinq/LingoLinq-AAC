@@ -30,6 +30,19 @@ export default Route.extend({
       _this.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
+    // Engage the grid fade-in overlay SYNCHRONOUSLY before any render.
+    // The grid renders with opacity:0 during the entry churn (cached
+    // buttons → _build_from_raw rebuild → process_for_displaying rebuild).
+    // Primary clear-signal: the controller's _grid_loading_settle observer
+    // watches ordered_buttons and clears grid_loading 150ms after the last
+    // replacement. This fallback runLater is a safety net in case the
+    // observer never fires (e.g., ordered_buttons doesn't change).
+    boardDetailController.set('grid_loading', true);
+    runLater(function() {
+      if(!boardDetailController.isDestroyed && !boardDetailController.isDestroying) {
+        boardDetailController.set('grid_loading', false);
+      }
+    }, 800);
     scrollAllToTop();
     _this.appState.check_for_needing_purchase().then(function() {
       boardDetailController.set('edit_mode', true);

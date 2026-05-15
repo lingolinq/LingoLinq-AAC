@@ -72,6 +72,7 @@ LingoLinq.Board = DS.Model.extend({
   image_urls: DS.attr('raw'),
   sound_urls: DS.attr('raw'),
   hc_image_ids: DS.attr('raw'),
+  cascade_invalidations: DS.attr('raw'),
   translations: DS.attr('raw'),
   intro: DS.attr('raw'),
   style: DS.attr('raw'),

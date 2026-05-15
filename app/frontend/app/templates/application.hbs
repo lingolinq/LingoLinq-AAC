@@ -531,6 +531,13 @@
                   {{/unless}}
                 </ul>
               </span>
+              {{!-- Single "Modern View" link, styled like the Speak
+                   Mode button; navigates straight to the modern
+                   (board-detail) view. --}}
+              <a href="#" class="btn board-view-modern-btn" {{action "go_to_modern"}}>
+                <span class="glyphicon glyphicon-th-large"></span>
+                <span class="wide">{{t "Modern View" key="board_view_modern"}}</span>
+              </a>
             {{/if}}
           {{/if}}
 
@@ -1253,9 +1260,6 @@
       {{/unless}}
     {{/if}}
     {{#if this.app_state.currentUser}}
-    {{#if this.on_board_alt}}
-      <span class="app-navbar__large-only app-navbar__style-switcher-wrap">{{style-switcher}}</span>
-    {{/if}}
     <a href="#" {{action "openBetaFeedback" preventDefault=true}} class="app-navbar__beta-feedback-link app-navbar__beta-feedback-link--full app-navbar__large-only" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} title={{t "Beta feedback" key="beta_feedback_nav"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       {{t "Beta feedback" key="beta_feedback_nav"}}

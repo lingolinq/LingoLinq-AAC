@@ -25,6 +25,7 @@ import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 import editManager from '../utils/edit_manager';
+import boardDetailCache from '../utils/board_detail_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
@@ -850,7 +851,26 @@ export default Service.extend({
       router.transitionTo('board', boardKey);
       return;
     }
+    // Decision order:
+    //   1. If we're ALREADY on board-alt, stay on board-alt — keeps
+    //      in-session folder navigation continuous (don't bounce a
+    //      user mid-session into the other shell on every folder tap).
+    //   2. Otherwise honor the communicator's saved
+    //      `board_view_style` preference: 'classic' → board-alt,
+    //      anything else (default 'modern') → board-detail. This is
+    //      what makes post-login landing drop the user into their
+    //      chosen view. Read referenced_user first (the person
+    //      actually communicating in speak mode), then currentUser.
     if(routeName.indexOf('board-alt') !== -1) {
+      router.transitionTo('user.board-alt', userName, boardSlug);
+      return;
+    }
+    var prefersClassic = false;
+    try {
+      var pref_user = this.get('referenced_user') || this.get('currentUser');
+      prefersClassic = !!(pref_user && pref_user.get && pref_user.get('preferences.board_view_style') === 'classic');
+    } catch(e) { prefersClassic = false; }
+    if(prefersClassic) {
       router.transitionTo('user.board-alt', userName, boardSlug);
     } else {
       router.transitionTo('user.board-detail', userName, boardSlug);
@@ -1175,7 +1195,6 @@ export default Service.extend({
     // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
     // or no decision at all), show the loading overlay until the home board
     // renders. 'off' is already-off; skip.
-    console.log('[LOADING-OVERLAY] toggle_speak_mode called; speak_mode=', this.get('speak_mode'), 'decision=', decision);
     var exitingSpeakMode = this.get('speak_mode') && decision !== 'off';
     if(exitingSpeakMode) {
       this.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
@@ -2510,6 +2529,16 @@ export default Service.extend({
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
+    // Session-start prefetch: as soon as we know who the user is,
+    // fire a background fetch of their entire home board tree
+    // (boards + images) so the cache is fully warm by the time they
+    // navigate to Boards. boardDetailCache.prefetch_for_user dedupes
+    // per user id, so this observer firing repeatedly during session
+    // restore only triggers one prefetch.
+    var user = this.get('currentUser');
+    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+    }
   }),
   speak_mode_handlers: observer(
     'speak_mode',
@@ -2908,7 +2937,6 @@ export default Service.extend({
   LOADING_OVERLAY_MIN_MS: 700,
 
   show_loading_overlay: function(message) {
-    console.log('[LOADING-OVERLAY] show_loading_overlay called; message =', message);
     this.set('loading_overlay_message', message);
     this._loading_overlay_shown_at = Date.now();
   },
@@ -2919,7 +2947,6 @@ export default Service.extend({
     var elapsed = Date.now() - shown_at;
     var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
     var remaining = Math.max(0, min - elapsed);
-    console.log('[LOADING-OVERLAY] hide_loading_overlay called; elapsed =', elapsed, 'delay =', remaining);
     runLater(function() {
       if(_this.isDestroyed) { return; }
       _this.set('loading_overlay_message', null);
@@ -2953,7 +2980,7 @@ export default Service.extend({
   },
 
   _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
-    console.log('[LOADING-OVERLAY] observer fired; loading_overlay_message =', this.get('loading_overlay_message'));
+    // Reserved for cleanup hooks on overlay state change.
   }),
   // Safety net — in case the speak_mode transition fails or stalls, never leave
   // the overlay on-screen for more than ~4 seconds.

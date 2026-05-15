@@ -1325,7 +1325,17 @@ var editManager = EmberObject.extend({
           }
           // board-detail (and similar) may use plain objects for display; Button methods are required
           if(res && typeof res.load_image !== 'function') {
-            res = editManager.Button.create(Object.assign({}, res), {board: board});
+            // Strip plain-object fields that collide with Button computeds.
+            // Object.assign passes every own property into Button.create,
+            // and Ember 3.28 treats setting a key that has a `computed`
+            // on the class as a clobber-and-replace — the computed is
+            // permanently swapped out for the static plain-object value.
+            // `display_as_hidden` is the board-detail-specific plain-bool
+            // mirror; the Button class has its own computed of the same
+            // name. Strip before create so the computed survives.
+            var raw_props = Object.assign({}, res);
+            delete raw_props.display_as_hidden;
+            res = editManager.Button.create(raw_props, {board: board});
             ob[idx][jdx] = res;
           }
         }
@@ -1644,7 +1654,25 @@ var editManager = EmberObject.extend({
     if(this.controller) {
       this.controller.set('preview_levels_mode', false);
       this.controller.set('preview_level', null);
-      this.apply_preview_level(10);
+      // Reset every button. Tagged buttons get apply_level(10) which
+      // surfaces them at full vocab. Untagged buttons restore their
+      // original hidden state from the stash we set on preview entry,
+      // so we don't leave them with hidden=true from the preview-level
+      // mutation below.
+      (this.controller.get('ordered_buttons') || []).forEach(function(row) {
+        row.forEach(function(button) {
+          if(button && typeof button.apply_level === 'function') {
+            button.apply_level(10);
+            var mods = button.get('level_modifications');
+            var untagged = !mods || Object.keys(mods).length === 0;
+            if(untagged && button._preview_original_hidden !== undefined) {
+              button.set('hidden', button._preview_original_hidden);
+            }
+            delete button._preview_original_hidden;
+          }
+        });
+      });
+      this.update_color_key_id();
     }
   },
   apply_preview_level: function(level) {
@@ -1652,7 +1680,38 @@ var editManager = EmberObject.extend({
       (this.controller.get('ordered_buttons') || []).forEach(function(row) {
         row.forEach(function(button) {
           if(button && typeof button.apply_level === 'function') {
+            // Stash original hidden once so clear_preview_levels can
+            // restore untagged buttons we're about to gray out.
+            if(button._preview_original_hidden === undefined) {
+              button._preview_original_hidden = button.get('hidden');
+            }
             button.apply_level(level);
+            var mods = button.get('level_modifications');
+            var untagged = !mods || Object.keys(mods).length === 0;
+            if(untagged) {
+              // Untagged: gray out at any preview level below 10;
+              // restore original at level 10 (= full vocab).
+              if(level < 10) {
+                button.set('hidden', true);
+              } else {
+                button.set('hidden', button._preview_original_hidden);
+              }
+            } else {
+              // Tagged: a button is visible at preview level N if it
+              // has ANY level rule for a level ≤ N. This is robust to
+              // data variations (level rules sometimes have just the
+              // key with an empty {} body, sometimes a `hidden:false`
+              // value, sometimes other attribute overrides). The
+              // presence of the key itself signals "promoted at this
+              // level". This intentionally ignores `mods.override`,
+              // so prior eye-slash hides on tagged buttons don't
+              // override the preview's level filter.
+              var has_promoting_rule = false;
+              for(var lvl_check = 1; lvl_check <= level; lvl_check++) {
+                if(mods[lvl_check]) { has_promoting_rule = true; break; }
+              }
+              button.set('hidden', !has_promoting_rule);
+            }
           }
         });
       });
@@ -1700,6 +1759,31 @@ var editManager = EmberObject.extend({
         // TODO: controller/boards/index#button_levels wasn't picking up this
         // change automatically, had to add explicit notification, not sure why
         editManager.controller.set('levels_change', true);
+        // Folder cascade: if this button links to a sub-board, mark it so
+        // the save payload signals the backend to propagate the same
+        // level_modifications to every button in the downstream board
+        // tree (recursively). Non-folder buttons don't carry the marker.
+        // emberGet on Ember Button reads load_board; plain objects fall
+        // back to the property. We stamp the marker as a non-persisted
+        // hint that process_for_saving promotes into JSON via
+        // `cascade_level_to_subtree: true`.
+        var is_folder = !!(emberGet(button, 'load_board') || (button.load_board));
+        if(is_folder) {
+          button._pending_cascade_level = true;
+        }
+        // Re-evaluate `hidden` against the current preview level so the
+        // newly-painted button surfaces in full CSS immediately. Before
+        // this paint, the button was untagged and apply_preview_level
+        // had set hidden=true (gray) for level<10. The new rule promotes
+        // it at `level`; if preview ≥ level, the button should now be
+        // visible. Also clear the stash so clear_preview_levels won't
+        // restore the stale gray-out value if preview is exited.
+        var pv_lvl = editManager.controller.get('preview_level');
+        if(pv_lvl && editManager.controller.get('preview_levels_mode')) {
+          var painted_n = parseInt(level, 10);
+          emberSet(button, 'hidden', !(painted_n <= pv_lvl));
+        }
+        button._preview_original_hidden = false;
       } else if(this.paint_mode.level == 'link_disabled' && this.paint_mode.attribute) {
         mods.pre.link_disabled = true;
         for(var idx in mods) {
@@ -2060,6 +2144,16 @@ var editManager = EmberObject.extend({
             }
           }
           newButton.level_modifications = emberGet(currentButton, 'level_modifications');
+          // Folder cascade marker — set by paint_button when a folder-
+          // typed button receives a level rule. Tells the backend to
+          // propagate the same level_modifications to every button in
+          // the downstream board tree (recursively). Cleared from the
+          // in-memory button after serializing so subsequent saves
+          // don't re-fire the cascade if no further changes happened.
+          if(currentButton._pending_cascade_level) {
+            newButton.cascade_level_to_subtree = true;
+            currentButton._pending_cascade_level = false;
+          }
           newButton.home_lock = !!emberGet(currentButton, 'home_lock');
           newButton.meta_home = !!(newButton.home_lock && emberGet(currentButton, 'meta_home'));
           newButton.hide_label = !!emberGet(currentButton, 'hide_label');

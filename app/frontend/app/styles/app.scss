@@ -1056,6 +1056,28 @@ header #normal_mode .glyphicon-arrow-left {
   display: none !important;
 }
 
+/* ── "Modern View" button (classic/board page, normal mode) ──
+   Single link that takes the user to the modern (board-detail)
+   view. Styled to match the Speak Mode primary button. The
+   board-alt page re-themes nav buttons (see override near the
+   board-alt block) so this matches Speak Mode there too. */
+header #normal_mode .board-view-modern-btn.btn {
+  margin-left: 4px;
+  background: #4D83C0 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px;
+}
+header #normal_mode .board-view-modern-btn.btn:hover,
+header #normal_mode .board-view-modern-btn.btn:focus-visible {
+  background: #4374a8 !important;
+  color: #fff !important;
+  border: none !important;
+}
+header #normal_mode .board-view-modern-btn.btn .glyphicon {
+  margin-right: 5px;
+}
+
 /* ── Hamburger menu for board page (small screens) ──────── */
 .la-board-hamburger {
   display: none;
@@ -1526,6 +1548,17 @@ header:has(#normal_mode) #inner_header {
    wrapping (was rendering at 72.5px before this rule). */
 #within_ember.board-alt-view header:has(#normal_mode) #inner_header {
   min-height: 84px !important;
+  height: auto !important;
+}
+/* Let the classic normal-mode nav header grow when the toolbar (now
+   including the View Style toggle) wraps, instead of clipping the
+   wrapped row at the global fixed 70px. Scoped to board-alt normal
+   mode only so other pages keep their fixed-height header. */
+#within_ember.board-alt-view header:has(#normal_mode) #nav_header {
+  height: auto !important;
+  min-height: 70px !important;
+  align-items: center !important;
+  padding: 6px 0 !important;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -2340,6 +2373,22 @@ header.speaking, .board.speak {
 }
 .md-board-detail-grid.board.speak {
   margin-top: 0px !important;
+}
+/* Edit-mode entry fade wrapper. During the route transition into edit
+   mode, `ordered_buttons` gets replaced 2-3 times (cached plain-object
+   buttons → _build_from_raw rebuild → process_for_displaying rebuild).
+   Each replacement renders. The intermediate frames can show level-rule
+   mutations on `btn.hidden` that the user doesn't want to see (eye-slash
+   badges, desaturated buttons, dashed outlines).
+   This wrapper renders the grid with opacity:0 while `grid_loading` is
+   true on the controller, then fades to opacity:1 once the state has
+   settled. The user sees the final, correct state — not the churn. */
+.md-board-detail-grid-fade {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+.md-board-detail-grid-fade--loading {
+  opacity: 0;
 }
 header.speaking #identity {
   width: auto;
@@ -45322,7 +45371,20 @@ a.md-goal-nav-action:hover,
 
 }
 .md-strip__item:active { transform: scale(var(--md-tap)); }
-.md-strip__label { margin-top: 10px; font-weight: 800; color: $la-navy; text-align: center; } /* 8 * 1.2 */
+.md-strip__label {
+  margin-top: 10px; /* 8 * 1.2 */
+  font-weight: 800;
+  color: $la-navy;
+  text-align: center;
+  /* Names that fall back to their key path (e.g. "user_name/board-slug")
+     can be ~30 chars and overflow the 150px tile. Allow wrapping at any
+     point if needed; in practice the JS layer inserts a zero-width space
+     after each `/` (see authenticated-view.js `add()`), so the natural
+     break point is the slash. This `break-word` is a safety net for names
+     without slashes that still exceed the tile width. */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
 
 /* Dashboard home only: increase height of boards and extras cards */
 .md-grid--dashboard .md-card--boards {
@@ -49399,6 +49461,22 @@ a.md-goal-nav-action:hover,
     &:hover { filter: brightness(1.1); }
   }
 
+  /* "Modern View" button: match the board-alt Speak Mode button
+     exactly (blue-grey pill). The extra .board-view-modern-btn class
+     keeps specificity above the generic board-bar button theming. */
+  #inner_header:has(#nav_header) .nav-header__board-bar .board-view-modern-btn {
+    background: $brand-blue-grey !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 8px 14px !important;
+    &:hover { filter: brightness(1.1); }
+  }
+
   // normal_mode: vertically centered in inner_header
   #inner_header:has(#nav_header) .nav-header__board-bar {
     align-self: center !important;
@@ -52524,8 +52602,8 @@ a.md-goal-nav-action:hover,
   gap: 14px;
   /* Height stretches to match the surrounding stacked button groups via the
      parent .md-board-detail-sentence-row's `align-items: stretch`. */
-  min-height: 62px;
-  padding: 8px 10px;
+  min-height: 82px;
+  padding: 2px 10px;
   border-radius: 18px;
   background: rgba(110, 122, 140, 0.32);
   backdrop-filter: blur(16px) saturate(1.4);
@@ -52541,6 +52619,7 @@ a.md-goal-nav-action:hover,
     inset 0 -2px 5px rgba($la-navy, 0.18),
     inset 0 -1px 1px rgba($la-navy, 0.10);
 }
+
 /* Vertical dividers on the left and right of the sentence bar, rendered as
    pseudo-elements of the bar itself. Using ::before/::after of a single
    element guarantees byte-identical rendering on both sides — there is no
@@ -52699,7 +52778,51 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-sentence-bar__text--with-symbols {
   flex-wrap: wrap;
   gap: 1px;
-  align-items: stretch;
+  /* Pull this element to the top of the bar regardless of the bar's
+     own `align-items: center`. Combined with `align-items: flex-start`
+     below, the chips sit at the top edge with only the bar's 2px top
+     padding above them, matching the visual rhythm of the page chrome. */
+  align-self: flex-start;
+  /* Top-align chips inside the row so a single chip sits at the top
+     of the bar rather than vertically centered. */
+  align-items: flex-start;
+  /* `align-content: flex-start` stacks wrap rows from the top of the
+     container into a normal scrollable area. Top of content sits at
+     `scrollTop = 0` so the scrollbar covers the full content range
+     and every row is reachable. (`center` and `flex-end` both push
+     part of the stack to a negative offset that scrollTop can't
+     reach, which broke scrolling.) Single-row chips remain vertically
+     centered via `align-items: center` above — `align-content` is a
+     no-op for single-line flex per spec. Cap matches chip height so a
+     single chip fits without overflow. Exceeds the bar's min-height
+     (82px) — the chip visually protrudes past the bar by ~4px total
+     and that's intentional; the bar's min-height stays at 82px on
+     request. */
+  max-height: 86px;
+  overflow-y: auto;
+  align-content: flex-start;
+  /* Firefox: keep a visible, persistent track so the user always knows
+     more chips are available above (macOS-style auto-hide hides the
+     affordance entirely when not hovering). */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.45) rgba(255, 255, 255, 0.10);
+}
+/* WebKit: opt out of overlay auto-hide by giving the scrollbar a
+   reserved width and explicit thumb/track colors so it stays visible
+   whenever there's overflow, not just on hover/scroll. */
+.md-board-detail-sentence-bar__text--with-symbols::-webkit-scrollbar {
+  width: 6px;
+}
+.md-board-detail-sentence-bar__text--with-symbols::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 3px;
+}
+.md-board-detail-sentence-bar__text--with-symbols::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 3px;
+}
+.md-board-detail-sentence-bar__text--with-symbols::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.65);
 }
 .md-board-detail-sentence-bar__chip {
   display: inline-flex;
@@ -52707,16 +52830,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  padding: 6px 8px;
+  /* 4px vertical / 8px horizontal — combined with a 50px image and
+     ~17px label, the chip is sized to ~78px of intrinsic content;
+     the explicit `height: 82px` below gives it 4px of breathing room
+     so the chip matches the bar's min-height exactly. */
+  padding: 4px 8px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   min-width: 44px;
-  /* min-height (not fixed height) so chip stretches to match the neighboring
-     .md-board-detail-sentence-bar__prediction-group, which is taller due to its
-     own 4px vertical padding. Parent has align-items: stretch. */
-  min-height: 62px;
-  align-self: stretch;
+  /* Chip box height exceeds the bar's min-height (82px). The chip
+     extends past the bar's content area by ~4px total — intentional
+     per design ask; bar's min-height stays at 82px. */
+  height: 86px;
+  align-self: flex-start;
   box-sizing: border-box;
 }
 .md-board-detail-sentence-bar__chip-img {
@@ -52760,9 +52887,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  padding: 6px 10px;
+  /* 4px vertical / 10px horizontal — combined with a 48px image and
+     ~17px label and 2px dashed border on each side, the tile lands
+     at 78px tall. Tiles live inside `__prediction-group` which has
+     4px top/bottom padding, so the group's outer dimension is
+     78 + 4*2 = 86px — matching the chip / `__text--with-symbols`
+     panel height exactly so the two coexist at the same baseline. */
+  padding: 4px 10px;
   min-width: 44px;
-  height: 62px;
+  height: 78px;
   box-sizing: border-box;
   border-radius: 8px;
   border: 2px dashed rgba(255, 255, 255, 0.35);
@@ -52781,8 +52914,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   transform: scale(0.96);
 }
 .md-board-detail-sentence-bar__prediction-img {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 1;
   min-height: 0;
@@ -59285,6 +59418,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   cursor: not-allowed;
   opacity: 0.55 !important;
   filter: grayscale(0.75);
+}
+/* When a paint action is armed, every cell is a paint target — even
+   cells the current preview level grays out. Restore pointer cursor so
+   the affordance matches reality (clicks DO paint these cells). Higher
+   specificity than the preview-levels rule above. */
+.md-shell--board-detail-edit .md-board-detail-grid--paint-mode .md-board-detail-symbol-card--hidden,
+.md-shell--board-detail-edit .md-board-detail-grid--paint-mode .md-board-detail-symbol-card {
+  cursor: pointer;
 }
 .md-shell--board-detail-edit .md-board-detail-grid--preview-levels .md-board-detail-symbol-card--hidden img.symbol {
   filter: grayscale(1);
@@ -69745,6 +69886,64 @@ blockquote small {
     0 10px 28px rgba(0, 0, 0, 0.45);
 }
 
+/* ── Left panel collapse control ──────────────────────────────────
+   A labelled button pinned to the bottom of the panel. Collapsing
+   shrinks the panel to a slim rail and hides its contents; this
+   button stays (icon only) so the panel can be reopened. */
+.md-board-edit-panel__collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: rgba($la-navy, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.md-board-edit-panel__collapse-btn:hover,
+.md-board-edit-panel__collapse-btn:focus-visible {
+  background: rgba($brand-slate-blue, 0.08);
+  color: $brand-slate-blue;
+  outline: none;
+}
+.md-board-edit-panel__collapse-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-icon {
+  transform: rotate(180deg);
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-label {
+  display: none;
+}
+.md-board-edit-panel--collapsed {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding: 12px 6px;
+  gap: 0;
+  cursor: pointer;
+}
+.md-board-edit-panel--collapsed > *:not(.md-board-edit-panel__collapse-btn) {
+  display: none;
+}
+.md-board-detail--dark .md-board-edit-panel__collapse-btn {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-board-edit-panel__collapse-btn:hover,
+.md-board-detail--dark .md-board-edit-panel__collapse-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+}
+
 /* ── Top cluster: back link + Save/Cancel pair ──────────────────── */
 .md-board-edit-panel__top {
   display: flex;
@@ -70017,6 +70216,12 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-panel__subheader {
   color: rgba(255, 255, 255, 0.55);
+}
+/* Board Actions collapse body — simple column; the toggle/chevron
+   reuse the Filter by Category control's classes. */
+.md-board-edit-panel__collapse {
+  display: flex;
+  flex-direction: column;
 }
 
 .md-board-edit-panel__row {
@@ -70884,6 +71089,148 @@ blockquote small {
   color: $brand-verdigris-aa;
   white-space: nowrap;
 }
+
+/* Bottom cluster of the left edit panel: View Style + Theme toggles.
+   Sits directly under the Board Actions group (no auto-margin push,
+   no divider) so it flows with the rest of the panel sections. */
+.md-board-edit-panel__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.md-board-edit-view-style--theme {
+  /* Slight separation from the View Style block above. */
+  border-top: 1px solid rgba($la-navy, 0.08);
+  padding-top: 10px;
+}
+
+/* ── View-style / theme segmented toggle ───────────────────────────
+   Two equal segments. Active segment uses the same slate→charcoal
+   gradient as the Save and Exit CTA; inactive segments use the same
+   surface as the search input. Both have dark-mode variants matched
+   to those same two controls so the cluster reads as part of the
+   panel's existing visual system. */
+.md-board-edit-view-style {
+  padding: 8px 4px 4px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-view-style {
+  display: none;
+}
+.md-board-edit-view-style__toggle {
+  display: flex;
+  gap: 6px;
+}
+.md-board-edit-view-style__opt {
+  flex: 1 1 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  /* Inactive = same surface as the search input (light). */
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba($la-navy, 0.14);
+  color: $la-navy;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.04);
+}
+.md-board-edit-view-style__opt:hover:not(.md-board-edit-view-style__opt--active),
+.md-board-edit-view-style__opt:focus-visible:not(.md-board-edit-view-style__opt--active) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba($la-navy, 0.24);
+  outline: none;
+}
+.md-board-edit-view-style__opt--active {
+  /* Active = same slate→charcoal gradient as the Save and Exit CTA. */
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+}
+/* Dark mode — match the dark variants of search input + Save/Exit. */
+.md-board-detail--dark .md-board-edit-view-style__opt {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f0f4fb;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+.md-board-detail--dark .md-board-edit-view-style__opt:hover:not(.md-board-edit-view-style__opt--active),
+.md-board-detail--dark .md-board-edit-view-style__opt:focus-visible:not(.md-board-edit-view-style__opt--active) {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.md-board-detail--dark .md-board-edit-view-style__opt--active {
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.md-board-edit-view-style__jump {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  /* Primary "go do this" action — use the same high-contrast
+     slate→charcoal gradient + solid white text as the Save and Exit
+     CTA. The previous translucent-teal-on-faint-teal failed WCAG AA,
+     especially in dark mode. White on this gradient clears 4.5:1. */
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+}
+.md-board-edit-view-style__jump:hover,
+.md-board-edit-view-style__jump:focus-visible {
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), color.adjust($brand-charcoal-blue, $lightness: 4%));
+  outline: none;
+}
+.md-board-detail--dark .md-board-edit-view-style__jump {
+  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+/* "Current View" label + Modern pill. The pill borrows the inactive
+   light-mode segment's surface but drops the button affordances
+   (shadow, heavy border, bold weight) so it reads as a status tag,
+   not something clickable. */
+.md-board-edit-view-style__current {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+.md-board-edit-view-style__current-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.md-board-edit-view-style__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba($la-navy, 0.10);
+  color: $la-navy;
+}
+.md-board-detail--dark .md-board-edit-view-style__current-label {
+  color: #f0f4fb;
+}
+.md-board-detail--dark .md-board-edit-view-style__pill {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f0f4fb;
+}
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__title {
   display: none;
 }
@@ -71068,7 +71415,12 @@ blockquote small {
 .md-board-edit-right-panel__section-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* stretch — sibling cards (info callout, PAINT LEVELS card, etc) all
+     fill the full section width. With `center` (the prior value) each
+     child shrank to its intrinsic content size, producing visibly
+     uneven card widths. Pill/badge wrappers that need to remain
+     centered handle that with their own `justify-content: center`. */
+  align-items: stretch;
   gap: 10px;
   padding: 14px 12px 14px 12px;
 }

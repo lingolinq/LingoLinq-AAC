@@ -1297,6 +1297,12 @@ export default Controller.extend({
       this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
+    // "Modern View" header button on the classic page delegates to the
+    // board.index controller, which persists the user's view-style
+    // preference to 'modern' and then navigates to the modern view.
+    go_to_modern: function() {
+      this.get('board').send('go_to_modern');
+    },
     set_locale: function(loc) {
       this.appState.set('label_locale', loc);
       this.appState.set('vocalization_locale', loc);
