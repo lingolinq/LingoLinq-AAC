@@ -3801,4 +3801,115 @@ describe User, :type => :model do
       expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
     end
   end
+
+  describe '#grant_ai_consent!' do
+    it 'writes the settings hash and returns truthy on first call' do
+      u = User.create
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).to be_a(Hash)
+      expect(c['granted_at']).to be_present
+      expect(c['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['source']).to eq('email_link')
+      expect(c['record_id']).to be_present
+      expect(c['disclosures_version']).to eq(1)
+    end
+
+    it 'deletes pending_token and pending_token_expires_at on grant' do
+      u = User.create
+      u.settings ||= {}
+      u.settings['ai_consent'] = {
+        'pending_token' => 'abc',
+        'pending_token_expires_at' => (Time.now.utc + 14 * 86400).iso8601
+      }
+      u.save
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).not_to have_key('pending_token')
+      expect(c).not_to have_key('pending_token_expires_at')
+    end
+
+    it 'generates a stable record_id via GoSecure.nonce on first grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      expect(original_record_id).to be_present
+      u.revoke_ai_consent!
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['record_id']).to eq(original_record_id)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_grant' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      expect(AuditEvent.count).to eq(0)
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      expect(AuditEvent.count).to eq(1)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('email_link')
+      expect(ae.data['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(ae.data['record_id']).to be_present
+      u.reload
+      expect(ae.data['record_id']).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'is idempotent on same-version re-call: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'does NOT silently grant at a stale version: returns false and fires no AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(2)
+    end
+
+    it 'passes through optional ip, user_agent, granted_by_user_id to the settings hash' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent Name <parent@example.com>',
+        source: 'in_app',
+        ip: '192.0.2.42',
+        user_agent: 'Mozilla/5.0 (test-agent)',
+        granted_by_user_id: granter.global_id
+      )
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['ip']).to eq('192.0.2.42')
+      expect(c['user_agent']).to eq('Mozilla/5.0 (test-agent)')
+      expect(c['granted_by_user_id']).to eq(granter.global_id)
+      expect(c['source']).to eq('in_app')
+    end
+
+    it 'accepts the admin_backfill source value' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Admin Backfill', source: 'admin_backfill')
+      u.reload
+      expect(u.settings['ai_consent']['source']).to eq('admin_backfill')
+    end
+  end
 end
