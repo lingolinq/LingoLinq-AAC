@@ -3757,4 +3757,48 @@ describe User, :type => :model do
       expect(u.effective_data_policy).to eq({})
     end
   end
+
+  describe '#ai_consent_granted?' do
+    it 'returns false for a freshly-created user with no settings hash' do
+      u = User.create
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns false when settings hash exists but ai_consent key is absent' do
+      u = User.create
+      u.settings = {}
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns true after grant_ai_consent! at the same disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(true)
+    end
+
+    it 'returns false when queried at a different disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'returns false after revoke_ai_consent!' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns false when disclosures_version argument is nil' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?).to eq(false)
+      expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
+    end
+  end
 end
