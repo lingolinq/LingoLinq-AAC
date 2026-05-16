@@ -406,7 +406,20 @@ class User < ActiveRecord::Base
     end
     res
   end
-  
+
+  # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
+  # consent record exists at the queried disclosures_version. Default-nil treatment
+  # per D-03: missing settings['ai_consent'] is "not granted", no migration needed.
+  def ai_consent_granted?(disclosures_version: nil)
+    c = self.settings && self.settings['ai_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['granted_at'].blank?
+    return false if c['revoked_at'].present?
+    return false if c['disclosures_version'].blank?
+    return false unless c['disclosures_version'] == disclosures_version
+    true
+  end
+
   def anonymized_identifier(str=nil)
     str ||= ""
     self.settings ||= {}
