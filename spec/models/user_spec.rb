@@ -3912,4 +3912,77 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['source']).to eq('admin_backfill')
     end
   end
+
+  describe '#revoke_ai_consent!' do
+    it 'returns false when called on a user with no consent record' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'marks the record revoked and returns true on first call after grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      res = u.revoke_ai_consent!
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_revoke' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      u.reload
+      granted_record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!(source: 'parent')
+      expect(AuditEvent.count).to eq(2)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('parent')
+      expect(ae.data['record_id']).to eq(granted_record_id)
+    end
+
+    it 'is idempotent on already-revoked: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.count).to eq(2)
+      u.reload
+      first_revoked_at = u.settings['ai_consent']['revoked_at']
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to eq(first_revoked_at)
+    end
+
+    it 'passes through optional revoked_by and reason to the settings hash' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!(revoked_by: 'Parent Name <parent@example.com>', reason: 'Withdrawing consent')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'defaults source to parent when not specified' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.last.data['source']).to eq('parent')
+    end
+  end
 end
