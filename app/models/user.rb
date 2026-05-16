@@ -420,6 +420,73 @@ class User < ActiveRecord::Base
     true
   end
 
+  # Records a parent-granted AI data-sharing consent at the given disclosures_version.
+  # Idempotent on same-version re-call (returns false). Does NOT silently grant on
+  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
+  # Fires exactly one synchronous AuditEvent.log_command on save success. D-04 / D-05.
+  def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
+    self.settings ||= {}
+    c = self.settings['ai_consent']
+    c = {} unless c.is_a?(Hash)
+    # D-04 idempotency: same-version re-call returns false (already granted);
+    # stale-version re-call also returns false (does NOT silently grant at stale
+    # version - Phase 3 controller surfaces the re-prompt UX path).
+    if c['granted_at'].present? && c['revoked_at'].blank?
+      return false
+    end
+    c['record_id'] = GoSecure.nonce('ai_consent_record') if c['record_id'].blank?
+    c['granted_at'] = Time.now.utc.iso8601
+    c['granted_by'] = granted_by
+    c['granted_by_user_id'] = granted_by_user_id
+    c['disclosures_version'] = disclosures_version
+    c['source'] = source
+    c['ip'] = ip
+    c['user_agent'] = user_agent
+    c.delete('pending_token')
+    c.delete('pending_token_expires_at')
+    c.delete('revoked_at')
+    c.delete('revoked_by')
+    c.delete('revoked_reason')
+    self.settings['ai_consent'] = c
+    res = self.save
+    if res
+      AuditEvent.log_command(self.global_id, {
+        'type' => 'ai_consent_grant',
+        'disclosures_version' => disclosures_version,
+        'granted_by' => granted_by,
+        'source' => source,
+        'record_id' => c['record_id']
+      })
+    end
+    res
+  end
+
+  # Revokes the current AI data-sharing consent. Idempotent on already-revoked
+  # (returns false). Fires exactly one synchronous AuditEvent.log_command on save
+  # success. D-05.
+  def revoke_ai_consent!(revoked_by: nil, reason: nil, source: 'parent')
+    self.settings ||= {}
+    c = self.settings['ai_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['granted_at'].blank?
+    return false if c['revoked_at'].present?
+    c['revoked_at'] = Time.now.utc.iso8601
+    c['revoked_by'] = revoked_by
+    c['revoked_reason'] = reason
+    self.settings['ai_consent'] = c
+    res = self.save
+    if res
+      AuditEvent.log_command(self.global_id, {
+        'type' => 'ai_consent_revoke',
+        'disclosures_version' => c['disclosures_version'],
+        'source' => source,
+        'record_id' => c['record_id']
+      })
+      return true
+    end
+    false
+  end
+
   def anonymized_identifier(str=nil)
     str ||= ""
     self.settings ||= {}
