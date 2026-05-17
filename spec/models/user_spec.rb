@@ -3917,6 +3917,49 @@ describe User, :type => :model do
       u.reload
       expect(u.settings['ai_consent']['source']).to eq('admin_backfill')
     end
+
+    it 'raises ArgumentError when source is not in the allowlist' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'sms_link')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: nil)
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: '')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      u.reload
+      # Pre-validation raise means no settings mutation, no audit row.
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id equals self.global_id (no self-grant)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.global_id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'allows a different user as granted_by_user_id' do
+      u = User.create
+      granter = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: granter.global_id
+        )
+      }.not_to raise_error
+    end
   end
 
   describe '#revoke_ai_consent!' do

@@ -423,6 +423,11 @@ class User < ActiveRecord::Base
     true
   end
 
+  # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
+  # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
+  # value pulled from params. New sources must be added here explicitly.
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+
   # Records a parent-granted AI data-sharing consent at the given disclosures_version.
   # Idempotent on same-version re-call (returns false). Does NOT silently grant on
   # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
@@ -431,7 +436,14 @@ class User < ActiveRecord::Base
   # transaction). User#save! and AuditEvent.create! both run under that transaction,
   # so a failure in the audit insert rolls back the consent write. The pessimistic
   # lock also serializes concurrent grant/revoke against the same user. D-04 / D-05.
+  #
+  # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES)
+  # and `self_grant_forbidden` (granted_by_user_id == self.global_id). These are
+  # stable machine tokens, not English prose - Phase 3 owns user-facing copy.
   def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
+    raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id.present? && granted_by_user_id == self.global_id
+
     res = false
     self.with_lock do
       self.settings ||= {}
