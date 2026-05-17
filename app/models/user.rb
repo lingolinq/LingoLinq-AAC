@@ -432,6 +432,9 @@ class User < ActiveRecord::Base
   # Idempotent on same-version re-call (returns false). Does NOT silently grant on
   # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
   #
+  # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
+  # internally and will raise ActiveRecord::RecordNotFound on a User.new.
+  #
   # The body runs inside `with_lock` (SELECT FOR UPDATE on the user row, wrapping a
   # transaction). User#save! and AuditEvent.create! both run under that transaction,
   # so a failure in the audit insert rolls back the consent write. The pessimistic

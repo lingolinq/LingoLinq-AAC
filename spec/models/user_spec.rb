@@ -4080,22 +4080,24 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['revoked_at']).to be_blank
     end
 
-    it 'serializes concurrent revoke against an in-flight grant via with_lock' do
+    it 'no-ops on a stale in-memory revoke after another copy already revoked (lost-update guard via with_lock reload)' do
+      # NOTE: This test runs single-threaded inside Rails' test transaction, so it
+      # does not exercise true cross-connection SELECT FOR UPDATE blocking. What it
+      # does prove is the second half of the lost-update guard: with_lock reloads
+      # the row inside its block, so a stale in-memory copy observes the committed
+      # state (revoked) and the idempotency guard correctly no-ops. The SELECT FOR
+      # UPDATE behavior under real concurrent connections is a database-level
+      # guarantee, not asserted here.
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
-      # Two in-memory copies of the same user. The second copy must observe the
-      # state written by the first under with_lock (which reloads inside the lock),
-      # not the stale in-memory state. This is the lost-update guard.
       u_a = User.find(u.id)
       u_b = User.find(u.id)
       u_a.revoke_ai_consent!
-      # u_b is stale: still thinks consent is granted-and-unrevoked. Calling revoke
-      # again should observe the revoked state inside with_lock's reload and no-op
-      # (returns false), instead of clobbering u_a's revocation.
+      # u_b is stale: in-memory state still says granted-and-unrevoked. Calling
+      # revoke! should reload inside with_lock, see the revoked state, and no-op.
       res = u_b.revoke_ai_consent!
       expect(res).to eq(false)
       u.reload
-      # The original revocation timestamp from u_a must survive.
       expect(u.settings['ai_consent']['revoked_at']).to be_present
     end
 
