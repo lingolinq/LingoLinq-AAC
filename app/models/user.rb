@@ -435,10 +435,15 @@ class User < ActiveRecord::Base
   # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
   # internally and will raise ActiveRecord::RecordNotFound on a User.new.
   #
-  # The body runs inside `with_lock` (SELECT FOR UPDATE on the user row, wrapping a
-  # transaction). User#save! and AuditEvent.create! both run under that transaction,
-  # so a failure in the audit insert rolls back the consent write. The pessimistic
-  # lock also serializes concurrent grant/revoke against the same user. D-04 / D-05.
+  # The body runs inside `with_lock(requires_new: true)` (SELECT FOR UPDATE on the
+  # user row, wrapping a SAVEPOINT-backed nested transaction). User#save! and
+  # AuditEvent.create! both run under that transaction, so a failure in the audit
+  # insert rolls back the consent write - even when the caller wraps this in its
+  # own outer transaction and rescues the AR error. The `requires_new: true` is
+  # load-bearing for that guarantee: without it, Rails would join the outer
+  # transaction and a rescued audit failure would leave the consent write
+  # committed. The pessimistic lock also serializes concurrent grant/revoke
+  # against the same user. D-04 / D-05.
   #
   # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES)
   # and `self_grant_forbidden` (granted_by_user_id == self.global_id). These are
@@ -448,7 +453,7 @@ class User < ActiveRecord::Base
     raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id.present? && granted_by_user_id == self.global_id
 
     res = false
-    self.with_lock do
+    self.with_lock(requires_new: true) do
       self.settings ||= {}
       c = self.settings['ai_consent']
       c = {} unless c.is_a?(Hash)
@@ -489,12 +494,13 @@ class User < ActiveRecord::Base
   end
 
   # Revokes the current AI data-sharing consent. Idempotent on already-revoked
-  # (returns false). Mirrors grant_ai_consent!: runs inside `with_lock` so the
-  # User update and AuditEvent insert are atomic, and concurrent grant/revoke
+  # (returns false). Mirrors grant_ai_consent!: runs inside `with_lock(requires_new:
+  # true)` so the User update and AuditEvent insert are atomic - including under
+  # an outer transaction that rescues the AR error - and concurrent grant/revoke
   # against the same user are serialized. D-05.
   def revoke_ai_consent!(revoked_by: nil, reason: nil, source: 'parent')
     res = false
-    self.with_lock do
+    self.with_lock(requires_new: true) do
       self.settings ||= {}
       c = self.settings['ai_consent']
       next unless c.is_a?(Hash)

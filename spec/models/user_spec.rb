@@ -4080,6 +4080,26 @@ describe User, :type => :model do
       expect(u.settings['ai_consent']['revoked_at']).to be_blank
     end
 
+    it 'rolls back the consent write even when the audit error is rescued inside an outer transaction (requires_new SAVEPOINT)' do
+      # Without `requires_new: true` on with_lock, Rails would join the outer
+      # transaction and a rescued AR error would still leave the consent settings
+      # committed when the outer transaction commits. This spec is the canary for
+      # that regression.
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      ActiveRecord::Base.transaction do
+        begin
+          u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+        rescue ActiveRecord::RecordInvalid
+          # Caller swallows the audit failure (e.g. controller renders a 500)
+          # but expects the consent write to NOT have leaked through.
+        end
+        # Outer transaction commits cleanly here.
+      end
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
     it 'no-ops on a stale in-memory revoke after another copy already revoked (lost-update guard via with_lock reload)' do
       # NOTE: This test runs single-threaded inside Rails' test transaction, so it
       # does not exercise true cross-connection SELECT FOR UPDATE blocking. What it
