@@ -3838,7 +3838,19 @@ describe User, :type => :model do
       expect(c).not_to have_key('pending_token_expires_at')
     end
 
-    it 'generates a stable record_id via GoSecure.nonce on first grant' do
+    it 'assigns record_id in RFC-4122 UUID format on first grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      # 8-4-4-4-12 hex pattern. We assert the contract (UUID-shaped string),
+      # not the implementation (whatever generator was used). Adversary-flagged
+      # concern: the prior implementation (GoSecure.nonce) had only ~20 bits of
+      # input entropy per second per purpose, which could collide under bulk
+      # admin_backfill. SecureRandom.uuid gives 122 bits.
+      expect(u.settings['ai_consent']['record_id']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+    end
+
+    it 'preserves record_id across the revoke/re-grant lifecycle' do
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload

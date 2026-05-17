@@ -474,7 +474,7 @@ class User < ActiveRecord::Base
         next if disclosures_version < c['disclosures_version']
         prior_disclosures_version = c['disclosures_version']
       end
-      c['record_id'] = GoSecure.nonce('ai_consent_record') if c['record_id'].blank?
+      c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
       c['granted_at'] = Time.now.utc.iso8601
       c['granted_by'] = granted_by
       c['granted_by_user_id'] = granted_by_user_id
