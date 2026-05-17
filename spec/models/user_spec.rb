@@ -4079,6 +4079,26 @@ describe User, :type => :model do
       u.revoke_ai_consent!
       expect(AuditEvent.last.data['source']).to eq('parent')
     end
+
+    it 'raises ArgumentError when revoke source is not in the allowlist' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect {
+        u.revoke_ai_consent!(source: 'malicious-input')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      # Pre-validation raise: settings still show the grant intact
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'accepts admin and system as revoke sources in addition to parent' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u.revoke_ai_consent!(source: 'admin') }.not_to raise_error
+      u2 = User.create
+      u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
+    end
   end
 
   describe 'AI consent atomicity and audit-event coupling' do

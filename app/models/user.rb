@@ -428,6 +428,13 @@ class User < ActiveRecord::Base
   # value pulled from params. New sources must be added here explicitly.
   AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
 
+  # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
+  # because the valid actors for revocation (parent, admin, automated system)
+  # differ from the valid acquisition channels for a grant. Same anti-poisoning
+  # rationale: a controller passing an arbitrary `source` param cannot dirty the
+  # audit taxonomy.
+  AI_CONSENT_REVOKE_SOURCES = %w[parent admin system].freeze
+
   # Records a parent-granted AI data-sharing consent at the given disclosures_version.
   # Idempotent on same-version re-call (returns false). Does NOT silently grant on
   # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
@@ -448,6 +455,11 @@ class User < ActiveRecord::Base
   # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES)
   # and `self_grant_forbidden` (granted_by_user_id == self.global_id). These are
   # stable machine tokens, not English prose - Phase 3 owns user-facing copy.
+  #
+  # `granted_by_user_id:` is a GLOBAL_ID (the sharding-ready string like "1_42"),
+  # not the bare numeric database id. The self-grant check compares against
+  # `self.global_id`, so passing a numeric id would silently bypass the guard.
+  # Phase 3 controllers MUST pass user.global_id.
   def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
     raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
     raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id.present? && granted_by_user_id == self.global_id
@@ -512,7 +524,12 @@ class User < ActiveRecord::Base
   # true)` so the User update and AuditEvent insert are atomic - including under
   # an outer transaction that rescues the AR error - and concurrent grant/revoke
   # against the same user are serialized. D-05.
+  #
+  # Raises ArgumentError 'invalid_source' if source is not in
+  # AI_CONSENT_REVOKE_SOURCES (parent / admin / system). Phase 3 controllers
+  # cannot poison the revocation audit taxonomy by passing arbitrary params.
   def revoke_ai_consent!(revoked_by: nil, reason: nil, source: 'parent')
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_REVOKE_SOURCES.include?(source)
     res = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
