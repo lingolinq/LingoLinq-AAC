@@ -3879,7 +3879,7 @@ describe User, :type => :model do
       expect(AuditEvent.count - pre_count).to eq(0)
     end
 
-    it 'does NOT silently grant at a stale version: returns false and fires no AuditEvent' do
+    it 'does NOT silently grant at a stale (older) version: returns false and fires no AuditEvent' do
       expect(AuditEvent.count).to eq(0)
       u = User.create
       u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
@@ -3890,6 +3890,40 @@ describe User, :type => :model do
       expect(AuditEvent.count - pre_count).to eq(0)
       u.reload
       expect(u.settings['ai_consent']['disclosures_version']).to eq(2)
+    end
+
+    it 'accepts a version upgrade: grant at a newer disclosures_version overwrites the prior active grant and preserves record_id' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['disclosures_version']).to eq(2)
+      expect(c['source']).to eq('in_app')
+      expect(c['record_id']).to eq(original_record_id)
+      expect(c['revoked_at']).to be_blank
+    end
+
+    it 'records the prior_disclosures_version in the audit payload on a version upgrade' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(2)
+      expect(ae.data['prior_disclosures_version']).to eq(1)
+    end
+
+    it 'emits prior_disclosures_version as nil on a first-time grant (no prior version to upgrade from)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      ae = AuditEvent.last
+      expect(ae.data['prior_disclosures_version']).to be_nil
     end
 
     it 'passes through optional ip, user_agent, granted_by_user_id to the settings hash' do

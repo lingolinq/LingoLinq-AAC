@@ -453,14 +453,27 @@ class User < ActiveRecord::Base
     raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id.present? && granted_by_user_id == self.global_id
 
     res = false
+    prior_disclosures_version = nil
     self.with_lock(requires_new: true) do
       self.settings ||= {}
       c = self.settings['ai_consent']
       c = {} unless c.is_a?(Hash)
-      # D-04 idempotency: same-version re-call returns false (already granted);
-      # stale-version re-call also returns false (does NOT silently grant at stale
-      # version - Phase 3 controller surfaces the re-prompt UX path).
-      next if c['granted_at'].present? && c['revoked_at'].blank?
+      # D-04 three-branch idempotency for an existing active (unrevoked) consent:
+      #   - same version requested:           no-op, return false (already granted)
+      #   - older version requested:          no-op, return false (downgrade refused;
+      #                                       Phase 3 controller re-prompts at current
+      #                                       version)
+      #   - newer version requested:          fall through; record the upgrade,
+      #                                       preserve record_id, capture the prior
+      #                                       version in the audit payload so audit
+      #                                       queries can distinguish first-grant
+      #                                       from version-upgrade events.
+      if c['granted_at'].present? && c['revoked_at'].blank?
+        next if c['disclosures_version'] == disclosures_version
+        next if disclosures_version.nil? || c['disclosures_version'].nil?
+        next if disclosures_version < c['disclosures_version']
+        prior_disclosures_version = c['disclosures_version']
+      end
       c['record_id'] = GoSecure.nonce('ai_consent_record') if c['record_id'].blank?
       c['granted_at'] = Time.now.utc.iso8601
       c['granted_by'] = granted_by
@@ -481,6 +494,7 @@ class User < ActiveRecord::Base
         data: {
           'type' => 'ai_consent_grant',
           'disclosures_version' => disclosures_version,
+          'prior_disclosures_version' => prior_disclosures_version,
           'granted_by' => granted_by,
           'source' => source,
           'record_id' => c['record_id']
