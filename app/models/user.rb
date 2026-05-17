@@ -410,7 +410,10 @@ class User < ActiveRecord::Base
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
   # consent record exists at the queried disclosures_version. Per D-03: missing
   # settings['ai_consent'] is treated as "not granted", no migration needed.
-  def ai_consent_granted?(disclosures_version: nil)
+  # `disclosures_version:` is required: callers that forget the kwarg get
+  # ArgumentError at boot/test time rather than a silent false (which Phase 4
+  # would interpret as "guard fired, AI suppressed for an actually-consented user").
+  def ai_consent_granted?(disclosures_version:)
     c = self.settings && self.settings['ai_consent']
     return false unless c.is_a?(Hash)
     return false if c['granted_at'].blank?

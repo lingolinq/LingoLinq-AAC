@@ -3793,11 +3793,17 @@ describe User, :type => :model do
       expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
     end
 
-    it 'returns false when disclosures_version argument is nil' do
+    it 'raises ArgumentError when disclosures_version: kwarg is omitted' do
       u = User.create
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
-      expect(u.ai_consent_granted?).to eq(false)
+      expect { u.ai_consent_granted? }.to raise_error(ArgumentError)
+    end
+
+    it 'returns false when explicit disclosures_version: nil is passed' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
       expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
     end
   end
