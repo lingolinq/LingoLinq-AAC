@@ -56746,6 +56746,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
   mix-blend-mode: normal;
 }
+/* "Colored" / "Colored Soft" (symbol_background_clear, the latter
+   also carries .fitzgerald-soft): the symbol assets are transparent
+   PNG/SVG, so keep the image band transparent and let the card's
+   Fitzgerald fill (set inline as background-color / --btn-bg, or via
+   the --fitzgerald-* vars) show through behind the symbol — mirroring
+   board-alt's intent, minus board-alt's opaque #e8f5f4 holder.
+   White/Black/High-Contrast modes are unaffected (separate selectors
+   above force their own card fill). */
+.symbol_background_clear .md-board-detail-symbol-card__image,
+.symbol_background_clear .md-board-detail-symbol-card__image--placeholder {
+  background: transparent !important;
+}
 /* Editor preview parity with runtime: when high_contrast is on, push
    symbol images through the same contrast/saturate filter the live
    board uses (line ~6982 — `.board.high_contrast .button img.symbol`).
