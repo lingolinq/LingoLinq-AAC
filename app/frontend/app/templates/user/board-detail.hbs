@@ -139,6 +139,7 @@
             size="1"
             class="md-board-edit-panel__search-input"
             placeholder={{t "Search buttons..." key="search_buttons"}}
+            aria-label={{t "Search buttons" key="search_buttons_aria"}}
             value={{this.board_search_string}}
             {{on "input" (action "update_board_search")}}
           />

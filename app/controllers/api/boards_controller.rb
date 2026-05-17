@@ -390,9 +390,14 @@ class Api::BoardsController < ApplicationController
   # to the depth-1 prefetch on the client.
   MAX_TREE = 500
   def tree
+    # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
+    # params['board_id'] (NOT params['id']). Reading 'id' here made every
+    # /tree request resolve to a nil board -> 404 "Record not found",
+    # silently disabling the instant-cache prefetch. Accept both.
+    board_path = params['board_id'] || params['id']
     root = nil
     ApplicationRecord.using(:master) do
-      root = Board.find_by_path(params['id'])
+      root = Board.find_by_path(board_path)
     end
     return unless exists?(root)
     return unless allowed?(root, 'view')
