@@ -3985,4 +3985,82 @@ describe User, :type => :model do
       expect(AuditEvent.last.data['source']).to eq('parent')
     end
   end
+
+  describe 'AI consent atomicity and audit-event coupling' do
+    it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.record_id).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'populates audit_events.event_type and record_id columns on revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_revoke')
+      expect(ae.record_id).to eq(record_id)
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during grant' do
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link') }.to raise_error(ActiveRecord::RecordInvalid)
+      }.not_to change { AuditEvent.count }
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      pre_count = AuditEvent.count
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        u.revoke_ai_consent!
+      }.to raise_error(ActiveRecord::RecordInvalid)
+      expect(AuditEvent.count).to eq(pre_count)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'serializes concurrent revoke against an in-flight grant via with_lock' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      # Two in-memory copies of the same user. The second copy must observe the
+      # state written by the first under with_lock (which reloads inside the lock),
+      # not the stale in-memory state. This is the lost-update guard.
+      u_a = User.find(u.id)
+      u_b = User.find(u.id)
+      u_a.revoke_ai_consent!
+      # u_b is stale: still thinks consent is granted-and-unrevoked. Calling revoke
+      # again should observe the revoked state inside with_lock's reload and no-op
+      # (returns false), instead of clobbering u_a's revocation.
+      res = u_b.revoke_ai_consent!
+      expect(res).to eq(false)
+      u.reload
+      # The original revocation timestamp from u_a must survive.
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+    end
+
+    it 'treats a non-Hash truthy value at settings[ai_consent] as missing (does not crash)' do
+      u = User.create
+      u.settings = { 'ai_consent' => 'corrupted-string-value' }
+      u.save
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      # grant! must overwrite the malformed value with a proper hash.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']).to be_a(Hash)
+      expect(u.settings['ai_consent']['granted_at']).to be_present
+    end
+  end
 end
