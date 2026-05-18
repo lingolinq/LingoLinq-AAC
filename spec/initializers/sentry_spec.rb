@@ -488,7 +488,7 @@ describe 'config/initializers/sentry.rb' do
 
       Sentry.with_scope do |scope|
         scope.set_tags(keep_cache_error: true)
-        Sentry.capture_exception(ActiveSupport::Cache::FetchError.new('cache miss'))
+        Sentry.capture_exception(ActiveSupport::Cache::DeserializationError.new('cache miss'))
       end
 
       expect(sent_event).not_to be_nil
