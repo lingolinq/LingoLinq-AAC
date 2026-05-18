@@ -493,9 +493,6 @@ GEM
     sentry-rails (6.5.0)
       railties (>= 5.2.0)
       sentry-ruby (~> 6.5.0)
-    sentry-resque (6.5.0)
-      resque (>= 1.24)
-      sentry-ruby (~> 6.5.0)
     sentry-ruby (6.5.0)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.0.2)
@@ -613,7 +610,6 @@ DEPENDENCIES
   sass-rails (~> 6.0)
   sdoc
   sentry-rails
-  sentry-resque (~> 6.5)
   sentry-ruby
   silencer
   simplecov
