@@ -525,4 +525,29 @@ describe ApplicationController, :type => :controller do
       expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Someone')
     end
   end
+
+  describe 'COPPA Sentry request user stashing' do
+    before do
+      RequestStore.clear!
+      allow(Sentry).to receive(:initialized?).and_return(true)
+      allow(Sentry).to receive(:set_user)
+    end
+
+    after { RequestStore.clear! }
+
+    it 'stashes @api_user into RequestStore during set_sentry_user' do
+      u = User.create
+      d = Device.create(user: u)
+      get :index, params: { access_token: d.tokens[0], check_token: true }
+      expect(RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY]).to eq(u)
+    end
+
+    it 'resolves the parental consent subject from params when @api_user is absent' do
+      u = User.create
+      controller = ParentalConsentsController.new
+      allow(controller).to receive(:params).and_return(ActionController::Parameters.new(user_id: u.global_id))
+      allow(controller).to receive(:controller_path).and_return('parental_consents')
+      expect(controller.send(:coppa_sentry_subject_user)).to eq(u)
+    end
+  end
 end
