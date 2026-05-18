@@ -2088,7 +2088,7 @@ describe Api::BoardsController, :type => :controller do
     it "should schedule processing for url" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(Board, :import, @user.global_id, 'http://www.example.com/file.obf', for_user: @user).and_return(p)
+      expect(Progress).to receive(:schedule).with(Board, :import, @user.global_id, 'http://www.example.com/file.obf', {}, for_user: @user).and_return(p)
       post :import, params: {:url => 'http://www.example.com/file.obf'}
       expect(response).to be_successful
       json = JSON.parse(response.body)

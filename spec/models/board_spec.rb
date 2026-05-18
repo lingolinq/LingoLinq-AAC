@@ -2875,8 +2875,8 @@ describe Board, :type => :model do
       new_root = Board.create(user: recipient)
       allow(root).to receive(:reload).and_return(root)
       expect(root).to receive(:copy_for).with(recipient, copier: importer).and_return(new_root)
-      allow(importer).to receive(:edit_permission_for?).with(primary).and_return(true)
-      allow(importer).to receive(:edit_permission_for?).with(recipient).and_return(true)
+      allowed_gids = [primary.global_id, recipient.global_id]
+      allow(importer).to receive(:edit_permission_for?) { |user| allowed_gids.include?(user.global_id) }
 
       expect(Board).to receive(:copy_board_links_for).with(
         recipient,
