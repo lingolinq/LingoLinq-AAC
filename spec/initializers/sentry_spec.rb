@@ -365,16 +365,74 @@ describe SentryTracesSampler do
 
   # Regression guard: sentry-ruby 6.5 checks `traces_sampler.is_a?(Proc)`
   # (lib/sentry/transaction.rb:144) and silently no-ops anything that isn't
-  # a Proc. A Method object returns false to is_a?(Proc) and is therefore
-  # ignored. This spec catches an accidental refactor like
-  # `SentryTracesSampler.method(:call)`.
-  describe 'wiring contract' do
-    it 'must be wrapped in a Proc-compatible object (not a Method)' do
-      proc_form = ->(ctx) { described_class.call(ctx) }
-      method_form = described_class.method(:call)
-      expect(proc_form.is_a?(Proc)).to eq(true)
-      expect(method_form.is_a?(Proc)).to eq(false)
+  # a Proc. The initializer assigns SentryTracesSampler::PROC to
+  # `config.traces_sampler`, so the constant itself MUST be a Proc.
+  # A future revert to `SentryTracesSampler.method(:call)` would fail this
+  # assertion immediately rather than silently disabling the sampler.
+  describe '::PROC (the constant wired into config.traces_sampler)' do
+    it 'is a Proc, not a Method (Method silently fails Sentry SDK gate)' do
+      expect(SentryTracesSampler::PROC).to be_a(Proc)
     end
+
+    it 'delegates to .call so identical sampling decisions are produced' do
+      ctx = { transaction_context: { name: '/api/v1/health' } }
+      expect(SentryTracesSampler::PROC.call(ctx)).to eq(described_class.call(ctx))
+    end
+
+    it 'returns 0.0 for the real health route when invoked via the wired Proc' do
+      expect(SentryTracesSampler::PROC.call(transaction_context: { name: '/api/v1/health' })).to eq(0.0)
+    end
+  end
+end
+
+# CoppaSentryScrub::TRANSACTION_FILTER is `config.before_send_transaction`.
+# It runs on TransactionEvents (performance traces) which DO NOT pass
+# through `before_send`. Without this filter, ~SENTRY_TRACES_SAMPLE_RATE
+# of COPPA-pending child traces would ship URLs containing child global_ids
+# and a stable per-IP user fingerprint straight to Sentry.
+describe 'CoppaSentryScrub::TRANSACTION_FILTER' do
+  subject(:filter) { CoppaSentryScrub::TRANSACTION_FILTER }
+
+  let(:child_user_record) { instance_double('User', id: 7, coppa_parental_consent_pending?: true) }
+  let(:adult_user_record) { instance_double('User', id: 8, coppa_parental_consent_pending?: false) }
+
+  TransactionEventStub = Struct.new(:user, :request, :contexts) do
+    def initialize(user: nil, request: nil, contexts: nil)
+      super(user, request, contexts)
+    end
+  end
+
+  before do
+    allow(User).to receive(:where).with(id: 7).and_return(double(first: child_user_record))
+    allow(User).to receive(:where).with(id: 8).and_return(double(first: adult_user_record))
+    RequestStore.clear!
+  end
+
+  after { RequestStore.clear! }
+
+  it 'is a Proc, not a Method (sentry-ruby is_a?(Proc) gate)' do
+    expect(filter).to be_a(Proc)
+  end
+
+  it 'returns nil (drops the event) for a COPPA-pending child user' do
+    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = child_user_record
+    event = TransactionEventStub.new(user: { id: 'a' * 128 })
+    expect(filter.call(event, nil)).to be_nil
+  end
+
+  it 'returns the event unchanged for an adult user' do
+    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = adult_user_record
+    event = TransactionEventStub.new(user: { id: 8 })
+    expect(filter.call(event, nil)).to be(event)
+  end
+
+  it 'returns the event when RequestStore is empty and no numeric id resolves to a child' do
+    event = TransactionEventStub.new(user: nil)
+    expect(filter.call(event, nil)).to be(event)
+  end
+
+  it 'never raises out of the filter (defensive on bad event shape)' do
+    expect { filter.call(Object.new, nil) }.not_to raise_error
   end
 end
 

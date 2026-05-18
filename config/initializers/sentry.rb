@@ -243,6 +243,24 @@ module CoppaSentryScrub
       obj[key.to_sym] = value
     end
   end
+
+  # Transaction-event guard. sentry-ruby's `before_send` callback only fires
+  # for ErrorEvent; TransactionEvent (performance traces) routes through
+  # `before_send_transaction`. Without this filter, ~SENTRY_TRACES_SAMPLE_RATE
+  # of every COPPA-pending child's traces would ship to Sentry carrying:
+  #   - event.user.id = SHA512(remote_ip) (a stable per-IP child fingerprint)
+  #   - event.request.url containing the child's global_id in path segments
+  #   - span descriptions and trace contexts
+  # CoppaSentryScrub#scrub! could mutate request/user/contexts in place, but
+  # TransactionEvent ALSO carries the transaction name and span descriptions
+  # which the existing scrubber does not touch. Simpler+safer: drop the entire
+  # transaction event for COPPA-pending users. Adults keep full traces.
+  TRANSACTION_FILTER = lambda do |event, _hint|
+    user = CoppaSentryScrub.lookup_user(CoppaSentryScrub.event_user(event))
+    CoppaSentryScrub.child_user?(user) ? nil : event
+  rescue StandardError
+    event
+  end
 end
 
 # Per-transaction sampling decision invoked by Sentry on every transaction
@@ -273,6 +291,13 @@ module SentryTracesSampler
       path.is_a?(String) && path.match?(IGNORED_TRANSACTION_PATTERN)
     end
   end
+
+  # MUST be a Proc, not a Method. sentry-ruby 6.5 checks
+  # `traces_sampler.is_a?(Proc)` (lib/sentry/transaction.rb:144) before
+  # invoking. A Method object silently fails the gate and the sampler is
+  # never called. Specs assert SentryTracesSampler::PROC.is_a?(Proc) so a
+  # future revert to `.method(:call)` breaks CI.
+  PROC = ->(ctx) { call(ctx) }
 end
 
 # Shared Sentry.init hook wiring. Extracted so specs can assert the Proc
@@ -287,13 +312,10 @@ module SentryInitializer
 
     config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.05').to_f
     config.profiles_sample_rate = (ENV['SENTRY_PROFILES_SAMPLE_RATE'] || '0.0').to_f
-    # MUST be a Proc, not a Method. sentry-ruby 6.5 checks
-    # `traces_sampler.is_a?(Proc)` (lib/sentry/transaction.rb:144) before
-    # calling, and Method#is_a?(Proc) is false, so a `Method` object is
-    # silently ignored and the sampler effectively becomes a no-op.
-    config.traces_sampler = ->(ctx) { SentryTracesSampler.call(ctx) }
+    config.traces_sampler = SentryTracesSampler::PROC
 
     config.before_send = ->(event, hint) { CoppaSentryScrub.before_send_event(event, hint) }
+    config.before_send_transaction = CoppaSentryScrub::TRANSACTION_FILTER
     config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
   end
 end
