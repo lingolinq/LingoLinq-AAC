@@ -686,7 +686,7 @@ class Board < ActiveRecord::Base
           Board.copy_board_links_for(target_user,
             starting_old_board: root_old,
             starting_new_board: new_root,
-            authorized_user: target_user,
+            authorized_user: importer,
             copier: importer
           )
         end

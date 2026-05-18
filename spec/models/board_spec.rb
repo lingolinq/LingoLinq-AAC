@@ -2880,7 +2880,7 @@ describe Board, :type => :model do
 
       expect(Board).to receive(:copy_board_links_for).with(
         recipient,
-        hash_including(starting_old_board: root, starting_new_board: new_root, copier: importer, authorized_user: recipient)
+        hash_including(starting_old_board: root, starting_new_board: new_root, copier: importer, authorized_user: importer)
       ).and_return({})
 
       Board.import(importer.global_id, 'http://www.example.com/board.obz', {'recipient_global_ids' => [primary.global_id, recipient.global_id]})
