@@ -1737,7 +1737,16 @@ var editManager = EmberObject.extend({
       Button.set_attribute(button, 'background_color', this.paint_mode.fill);
     }
     if(this.paint_mode.hidden != null) {
-      Button.set_attribute(button, 'hidden', this.paint_mode.hidden);
+      // Hidden Tool (paint hide / reveal) operates on the plain
+      // `hidden` attribute ONLY. Do NOT route through
+      // Button.set_attribute here: that helper stamps
+      // level_modifications.override.hidden whenever the button
+      // already carries a level rule (every CommuniKate button does),
+      // which surfaces a "*" level badge — not the intended behavior
+      // for the Hidden Tool. The Button Levels system is untouched;
+      // this is a direct author-intent set, matching how the
+      // reveal/reveal-all paths already set `hidden`.
+      emberSet(button, 'hidden', this.paint_mode.hidden);
     }
     if(this.paint_mode.close_link != null) {
       Button.set_attribute(button, 'link_disabled', this.paint_mode.close_link);

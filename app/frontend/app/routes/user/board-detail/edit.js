@@ -30,6 +30,13 @@ export default Route.extend({
       _this.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
+    // On entering the edit page, always present the right panel fully
+    // expanded with the complete section list — don't restore the
+    // accordion section that happened to be open on a previous visit.
+    // (board-detail is a singleton controller, so right_panel_open_section
+    // otherwise persists across entries.)
+    boardDetailController.set('right_panel_collapsed', false);
+    boardDetailController.set('right_panel_open_section', null);
     // Engage the grid fade-in overlay SYNCHRONOUSLY before any render.
     // The grid renders with opacity:0 during the entry churn (cached
     // buttons → _build_from_raw rebuild → process_for_displaying rebuild).

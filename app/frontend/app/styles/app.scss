@@ -1035,6 +1035,50 @@ header #normal_mode #level_dropdown span[style*='border-radius: 100px'] {
   background: #eaf5ff !important;
   margin-left: 0 !important;
 }
+/* Level dropdown reveal: keep the −/level/+ row and the explainer
+   fully INSIDE the popover card. The − / + are `.btn`, so they
+   otherwise inherit `header #normal_mode .btn` (42px header-pill
+   sizing) and spill out above/around the menu panel. */
+header #normal_mode #level_dropdown ~ .dropdown-menu {
+  padding: 12px;
+  min-width: 320px;
+  border-radius: 10px;
+  /* visible (not hidden): hidden was clipping the level text + the
+     "+" button on the right of the first row. */
+  overflow: visible;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+header #normal_mode #level_dropdown ~ .dropdown-menu > li[role="presentation"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  width: 100%;
+}
+/* Fixed compact squares so − / + can't grow and eat the row (they
+   inherit header .btn which has no width cap). */
+header #normal_mode #level_dropdown ~ .dropdown-menu .skippy.btn {
+  width: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  height: 38px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 0 0 38px;
+}
+/* Middle label: flexible + allowed to wrap so it shrinks instead of
+   shoving the "+" past the card edge. */
+header #normal_mode #level_dropdown ~ .dropdown-menu > li[role="presentation"] > span {
+  flex: 1 1 auto;
+  width: auto !important;
+  min-width: 0;
+  white-space: normal;
+  text-align: center;
+  color: $la-navy;
+}
 /* Show text labels, hide icon-only on wide view (words like image) */
 header #normal_mode .btn .wide {
   display: inline !important;
@@ -6163,12 +6207,16 @@ body > .popover.bottom {
   
 /* Applied in: Button stash hover overlay during edit mode */
 #stash_hover {
-  position: absolute; 
+  position: absolute;
   cursor: pointer;
-  left: -100px; 
+  left: -100px;
   z-index: 3;
-  width: 162px; 
-  height: 41px;
+  width: 162px;
+  /* Was a fixed 41px with overflow:hidden, which clipped the 27px
+     icon + two-line label. Auto height + visible overflow lets the
+     box grow to fit its content. Positioning (left/margin-top) is
+     left exactly as it was so it stays anchored to the button. */
+  height: auto;
   font-size: 14px;
   padding: 0px;
   margin-top: -41px;
@@ -6177,8 +6225,8 @@ body > .popover.bottom {
   visibility: hidden;
   border: 1px solid #ccc;
   border-radius: 3px;
-  opacity: 0.0; 
-  overflow: hidden;
+  opacity: 0.0;
+  overflow: visible;
   transition: visibility 0s 0.9s linear, opacity 0.15s ease-in 0.9s;
   -webkit-transition: visibility 0s 0.9s linear, opacity 0.15s ease-in 0.9s;
   &.on_button {
@@ -6189,6 +6237,7 @@ body > .popover.bottom {
     float: left;
     width: 80px;
     padding: 5px;
+    box-sizing: border-box;
     &:hover {
       background: #eee;
     }
@@ -7561,11 +7610,11 @@ body.pretty_loader #loading_box {
 }
 // Board-alt page (user/board/boardname) speak mode: slate background
 #within_ember.board-alt-view #content {
-  background: #7e858f;
+  background: $brand-charcoal-blue;
   padding-bottom: 16px;
 }
 #within_ember.board-alt-view #sidebar {
-  background: #7e858f;
+  background: $brand-charcoal-blue;
   border-left-color: #6b737d;
   border-bottom-color: #6b737d;
   padding-top: 4px;
@@ -7587,7 +7636,7 @@ body.pretty_loader #loading_box {
   background: rgba(255, 255, 255, 0.25);
 }
 #within_ember.board-alt-view #sidebar_tease {
-  background: #7e858f;
+  background: $brand-charcoal-blue;
   border-color: #6b737d;
   color: #fff;
 }
@@ -28781,7 +28830,7 @@ header #identity #identity_button.btn::after {
 .demo-board-page__sentence-preview .md-board-detail-sentence-bar__chip-label {
   max-width: 54px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -42690,36 +42739,181 @@ a.md-goal-nav-action:hover,
   text-decoration: none;
 }
 
-/* ── Segmented create-mode switch (Create | Generate with AI) ──────── */
-.nb-mode-switch {
+/* ── AI mode header: status pill + "other methods" pill ────────────
+   The pill mirrors the board-detail edit "Editing…" badge
+   (.md-board-detail-header__editing-badge): verdigris rounded pill,
+   two-row column (icon+title row, caption row). The other-methods
+   control sits below it and returns to the regular options. */
+.nb-ai-mode-wrap {
   display: inline-flex;
-  align-items: stretch;
-  padding: 3px;
-  border-radius: 16px;
-  background: rgba(13, 36, 56, 0.05);
-  border: 1px solid rgba(13, 36, 56, 0.09);
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
-.nb-mode-switch__opt {
-  appearance: none;
-  border: none;
-  background: none;
-  cursor: pointer;
-  padding: 7px 16px;
-  border-radius: 13px;
+.nb-ai-mode-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 14px 6px;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
   font-size: 14px;
   font-weight: 700;
-  color: rgba($la-navy, 0.62);
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
-.nb-mode-switch__opt:hover {
+.nb-ai-mode-badge__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+.nb-ai-mode-badge__caption {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  width: 100%;
+  text-align: center;
+  color: $brand-slate-gray;
+}
+.nb-ai-mode-other {
+  appearance: none;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba($la-navy, 0.7);
+  background: rgba(13, 36, 56, 0.05);
+  border: 1px solid rgba(13, 36, 56, 0.12);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.nb-ai-mode-other:hover,
+.nb-ai-mode-other:focus-visible {
   color: $la-navy;
+  background: rgba(13, 36, 56, 0.09);
+  border-color: rgba(13, 36, 56, 0.2);
+  outline: none;
 }
-.nb-mode-switch__opt--active {
-  color: var(--md-ink, #1f2933);
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.24), rgba(91, 141, 239, 0.20));
-  box-shadow:
-    0 1px 2px rgba(13, 36, 56, 0.08),
-    inset 0 0 0 1px rgba(44, 183, 176, 0.22);
+.md-board-detail--dark .nb-ai-mode-badge {
+  background: rgba($brand-verdigris, 0.22);
+  color: color.adjust($brand-verdigris, $lightness: 22%);
+}
+.md-board-detail--dark .nb-ai-mode-badge__caption {
+  color: color.adjust($brand-verdigris, $lightness: 22%);
+}
+/* AI-mode header: keep the badge + "Other methods" button on a single
+   left-aligned row, tucked just under the "Create a New Board" title.
+   50% larger than the base pill/control sizes. Scoped via :has so the
+   regular (non-AI) header layout is unaffected. */
+.new-board--modern .create-board-actions:has(.nb-ai-mode-wrap),
+.la-new-board-modal-actions:has(.nb-ai-mode-wrap) {
+  width: 100% !important;
+  justify-content: flex-start !important;
+}
+/* Button pinned to the left edge, badge centered across the full modal
+   width (the two 1fr side columns keep the badge optically centered on
+   the page regardless of the button's width). Both on one row. */
+.nb-ai-mode-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  gap: 12px;
+}
+.nb-ai-mode-wrap .nb-ai-mode-other {
+  grid-column: 1;
+  justify-self: start;
+}
+.nb-ai-mode-wrap .nb-ai-mode-badge {
+  grid-column: 2;
+  justify-self: center;
+}
+/* Lift the "Generating with AI" pill out of the wrap and onto the
+   title row, centered across the modal. The button stays in the grid
+   below-left. Anchored to the header's title baseline: header
+   padding-top (20px) + ~half the 20px h3 line box ≈ 32px. */
+.new-board--modern .modal-header {
+  position: relative !important;
+}
+.new-board--modern .modal-header .create-board-actions:has(.nb-ai-mode-wrap) .nb-ai-mode-badge {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+.nb-ai-mode-badge {
+  padding: 6px 21px 9px;
+  gap: 3px;
+  font-size: 21px;
+}
+.nb-ai-mode-badge__row {
+  gap: 9px;
+}
+.nb-ai-mode-badge__row svg {
+  width: 28px;
+  height: 28px;
+}
+/* The sparkle is a CSS mask of the icon shape. Resting state is a
+   plain, solid dark mark so it reads cleanly as a star — no gradient,
+   no white sheen, no glow. The shimmer treatment is reserved for the
+   --active state (Create Board on the AI screen → status.saving). */
+.nb-ai-sparkle {
+  --nb-ai-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%203l1.9%204.6L18.5%209.5%2013.9%2011.4%2012%2016l-1.9-4.6L5.5%209.5l4.6-1.9z'/%3E%3Cpath%20d='M19%2014l.8%202%202%20.8-2%20.8-.8%202-.8-2-2-.8%202-.8z'/%3E%3C/svg%3E");
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  background: #6d28d9;
+  -webkit-mask: var(--nb-ai-mask) center / contain no-repeat;
+  mask: var(--nb-ai-mask) center / contain no-repeat;
+}
+/* Modern AI shimmer (Apple Intelligence / Gemini / shadcn pattern):
+   cohesive AI gradient with a soft white band that sweeps DIAGONALLY
+   across, then pauses before repeating. Pure CSS (no SVG SMIL) so
+   prefers-reduced-motion can fully halt it. Constant geometry — no
+   scale/brightness jumps, which read as clunky. Only runs once the
+   user kicks off generation. */
+.nb-ai-sparkle--active {
+  background:
+    linear-gradient(135deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%),
+    linear-gradient(135deg, #4338ca 0%, #6d28d9 35%, #a21caf 65%, #0e7490 100%);
+  background-repeat: no-repeat;
+  background-size: 260% 260%, 100% 100%;
+  background-position: 130% -30%, 0 0;
+  filter: drop-shadow(0 0 2px rgba(124, 92, 246, 0.32));
+  animation: nb-ai-sparkle-sheen 3.4s ease-in-out infinite;
+}
+@keyframes nb-ai-sparkle-sheen {
+  0% {
+    background-position: 130% -30%, 0 0;
+  }
+  42% {
+    background-position: -30% 130%, 0 0;
+  }
+  100% {
+    background-position: -30% 130%, 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-ai-sparkle--active {
+    animation: none;
+    background-position: 50% 50%, 0 0;
+  }
+}
+.nb-ai-mode-badge__caption {
+  font-size: 16px;
+}
+.nb-ai-mode-other {
+  padding: 9px 24px;
+  font-size: 16px;
 }
 
 /* ── AI "Generate Labels" gate (Size & Labels body, pre-generation) ── */
@@ -42753,12 +42947,15 @@ a.md-goal-nav-action:hover,
   background: linear-gradient(135deg, rgba(44, 183, 176, 0.30), rgba(91, 141, 239, 0.26));
   box-shadow: 0 2px 6px rgba(13, 36, 56, 0.08);
 }
-.nb-ai-generate__btn.btn.btn-primary:hover {
+.nb-ai-generate__btn.btn.btn-primary:not(:disabled):hover {
   background: linear-gradient(135deg, rgba(44, 183, 176, 0.40), rgba(91, 141, 239, 0.34));
 }
+/* Disabled until a description is entered (or while generating). */
+.nb-ai-generate__btn.btn.btn-primary:disabled,
 .nb-ai-generate__btn.btn.btn-primary[aria-disabled="true"] {
-  opacity: 0.65;
-  cursor: progress;
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 .new-board--modern .modal-footer .new-board__cancel {
   padding: 12px 24px !important;
@@ -43740,11 +43937,29 @@ a.md-goal-nav-action:hover,
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
-/* Grid grows to match the rail's height so the two are equal-height
-   and visually "attached". */
+/* Grid sizes to its own content. The base grid uses
+   `grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr))` +
+   an aspect-ratio, which forces every row to an equal slice of a
+   width-derived height — slices smaller than the cells' 110px
+   min-height, so cells overflowed their tracks and overlapped. In
+   the preview stage drop the aspect-ratio and make each row grow
+   from a 110px floor, so the grid's real height = rows × ≥110px.
+   The stage uses align-items: stretch, so the mockup wrap grows to
+   the grid and the rail stretches to match — the two stay
+   equal-height and "attached", driven by the taller grid. */
 .nb-preview-stage .md-board-detail-grid--preview {
   max-height: none !important;
-  height: 100% !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  grid-template-rows: repeat(var(--board-rows, 3), minmax(110px, auto)) !important;
+  /* The base .md-board-detail-grid is `flex: 1 1 0; min-height: 0`
+     (built to fill a fixed-height board page). Inside the preview
+     wrap's flex column that makes it a zero-basis item the wrap
+     doesn't reserve height for, so its real content spilled out the
+     bottom. Make it a normal content-sized item so the wrap (and
+     stage, and stretched rail) grow with it. */
+  flex: 0 0 auto !important;
+  min-height: auto !important;
 }
 .nb-preview-stage .new-board-mockup-wrap {
   display: flex;
@@ -43760,16 +43975,11 @@ a.md-goal-nav-action:hover,
   margin-left: auto;
   flex-shrink: 0;
 }
-/* When an edit-tool section is expanded, give the whole stage more
-   vertical room so the grid grows alongside the taller panel. Both
-   children already stretch (align-items: stretch), so a min-height on
-   the stage lifts the grid and the rail together. */
-.nb-preview-stage {
-  transition: min-height 0.2s ease;
-}
-.nb-preview-stage--expanded {
-  min-height: 760px;
-}
+/* The grid now sizes to its own content (rows × ≥110px) and the
+   stage grows with it, so the old fixed `min-height: 760px` on the
+   expanded state is obsolete — it only added dead space at the
+   bottom of the rail/grid when a section was open. The stage just
+   tracks its content height in both states. */
 .nb-preview-stage--expanded .new-board-mockup-wrap,
 .nb-preview-stage--expanded .md-board-detail-grid--preview {
   max-height: none !important;
@@ -43780,6 +43990,25 @@ a.md-goal-nav-action:hover,
 .nb-preview-sentence-row {
   flex: 0 0 auto;
   margin-bottom: 10px;
+}
+/* Speak Bar → "Sentence Bar" size: the preview speak bar grows with
+   the chosen vocalization_height so the control has a visible effect
+   (px values match the dropdown labels). The home button is a flex
+   sibling and stretches to match via the row's default align-items. */
+.nb-preview-sentence-row.nb-preview-sentence-bar--tiny .md-board-detail-sentence-bar {
+  min-height: 50px;
+}
+.nb-preview-sentence-row.nb-preview-sentence-bar--small .md-board-detail-sentence-bar {
+  min-height: 70px;
+}
+.nb-preview-sentence-row.nb-preview-sentence-bar--medium .md-board-detail-sentence-bar {
+  min-height: 100px;
+}
+.nb-preview-sentence-row.nb-preview-sentence-bar--large .md-board-detail-sentence-bar {
+  min-height: 150px;
+}
+.nb-preview-sentence-row.nb-preview-sentence-bar--huge .md-board-detail-sentence-bar {
+  min-height: 200px;
 }
 .nb-preview-sentence-bar__placeholder {
   opacity: 0.55;
@@ -43823,114 +44052,11 @@ a.md-goal-nav-action:hover,
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 2px 6px rgba(0, 0, 0, 0.25);
 }
-/* Recessed glass card that hosts the ported board-detail display-prefs
-   toolbar inside the create-board-new modal. Sits directly below the
-   preview mockup and shares the same dent treatment as
-   .nb-section__head-checklist. The inner toolbar markup keeps its
-   board-detail class names so styling carries over verbatim. */
-/* Collapsible Display Preferences — sits ABOVE the preview mockup. The
-   toggle button always shows; the inset toolbar is only rendered when
-   `prefs_open` is true. */
-.new-board-prefs-collapsible {
-  margin: 0 0 12px;
-  /* Center the inline-flex toggle button on the page. The inset toolbar
-     below is block-level so it stays full-width regardless. */
-  text-align: center;
-}
-@media (max-width: 640px) {
-  .new-board-prefs-collapsible {
-    margin-bottom: 0;
-  }
-}
-.new-board-prefs-inset {
-  /* Reset alignment for the toolbar's own inline content so the centering
-     above doesn't affect labels, sublabel text, etc. inside it. */
-  text-align: left;
-}
-.new-board-prefs-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(13, 36, 56, 0.10);
-  background: rgba(255, 255, 255, 0.85);
-  color: var(--md-ink);
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(13, 36, 56, 0.04);
-}
-.new-board-prefs-toggle:hover {
-  background: rgba(255, 255, 255, 1);
-  border-color: rgba(13, 36, 56, 0.18);
-}
-.new-board-prefs-toggle__chevron {
-  transition: transform 0.22s ease;
-}
-.new-board-prefs-collapsible--open .new-board-prefs-toggle__chevron {
-  transform: rotate(180deg);
-}
-.new-board-prefs-collapsible--open .new-board-prefs-toggle {
-  background: rgba(255, 255, 255, 1);
-  border-color: rgba(13, 36, 56, 0.18);
-}
-
-/* Duplicate-label warn state: softly pulse the toggle with the same
-   amber gradient used by .nb-pill--warn so the user notices it even
-   when the prefs section is collapsed. Selectors include the open
-   variants so the warn styling persists if the user opens the panel. */
-@keyframes nb-prefs-warn-glow {
-  0%, 100% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 0 0 0 rgba(217, 138, 36, 0),
-      0 1px 2px rgba(13, 36, 56, 0.04);
-  }
-  50% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 0 14px 2px rgba(217, 138, 36, 0.45),
-      0 4px 10px -4px rgba(217, 138, 36, 0.35);
-  }
-}
-.new-board-prefs-toggle--warn,
-.new-board-prefs-collapsible--open .new-board-prefs-toggle--warn,
-.new-board-prefs-toggle--warn:hover {
-  color: #7a4a08;
-  border-color: rgba(217, 138, 36, 0.4);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 244, 222, 0.85) 0%,
-      rgba(252, 215, 156, 0.6) 100%
-    );
-  /* !important to defeat any cascade override on .animation; the pulse
-     is the primary signal for the duplicate-labels warning so we don't
-     gate it on prefers-reduced-motion. */
-  animation: nb-prefs-warn-glow 2.2s ease-in-out infinite !important;
-}
-
-.new-board-prefs-inset {
-  margin: 12px 0 0;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(13, 36, 56, 0.04);
-  border: 1px solid rgba(13, 36, 56, 0.06);
-  box-shadow:
-    inset 0 1px 2px rgba(13, 36, 56, 0.10),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.55);
-  /* Cancel any absolute/fixed-position behavior the toolbar inherits from
-     its board-detail context — here it's just a static inline section. */
-  position: static;
-  width: auto;
-  max-width: none;
-  /* Allow children (steppers, dropdowns, swatches) to wrap onto new rows
-     instead of overflowing the inset on narrow modal widths. */
-  flex-wrap: wrap;
-}
+/* The create-board-new "Show/Hide Preferences" collapsible + the
+   ported board-detail prefs inset were removed — every control
+   migrated into the Edit Tools rail (create_rail_sections). All
+   `.new-board-prefs-collapsible/-toggle/-inset` + the duplicate-label
+   warn-glow styles were deleted along with them. */
 .new-board-mockup-toolbar {
   position: absolute;
   top: 0;
@@ -44220,6 +44346,7 @@ a.md-goal-nav-action:hover,
    --drop-target rules higher up keep both surfaces visually consistent. */
 .md-board-detail-grid--preview .md-board-detail-grid__cell {
   cursor: grab;
+  min-height: 110px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .md-board-detail-grid--preview .md-board-detail-grid__cell:active {
@@ -49514,7 +49641,7 @@ a.md-goal-nav-action:hover,
 // === Board Alt View: speech-card styled buttons ===
 #within_ember.board-alt-view {
   .board {
-    background: #7e858f !important;
+    background: $brand-charcoal-blue !important;
   }
 
   &:has(#nav_header) .board {
@@ -49522,15 +49649,18 @@ a.md-goal-nav-action:hover,
   }
 
   &:has(#nav_header) #stash_hover {
+    /* Positioning kept exactly as the original (margins 0/0). Only
+       the fixed 82×82 / 41px-block sizing is relaxed to auto so the
+       27px icon + two-line label is no longer clipped. */
     margin-top: 0 !important;
     margin-left: 0 !important;
-    width: 82px !important;
-    height: 82px !important;
+    width: max-content !important;
+    height: auto !important;
     .option {
       float: none !important;
       display: block !important;
       width: 100% !important;
-      height: 41px !important;
+      height: auto !important;
       &:last-child {
         border-left: none !important;
         border-top: 1px solid #ccc !important;
@@ -52789,6 +52919,15 @@ a.md-goal-nav-action:hover,
 }
 .md-shell--board-detail-edit .md-board-detail-layout {
   padding: 8px;
+  /* Constrain the edit layout to the viewport (mirrors the speak-mode
+     rule above) so the center board area (.md-board-detail-main, which
+     is overflow-y:auto) is the ONLY scroller. Without this the layout
+     grew as tall as the board grid, the whole page scrolled, and the
+     sticky left/right panels scrolled off the top with it. */
+  height: calc(100dvh - var(--topbar-height, 68px));
+  box-sizing: border-box;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* ── Empty-board state: shown when board has no visible buttons (not in edit mode) ───────── */
@@ -53041,7 +53180,7 @@ a.md-goal-nav-action:hover,
 }
 
 .md-board-detail-sidebar__heading {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -53139,7 +53278,12 @@ a.md-goal-nav-action:hover,
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  background: #ffffff;
+  /* Keep the top of the board clear of the scroll-viewport edge so a
+     scrolled-to button row is never clipped flush at the top. */
+  scroll-padding-top: 16px;
+  /* Soft light-gray from the surface scale instead of pure white —
+     the all-white canvas read as too stark behind the board. */
+  background: $surface-200;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid rgba($la-navy, 0.12);
@@ -53340,6 +53484,150 @@ a.md-goal-nav-action:hover,
     inset 0 -1px 1px rgba($la-navy, 0.10);
 }
 
+/* Speak Bar → "Sentence Bar" size. The size class is applied to the
+   .md-board-detail-sentence-row by `sentence_bar_height_class`. Each
+   size sets the bar's min-height to the canonical px (matching
+   voice_height_options labels: Tiny 50 / Small 70 / Medium 100 /
+   Large 150 / Huge 200) AND a `--nb-sb-scale` multiplier so the
+   inner content (text, chips, icons) scales with the bar instead of
+   leaving dead space. Medium is the 1.0 baseline (current px). The
+   scale rules below read the var with a `, 1` fallback, so contexts
+   that don't set it (e.g. the create-board-new preview, which uses a
+   different size class) are unchanged. Higher specificity than the
+   base rules, so no !important needed. */
+/* SassC/libsass can't evaluate `calc(px * var(...))` — it mangles the
+   unit×var arithmetic so the multiplier silently fell back to base
+   (invisible at Tiny/Small/Medium where it's ×1, but Large/Huge never
+   grew — including the right-side buttons). Fix per recurring-problem
+   #14: PRECOMPUTE every size as a plain px custom property; plain
+   `var()` (no arithmetic) passes through libsass fine. Each size sets:
+     --nb-sb-h    chip/text min content height (bar min-height − 4px)
+     --nb-sb-h2   chip max height (2 × --nb-sb-h)
+     --nb-sb-ph   prediction tile min height (--nb-sb-h − 8px group pad)
+     --nb-sb-ph2  prediction tile max height (2 × --nb-sb-ph)
+     --nb-sb-font typed-text font (20 base; ≥ base — 14px floor)
+     --nb-sb-lbl  chip/prediction label (14 base; never below 14)
+     --nb-sb-img  chip symbol image (50 base; grows only > medium)
+     --nb-sb-pimg prediction image (48 base; grows only > medium)
+     --nb-sb-minw chip min-width (44 base)
+     --nb-sb-sbtn right-side button icon — mic / backspace / trash /
+                  chevron (18 base; never below base, grows > medium)
+   Tiny/Small/Medium keep base sizes (no shrink); only Large/Huge
+   enlarge. Home button (left) is intentionally left untouched. */
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--tiny {
+  --nb-sb-h: 46px;  --nb-sb-h2: 92px;  --nb-sb-ph: 38px;  --nb-sb-ph2: 76px;
+  --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
+  --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--tiny .md-board-detail-sentence-bar {
+  min-height: 50px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
+  --nb-sb-h: 66px;  --nb-sb-h2: 132px; --nb-sb-ph: 58px;  --nb-sb-ph2: 116px;
+  --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
+  --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--small .md-board-detail-sentence-bar {
+  min-height: 70px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--medium {
+  --nb-sb-h: 96px;  --nb-sb-h2: 192px; --nb-sb-ph: 88px;  --nb-sb-ph2: 176px;
+  --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
+  --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--medium .md-board-detail-sentence-bar {
+  min-height: 100px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--large {
+  --nb-sb-h: 146px; --nb-sb-h2: 292px; --nb-sb-ph: 138px; --nb-sb-ph2: 276px;
+  --nb-sb-font: 29px; --nb-sb-lbl: 20px; --nb-sb-img: 73px; --nb-sb-pimg: 70px; --nb-sb-minw: 64px; --nb-sb-sbtn: 26px;
+  --nb-sb-btnh: 80px; --nb-sb-btnw: 64px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar {
+  min-height: 150px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--huge {
+  --nb-sb-h: 196px; --nb-sb-h2: 392px; --nb-sb-ph: 188px; --nb-sb-ph2: 376px;
+  --nb-sb-font: 38px; --nb-sb-lbl: 27px; --nb-sb-img: 95px; --nb-sb-pimg: 91px; --nb-sb-minw: 84px; --nb-sb-sbtn: 34px;
+  --nb-sb-btnh: 105px; --nb-sb-btnw: 84px;
+}
+.md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar {
+  min-height: 200px;
+}
+/* Inner content — all plain `var()` (no calc arithmetic). Fallbacks
+   keep var-less contexts (e.g. create-board-new preview) original. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__text {
+  font-size: var(--nb-sb-font, 20px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__chip {
+  /* Stretch to the bar's real content height so the chip always
+     fills the bar (2px top/bottom from the bar's own padding) at any
+     size. min-height = size floor (never smaller); max-height =
+     double it (grow to fit content, no further). */
+  align-self: stretch;
+  min-height: var(--nb-sb-h, 86px);
+  max-height: var(--nb-sb-h2, 172px);
+  height: auto;
+  min-width: var(--nb-sb-minw, 44px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__chip-img {
+  width: var(--nb-sb-img, 50px);
+  height: var(--nb-sb-img, 50px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__chip-label {
+  font-size: var(--nb-sb-lbl, 14px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__text--with-symbols {
+  /* Fill the bar's full content height. The base rule wrapped chips
+     (`flex-wrap: wrap` + `align-*: flex-start`), capping each chip at
+     its wrap-LINE height so `align-self: stretch` couldn't reach the
+     bar. Force a single non-wrapping row that fills the bar and
+     scrolls horizontally when there are many chips. */
+  align-self: stretch;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: var(--nb-sb-h, 86px);
+  max-height: none;
+}
+/* Prediction tiles live in __prediction-group (4px top + 4px bottom
+   padding); --nb-sb-ph already accounts for the 8px. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__prediction {
+  align-self: stretch;
+  min-height: var(--nb-sb-ph, 78px);
+  max-height: var(--nb-sb-ph2, 156px);
+  height: auto;
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__prediction-img {
+  width: var(--nb-sb-pimg, 48px);
+  height: var(--nb-sb-pimg, 48px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__prediction-label {
+  font-size: var(--nb-sb-lbl, 14px);
+}
+/* Right-side action buttons — mic (speak), backspace, trash, chevron.
+   Scale only the icon (svg), floored at base (18px ≤ medium, no
+   shrink) and growing on Large/Huge, like the chips. The home button
+   on the LEFT is deliberately not included. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__btn svg,
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__tool-btn svg {
+  width: var(--nb-sb-sbtn, 18px);
+  height: var(--nb-sb-sbtn, 18px);
+}
+/* …and the button BOX grows too (height for the mic pill; width +
+   height for the square tool buttons). Floored at base ≤ medium,
+   larger on Large/Huge. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__btn {
+  min-height: var(--nb-sb-btnh, 55px);
+}
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__tool-btn {
+  width: var(--nb-sb-btnw, 44px);
+  min-width: var(--nb-sb-btnw, 44px);
+  height: var(--nb-sb-btnh, 55px);
+  min-height: var(--nb-sb-btnh, 55px);
+}
+
 /* Vertical dividers on the left and right of the sentence bar, rendered as
    pseudo-elements of the bar itself. Using ::before/::after of a single
    element guarantees byte-identical rendering on both sides — there is no
@@ -53454,7 +53742,7 @@ a.md-goal-nav-action:hover,
   margin-left: -8px;
 }
 .md-board-detail-sentence-bar__modeling-badge__caption {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.02em;
   opacity: 0.85;
@@ -53548,12 +53836,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
+  /* Centered group with a moderate gap — a half-way point between
+     the cramped 1px original and space-between (which split the
+     label/image to opposite edges, too far apart). */
   justify-content: center;
-  gap: 1px;
-  /* 4px vertical / 8px horizontal — combined with a 50px image and
-     ~17px label, the chip is sized to ~78px of intrinsic content;
-     the explicit `height: 82px` below gives it 4px of breathing room
-     so the chip matches the bar's min-height exactly. */
+  gap: 12px;
   padding: 4px 8px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -53840,7 +54127,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border: 1px solid rgba($la-navy, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -54005,7 +54292,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   margin-left: -8px;
 }
 .md-board-detail-header__editing-badge__caption {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1.1;
@@ -54087,7 +54374,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* Privacy text label inside the pill — sits to the right of the icon. */
 .md-board-detail-header__info-icon-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -54714,12 +55001,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding: 4px 14px;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: $la-navy;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  /* Light teal gradient that fades to clear, layered over the glass
+     blur so the pill keeps its translucent "clear" feel. */
+  background:
+    linear-gradient(
+      135deg,
+      rgba(143, 228, 223, 0.55) 0%,
+      rgba(143, 228, 223, 0.22) 55%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  border: 1px solid rgba(42, 157, 143, 0.35);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     0 1px 2px rgba($la-navy, 0.10);
@@ -54732,9 +55027,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-width: 0;
 }
 .md-board-detail--dark .md-board-detail-header__sub-badge {
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  color: #d6f6f3;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(143, 228, 223, 0.24) 0%,
+      rgba(143, 228, 223, 0.10) 55%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  border-color: rgba(143, 228, 223, 0.28);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 1px 2px rgba(0, 0, 0, 0.35);
@@ -54796,7 +55097,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border: 1px solid rgba($la-navy, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -55257,8 +55558,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   gap: 0;
   flex: 1;
   min-height: 0;
-  padding-top: 4px;
+  /* Clear gap above the grid so the top button row reads separated
+     from the header/speak-preview above it and isn't clipped against
+     the scroll-viewport edge when the board is scrolled. */
+  padding-top: 16px;
   padding-bottom: 4px;
+  scroll-padding-top: 16px;
 }
 .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid,
 .md-board-detail-grid-sidebar-wrap > div:has(.md-board-detail-grid) {
@@ -56143,7 +56448,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   margin-left: 18px;
 }
 .md-board-detail-actions-menu__submenu .md-board-detail-actions-menu__item {
-  font-size: 13px;
+  font-size: 14px;
   padding: 8px 12px;
   min-height: 38px;
 }
@@ -56839,10 +57144,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-weight: 600;
   color: $la-navy;
   text-align: center;
-  line-height: 1.3;
+  /* Match the speak-mode `__label` box metrics so the editable
+     label occupies the SAME vertical footprint — the image area then
+     gets the same proportion as speak and the edit grid is an
+     accurate preview. line-height/vertical-padding mirror __label;
+     flex-shrink:0 + max-height:3.45em stop the field from
+     compressing or over-growing the image differently than speak.
+     box-sizing:border-box keeps the 1px field border from adding
+     height beyond the label's footprint. */
+  line-height: 1.15;
   width: 90%;
   max-width: 100%;
-  padding: 3px 6px;
+  box-sizing: border-box;
+  padding: 3px 6px 5px;
+  flex-shrink: 0;
+  max-height: 3.45em;
   border: 1px solid rgba($la-navy, 0.12);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.6);
@@ -58216,7 +58532,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: rgba($la-navy, 0.85);
     line-height: 1.15;
@@ -58301,7 +58617,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border: 1px solid rgba($la-navy, 0.18);
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -58849,6 +59165,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-symbol-card:focus-within .md-board-detail-symbol-card__edit-actions {
   opacity: 1;
 }
+/* While a paint mode is active (Hide / Reveal / color paint), the
+   board click target is "paint this button", not "edit this button"
+   — so suppress the per-button hover/focus edit menus entirely until
+   the user exits paint mode. !important overrides the inline/dropdown
+   container-query display rules. */
+.md-board-detail-grid--paint-mode .md-board-detail-symbol-card__edit-actions {
+  display: none !important;
+}
 .md-board-detail-symbol-card__edit-btn {
   /* WCAG 2.5.5 AAA touch target — was 26×26 (FAIL).
      These are overlay edit buttons that appear on hover over symbol
@@ -58894,8 +59218,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     display: none !important;
   }
 }
-/* When card is too short for inline icons, swap to dropdown */
-@container symbol-card (max-height: 149px) {
+/* When card is too short for inline icons, swap to the dropdown
+   (which is position:fixed and escapes the card's overflow:hidden).
+   The inline column is 5 × 44px buttons + 4 × 3px gaps + 4px top
+   offset ≈ 240px tall; below that it overflows the card and gets
+   clipped. Threshold raised from 149px so medium cards use the
+   escaping dropdown instead of clipped inline icons. */
+@container symbol-card (max-height: 239px) {
   .md-board-detail-symbol-card__edit-actions--inline {
     display: none !important;
   }
@@ -59794,6 +60123,31 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-shell--board-detail-edit .md-board-detail-sentence-row {
   display: none;
+}
+/* …except the edit-mode Speak Bar PREVIEW, which is the whole point
+   of being visible while editing. Same specificity as the hide rule
+   above, so this must stay AFTER it in source order to win. */
+.md-shell--board-detail-edit .md-board-detail-sentence-row--preview {
+  display: flex;
+}
+/* Drop the right-side divider (::after) on the preview bar — it's a
+   static mockup, not the live speak bar (same treatment as the
+   create-board-new preview). ::before (left) is already off globally. */
+.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar::after {
+  display: none;
+}
+/* It's a static, aria-hidden mockup — nothing in it is clickable.
+   pointer-events:none makes the buttons non-interactive AND stops
+   :hover from ever triggering (no hover target), so the inherited
+   hover/cursor styling on the speak/backspace/trash/chevron + home
+   "buttons" no longer makes them look actionable. */
+.md-board-detail-sentence-row--preview {
+  pointer-events: none;
+}
+.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__btn,
+.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__tool-btn,
+.md-board-detail-sentence-row--preview .md-board-detail-home-btn {
+  cursor: default;
 }
 .md-shell--board-detail-edit .md-board-detail-collapse-btn {
   display: none;
@@ -72575,11 +72929,14 @@ blockquote small {
    column 2 naturally. ────────────────────────────────────────────── */
 .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
 .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-  /* Three-column edit layout: left panel (max-content), board area
-     (1fr), right "Live Preview Edit" panel (max-content). The right
-     panel collapses to a thin rail via its own --collapsed modifier
-     (width managed inside the panel block itself). */
-  grid-template-columns: max-content 1fr max-content !important;
+  /* Three-column edit layout: left panel, board area (1fr), right
+     "Live Preview Edit" panel. fit-content(280px) caps each side
+     track at the panel's 280px width — `max-content` previously
+     sized each track to its panel's intrinsic content, so the
+     wider right-panel content made the right column larger than
+     the left. fit-content still shrinks to the slim collapsed rail
+     (the --collapsed panel reports its own ~56px width). */
+  grid-template-columns: fit-content(280px) 1fr fit-content(280px) !important;
   gap: 12px;
 }
 
@@ -72592,17 +72949,27 @@ blockquote small {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  /* Tighter horizontal padding so the panel hugs the widest text
-     row instead of leaving an inch of unused glass on each side. */
-  padding: 16px 8px 20px;
-  width: max-content;
-  max-width: 280px;
-  /* Stretch to fill the viewport beneath the topbar so the panel
-     reads as a full-height rail rather than a card. The grid track
-     above stretches the height automatically, but min-height keeps
-     the panel from collapsing when <main> is short. */
-  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
-  align-self: stretch;
+  /* Top padding matches the right panel (14px) so the Action Panel
+     collapse band lines up with Live Preview Edit's. */
+  padding: 14px 12px 20px;
+  /* Fixed width that mirrors the right panel (.md-board-edit-right-
+     panel: 280px / max 320px) so the two rails are symmetric — it
+     previously used width: max-content and collapsed to its content,
+     which is why it read narrower than the right. */
+  width: 280px;
+  max-width: 320px;
+  /* Pin to the viewport: a fixed height of (viewport − topbar − gap)
+     with sticky `top` keeps the panel in place while the board
+     scrolls; overflow-y:auto lets the panel scroll internally when
+     its own content is taller than the viewport. align-self:start
+     stops the grid from stretching it to the (tall) board column,
+     which previously made the sticky element scroll away with the
+     page instead of staying fixed. */
+  height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  max-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: start;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
@@ -72722,7 +73089,7 @@ blockquote small {
   background: #ffffff;
   color: $la-navy;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
@@ -72888,7 +73255,7 @@ blockquote small {
   /* Small uppercase label — matches the modern-UI pattern used in
      other side rails. Slightly muted so it reads as a section
      header without competing with the row labels. */
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -72898,6 +73265,92 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-panel__subheader {
   color: rgba(255, 255, 255, 0.55);
+}
+/* ── SEARCH & FILTER card ──────────────────────────────────────────
+   Present the buttons-search field and the Filter by Category control
+   as ONE professional grouped card (an actual outer container with its
+   own surface), the subheader acting as its title. The base __group
+   gap is 2px — far too tight, so the two controls visually collide;
+   give the card real internal spacing so they read as a clean pair. */
+.md-board-edit-panel__group--search,
+.md-board-edit-panel__group--share,
+.md-board-edit-panel__group--view,
+.md-board-edit-panel__group--theme {
+  /* Tight gap so the subheader title hugs its content; the extra
+     space the search/filter pair needs is added on the filter
+     itself (below), not by separating the title from everything. */
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  /* Frosted glass to match the panel + badges (same blur/saturate
+     vocabulary) instead of a flat opaque tint. */
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+.md-board-edit-panel__group--search .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--share .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--view .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--theme .md-board-edit-panel__subheader {
+  padding: 0 2px 2px;
+}
+/* The View Style / Theme blocks carry their own inner padding (and
+   the theme block an old top-divider) for the pre-card layout — zero
+   them so the group card's own 12px padding governs and the two
+   blocks read as separate cards with no rule between them. */
+.md-board-edit-panel__group--view .md-board-edit-view-style,
+.md-board-edit-panel__group--theme .md-board-edit-view-style {
+  padding: 0;
+  border-top: none;
+}
+/* Keep the search field and the Filter by Category control clearly
+   separated without pushing the title away from them. */
+/* Higher-specificity sibling selector so this beats the legacy
+   `.md-board-edit-panel__search + .md-board-edit-panel__filter`
+   rule (margin-top: -8px) that otherwise collapses the spacing.
+   margin-top: 0 leaves just the card's 8px flex gap between the
+   search field and the filter control. */
+.md-board-edit-panel__group--search .md-board-edit-panel__search + .md-board-edit-panel__filter {
+  margin-top: 0;
+}
+/* The search magnifier was a muted navy while the filter funnel is
+   slate-blue — unify the search icon to the filter icon's exact hue
+   and weight so both rows share one icon treatment. */
+.md-board-edit-panel__group--search .md-board-edit-panel__search-icon {
+  color: $brand-slate-blue;
+  opacity: 0.6;
+}
+.md-board-detail--dark .md-board-edit-panel__group--search,
+.md-board-detail--dark .md-board-edit-panel__group--share,
+.md-board-detail--dark .md-board-edit-panel__group--view,
+.md-board-detail--dark .md-board-edit-panel__group--theme {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__search-icon {
+  color: #cfd8e8;
+  opacity: 0.6;
+}
+/* Match the search placeholder's opacity + weight to the Filter by
+   Category label so empty-state text reads at the same strength as
+   the filter row (it was a faded 0.50, the filter label near-full). */
+.md-board-edit-panel__group--search .md-board-edit-panel__search-input::placeholder {
+  color: rgba($la-navy, 0.62);
+  font-weight: 500;
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+/* Keep the Filter by Category label at the same slightly-transparent
+   strength as the search placeholder so the pair reads consistently. */
+.md-board-edit-panel__group--search .md-board-edit-panel__filter-toggle {
+  color: rgba($la-navy, 0.62);
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__filter-toggle {
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .md-board-edit-panel__row {
@@ -72991,7 +73444,7 @@ blockquote small {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.55);
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
@@ -73016,7 +73469,7 @@ blockquote small {
   opacity: 1;
 }
 .md-board-edit-panel__tile-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
@@ -73063,6 +73516,13 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-panel__divider {
   background: rgba(255, 255, 255, 0.10);
+}
+/* Divider directly under the Action Panel header. The panel's 14px
+   flex gap would push it well below the header; the right panel's
+   header divider (margin: 8px 4px 4px, gap 0) sits snug instead, so
+   cancel most of the gap here to mirror that placement. */
+.md-board-edit-panel__header + .md-board-edit-panel__divider {
+  margin: -6px 4px 4px;
 }
 /* Extra breathing room above the divider that sits directly under
    the Filter by Category control — separates the filter cluster
@@ -73169,7 +73629,7 @@ blockquote small {
     padding: 5px 9px;
     background: $la-navy;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1;
     border-radius: 6px;
@@ -73287,7 +73747,7 @@ blockquote small {
   background: rgba($brand-slate-blue, 0.14);
   color: $brand-slate-blue;
   border: 1px solid rgba($brand-slate-blue, 0.22);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -73337,7 +73797,7 @@ blockquote small {
   border: 1px solid transparent;
   border-radius: 8px;
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -73625,8 +74085,16 @@ blockquote small {
   width: 280px;
   max-width: 320px;
   padding: 14px 12px 18px;
-  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
-  align-self: stretch;
+  /* Pin to the viewport (see the left panel for rationale): fixed
+     viewport-minus-topbar height + sticky top keeps it in place;
+     overflow-y:auto scrolls the panel internally when its content
+     exceeds the viewport; align-self:start prevents the grid from
+     stretching it to the tall board column. */
+  height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  max-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: start;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
@@ -73721,15 +74189,33 @@ blockquote small {
 
 /* Header — title + collapse chevron pill */
 .md-board-edit-right-panel__header {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 4px 4px;
+  justify-content: center;
+  min-height: 28px;
+  /* Symmetric side padding reserves room for the absolutely-pinned
+     collapse pill so the centered title never collides with it. */
+  padding: 0 36px 4px;
+}
+/* Collapse pill pinned to the left edge (unchanged position); the
+   title is the only in-flow child so it centers in the div. */
+.md-board-edit-right-panel__header .md-board-edit-right-panel__collapse-btn {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__header {
   flex-direction: column;
   gap: 6px;
   padding: 0;
+}
+/* Collapsed rail: restore static flow so the column rail layout
+   places the chevron, not the absolute edge placement. */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__collapse-btn {
+  position: static;
+  transform: none;
 }
 .md-board-edit-right-panel__collapse-btn {
   display: inline-flex;
@@ -73753,12 +74239,15 @@ blockquote small {
 .md-board-edit-right-panel__collapse-btn svg {
   transition: transform 0.2s ease;
 }
-.md-board-edit-right-panel:not(.md-board-edit-right-panel--collapsed) .md-board-edit-right-panel__collapse-btn svg {
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__collapse-btn svg {
+  /* Base icon points » (collapse outward, shown when expanded).
+     When collapsed, flip to « so it reads as "expand back" —
+     mirrors the left panel's collapse-chevron behaviour. */
   transform: rotate(180deg);
 }
 .md-board-edit-right-panel__title {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -73797,7 +74286,7 @@ blockquote small {
   gap: 2px;
 }
 .md-board-edit-right-panel__subheader {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -73828,6 +74317,24 @@ blockquote small {
 .md-board-detail--dark .md-board-edit-right-panel__section--open {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.18);
+}
+/* Board-detail right panel: when any section is open, collapse the
+   panel to JUST that section — hide every other section (and the
+   group subheaders/dividers, which would otherwise dangle). Clicking
+   the open section again clears --open, so :has() no longer matches
+   and all sections reappear. Scoped with :not(.nb-create-rail) so the
+   create-board-new rail is unaffected. CSS :has() is a browser
+   feature (supported), not an Ember helper. */
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__section:not(.md-board-edit-right-panel__section--open),
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__subheader,
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__divider {
+  display: none;
+}
+/* With every other section hidden, the lone open section sits right
+   under the "Live Preview Edit" header — give it clear breathing
+   room so it doesn't crowd the title. */
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__section--open {
+  margin-top: 14px;
 }
 .md-board-edit-right-panel__section-toggle {
   display: inline-flex;
@@ -74000,7 +74507,7 @@ blockquote small {
   box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
 .md-board-edit-right-panel__hint {
-  font-size: 12px;
+  font-size: 14px;
   color: rgba($la-navy, 0.65);
   margin: 0;
   line-height: 1.45;
@@ -74046,7 +74553,7 @@ blockquote small {
   border: 1px solid rgba($la-navy, 0.14);
   background: rgba(255, 255, 255, 0.7);
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -74099,7 +74606,7 @@ blockquote small {
   border-color: rgba(255, 255, 255, 0.08);
 }
 .md-board-edit-right-panel__row-pair-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.70);
   text-transform: uppercase;
@@ -74107,6 +74614,12 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-right-panel__row-pair-label {
   color: rgba(255, 255, 255, 0.70);
+}
+/* Multi-line labels (e.g. "Grid Gap (Space between buttons)") default
+   to left-aligned text inside the centered row-pair block — center the
+   wrapped lines too. */
+.md-board-edit-right-panel__row-pair-label--center {
+  text-align: center;
 }
 
 /* Stepper (text size, rows/cols) */
@@ -74149,7 +74662,7 @@ blockquote small {
   justify-content: center;
   min-width: 26px;
   padding: 0 4px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: $la-navy;
   border-left: 1px solid rgba($la-navy, 0.10);
@@ -74224,13 +74737,13 @@ blockquote small {
   background: linear-gradient(135deg, #FDCF98, #4C86D8);
 }
 .md-board-edit-right-panel__btnmock-text {
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba($la-navy, 0.85);
   line-height: 1;
 }
 .md-board-edit-right-panel__btnmock--text-only {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba($la-navy, 0.85);
 }
@@ -74271,7 +74784,7 @@ blockquote small {
   border: none;
   background: transparent;
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -74286,6 +74799,62 @@ blockquote small {
   background: rgba($brand-slate-blue, 0.12);
   color: $brand-slate-blue;
   outline: none;
+}
+/* Back button — bottom of the right panel, shown only while a section
+   is open; clears it to restore the full section list. */
+.md-board-edit-right-panel__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 8px);
+  margin: 6px 4px 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba($brand-slate-blue, 0.30);
+  border-radius: 10px;
+  background: rgba($brand-slate-blue, 0.10);
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-edit-right-panel__back:hover,
+.md-board-edit-right-panel__back:focus-visible {
+  background: rgba($brand-slate-blue, 0.18);
+  border-color: rgba($brand-slate-blue, 0.45);
+  outline: none;
+}
+/* Expanded panel (default): the base flex row already shows the
+   double-chevron icon + "Back" label side by side. Collapsed panel:
+   drop the word and make the chevron a big, bold, high-contrast
+   icon-only affordance (the source art is small within its 24-unit
+   viewBox and thin-stroked, so it needs both a larger box AND a
+   heavier stroke to read clearly on the dark rail). */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back-label {
+  display: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back {
+  padding: 8px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 3;
+}
+.md-board-detail--dark .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back svg {
+  stroke: #ffffff;
+}
+/* Dark mode: set color AND svg stroke explicitly (recurring problem
+   #3 — currentColor can bleed on the dark panel surface). */
+.md-board-detail--dark .md-board-edit-right-panel__back {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-edit-right-panel__back svg {
+  stroke: rgba(255, 255, 255, 0.92);
 }
 .md-board-edit-right-panel__history-btn:active:not(:disabled) {
   background: rgba($brand-slate-blue, 0.18);
@@ -74337,7 +74906,7 @@ blockquote small {
   gap: 8px;
   margin: 4px 0;
   color: rgba($la-navy, 0.55);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -74421,7 +74990,7 @@ blockquote small {
    label. Centered between the swatch preview and the chevron. */
 .md-board-edit-right-panel__palette-label {
   flex: 1 1 auto;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -74453,7 +75022,7 @@ blockquote small {
   border-radius: 999px;
   background: transparent;
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -74580,7 +75149,7 @@ blockquote small {
   border: 1px solid rgba($la-navy, 0.14);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.95);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: $la-navy;
 }
@@ -74598,7 +75167,7 @@ blockquote small {
   border-radius: 999px;
   background: $brand-slate-blue;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   // Allow long single-token usernames (kevin_anderson, isaac_thompson)
@@ -74675,11 +75244,14 @@ blockquote small {
    column 2 naturally. ────────────────────────────────────────────── */
 .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
 .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-  /* Three-column edit layout: left panel (max-content), board area
-     (1fr), right "Live Preview Edit" panel (max-content). The right
-     panel collapses to a thin rail via its own --collapsed modifier
-     (width managed inside the panel block itself). */
-  grid-template-columns: max-content 1fr max-content !important;
+  /* Three-column edit layout: left panel, board area (1fr), right
+     "Live Preview Edit" panel. fit-content(280px) caps each side
+     track at the panel's 280px width — `max-content` previously
+     sized each track to its panel's intrinsic content, so the
+     wider right-panel content made the right column larger than
+     the left. fit-content still shrinks to the slim collapsed rail
+     (the --collapsed panel reports its own ~56px width). */
+  grid-template-columns: fit-content(280px) 1fr fit-content(280px) !important;
   gap: 12px;
 }
 
@@ -74692,17 +75264,27 @@ blockquote small {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  /* Tighter horizontal padding so the panel hugs the widest text
-     row instead of leaving an inch of unused glass on each side. */
-  padding: 16px 8px 20px;
-  width: max-content;
-  max-width: 280px;
-  /* Stretch to fill the viewport beneath the topbar so the panel
-     reads as a full-height rail rather than a card. The grid track
-     above stretches the height automatically, but min-height keeps
-     the panel from collapsing when <main> is short. */
-  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
-  align-self: stretch;
+  /* Top padding matches the right panel (14px) so the Action Panel
+     collapse band lines up with Live Preview Edit's. */
+  padding: 14px 12px 20px;
+  /* Fixed width that mirrors the right panel (.md-board-edit-right-
+     panel: 280px / max 320px) so the two rails are symmetric — it
+     previously used width: max-content and collapsed to its content,
+     which is why it read narrower than the right. */
+  width: 280px;
+  max-width: 320px;
+  /* Pin to the viewport: a fixed height of (viewport − topbar − gap)
+     with sticky `top` keeps the panel in place while the board
+     scrolls; overflow-y:auto lets the panel scroll internally when
+     its own content is taller than the viewport. align-self:start
+     stops the grid from stretching it to the (tall) board column,
+     which previously made the sticky element scroll away with the
+     page instead of staying fixed. */
+  height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  max-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: start;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
@@ -74730,28 +75312,55 @@ blockquote small {
    A labelled button pinned to the bottom of the panel. Collapsing
    shrinks the panel to a slim rail and hides its contents; this
    button stays (icon only) so the panel can be reopened. */
-.md-board-edit-panel__collapse-btn {
+/* Header — collapse chevron pill + label, mirroring the right panel's
+   .md-board-edit-right-panel__header so both rails read identically
+   (same pill height, icon background, teal title colour). */
+.md-board-edit-panel__header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 9px 10px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: rgba($la-navy, 0.55);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  min-height: 28px;
+  /* Symmetric side padding reserves room for the absolutely-pinned
+     collapse pill so the centered label never collides with it. */
+  padding: 0 36px 4px;
+}
+/* Collapse pill pinned to the far right of the header; the label is
+   the only in-flow child so it centers in the div. */
+.md-board-edit-panel__header .md-board-edit-panel__collapse-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* Collapsed rail: drop the row wrapper so the chevron pill becomes a
+   direct rail item (centered) — same trick used for the share grid. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__header {
+  display: contents;
+}
+/* Collapsed rail: restore static flow so the existing rail-centering
+   rules place the chevron, not the absolute far-right placement. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-btn {
+  position: static;
+  transform: none;
+}
+.md-board-edit-panel__collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.2s ease;
 }
 .md-board-edit-panel__collapse-btn:hover,
 .md-board-edit-panel__collapse-btn:focus-visible {
-  background: rgba($brand-slate-blue, 0.08);
-  color: $brand-slate-blue;
+  background: rgba($brand-slate-blue, 0.12);
   outline: none;
 }
 .md-board-edit-panel__collapse-icon {
@@ -74761,27 +75370,194 @@ blockquote small {
 .md-board-edit-panel--collapsed .md-board-edit-panel__collapse-icon {
   transform: rotate(180deg);
 }
+.md-board-edit-panel__collapse-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: $brand-verdigris-aa;
+  white-space: nowrap;
+}
 .md-board-edit-panel--collapsed .md-board-edit-panel__collapse-label {
   display: none;
 }
+/* Collapsed = slim icon rail. Instead of hiding everything, keep the
+   action icons as a centered vertical strip so the panel reads as a
+   compact preview of itself. Text, expandable bodies, search field,
+   view-style/theme and dividers are hidden; only the representative
+   SVG icons remain. Inner controls are non-interactive so a click
+   anywhere falls through to the <aside>'s expand_left_panel (and the
+   collapse chevron toggles back) — the rail expands before any action
+   can fire. */
 .md-board-edit-panel--collapsed {
-  width: 44px;
-  min-width: 44px;
-  max-width: 44px;
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
   padding: 12px 6px;
-  gap: 0;
+  gap: 8px;
+  align-items: center;
   cursor: pointer;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
-.md-board-edit-panel--collapsed > *:not(.md-board-edit-panel__collapse-btn) {
-  display: none;
+.md-board-edit-panel--collapsed .md-board-edit-panel__label,
+.md-board-edit-panel--collapsed .md-board-edit-panel__tile-label,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-text,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-sublabel,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-chevron,
+.md-board-edit-panel--collapsed .md-board-edit-panel__subheader,
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-label,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-list,
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse,
+.md-board-edit-panel--collapsed .md-board-edit-panel__bottom,
+.md-board-edit-panel--collapsed .md-board-edit-panel__divider,
+.md-board-edit-panel--collapsed .md-board-edit-panel__search-input,
+.md-board-edit-panel--collapsed .md-board-edit-panel__search-clear {
+  display: none !important;
 }
+/* Search row → just the magnifier glyph, centered. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__search {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+/* Every icon-bearing control → a centered icon-only square. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
+.md-board-edit-panel--collapsed .md-board-edit-panel__tile,
+.md-board-edit-panel--collapsed .md-board-edit-panel__row {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0 auto;
+  justify-content: center;
+}
+/* Share/Export 2×2 grid → single icon column in the rail. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__share-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Icons stay visible; the controls themselves don't take clicks so
+   the rail expands instead of firing an action while collapsed. The
+   collapse button keeps its own handler (toggles back open). */
+.md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+.md-board-edit-panel--collapsed .md-board-edit-panel__search,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
+.md-board-edit-panel--collapsed .md-board-edit-panel__tile,
+.md-board-edit-panel--collapsed .md-board-edit-panel__row {
+  pointer-events: none;
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-btn {
+  pointer-events: auto;
+  width: 40px;
+  min-width: 40px;
+  padding: 9px 0;
+  margin: 0 auto;
+}
+/* Controls ship their SVGs at 16–22px; normalize every rail icon to
+   one size so the strip reads evenly. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__icon,
+.md-board-edit-panel--collapsed .md-board-edit-panel__search-icon,
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-icon {
+  width: 20px !important;
+  height: 20px !important;
+}
+/* Search row → a real 40px square with the magnifier centered. The
+   base rule absolutely-positions the icon for the (now hidden) input,
+   which collapsed the row to ~0 height and floated a tiny glyph. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__search {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  align-items: center;
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__search-icon {
+  position: static;
+  transform: none;
+  left: auto;
+  top: auto;
+}
+/* Strip per-control card chrome (the share tiles / back-link / filter
+   wrappers otherwise show different backgrounds + borders) so every
+   item reads as the same plain icon square. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
+.md-board-edit-panel--collapsed .md-board-edit-panel__tile,
+.md-board-edit-panel--collapsed .md-board-edit-panel__row,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+/* One flat flex column, evenly spaced (per request). The panel nests
+   icons in wrappers (__group--share → __share-grid holds the 4 tiles;
+   __filter wraps each toggle) and the tiles' base min-height:70px
+   made them taller boxes than the search/filter ones — so equal gaps
+   still read unevenly. Collapse those wrappers to `display: contents`
+   so EVERY icon control becomes a direct flex item of the rail, and
+   force them all to one identical 40px box. The single container gap
+   then spaces them identically. */
+.md-board-edit-panel--collapsed {
+  gap: 10px;
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__group--share,
+.md-board-edit-panel--collapsed .md-board-edit-panel__group--search,
+.md-board-edit-panel--collapsed .md-board-edit-panel__share-grid,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter {
+  display: contents;
+}
+.md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+.md-board-edit-panel--collapsed .md-board-edit-panel__search,
+.md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
+.md-board-edit-panel--collapsed .md-board-edit-panel__tile,
+.md-board-edit-panel--collapsed .md-board-edit-panel__row,
+.md-board-edit-panel--collapsed .md-board-edit-panel__collapse-btn {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 0 !important;
+  max-height: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  align-self: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+/* Separator after Save. __top still wraps just the save back-link
+   (it's NOT display:contents), so the border has a box to sit on. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 2px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid rgba($la-navy, 0.14);
+}
+.md-board-detail--dark .md-board-edit-panel--collapsed .md-board-edit-panel__top {
+  border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+/* (Removed the ::before divider that used to sit above the collapse
+   chevron — the control moved to the TOP of the panel, so a line
+   above it would render at the very top of the collapsed rail.) */
 .md-board-detail--dark .md-board-edit-panel__collapse-btn {
-  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #e5ecf8;
 }
 .md-board-detail--dark .md-board-edit-panel__collapse-btn:hover,
 .md-board-detail--dark .md-board-edit-panel__collapse-btn:focus-visible {
   background: rgba(255, 255, 255, 0.10);
   color: #ffffff;
+}
+.md-board-detail--dark .md-board-edit-panel__collapse-label {
+  color: #8fe4df;
 }
 
 /* ── Top cluster: back link + Save/Cancel pair ──────────────────── */
@@ -74880,7 +75656,7 @@ blockquote small {
   background: #ffffff;
   color: $la-navy;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
@@ -75046,7 +75822,7 @@ blockquote small {
   /* Small uppercase label — matches the modern-UI pattern used in
      other side rails. Slightly muted so it reads as a section
      header without competing with the row labels. */
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -75056,6 +75832,92 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-panel__subheader {
   color: rgba(255, 255, 255, 0.55);
+}
+/* ── SEARCH & FILTER card ──────────────────────────────────────────
+   Present the buttons-search field and the Filter by Category control
+   as ONE professional grouped card (an actual outer container with its
+   own surface), the subheader acting as its title. The base __group
+   gap is 2px — far too tight, so the two controls visually collide;
+   give the card real internal spacing so they read as a clean pair. */
+.md-board-edit-panel__group--search,
+.md-board-edit-panel__group--share,
+.md-board-edit-panel__group--view,
+.md-board-edit-panel__group--theme {
+  /* Tight gap so the subheader title hugs its content; the extra
+     space the search/filter pair needs is added on the filter
+     itself (below), not by separating the title from everything. */
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  /* Frosted glass to match the panel + badges (same blur/saturate
+     vocabulary) instead of a flat opaque tint. */
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+.md-board-edit-panel__group--search .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--share .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--view .md-board-edit-panel__subheader,
+.md-board-edit-panel__group--theme .md-board-edit-panel__subheader {
+  padding: 0 2px 2px;
+}
+/* The View Style / Theme blocks carry their own inner padding (and
+   the theme block an old top-divider) for the pre-card layout — zero
+   them so the group card's own 12px padding governs and the two
+   blocks read as separate cards with no rule between them. */
+.md-board-edit-panel__group--view .md-board-edit-view-style,
+.md-board-edit-panel__group--theme .md-board-edit-view-style {
+  padding: 0;
+  border-top: none;
+}
+/* Keep the search field and the Filter by Category control clearly
+   separated without pushing the title away from them. */
+/* Higher-specificity sibling selector so this beats the legacy
+   `.md-board-edit-panel__search + .md-board-edit-panel__filter`
+   rule (margin-top: -8px) that otherwise collapses the spacing.
+   margin-top: 0 leaves just the card's 8px flex gap between the
+   search field and the filter control. */
+.md-board-edit-panel__group--search .md-board-edit-panel__search + .md-board-edit-panel__filter {
+  margin-top: 0;
+}
+/* The search magnifier was a muted navy while the filter funnel is
+   slate-blue — unify the search icon to the filter icon's exact hue
+   and weight so both rows share one icon treatment. */
+.md-board-edit-panel__group--search .md-board-edit-panel__search-icon {
+  color: $brand-slate-blue;
+  opacity: 0.6;
+}
+.md-board-detail--dark .md-board-edit-panel__group--search,
+.md-board-detail--dark .md-board-edit-panel__group--share,
+.md-board-detail--dark .md-board-edit-panel__group--view,
+.md-board-detail--dark .md-board-edit-panel__group--theme {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__search-icon {
+  color: #cfd8e8;
+  opacity: 0.6;
+}
+/* Match the search placeholder's opacity + weight to the Filter by
+   Category label so empty-state text reads at the same strength as
+   the filter row (it was a faded 0.50, the filter label near-full). */
+.md-board-edit-panel__group--search .md-board-edit-panel__search-input::placeholder {
+  color: rgba($la-navy, 0.62);
+  font-weight: 500;
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+/* Keep the Filter by Category label at the same slightly-transparent
+   strength as the search placeholder so the pair reads consistently. */
+.md-board-edit-panel__group--search .md-board-edit-panel__filter-toggle {
+  color: rgba($la-navy, 0.62);
+}
+.md-board-detail--dark .md-board-edit-panel__group--search .md-board-edit-panel__filter-toggle {
+  color: rgba(255, 255, 255, 0.62);
 }
 /* Board Actions collapse body — simple column; the toggle/chevron
    reuse the Filter by Category control's classes. */
@@ -75155,7 +76017,7 @@ blockquote small {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.55);
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
@@ -75180,7 +76042,7 @@ blockquote small {
   opacity: 1;
 }
 .md-board-edit-panel__tile-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
@@ -75227,6 +76089,13 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-panel__divider {
   background: rgba(255, 255, 255, 0.10);
+}
+/* Divider directly under the Action Panel header. The panel's 14px
+   flex gap would push it well below the header; the right panel's
+   header divider (margin: 8px 4px 4px, gap 0) sits snug instead, so
+   cancel most of the gap here to mirror that placement. */
+.md-board-edit-panel__header + .md-board-edit-panel__divider {
+  margin: -6px 4px 4px;
 }
 /* Extra breathing room above the divider that sits directly under
    the Filter by Category control — separates the filter cluster
@@ -75333,7 +76202,7 @@ blockquote small {
     padding: 5px 9px;
     background: $la-navy;
     color: #ffffff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1;
     border-radius: 6px;
@@ -75451,7 +76320,7 @@ blockquote small {
   background: rgba($brand-slate-blue, 0.14);
   color: $brand-slate-blue;
   border: 1px solid rgba($brand-slate-blue, 0.22);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -75501,7 +76370,7 @@ blockquote small {
   border: 1px solid transparent;
   border-radius: 8px;
   color: $la-navy;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -75789,8 +76658,16 @@ blockquote small {
   width: 280px;
   max-width: 320px;
   padding: 14px 12px 18px;
-  min-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
-  align-self: stretch;
+  /* Pin to the viewport (see the left panel for rationale): fixed
+     viewport-minus-topbar height + sticky top keeps it in place;
+     overflow-y:auto scrolls the panel internally when its content
+     exceeds the viewport; align-self:start prevents the grid from
+     stretching it to the tall board column. */
+  height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  max-height: calc(100dvh - var(--topbar-height, 68px) - 16px);
+  align-self: start;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: sticky;
   top: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
@@ -75885,15 +76762,33 @@ blockquote small {
 
 /* Header — title + collapse chevron pill */
 .md-board-edit-right-panel__header {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 4px 4px;
+  justify-content: center;
+  min-height: 28px;
+  /* Symmetric side padding reserves room for the absolutely-pinned
+     collapse pill so the centered title never collides with it. */
+  padding: 0 36px 4px;
+}
+/* Collapse pill pinned to the left edge (unchanged position); the
+   title is the only in-flow child so it centers in the div. */
+.md-board-edit-right-panel__header .md-board-edit-right-panel__collapse-btn {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__header {
   flex-direction: column;
   gap: 6px;
   padding: 0;
+}
+/* Collapsed rail: restore static flow so the column rail layout
+   places the chevron, not the absolute edge placement. */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__collapse-btn {
+  position: static;
+  transform: none;
 }
 .md-board-edit-right-panel__collapse-btn {
   display: inline-flex;
@@ -75917,12 +76812,15 @@ blockquote small {
 .md-board-edit-right-panel__collapse-btn svg {
   transition: transform 0.2s ease;
 }
-.md-board-edit-right-panel:not(.md-board-edit-right-panel--collapsed) .md-board-edit-right-panel__collapse-btn svg {
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__collapse-btn svg {
+  /* Base icon points » (collapse outward, shown when expanded).
+     When collapsed, flip to « so it reads as "expand back" —
+     mirrors the left panel's collapse-chevron behaviour. */
   transform: rotate(180deg);
 }
 .md-board-edit-right-panel__title {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -75964,7 +76862,7 @@ blockquote small {
   flex: 1 1 0;
   padding: 8px 10px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -76009,11 +76907,14 @@ blockquote small {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 10px;
+  /* Size to its label rather than stretching the full card width,
+     and center it in the (block) card via auto side margins —
+     align-self does nothing here since the parent isn't flex. */
+  width: fit-content;
+  margin: 8px auto 0;
+  padding: 8px 16px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
@@ -76048,23 +76949,23 @@ blockquote small {
   margin: 4px 0 10px;
 }
 .md-board-edit-view-style__current-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  color: $la-navy;
+  color: rgba($la-navy, 0.62);
 }
 .md-board-edit-view-style__pill {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba($la-navy, 0.10);
   color: $la-navy;
 }
 .md-board-detail--dark .md-board-edit-view-style__current-label {
-  color: #f0f4fb;
+  color: rgba(255, 255, 255, 0.62);
 }
 .md-board-detail--dark .md-board-edit-view-style__pill {
   background: rgba(255, 255, 255, 0.06);
@@ -76103,7 +77004,7 @@ blockquote small {
   gap: 2px;
 }
 .md-board-edit-right-panel__subheader {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -76134,6 +77035,24 @@ blockquote small {
 .md-board-detail--dark .md-board-edit-right-panel__section--open {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.18);
+}
+/* Board-detail right panel: when any section is open, collapse the
+   panel to JUST that section — hide every other section (and the
+   group subheaders/dividers, which would otherwise dangle). Clicking
+   the open section again clears --open, so :has() no longer matches
+   and all sections reappear. Scoped with :not(.nb-create-rail) so the
+   create-board-new rail is unaffected. CSS :has() is a browser
+   feature (supported), not an Ember helper. */
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__section:not(.md-board-edit-right-panel__section--open),
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__subheader,
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__divider {
+  display: none;
+}
+/* With every other section hidden, the lone open section sits right
+   under the "Live Preview Edit" header — give it clear breathing
+   room so it doesn't crowd the title. */
+.md-board-edit-right-panel:not(.nb-create-rail):has(.md-board-edit-right-panel__section--open) .md-board-edit-right-panel__section--open {
+  margin-top: 14px;
 }
 .md-board-edit-right-panel__section-toggle {
   display: inline-flex;
@@ -76265,6 +77184,47 @@ blockquote small {
   padding: 14px 12px 14px 12px;
 }
 
+/* Legacy `.md-settings-sublabel-wrap` controls inside a right-panel
+   section body (e.g. Background's "Background Color for All Board
+   Buttons"): the base rule sets `min-width: max-content` + the
+   sublabel `white-space: nowrap`, which forces the long label to its
+   full unwrapped width and overflows the narrow panel. In this
+   context constrain the wrap to the panel width, let the label wrap,
+   and keep the wrap + its control centered. */
+.md-board-edit-right-panel__section-body .md-settings-sublabel-wrap {
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+}
+.md-board-edit-right-panel__section-body .md-settings-sublabel {
+  white-space: normal;
+  width: 100%;
+  text-align: center;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* Bare dropdowns placed directly in a right-panel section body (e.g.
+   Board Symbols) default to the inline-block / max-width:180px,
+   left-aligned trigger. In the narrow rail they should fill the
+   section width and center. Direct-child selector so the nested
+   Background / Skin dropdowns (inside .md-settings-sublabel-wrap) are
+   unaffected. */
+.md-board-edit-right-panel__section-body > .md-settings-dropdown-wrap {
+  display: block;
+  width: 100%;
+}
+.md-board-edit-right-panel__section-body > .md-settings-dropdown-wrap .md-settings-select--trigger {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  justify-content: center;
+  text-align: center;
+}
+.md-board-edit-right-panel__section-body > .md-settings-dropdown-wrap .md-settings-select__value {
+  max-width: none;
+}
+
 /* Custom dropdowns (.md-settings-dropdown-menu) inside the right
    panel anchor to the trigger's RIGHT edge instead of the left, so
    they open toward the page interior. Without this, the dropdown
@@ -76289,7 +77249,7 @@ blockquote small {
   box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
 }
 .md-board-edit-right-panel__hint {
-  font-size: 12px;
+  font-size: 14px;
   color: rgba($la-navy, 0.65);
   margin: 0;
   line-height: 1.45;
@@ -76335,7 +77295,7 @@ blockquote small {
   border: 1px solid rgba($la-navy, 0.14);
   background: rgba(255, 255, 255, 0.7);
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -76388,7 +77348,7 @@ blockquote small {
   border-color: rgba(255, 255, 255, 0.08);
 }
 .md-board-edit-right-panel__row-pair-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.70);
   text-transform: uppercase;
@@ -76396,6 +77356,12 @@ blockquote small {
 }
 .md-board-detail--dark .md-board-edit-right-panel__row-pair-label {
   color: rgba(255, 255, 255, 0.70);
+}
+/* Multi-line labels (e.g. "Grid Gap (Space between buttons)") default
+   to left-aligned text inside the centered row-pair block — center the
+   wrapped lines too. */
+.md-board-edit-right-panel__row-pair-label--center {
+  text-align: center;
 }
 
 /* Stepper (text size, rows/cols) */
@@ -76438,7 +77404,7 @@ blockquote small {
   justify-content: center;
   min-width: 26px;
   padding: 0 4px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: $la-navy;
   border-left: 1px solid rgba($la-navy, 0.10);
@@ -76513,13 +77479,13 @@ blockquote small {
   background: linear-gradient(135deg, #FDCF98, #4C86D8);
 }
 .md-board-edit-right-panel__btnmock-text {
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba($la-navy, 0.85);
   line-height: 1;
 }
 .md-board-edit-right-panel__btnmock--text-only {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba($la-navy, 0.85);
 }
@@ -76560,7 +77526,7 @@ blockquote small {
   border: none;
   background: transparent;
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -76575,6 +77541,62 @@ blockquote small {
   background: rgba($brand-slate-blue, 0.12);
   color: $brand-slate-blue;
   outline: none;
+}
+/* Back button — bottom of the right panel, shown only while a section
+   is open; clears it to restore the full section list. */
+.md-board-edit-right-panel__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 8px);
+  margin: 6px 4px 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba($brand-slate-blue, 0.30);
+  border-radius: 10px;
+  background: rgba($brand-slate-blue, 0.10);
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-edit-right-panel__back:hover,
+.md-board-edit-right-panel__back:focus-visible {
+  background: rgba($brand-slate-blue, 0.18);
+  border-color: rgba($brand-slate-blue, 0.45);
+  outline: none;
+}
+/* Expanded panel (default): the base flex row already shows the
+   double-chevron icon + "Back" label side by side. Collapsed panel:
+   drop the word and make the chevron a big, bold, high-contrast
+   icon-only affordance (the source art is small within its 24-unit
+   viewBox and thin-stroked, so it needs both a larger box AND a
+   heavier stroke to read clearly on the dark rail). */
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back-label {
+  display: none;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back {
+  padding: 8px;
+}
+.md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 3;
+}
+.md-board-detail--dark .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__back svg {
+  stroke: #ffffff;
+}
+/* Dark mode: set color AND svg stroke explicitly (recurring problem
+   #3 — currentColor can bleed on the dark panel surface). */
+.md-board-detail--dark .md-board-edit-right-panel__back {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-edit-right-panel__back svg {
+  stroke: rgba(255, 255, 255, 0.92);
 }
 .md-board-edit-right-panel__history-btn:active:not(:disabled) {
   background: rgba($brand-slate-blue, 0.18);
@@ -76626,7 +77648,7 @@ blockquote small {
   gap: 8px;
   margin: 4px 0;
   color: rgba($la-navy, 0.55);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -76710,7 +77732,7 @@ blockquote small {
    label. Centered between the swatch preview and the chevron. */
 .md-board-edit-right-panel__palette-label {
   flex: 1 1 auto;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -76742,7 +77764,7 @@ blockquote small {
   border-radius: 999px;
   background: transparent;
   color: $la-navy;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -76869,7 +77891,7 @@ blockquote small {
   border: 1px solid rgba($la-navy, 0.14);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.95);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: $la-navy;
 }
@@ -76887,7 +77909,7 @@ blockquote small {
   border-radius: 999px;
   background: $brand-slate-blue;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;

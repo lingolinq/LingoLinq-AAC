@@ -94,6 +94,28 @@
     {{#if this.edit_mode}}
       <aside class="md-board-edit-panel {{if this.left_panel_collapsed 'md-board-edit-panel--collapsed'}}" aria-label={{t "Board edit tools" key="board_edit_panel_label"}} {{action "expand_left_panel"}}>
 
+        {{!-- Collapse/expand control at the TOP of the panel, mirroring
+             the right panel's collapse chevron. Label hides when the
+             panel is collapsed to a rail. bubbles=false: without it
+             the click also reaches the <aside>'s expand_left_panel,
+             which would immediately re-expand the just-collapsed
+             panel. --}}
+        <div class="md-board-edit-panel__header">
+          <button type="button"
+            class="md-board-edit-panel__collapse-btn"
+            aria-expanded={{unless this.left_panel_collapsed "true" "false"}}
+            aria-label={{if this.left_panel_collapsed (t "Expand panel" key="expand_panel") (t "Collapse panel" key="collapse_panel")}}
+            {{action "toggle_left_panel" bubbles=false}}>
+            <svg class="md-board-edit-panel__collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="11 17 6 12 11 7"/>
+              <polyline points="18 17 13 12 18 7"/>
+            </svg>
+          </button>
+          <h3 class="md-board-edit-panel__collapse-label">{{t "Action Panel" key="action_panel"}}</h3>
+        </div>
+
+        <div class="md-board-edit-panel__divider" role="presentation"></div>
+
         {{!-- TOP CLUSTER — single Back-to-Boards button. Triggers the
              confirm-leave-edit modal (Save & Continue / Discard / Keep
              Editing) instead of navigating directly, so the user is
@@ -119,86 +141,96 @@
           </button>
         </div>
 
-        {{!-- SEARCH — inline filter input. Reuses board_search_string +
-             update_board_search + clear_board_search (the same state
-             the toolbar's existing search input writes to), so the
-             grid filter "just works" with no controller changes. --}}
-        <div class="md-board-edit-panel__search">
-          <svg class="md-board-edit-panel__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          {{!-- size="1" defeats the browser's default ~20ch intrinsic
-               width so the input doesn't claim more horizontal room
-               than the panel's widest text row. The flexbox rules in
-               app.scss let it visually fill the search wrap up to the
-               panel's actual content width. --}}
-          <input
-            id="board-edit-panel-search"
-            type="text"
-            size="1"
-            class="md-board-edit-panel__search-input"
-            placeholder={{t "Search buttons..." key="search_buttons"}}
-            aria-label={{t "Search buttons" key="search_buttons_aria"}}
-            value={{this.board_search_string}}
-            {{on "input" (action "update_board_search")}}
-          />
-          {{#if this.board_search_string}}
-            <button type="button" class="md-board-edit-panel__search-clear" {{action "clear_board_search"}} aria-label={{t "Clear filter" key="clear_filter"}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
+        {{!-- SEARCH & FILTER GROUP — the buttons-search input and the
+             Filter by Category control share one labelled section,
+             mirroring the Share & Export group's group+subheader
+             pattern. --}}
+        <div class="md-board-edit-panel__group md-board-edit-panel__group--search">
+          <div class="md-board-edit-panel__subheader">
+            {{t "Search & Filter" key="search_and_filter"}}
+          </div>
+
+          {{!-- SEARCH — inline filter input. Reuses board_search_string +
+               update_board_search + clear_board_search (the same state
+               the toolbar's existing search input writes to), so the
+               grid filter "just works" with no controller changes. --}}
+          <div class="md-board-edit-panel__search">
+            <svg class="md-board-edit-panel__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            {{!-- size="1" defeats the browser's default ~20ch intrinsic
+                 width so the input doesn't claim more horizontal room
+                 than the panel's widest text row. The flexbox rules in
+                 app.scss let it visually fill the search wrap up to the
+                 panel's actual content width. --}}
+            <input
+              id="board-edit-panel-search"
+              type="text"
+              size="1"
+              class="md-board-edit-panel__search-input"
+              placeholder={{t "Search buttons..." key="search_buttons"}}
+              aria-label={{t "Search buttons" key="search_buttons_aria"}}
+              value={{this.board_search_string}}
+              {{on "input" (action "update_board_search")}}
+            />
+            {{#if this.board_search_string}}
+              <button type="button" class="md-board-edit-panel__search-clear" {{action "clear_board_search"}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            {{/if}}
+          </div>
+
+          {{!-- FILTER BY CATEGORY — expandable. Header reuses the row
+               style; expanded body shows each part-of-speech category
+               with a small Fitzgerald color swatch + label. Selecting
+               a row writes to the controller's `active_category` (via
+               set_panel_category), which the existing grid filter
+               listens to — same data path as the toolbar's Categories
+               dropdown, just exposed in the panel. --}}
+          <div class="md-board-edit-panel__filter {{if this.panel_filter_open 'md-board-edit-panel__filter--open'}}">
+            <button type="button"
+              class="md-board-edit-panel__filter-toggle"
+              aria-expanded={{if this.panel_filter_open "true" "false"}}
+              aria-controls="board-edit-panel-filter-list"
+              {{action "toggle_panel_filter"}}>
+              <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span class="md-board-edit-panel__filter-text">
+                <span class="md-board-edit-panel__label">{{t "Filter by Category" key="filter_by_category"}}</span>
+                {{#if this.active_filter_label}}
+                  <span class="md-board-edit-panel__filter-sublabel">{{this.active_filter_label}}</span>
+                {{/if}}
+              </span>
+              <svg class="md-board-edit-panel__filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
-          {{/if}}
-        </div>
-
-        {{!-- FILTER BY CATEGORY — expandable. Header reuses the row
-             style; expanded body shows each part-of-speech category
-             with a small Fitzgerald color swatch + label. Selecting
-             a row writes to the controller's `active_category` (via
-             set_panel_category), which the existing grid filter
-             listens to — same data path as the toolbar's Categories
-             dropdown, just exposed in the panel. --}}
-        <div class="md-board-edit-panel__filter {{if this.panel_filter_open 'md-board-edit-panel__filter--open'}}">
-          <button type="button"
-            class="md-board-edit-panel__filter-toggle"
-            aria-expanded={{if this.panel_filter_open "true" "false"}}
-            aria-controls="board-edit-panel-filter-list"
-            {{action "toggle_panel_filter"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-            </svg>
-            <span class="md-board-edit-panel__filter-text">
-              <span class="md-board-edit-panel__label">{{t "Filter by Category" key="filter_by_category"}}</span>
-              {{#if this.active_filter_label}}
-                <span class="md-board-edit-panel__filter-sublabel">{{this.active_filter_label}}</span>
-              {{/if}}
-            </span>
-            <svg class="md-board-edit-panel__filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-          {{#if this.panel_filter_open}}
-            <ul id="board-edit-panel-filter-list" class="md-board-edit-panel__filter-list" role="listbox" aria-label={{t "Filter by Category" key="filter_by_category"}}>
-              {{#each this.pos_categories as |cat|}}
-                <li
-                  class="md-board-edit-panel__filter-item md-board-edit-panel__filter-item--{{cat.css_class}} {{if (is-equal this.active_category cat.id) 'md-board-edit-panel__filter-item--active'}}"
-                  role="option"
-                  aria-selected={{if (is-equal this.active_category cat.id) "true" "false"}}
-                  tabindex="0"
-                  {{action "set_panel_category" cat.id}}>
-                  <span class="md-board-edit-panel__filter-swatch" aria-hidden="true"></span>
-                  <span class="md-board-edit-panel__filter-name">{{cat.label}}</span>
-                  {{#if (is-equal this.active_category cat.id)}}
-                    <svg class="md-board-edit-panel__filter-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  {{/if}}
-                </li>
-              {{/each}}
-            </ul>
-          {{/if}}
+            {{#if this.panel_filter_open}}
+              <ul id="board-edit-panel-filter-list" class="md-board-edit-panel__filter-list" role="listbox" aria-label={{t "Filter by Category" key="filter_by_category"}}>
+                {{#each this.pos_categories as |cat|}}
+                  <li
+                    class="md-board-edit-panel__filter-item md-board-edit-panel__filter-item--{{cat.css_class}} {{if (is-equal this.active_category cat.id) 'md-board-edit-panel__filter-item--active'}}"
+                    role="option"
+                    aria-selected={{if (is-equal this.active_category cat.id) "true" "false"}}
+                    tabindex="0"
+                    {{action "set_panel_category" cat.id}}>
+                    <span class="md-board-edit-panel__filter-swatch" aria-hidden="true"></span>
+                    <span class="md-board-edit-panel__filter-name">{{cat.label}}</span>
+                    {{#if (is-equal this.active_category cat.id)}}
+                      <svg class="md-board-edit-panel__filter-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    {{/if}}
+                  </li>
+                {{/each}}
+              </ul>
+            {{/if}}
+          </div>
         </div>
 
         {{!-- SHARE & EXPORT GROUP — 2x2 tile grid. Each tile is a
@@ -340,56 +372,43 @@
              Theme: segmented Light/Dark toggle directly beneath, both
              options always visible. --}}
         <div class="md-board-edit-panel__bottom">
-          <div class="md-board-edit-view-style">
-            <div class="md-board-edit-panel__subheader">{{t "View Style" key="board_view_style_label"}}</div>
-            <div class="md-board-edit-view-style__current">
-              <span class="md-board-edit-view-style__current-label">{{t "Current View" key="board_view_current_label"}}</span>
-              <span class="md-board-edit-view-style__pill">{{t "Modern" key="board_view_modern_short"}}</span>
-            </div>
-            <button type="button" class="md-board-edit-view-style__jump" {{action "go_to_classic"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-              </svg>
-              <span>{{t "Classic View" key="board_view_classic"}}</span>
-            </button>
-          </div>
-
-          <div class="md-board-edit-panel__divider"></div>
-
-          <div class="md-board-edit-view-style md-board-edit-view-style--theme">
-            <div class="md-board-edit-panel__subheader">{{t "Light / Dark Theme" key="board_detail_light_dark_theme_label"}}</div>
-            <div class="md-board-edit-view-style__toggle" role="group" aria-label={{t "Light / Dark Theme" key="board_detail_light_dark_theme_label"}}>
-              <button type="button"
-                class="md-board-edit-view-style__opt {{unless this.dark_mode 'md-board-edit-view-style__opt--active'}}"
-                aria-pressed={{if this.dark_mode "false" "true"}}
-                {{action "set_dark_mode" false}}>
-                {{t "Light" key="board_detail_light_short"}}
-              </button>
-              <button type="button"
-                class="md-board-edit-view-style__opt {{if this.dark_mode 'md-board-edit-view-style__opt--active'}}"
-                aria-pressed={{if this.dark_mode "true" "false"}}
-                {{action "set_dark_mode" true}}>
-                {{t "Dark" key="board_detail_dark_short"}}
+          <div class="md-board-edit-panel__group md-board-edit-panel__group--view">
+            <div class="md-board-edit-view-style">
+              <div class="md-board-edit-panel__subheader">{{t "View Style" key="board_view_style_label"}}</div>
+              <div class="md-board-edit-view-style__current">
+                <span class="md-board-edit-view-style__current-label">{{t "Current View" key="board_view_current_label"}}</span>
+                <span class="md-board-edit-view-style__pill">{{t "Modern" key="board_view_modern_short"}}</span>
+              </div>
+              <button type="button" class="md-board-edit-view-style__jump" {{action "go_to_classic"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+                <span>{{t "Classic View" key="board_view_classic"}}</span>
               </button>
             </div>
           </div>
 
-          <div class="md-board-edit-panel__divider"></div>
+          <div class="md-board-edit-panel__group md-board-edit-panel__group--theme">
+            <div class="md-board-edit-view-style md-board-edit-view-style--theme">
+              <div class="md-board-edit-panel__subheader">{{t "Light / Dark Theme" key="board_detail_light_dark_theme_label"}}</div>
+              <div class="md-board-edit-view-style__toggle" role="group" aria-label={{t "Light / Dark Theme" key="board_detail_light_dark_theme_label"}}>
+                <button type="button"
+                  class="md-board-edit-view-style__opt {{unless this.dark_mode 'md-board-edit-view-style__opt--active'}}"
+                  aria-pressed={{if this.dark_mode "false" "true"}}
+                  {{action "set_dark_mode" false}}>
+                  {{t "Light" key="board_detail_light_short"}}
+                </button>
+                <button type="button"
+                  class="md-board-edit-view-style__opt {{if this.dark_mode 'md-board-edit-view-style__opt--active'}}"
+                  aria-pressed={{if this.dark_mode "true" "false"}}
+                  {{action "set_dark_mode" true}}>
+                  {{t "Dark" key="board_detail_dark_short"}}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        {{!-- Collapse/expand control at the very bottom of the panel.
-             Label hides when the panel is collapsed to a rail. --}}
-        <button type="button"
-          class="md-board-edit-panel__collapse-btn"
-          aria-expanded={{unless this.left_panel_collapsed "true" "false"}}
-          aria-label={{if this.left_panel_collapsed (t "Expand panel" key="expand_panel") (t "Collapse panel" key="collapse_panel")}}
-          {{action "toggle_left_panel"}}>
-          <svg class="md-board-edit-panel__collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="11 17 6 12 11 7"/>
-            <polyline points="18 17 13 12 18 7"/>
-          </svg>
-          <span class="md-board-edit-panel__collapse-label">{{t "Collapse Panel" key="collapse_panel"}}</span>
-        </button>
 
       </aside>
     {{/if}}
@@ -427,7 +446,7 @@
       {{else}}
       {{!-- Sentence Bar — id="speak" lets the scanner find this row as the
            speak target on board-detail (mirrors board-alt's #speak element). --}}
-      <div id="speak" class="md-board-detail-sentence-row">
+      <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}}">
       <button type="button" class="md-board-detail-home-btn" {{action "go_home"}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
         <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 12 12 3l9 9"/>
@@ -1257,6 +1276,79 @@
 
       {{!-- Saving indicator now lives above the header (top of page). --}}
 
+      {{#if this.edit_mode}}
+        {{!-- Speak Bar PREVIEW (edit mode only). The live #speak bar
+             is hidden by CSS while editing, so this non-interactive
+             copy sits above the board grid and lets the user see the
+             Speak Bar settings (size via sentence_bar_height_class,
+             words-only via utterance_show_symbols) applied live. It
+             shows the current utterance if any, else the board's
+             first five buttons (preview_sentence_parts). The
+             --preview modifier overrides the edit-mode display:none
+             that hides the real sentence row. --}}
+        <div class="md-board-detail-sentence-row md-board-detail-sentence-row--preview {{this.sentence_bar_height_class}}" aria-hidden="true">
+          <div class="md-board-detail-home-btn">
+            <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12 12 3l9 9"/>
+              <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
+            </svg>
+          </div>
+          <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Speak bar preview" key="board_detail_speak_bar_preview"}}>
+            <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}">
+              {{#if this.utterance_show_symbols}}
+                {{#each this.preview_sentence_parts as |part|}}
+                  <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
+                    {{#if this.utterance_text_on_top}}
+                      <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                    {{/if}}
+                    {{#if part.image_url}}
+                      <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
+                    {{/if}}
+                    {{#unless this.utterance_text_on_top}}
+                      <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
+                    {{/unless}}
+                  </span>
+                {{/each}}
+              {{else}}
+                {{this.preview_sentence_text}}
+              {{/if}}
+            </div>
+            <div class="md-board-detail-sentence-bar__actions">
+              <span class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </span>
+              <div class="md-board-detail-sentence-bar__tools">
+                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                    <line x1="18" y1="9" x2="12" y2="15"/>
+                    <line x1="12" y1="9" x2="18" y2="15"/>
+                  </svg>
+                </span>
+                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                  </svg>
+                </span>
+                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {{/if}}
+
       {{!-- Grid + Sidebar wrapper --}}
       <div class="md-board-detail-grid-sidebar-wrap">
 
@@ -1539,19 +1631,14 @@
             aria-expanded={{unless this.right_panel_collapsed "true" "false"}}
             aria-label={{if this.right_panel_collapsed (t "Expand panel" key="expand_panel") (t "Collapse panel" key="collapse_panel")}}
             {{action "toggle_right_panel"}}>
-            {{!-- Settings (cog) icon — replaces the chevron arrow.
-                 The collapse/expand affordance still works via the
-                 same toggle_right_panel action and aria-expanded
-                 binding; only the icon shape changed. --}}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              {{!-- Two-tone settings icon: verdigris inner pivot,
-                   charcoal outer gear ring — matches the right
-                   panel's section icons (e.g. Background, Paint
-                   Tool) which use the same teal-on-charcoal
-                   convention with stroke-width 1.5 for inline
-                   iconography. --}}
-              <circle cx="12" cy="12" r="3" stroke="#2A9D8F"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#46505F"/>
+            {{!-- Double-right chevron, mirroring the left panel's
+                 double-left collapse chevron. Points » when expanded
+                 (collapse outward to the right) and flips to « when
+                 collapsed (expand back) via the rotate rule in
+                 app.scss. Same toggle_right_panel action. --}}
+            <svg class="md-board-edit-right-panel__collapse-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="13 17 18 12 13 7"/>
+              <polyline points="6 17 11 12 6 7"/>
             </svg>
           </button>
           <h3 class="md-board-edit-right-panel__title">{{t "Live Preview Edit" key="live_preview_edit"}}</h3>
@@ -1878,18 +1965,6 @@
                         <polyline points="6 9 12 15 18 9"/>
                       </svg>
                     </button>
-                    {{!-- Brush button — toggles paint mode on/off
-                         using the same clear_paint_mode action. --}}
-                    <button type="button"
-                      class="md-board-edit-right-panel__brush {{if this.paint_mode 'md-board-edit-right-panel__brush--active'}}"
-                      data-tooltip={{if this.paint_mode (t "Exit paint mode" key="board_detail_exit_paint") (t "Paint mode" key="board_detail_paint_mode")}}
-                      aria-label={{if this.paint_mode (t "Exit paint mode" key="board_detail_exit_paint") (t "Paint mode" key="board_detail_paint_mode")}}
-                      {{action "clear_paint_mode"}}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M14 6 L18 10 L9 19 L4 20 L5 15 Z" stroke="#46505F"/>
-                        <path d="M14 6 L17 3 L21 7 L18 10" stroke="#2A9D8F"/>
-                      </svg>
-                    </button>
                   </div>
                   {{#if this.show_paint_dropdown}}
                     {{!-- Two-column pill grid + Custom Color row +
@@ -2213,8 +2288,8 @@
               </button>
               {{#if (is-equal this.right_panel_open_section 'background')}}
                 <div class="md-board-edit-right-panel__section-body">
-                  <div class="md-settings-sublabel-wrap" style="display: flex; flex-direction: column; align-items: center;">
-                    <span class="md-settings-sublabel" style="display: block; width: 100%; text-align: center; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.3;">{{t "Background Color for All Board Buttons" key="board_detail_settings_image_background_color_all"}}</span>
+                  <div class="md-settings-sublabel-wrap">
+                    <span class="md-settings-sublabel">{{t "Background Color" key="board_detail_settings_image_background_color_all_line1"}}<br />{{t "for All Board Buttons" key="board_detail_settings_image_background_color_all_line2"}}</span>
                     <div class="md-settings-dropdown-wrap">
                       <button type="button" class="md-settings-select md-settings-select--trigger md-settings-select--img-bg {{if this.display_prefs_symbol_background_dropdown_open 'md-settings-select--open'}}" aria-haspopup="listbox" aria-expanded={{if this.display_prefs_symbol_background_dropdown_open "true" "false"}} data-tooltip={{t "Background color behind symbol images" key="board_detail_prefs_image_background_tooltip"}} aria-label={{t "Background color behind symbol images" key="board_detail_prefs_image_background_tooltip"}} {{action "toggle_display_symbol_background_dropdown"}}>
                         <span class="md-settings-select__value">{{this.display_prefs_current_symbol_background_label}}</span>
@@ -2266,7 +2341,7 @@
               {{#if (is-equal this.right_panel_open_section 'board-layout')}}
                 <div class="md-board-edit-right-panel__section-body">
                   <div class="md-board-edit-right-panel__row-pair">
-                    <span class="md-board-edit-right-panel__row-pair-label">{{t "Grid Gap (Space between buttons)" key="grid_gap_with_hint"}}</span>
+                    <span class="md-board-edit-right-panel__row-pair-label md-board-edit-right-panel__row-pair-label--center">{{t "Grid Gap (Space between buttons)" key="grid_gap_with_hint"}}</span>
                     <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
                       <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_spacing_at_min}} data-tooltip={{t "Tighter" key="board_detail_settings_tighter"}} aria-label={{t "Tighter" key="board_detail_settings_tighter"}} {{action "step_display_pref" "button_spacing" -1}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
@@ -2657,6 +2732,24 @@
               </button>
             </div>
           </div>
+
+          {{!-- Back button — only while a section is open (the panel
+               is collapsed to that one section by the :has() rule).
+               Passing the currently-open id to toggle_right_panel_section
+               clears it, restoring the full section list. --}}
+          {{#if this.right_panel_open_section}}
+            <div class="md-board-edit-right-panel__divider" role="presentation"></div>
+            <button type="button"
+              class="md-board-edit-right-panel__back"
+              aria-label={{t "Expand panel" key="expand_panel"}}
+              {{action "expand_right_panel"}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="11 17 6 12 11 7"/>
+                <polyline points="18 17 13 12 18 7"/>
+              </svg>
+              <span class="md-board-edit-right-panel__back-label">{{t "Back" key="board_detail_back"}}</span>
+            </button>
+          {{/if}}
 
           <div class="md-board-edit-right-panel__divider" role="presentation"></div>
 

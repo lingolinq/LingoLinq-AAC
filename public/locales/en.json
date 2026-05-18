@@ -1255,6 +1255,8 @@
   "live_preview_edit": "Live Preview Edit",
   "expand_panel": "Expand panel",
   "collapse_panel": "Collapse panel",
+  "action_panel": "Action Panel",
+  "search_and_filter": "Search & Filter",
   "button_settings_caps": "Button Settings",
   "button_levels_intro_hint": "Levels let you start basic and gradually reveal vocabulary as a communicator grows.",
   "of_separator": "of",

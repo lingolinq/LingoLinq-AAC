@@ -1596,11 +1596,52 @@ export default Controller.extend(prefClasses, {
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
   }),
-  display_prefs_current_voice_height_label: computed('pending_display_prefs.vocalization_height', 'voice_height_options', function() {
-    var current = this.get('pending_display_prefs.vocalization_height') || 'medium';
+  display_prefs_current_voice_height_label: computed('current_display_prefs.vocalization_height', 'voice_height_options', function() {
+    // Read current_display_prefs (pending when More Settings is open,
+    // live otherwise) — the SAME source the dropdown's selected-state
+    // check uses — so the trigger label always matches the checked
+    // option. (Previously read only pending_display_prefs, which is
+    // empty in the Edit Tools rail context, so the label stuck.)
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
     var opts = this.get('voice_height_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Medium (100px)';
+  }),
+
+  // Speak Bar "Sentence Bar" size → live class on the speak row so
+  // the bar visibly resizes as the dropdown changes. Reads
+  // current_display_prefs (same source the dropdown's selected check
+  // uses) so it tracks the pending value when More Settings is open
+  // and the live value otherwise.
+  sentence_bar_height_class: computed('current_display_prefs.vocalization_height', function() {
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
+    return 'md-board-detail-sentence-bar--' + current;
+  }),
+
+  // Edit-mode Speak Bar PREVIEW content. The live #speak bar is
+  // hidden while editing, so this feeds a visible preview so Speak
+  // Bar settings can be seen. If the user has tapped anything into
+  // the speak bar, mirror that (sentence_parts); otherwise show the
+  // current board's first five real (non-empty) buttons as samples.
+  preview_sentence_parts: computed('sentence_parts.[]', 'ordered_buttons', function() {
+    var parts = this.get('sentence_parts');
+    if(parts && parts.length) { return parts; }
+    var rows = this.get('ordered_buttons') || [];
+    var out = [];
+    for(var i = 0; i < rows.length && out.length < 5; i++) {
+      var row = rows[i] || [];
+      for(var j = 0; j < row.length && out.length < 5; j++) {
+        var b = row[j];
+        if(b && !b.empty && (b.label || b.image_url)) {
+          out.push({ id: b.id, label: b.label || b.vocalization || '', image_url: b.image_url });
+        }
+      }
+    }
+    return out;
+  }),
+
+  preview_sentence_text: computed('preview_sentence_parts', function() {
+    return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
   }),
 
   // Map of pending-prefs key → user.preferences path
@@ -4618,6 +4659,15 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('right_panel_collapsed');
     },
 
+    // Fully expand the right panel: clear BOTH the rail-collapsed
+    // state and any open section, so the user lands back on the
+    // complete section list (used by the Back chevron — it expands
+    // the whole panel, not just the previously-open section).
+    expand_right_panel: function() {
+      this.set('right_panel_collapsed', false);
+      this.set('right_panel_open_section', null);
+    },
+
     toggle_left_panel: function() {
       this.toggleProperty('left_panel_collapsed');
     },
@@ -4971,6 +5021,11 @@ export default Controller.extend(prefClasses, {
     // button has a pre.hidden=true rule, it'll re-hide at the matching
     // preview level, but the in-edit-mode rendering shows it visible.
     reveal_all_hidden_buttons: function() {
+      // Reveal All is a one-shot batch action, not a paint stroke —
+      // disarm any active Hide/Reveal paint mode so those toggle
+      // buttons drop their active state (paint_mode_is_hide /
+      // paint_mode_is_show both read paint_mode).
+      this.send('clear_paint_mode');
       var count = 0;
       (this.get('ordered_buttons') || []).forEach(function(row) {
         (row || []).forEach(function(btn) {

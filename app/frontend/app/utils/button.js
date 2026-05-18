@@ -390,28 +390,36 @@ var Button = EmberObject.extend({
     function() {
       var res = "";
       if(this.get('board.display_level') && this.get('level_modifications')) {
-        if(this.get('board.display_level') == this.get('board.default_level')) {
-        } else {
-          var mods = this.get('level_modifications');
-          var level = this.get('board.display_level');
-          if(mods.override) {
-            for(var key in mods.override) {
-              this.set_val(key, mods.override[key]);
+        /* SCOPED ONE-BRANCH CHANGE: previously, when display_level ==
+           board.default_level this whole block was a no-op (the level
+           rules were skipped). That left the board in a stale state —
+           notably board-alt normal mode, which renders via fast_html
+           and so never applied the previously-set level on load. The
+           apply logic below is byte-for-byte the SAME code that always
+           ran for non-default levels; running it at the default level
+           too is idempotent for an already-authored board (it sets
+           each attribute to exactly the value that level dictates) and
+           corrects the stale case. No other behavior changes: override
+           still wins, then pre, then levels 1..display_level. */
+        var mods = this.get('level_modifications');
+        var level = this.get('board.display_level');
+        if(mods.override) {
+          for(var key in mods.override) {
+            this.set_val(key, mods.override[key]);
+          }
+        }
+        if(mods.pre) {
+          for(var key in mods.pre) {
+            if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
+              this.set_val(key, mods.pre[key]);
             }
           }
-          if(mods.pre) {
-            for(var key in mods.pre) {
+        }
+        for(var idx = 1; idx <= level; idx++) {
+          if(mods[idx]) {
+            for(var key in mods[idx]) {
               if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                this.set_val(key, mods.pre[key]);
-              }
-            }
-          }
-          for(var idx = 1; idx <= level; idx++) {
-            if(mods[idx]) {
-              for(var key in mods[idx]) {
-                if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                  this.set_val(key, mods[idx][key]);
-                }
+                this.set_val(key, mods[idx][key]);
               }
             }
           }

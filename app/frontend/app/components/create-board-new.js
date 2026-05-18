@@ -79,7 +79,6 @@ export default Component.extend({
     this.set('status', null);
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
-    this.set('prefs_open', false);
     this.set('labels_list_open', false);
     this.set('creating_for_someone_else', true);
     // Map of label.toLowerCase() -> { fill, border, type } populated as
@@ -366,8 +365,8 @@ export default Component.extend({
     { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
     { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
     { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
-    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
-    { id: 'gap',        label: i18n.t('board_detail_settings_gap', "Gap") }
+    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") }
+    /* Gap removed — Grid Gap lives in the Board Layout section. */
   ],
 
   preferred_symbols_options: [
@@ -485,6 +484,22 @@ export default Component.extend({
     return match ? match.label : 'Medium (100px)';
   }),
 
+  // Speak Bar — "Show on Speak Bar as…" (Symbol buttons vs Words only).
+  // Mirrors board-detail's `utterance_text_only_str`: exposes the
+  // boolean pref as a "true"/"false" string for the radio group's
+  // is-equal comparisons.
+  utterance_text_only_str: computed('appState.sessionUser.preferences.device.utterance_text_only', function() {
+    return this.appState.get('sessionUser.preferences.device.utterance_text_only') ? 'true' : 'false';
+  }),
+
+  // Preview hook: maps the chosen vocalization_height onto a class so
+  // the preview speak bar visibly grows/shrinks with the Sentence Bar
+  // dropdown (Tiny 50 / Small 70 / Medium 100 / Large 150 / Huge 200).
+  nb_preview_vocalization_class: computed('appState.sessionUser.preferences.device.vocalization_height', function() {
+    var current = this.appState.get('sessionUser.preferences.device.vocalization_height') || 'medium';
+    return 'nb-preview-sentence-bar--' + current;
+  }),
+
   // Skin compound-state checks (read directly from live preferences)
   skin_is_mix: computed('appState.sessionUser.preferences.skin', function() {
     var s = this.appState.get('sessionUser.preferences.skin') || '';
@@ -587,6 +602,14 @@ export default Component.extend({
    *  button until that has produced labels. */
   show_full_size_section: computed('ai_mode', 'ai_labels_generated', function() {
     return !this.get('ai_mode') || this.get('ai_labels_generated');
+  }),
+
+  /** "Generate Labels with AI" stays disabled until the user has
+   *  entered a board description (the AI prompt) and isn't already
+   *  mid-generation. */
+  ai_generate_disabled: computed('ai_generating', 'model.description', function() {
+    if(this.get('ai_generating')) { return true; }
+    return !(this.get('model.description') || '').trim().length;
   }),
 
   /** Live "what's missing" list for the Create button hint. Mirrors the
@@ -1632,9 +1655,6 @@ export default Component.extend({
     togglePreviewMode: function() {
       this.set('preview_mode', this.get('preview_mode') === 'dark' ? 'light' : 'dark');
     },
-    togglePrefs: function() {
-      this.toggleProperty('prefs_open');
-    },
     // Edit-rail accordion: clicking a section opens it (and closes any
     // other). Clicking the open one closes it. Drives the grid's
     // max-height expansion via the .nb-preview-stage--expanded class.
@@ -2183,6 +2203,19 @@ export default Component.extend({
     pick_display_voice_height: function(id) {
       this.send('set_display_pref', 'vocalization_height', id);
       this.set('display_prefs_voice_height_dropdown_open', false);
+    },
+    // Speak Bar — Symbol buttons vs Words only. Mirrors board-detail's
+    // `set_utterance_text_only`; persists the same way the other
+    // display prefs do here (set on sessionUser + save). Accepts the
+    // string "true"/"false" the radio group passes.
+    set_utterance_text_only: function(value) {
+      var bool = (value === 'true' || value === true);
+      var user = this.appState.get('sessionUser');
+      if(user && user.set) {
+        user.set('preferences.device.utterance_text_only', bool);
+        user.set('preferences.device.updated', true);
+        try { user.save(); } catch(e) { }
+      }
     },
 
     toggle_display_skin_dropdown: function() {
