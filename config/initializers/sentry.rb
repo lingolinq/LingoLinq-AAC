@@ -36,6 +36,33 @@ module CoppaSentryScrub
 
   module_function
 
+  # Top-level before_send hook. Drops ActiveSupport::Cache::* events
+  # (noise; see sentry-ruby#1765), then falls through to the COPPA
+  # scrubber for everything else. Set event.tags[:keep_cache_error] = true
+  # inside a Sentry.with_scope block to force a specific cache error
+  # through this filter (e.g. when actively debugging a cache outage).
+  def before_send_event(event, hint)
+    return nil if drop_cache_errors?(event)
+    call(event, hint)
+  end
+
+  def drop_cache_errors?(event)
+    return false unless event.respond_to?(:exception) && event.exception
+    return false if event.respond_to?(:tags) && event.tags && event.tags[:keep_cache_error] == true
+    first_exception_type(event).to_s.start_with?('ActiveSupport::Cache::')
+  end
+
+  # Sentry::Event#exception returns a Sentry::ExceptionInterface whose
+  # 'values' is an Array of Sentry::SingleExceptionInterface. We poke at
+  # the shape defensively so test doubles, partial events, or future SDK
+  # changes can't crash before_send.
+  def first_exception_type(event)
+    return nil unless event.exception.respond_to?(:values)
+    event.exception.values.first&.type
+  rescue StandardError
+    nil
+  end
+
   def call(event, _hint)
     return event unless event
     user = lookup_user(event_user(event))
@@ -222,7 +249,7 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     # plus the request-level fields Sentry-Rack auto-captures.
     config.send_default_pii = false
 
-    config.before_send = ->(event, hint) { CoppaSentryScrub.call(event, hint) }
+    config.before_send = ->(event, hint) { CoppaSentryScrub.before_send_event(event, hint) }
     config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
   end
 end
