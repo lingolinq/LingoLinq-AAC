@@ -229,6 +229,25 @@ module CoppaSentryScrub
   end
 end
 
+# Per-transaction sampling decision invoked by Sentry on every transaction
+# start. Extracted from the Sentry.init block so it can be unit-tested
+# without booting the SDK (Sentry.init only runs when SENTRY_DSN is set,
+# which is never the case in the test environment).
+module SentryTracesSampler
+  # Matches the no-value paths we never want to spend a trace budget on:
+  # health checks, the asset pipeline, and Prometheus-style /metrics.
+  IGNORED_TRANSACTION_PATTERN = %r{\A/(?:health|healthz|metrics)\z|\A/assets/}
+
+  module_function
+
+  def call(sampling_context)
+    name = sampling_context[:transaction_context]&.[](:name)
+    return 0.0 if name.is_a?(String) && name.match?(IGNORED_TRANSACTION_PATTERN)
+    return 1.0 if sampling_context[:parent_sampled]
+    nil
+  end
+end
+
 if ENV['SENTRY_DSN'].to_s.strip != ''
   Sentry.init do |config|
     config.dsn = ENV['SENTRY_DSN']
@@ -240,14 +259,11 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     config.send_default_pii = false
     config.send_modules = false
 
-    config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.1').to_f
+    config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.05').to_f
     config.profiles_sample_rate = (ENV['SENTRY_PROFILES_SAMPLE_RATE'] || '0.0').to_f
+    config.traces_sampler = SentryTracesSampler.method(:call)
 
     config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''
-
-    # Strip values for any field name that PiiScrubber identifies as PII,
-    # plus the request-level fields Sentry-Rack auto-captures.
-    config.send_default_pii = false
 
     config.before_send = ->(event, hint) { CoppaSentryScrub.before_send_event(event, hint) }
     config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
