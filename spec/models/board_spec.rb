@@ -2867,16 +2867,21 @@ describe Board, :type => :model do
       importer = User.create(user_name: 'importer')
       primary = User.create(user_name: 'primary')
       recipient = User.create(user_name: 'recipient')
+      User.link_supervisor_to_user(importer, primary, nil, true)
+      User.link_supervisor_to_user(importer, recipient, nil, true)
       root = Board.create(user: primary)
       child = Board.create(user: primary)
       boards = [root, child]
+
+      allow(User).to receive(:find_by_global_id).and_call_original
+      allow(User).to receive(:find_by_global_id).with(importer.global_id).and_return(importer)
+      allow(User).to receive(:find_all_by_global_id).and_call_original
+      allow(User).to receive(:find_all_by_global_id).with([primary.global_id, recipient.global_id]).and_return([primary, recipient])
 
       expect(Converters::Utils).to receive(:remote_to_boards).with(primary, 'http://www.example.com/board.obz').and_return(boards)
       new_root = Board.create(user: recipient)
       allow(root).to receive(:reload).and_return(root)
       expect(root).to receive(:copy_for).with(recipient, copier: importer).and_return(new_root)
-      allowed_gids = [primary.global_id, recipient.global_id]
-      allow(importer).to receive(:edit_permission_for?) { |user| allowed_gids.include?(user.global_id) }
 
       expect(Board).to receive(:copy_board_links_for).with(
         recipient,
