@@ -468,6 +468,8 @@ describe 'config/initializers/sentry.rb' do
         config.dsn = ENV['SENTRY_DSN']
         config.enabled_environments = %w[test]
         config.environment = 'test'
+        config.background_worker_threads = 0 # before_send must run before assertions
+        config.transport.transport_class = Sentry::DummyTransport
         SentryInitializer.configure!(config)
       end
       example.run
