@@ -621,7 +621,7 @@ class Board < ActiveRecord::Base
     end
   end
   
-  # Imports OBF/OJZ from remote +url+. When +extra+ includes +recipient_global_ids+,
+  # Imports OBF/OBZ from remote +url+. When +extra+ includes +recipient_global_ids+,
   # converts once for the first recipient (same order preserved by the caller), then
   # clones the full bundle to each subsequent user via BoardSetCopier semantics.
   def self.import(importer_global_id, url, extra = {})
