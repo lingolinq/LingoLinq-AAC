@@ -2863,6 +2863,29 @@ describe Board, :type => :model do
       expect(b2.reload.settings['copy_id']).to eq(b.global_id)
     end
 
+    it "duplicates the imported set for additional authorized users" do
+      importer = User.create(user_name: 'importer')
+      primary = User.create(user_name: 'primary')
+      recipient = User.create(user_name: 'recipient')
+      root = Board.create(user: primary)
+      child = Board.create(user: primary)
+      boards = [root, child]
+
+      expect(Converters::Utils).to receive(:remote_to_boards).with(primary, 'http://www.example.com/board.obz').and_return(boards)
+      new_root = Board.create(user: recipient)
+      allow(root).to receive(:reload).and_return(root)
+      expect(root).to receive(:copy_for).with(recipient, copier: importer).and_return(new_root)
+      allow(importer).to receive(:edit_permission_for?).with(primary).and_return(true)
+      allow(importer).to receive(:edit_permission_for?).with(recipient).and_return(true)
+
+      expect(Board).to receive(:copy_board_links_for).with(
+        recipient,
+        hash_including(starting_old_board: root, starting_new_board: new_root, copier: importer, authorized_user: recipient)
+      ).and_return({})
+
+      Board.import(importer.global_id, 'http://www.example.com/board.obz', {'recipient_global_ids' => [primary.global_id, recipient.global_id]})
+    end
+
     it "should return error hash for protected boards" do
       u = User.create
       b = Board.create(:user => u)

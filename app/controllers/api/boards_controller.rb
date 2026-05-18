@@ -732,7 +732,12 @@ class Api::BoardsController < ApplicationController
   
   def import
     if params['url']
-      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'], for_user: @api_user)
+      extra = {}
+      raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')
+      if raw.present?
+        extra['recipient_global_ids'] = raw.is_a?(Array) ? raw : raw.to_s.split(/,/).map(&:strip).reject(&:blank?)
+      end
+      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'], extra, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       type = (params['type'] == 'obz' ? 'obz' : 'obf')

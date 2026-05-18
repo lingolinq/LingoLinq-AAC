@@ -54,8 +54,11 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  has_board_history: computed('board_detail_history.[]', function() {
-    return (this.get('board_detail_history') || []).length > 0;
+  /** Speak bar + header back control: session folder trail and/or DB parent board. */
+  show_board_back_nav: computed('board_detail_history.[]', 'model.parent_board_key', function() {
+    if((this.get('board_detail_history') || []).length > 0) { return true; }
+    var pk = this.get('model.parent_board_key');
+    return !!(pk && String(pk).indexOf('/') !== -1);
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -3459,9 +3462,24 @@ export default Controller.extend(prefClasses, {
     go_back: function() {
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
-      if(!prev) { return; }
-      this.set('app_state.board_detail_nav_history', history);
-      this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+      if(prev) {
+        this.set('app_state.board_detail_nav_history', history);
+        this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+        return;
+      }
+      // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
+      var parentKey = this.get('model.parent_board_key');
+      if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
+      if(this.get('stashes').get('sticky_board')) {
+        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        return;
+      }
+      var _this = this;
+      this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var parts = preferred_key.split('/');
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      });
     },
 
     go_home: function() {
