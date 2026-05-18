@@ -6,10 +6,11 @@ require 'spec_helper'
 # request body, sensitive headers, or PII-bearing URLs leave the box.
 describe CoppaSentryScrub do
   # Stand-in for Sentry::Event. Reproduces the surface the scrubber
-  # touches: user, request, contexts. No network, no Sentry boot.
-  Event = Struct.new(:user, :request, :contexts) do
-    def initialize(user: nil, request: nil, contexts: nil)
-      super(user, request, contexts)
+  # touches: user, request, contexts, exception, tags. No network,
+  # no Sentry boot.
+  Event = Struct.new(:user, :request, :contexts, :exception, :tags) do
+    def initialize(user: nil, request: nil, contexts: nil, exception: nil, tags: nil)
+      super(user, request, contexts, exception, tags)
     end
   end
 
@@ -145,6 +146,81 @@ describe CoppaSentryScrub do
     end
   end
 
+  # before_send_event is the top-level Sentry before_send hook. It drops
+  # ActiveSupport::Cache::* events (sentry-ruby#1765) then delegates to
+  # #call. Tested via the Event stand-in so no SDK boot is required.
+  describe '#before_send_event' do
+    def cache_exception(type = 'ActiveSupport::Cache::FetchError')
+      values = [double('SingleException', type: type)]
+      double('Exception', values: values)
+    end
+
+    it 'drops ActiveSupport::Cache::* errors by returning nil' do
+      event = Event.new(exception: cache_exception)
+      expect(described_class.before_send_event(event, nil)).to be_nil
+    end
+
+    it 'lets the event through when keep_cache_error tag is true' do
+      event = Event.new(
+        user: { id: 99 },
+        exception: cache_exception,
+        tags: { keep_cache_error: true }
+      )
+      result = described_class.before_send_event(event, nil)
+      expect(result).to be(event)
+    end
+
+    it 'falls through to #call for non-cache exceptions' do
+      runtime_exc = double('Exception', values: [double('SingleException', type: 'RuntimeError')])
+      event = Event.new(user: { id: 99 }, request: Request.new(data: 'sensitive'), exception: runtime_exc)
+      result = described_class.before_send_event(event, nil)
+      expect(result).to be(event)
+      expect(event.request.data).to eq('sensitive')
+    end
+
+    it 'falls through to #call when no exception is attached (message event)' do
+      event = Event.new(user: { id: 99 }, request: Request.new(data: 'sensitive'), exception: nil)
+      result = described_class.before_send_event(event, nil)
+      expect(result).to be(event)
+    end
+  end
+
+  describe '#drop_cache_errors?' do
+    def event_with_exception_type(type)
+      Event.new(exception: double('Exception', values: [double('SingleException', type: type)]))
+    end
+
+    it 'returns true for ActiveSupport::Cache::FetchError' do
+      expect(described_class.drop_cache_errors?(event_with_exception_type('ActiveSupport::Cache::FetchError'))).to eq(true)
+    end
+
+    it 'returns true for any ActiveSupport::Cache::* subclass' do
+      expect(described_class.drop_cache_errors?(event_with_exception_type('ActiveSupport::Cache::WriteError'))).to eq(true)
+    end
+
+    it 'returns false for non-cache exceptions' do
+      expect(described_class.drop_cache_errors?(event_with_exception_type('RuntimeError'))).to eq(false)
+    end
+
+    it 'returns false when keep_cache_error tag is true' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { keep_cache_error: true }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
+    it 'returns false when event has no exception (message event)' do
+      expect(described_class.drop_cache_errors?(Event.new(exception: nil))).to eq(false)
+    end
+
+    it 'never raises on an unexpected exception shape' do
+      bad_event = Event.new(exception: Object.new)
+      expect { described_class.drop_cache_errors?(bad_event) }.not_to raise_error
+      expect(described_class.drop_cache_errors?(bad_event)).to eq(false)
+    end
+  end
+
   describe '#redact_url' do
     it 'strips query string and global id substrings' do
       url = 'https://example.com/api/v1/users/42_999_xyz?auth=token'
@@ -201,6 +277,53 @@ describe CoppaSentryScrub do
     it 'never raises when breadcrumb shape is unexpected' do
       bc = Breadcrumb.new(data: 'not_a_hash', message: nil)
       expect { described_class.scrub_breadcrumb(bc) }.not_to raise_error
+    end
+  end
+end
+
+describe SentryTracesSampler do
+  describe '.call' do
+    it 'returns 0.0 for /health' do
+      expect(described_class.call(transaction_context: { name: '/health' })).to eq(0.0)
+    end
+
+    it 'returns 0.0 for /healthz' do
+      expect(described_class.call(transaction_context: { name: '/healthz' })).to eq(0.0)
+    end
+
+    it 'returns 0.0 for /metrics' do
+      expect(described_class.call(transaction_context: { name: '/metrics' })).to eq(0.0)
+    end
+
+    it 'returns 0.0 for any /assets/* path' do
+      expect(described_class.call(transaction_context: { name: '/assets/application-abc123.js' })).to eq(0.0)
+    end
+
+    it 'does not match /healthy or /health-check (only the exact endpoints)' do
+      expect(described_class.call(transaction_context: { name: '/healthy' })).to be_nil
+      expect(described_class.call(transaction_context: { name: '/health-check' })).to be_nil
+    end
+
+    it 'does not match /things/assets (the anchor is at the start of the path)' do
+      expect(described_class.call(transaction_context: { name: '/things/assets/foo.png' })).to be_nil
+    end
+
+    it 'returns 1.0 when parent_sampled is true (force-keep distributed trace)' do
+      ctx = { transaction_context: { name: '/api/v1/things' }, parent_sampled: true }
+      expect(described_class.call(ctx)).to eq(1.0)
+    end
+
+    it 'parent_sampled does NOT rescue an ignored transaction' do
+      ctx = { transaction_context: { name: '/health' }, parent_sampled: true }
+      expect(described_class.call(ctx)).to eq(0.0)
+    end
+
+    it 'returns nil for any other transaction (falls through to traces_sample_rate)' do
+      expect(described_class.call(transaction_context: { name: '/api/v1/boards' })).to be_nil
+    end
+
+    it 'returns nil when transaction_context is missing' do
+      expect(described_class.call({})).to be_nil
     end
   end
 end
