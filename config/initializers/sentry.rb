@@ -36,11 +36,21 @@ module CoppaSentryScrub
 
   module_function
 
+  def stash_request_user(user)
+    return unless user
+    return unless defined?(RequestStore)
+    RequestStore.store[REQUEST_STORE_KEY] = user
+  rescue StandardError
+    nil
+  end
+
   # Top-level before_send hook. Drops ActiveSupport::Cache::* events
   # (noise; see sentry-ruby#1765), then falls through to the COPPA
-  # scrubber for everything else. Set event.tags[:keep_cache_error] = true
-  # inside a Sentry.with_scope block to force a specific cache error
-  # through this filter (e.g. when actively debugging a cache outage).
+  # scrubber for everything else. Set keep_cache_error: true on the
+  # active Sentry scope (Sentry.with_scope { |scope| scope.set_tags(keep_cache_error: true) })
+  # to force a specific cache error through this filter (e.g. when actively
+  # debugging a cache outage). Scope tags are merged into event.tags before
+  # before_send runs.
   def before_send_event(event, hint)
     return nil if drop_cache_errors?(event)
     call(event, hint)
@@ -48,8 +58,14 @@ module CoppaSentryScrub
 
   def drop_cache_errors?(event)
     return false unless event.respond_to?(:exception) && event.exception
-    return false if event.respond_to?(:tags) && event.tags && event.tags[:keep_cache_error] == true
+    return false if keep_cache_error_tag?(event)
     first_exception_type(event).to_s.start_with?('ActiveSupport::Cache::')
+  end
+
+  def keep_cache_error_tag?(event)
+    return false unless event.respond_to?(:tags) && event.tags
+    tags = event.tags
+    tags[:keep_cache_error] == true || tags['keep_cache_error'] == true
   end
 
   # Sentry::Event#exception returns a Sentry::ExceptionInterface whose
@@ -169,8 +185,8 @@ module CoppaSentryScrub
   end
 
   # Scrub breadcrumbs for ALL users, regardless of COPPA status. Targets the
-  # outbound HTTP breadcrumbs Sentry-Rails auto-captures (active_support_logger,
-  # http_logger), where URLs frequently carry access_token, reset_token, etc.
+  # outbound HTTP breadcrumbs Sentry-Rails auto-captures via http_logger, where
+  # URLs frequently carry access_token, reset_token, etc.
   # This complements (does NOT replace) the COPPA branch in #call which fully
   # nukes the event for under-13 users.
   def scrub_breadcrumb(breadcrumb)
@@ -245,19 +261,26 @@ module SentryTracesSampler
   module_function
 
   def call(sampling_context)
-    name = sampling_context[:transaction_context]&.[](:name)
-    return 0.0 if name.is_a?(String) && name.match?(IGNORED_TRANSACTION_PATTERN)
+    return 0.0 if ignored_transaction?(sampling_context)
     return 1.0 if sampling_context[:parent_sampled]
     nil
   end
+
+  def ignored_transaction?(sampling_context)
+    transaction_name = sampling_context[:transaction_context]&.[](:name)
+    path_info = sampling_context.dig(:env, 'PATH_INFO')
+    [transaction_name, path_info].compact.any? do |path|
+      path.is_a?(String) && path.match?(IGNORED_TRANSACTION_PATTERN)
+    end
+  end
 end
 
-if ENV['SENTRY_DSN'].to_s.strip != ''
-  Sentry.init do |config|
-    config.dsn = ENV['SENTRY_DSN']
-    config.environment = ENV['SENTRY_ENVIRONMENT'] || ENV['RAILS_ENV'] || Rails.env
-    config.enabled_environments = %w[production staging]
+# Shared Sentry.init hook wiring. Extracted so specs can assert the Proc
+# contract without booting the SDK against a live DSN.
+module SentryInitializer
+  module_function
 
+  def configure!(config)
     config.breadcrumbs_logger = %i[http_logger]
     config.send_default_pii = false
     config.send_modules = false
@@ -270,9 +293,17 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     # silently ignored and the sampler effectively becomes a no-op.
     config.traces_sampler = ->(ctx) { SentryTracesSampler.call(ctx) }
 
-    config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''
-
     config.before_send = ->(event, hint) { CoppaSentryScrub.before_send_event(event, hint) }
     config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
+  end
+end
+
+if ENV['SENTRY_DSN'].to_s.strip != ''
+  Sentry.init do |config|
+    config.dsn = ENV['SENTRY_DSN']
+    config.environment = ENV['SENTRY_ENVIRONMENT'] || ENV['RAILS_ENV'] || Rails.env
+    config.enabled_environments = %w[production staging]
+    config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''
+    SentryInitializer.configure!(config)
   end
 end

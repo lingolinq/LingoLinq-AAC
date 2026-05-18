@@ -36,6 +36,18 @@ describe CoppaSentryScrub do
 
   after { RequestStore.clear! }
 
+  describe '#stash_request_user' do
+    it 'stores the user in RequestStore for the current request' do
+      described_class.stash_request_user(child_user_record)
+      expect(RequestStore.store[described_class::REQUEST_STORE_KEY]).to eq(child_user_record)
+    end
+
+    it 'ignores nil users' do
+      described_class.stash_request_user(nil)
+      expect(RequestStore.store[described_class::REQUEST_STORE_KEY]).to be_nil
+    end
+  end
+
   describe '#call' do
     it 'returns the event unchanged when user is nil' do
       event = Event.new(user: nil, request: Request.new(data: 'sensitive'))
@@ -170,6 +182,16 @@ describe CoppaSentryScrub do
       expect(result).to be(event)
     end
 
+    it 'lets the event through when keep_cache_error uses a string tag key' do
+      event = Event.new(
+        user: { id: 99 },
+        exception: cache_exception,
+        tags: { 'keep_cache_error' => true }
+      )
+      result = described_class.before_send_event(event, nil)
+      expect(result).to be(event)
+    end
+
     it 'falls through to #call for non-cache exceptions' do
       runtime_exc = double('Exception', values: [double('SingleException', type: 'RuntimeError')])
       event = Event.new(user: { id: 99 }, request: Request.new(data: 'sensitive'), exception: runtime_exc)
@@ -206,6 +228,14 @@ describe CoppaSentryScrub do
       event = Event.new(
         exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
         tags: { keep_cache_error: true }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
+    it 'returns false when keep_cache_error uses a string tag key' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { 'keep_cache_error' => true }
       )
       expect(described_class.drop_cache_errors?(event)).to eq(false)
     end
@@ -291,6 +321,11 @@ describe SentryTracesSampler do
       expect(described_class.call(transaction_context: { name: '/assets/application-abc123.js' })).to eq(0.0)
     end
 
+    it 'returns 0.0 when only rack PATH_INFO matches an ignored path' do
+      expect(described_class.call(env: { 'PATH_INFO' => '/api/v1/health' })).to eq(0.0)
+      expect(described_class.call(env: { 'PATH_INFO' => '/assets/application.js' })).to eq(0.0)
+    end
+
     it 'does NOT match aspirational endpoints that do not exist in routes.rb' do
       # Sanity: /health, /healthz, /metrics are NOT defined in this app.
       # If a future route adds them, extend IGNORED_TRANSACTION_PATTERN
@@ -343,10 +378,63 @@ describe SentryTracesSampler do
   end
 end
 
+describe SentryInitializer do
+  describe '.configure!' do
+    it 'assigns a Proc to traces_sampler' do
+      config = Sentry::Configuration.new
+      described_class.configure!(config)
+      expect(config.traces_sampler).to be_a(Proc)
+    end
+
+    it 'wires before_send and before_breadcrumb hooks' do
+      config = Sentry::Configuration.new
+      described_class.configure!(config)
+      expect(config.before_send).to be_a(Proc)
+      expect(config.before_breadcrumb).to be_a(Proc)
+    end
+  end
+end
+
 describe 'config/initializers/sentry.rb' do
   it 'does not boot Sentry when SENTRY_DSN is blank' do
     # The initializer is gated on ENV['SENTRY_DSN']. In the test env we boot
     # without a DSN, so Sentry should remain uninitialized.
     expect(Sentry.initialized?).to eq(false)
+  end
+
+  describe 'keep_cache_error scope integration' do
+    around do |example|
+      original_dsn = ENV['SENTRY_DSN']
+      ENV['SENTRY_DSN'] = 'https://examplePublicKey@o0.ingest.sentry.io/0'
+      Sentry.init do |config|
+        config.dsn = ENV['SENTRY_DSN']
+        config.enabled_environments = %w[test]
+        config.environment = 'test'
+        SentryInitializer.configure!(config)
+      end
+      example.run
+    ensure
+      Sentry.close if Sentry.initialized?
+      if original_dsn.nil?
+        ENV.delete('SENTRY_DSN')
+      else
+        ENV['SENTRY_DSN'] = original_dsn
+      end
+    end
+
+    it 'passes cache errors through when keep_cache_error is set on the active scope' do
+      sent_event = nil
+      Sentry.configuration.before_send = lambda do |event, hint|
+        sent_event = CoppaSentryScrub.before_send_event(event, hint)
+      end
+
+      Sentry.with_scope do |scope|
+        scope.set_tags(keep_cache_error: true)
+        Sentry.capture_exception(ActiveSupport::Cache::FetchError.new('cache miss'))
+      end
+
+      expect(sent_event).not_to be_nil
+      expect(sent_event.tags[:keep_cache_error] || sent_event.tags['keep_cache_error']).to eq(true)
+    end
   end
 end
