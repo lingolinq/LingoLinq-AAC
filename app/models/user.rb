@@ -452,17 +452,19 @@ class User < ActiveRecord::Base
   # committed. The pessimistic lock also serializes concurrent grant/revoke
   # against the same user. D-04 / D-05.
   #
-  # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES)
-  # and `self_grant_forbidden` (granted_by_user_id == self.global_id). These are
-  # stable machine tokens, not English prose - Phase 3 owns user-facing copy.
+  # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES),
+  # `invalid_granted_by_user_id` (malformed granted_by_user_id), and
+  # `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
+  # are stable machine tokens, not English prose - Phase 3 owns user-facing copy.
   #
-  # `granted_by_user_id:` is a GLOBAL_ID (the sharding-ready string like "1_42"),
-  # not the bare numeric database id. The self-grant check compares against
-  # `self.global_id`, so passing a numeric id would silently bypass the guard.
-  # Phase 3 controllers MUST pass user.global_id.
+  # `granted_by_user_id:` must be a global_id ("1_42") or bare numeric db id;
+  # bare ids are normalized to global_id form before the self-grant check.
   def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
     raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
-    raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id.present? && granted_by_user_id == self.global_id
+    if granted_by_user_id.present?
+      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
+      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    end
 
     res = false
     prior_disclosures_version = nil
@@ -486,6 +488,7 @@ class User < ActiveRecord::Base
         next if disclosures_version < c['disclosures_version']
         prior_disclosures_version = c['disclosures_version']
       end
+      # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
       c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
       c['granted_at'] = Time.now.utc.iso8601
       c['granted_by'] = granted_by
@@ -556,6 +559,19 @@ class User < ActiveRecord::Base
       res = true
     end
     res
+  end
+
+  # Coerces granted_by_user_id to shard-prefixed global_id ("1_42") so the
+  # self-grant guard cannot be bypassed with a bare ActiveRecord id.
+  def normalize_ai_consent_granted_by_user_id!(raw)
+    str = raw.to_s.strip
+    if str.match?(/\A\d+_\d+/)
+      str
+    elsif str.match?(/\A\d+\z/)
+      related_global_id(str.to_i)
+    else
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    end
   end
 
   def anonymized_identifier(str=nil)

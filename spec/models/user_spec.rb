@@ -3759,8 +3759,9 @@ describe User, :type => :model do
   end
 
   describe '#ai_consent_granted?' do
-    it 'returns false for a freshly-created user with no settings hash' do
+    it 'returns false for a newly created user with no ai_consent grant' do
       u = User.create
+      expect(u.settings).to be_a(Hash)
       expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
     end
 
@@ -3992,6 +3993,47 @@ describe User, :type => :model do
       }.to raise_error(ArgumentError, 'self_grant_forbidden')
       u.reload
       expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id (no self-grant bypass)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is not a global_id or numeric db id' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: 'not-a-valid-id'
+        )
+      }.to raise_error(ArgumentError, 'invalid_granted_by_user_id')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'normalizes a bare numeric granted_by_user_id to global_id form in settings' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent',
+        source: 'in_app',
+        granted_by_user_id: granter.id
+      )
+      u.reload
+      expect(u.settings['ai_consent']['granted_by_user_id']).to eq(granter.global_id)
     end
 
     it 'allows a different user as granted_by_user_id' do
