@@ -209,6 +209,7 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     config.enabled_environments = %w[production staging]
 
     config.breadcrumbs_logger = %i[active_support_logger http_logger]
+    config.rails.skippable_job_adapters = ['ActiveJob::QueueAdapters::ResqueAdapter']
     config.send_default_pii = false
     config.send_modules = false
 

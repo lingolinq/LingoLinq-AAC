@@ -68,6 +68,7 @@ gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
 gem 'sentry-ruby'
 gem 'sentry-rails'
+gem 'sentry-resque', '~> 6.5'
 gem 'stripe'
 # Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
 gem 'rack', '>= 3.0'
