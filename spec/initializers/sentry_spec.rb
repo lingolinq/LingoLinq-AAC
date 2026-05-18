@@ -283,25 +283,26 @@ end
 
 describe SentryTracesSampler do
   describe '.call' do
-    it 'returns 0.0 for /health' do
-      expect(described_class.call(transaction_context: { name: '/health' })).to eq(0.0)
-    end
-
-    it 'returns 0.0 for /healthz' do
-      expect(described_class.call(transaction_context: { name: '/healthz' })).to eq(0.0)
-    end
-
-    it 'returns 0.0 for /metrics' do
-      expect(described_class.call(transaction_context: { name: '/metrics' })).to eq(0.0)
+    it 'returns 0.0 for /api/v1/health (Render health probe)' do
+      expect(described_class.call(transaction_context: { name: '/api/v1/health' })).to eq(0.0)
     end
 
     it 'returns 0.0 for any /assets/* path' do
       expect(described_class.call(transaction_context: { name: '/assets/application-abc123.js' })).to eq(0.0)
     end
 
-    it 'does not match /healthy or /health-check (only the exact endpoints)' do
-      expect(described_class.call(transaction_context: { name: '/healthy' })).to be_nil
-      expect(described_class.call(transaction_context: { name: '/health-check' })).to be_nil
+    it 'does NOT match aspirational endpoints that do not exist in routes.rb' do
+      # Sanity: /health, /healthz, /metrics are NOT defined in this app.
+      # If a future route adds them, extend IGNORED_TRANSACTION_PATTERN
+      # rather than relying on Sentry-side scrubbers.
+      expect(described_class.call(transaction_context: { name: '/health' })).to be_nil
+      expect(described_class.call(transaction_context: { name: '/healthz' })).to be_nil
+      expect(described_class.call(transaction_context: { name: '/metrics' })).to be_nil
+    end
+
+    it 'does not match /api/v1/health-check or /api/v1/healthy (anchored)' do
+      expect(described_class.call(transaction_context: { name: '/api/v1/health-check' })).to be_nil
+      expect(described_class.call(transaction_context: { name: '/api/v1/healthy' })).to be_nil
     end
 
     it 'does not match /things/assets (the anchor is at the start of the path)' do
@@ -314,7 +315,7 @@ describe SentryTracesSampler do
     end
 
     it 'parent_sampled does NOT rescue an ignored transaction' do
-      ctx = { transaction_context: { name: '/health' }, parent_sampled: true }
+      ctx = { transaction_context: { name: '/api/v1/health' }, parent_sampled: true }
       expect(described_class.call(ctx)).to eq(0.0)
     end
 
@@ -324,6 +325,20 @@ describe SentryTracesSampler do
 
     it 'returns nil when transaction_context is missing' do
       expect(described_class.call({})).to be_nil
+    end
+  end
+
+  # Regression guard: sentry-ruby 6.5 checks `traces_sampler.is_a?(Proc)`
+  # (lib/sentry/transaction.rb:144) and silently no-ops anything that isn't
+  # a Proc. A Method object returns false to is_a?(Proc) and is therefore
+  # ignored. This spec catches an accidental refactor like
+  # `SentryTracesSampler.method(:call)`.
+  describe 'wiring contract' do
+    it 'must be wrapped in a Proc-compatible object (not a Method)' do
+      proc_form = ->(ctx) { described_class.call(ctx) }
+      method_form = described_class.method(:call)
+      expect(proc_form.is_a?(Proc)).to eq(true)
+      expect(method_form.is_a?(Proc)).to eq(false)
     end
   end
 end

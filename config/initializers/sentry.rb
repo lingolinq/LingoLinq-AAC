@@ -234,9 +234,13 @@ end
 # without booting the SDK (Sentry.init only runs when SENTRY_DSN is set,
 # which is never the case in the test environment).
 module SentryTracesSampler
-  # Matches the no-value paths we never want to spend a trace budget on:
-  # health checks, the asset pipeline, and Prometheus-style /metrics.
-  IGNORED_TRANSACTION_PATTERN = %r{\A/(?:health|healthz|metrics)\z|\A/assets/}
+  # Matches the no-value paths we never want to spend a trace budget on.
+  # The only health endpoint defined in routes.rb is /api/v1/health
+  # (session#health), and Render hits it on every probe. Anchor at \A/\z
+  # so partial matches like /api/v1/health-check do not fall under the drop.
+  # /assets/ is anchored at the start only because the asset pipeline emits
+  # arbitrary suffixes.
+  IGNORED_TRANSACTION_PATTERN = %r{\A/api/v1/health\z|\A/assets/}
 
   module_function
 
@@ -260,7 +264,11 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
 
     config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.05').to_f
     config.profiles_sample_rate = (ENV['SENTRY_PROFILES_SAMPLE_RATE'] || '0.0').to_f
-    config.traces_sampler = SentryTracesSampler.method(:call)
+    # MUST be a Proc, not a Method. sentry-ruby 6.5 checks
+    # `traces_sampler.is_a?(Proc)` (lib/sentry/transaction.rb:144) before
+    # calling, and Method#is_a?(Proc) is false, so a `Method` object is
+    # silently ignored and the sampler effectively becomes a no-op.
+    config.traces_sampler = ->(ctx) { SentryTracesSampler.call(ctx) }
 
     config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''
 
