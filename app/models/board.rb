@@ -621,13 +621,47 @@ class Board < ActiveRecord::Base
     end
   end
   
-  def self.import(user_id, url)
+  # Imports OBF/OBZ from remote +url+. When +extra+ includes +recipient_global_ids+,
+  # converts once for the first recipient (same order preserved by the caller), then
+  # clones the full bundle to each subsequent user via BoardSetCopier semantics.
+  def self.import(importer_global_id, url, extra = {})
+    importer = User.find_by_global_id(importer_global_id)
+    raise Progress::ProgressError, "invalid importer account" unless importer
+
+    recipient_ids_raw = []
+    extra = {} if extra.nil?
+    extra = extra.with_indifferent_access
+    if extra[:recipient_global_ids].present?
+      recipient_ids_raw = Array(extra[:recipient_global_ids]).flatten.map(&:presence).compact
+    end
+
+    by_gid = User.find_all_by_global_id(recipient_ids_raw).index_by(&:global_id)
+    recipient_users = recipient_ids_raw.filter_map { |gid| by_gid[gid] }
+    if recipient_users.empty?
+      recipient_users = [importer]
+    end
+
+    recipient_users.each do |u|
+      next if u.global_id == importer.global_id
+      unless importer.edit_permission_for?(u)
+        raise Progress::ProgressError, "not authorized to import boards for #{u.user_name}"
+      end
+    end
+
+    primary = recipient_users[0]
+    dup_targets = recipient_users[1..] || []
+
     boards = []
-    user = User.find_by_global_id(user_id)
     Progress.update_current_progress(0.05, :generating_boards)
     begin
-      Progress.as_percent(0.05, 0.9) do
-        boards = Converters::Utils.remote_to_boards(user, url)
+      if dup_targets.any?
+        Progress.as_percent(0.05, 0.45) do
+          boards = Converters::Utils.remote_to_boards(primary, url)
+        end
+      else
+        Progress.as_percent(0.05, 0.9) do
+          boards = Converters::Utils.remote_to_boards(primary, url)
+        end
       end
     rescue => e
       if e.message.match(/protected boards/)
@@ -640,7 +674,26 @@ class Board < ActiveRecord::Base
       board.settings['copy_id'] = boards[0].global_id
       board.save
     end
-    return boards.map{|b| JsonApi::Board.as_json(b, :permissions => user) }
+
+    if dup_targets.any?
+      root_old = boards[0].reload
+      dup_targets.each_with_index do |target_user, idx|
+        span = 0.45 / dup_targets.length.to_f
+        start_p = 0.45 + (idx * span)
+        end_p = 0.45 + ((idx + 1) * span)
+        Progress.as_percent(start_p, end_p) do
+          new_root = root_old.copy_for(target_user, copier: importer)
+          Board.copy_board_links_for(target_user,
+            starting_old_board: root_old,
+            starting_new_board: new_root,
+            authorized_user: importer,
+            copier: importer
+          )
+        end
+      end
+    end
+
+    boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
   end
   
   def generate_download(user_id, type, opts)

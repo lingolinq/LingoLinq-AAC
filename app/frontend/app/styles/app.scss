@@ -43728,7 +43728,7 @@ a.md-goal-nav-action:hover,
 }
 /* Compact Description: one line tall by default, auto-grows with
    content via field-sizing where supported (Chrome 123+/Edge 123+);
-   the @rows="1" attr on the Textarea handles older browsers, and
+   the rows="1" attr on the Textarea handles older browsers, and
    users can drag-resize taller via the corner handle.
    Scoped under both containers with !important because
    .new-board--modern textarea.form-control locks min-height:80px
@@ -51846,7 +51846,7 @@ a.md-goal-nav-action:hover,
 
 /* ────────────────────────────────────────────────────────
    Create Board (preview) page  (/create-board-new)
-   The route sets `hide_header` on the application controller, which adds
+   The route sets `hide_header_force` on the application controller, which makes
    .header--hidden and zeroes --topbar-height — that collapses the global
    navbar entirely (display: none). All we add here is the full-bleed
    shell + zeroed #content padding so the page can fill the viewport.

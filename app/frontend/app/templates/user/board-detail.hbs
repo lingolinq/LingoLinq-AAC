@@ -361,7 +361,7 @@
         </svg>
       </button>
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
-        {{#if this.has_board_history}}
+        {{#if this.show_board_back_nav}}
           <button type="button" class="md-board-detail-sentence-bar__back-btn" {{action "go_back"}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="15 18 9 12 15 6" stroke="#0F172A"/>
@@ -791,7 +791,7 @@
           <div class="md-board-detail-header__title-group">
             {{#unless this.edit_mode}}
               <div class="md-board-detail-nav-btns">
-                {{#if this.has_board_history}}
+                {{#if this.show_board_back_nav}}
                   <button type="button"
                     class="md-board-detail-nav-btn"
                     title={{t "Go back" key="board_detail_go_back"}}
