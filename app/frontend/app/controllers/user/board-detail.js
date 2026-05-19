@@ -692,7 +692,6 @@ export default Controller.extend(prefClasses, {
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
-      display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
       border_color: (btn.background_color && window.tinycolor) ? window.tinycolor(btn.background_color).darken(20).toRgbString() : (btn.border_color || null),
