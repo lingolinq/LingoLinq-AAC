@@ -4185,25 +4185,10 @@ var persistence = Service.extend({
     var _this = this;
     this.set('online', navigator.onLine);
 
-    var onBackOnline = function() {
-      runLater(function() {
-        if(!_this || _this.isDestroyed || _this.isDestroying) { return; }
-        if(_this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings') &&
-          (!LingoLinq.testing || LingoLinq.sync_testing)) {
-          _this.check_for_needs_sync(true);
-        }
-        if(typeof _this.getBrowserToken === 'function') {
-          _this.tokens = {};
-          if(LingoLinq.session) {
-            LingoLinq.session.restore(!_this.getBrowserToken());
-          }
-        }
-      }, 500);
-    };
-
+    // Sync/token restore on reconnect is handled by the on_connect observer
+    // when online flips to true; only update state here to avoid duplicate work.
     window.addEventListener('online', function() {
       _this.set('online', true);
-      onBackOnline();
     });
     window.addEventListener('offline', function() {
       _this.set('online', false);
@@ -4211,7 +4196,6 @@ var persistence = Service.extend({
     // Cordova notifies on the document object
     document.addEventListener('online', function() {
       _this.set('online', true);
-      onBackOnline();
     });
     document.addEventListener('offline', function() {
       _this.set('online', false);

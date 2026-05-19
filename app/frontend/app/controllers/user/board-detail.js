@@ -511,9 +511,12 @@ export default Controller.extend(prefClasses, {
       preferred_symbols: _this._preferred_symbols,
       skin: skin || null,
       edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null
+      label_locale: _this.get('app_state.label_locale') || null,
+      // Invalidate grid reuse when offline url_cache becomes available so
+      // image_url picks up local paths after prime_caches().
+      url_cache_primed: !!persistence.primed
     };
-    if(!use_ember && cache_token && persistence.primed) {
+    if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
       if(cached_ob) {
         // Cache hit — re-use the pre-built grid. Glimmer skips re-render

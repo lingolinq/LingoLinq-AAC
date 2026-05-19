@@ -44,6 +44,12 @@ export default Route.extend({
         return RSVP.resolve();
       });
     }
+    var route = this;
+    var clearPrimePromiseIfUnprimed = function() {
+      if(!persistenceSvc.get('primed')) {
+        route._prime_caches_promise = null;
+      }
+    };
     this._prime_caches_promise = ensure_local.then(function() {
       var localAfter = persistenceSvc.get('local_system');
       if(!localAfter || !localAfter.available || !localAfter.allowed) {
@@ -52,7 +58,7 @@ export default Route.extend({
       return persistenceSvc.prime_caches(true).then(null, function() {
         return RSVP.resolve();
       });
-    });
+    }).then(clearPrimePromiseIfUnprimed, clearPrimePromiseIfUnprimed);
     return this._prime_caches_promise;
   },
 
