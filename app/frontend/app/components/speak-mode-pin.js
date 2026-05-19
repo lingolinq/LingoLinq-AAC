@@ -20,25 +20,10 @@ export default Component.extend({
                     this.get('model') || {};
     this.set('model', options);
     this.set('pin', '');
-    this.set('invalid_pin', null);
+    this.set('pin_dots', '');
+    this.set('show_typed_digits', false);
+    this.set('invalid_pin', false);
   },
-
-  compare_pin: observer('pin', function() {
-    const pin = this.get('pin');
-    if (pin === this.get('model.actual_pin')) {
-      this.set('pin', '');
-      modal.close({ correct_pin: true });
-      if (this.get('model.action') === 'none') { return; }
-      if (this.get('model.action') === 'edit') {
-        this.get('appState').toggle_edit_mode();
-      } else {
-        this.get('appState').toggle_speak_mode('off');
-      }
-    } else if (pin && pin.length >= 4) {
-      this.set('invalid_pin', true);
-      this.set('pin', '');
-    }
-  }),
 
   update_pin: observer('pin_dots', function() {
     const str = this.get('pin_dots') || '';
@@ -71,16 +56,48 @@ export default Component.extend({
     },
     opening() {
       this.set('pin', '');
-      this.set('invalid_pin', null);
+      this.set('pin_dots', '');
+      this.set('show_typed_digits', false);
+      this.set('invalid_pin', false);
     },
     closing() {},
     add_digit(digit) {
       let pin = this.get('pin') || '';
       pin = pin + digit.toString();
       this.set('pin', pin);
+      this.set('invalid_pin', false);
     },
     reveal_pin() {
       this.set('show_pin', true);
+    },
+    toggle_typed_digits() {
+      this.toggleProperty('show_typed_digits');
+    },
+    delete_digit() {
+      let pin = this.get('pin') || '';
+      pin = pin.slice(0, -1);
+      this.set('pin', pin);
+      this.set('invalid_pin', false);
+    },
+    submit_pin() {
+      const pin = String(this.get('pin') || '');
+      const actual = String(this.get('model.actual_pin') || '');
+      if (pin === actual) {
+        this.set('invalid_pin', false);
+        this.set('pin', '');
+        this.set('pin_dots', '');
+        modal.close({ correct_pin: true });
+        if (this.get('model.action') === 'none') { return; }
+        if (this.get('model.action') === 'edit') {
+          this.get('appState').toggle_edit_mode();
+        } else {
+          this.get('appState').toggle_speak_mode('off');
+        }
+      } else {
+        this.set('pin', '');
+        this.set('pin_dots', '');
+        this.set('invalid_pin', true);
+      }
     }
   }
 });

@@ -1278,7 +1278,7 @@ var buttonTracker = EmberObject.extend({
             $elem.trigger('select');
           } else if(elem_wrap.dom.tagName == 'A' && $(elem_wrap.dom).closest('#pin').length > 0) {
             event.preventDefault();
-            $(elem_wrap.dom).trigger('select');
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else if(
             elem_wrap.dom.classList.contains('speak_menu_button') ||
             elem_wrap.dom.classList.contains('md-speak-menu__btn') ||

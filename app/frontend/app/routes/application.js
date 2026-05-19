@@ -80,6 +80,18 @@ export default Route.extend({
     obf.register_services(this.appState);
 
     this.appState.setup_controller(this, controller);
+    runLater(function() {
+      try {
+        var seen = localStorage.getItem('lingolinq_beta_onboarding_seen');
+        var appState = controller.get('appState');
+        var u = appState && (appState.get('sessionUser') || appState.get('currentUser'));
+        // Testing: show onboarding for all logged-in users (not only beta_program_access).
+        if (!seen && u) {
+          modal.open('beta-onboarding-modal');
+          localStorage.setItem('lingolinq_beta_onboarding_seen', 'true');
+        }
+      } catch(e) { /* ignore */ }
+    }, 500);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },

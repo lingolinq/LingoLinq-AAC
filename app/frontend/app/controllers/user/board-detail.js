@@ -4088,14 +4088,26 @@ export default Controller.extend(prefClasses, {
     },
 
     exit_speak_mode: function() {
-      this.set('_exiting', true);
-      if(this._phrase_search_timer) {
-        try { runCancel(this._phrase_search_timer); } catch(e) {}
-        this._phrase_search_timer = null;
+      var _this = this;
+      var app_state = this.get('app_state');
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
       }
-      this.set('show_options_menu', false);
-      // app_state.toggle_speak_mode handles the loading overlay internally.
-      this.get('app_state').toggle_speak_mode();
+      ready.then(function(res) {
+        if(!res || !res.correct_pin) { return; }
+        _this.set('_exiting', true);
+        if(_this._phrase_search_timer) {
+          try { runCancel(_this._phrase_search_timer); } catch(e) {}
+          _this._phrase_search_timer = null;
+        }
+        _this.set('show_options_menu', false);
+        app_state.toggle_speak_mode();
+      }, function() { });
     },
 
     toggle_all_buttons: function() {
