@@ -563,7 +563,15 @@ export default Controller.extend(prefClasses, {
       label_locale: _this.get('app_state.label_locale') || null,
       // Invalidate grid reuse when offline url_cache becomes available so
       // image_url picks up local paths after prime_caches().
-      url_cache_primed: !!persistence.primed
+      url_cache_primed: !!persistence.primed,
+      // Level filter is baked into the cached grid by _make_btn
+      // (display_as_hidden). The cached ordered_buttons MUST therefore key
+      // on the active level / whether the board uses levels — otherwise
+      // changing the level reuses the stale grid and the speak-mode level
+      // filter never re-applies. (Restored alongside _make_btn after the
+      // -X theirs merge replaced our level cache keys with url_cache_primed.)
+      board_level: current_level,
+      board_has_levels: board_has_levels
     };
     if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
