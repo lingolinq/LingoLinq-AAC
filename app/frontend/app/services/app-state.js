@@ -25,6 +25,7 @@ import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 import editManager from '../utils/edit_manager';
+import boardDetailCache from '../utils/board_detail_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
@@ -850,7 +851,26 @@ export default Service.extend({
       router.transitionTo('board', boardKey);
       return;
     }
+    // Decision order:
+    //   1. If we're ALREADY on board-alt, stay on board-alt — keeps
+    //      in-session folder navigation continuous (don't bounce a
+    //      user mid-session into the other shell on every folder tap).
+    //   2. Otherwise honor the communicator's saved
+    //      `board_view_style` preference: 'classic' → board-alt,
+    //      anything else (default 'modern') → board-detail. This is
+    //      what makes post-login landing drop the user into their
+    //      chosen view. Read referenced_user first (the person
+    //      actually communicating in speak mode), then currentUser.
     if(routeName.indexOf('board-alt') !== -1) {
+      router.transitionTo('user.board-alt', userName, boardSlug);
+      return;
+    }
+    var prefersClassic = false;
+    try {
+      var pref_user = this.get('referenced_user') || this.get('currentUser');
+      prefersClassic = !!(pref_user && pref_user.get && pref_user.get('preferences.board_view_style') === 'classic');
+    } catch(e) { prefersClassic = false; }
+    if(prefersClassic) {
       router.transitionTo('user.board-alt', userName, boardSlug);
     } else {
       router.transitionTo('user.board-detail', userName, boardSlug);
@@ -999,6 +1019,15 @@ export default Service.extend({
   modeling: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'modeling_ts', function(ch) {
     var res = !!(this.get('manual_modeling') || this.get('modeling_for_user'));
     return res;
+  }),
+  // True whenever a modeling session is *initiated*, regardless of the
+  // current route's mode. `modeling` flips false during edit mode because
+  // `current_mode` switches from 'speak' to 'edit' (which cascades through
+  // `speak_mode` → `modeling_for_user`). The badge needs a session-level
+  // signal that survives that transition so the supervisor still sees
+  // "modeling paused" while editing a supervisee's board.
+  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'modeling_ts', function() {
+    return !!(this.get('manual_modeling') || this.get('modeling_for_user') || this.get('modeling_for_self') || this.get('referenced_speak_mode_user'));
   }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
     var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
@@ -1166,7 +1195,6 @@ export default Service.extend({
     // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
     // or no decision at all), show the loading overlay until the home board
     // renders. 'off' is already-off; skip.
-    console.log('[LOADING-OVERLAY] toggle_speak_mode called; speak_mode=', this.get('speak_mode'), 'decision=', decision);
     var exitingSpeakMode = this.get('speak_mode') && decision !== 'off';
     if(exitingSpeakMode) {
       this.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
@@ -2504,6 +2532,16 @@ export default Service.extend({
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
+    // Session-start prefetch: as soon as we know who the user is,
+    // fire a background fetch of their entire home board tree
+    // (boards + images) so the cache is fully warm by the time they
+    // navigate to Boards. boardDetailCache.prefetch_for_user dedupes
+    // per user id, so this observer firing repeatedly during session
+    // restore only triggers one prefetch.
+    var user = this.get('currentUser');
+    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+    }
   }),
   speak_mode_handlers: observer(
     'speak_mode',
@@ -2651,7 +2689,14 @@ export default Service.extend({
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
-        if(this.get('last_speak_mode') !== false) {
+        // Entering edit mode temporarily flips speak_mode false, but the
+        // supervisor's modeling session should survive the round-trip. Skip
+        // the state teardown (referenced_speak_mode_user et al.) when the
+        // transition target is 'edit' — the edit route's resetController
+        // restores current_mode='speak' on exit, at which point this observer
+        // re-enters the setup branch and the session is intact.
+        var entering_edit = this.stashes.get('current_mode') === 'edit';
+        if(this.get('last_speak_mode') !== false && !entering_edit) {
           if(this.get('sessionUser')) {
             this.set('sessionUser.request_alert', null);
           }
@@ -2748,7 +2793,11 @@ export default Service.extend({
   ),
   refresh_suggestions: function() {
     var board = this.controller && this.controller.get('board.model');
-    if(board && !board.get('isDeleted')) {
+    // Guard `board.get`: board.model can transiently be a non-Ember
+    // object (the { error: true, boardname } POJO board-detail's model()
+    // resolves with on a failed /tree fetch). Calling .get on that throws
+    // and hard-crashes the view via the speak_mode_handlers observer.
+    if(board && typeof board.get === 'function' && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
       var ref = board.id + "::" + history_string + "::" + this.get('shift');
@@ -2895,7 +2944,6 @@ export default Service.extend({
   LOADING_OVERLAY_MIN_MS: 700,
 
   show_loading_overlay: function(message) {
-    console.log('[LOADING-OVERLAY] show_loading_overlay called; message =', message);
     this.set('loading_overlay_message', message);
     this._loading_overlay_shown_at = Date.now();
   },
@@ -2906,7 +2954,6 @@ export default Service.extend({
     var elapsed = Date.now() - shown_at;
     var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
     var remaining = Math.max(0, min - elapsed);
-    console.log('[LOADING-OVERLAY] hide_loading_overlay called; elapsed =', elapsed, 'delay =', remaining);
     runLater(function() {
       if(_this.isDestroyed) { return; }
       _this.set('loading_overlay_message', null);
@@ -2940,7 +2987,7 @@ export default Service.extend({
   },
 
   _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
-    console.log('[LOADING-OVERLAY] observer fired; loading_overlay_message =', this.get('loading_overlay_message'));
+    // Reserved for cleanup hooks on overlay state change.
   }),
   // Safety net — in case the speak_mode transition fails or stalls, never leave
   // the overlay on-screen for more than ~4 seconds.
@@ -3434,10 +3481,15 @@ export default Service.extend({
     // track modeling events correctly
     var now = (new Date()).getTime();
     var skip_navigation = false;
-    if(this.get('modeling')) {
-      obj.modeling = true;
-    } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
-      obj.modeling = true;
+    // When `modeling_paused` is set (e.g. supervisor is on the supervisee's
+    // edit page), the session is still live but taps must NOT be logged as
+    // modeled actions — they'd pollute the communicator's report data.
+    if(!this.get('modeling_paused')) {
+      if(this.get('modeling')) {
+        obj.modeling = true;
+      } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
+        obj.modeling = true;
+      }
     }
 
 

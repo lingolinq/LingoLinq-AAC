@@ -986,6 +986,20 @@ export default Controller.extend({
       this.stashes.persist('board_level', level);
       this.set('board.preview_level', level);
       this.set('board.model.display_level', level);
+      // The cached fast_html was rendered at the previous level, and the
+      // classic board template renders board.fast_html.html directly, so
+      // a stale copy keeps showing the old level (level preview appeared
+      // broken on board-alt). Clear it — mirroring the modern view's
+      // set_speak_level cache invalidation — and nudge current_level so
+      // the dependent computeds re-evaluate, then let
+      // process_for_displaying rebuild the grid at the newly selected
+      // level in both normal and speak mode.
+      if(this.get('board.model')) {
+        this.set('board.model.fast_html', null);
+      }
+      if(this.get('board') && this.get('board').notifyPropertyChange) {
+        this.get('board').notifyPropertyChange('current_level');
+      }
       editManager.process_for_displaying();
     },
     clear_overrides: function() {
@@ -1304,6 +1318,12 @@ export default Controller.extend({
       this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
+    // "Modern View" header button on the classic page delegates to the
+    // board.index controller, which persists the user's view-style
+    // preference to 'modern' and then navigates to the modern view.
+    go_to_modern: function() {
+      this.get('board').send('go_to_modern');
+    },
     set_locale: function(loc) {
       this.appState.set('label_locale', loc);
       this.appState.set('vocalization_locale', loc);
@@ -1320,7 +1340,14 @@ export default Controller.extend({
     },
     preview_levels: function() {
       if(!this.appState.get('edit_mode')) { return; }
+      // Match the modern view's toggle_preview_levels: entering preview
+      // mode starts at Level 1 and actually applies it so the user sees
+      // the level-filtered grid immediately (previously only the mode
+      // flag flipped and nothing changed until a chevron was clicked).
       editManager.preview_levels();
+      this.set('board.preview_level', 1);
+      this.set('board.model.display_level', 1);
+      editManager.apply_preview_level(1);
     },
     shift_level: function(direction) {
       var levels = this.get('board.button_levels');

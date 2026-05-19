@@ -36,6 +36,15 @@ var clean_text = function(str) {
 
 var Button = EmberObject.extend({
   init: function() {
+    // Wire the actual appState service onto the instance so computeds
+    // that depend on `appState.edit_mode` (e.g. display_as_hidden) can
+    // track reactive changes. The imported `app_state` module is a
+    // Proxy that delegates to `LingoLinq.appState`, but Ember's dep
+    // tracking won't see notifications through the Proxy — set the
+    // real service instance directly when available.
+    if(!this.appState) {
+      this.appState = (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) || app_state;
+    }
     this.updateAction();
     this.update_add_vocalization();
     this.add_classes();
@@ -230,6 +239,18 @@ var Button = EmberObject.extend({
   empty_or_hidden: computed('empty', 'hidden', 'stashes.all_buttons_enabled', function() {
     return !!(this.get('empty') || (this.get('hidden') && !this.get('stashes.all_buttons_enabled')));
   }),
+  // Whether this button should receive the `--hidden` visual class
+  // outside of preview mode. In edit mode (without an active preview),
+  // buttons with `level_modifications` should NOT show as hidden —
+  // their `hidden` attribute reflects level-rule application, not
+  // author intent, and the author needs to see them in full CSS to
+  // edit. Speak mode and edit-mode-with-preview cases are handled at
+  // the template level (combining this with previewLevelsMode).
+  display_as_hidden: computed('hidden', 'level_modifications', 'appState.edit_mode', function() {
+    if(!this.get('hidden')) { return false; }
+    if(!this.get('appState.edit_mode')) { return true; }
+    return !this.get('level_modifications');
+  }),
   add_classes: observer(
     'background_color',
     'border_color',
@@ -330,13 +351,20 @@ var Button = EmberObject.extend({
     keys.forEach(function(key) {
       if(mods[key]) {
         for(var attr in mods[key]) {
-          _this.set(attr, mods[key][attr]);
+          // Coerce string "true"/"false" rule values to real booleans
+          // (see Button.coerce_level_value). Without this, "false" is
+          // truthy and the level filter inverts.
+          _this.set(attr, Button.coerce_level_value(attr, mods[key][attr]));
         }
       }
     });
   },
   set_val(key, val) {
-    this.set(key, val);
+    // fast_html applies level rules through here; rule values can be the
+    // strings "true"/"false" (legacy/copied boards), so coerce the
+    // boolean-ish attributes — otherwise `hidden = "false"` is truthy
+    // and the classic browse grid hides buttons the level rule promotes.
+    this.set(key, Button.coerce_level_value(key, val));
   },
   fast_html: computed(
     'refresh_token',
@@ -359,28 +387,36 @@ var Button = EmberObject.extend({
     function() {
       var res = "";
       if(this.get('board.display_level') && this.get('level_modifications')) {
-        if(this.get('board.display_level') == this.get('board.default_level')) {
-        } else {
-          var mods = this.get('level_modifications');
-          var level = this.get('board.display_level');
-          if(mods.override) {
-            for(var key in mods.override) {
-              this.set_val(key, mods.override[key]);
+        /* SCOPED ONE-BRANCH CHANGE: previously, when display_level ==
+           board.default_level this whole block was a no-op (the level
+           rules were skipped). That left the board in a stale state —
+           notably board-alt normal mode, which renders via fast_html
+           and so never applied the previously-set level on load. The
+           apply logic below is byte-for-byte the SAME code that always
+           ran for non-default levels; running it at the default level
+           too is idempotent for an already-authored board (it sets
+           each attribute to exactly the value that level dictates) and
+           corrects the stale case. No other behavior changes: override
+           still wins, then pre, then levels 1..display_level. */
+        var mods = this.get('level_modifications');
+        var level = this.get('board.display_level');
+        if(mods.override) {
+          for(var key in mods.override) {
+            this.set_val(key, mods.override[key]);
+          }
+        }
+        if(mods.pre) {
+          for(var key in mods.pre) {
+            if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
+              this.set_val(key, mods.pre[key]);
             }
           }
-          if(mods.pre) {
-            for(var key in mods.pre) {
+        }
+        for(var idx = 1; idx <= level; idx++) {
+          if(mods[idx]) {
+            for(var key in mods[idx]) {
               if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                this.set_val(key, mods.pre[key]);
-              }
-            }
-          }
-          for(var idx = 1; idx <= level; idx++) {
-            if(mods[idx]) {
-              for(var key in mods[idx]) {
-                if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                  this.set_val(key, mods[idx][key]);
-                }
+                this.set_val(key, mods[idx][key]);
               }
             }
           }
@@ -798,6 +834,25 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Legacy/copied boards persist boolean level-rule values as the STRINGS
+// "true"/"false" instead of real booleans. Assigning `hidden = "false"`
+// is catastrophic — JS treats any non-empty string as truthy, so
+// `boundClasses.add_classes` stamps `hidden_button` (and the hidden-guard
+// in activate_button fires) on a button the level rule meant to SHOW.
+// board-detail's _make_btn already does this string-or-bool comparison,
+// which is why level filtering works there but not in the classic
+// (board/board-alt) renderers. This is the single source of truth for
+// which rule attributes are boolean-ish and how to coerce them; used by
+// Button.apply_level, Button.set_val, and board.js render_fast_html.
+Button.LEVEL_BOOL_ATTRS = ['hidden', 'link_disabled', 'add_to_vocalization', 'add_vocalization',
+            'home_lock', 'blocking_speech', 'hide_label', 'text_only', 'no_skin'];
+Button.coerce_level_value = function(attr, val) {
+  if(Button.LEVEL_BOOL_ATTRS.indexOf(attr) !== -1) {
+    return (val === true || val === 'true');
+  }
+  return val;
+};
 
 // Static service registry for use in static methods
 Button._services = {

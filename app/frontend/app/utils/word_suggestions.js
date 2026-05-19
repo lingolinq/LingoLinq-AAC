@@ -385,43 +385,103 @@ var word_suggestions = EmberObject.extend({
             emberSet(word, 'fallback_image', url);
             if(!emberGet(word, 'image')) {
               emberSet(word, 'image', url);
+              // Plain-object property updates don't auto-trigger Glimmer
+              // re-render. The image_update callback lets the caller
+              // (e.g. board-detail's updateSuggestions) flush the
+              // suggestion-list view so the just-attached fallback or
+              // board-button image actually paints.
+              if(word.image_update) { word.image_update(url); }
             }
           });
         });
         // search for button images for any words in the specified vocab
-        if(options.board_ids) {
+        if(options.button_sets || options.board_ids) {
           var words = {};
           var images = LingoLinq.store.peekAll('image');
           result.forEach(function(w) { words[w.word.toLowerCase()] = w; w.depth = 999; });
-          options.board_ids.forEach(function(board_id) {
-            if(!board_id) { return; }
-            LingoLinq.store.findRecord('board', board_id).then(function(board) {
-              board.load_button_set().then(function(button_set) {
-                var buttons = button_set.redepth(board_id);
-                buttons.forEach(function(button) {
-                  var word = words[button.label] || words[button.vocalization];
-                  if(word && button.depth < word.depth) {
-                    word.depth = button.depth;
-                    LingoLinq.Buttonset.fix_image(button, images).then(function() {
-                      if(!emberGet(word, 'original_image') && button.image) {
-                        emberSet(word, 'original_image', button.original_image);
-                        emberSet(word, 'safe_image', emberGet(word, 'image'));
-                        emberSet(word, 'image', button.image);
-                        emberSet(word, 'image_license', button.image_license);
-                        emberSet(word, 'hc_image', !!button.image);
-                        if(button.image.match(/^data/) || !button.image.match(/^http/)) {
-                          emberSet(word, 'safe_image', button.image);
-                        }
-                        if(word.image_update) {
-                          word.image_update(button.image);
-                        }
-                      }
-                    });
+          // Track buttonsets we've already iterated. Multiple input
+          // sources (e.g. home + a starred sub-board reachable from
+          // home) often resolve to the same buttonset; iterating that
+          // set twice would just race against itself.
+          var seen_buttonset_ids = {};
+          // Inner worker: extracted so the buttonset-input path and the
+          // legacy board-id-input path can share the matching loop.
+          var process_buttonset = function(button_set, fallback_root_id) {
+            if(!button_set) { return; }
+            var bs_id = button_set.get('id');
+            if(bs_id && seen_buttonset_ids[bs_id]) { return; }
+            if(bs_id) { seen_buttonset_ids[bs_id] = true; }
+            // Use the buttonset's own root id for redepth so depth is
+            // computed correctly even if the caller passed a key.
+            var buttons = button_set.redepth(bs_id || fallback_root_id);
+            buttons.forEach(function(button) {
+              // Only image-bearing buttons can attach an image to a
+              // predicted word. Text-only buttons (no image_id) would
+              // still "match" by label and then poison the slot:
+              // fix_image returns blank.gif, word.image gets set to
+              // that placeholder, and the depth-lock blocks any
+              // later image-bearing match in a different buttonset
+              // from overriding. Skipping them here lets the search
+              // walk past pronoun-style text buttons (e.g. "I" on a
+              // keyboard board) and land on the symbol-bearing copy
+              // somewhere else in the user's vocabulary tree.
+              if(!button.image_id) { return; }
+              var word = words[(button.label || '').toLowerCase()] || words[(button.vocalization || '').toLowerCase()];
+              // Three guards that have to all pass before doing the
+              // (expensive, IndexedDB-touching) fix_image work:
+              //   1. word exists in our predictions
+              //   2. this button is shallower than any prior match
+              //   3. word doesn't ALREADY have an image attached
+              // Without #3, every tap re-ran fix_image for every
+              // matched word across every buttonset — even though the
+              // attachment guard below would just no-op. That produced
+              // the "used retrieved image …" console spam on every
+              // button press and unnecessarily warmed the persistence
+              // url cache on every prediction cycle.
+              if(word && !emberGet(word, 'original_image') && button.depth < word.depth) {
+                word.depth = button.depth;
+                LingoLinq.Buttonset.fix_image(button, images).then(function() {
+                  if(!emberGet(word, 'original_image') && button.image) {
+                    emberSet(word, 'original_image', button.original_image);
+                    emberSet(word, 'safe_image', emberGet(word, 'image'));
+                    emberSet(word, 'image', button.image);
+                    emberSet(word, 'image_license', button.image_license);
+                    emberSet(word, 'hc_image', !!button.image);
+                    if(button.image.match(/^data/) || !button.image.match(/^http/)) {
+                      emberSet(word, 'safe_image', button.image);
+                    }
+                    if(word.image_update) {
+                      word.image_update(button.image);
+                    }
                   }
                 });
+              }
+            });
+          };
+          // Preferred input: pre-loaded buttonsets. Skips the per-call
+          // `Buttonset.load_button_set` and its `load_buttons` side
+          // effects (which were re-running on every lookup, causing
+          // grid observers to re-fire and the board's images to flicker
+          // on every button press). Callers warm the cache once at
+          // board entry via `User.load_button_sets()` and pass the
+          // array in.
+          if(options.button_sets) {
+            options.button_sets.forEach(function(bs) {
+              process_buttonset(bs, bs && bs.get && bs.get('id'));
+            });
+          } else if(options.board_ids) {
+            // Legacy input: list of board ids/keys to resolve. Kept for
+            // the classic board view which still passes board_ids.
+            // Note: this path *does* call load_button_set per id, which
+            // can cause re-render churn — callers in hot paths should
+            // migrate to `button_sets` instead.
+            options.board_ids.forEach(function(board_id) {
+              if(!board_id) { return; }
+              LingoLinq.Buttonset.load_button_set(board_id).then(function(button_set) {
+                process_buttonset(button_set, board_id);
               }, function() { });
-            }, function() { });
-          });
+            });
+          }
         }
         return RSVP.resolve(result);
       } else {

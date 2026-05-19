@@ -602,7 +602,11 @@ class User < ActiveRecord::Base
       },
       'any_user' => {
         'activation_location' => 'end',
-        'auto_home_return' => true,
+        # Default to staying in-place after a button activation so the user
+        # can compose a multi-chip sentence inside a sub-folder without the
+        # board navigating back to home after every tap. Communicators
+        # using the classic auto-home flow can opt in via their preferences.
+        'auto_home_return' => false,
         'vocalize_buttons' => true,
         'external_links' => 'confirm_custom',
         'clear_on_vocalize' => true,
@@ -618,7 +622,13 @@ class User < ActiveRecord::Base
         'utterance_interruptions' => true,
         'click_buttons' => true,
         'auto_capitalize' => true,
-        'prefer_native_keyboard' => false
+        'prefer_native_keyboard' => false,
+        # Which board UI the user sees when opening a board: the
+        # 'modern' panelled experience (board-detail) or the 'classic'
+        # full-device grid (board-alt). Both render the same board
+        # content — this is purely a visual/UX shell preference.
+        # Default 'modern' to surface the newer, feature-richer UI.
+        'board_view_style' => 'modern'
       },
       'authenticated_user' => {
         'long_press_edit' => false,
@@ -1079,7 +1089,7 @@ class User < ActiveRecord::Base
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards', 'beta_program_access'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

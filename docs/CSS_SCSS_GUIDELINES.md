@@ -51,3 +51,26 @@ The project has **two separate Sass compilers**:
 - Other features added after LibSass was deprecated (August 2020)
 
 Modern Sass features are fine in `app/frontend/app/styles/app.scss` — that file is compiled by Dart Sass.
+
+### Color functions: `color.adjust()` vs `lighten()` / `darken()`
+
+This is a **per-file rule**, not a repo-wide ban — the correct function depends
+on which compiler owns the file:
+
+| File | Compiler | Use | Never use |
+|------|----------|-----|-----------|
+| `app/frontend/app/styles/app.scss` | Dart Sass | `color.adjust($c, $lightness: N%)`, `color.scale()` | `lighten()` / `darken()` — **deprecated** in Dart Sass; they emit build-time deprecation warnings |
+| `app/assets/stylesheets/*.scss` (e.g. `header_sizing.scss`) | SassC/LibSass | `lighten()` / `darken()` | `color.adjust()` / `color.scale()` — **unsupported**; the build fails |
+
+**Rule:**
+
+- In `app.scss`, never introduce `lighten()` / `darken()`. The Dart-Sass
+  equivalent of `lighten($c, N%)` is `color.adjust($c, $lightness: N%)`
+  (and `darken($c, N%)` → `color.adjust($c, $lightness: -N%)`).
+  `@use "sass:color";` is already declared at the top of `app.scss`.
+- In `app/assets/stylesheets/*.scss`, keep using `lighten()` / `darken()`.
+  Do **not** "modernize" them to `color.adjust()` — SassC/LibSass does not
+  support the `sass:color` module and the asset pipeline will break.
+
+Do not attempt a global find-and-replace of `lighten`/`darken` across the
+repo: the right replacement is opposite in the two toolchains.

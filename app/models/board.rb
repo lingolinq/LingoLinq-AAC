@@ -30,11 +30,13 @@ class Board < ActiveRecord::Base
   before_save :require_key
   before_save :check_inflections
   before_save :check_content_overrides
+  before_save :process_client_supplied_images
   before_save :process_suggested_symbols
   before_save :process_suggested_sounds
   after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
   after_save :post_process
   after_save :assert_shallow_mapping
+  after_commit :schedule_pending_folder_cascades, on: %i[create update]
   after_destroy :flush_related_records
 #  replicated_model
  
@@ -1071,12 +1073,43 @@ class Board < ActiveRecord::Base
     puts "done"
   end
   
+  # After-commit hook: if process_buttons captured any folder-level
+  # cascade requests during this save, fire them now (post-commit so
+  # downstream walks see the fresh state). Runs synchronously — async
+  # via Resque was unreliable for testing because no worker is
+  # guaranteed to be running in dev. The cascade itself is bounded by
+  # downstream_board_ids count, which the upstream-downstream concern
+  # already keeps under control (capped at 500). For very deep trees
+  # we can revisit by re-enabling `Board.schedule_for(:slow, ...)`.
+  def schedule_pending_folder_cascades
+    pending = @pending_folder_cascades
+    @pending_folder_cascades = nil
+    return unless pending && pending.any?
+    # Aggregate IDs/keys of every board the cascade touched, then expose
+    # via @cascade_invalidations for the JSON serializer to surface in
+    # the save response. The client uses this to invalidate its
+    # boardDetailCache entries for those boards so a subsequent
+    # navigation refetches the post-cascade state.
+    invalidations = []
+    pending.each do |req|
+      root_id = req['root_board_id'] || req['root_board_key']
+      next unless root_id && req['level_modifications'].is_a?(Hash)
+      begin
+        touched = Board.cascade_level_to_downstream_boards(root_id, req['level_modifications'])
+        invalidations.concat(touched) if touched.is_a?(Array)
+      rescue => e
+        Rails.logger.warn("[Board.cascade_level] cascade failed for #{root_id}: #{e.message}")
+      end
+    end
+    @cascade_invalidations = invalidations if invalidations.any?
+  end
+
   def post_process
     if @skip_post_process
       @skip_post_process = false
       return
     end
-    
+
     rev = (((self.settings || {})['revision_hashes'] || [])[-2] || [])[0] || current_revision
     notify('board_buttons_changed', {'revision' => rev, 'reason' => @buttons_changed}) if @buttons_changed && !@brand_new
     # Capture content_changed BEFORE map_images clears @buttons_changed
@@ -1192,6 +1225,43 @@ class Board < ActiveRecord::Base
     if @check_for_parts_of_speech
       self.check_for_parts_of_speech_and_inflections(false)
       @check_for_parts_of_speech = nil
+    end
+  end
+
+  def process_client_supplied_images
+    # When the client pre-builds buttons (e.g. create-board-new bakes in
+    # the symbol it previewed) it sends an `image_url` but no `image_id`.
+    # process_suggested_symbols only runs for the populate-from-labels
+    # path, so those buttons would otherwise be saved with a bare URL
+    # and no ButtonImage — and the board renders no symbol (it resolves
+    # images via image_id). Turn each provided URL into a real
+    # ButtonImage here so the saved board shows what the user previewed.
+    buttons = self.settings['buttons'] || []
+    pending = buttons.select { |b| b['image_url'].present? && b['image_id'].blank? }
+    return if pending.empty?
+
+    begin
+      pending.each do |button|
+        bi = ButtonImage.process_new({
+          'url' => button['image_url'],
+          'content_type' => 'image/png',
+          'public' => true,
+          'protected' => false
+        }, {:user => self.user})
+
+        if bi && bi.id
+          button['image_id'] = bi.global_id
+          # Let TTS-sound suggestion also run for these buttons, but
+          # never clobber the 'populated_from_labels' flag that
+          # process_suggested_symbols depends on (that path has no
+          # client image_url, so this loop won't run there anyway).
+          @buttons_changed = 'suggested_symbols_added' unless @buttons_changed == 'populated_from_labels'
+        end
+      end
+    rescue => e
+      Rails.logger.error "Failed to process client-supplied button images: #{e.message}"
+      # Don't raise - board creation should continue even if image
+      # processing fails.
     end
   end
 
@@ -1946,6 +2016,11 @@ class Board < ActiveRecord::Base
     clear_cached("images_and_sounds_with_fallbacks")
     @edit_notes ||= []
     @check_for_parts_of_speech = true
+    # Pending folder level-cascade requests captured from the incoming
+    # buttons. Each entry tracks a folder whose level rule should
+    # propagate to every button in its downstream board tree. Fired as
+    # a background job after the current save commits.
+    pending_folder_cascades = []
     prior_buttons = self.buttons || []
     approved_link_ids = []
     new_link_ids = []
@@ -1961,8 +2036,19 @@ class Board < ActiveRecord::Base
       if add_voc_error && button['add_vocalization'] == false && !button['load_board']
         button.delete('add_vocalization')
       end
+      # Detect folder cascade intent BEFORE slicing the button hash —
+      # the slice below strips any field not on the whitelist, so we
+      # capture the cascade marker (plus the level rule + downstream
+      # root) here and queue the work for after save.
+      if button['cascade_level_to_subtree'] && button['load_board'] && button['level_modifications'].is_a?(Hash)
+        pending_folder_cascades << {
+          'root_board_id' => button['load_board']['id'],
+          'root_board_key' => button['load_board']['key'],
+          'level_modifications' => button['level_modifications']
+        }
+      end
       trans = button['translations'] || translations[button['id']] || translations[button['id'].to_s] || (BoardContent.load_content(self, 'translations') || {})[button['id'].to_s]
-      button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization', 
+      button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization',
             'background_color', 'border_color', 'load_board', 'hide_label', 'url', 'apps', 'text_only', 
             'integration', 'video', 'book', 'part_of_speech', 'suggested_part_of_speech', 'external_id', 
             'painted_part_of_speech', 'home_lock', 'meta_home', 'blocking_speech', 
@@ -2045,12 +2131,77 @@ class Board < ActiveRecord::Base
 
     if self.buttons.to_json != prior_buttons.to_json
       @edit_notes << "modified buttons"
-      @buttons_changed = 'buttons processed' 
+      @buttons_changed = 'buttons processed'
       @button_links_changed = true if new_link_ids.length > 0
     end
+    # Stash pending folder-level cascades for an after_save hook. We
+    # can't run them inline because the current save hasn't committed
+    # and `track_downstream_boards!` may not have refreshed yet.
+    @pending_folder_cascades = pending_folder_cascades if pending_folder_cascades && pending_folder_cascades.any?
     self.buttons
   end
-  
+
+  # Walks the downstream board tree starting at `root_board_id_or_key`
+  # and applies `level_modifications` to EVERY button in each board it
+  # visits. Each modified board is saved. Triggered as a background job
+  # after a folder is painted with a level rule on the parent board
+  # (client sets `cascade_level_to_subtree: true` on the folder's
+  # serialized form; process_buttons captures the intent into
+  # @pending_folder_cascades and schedules this method via after_save).
+  def self.cascade_level_to_downstream_boards(root_board_id_or_key, level_modifications)
+    root = Board.find_by_path(root_board_id_or_key)
+    return [] unless root
+    # Collect every board in the downstream tree (inclusive of the root).
+    # downstream_board_ids returns global_ids for the full transitive
+    # closure already maintained by upstream_downstream tracking.
+    ids = [root.global_id] + (root.settings['downstream_board_ids'] || [])
+    boards = Board.find_all_by_global_id(ids.uniq)
+    touched = []
+    boards.each do |board|
+      next unless board && board.buttons.is_a?(Array)
+      changed = false
+      # Capture the buttons array ONCE — for offloaded boards,
+      # `board.buttons` returns a fresh deep_dup each call, so mutating
+      # the first call's result and then re-fetching would discard the
+      # mutations.
+      buttons_dup = board.buttons
+      buttons_dup.each do |btn|
+        next unless btn.is_a?(Hash)
+        # Merge the cascading rule with any existing rule on the button.
+        # Existing pre/level entries are preserved unless overwritten
+        # by the cascading rule's same keys — semantics: "ensure these
+        # rule keys exist at minimum," not "replace whatever was here."
+        existing = btn['level_modifications']
+        merged = (existing || {}).deep_dup
+        level_modifications.each do |key, val|
+          if val.is_a?(Hash)
+            merged[key] = (merged[key] || {}).merge(val)
+          else
+            merged[key] = val
+          end
+        end
+        next if merged == existing
+        btn['level_modifications'] = merged
+        changed = true
+      end
+      if changed
+        board.settings['buttons'] = buttons_dup
+        # Skip the stale-record assertion: cascade writes are
+        # eventually-consistent — if a concurrent edit raced us, the
+        # last write wins, which is acceptable for a level-rule sync.
+        # Wrap in a rescue so one failed board doesn't abort the rest
+        # of the downstream walk.
+        begin
+          board.save
+          touched << { 'id' => board.global_id, 'key' => board.key }
+        rescue => e
+          Rails.logger.warn("[Board.cascade_level] save failed for #{board.global_id}: #{e.message}")
+        end
+      end
+    end
+    touched
+  end
+
   def icon_url_or_fallback
     fallback = DEFAULT_ICON
     self.settings['image_url'].blank? ? fallback : self.settings['image_url']
