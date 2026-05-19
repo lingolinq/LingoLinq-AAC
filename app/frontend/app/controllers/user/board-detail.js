@@ -568,8 +568,7 @@ export default Controller.extend(prefClasses, {
       // (display_as_hidden). The cached ordered_buttons MUST therefore key
       // on the active level / whether the board uses levels — otherwise
       // changing the level reuses the stale grid and the speak-mode level
-      // filter never re-applies. (Restored alongside _make_btn after the
-      // -X theirs merge replaced our level cache keys with url_cache_primed.)
+      // filter never re-applies.
       board_level: current_level,
       board_has_levels: board_has_levels
     };
@@ -701,9 +700,6 @@ export default Controller.extend(prefClasses, {
     // edit-mode rendering and any other code path that reads
     // btn.hidden gets the original value. At level 10 (or no level)
     // the filter is off and display_as_hidden stays false.
-    // Restored on top of melissa/fix/board-button-caching's _make_btn
-    // (the -X theirs merge dropped this level/speak-hide handling while
-    // keeping her image cache resolution above).
     var display_as_hidden = false;
     if(level && level < 10) {
       if(btn.level_modifications) {
