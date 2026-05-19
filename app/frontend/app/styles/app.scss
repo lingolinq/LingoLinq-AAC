@@ -1605,6 +1605,30 @@ header:has(#normal_mode) #inner_header {
   padding: 6px 0 !important;
 }
 
+/* Board-alt SPEAK mode: the legacy _header_sizing.scss forces
+   `header.new_index.speaking.medium { height: 100px }` (and 50/70/150/200
+   for the other vocalization sizes). The MODERN speak bar only needs the
+   height of its white .speak-bar__button-list-wrap card (~88px), so the
+   forced legacy height leaves a dead band below the bar AND mis-centers
+   the chips (over-tall flex parent → chips pushed down / images clipped).
+   Let the header size to its actual content instead. board/index.js
+   _updateFromSpeakBarResize then measures this real (smaller) height and
+   both #content padding and the board height reserve exactly it — so the
+   grid sits directly under the bar with no whitespace and the bar's
+   content is no longer pushed/clipped. Scoped to board-alt speak only;
+   normal mode (handled above) and board-detail are untouched. The
+   background is set to the page slate so any sub-pixel/first-paint
+   timing gap (before the ResizeObserver fires) blends with #content
+   instead of flashing a light strip. */
+#within_ember.board-alt-view header.speaking:has(#speak),
+#within_ember.board-alt-view header.speaking:has(#speak) #inner_header {
+  height: auto !important;
+  min-height: 0 !important;
+}
+#within_ember.board-alt-view header.speaking:has(#speak) {
+  background: $brand-charcoal-blue !important;
+}
+
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
    Navigation header - nav_header_class from app-state service */
 #nav_header {
@@ -1914,7 +1938,11 @@ header:has(#normal_mode) #inner_header {
   border-radius: 0;
   padding: 8px 8px;
   margin: 0;
-  min-height: 84px;
+  /* Must fit a .history_button chip (72px) plus this card's 8px top +
+     8px bottom padding = 88px. At the old 84px the content box was only
+     68px, so the 72px chip overflowed and `align-items: center` clipped
+     ~2px off the top and bottom (the "images cut off" symptom). */
+  min-height: 88px;
   box-sizing: border-box;
   gap: 0;
 }
@@ -1984,6 +2012,12 @@ header:has(#normal_mode) #inner_header {
 
   max-width: none !important;
   margin: 0 6px !important;
+  /* Legacy _header_sizing.scss adds `padding-top: 10px` to
+     `.speaking.<size> #button_list .history_button`, which shoves the
+     chip's image+label down inside the modern 72px chip and clips the
+     bottom. The modern bar centers chip content via the flex parent, so
+     this legacy top padding is unwanted — zero it out. */
+  padding: 0 !important;
   overflow: visible !important;
 
   flex-shrink: 0 !important;
@@ -2416,6 +2450,11 @@ header.speaking, .board.speak {
   margin-top: 32px !important;
 }
 .md-board-detail-grid.board.speak {
+  margin-top: 0px !important;
+}
+/* board-alt (classic) speak mode fills the viewport like the modern
+   grid; the 32px top margin above leaves a dead strip there. */
+#within_ember.board-alt-view .board.speak {
   margin-top: 0px !important;
 }
 /* Edit-mode entry fade wrapper. During the route transition into edit
@@ -7154,6 +7193,13 @@ body > .popover.bottom {
   filter: contrast(4.0) saturate(100);
 }
 
+/* RESTORED (regressed out by 18a3ad032 / PR #238 on 2026-05-04;
+   present + working on origin/main). `mix-blend-mode: multiply` makes
+   the white-baked background of symbol assets transparent so the
+   Fitzgerald card color shows through in Colored / Colored-Soft mode. */
+.symbol_background_clear .button img.symbol {
+  mix-blend-mode: multiply;
+}
 .symbol_background_clear .button img.symbol[src$="square.svg"] {
   mix-blend-mode: normal;
 }
@@ -7195,6 +7241,22 @@ body > .popover.bottom {
 }
 .button.hidden_button, .button.empty {
   visibility: hidden;
+}
+/* SPEAK MODE: a button excluded by the current Button Level (or hidden
+   by the author) must NOT show at all — not dimmed, not a placeholder.
+   The base rule above already makes hidden buttons invisible; the
+   `hint_hidden_buttons` / `grid_hidden_buttons` preferences re-reveal
+   them (opacity 0.5 / placeholder), and those overrides also fire in
+   speak mode because they're only scoped `:not(.edit)`. Speak mode is
+   the communicator's view, where the level filter is a real vocabulary
+   restriction — the hint/grid reveal is an editing/preview affordance
+   that should not leak into it. Force hidden buttons back to invisible
+   in speak mode, beating the hint/grid rules regardless of source
+   order. Edit / show-all are excluded so configuring levels still
+   shows every button. */
+.board.speak:not(.edit):not(.show_all_buttons) .button.hidden_button,
+.board.speak:not(.edit):not(.show_all_buttons) .button.hidden_button * {
+  visibility: hidden !important;
 }
 .board:not(.edit):not(.show_all_buttons) .button.hidden_button {
   .action_container {
@@ -7465,11 +7527,24 @@ body > .popover.bottom {
   max-height: 100dvh;
   box-sizing: border-box;
 }
-/* In speak mode the top topbar is hidden, so the large top padding the edit
-   view uses leaves a dead strip above the board. Reduce by 24px only when
-   the speak sentence-bar is present (`#speak` exists only in speak mode). */
+/* Speak mode: the fixed outer <header> overlays the content. Its real
+   height varies with the user's vocalization_height (legacy
+   `header.speaking.<size>` in _header_sizing.scss), so neither a
+   constant (the old 34px under-reserved ~95px) nor `--topbar-height +
+   --speak-bar-extra` (over-reserves when the header is shorter than the
+   129px baseline, leaving a dead strip above the grid) is correct.
+   board/index.js `_updateFromSpeakBarResize` MEASURES the real header
+   and publishes `--speak-header-height`; reserve exactly that. The
+   fallback (used only until the first measurement) keeps the prior
+   behavior. computeHeight subtracts the SAME measured value so the grid
+   clears the header with no clipped top row and no dead strip. */
 #within_ember.board-alt-view:has(#speak) #content {
-  padding-top: calc(34px + var(--speak-bar-extra, 0px));
+  padding-top: var(--speak-header-height, calc(var(--topbar-height) + var(--speak-bar-extra, 0px)));
+  /* Drop the 16px bottom padding the non-speak board-alt rule adds so
+     the speak-mode grid stretches flush to the bottom of the page
+     instead of leaving a dead strip. Higher specificity (:has(#speak))
+     wins over `#within_ember.board-alt-view #content`. */
+  padding-bottom: 0;
 }
 /* Narrow viewports: bump the top padding by 6px so the board grid doesn't
    sit under the header action buttons that wrap/stack on smaller screens.
@@ -32767,6 +32842,214 @@ a.la-footer-bottom-a11y-wcag {
   border: 1px solid var(--md-line);
   flex-shrink: 0;
 }
+/* ── Share Text modal (share-utterance) — modern restyle ── */
+.la-share-text-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.la-share-text-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-share-text-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.la-share-text-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.la-share-text-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--share {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-share-text-modal-body {
+  padding: 20px 24px 24px;
+}
+.la-share-text__quote {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  background: $surface-100;
+  border: 1px solid rgba($brand-blue-black, 0.10);
+  border-left: 4px solid rgba($brand-verdigris, 0.55);
+  border-radius: 12px;
+}
+.la-share-text__quote-mark {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 800;
+  color: rgba($brand-verdigris, 0.7);
+  flex-shrink: 0;
+}
+.la-share-text__quote-text {
+  flex: 1 1 auto;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--md-ink);
+  word-break: break-word;
+  align-self: center;
+}
+.la-share-text__empty {
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  background: rgba($brand-blue-black, 0.03);
+  border: 1px dashed rgba($brand-blue-black, 0.18);
+  border-radius: 12px;
+  color: var(--md-muted);
+  font-size: 15px;
+  font-style: italic;
+}
+.la-share-text__note {
+  font-size: 14px;
+  color: var(--md-muted);
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+.la-share-text__divider {
+  clear: both;
+  width: 100%;
+  border-top: 1px solid rgba($brand-blue-black, 0.10);
+  margin: 14px 0 18px;
+}
+.la-share-text__grid {
+  margin: 0;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action,
+.la-share-text-modal-wrap a.btn.la-share-text__action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 86px;
+  padding: 12px 8px;
+  margin-bottom: 14px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  color: $brand-charcoal-blue;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.05);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action:hover,
+.la-share-text-modal-wrap a.btn.la-share-text__action:hover {
+  background: $surface-100;
+  border-color: rgba($brand-verdigris, 0.45);
+  color: $indigo;
+  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.10);
+  transform: translateY(-2px);
+}
+.la-share-text-modal-wrap .btn.la-share-text__action.btn-success {
+  border-color: rgba(#3c9a5f, 0.5);
+  color: #2e7d4f;
+}
+.la-share-text__action-icon {
+  display: block;
+}
+.la-share-text__action-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: grayscale(0.6);
+}
+.la-share-text__action-label {
+  display: block;
+  line-height: 1.2;
+}
+.la-share-text-modal-wrap .btn.la-share-text__contact-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 86px;
+  padding: 10px 8px;
+  margin-bottom: 14px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  color: $brand-charcoal-blue;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.la-share-text-modal-wrap .btn.la-share-text__contact-btn:hover {
+  border-color: rgba($brand-verdigris, 0.45);
+  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.10);
+  transform: translateY(-2px);
+}
+.la-share-text__contact-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.la-share-text__contact-name {
+  display: block;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.la-share-text__contact-reply {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  color: $brand-verdigris;
+  font-size: 13px;
+}
+.la-share-text__textonly {
+  margin: 18px 0 0;
+  padding: 12px 16px;
+  background: rgba($brand-blue-black, 0.03);
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  border-radius: 10px;
+}
+.la-share-text__status {
+  margin: 14px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.la-share-text__status--ok {
+  color: #2e7d4f;
+}
+.la-share-text__status--err {
+  color: #c0392b;
+}
 .la-record-note-modal-body {
   padding: 20px 24px;
 }
@@ -37758,6 +38041,14 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex-wrap: wrap !important;
   gap: 8px !important;
   align-items: center !important;
+}
+/* The card is a wrapping flex row; when it wraps (narrow width) the
+   action button drops to its own line and left-aligns. `margin-left:
+   auto` pushes it to the right edge of its div in BOTH the inline and
+   wrapped states. Scoped to the org-management card's direct-child
+   button so other .md-btn usages are unaffected. */
+.md-card--org-management > .md-btn {
+  margin-left: auto !important;
 }
 
 /* --- Org dropdown (multi-org selector on dashboard) --- */
@@ -49699,6 +49990,20 @@ a.md-goal-nav-action:hover,
   .board a.button .button-label-holder.top {
     top: 2px !important;
   }
+  /* The shared `.button span.button-label` sets a fixed height equal to
+     the font-size with `line-height: 1.1` and `overflow: hidden`, so the
+     bottom of descenders ("p", "g", "y" in "Top Page" / "dining room")
+     gets clipped on the board-alt grid. The global border-box means
+     adding padding-bottom alone would eat the fixed height and clip
+     MORE — so switch this label to content-box and add a font-relative
+     bottom pad. content-box keeps the fixed line height while the extra
+     0.3em sits BELOW it inside the overflow box, so the full glyph shows
+     at every text size. Scoped to board-alt; board-detail uses a
+     different label element and is unaffected. */
+  .board a.button span.button-label {
+    box-sizing: content-box !important;
+    padding-bottom: 0.3em !important;
+  }
 
   // Focus words (dim_button): strengthen dimming on board-alt grid (same intent as board-view block above).
   .board .button.dim_button {
@@ -49750,36 +50055,32 @@ a.md-goal-nav-action:hover,
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   }
 
+  /* Match the board-detail "Colored Corner" folder setting exactly:
+     a square quarter-circle "fan" wedge in the top-right, colored from
+     the button's own bg — `var(--btn-bg, currentColor)` at
+     `brightness(0.75)`, fully opaque. Same shape + coloring assignment
+     + transparency assignment as
+     `.md-board-detail-grid--folder-colored-corner
+     .md-board-detail-symbol-card--folder::after`. Constant 26px (the
+     prior text-size-scaled rounded-rect variants are intentionally
+     dropped, and the `&.home` darker shade too, so board-alt folders
+     read identically to the board-detail colored-corner setting). */
   .board .button .action_container.folder,
   .board .button .action_container.integration {
     top: 0 !important;
     right: 0 !important;
-    height: 14px !important;
-    width: 18px !important;
+    width: 20px !important;
+    height: 20px !important;
     border: none !important;
-    border-radius: 0 6px 0 6px !important;
-    background: var(--btn-bg, rgba(0, 0, 0, 0.12)) !important;
+    border-radius: 0 0 0 100% !important;
+    background: var(--btn-bg, currentColor) !important;
     filter: brightness(0.75);
-    opacity: 1.0 !important;
-    z-index: 2;
-    &.home {
-      filter: brightness(0.68);
-    }
+    opacity: 1 !important;
+    z-index: 3;
+    pointer-events: none;
     .action {
       visibility: hidden !important;
     }
-  }
-  .board.text_small .button .action_container.folder,
-  .board.text_small .button .action_container.integration {
-    height: 10px !important;
-    width: 14px !important;
-    border-radius: 0 4px 0 4px !important;
-  }
-  .board.text_medium .button .action_container.folder,
-  .board.text_medium .button .action_container.integration {
-    height: 12px !important;
-    width: 16px !important;
-    border-radius: 0 5px 0 5px !important;
   }
 }
 
@@ -49875,7 +50176,9 @@ a.md-goal-nav-action:hover,
     background: color-mix(in oklch, $brand-charcoal-blue 75%, white) !important;
     border: none !important;
     border-radius: 12px !important;
-    padding: 6px 6px 4px 6px !important;
+    /* Top padding 4px (was 6px) so the speak-bar chips aren't pushed
+       down; matches the 4px bottom for symmetric breathing room. */
+    padding: 4px 6px 4px 6px !important;
     min-height: 60px !important;
   }
 
@@ -52001,6 +52304,49 @@ a.md-goal-nav-action:hover,
       transform: translateX(-2px);
     }
   }
+  &__subresult {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin: 0 0 18px;
+    padding: 14px 18px;
+    background: $surface-100;
+    border: 1px solid rgba($brand-blue-black, 0.10);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba($brand-blue-black, 0.05);
+  }
+  &__subresult-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border: 1px solid rgba($brand-blue-black, 0.12);
+    border-radius: 9px;
+    background: #ffffff;
+    color: $indigo;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    &:hover {
+      background: $surface-200;
+      border-color: rgba($brand-teal, 0.35);
+      box-shadow: 0 2px 8px rgba($brand-blue-black, 0.08);
+      transform: translateX(-2px);
+    }
+  }
+  &__subresult-back-arrow {
+    font-size: 16px;
+    line-height: 1;
+  }
+  &__subresult-label {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba($brand-blue-black, 0.62);
+  }
   &__folder-context-icon {
     display: flex;
     align-items: center;
@@ -52843,9 +53189,14 @@ a.md-goal-nav-action:hover,
   transform: translateY(-100%);
   transition: transform 0.25s ease;
 }
-#within_ember.board-detail-view > header:hover {
-  transform: translateY(0);
-}
+/* The global navbar stays collapsed off-screen on board-detail to keep
+   the modern view immersive. The previous `> header:hover` reveal pulled
+   #inner_header down whenever the pointer crossed the top edge (notably
+   when reaching for the fixed Beta-feedback tab, which sits in the same
+   top:0 band) — an unwanted, surprising pull-down. Board-detail provides
+   its own chrome (.md-board-detail-header, Back-to-Boards, go_back, the
+   options menu with Exit Speak Mode), so the global navbar is not needed
+   for navigation here and the hover-reveal is removed entirely. */
 #within_ember.board-detail-view > header #inner_header {
   border-bottom: 1px solid rgba($la-navy, 0.08) !important;
 
@@ -52928,6 +53279,26 @@ a.md-goal-nav-action:hover,
   box-sizing: border-box;
   overflow: hidden;
   min-height: 0;
+}
+/* Edit page: the board area (.md-board-detail-main) is a fixed-height
+   scroll viewport with a 24px radius on ALL corners. The rounded BOTTOM
+   on the scroll viewport always shows mid-scroll, which (a) makes the
+   content look like it ends there and (b) curve-clips the last visible
+   button row. Square the bottom corners in edit mode so the cut-off
+   bottom edge reads as "there's more — scroll". Top corners keep the
+   24px card radius. 2-class selector beats the base single-class
+   `.md-board-detail-main { border-radius: 24px }` (and any duplicate)
+   regardless of source order. (Rounding the bottom ONLY at the true
+   content end is a scroll-state behavior that needs a JS hook — see
+   note to the user; not done here to avoid a fragile mechanism.) */
+/* Edit page board container: round the BOTTOM corners to match the
+   top (the base `.md-board-detail-main` is 24px all round). Paired
+   with the extra bottom padding added to the `padding` rule below so
+   the last button row clears the rounded corner instead of being
+   pinched by it. */
+.md-shell--board-detail-edit .md-board-detail-main {
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
 }
 
 /* ── Empty-board state: shown when board has no visible buttons (not in edit mode) ───────── */
@@ -53871,10 +54242,47 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   opacity: 0.5;
   font-weight: 400;
   color: $brand-charcoal-blue;
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  /* In-flow inside the flex `__text` container (which is itself
+     vertically centered in the bar) so the hint sits vertically
+     centered in its div instead of being pinned to the viewport top
+     by the old `position: fixed`. `flex: 1` + centered alignment keeps
+     it horizontally centered across the available width. */
+  flex: 1;
+  align-self: center;
+  text-align: center;
   pointer-events: none;
+}
+/* On screens 1024px and smaller, left-align the sentence-bar text
+   (placeholder hint + any message content) instead of centering it, so
+   it reads against the bar's left edge on narrower viewports. Covers
+   both the flex container and the placeholder's own text-align. */
+@media (max-width: 1024px) {
+  .md-board-detail-sentence-bar__text {
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .md-board-detail-sentence-bar__placeholder {
+    text-align: left;
+  }
+}
+/* On screens larger than 1024px, center the hint on the PAGE rather
+   than within its `__text` div: that div is pushed right by the
+   back-button, so flex-centering it lands off-page-center. Position
+   the placeholder absolutely against `.md-board-detail-sentence-bar`
+   (its `position: relative` ancestor, which spans the full sentence
+   row width), centered on both axes — visually page-centered and
+   independent of the back-button offset. Stays pointer-events:none
+   (from the base rule). */
+@media (min-width: 1025px) {
+  .md-board-detail-sentence-bar__placeholder {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    flex: none;
+    text-align: center;
+    white-space: nowrap;
+  }
 }
 
 /* ── Inline word predictions (inside sentence bar) ───── */
@@ -55565,6 +55973,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding-bottom: 4px;
   scroll-padding-top: 16px;
 }
+/* board-detail speak (communicator, non-edit) mode: drop the 16px top
+   gap above the grid so the board sits flush under the speak bar.
+   Scoped to the non-edit shell (`.md-shell--board-detail` without
+   `--board-detail-edit`) — the verified communicator signal; edit mode
+   keeps the 16px separation. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap {
+  padding-top: 0;
+  scroll-padding-top: 0;
+}
 .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid,
 .md-board-detail-grid-sidebar-wrap > div:has(.md-board-detail-grid) {
   flex: 1;
@@ -56862,9 +57279,23 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-height: 0;
   min-width: 0;
   width: 100%;
+  /* Small top inset so the first button row isn't flush against the
+     grid's top edge. (Global border-box: this reduces the row area
+     rather than growing the grid, so it doesn't add overflow.) */
+  padding-top: 4px;
   /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
      Android Chrome/Edge where 100vh extends past the actual visible viewport. */
   height: calc(100dvh - 120px);
+}
+/* Edit page: the grid's fixed `calc(100dvh - 120px)` makes the
+   content taller than <main>'s padded box, so the last button row
+   overflows into the (rounded + 28px-padded) bottom. Shrink the grid
+   in edit by ~60px more so it ends above that region. High specificity
+   + !important so it cannot be lost to the stylesheet's duplicated
+   base `.md-board-detail-grid` rules. Edit mode only — speak/other
+   views keep calc(100dvh - 120px). */
+.md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+  height: calc(100dvh - 180px) !important;
 }
 
 /* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
@@ -57047,6 +57478,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   filter: none;
   opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
+}
+/* RESTORED (regressed out by 18a3ad032 / PR #238 on 2026-05-04;
+   present + working on origin/main). When symbol_background is "clear",
+   mix-blend-mode makes white image backgrounds transparent so the
+   button color shows through. Pairs with the holder `background:
+   transparent` added in 583315b1c. */
+.symbol_background_clear .md-board-detail-symbol-card__image img {
+  mix-blend-mode: multiply;
 }
 .symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
   mix-blend-mode: normal;
@@ -60113,7 +60552,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding-top: 0 !important;
 }
 .md-shell--board-detail-edit .md-board-detail-main {
-  padding: 16px !important;
+  /* Extra bottom padding (28px > the 24px corner radius) so the last
+     button row clears the now-rounded bottom corners instead of being
+     pinched against them. Sides/top unchanged at 16px. */
+  padding: 16px 16px 28px !important;
 }
 .md-shell--board-detail-edit .md-board-detail-sidebar {
   display: none !important;
@@ -60472,6 +60914,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid--hidden-hide:not(.speak-edit) .md-board-detail-symbol-card--hidden {
   visibility: hidden;
 }
+/* SPEAK MODE: in non-edit (speak) the `--hidden` class is applied ONLY
+   to buttons the current Button Level filters out (btn.display_as_hidden
+   from _make_btn — never the author `hidden` flag, which is edit-only).
+   That vocabulary restriction must NOT be dimmed (hint) or shown as a
+   placeholder (grid) to the communicator — it must be gone entirely,
+   regardless of the user's hidden_buttons preference. Force it hidden in
+   speak; edit / preview-levels keep the buttons visible via the
+   `.md-shell--board-detail-edit` / `.speak-edit` rules below. */
+.md-board-detail-grid.speak:not(.speak-edit) .md-board-detail-symbol-card--hidden {
+  visibility: hidden !important;
+}
+.md-board-detail-grid.speak:not(.speak-edit) .md-board-detail-symbol-card--hidden > * {
+  visibility: hidden !important;
+}
 /* Edit mode ALWAYS wins — a hidden button stays visible + editable while in
    edit mode regardless of the display preference, so the user can un-hide it. */
 .md-shell--board-detail-edit .md-board-detail-symbol-card--hidden {
@@ -60792,11 +61248,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   position: absolute;
   top: 0;
   right: 0;
-  width: 22px;
-  height: 18px;
+  /* Fan-shaped corner: a symmetric quarter-circle wedge whose curved
+     edge fans inward toward the button center (was a small rounded
+     rectangle). Square footprint + full bottom-left radius = a clean
+     quarter-disc "fan" in the top-right corner. Smaller footprint so it
+     spans less of the folder. */
+  width: 20px;
+  height: 20px;
   background: var(--btn-bg, currentColor);
   filter: brightness(0.75);
-  border-radius: 0 0 0 10px;
+  border-radius: 0 0 0 100%;
   z-index: 3;
   pointer-events: none;
 }
@@ -60994,10 +61455,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    (tab width, tab padding for the label, card translateY in
    tab-labels mode) are left intact since they're mode-specific
    chrome, not geometry. */
-@mixin folder-tab-geometry($visible) {
+@mixin folder-tab-geometry($visible, $cell-pad-offset: 4px) {
   $tab-height:   $visible + 4px;
   $back-top:     $visible + 2px;
-  $cell-padding: $back-top + 4px;
+  // Button top padding = back-top + offset. Offset is a parameter so a
+  // caller can tune the button breathing room WITHOUT changing the
+  // folder-back / tab geometry (those use $back-top / $tab-height
+  // directly and are unaffected). Default mode passes 2px (→ 14px).
+  $cell-padding: $back-top + $cell-pad-offset;
 
   .md-folder-back {
     top: $back-top;
@@ -61018,7 +61483,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 /* Default mode (no tab-labels, no colored-corner): 10px visible
    tab — small protrusion, mostly invisible chrome. */
 .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) {
-  @include folder-tab-geometry(10px);
+  /* Default folder view: button top padding 14px (back-top 12px + 2px)
+     instead of the prior 16px (+4px). Scoped to this invocation only —
+     the Show-Labels-on-Tab variant below keeps its 4px default. */
+  @include folder-tab-geometry(10px, 2px);
 }
 
 /* Show Labels on Tab mode: 18px visible tab — taller than default
@@ -61549,24 +62017,72 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
   .md-board-detail-sentence-bar__text {
     font-size: 14px;
-    width: 100%;
     min-height: 22px;
   }
+  /* On smaller screens the bar reflows to full width; left-align the
+     placeholder hint so it reads naturally against the bar's left
+     edge instead of floating centered. */
+  .md-board-detail-sentence-bar__placeholder {
+    text-align: left;
+  }
+  /* ≤640px: the 4 action buttons (mic + backspace/clear/options) form a
+     COMPACT 2×2 grid pinned to the top-right of the bar — not a
+     full-width spread. The 3 tool buttons are nested in `__tools`;
+     `display: contents` on that wrapper lifts them into `__actions`'s
+     grid so all 4 become grid items. `auto` columns keep it
+     content-sized; `align-self: flex-start` tops it; `margin-left: auto`
+     (within the flex bar, after the flex:1 text) pushes it right. */
   .md-board-detail-sentence-bar__actions {
-    width: 100%;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 8px;
+    place-items: center;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    margin-left: auto;
   }
   .md-board-detail-sentence-bar__btn {
     padding: 6px 12px;
     font-size: 14px;
+  }
+  /* In the 2×2 grid, the mic/repeat button must be visually identical to
+     the clear (tool) button: same translucent glassy fill + border +
+     12px radius (no white pill / shadow) AND the exact same size. The
+     tool button's size is driven by the `--nb-sb-btnw/h` vars via the
+     2-class rule `.md-board-detail-sentence-row .__tool-btn`, so this
+     override (a) uses the SAME vars and (b) is scoped with the same
+     `.md-board-detail-sentence-row` ancestor to match that specificity
+     and reliably win over the base `.__btn--speak` + row `.__btn`
+     rules. Mirrors `.md-board-detail-sentence-bar__tool-btn`. */
+  /* 3-class selector (`.md-shell--board-detail` ancestor added) so this
+     beats the 2-class `.md-board-detail--dark .__btn--speak` rule that
+     appears later in the file and was re-asserting the dark pill bg /
+     dim border. Values replicate what a `.__tool-btn` actually renders
+     in dark mode: base tool-btn fill + 0.12 "glow" border + 12px
+     radius, dark-mode color, and the SAME `--nb-sb-btnw/h` size vars. */
+  .md-shell--board-detail .md-board-detail-sentence-row .md-board-detail-sentence-bar__btn--speak {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.55);
+    width: var(--nb-sb-btnw, 44px);
+    min-width: var(--nb-sb-btnw, 44px);
+    height: var(--nb-sb-btnh, 55px);
+    min-height: var(--nb-sb-btnh, 55px);
+    padding: 0;
+  }
+  .md-shell--board-detail .md-board-detail-sentence-row .md-board-detail-sentence-bar__btn--speak:hover {
+    background: rgba(255, 255, 255, 0.10);
+    box-shadow: none;
+    color: #fff;
   }
   .md-board-detail-sentence-bar__btn svg {
     width: 12px;
     height: 12px;
   }
   .md-board-detail-sentence-bar__tools {
-    margin-left: auto;
-    gap: 2px;
+    display: contents;
   }
   .md-board-detail-sentence-bar__tool-btn {
     width: 26px;
@@ -61618,6 +62134,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
   .md-board-detail-color-picker {
     width: 280px;
+  }
+  /* ≤640px: widen the folder tab on the DEFAULT folder setting by 50%.
+     At this width the effective default tab is 34% (base 30% → 1024px
+     28% → 900px 34%), so 50% wider = 34% × 1.5 = 51%. Scoped to the
+     default-folder selector (same one the geometry mixin uses) — the
+     folder-tab-labels / colored-corner variants are unaffected — and
+     the 4-class specificity beats the plain `.md-folder-tab` width
+     rules regardless of source order. */
+  .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-tab {
+    width: 51%;
   }
 }
 
@@ -76879,11 +77405,15 @@ blockquote small {
   outline: none;
 }
 .md-board-edit-view-style__opt--active {
-  /* Active = same slate→charcoal gradient as the Save and Exit CTA. */
-  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
-  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  /* Active = same bg as the Save and Exit CTA: mid-strength glassy
+     slate-blue (translucent + backdrop blur), not the old opaque
+     gradient. */
+  background: rgba($brand-slate-blue, 0.30);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border: 1px solid rgba($brand-slate-blue, 0.50);
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+  box-shadow: none;
 }
 /* Dark mode — match the dark variants of search input + Save/Exit. */
 .md-board-detail--dark .md-board-edit-view-style__opt {
@@ -76898,8 +77428,10 @@ blockquote small {
   border-color: rgba(255, 255, 255, 0.22);
 }
 .md-board-detail--dark .md-board-edit-view-style__opt--active {
-  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba($brand-slate-blue, 0.38);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-slate-blue, 0.55);
   color: #ffffff;
 }
 .md-board-edit-view-style__jump {
@@ -76918,23 +77450,27 @@ blockquote small {
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
-  /* Primary "go do this" action — use the same high-contrast
-     slate→charcoal gradient + solid white text as the Save and Exit
-     CTA. The previous translucent-teal-on-faint-teal failed WCAG AA,
-     especially in dark mode. White on this gradient clears 4.5:1. */
-  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
-  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  /* Primary "go do this" action — same bg as the Save and Exit CTA:
+     mid-strength glassy slate-blue (translucent + backdrop blur) with
+     solid white text. White on this still clears WCAG AA contrast. */
+  background: rgba($brand-slate-blue, 0.30);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border: 1px solid rgba($brand-slate-blue, 0.50);
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
+  box-shadow: none;
 }
 .md-board-edit-view-style__jump:hover,
 .md-board-edit-view-style__jump:focus-visible {
-  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), color.adjust($brand-charcoal-blue, $lightness: 4%));
+  background: rgba($brand-slate-blue, 0.42);
+  border-color: rgba($brand-slate-blue, 0.70);
   outline: none;
 }
 .md-board-detail--dark .md-board-edit-view-style__jump {
-  background: linear-gradient(135deg, color.adjust($brand-slate-blue, $lightness: 4%), $brand-charcoal-blue);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba($brand-slate-blue, 0.38);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-slate-blue, 0.55);
   color: #ffffff;
 }
 /* "Current View" label + Modern pill. The pill borrows the inactive
@@ -78014,3 +78550,82 @@ blockquote small {
   cursor: not-allowed;
 }
 /* End Phase 03 — Board Edit Side Panel */
+
+/* ── Action-Panel top tiles: purpose gradients ──────────────────────
+   Save and Exit (affirmative) gets the app's slate-blue → charcoal
+   "save/primary" gradient (mirrors the original back-link CTA);
+   Discard Changes (destructive) gets a red $brand-danger gradient.
+   Scoped under `.md-board-edit-panel__top` (2-class; dark 3-class) so
+   it outranks every duplicated base `.md-board-edit-panel__tile`
+   rule regardless of source order, and so the Share/Copy/Print/
+   Download tiles are untouched. White text/icon for contrast on the
+   filled gradients. */
+/* Glassy affirmative treatment — same partially-transparent + blur
+   structure as the Discard tile, using the save color ($brand-slate-
+   blue) instead of $brand-danger. */
+/* Mid-strength: more present than the light 0.12 glass but still
+   translucent (not the original opaque gradient). */
+.md-board-edit-panel__top .md-board-edit-panel__tile--save {
+  background: rgba($brand-slate-blue, 0.30);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-slate-blue, 0.50);
+  color: #fff;
+}
+.md-board-edit-panel__top .md-board-edit-panel__tile--save:hover,
+.md-board-edit-panel__top .md-board-edit-panel__tile--save:focus-visible {
+  background: rgba($brand-slate-blue, 0.42);
+  border-color: rgba($brand-slate-blue, 0.70);
+  color: #fff;
+}
+/* Glassy destructive treatment (the solid red gradient was too heavy):
+   a translucent $brand-danger tint + backdrop blur + danger border and
+   text. Still unmistakably the "lose changes" action, but reads as
+   glass like the other tiles rather than a saturated fill. */
+.md-board-edit-panel__top .md-board-edit-panel__tile--discard {
+  background: rgba($brand-danger, 0.12);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-danger, 0.40);
+  color: $brand-danger;
+}
+.md-board-edit-panel__top .md-board-edit-panel__tile--discard:hover,
+.md-board-edit-panel__top .md-board-edit-panel__tile--discard:focus-visible {
+  background: rgba($brand-danger, 0.20);
+  border-color: rgba($brand-danger, 0.60);
+  color: $brand-danger;
+}
+.md-board-edit-panel__top .md-board-edit-panel__tile--save .md-board-edit-panel__icon,
+.md-board-edit-panel__top .md-board-edit-panel__tile--discard .md-board-edit-panel__icon {
+  opacity: 1;
+}
+/* Dark mode: 3-class to beat the base `.md-board-detail--dark
+   .md-board-edit-panel__tile` (2-class). Same gradients read well on
+   the dark panel; keep them. */
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--save {
+  background: rgba($brand-slate-blue, 0.38);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-slate-blue, 0.55);
+  color: #fff;
+}
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--save:hover,
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--save:focus-visible {
+  background: rgba($brand-slate-blue, 0.50);
+  border-color: rgba($brand-slate-blue, 0.75);
+  color: #fff;
+}
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--discard {
+  background: rgba($brand-danger, 0.18);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  border-color: rgba($brand-danger, 0.50);
+  color: color.adjust($brand-danger, $lightness: 16%);
+}
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--discard:hover,
+.md-board-detail--dark .md-board-edit-panel__top .md-board-edit-panel__tile--discard:focus-visible {
+  background: rgba($brand-danger, 0.28);
+  border-color: rgba($brand-danger, 0.70);
+  color: color.adjust($brand-danger, $lightness: 22%);
+}
+

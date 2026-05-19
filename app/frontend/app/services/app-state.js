@@ -2793,7 +2793,11 @@ export default Service.extend({
   ),
   refresh_suggestions: function() {
     var board = this.controller && this.controller.get('board.model');
-    if(board && !board.get('isDeleted')) {
+    // Guard `board.get`: board.model can transiently be a non-Ember
+    // object (the { error: true, boardname } POJO board-detail's model()
+    // resolves with on a failed /tree fetch). Calling .get on that throws
+    // and hard-crashes the view via the speak_mode_handlers observer.
+    if(board && typeof board.get === 'function' && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
       var ref = board.id + "::" + history_string + "::" + this.get('shift');

@@ -122,23 +122,132 @@
              never able to leave with unsaved work by accident. The
              modal returns 'save' or 'discard' or undefined; the
              controller handles the redirect after each branch. --}}
+        {{!-- Discard + Save tiles share the same shape/size as the
+             Share & Export tiles (reusing __share-grid + __tile).
+             Discard sits to the LEFT and styles destructively; Save
+             and Exit keeps its original back_to_boards action (which
+             routes through the confirm-leave-edit modal). --}}
         <div class="md-board-edit-panel__top">
+          <div class="md-board-edit-panel__share-grid">
+            <button type="button"
+              class="md-board-edit-panel__tile md-board-edit-panel__tile--discard"
+              data-tooltip={{t "Discard Changes" key="discard_changes"}}
+              disabled={{this.board_saving}}
+              {{action "cancel_edit"}}>
+              {{!-- Trash icon — cancel_edit opens the confirm-discard
+                   modal, then rolls back unsaved edits. --}}
+              <svg class="md-board-edit-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              <span class="md-board-edit-panel__tile-label">{{t "Discard Changes" key="discard_changes"}}</span>
+            </button>
+            <button type="button"
+              class="md-board-edit-panel__tile md-board-edit-panel__tile--save"
+              data-tooltip={{t "Save and Exit" key="save_and_exit"}}
+              disabled={{this.board_saving}}
+              {{action "back_to_boards"}}>
+              {{!-- Save icon (floppy/disk) — matches the save mark used
+                   in the confirm-leave-edit modal so the button +
+                   modal read as one gesture. --}}
+              <svg class="md-board-edit-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span class="md-board-edit-panel__tile-label">{{t "Save and Exit" key="save_and_exit"}}</span>
+            </button>
+          </div>
+        </div>
+
+        {{!-- BOARD ACTIONS — moved to sit directly under the
+             Discard / Save tiles. Expandable, mirrors the Filter by
+             Category control: outlined toggle surface + chevron, body
+             shown when open. --}}
+        <div class="md-board-edit-panel__filter {{unless this.board_actions_collapsed 'md-board-edit-panel__filter--open'}}">
           <button type="button"
-            class="md-board-edit-panel__back-link"
-            disabled={{this.board_saving}}
-            {{action "back_to_boards"}}>
-            {{!-- Save icon (floppy/disk) — matches the save mark used
-                 in the confirm-leave-edit modal so the button +
-                 modal read as one gesture. The action it triggers
-                 (back_to_boards) routes via the confirm-leave-edit
-                 modal where the user picks Save vs Discard. --}}
-            <svg class="md-board-edit-panel__icon md-board-edit-panel__icon--back" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
+            class="md-board-edit-panel__filter-toggle"
+            aria-expanded={{if this.board_actions_collapsed "false" "true"}}
+            aria-controls="board-edit-panel-actions-list"
+            {{action "toggle_board_actions"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span class="md-board-edit-panel__label">{{t "Save and Exit" key="save_and_exit"}}</span>
+            <span class="md-board-edit-panel__filter-text">
+              <span class="md-board-edit-panel__label">{{t "Board Actions" key="board_actions_caps"}}</span>
+            </span>
+            <svg class="md-board-edit-panel__filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </button>
+          {{#unless this.board_actions_collapsed}}
+          <div id="board-edit-panel-actions-list" class="md-board-edit-panel__collapse">
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Add Board to Sidebar" key="add_board_to_sidebar"}} {{action "add_to_sidebar"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Add Board to Sidebar" key="add_board_to_sidebar"}}</span>
+          </button>
+          {{!-- Board Ideas — moved from the center toolbar's
+               Boards section. Same `suggestions` action and same
+               info-circle SVG path data as the toolbar copy. --}}
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Board Ideas" key="board_ideas"}} {{action "suggestions"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Board Ideas" key="board_ideas"}}</span>
+          </button>
+          {{!-- Button Stash — moved from the right panel's
+               BUTTON SETTINGS group. Same `open_button_stash`
+               action. Icon retains the two-stacked-cards shape
+               but uses currentColor to match the panel's other
+               single-tone icons. --}}
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Button Stash" key="button_stash"}} {{action "open_button_stash"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="14" height="14" rx="2"/>
+              <rect x="7" y="7" width="14" height="14" rx="2"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Button Stash" key="button_stash"}}</span>
+          </button>
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Edit Board Details" key="edit_board_details"}} {{action "board_details"}}>
+            {{!-- Pencil-on-paper edit mark — matches the existing
+                 "Edit Board" item in the actions menu so the verb
+                 reads consistently across the product. --}}
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Edit Board Details" key="edit_board_details"}}</span>
+          </button>
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Favorite" key="set_as_favorite"}} {{action "toggle_favorite"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill={{if this.model.starred "currentColor" "none"}} stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Set as Favorite" key="set_as_favorite"}}</span>
+          </button>
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Home Board" key="set_as_home_board"}} {{action "set_as_home"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Set as Home Board" key="set_as_home_board"}}</span>
+          </button>
+          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+              <circle cx="5" cy="12" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="19" cy="12" r="2"/>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Other Actions" key="other_actions"}}</span>
+          </button>
+          </div>
+          {{/unless}}
         </div>
 
         {{!-- SEARCH & FILTER GROUP — the buttons-search input and the
@@ -276,93 +385,6 @@
               <span class="md-board-edit-panel__tile-label">{{t "Download" key="download"}}</span>
             </button>
           </div>
-        </div>
-
-        {{!-- BOARD ACTIONS — expandable, mirrors the Filter by Category
-             control: outlined toggle surface + chevron, body shown when
-             open. --}}
-        <div class="md-board-edit-panel__filter {{unless this.board_actions_collapsed 'md-board-edit-panel__filter--open'}}">
-          <button type="button"
-            class="md-board-edit-panel__filter-toggle"
-            aria-expanded={{if this.board_actions_collapsed "false" "true"}}
-            aria-controls="board-edit-panel-actions-list"
-            {{action "toggle_board_actions"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            <span class="md-board-edit-panel__filter-text">
-              <span class="md-board-edit-panel__label">{{t "Board Actions" key="board_actions_caps"}}</span>
-            </span>
-            <svg class="md-board-edit-panel__filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-          {{#unless this.board_actions_collapsed}}
-          <div id="board-edit-panel-actions-list" class="md-board-edit-panel__collapse">
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Add Board to Sidebar" key="add_board_to_sidebar"}} {{action "add_to_sidebar"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="9" y1="3" x2="9" y2="21"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Add Board to Sidebar" key="add_board_to_sidebar"}}</span>
-          </button>
-          {{!-- Board Ideas — moved from the center toolbar's
-               Boards section. Same `suggestions` action and same
-               info-circle SVG path data as the toolbar copy. --}}
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Board Ideas" key="board_ideas"}} {{action "suggestions"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Board Ideas" key="board_ideas"}}</span>
-          </button>
-          {{!-- Button Stash — moved from the right panel's
-               BUTTON SETTINGS group. Same `open_button_stash`
-               action. Icon retains the two-stacked-cards shape
-               but uses currentColor to match the panel's other
-               single-tone icons. --}}
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Button Stash" key="button_stash"}} {{action "open_button_stash"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="14" height="14" rx="2"/>
-              <rect x="7" y="7" width="14" height="14" rx="2"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Button Stash" key="button_stash"}}</span>
-          </button>
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Edit Board Details" key="edit_board_details"}} {{action "board_details"}}>
-            {{!-- Pencil-on-paper edit mark — matches the existing
-                 "Edit Board" item in the actions menu so the verb
-                 reads consistently across the product. --}}
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Edit Board Details" key="edit_board_details"}}</span>
-          </button>
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Favorite" key="set_as_favorite"}} {{action "toggle_favorite"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill={{if this.model.starred "currentColor" "none"}} stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Set as Favorite" key="set_as_favorite"}}</span>
-          </button>
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Home Board" key="set_as_home_board"}} {{action "set_as_home"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Set as Home Board" key="set_as_home_board"}}</span>
-          </button>
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-              <circle cx="5" cy="12" r="2"/>
-              <circle cx="12" cy="12" r="2"/>
-              <circle cx="19" cy="12" r="2"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Other Actions" key="other_actions"}}</span>
-          </button>
-          </div>
-          {{/unless}}
         </div>
 
         {{!-- ── VIEW STYLE + THEME (bottom of left panel) ───────────
@@ -681,6 +703,14 @@
               {{!-- Display Section --}}
               <div class="md-board-detail-actions-menu__section">
                 <span class="md-board-detail-actions-menu__section-label">{{t "Display" key="display"}}</span>
+                {{!-- Expand Sections submenu (Expand/Collapse Side Panels +
+                     Mid Panel) temporarily removed from the options menu.
+                     Hidden for now — may be re-introduced later. The
+                     underlying toggle_panels / toggle_board_collapsed
+                     actions and panels_collapsed / board_collapsed state
+                     are left intact so this can be restored by simply
+                     un-commenting this block. --}}
+                {{!--
                 <div class="md-board-detail-actions-menu__submenu-wrap">
                   <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub" {{action "toggle_expand_submenu"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -706,6 +736,7 @@
                     </div>
                   {{/if}}
                 </div>
+                --}}
                 <div class="md-board-detail-actions-menu__submenu-wrap">
                   <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub" {{action "toggle_styles_submenu"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

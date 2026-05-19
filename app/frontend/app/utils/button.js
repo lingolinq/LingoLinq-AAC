@@ -351,23 +351,20 @@ var Button = EmberObject.extend({
     keys.forEach(function(key) {
       if(mods[key]) {
         for(var attr in mods[key]) {
-          var val = mods[key][attr];
-          // Legacy/copied boards persist boolean rule values as the
-          // STRINGS "true"/"false" instead of real booleans. Setting
-          // `hidden = "false"` is catastrophic — JS treats any non-
-          // empty string as truthy, so activate_button's hidden-guard
-          // fires and the click silently no-ops. Coerce here so all
-          // downstream consumers see a real boolean.
-          if(attr === 'hidden' || attr === 'link_disabled' || attr === 'add_to_vocalization' || attr === 'add_vocalization' || attr === 'home_lock' || attr === 'blocking_speech' || attr === 'hide_label' || attr === 'text_only' || attr === 'no_skin') {
-            val = (val === true || val === 'true');
-          }
-          _this.set(attr, val);
+          // Coerce string "true"/"false" rule values to real booleans
+          // (see Button.coerce_level_value). Without this, "false" is
+          // truthy and the level filter inverts.
+          _this.set(attr, Button.coerce_level_value(attr, mods[key][attr]));
         }
       }
     });
   },
   set_val(key, val) {
-    this.set(key, val);
+    // fast_html applies level rules through here; rule values can be the
+    // strings "true"/"false" (legacy/copied boards), so coerce the
+    // boolean-ish attributes — otherwise `hidden = "false"` is truthy
+    // and the classic browse grid hides buttons the level rule promotes.
+    this.set(key, Button.coerce_level_value(key, val));
   },
   fast_html: computed(
     'refresh_token',
@@ -837,6 +834,25 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Legacy/copied boards persist boolean level-rule values as the STRINGS
+// "true"/"false" instead of real booleans. Assigning `hidden = "false"`
+// is catastrophic — JS treats any non-empty string as truthy, so
+// `boundClasses.add_classes` stamps `hidden_button` (and the hidden-guard
+// in activate_button fires) on a button the level rule meant to SHOW.
+// board-detail's _make_btn already does this string-or-bool comparison,
+// which is why level filtering works there but not in the classic
+// (board/board-alt) renderers. This is the single source of truth for
+// which rule attributes are boolean-ish and how to coerce them; used by
+// Button.apply_level, Button.set_val, and board.js render_fast_html.
+Button.LEVEL_BOOL_ATTRS = ['hidden', 'link_disabled', 'add_to_vocalization', 'add_vocalization',
+            'home_lock', 'blocking_speech', 'hide_label', 'text_only', 'no_skin'];
+Button.coerce_level_value = function(attr, val) {
+  if(Button.LEVEL_BOOL_ATTRS.indexOf(attr) !== -1) {
+    return (val === true || val === 'true');
+  }
+  return val;
+};
 
 // Static service registry for use in static methods
 Button._services = {

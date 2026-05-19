@@ -4,6 +4,90 @@ Status: investigation complete, remediation proposed (not yet implemented)
 Scope: backend (converters, `ButtonImage`, workers, OpenSymbols integration) + a one‑time data backfill
 Audience: backend/platform team
 
+> ## 📌 2026‑05‑18 forensic conclusion (git + DB evidence) — read this first
+>
+> A full git‑history + live‑DB forensic pass settled two **independent**
+> problems that were being conflated as "skin tone broke":
+>
+> ### 1. White box behind symbols — a CSS regression, now FIXED
+> - **Cause:** commit **`18a3ad032`** (2026‑05‑04, Melissa O, PR #238
+>   "sample speak mode board for landing page") deleted, as collateral
+>   in a landing‑page PR, the two rules
+>   `.symbol_background_clear .md-board-detail-symbol-card__image img { mix-blend-mode: multiply; }`
+>   and the classic twin `.symbol_background_clear .button img.symbol { … }`
+>   from `app/frontend/app/styles/app.scss`. `multiply` is what made the
+>   white‑baked background of symbol assets transparent over the colored
+>   Fitzgerald card. The rule was **introduced 2026‑04‑05 (`1ceed4bd1`)**,
+>   so the working window was **2026‑04‑05 → 2026‑05‑04**.
+> - **Scope:** `18a3ad032` is in `traci/styling/styling-updates` **and**
+>   `origin/staging` (both broke 2026‑05‑04). It is **NOT** in
+>   `origin/main` or `origin/fix/vocab-and-button-image-staging` (still
+>   working there, ~line 6837). This is why staging "worked at one point
+>   then stopped" with the same boards.
+> - **Fix applied (this branch, uncommitted):** both `mix-blend-mode:
+>   multiply` rules restored verbatim from `origin/main`, each before its
+>   surviving `[src$="square.svg"] { mix-blend-mode: normal }` override.
+>   `583315b1c` (2026‑05‑17, holder `background: transparent`) was a
+>   partial fix that did not restore the `img` blend. **Note:** staging
+>   stays broken until this lands there or `18a3ad032`'s deletion is
+>   undone — coordinate so PR #238's CSS deletion isn't re‑introduced.
+>
+> ### 2. Skin tone not applied — NOT a code regression; data/import
+> - The frontend skin pipeline (`is_skinned_url`, `skinned_url`,
+>   `skin_image_map`, `which_skinner` in `board.js`; `personalize_url`
+>   in `image.js`; `_make_btn`/`_rebuild_on_pref_change` in
+>   `board-detail.js`) is **byte‑identical across HEAD, origin/main,
+>   origin/staging, the fix/*-staging branches**, introduced 2022
+>   (`b3a891582`) and never behaviorally changed. **No skin‑tone code
+>   regression exists on any branch.**
+> - Skin tone is applied **only** by client‑side URL rewriting: it fires
+>   only when the served URL is a server‑generated `*.varianted-skin.*`
+>   (or twemoji `-var…UNI`) URL. `ButtonImage#check_for_variants`
+>   (`button_image.rb:221‑247`) only produces that when
+>   `url =~ /\/libraries\//`.
+> - **DB evidence (live, this fork):** the seeded boards come from
+>   `rake openaac:import_vocabularies` (`lib/tasks/openaac.rake`, added
+>   2026‑02‑09 `b25161c91`) importing `.obz` files — **not** `db/seeds.rb`.
+>   `communikate-home` (`1_2848`): all 18 ButtonImages **created
+>   2026‑03‑12 23:17 UTC**, every one plain
+>   `lingolinq-uploads.s3…/images/…`, `library=nil`, `external_id=nil`,
+>   no `varianted-skin`, `checked_for_variants=nil`. `core-112-feel`
+>   (`1_197`): all 98 ButtonImages **created 2026‑03‑12 21:36 UTC**,
+>   identical plain profile. **No older/orphaned `/libraries/` rows for
+>   these lineages exist** — there is no DB record of a prior good state
+>   a re‑seed overwrote. They were **born plain and never skinnable on
+>   this fork's DB.**
+> - **Why plain:** OBZ bundles images as zip entries; the `obf` gem
+>   base64‑embeds them and the converter
+>   (`lib/converters/lingo_linq.rb:340‑368`) does `item.delete('url')`
+>   then re‑uploads as a plain S3 file, discarding the original
+>   `/libraries/` URL + `external_id`. This block is **byte‑identical to
+>   the original pre‑rename CoughDrop converter**
+>   (`git show b25161c91~1:lib/converters/cough_drop.rb`); the 2026‑02
+>   commits were pure file renames. So this is **original CoughDrop /
+>   obf‑gem behavior, not a LingoLinq regression** — upstream CoughDrop
+>   importing the same `.obz` the same way would also lose skin tone.
+> - Skin tone **does** still work on this fork for images inserted via
+>   the in‑app OpenSymbols picker: the live DB has **97 `/libraries/`
+>   images and 31 working `varianted-skin` URLs** (e.g.
+>   `…/libraries/arasaac/I.png.varianted-skin.png`). It is broken **only
+>   for OBZ‑imported boards**, always was.
+> - **"It worked with these boards at one point" =** seen on CoughDrop's
+>   hosted service (native `/libraries/`‑backed images; the reference
+>   screenshot was literally `app.mycoughdrop.com`), and/or on this fork
+>   for picker‑inserted symbols — never for these OBZ‑imported board
+>   keys on this fork's DB.
+> - **The only real fix** is the import‑path enhancement (R1/R2 below):
+>   the converter must preserve the OBF `images[]` original library
+>   `url`/`external_id`/`library_alternates` (skip the base64 re‑upload
+>   when the URL is `/libraries/`‑resolvable) so `check_for_variants`
+>   can produce skinnable URLs, plus a one‑time backfill of the seeded
+>   boards. **Not a frontend/CSS change.**
+>
+> Net: the white‑box fix (CSS) and skin‑tone (backend import) are
+> separate. The CSS regression is fixed on this branch; skin tone for
+> OBZ‑imported boards requires the backend converter/backfill work.
+
 > ## ⚠️ Re-evaluation update (verified, no assumptions) — read this first
 >
 > A second, assumption-free pass against the live DB + runtime found the

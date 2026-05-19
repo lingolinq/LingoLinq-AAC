@@ -524,14 +524,30 @@ export default Controller.extend(prefClasses, {
     var grid = raw.grid;
     var use_ember = _this.get('edit_mode');
 
-    // Current speak-mode level. Default to model.default_level then 10
-    // so untagged boards behave as "show everything". This is the level
-    // we'll bake into each button's `hidden` via apply_button_level in
-    // _make_btn, and the level that keys the cache below — otherwise
-    // switching from L1 to L10 would return the stale L1 grid.
+    // Current speak-mode level: the level the supervisor last selected
+    // (persisted in stashes.board_level). If none was ever selected,
+    // default to 10 (full vocab — untagged boards "show everything").
+    // This MUST match current_speak_level exactly (saved 1–10 else 10)
+    // so the highlighted pill and the actually-filtered grid always
+    // agree, including for boards that ship an author default_level.
+    // This is the level baked into each button's `hidden` via
+    // apply_button_level in _make_btn, and the level that keys the cache
+    // below — otherwise switching from L1 to L10 would return the stale
+    // L1 grid.
     var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
-    var default_level = parseInt(_this.get('model.default_level'), 10);
-    var current_level = stashed_level || default_level || 10;
+    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+
+    // Does THIS board actually use Button Levels? (Any button carries a
+    // non-empty level_modifications.) The level filter must be a no-op on
+    // boards that don't use levels — otherwise a stale stashes.board_level
+    // (e.g. 3, carried over from a different leveled board) makes the
+    // untagged `else` branch in _make_btn flag EVERY button
+    // display_as_hidden, which the communicator speak-hide CSS then
+    // renders as a blank board. This is NOT the (reverted) blank-button
+    // rule — it only gates the pre-existing untagged-hide.
+    var board_has_levels = (raw.buttons || []).some(function(b) {
+      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
+    });
 
     // Cache key for the pre-built ordered_buttons. Only used in non-edit
     // mode: edit-mode buttons are Ember objects with mutable state we
@@ -542,7 +558,8 @@ export default Controller.extend(prefClasses, {
       skin: skin || null,
       edit_mode: !!use_ember,
       label_locale: _this.get('app_state.label_locale') || null,
-      board_level: current_level
+      board_level: current_level,
+      board_has_levels: board_has_levels
     };
     if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
@@ -559,7 +576,7 @@ export default Controller.extend(prefClasses, {
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
-        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map, current_level);
+        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map, current_level, board_has_levels);
       });
       _this.set('ordered_buttons', [buttons]);
       _this._apply_focus_dim_to_ordered_buttons();
@@ -582,7 +599,7 @@ export default Controller.extend(prefClasses, {
         var btn_id = (grid.order[ri] || [])[ci];
         var raw_btn = btn_id !== null && btn_id !== undefined ? button_map[String(btn_id)] : null;
         if(raw_btn) {
-          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map, current_level));
+          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map, current_level, board_has_levels));
         } else {
           if(use_ember) {
             var fake = editManager.Button.create({ empty: true, label: '', id: btn_id || ('fake_' + ri + '_' + ci) });
@@ -617,7 +634,7 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  _make_btn: function(btn, image_map, level) {
+  _make_btn: function(btn, image_map, level, board_has_levels) {
     var img_url = null;
     if(btn.image_id && image_map) {
       if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
@@ -655,11 +672,15 @@ export default Controller.extend(prefClasses, {
           }
         });
         display_as_hidden = (working.hidden === true || working.hidden === 'true');
-      } else {
-        // Untagged at level < 10 — the level filter excludes
-        // unpromoted buttons. Without this, picking a low level on
-        // a partially-tagged board would surface every untagged
-        // button, defeating the filter.
+      } else if(board_has_levels) {
+        // Untagged at level < 10 on a board that DOES use levels — the
+        // level filter excludes unpromoted buttons. Without this, picking
+        // a low level on a partially-tagged board would surface every
+        // untagged button, defeating the filter. GATED on
+        // board_has_levels: on a board with NO level rules at all, level
+        // selection is meaningless and must not hide anything (a stale
+        // stashes.board_level from another board would otherwise blank
+        // the whole board once the speak-hide CSS removes the cards).
         display_as_hidden = true;
       }
     }
@@ -1366,12 +1387,14 @@ export default Controller.extend(prefClasses, {
   // entries.
   current_speak_level: computed(
     'stashes.board_level',
-    'model.default_level',
     function() {
-      var lvl = this.get('stashes.board_level');
-      if(lvl) { return String(lvl); }
-      var def = this.get('model.default_level');
-      if(def) { return String(def); }
+      // Show the last level the supervisor selected (persisted in
+      // stashes.board_level). If none was ever selected, default to 10
+      // (full vocab) — matches toggle_levels_submenu's applied value so
+      // the highlighted pill and the actually-filtered level always
+      // agree.
+      var lvl = parseInt(this.get('stashes.board_level'), 10);
+      if(lvl >= 1 && lvl <= 10) { return String(lvl); }
       return '10';
     }
   ),
@@ -5821,13 +5844,17 @@ export default Controller.extend(prefClasses, {
       // wants it.
       var was_open = this.get('levels_submenu_open');
       this.toggleProperty('levels_submenu_open');
-      // On expand, auto-activate Level 1 — the default entry-point for
-      // level navigation. Without this, the pill UI shows L1 highlighted
-      // (via current_speak_level fallback) but the board isn't actually
-      // filtered. Users who want a different level click another pill,
-      // which re-fires set_speak_level via the normal path.
+      // On expand, RE-APPLY the level the supervisor last selected
+      // (persisted in stashes.board_level) so the board is actually
+      // filtered to it and the matching pill highlights. If no level was
+      // ever selected, default to 10 (full vocab). Previously this
+      // hard-coded level 1, which overwrote and re-persisted the saved
+      // level on every open — so the supervisor's choice never survived
+      // re-opening the menu or a new session.
       if(!was_open) {
-        this.send('set_speak_level', 1);
+        var saved = parseInt(this.get('stashes.board_level'), 10);
+        var lvl = (saved >= 1 && saved <= 10) ? saved : 10;
+        this.send('set_speak_level', lvl);
       }
     },
 

@@ -156,9 +156,18 @@ export default Route.extend({
     // `board.model == null` while we are on the board-detail route and
     // silently no-op. Sharing the same model instance keeps every legacy
     // hook working unchanged.
+    // Only mirror a REAL Ember board record. model() resolves with a
+    // plain { error: true, boardname } object when the /tree (and
+    // single-board fallback) fetch fails — mirroring that POJO would
+    // poison application.board.model, and legacy paths that call
+    // `board.model.get(...)` directly (e.g. app-state refresh_suggestions)
+    // would throw "board.get is not a function" and hard-crash the view
+    // instead of showing the recoverable board-detail error state. Same
+    // guard the next line (`model.get ? ...`) and resolve_board_from_controller
+    // (`m.get && !m.get('error')`) already use.
     try {
       var boardIndexController = this.controllerFor('board.index');
-      if (boardIndexController) {
+      if (boardIndexController && model && model.get && !model.get('error') && (model.get('key') || model.get('id'))) {
         boardIndexController.set('model', model);
       }
     } catch (e) { /* board.index controller may not exist yet on first load */ }

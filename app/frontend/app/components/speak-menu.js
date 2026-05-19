@@ -316,11 +316,20 @@ export default Component.extend({
         var onBoardDetail = routeName.indexOf('board-detail') !== -1;
 
         if(onBoardDetail) {
-          // Board-detail: send exit_to_home to the board-detail controller
-          // which navigates to the edit page
-          var detailCtrl = getOwner(this).lookup('controller:user.board-detail');
+          // Board-detail: send exit_to_home to the board-detail
+          // controller — the SAME action the options-menu "Exit Speak
+          // Mode" uses. Ember resolves the nested controller under the
+          // SLASHED key; the dotted-only lookup returned undefined, so
+          // this Exit button silently no-op'd. Use the dotted||slashed
+          // fallback (matches voice-output.js / app-state.js).
+          var detailCtrl = getOwner(this).lookup('controller:user.board-detail') ||
+            getOwner(this).lookup('controller:user/board-detail');
           if(detailCtrl) {
             detailCtrl.send('exit_to_home');
+          } else {
+            // No board-detail controller resolvable — fall back to the
+            // classic exit so the button always works.
+            this.get('applicationController').send('toggleSpeakMode', decision);
           }
         } else {
           // Board-alt: default toggleSpeakMode returns to normal mode

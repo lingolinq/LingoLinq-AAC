@@ -1545,15 +1545,19 @@ LingoLinq.Board = DS.Model.extend({
             var mods = button.level_modifications;
             var level = size.display_level;
             // console.log("mods at", mods, level);
+            // Coerce string "true"/"false" rule values to real booleans
+            // (Button.coerce_level_value) — boundClasses.add_classes
+            // below checks `if(button.hidden)`, and the string "false"
+            // is truthy, which would hide buttons the level promotes.
             if(mods.override) {
               for(var key in mods.override) {
-                button[key] = mods.override[key];
+                button[key] = Button.coerce_level_value(key, mods.override[key]);
               }
             }
             if(mods.pre) {
               for(var key in mods.pre) {
                 if(!mods.override || mods.override[key] == null) {
-                  button[key] = mods.pre[key];
+                  button[key] = Button.coerce_level_value(key, mods.pre[key]);
                 }
               }
             }
@@ -1561,7 +1565,7 @@ LingoLinq.Board = DS.Model.extend({
               if(mods[idx]) {
                 for(var key in mods[idx]) {
                   if(!mods.override || mods.override[key] == null) {
-                    button[key] = mods[idx][key];
+                    button[key] = Button.coerce_level_value(key, mods[idx][key]);
                   }
                 }
               }

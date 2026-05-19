@@ -385,9 +385,15 @@ export default Controller.extend({
 
       if(this.get('parent_object')) {
         list = [];
-        list.push({board: this.get('parent_object.board')});
+        var po_board = this.get('parent_object.board');
+        if(po_board) { list.push({board: po_board}); }
         (this.get('parent_object.children') || []).forEach(function(b) {
-          list.push({board: b.board});
+          // A child ref can resolve without a loaded board record (e.g. a
+          // downstream board that 404'd or simply isn't in the store yet).
+          // Pushing {board: undefined} crashes the sort/render forEach
+          // below on `ref.board.id` and takes down the entire boards
+          // browser, so skip refs with no board instead.
+          if(b && b.board) { list.push({board: b.board}); }
         });
         list.done = true;
         res.sub_result = true;
@@ -399,6 +405,7 @@ export default Controller.extend({
       var _this = this;
       if(this.get('parent_object')) {
         list.forEach(function(ref) {
+          if(!ref || !ref.board) { return; }
           if(ref.board.id == _this.get('parent_object.board.id')) {
             ref.str = "a " + ref.board.name;
           } else {
