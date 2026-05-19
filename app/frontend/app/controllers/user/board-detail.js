@@ -672,7 +672,7 @@ export default Controller.extend(prefClasses, {
     return remote_url;
   },
 
-  _make_btn: function(btn, image_map) {
+  _make_btn: function(btn, image_map, level, board_has_levels) {
     var img_url = null;
     if(btn.image_id && image_map) {
       if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
@@ -684,6 +684,50 @@ export default Controller.extend(prefClasses, {
     if(img_url) {
       img_url = this._resolve_cached_image_url(img_url);
     }
+    // Speak-mode level filter: decide whether the level filter should
+    // visually hide this button at the current level. We compute it
+    // into `display_as_hidden` (a plain bool that mirrors the Ember
+    // Button computed of the same name) so the template's existing
+    // `--hidden` class binding picks it up. We deliberately do NOT
+    // touch `hidden` — the raw author-intent flag stays intact so
+    // edit-mode rendering and any other code path that reads
+    // btn.hidden gets the original value. At level 10 (or no level)
+    // the filter is off and display_as_hidden stays false.
+    // Restored on top of melissa/fix/board-button-caching's _make_btn
+    // (the -X theirs merge dropped this level/speak-hide handling while
+    // keeping her image cache resolution above).
+    var display_as_hidden = false;
+    if(level && level < 10) {
+      if(btn.level_modifications) {
+        // Walk pre → 0..level → override on a working copy. If the
+        // resolved hidden is true, the rule excludes this button.
+        // NOTE: rule values arrive as STRINGS ("true"/"false") in
+        // legacy/copied boards, not booleans — `!!"false"` is `true`,
+        // so a naive truthy check inverts the meaning. Use an explicit
+        // string-or-bool comparison instead.
+        var working = { hidden: btn.hidden };
+        var mods = btn.level_modifications;
+        var keys = ['pre'];
+        for(var k = 0; k <= level; k++) { keys.push(k); }
+        keys.push('override');
+        keys.forEach(function(key) {
+          if(mods[key]) {
+            for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
+          }
+        });
+        display_as_hidden = (working.hidden === true || working.hidden === 'true');
+      } else if(board_has_levels) {
+        // Untagged at level < 10 on a board that DOES use levels — the
+        // level filter excludes unpromoted buttons. Without this, picking
+        // a low level on a partially-tagged board would surface every
+        // untagged button, defeating the filter. GATED on
+        // board_has_levels: on a board with NO level rules at all, level
+        // selection is meaningless and must not hide anything (a stale
+        // stashes.board_level from another board would otherwise blank
+        // the whole board once the speak-hide CSS removes the cards).
+        display_as_hidden = true;
+      }
+    }
     return {
       id: btn.id,
       label: btn.label || '',
@@ -692,6 +736,7 @@ export default Controller.extend(prefClasses, {
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
+      display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
       border_color: (btn.background_color && window.tinycolor) ? window.tinycolor(btn.background_color).darken(20).toRgbString() : (btn.border_color || null),
