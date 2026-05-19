@@ -36,9 +36,11 @@ export default Route.extend({
     if (model && model.get('user_name') && session.get('access_token')) {
       var progress = model.get('preferences.progress') || {};
       var home_board_key = model.get('preferences.home_board.key');
-      if (progress.setup_done && home_board_key && !model.get('supporter_view') && !model.get('eval_ended')) {
+      if (progress.setup_done && home_board_key && !model.get('supporter_view') && !model.get('eval_ended') && !this.appState.get('already_homed')) {
         // Regular user past getting-started: jump straight into speak mode on their home board.
         // Done in afterModel (not setupController) so the dashboard doesn't flash first.
+        // Skip when already_homed is set so an explicit Exit Speak Mode -> dashboard
+        // navigation isn't bounced straight back.
         this.appState.home_in_speak_mode({user: model});
         this.appState.set('already_homed', true);
         return;

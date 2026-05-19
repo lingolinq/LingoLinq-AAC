@@ -3287,6 +3287,13 @@ export default Controller.extend(prefClasses, {
         _this.set('show_options_menu', false);
         _this.set('app_state.board_detail_nav_history', []);
         _this.set('app_state.board_detail_entry_board', null);
+        // Leave speak mode before navigating: without this the index route's
+        // afterModel sees current_mode == 'speak' (or just the user's home
+        // board + setup_done) and bounces straight back into speak_mode.
+        if(app_state.get('speak_mode')) {
+          app_state.toggle_mode('speak');
+        }
+        app_state.set('already_homed', true);
         app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
         var transition = _this.get('router').transitionTo('index');
         if(transition && typeof transition.then === 'function') {
