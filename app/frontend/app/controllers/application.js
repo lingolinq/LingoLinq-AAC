@@ -73,7 +73,13 @@ export default Controller.extend({
   useAltHeroColors: false, // when true: hero/sign-in/speak use previous (slate) colors; when false: teal/blue (#147f82, #3a6bc7)
   betaFeedbackDrawerOpen: false,
 
-  hide_header: computed('appState.current_route', function() {
+  /** Set by fullscreen-style routes (e.g. setup layout, create-board-new); do not set `hide_header` directly. */
+  hide_header_force: false,
+
+  hide_header: computed('appState.current_route', 'hide_header_force', function() {
+    if (this.get('hide_header_force')) {
+      return true;
+    }
     var route = this.appState.get('current_route') || '';
     return route === 'demo.speak';
   }),

@@ -3772,4 +3772,489 @@ describe User, :type => :model do
       expect(u.effective_data_policy).to eq({})
     end
   end
+
+  describe '#ai_consent_granted?' do
+    it 'returns false for a newly created user with no ai_consent grant' do
+      u = User.create
+      expect(u.settings).to be_a(Hash)
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns false when settings hash exists but ai_consent key is absent' do
+      u = User.create
+      u.settings = {}
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'returns true after grant_ai_consent! at the same disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(true)
+    end
+
+    it 'returns false when queried at a different disclosures_version' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'returns false after revoke_ai_consent!' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'raises ArgumentError when disclosures_version: kwarg is omitted' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect { u.ai_consent_granted? }.to raise_error(ArgumentError)
+    end
+
+    it 'returns false when explicit disclosures_version: nil is passed' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
+    end
+  end
+
+  describe '#grant_ai_consent!' do
+    it 'writes the settings hash and returns truthy on first call' do
+      u = User.create
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).to be_a(Hash)
+      expect(c['granted_at']).to be_present
+      expect(c['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['source']).to eq('email_link')
+      expect(c['record_id']).to be_present
+      expect(c['disclosures_version']).to eq(1)
+    end
+
+    it 'deletes pending_token and pending_token_expires_at on grant' do
+      u = User.create
+      u.settings ||= {}
+      u.settings['ai_consent'] = {
+        'pending_token' => 'abc',
+        'pending_token_expires_at' => (Time.now.utc + 14 * 86400).iso8601
+      }
+      u.save
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c).not_to have_key('pending_token')
+      expect(c).not_to have_key('pending_token_expires_at')
+    end
+
+    it 'assigns record_id in RFC-4122 UUID format on first grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      # 8-4-4-4-12 hex pattern. We assert the contract (UUID-shaped string),
+      # not the implementation (whatever generator was used). Adversary-flagged
+      # concern: the prior implementation (GoSecure.nonce) had only ~20 bits of
+      # input entropy per second per purpose, which could collide under bulk
+      # admin_backfill. SecureRandom.uuid gives 122 bits.
+      expect(u.settings['ai_consent']['record_id']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+    end
+
+    it 'preserves record_id across the revoke/re-grant lifecycle' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      expect(original_record_id).to be_present
+      u.revoke_ai_consent!
+      u.reload
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      expect(u.settings['ai_consent']['record_id']).to eq(original_record_id)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_grant' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      expect(AuditEvent.count).to eq(0)
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to be_truthy
+      expect(AuditEvent.count).to eq(1)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('email_link')
+      expect(ae.data['granted_by']).to eq('Parent Name <parent@example.com>')
+      expect(ae.data['record_id']).to be_present
+      u.reload
+      expect(ae.data['record_id']).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'is idempotent on same-version re-call: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'does NOT silently grant at a stale (older) version: returns false and fires no AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['disclosures_version']).to eq(2)
+    end
+
+    it 'accepts a version upgrade: grant at a newer disclosures_version overwrites the prior active grant and preserves record_id' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      original_record_id = u.settings['ai_consent']['record_id']
+      pre_count = AuditEvent.count
+      res = u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      expect(res).to eq(true)
+      expect(AuditEvent.count - pre_count).to eq(1)
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['disclosures_version']).to eq(2)
+      expect(c['source']).to eq('in_app')
+      expect(c['record_id']).to eq(original_record_id)
+      expect(c['revoked_at']).to be_blank
+    end
+
+    it 'records the prior_disclosures_version in the audit payload on a version upgrade' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'in_app')
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.data['disclosures_version']).to eq(2)
+      expect(ae.data['prior_disclosures_version']).to eq(1)
+    end
+
+    it 'emits prior_disclosures_version as nil on a first-time grant (no prior version to upgrade from)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      ae = AuditEvent.last
+      expect(ae.data['prior_disclosures_version']).to be_nil
+    end
+
+    it 'passes through optional ip, user_agent, granted_by_user_id to the settings hash' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent Name <parent@example.com>',
+        source: 'in_app',
+        ip: '192.0.2.42',
+        user_agent: 'Mozilla/5.0 (test-agent)',
+        granted_by_user_id: granter.global_id
+      )
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['ip']).to eq('192.0.2.42')
+      expect(c['user_agent']).to eq('Mozilla/5.0 (test-agent)')
+      expect(c['granted_by_user_id']).to eq(granter.global_id)
+      expect(c['source']).to eq('in_app')
+    end
+
+    it 'accepts the admin_backfill source value' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Admin Backfill', source: 'admin_backfill')
+      u.reload
+      expect(u.settings['ai_consent']['source']).to eq('admin_backfill')
+    end
+
+    it 'raises ArgumentError when source is not in the allowlist' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'sms_link')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: nil)
+      }.to raise_error(ArgumentError, 'invalid_source')
+      expect {
+        u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: '')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      u.reload
+      # Pre-validation raise means no settings mutation, no audit row.
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id equals self.global_id (no self-grant)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.global_id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id (no self-grant bypass)' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Self',
+          source: 'in_app',
+          granted_by_user_id: u.id
+        )
+      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'raises ArgumentError when granted_by_user_id is not a global_id or numeric db id' do
+      u = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: 'not-a-valid-id'
+        )
+      }.to raise_error(ArgumentError, 'invalid_granted_by_user_id')
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'normalizes a bare numeric granted_by_user_id to global_id form in settings' do
+      u = User.create
+      granter = User.create
+      u.grant_ai_consent!(
+        disclosures_version: 1,
+        granted_by: 'Parent',
+        source: 'in_app',
+        granted_by_user_id: granter.id
+      )
+      u.reload
+      expect(u.settings['ai_consent']['granted_by_user_id']).to eq(granter.global_id)
+    end
+
+    it 'allows a different user as granted_by_user_id' do
+      u = User.create
+      granter = User.create
+      expect {
+        u.grant_ai_consent!(
+          disclosures_version: 1,
+          granted_by: 'Parent',
+          source: 'in_app',
+          granted_by_user_id: granter.global_id
+        )
+      }.not_to raise_error
+    end
+  end
+
+  describe '#revoke_ai_consent!' do
+    it 'returns false when called on a user with no consent record' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'marks the record revoked and returns true on first call after grant' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      res = u.revoke_ai_consent!
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+    end
+
+    it "fires exactly one AuditEvent with data['type'] == 'ai_consent_revoke' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(AuditEvent.count).to eq(1)
+      u.reload
+      granted_record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!(source: 'parent')
+      expect(AuditEvent.count).to eq(2)
+      ae = AuditEvent.last
+      expect(ae.data['type']).to eq('ai_consent_revoke')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('parent')
+      expect(ae.data['record_id']).to eq(granted_record_id)
+    end
+
+    it 'is idempotent on already-revoked: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.count).to eq(2)
+      u.reload
+      first_revoked_at = u.settings['ai_consent']['revoked_at']
+      pre_count = AuditEvent.count
+      res = u.revoke_ai_consent!
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to eq(first_revoked_at)
+    end
+
+    it 'passes through optional revoked_by and reason to the settings hash' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      u.revoke_ai_consent!(revoked_by: 'Parent Name <parent@example.com>', reason: 'Withdrawing consent')
+      u.reload
+      c = u.settings['ai_consent']
+      expect(c['revoked_by']).to eq('Parent Name <parent@example.com>')
+      expect(c['revoked_reason']).to eq('Withdrawing consent')
+    end
+
+    it 'defaults source to parent when not specified' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.revoke_ai_consent!
+      expect(AuditEvent.last.data['source']).to eq('parent')
+    end
+
+    it 'raises ArgumentError when revoke source is not in the allowlist' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect {
+        u.revoke_ai_consent!(source: 'malicious-input')
+      }.to raise_error(ArgumentError, 'invalid_source')
+      # Pre-validation raise: settings still show the grant intact
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'accepts admin and system as revoke sources in addition to parent' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u.revoke_ai_consent!(source: 'admin') }.not_to raise_error
+      u2 = User.create
+      u2.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent', source: 'email_link')
+      expect { u2.revoke_ai_consent!(source: 'system') }.not_to raise_error
+    end
+  end
+
+  describe 'AI consent atomicity and audit-event coupling' do
+    it 'populates audit_events.event_type and record_id columns on grant (not just the data blob)' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_grant')
+      expect(ae.record_id).to eq(u.settings['ai_consent']['record_id'])
+    end
+
+    it 'populates audit_events.event_type and record_id columns on revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      record_id = u.settings['ai_consent']['record_id']
+      u.revoke_ai_consent!
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('ai_consent_revoke')
+      expect(ae.record_id).to eq(record_id)
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during grant' do
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        expect { u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link') }.to raise_error(ActiveRecord::RecordInvalid)
+      }.not_to change { AuditEvent.count }
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'rolls back the User settings write when AuditEvent.create! raises during revoke' do
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.reload
+      pre_count = AuditEvent.count
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      expect {
+        u.revoke_ai_consent!
+      }.to raise_error(ActiveRecord::RecordInvalid)
+      expect(AuditEvent.count).to eq(pre_count)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_blank
+    end
+
+    it 'rolls back the consent write even when the audit error is rescued inside an outer transaction (requires_new SAVEPOINT)' do
+      # Without `requires_new: true` on with_lock, Rails would join the outer
+      # transaction and a rescued AR error would still leave the consent settings
+      # committed when the outer transaction commits. This spec is the canary for
+      # that regression.
+      u = User.create
+      allow(AuditEvent).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(AuditEvent.new))
+      ActiveRecord::Base.transaction do
+        begin
+          u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+        rescue ActiveRecord::RecordInvalid
+          # Caller swallows the audit failure (e.g. controller renders a 500)
+          # but expects the consent write to NOT have leaked through.
+        end
+        # Outer transaction commits cleanly here.
+      end
+      u.reload
+      expect(u.settings && u.settings['ai_consent']).to be_blank
+    end
+
+    it 'no-ops on a stale in-memory revoke after another copy already revoked (lost-update guard via with_lock reload)' do
+      # NOTE: This test runs single-threaded inside Rails' test transaction, so it
+      # does not exercise true cross-connection SELECT FOR UPDATE blocking. What it
+      # does prove is the second half of the lost-update guard: with_lock reloads
+      # the row inside its block, so a stale in-memory copy observes the committed
+      # state (revoked) and the idempotency guard correctly no-ops. The SELECT FOR
+      # UPDATE behavior under real concurrent connections is a database-level
+      # guarantee, not asserted here.
+      u = User.create
+      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u_a = User.find(u.id)
+      u_b = User.find(u.id)
+      u_a.revoke_ai_consent!
+      # u_b is stale: in-memory state still says granted-and-unrevoked. Calling
+      # revoke! should reload inside with_lock, see the revoked state, and no-op.
+      res = u_b.revoke_ai_consent!
+      expect(res).to eq(false)
+      u.reload
+      expect(u.settings['ai_consent']['revoked_at']).to be_present
+    end
+
+    it 'treats a non-Hash truthy value at settings[ai_consent] as missing (does not crash)' do
+      u = User.create
+      u.settings = { 'ai_consent' => 'corrupted-string-value' }
+      u.save
+      expect(u.ai_consent_granted?(disclosures_version: 1)).to eq(false)
+      # grant! must overwrite the malformed value with a proper hash.
+      res = u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      expect(res).to eq(true)
+      u.reload
+      expect(u.settings['ai_consent']).to be_a(Hash)
+      expect(u.settings['ai_consent']['granted_at']).to be_present
+    end
+  end
 end

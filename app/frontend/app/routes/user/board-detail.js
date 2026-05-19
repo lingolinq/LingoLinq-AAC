@@ -7,6 +7,7 @@ import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
+import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 
 export default Route.extend({
@@ -14,6 +15,68 @@ export default Route.extend({
   stashes: service('stashes'),
   appState: service('app-state'),
   persistence: service('persistence'),
+
+  // One-shot promise so concurrent board-detail entries share a single prime.
+  _prime_caches_promise: null,
+
+  // Load offline url_cache from IndexedDB/filesystem before building buttons
+  // so _make_btn can resolve local image URLs (mirrors legacy fast_html).
+  _maybe_prime_caches: function() {
+    var persistenceSvc = this.persistence;
+    if(!persistenceSvc || persistenceSvc.get('primed')) {
+      return RSVP.resolve();
+    }
+    if(!this.stashes || !this.stashes.get('auth_settings')) {
+      return RSVP.resolve();
+    }
+    if(this._prime_caches_promise) {
+      return this._prime_caches_promise;
+    }
+    var ensure_local = RSVP.resolve();
+    var local = persistenceSvc.get('local_system');
+    if(!local || local.available === undefined) {
+      ensure_local = capabilities.storage.status().then(function(res) {
+        if(res.available && !res.requires_confirmation) {
+          res.allowed = true;
+        }
+        persistenceSvc.set('local_system', res);
+      }, function() {
+        return RSVP.resolve();
+      });
+    }
+    var route = this;
+    var clearPrimePromiseIfUnprimed = function() {
+      if(!persistenceSvc.get('primed')) {
+        route._prime_caches_promise = null;
+      }
+    };
+    this._prime_caches_promise = ensure_local.then(function() {
+      var localAfter = persistenceSvc.get('local_system');
+      if(!localAfter || !localAfter.available || !localAfter.allowed) {
+        return RSVP.resolve();
+      }
+      return persistenceSvc.prime_caches(true).then(null, function() {
+        return RSVP.resolve();
+      });
+    }).then(clearPrimePromiseIfUnprimed, clearPrimePromiseIfUnprimed);
+    return this._prime_caches_promise;
+  },
+
+  // Build the symbol grid, warm current-board images, prefetch linked boards.
+  _finalize_board_display: function(controller, raw) {
+    if(!raw || !controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller._build_from_raw(raw);
+    if(controller.get('edit_mode')) { return; }
+    // Warm browser HTTP cache for this board's symbols (children are warmed by prefetch_linked).
+    runLater(function() {
+      if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
+      boardDetailCache.warm_images(raw);
+    }, 100);
+    runLater(function() {
+      if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
+      boardDetailCache.prefetch_linked(raw);
+    }, 500);
+  },
 
   model: function(params) {
     var _this = this;
@@ -282,11 +345,10 @@ export default Route.extend({
     // so nothing overwrites them
     var raw = _this.get('_raw_board_data');
     if(raw) {
-      controller._build_from_raw(raw);
-      // The tree (root + all descendants) was fetched and cached up
-      // front in model(). Every folder tap from here on will hit a
-      // boardDetailCache cache hit and resolve synchronously — no
-      // network, no overlay, instant transition.
+      _this._maybe_prime_caches().then(function() {
+        if(controller.isDestroyed || controller.isDestroying) { return; }
+        _this._finalize_board_display(controller, raw);
+      });
     }
 
     // Store original name for rename detection

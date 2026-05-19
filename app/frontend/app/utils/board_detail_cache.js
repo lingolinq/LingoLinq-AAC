@@ -109,6 +109,7 @@ export default {
     if (built_for.skin !== ctx.skin) { return null; }
     if (built_for.edit_mode !== ctx.edit_mode) { return null; }
     if (built_for.label_locale !== ctx.label_locale) { return null; }
+    if (!!built_for.url_cache_primed !== !!ctx.url_cache_primed) { return null; }
     return entry.ordered_buttons;
   },
 

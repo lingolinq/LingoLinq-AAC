@@ -51,7 +51,26 @@ class ApplicationController < ActionController::Base
   def set_sentry_user
     return unless defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
     Sentry.set_user(id: GoSecure.sha512(request.remote_ip, 'user_ip'))
-    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = @api_user if defined?(@api_user) && @api_user
+    stash_coppa_sentry_user(coppa_sentry_subject_user)
+  rescue StandardError
+    nil
+  end
+
+  # Stash the User whose data might appear on a Sentry event. Call again
+  # from actions that resolve the authenticated user after before_action.
+  def stash_coppa_sentry_user(user)
+    CoppaSentryScrub.stash_request_user(user)
+  end
+
+  def coppa_sentry_subject_user
+    return @api_user if defined?(@api_user) && @api_user
+
+    if controller_path == 'parental_consents'
+      user_id = params[:user_id].presence || params['user_id']
+      return User.find_by_path(user_id) if user_id.present?
+    end
+
+    nil
   rescue StandardError
     nil
   end

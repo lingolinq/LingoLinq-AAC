@@ -124,11 +124,8 @@
                   {{/if}}
                 </div>
                 <div class="nb-field new-board-field--description">
-                  <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}{{#if this.ai_mode}}<span class="nb-field__required-pill">{{t "required" key="required"}}</span>{{else}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span>{{/if}}</label>
-                  {{#if this.ai_mode}}
-                    <p class="nb-field__hint">{{t "The AI uses this description to generate your board's labels — be specific (who it's for, the setting, the vocabulary focus)." key="ai_description_hint"}}</p>
-                  {{/if}}
-                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" @rows="1" />
+                  <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span></label>
+                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" rows={{1}} />
                 </div>
               </div>
               {{#if this.show_user_options}}

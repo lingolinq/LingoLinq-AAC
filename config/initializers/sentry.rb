@@ -36,6 +36,49 @@ module CoppaSentryScrub
 
   module_function
 
+  def stash_request_user(user)
+    return unless user
+    return unless defined?(RequestStore)
+    RequestStore.store[REQUEST_STORE_KEY] = user
+  rescue StandardError
+    nil
+  end
+
+  # Top-level before_send hook. Drops ActiveSupport::Cache::* events
+  # (noise; see sentry-ruby#1765), then falls through to the COPPA
+  # scrubber for everything else. Set keep_cache_error: true on the
+  # active Sentry scope (Sentry.with_scope { |scope| scope.set_tags(keep_cache_error: true) })
+  # to force a specific cache error through this filter (e.g. when actively
+  # debugging a cache outage). Scope tags are merged into event.tags before
+  # before_send runs.
+  def before_send_event(event, hint)
+    return nil if drop_cache_errors?(event)
+    call(event, hint)
+  end
+
+  def drop_cache_errors?(event)
+    return false unless event.respond_to?(:exception) && event.exception
+    return false if keep_cache_error_tag?(event)
+    first_exception_type(event).to_s.start_with?('ActiveSupport::Cache::')
+  end
+
+  def keep_cache_error_tag?(event)
+    return false unless event.respond_to?(:tags) && event.tags
+    tags = event.tags
+    tags[:keep_cache_error] == true || tags['keep_cache_error'] == true
+  end
+
+  # Sentry::Event#exception returns a Sentry::ExceptionInterface whose
+  # 'values' is an Array of Sentry::SingleExceptionInterface. We poke at
+  # the shape defensively so test doubles, partial events, or future SDK
+  # changes can't crash before_send.
+  def first_exception_type(event)
+    return nil unless event.exception.respond_to?(:values)
+    event.exception.values.first&.type
+  rescue StandardError
+    nil
+  end
+
   def call(event, _hint)
     return event unless event
     user = lookup_user(event_user(event))
@@ -142,8 +185,8 @@ module CoppaSentryScrub
   end
 
   # Scrub breadcrumbs for ALL users, regardless of COPPA status. Targets the
-  # outbound HTTP breadcrumbs Sentry-Rails auto-captures (active_support_logger,
-  # http_logger), where URLs frequently carry access_token, reset_token, etc.
+  # outbound HTTP breadcrumbs Sentry-Rails auto-captures via http_logger, where
+  # URLs frequently carry access_token, reset_token, etc.
   # This complements (does NOT replace) the COPPA branch in #call which fully
   # nukes the event for under-13 users.
   def scrub_breadcrumb(breadcrumb)
@@ -200,6 +243,81 @@ module CoppaSentryScrub
       obj[key.to_sym] = value
     end
   end
+
+  # Transaction-event guard. sentry-ruby's `before_send` callback only fires
+  # for ErrorEvent; TransactionEvent (performance traces) routes through
+  # `before_send_transaction`. Without this filter, ~SENTRY_TRACES_SAMPLE_RATE
+  # of every COPPA-pending child's traces would ship to Sentry carrying:
+  #   - event.user.id = SHA512(remote_ip) (a stable per-IP child fingerprint)
+  #   - event.request.url containing the child's global_id in path segments
+  #   - span descriptions and trace contexts
+  # CoppaSentryScrub#scrub! could mutate request/user/contexts in place, but
+  # TransactionEvent ALSO carries the transaction name and span descriptions
+  # which the existing scrubber does not touch. Simpler+safer: drop the entire
+  # transaction event for COPPA-pending users. Adults keep full traces.
+  TRANSACTION_FILTER = lambda do |event, _hint|
+    user = CoppaSentryScrub.lookup_user(CoppaSentryScrub.event_user(event))
+    CoppaSentryScrub.child_user?(user) ? nil : event
+  rescue StandardError
+    event
+  end
+end
+
+# Per-transaction sampling decision invoked by Sentry on every transaction
+# start. Extracted from the Sentry.init block so it can be unit-tested
+# without booting the SDK (Sentry.init only runs when SENTRY_DSN is set,
+# which is never the case in the test environment).
+module SentryTracesSampler
+  # Matches the no-value paths we never want to spend a trace budget on.
+  # The only health endpoint defined in routes.rb is /api/v1/health
+  # (session#health), and Render hits it on every probe. Anchor at \A/\z
+  # so partial matches like /api/v1/health-check do not fall under the drop.
+  # /assets/ is anchored at the start only because the asset pipeline emits
+  # arbitrary suffixes.
+  IGNORED_TRANSACTION_PATTERN = %r{\A/api/v1/health\z|\A/assets/}
+
+  module_function
+
+  def call(sampling_context)
+    return 0.0 if ignored_transaction?(sampling_context)
+    return 1.0 if sampling_context[:parent_sampled]
+    nil
+  end
+
+  def ignored_transaction?(sampling_context)
+    transaction_name = sampling_context[:transaction_context]&.[](:name)
+    path_info = sampling_context.dig(:env, 'PATH_INFO')
+    [transaction_name, path_info].compact.any? do |path|
+      path.is_a?(String) && path.match?(IGNORED_TRANSACTION_PATTERN)
+    end
+  end
+
+  # MUST be a Proc, not a Method. sentry-ruby 6.5 checks
+  # `traces_sampler.is_a?(Proc)` (lib/sentry/transaction.rb:144) before
+  # invoking. A Method object silently fails the gate and the sampler is
+  # never called. Specs assert SentryTracesSampler::PROC.is_a?(Proc) so a
+  # future revert to `.method(:call)` breaks CI.
+  PROC = ->(ctx) { call(ctx) }
+end
+
+# Shared Sentry.init hook wiring. Extracted so specs can assert the Proc
+# contract without booting the SDK against a live DSN.
+module SentryInitializer
+  module_function
+
+  def configure!(config)
+    config.breadcrumbs_logger = %i[http_logger]
+    config.send_default_pii = false
+    config.send_modules = false
+
+    config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.05').to_f
+    config.profiles_sample_rate = (ENV['SENTRY_PROFILES_SAMPLE_RATE'] || '0.0').to_f
+    config.traces_sampler = SentryTracesSampler::PROC
+
+    config.before_send = ->(event, hint) { CoppaSentryScrub.before_send_event(event, hint) }
+    config.before_send_transaction = CoppaSentryScrub::TRANSACTION_FILTER
+    config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
+  end
 end
 
 if ENV['SENTRY_DSN'].to_s.strip != ''
@@ -207,21 +325,7 @@ if ENV['SENTRY_DSN'].to_s.strip != ''
     config.dsn = ENV['SENTRY_DSN']
     config.environment = ENV['SENTRY_ENVIRONMENT'] || ENV['RAILS_ENV'] || Rails.env
     config.enabled_environments = %w[production staging]
-
-    config.breadcrumbs_logger = %i[active_support_logger http_logger]
-    config.send_default_pii = false
-    config.send_modules = false
-
-    config.traces_sample_rate = (ENV['SENTRY_TRACES_SAMPLE_RATE'] || '0.1').to_f
-    config.profiles_sample_rate = (ENV['SENTRY_PROFILES_SAMPLE_RATE'] || '0.0').to_f
-
     config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''
-
-    # Strip values for any field name that PiiScrubber identifies as PII,
-    # plus the request-level fields Sentry-Rack auto-captures.
-    config.send_default_pii = false
-
-    config.before_send = ->(event, hint) { CoppaSentryScrub.call(event, hint) }
-    config.before_breadcrumb = ->(breadcrumb, _hint) { CoppaSentryScrub.scrub_breadcrumb(breadcrumb) }
+    SentryInitializer.configure!(config)
   end
 end

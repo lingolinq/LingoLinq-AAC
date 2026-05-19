@@ -54,8 +54,11 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  has_board_history: computed('board_detail_history.[]', function() {
-    return (this.get('board_detail_history') || []).length > 0;
+  /** Speak bar + header back control: session folder trail and/or DB parent board. */
+  show_board_back_nav: computed('board_detail_history.[]', 'model.parent_board_key', function() {
+    if((this.get('board_detail_history') || []).length > 0) { return true; }
+    var pk = this.get('model.parent_board_key');
+    return !!(pk && String(pk).indexOf('/') !== -1);
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -558,8 +561,9 @@ export default Controller.extend(prefClasses, {
       skin: skin || null,
       edit_mode: !!use_ember,
       label_locale: _this.get('app_state.label_locale') || null,
-      board_level: current_level,
-      board_has_levels: board_has_levels
+      // Invalidate grid reuse when offline url_cache becomes available so
+      // image_url picks up local paths after prime_caches().
+      url_cache_primed: !!persistence.primed
     };
     if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
@@ -634,7 +638,41 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  _make_btn: function(btn, image_map, level, board_has_levels) {
+  // Prefer a locally-synced copy from persistence.url_cache when available
+  // (same lookup order as Board#render_fast_html).
+  _resolve_cached_image_url: function(remote_url) {
+    if(!remote_url) { return null; }
+    var url_cache = persistence.url_cache;
+    if(!url_cache) { return remote_url; }
+    var url_uncache = persistence.url_uncache;
+    var try_url = function(u) {
+      if(!u) { return null; }
+      if(url_uncache && url_uncache[u]) { return null; }
+      var cached = url_cache[u];
+      if(cached && cached !== false) { return cached; }
+      return null;
+    };
+    var cached = try_url(remote_url);
+    if(cached) { return cached; }
+    var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
+    if(unvarianted !== remote_url) {
+      cached = try_url(unvarianted);
+      if(cached) { return cached; }
+    }
+    var alt_url = null;
+    if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    } else if(remote_url.match(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    }
+    if(alt_url) {
+      cached = try_url(alt_url);
+      if(cached) { return cached; }
+    }
+    return remote_url;
+  },
+
+  _make_btn: function(btn, image_map) {
     var img_url = null;
     if(btn.image_id && image_map) {
       if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
@@ -643,46 +681,8 @@ export default Controller.extend(prefClasses, {
         img_url = image_map[btn.image_id];
       }
     }
-    // Speak-mode level filter: decide whether the level filter should
-    // visually hide this button at the current level. We compute it
-    // into `display_as_hidden` (a plain bool that mirrors the Ember
-    // Button computed of the same name) so the template's existing
-    // `--hidden` class binding picks it up. We deliberately do NOT
-    // touch `hidden` — the raw author-intent flag stays intact so
-    // edit-mode rendering and any other code path that reads
-    // btn.hidden gets the original value. At level 10 (or no level)
-    // the filter is off and display_as_hidden stays false.
-    var display_as_hidden = false;
-    if(level && level < 10) {
-      if(btn.level_modifications) {
-        // Walk pre → 0..level → override on a working copy. If the
-        // resolved hidden is true, the rule excludes this button.
-        // NOTE: rule values arrive as STRINGS ("true"/"false") in
-        // legacy/copied boards, not booleans — `!!"false"` is `true`,
-        // so a naive truthy check inverts the meaning. Use an explicit
-        // string-or-bool comparison instead.
-        var working = { hidden: btn.hidden };
-        var mods = btn.level_modifications;
-        var keys = ['pre'];
-        for(var k = 0; k <= level; k++) { keys.push(k); }
-        keys.push('override');
-        keys.forEach(function(key) {
-          if(mods[key]) {
-            for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
-          }
-        });
-        display_as_hidden = (working.hidden === true || working.hidden === 'true');
-      } else if(board_has_levels) {
-        // Untagged at level < 10 on a board that DOES use levels — the
-        // level filter excludes unpromoted buttons. Without this, picking
-        // a low level on a partially-tagged board would surface every
-        // untagged button, defeating the filter. GATED on
-        // board_has_levels: on a board with NO level rules at all, level
-        // selection is meaningless and must not hide anything (a stale
-        // stashes.board_level from another board would otherwise blank
-        // the whole board once the speak-hide CSS removes the cards).
-        display_as_hidden = true;
-      }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     return {
       id: btn.id,
@@ -713,6 +713,9 @@ export default Controller.extend(prefClasses, {
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
       }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
@@ -3731,9 +3734,24 @@ export default Controller.extend(prefClasses, {
     go_back: function() {
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
-      if(!prev) { return; }
-      this.set('app_state.board_detail_nav_history', history);
-      this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+      if(prev) {
+        this.set('app_state.board_detail_nav_history', history);
+        this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+        return;
+      }
+      // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
+      var parentKey = this.get('model.parent_board_key');
+      if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
+      if(this.get('stashes').get('sticky_board')) {
+        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        return;
+      }
+      var _this = this;
+      this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var parts = preferred_key.split('/');
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      });
     },
 
     go_home: function() {

@@ -7,7 +7,7 @@ export default Route.extend({
   appState: service('app-state'),
   setupController: function(controller) {
     if (controller.get('mode') === 'layout') {
-      this.appState.controller.set('hide_header', true);
+      this.appState.controller.set('hide_header_force', true);
     }
     this.appState.controller.set('setup_footer', true);
     this.appState.controller.set('simple_board_header', true);
@@ -35,6 +35,6 @@ export default Route.extend({
   deactivate: function() {
     speecher.stop('all');
     this.appState.set('board_layout_mode', null);
-    this.appState.controller.set('hide_header', false);
+    this.appState.controller.set('hide_header_force', false);
   }
 });
