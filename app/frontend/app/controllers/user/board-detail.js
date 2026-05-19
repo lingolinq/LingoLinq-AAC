@@ -511,7 +511,10 @@ export default Controller.extend(prefClasses, {
       preferred_symbols: _this._preferred_symbols,
       skin: skin || null,
       edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null
+      label_locale: _this.get('app_state.label_locale') || null,
+      // Invalidate grid reuse when offline url_cache becomes available so
+      // image_url picks up local paths after prime_caches().
+      url_cache_primed: !!persistence.primed
     };
     if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
@@ -577,6 +580,40 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  // Prefer a locally-synced copy from persistence.url_cache when available
+  // (same lookup order as Board#render_fast_html).
+  _resolve_cached_image_url: function(remote_url) {
+    if(!remote_url) { return null; }
+    var url_cache = persistence.url_cache;
+    if(!url_cache) { return remote_url; }
+    var url_uncache = persistence.url_uncache;
+    var try_url = function(u) {
+      if(!u) { return null; }
+      if(url_uncache && url_uncache[u]) { return null; }
+      var cached = url_cache[u];
+      if(cached && cached !== false) { return cached; }
+      return null;
+    };
+    var cached = try_url(remote_url);
+    if(cached) { return cached; }
+    var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
+    if(unvarianted !== remote_url) {
+      cached = try_url(unvarianted);
+      if(cached) { return cached; }
+    }
+    var alt_url = null;
+    if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    } else if(remote_url.match(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    }
+    if(alt_url) {
+      cached = try_url(alt_url);
+      if(cached) { return cached; }
+    }
+    return remote_url;
+  },
+
   _make_btn: function(btn, image_map) {
     var img_url = null;
     if(btn.image_id && image_map) {
@@ -585,6 +622,9 @@ export default Controller.extend(prefClasses, {
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
       }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     return {
       id: btn.id,
@@ -614,6 +654,9 @@ export default Controller.extend(prefClasses, {
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
       }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
