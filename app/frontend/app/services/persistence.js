@@ -128,6 +128,18 @@ var persistence = Service.extend({
         }
       }, 0);
       */
+      // Deferred hooks (post-login sync, online listeners) without calling full setup().
+      var _this = this;
+      runLater(function() {
+        if(!_this || _this.isDestroyed || _this.isDestroying) { return; }
+        if(typeof _this._setupOnlineListeners === 'function' && !_this._online_listeners_ready) {
+          _this._online_listeners_ready = true;
+          _this._setupOnlineListeners();
+        }
+        if(typeof _this.schedulePostLoginSyncIfNeeded === 'function') {
+          _this.schedulePostLoginSyncIfNeeded();
+        }
+      }, 0);
       if (_vb) {
         console.log('[PERSISTENCE INIT] Skipping setup() call to prevent observer firing');
         console.log('[PERSISTENCE INIT] ========== init() END ==========');
@@ -3872,30 +3884,22 @@ var persistence = Service.extend({
       return RSVP.reject({offline: true, error: "not online", short_circuit: true});
     }
   },
-  // TEMPORARILY COMMENTED OUT TO TEST
-  /*
   on_connect: observer('online', function() {
-    // Guard: check this before assigning to _this
-    if(!this || typeof this !== 'object') {
-      console.warn('on_connect observer: this is invalid', this);
+    if(!this || typeof this !== 'object' || typeof this.get !== 'function' || !this.stashes) {
       return;
     }
     var _this = this;
-    // Guard: ensure service is fully initialized before accessing anything
-    if(typeof _this.get !== 'function' || !_this.stashes) {
-      return;
-    }
     try {
       if(_this.stashes && typeof _this.stashes.set === 'function') {
         _this.stashes.set('online', _this.get('online'));
       }
       if(_this.get('online') && (!LingoLinq.testing || LingoLinq.sync_testing)) {
         runLater(function() {
-          // TODO: maybe do a quick xhr to a static asset to make sure we're for reals online?
-          if(_this && _this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings')) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings')) {
             _this.check_for_needs_sync(true);
           }
-          if(_this && typeof _this.getBrowserToken === 'function') {
+          if(typeof _this.getBrowserToken === 'function') {
             _this.tokens = {};
             if(LingoLinq.session) {
               LingoLinq.session.restore(!_this.getBrowserToken());
@@ -3907,7 +3911,118 @@ var persistence = Service.extend({
       console.warn('Error in on_connect observer:', e);
     }
   }),
-  */
+  // After login, schedule a background sync check (10s delay so the UI can settle).
+  schedulePostLoginSyncIfNeeded: function() {
+    var _this = this;
+    if(isTesting()) { return; }
+    runLater(function() {
+      try {
+        var svc = _this || window.persistence;
+        if(!svc || typeof svc.get !== 'function' || svc.isDestroyed || svc.isDestroying) { return; }
+        var stashesSvc = svc.stashes;
+        if(!stashesSvc || typeof stashesSvc.get !== 'function') { return; }
+        if(stashesSvc.get('allow_local_filesystem_request') === false) {
+          capabilities.storage.already_limited_size = true;
+        }
+        if(!stashesSvc.get_object || typeof stashesSvc.get_object !== 'function') { return; }
+        if(!stashesSvc.get_object('just_logged_in', false)) { return; }
+        if(!stashesSvc.get('auth_settings')) { return; }
+        stashesSvc.persist_object('just_logged_in', null, false);
+        runLater(function() {
+          if(svc.isDestroyed || svc.isDestroying) { return; }
+          if(typeof svc.check_for_needs_sync === 'function') {
+            svc.check_for_needs_sync(true);
+          }
+        }, 10 * 1000);
+      } catch(e) {
+        console.warn('schedulePostLoginSyncIfNeeded:', e);
+      }
+    }, 0);
+  },
+
+  check_for_needs_sync: function(force) {
+    try {
+      var _this = this;
+      if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+        _this = window.persistence;
+        if(!_this || typeof _this !== 'object' || typeof _this.get !== 'function') {
+          return false;
+        }
+      }
+      force = (force === true);
+      if(!_this.stashes || typeof _this.stashes.get !== 'function') {
+        return false;
+      }
+
+      if(_this.stashes.get('auth_settings') && window.lingoLinqExtras && window.lingoLinqExtras.ready) {
+        var synced = _this.get('last_sync_at') || 0;
+        var syncable = _this.get('online') && !isTesting() && !_this.get('syncing');
+        var interval = _this.get('last_sync_stamp_interval') || (5 * 60 * 1000);
+        interval = interval + (0.2 * interval * Math.random());
+        if(_this.get('last_sync_event_at')) {
+          syncable = syncable && (_this.get('last_sync_event_at') < ((new Date()).getTime() - interval));
+        }
+        var now = (new Date()).getTime() / 1000;
+        if(!isTesting() && capabilities.mobile && !force && loaded && (now - loaded) < (30) && synced > 1) {
+          return false;
+        } else if(_this.get('auto_sync') === false || _this.get('auto_sync') == null) {
+          return false;
+        } else if(synced > 0 && (now - synced) > (48 * 60 * 60) && syncable) {
+          console.debug('syncing because it has been more than 48 hours');
+          _this.sync('self', null, null, 'long_time_since_sync:' + synced + ":" + now).then(null, function() { });
+          return true;
+        } else if(force || (syncable && _this.get('last_sync_stamp'))) {
+          var last_check = _this.get('last_sync_stamp_check');
+          if(force || !last_check || (last_check < (new Date()).getTime() - interval)) {
+            _this.set('last_sync_stamp_check', (new Date()).getTime());
+            _this.ajax('/api/v1/users/self/sync_stamp', {type: 'GET'}).then(function(res) {
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(!_this.get('last_sync_stamp') || res.sync_stamp != _this.get('last_sync_stamp')) {
+                var not_still_changing = false;
+                var cutoff = window.moment && window.moment(res.sync_stamp).add(5, 'minutes');
+                var now_m = window.moment && window.moment();
+                if(now_m && now_m.toISOString().substring(0, 10) != res.sync_stamp.substring(0, 10)) {
+                  not_still_changing = true;
+                } else if(cutoff) {
+                  not_still_changing = cutoff < window.moment();
+                } else {
+                  not_still_changing = true;
+                }
+                if(not_still_changing) {
+                  console.debug('syncing because sync_stamp has changed');
+                  _this.sync('self', null, null, 'sync_stamp_changed:' + res.sync_stamp + ":" + _this.get('last_sync_stamp')).then(null, function() { });
+                }
+              }
+              if(window.app_state && window.app_state.get('currentUser')) {
+                window.app_state.set('currentUser.last_sync_stamp_check', (new Date()).getTime());
+                if(res.unread_messages != null) {
+                  window.app_state.set('currentUser.unread_messages', res.unread_messages);
+                }
+                if(res.unread_alerts != null) {
+                  window.app_state.set('currentUser.unread_alerts', res.unread_alerts);
+                }
+              }
+            }, function(err) {
+              _this.set('last_sync_stamp_check', (new Date()).getTime());
+              if(err && err.result && err.result.invalid_token) {
+                if(_this.stashes && _this.stashes.get && _this.stashes.get('auth_settings') && !isTesting()) {
+                  if(LingoLinq.session && !LingoLinq.session.get('invalid_token')) {
+                    LingoLinq.session.check_token(false);
+                  }
+                }
+              }
+            });
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch(e) {
+      console.warn('Error in check_for_needs_sync:', e);
+      return false;
+    }
+  },
+
   // TEMPORARILY DISABLED TO DEBUG INITIALIZATION ERROR
   /*
   check_for_needs_sync: observer('refresh_stamp', 'last_sync_at', function(ref) {
@@ -4069,9 +4184,26 @@ var persistence = Service.extend({
   _setupOnlineListeners: function() {
     var _this = this;
     this.set('online', navigator.onLine);
-    
+
+    var onBackOnline = function() {
+      runLater(function() {
+        if(!_this || _this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings') &&
+          (!LingoLinq.testing || LingoLinq.sync_testing)) {
+          _this.check_for_needs_sync(true);
+        }
+        if(typeof _this.getBrowserToken === 'function') {
+          _this.tokens = {};
+          if(LingoLinq.session) {
+            LingoLinq.session.restore(!_this.getBrowserToken());
+          }
+        }
+      }, 500);
+    };
+
     window.addEventListener('online', function() {
       _this.set('online', true);
+      onBackOnline();
     });
     window.addEventListener('offline', function() {
       _this.set('online', false);
@@ -4079,6 +4211,7 @@ var persistence = Service.extend({
     // Cordova notifies on the document object
     document.addEventListener('online', function() {
       _this.set('online', true);
+      onBackOnline();
     });
     document.addEventListener('offline', function() {
       _this.set('online', false);
