@@ -113,7 +113,7 @@
         {{/if}}
         {{#if btn.image_url}}
           <div class="md-board-detail-symbol-card__image">
-            <img class="symbol" src={{btn.image_url}} alt={{btn.label}} decoding="async" onerror="this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');">
+            <img class="symbol" src={{btn.image_url}} alt={{btn.label}} decoding="async" data-fallback={{btn.image_fallback_url}} onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;delete this.dataset.fallback}else{this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');}">
             <img class="md-board-detail-symbol-card__fallback-img" src="/images/square.svg" alt="" draggable="false" style="display:none; max-width: 70%; max-height: 70%;">
           </div>
         {{else}}

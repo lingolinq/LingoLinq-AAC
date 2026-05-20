@@ -282,11 +282,21 @@ class ButtonImage < ActiveRecord::Base
 
   def skin_capable_url
     if settings['library_skin_base_url']
-      return Uploader.fronted_url(settings['library_skin_base_url'])
+      url = Uploader.fronted_url(settings['library_skin_base_url'])
+      return url if url_skinnable?(url)
     end
     lib_url = library_url_for_skin
-    return Uploader.fronted_url(lib_url) if lib_url
-    best_url
+    if lib_url
+      url = Uploader.fronted_url(lib_url)
+      return url if url_skinnable?(url)
+    end
+    nil
+  end
+
+  def url_skinnable?(url)
+    return false unless url
+    url.match(/\.varianted-skin\.\w+$/) ||
+      (url.match(/\/libraries\/twemoji\//) && url.match(/-var\w+UNI/))
   end
 
   def check_for_variants(force=false)

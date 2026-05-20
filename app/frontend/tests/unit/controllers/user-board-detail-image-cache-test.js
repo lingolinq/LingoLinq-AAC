@@ -48,6 +48,13 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     assert.equal(controller._resolve_cached_image_url(remote), remote);
   });
 
+  test('_resolve_cached_image_url keeps skin-tone variant when only base is cached', function(assert) {
+    var base = 'https://cdn.example.com/lib/sym.png';
+    var skinned = base + '.variant-dark.png';
+    persistenceSvc.url_cache[base] = 'file:///local/sym.png';
+    assert.equal(controller._resolve_cached_image_url(skinned), skinned);
+  });
+
   test('_make_btn uses cached image URL when available', function(assert) {
     var remote = 'https://cdn.example.com/bi1.png';
     var local = 'file:///local/bi1.png';
@@ -56,14 +63,11 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     assert.equal(btn.image_url, local);
   });
 
-  test('upgrade_url_for_skin_variants appends .varianted-skin for library URLs', function(assert) {
-    var plain = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/hello.png';
-    var upgraded = LingoLinq.Board.upgrade_url_for_skin_variants(plain);
-    assert.equal(upgraded, plain + '.varianted-skin.png');
-    assert.equal(
-      LingoLinq.Board.upgrade_url_for_skin_variants(upgraded),
-      upgraded
-    );
+  test('upgrade_url_for_skin_variants does not speculate .varianted-skin for plain library URLs', function(assert) {
+    var plain = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/different.png';
+    assert.equal(LingoLinq.Board.upgrade_url_for_skin_variants(plain), plain);
+    var skinBase = plain.replace('.png', '.png.varianted-skin.png');
+    assert.equal(LingoLinq.Board.upgrade_url_for_skin_variants(skinBase), skinBase);
   });
 
   test('_make_btn applies skin tone via skin_image_map for varianted-skin URLs', function(assert) {
