@@ -1607,19 +1607,21 @@ header:has(#normal_mode) #inner_header {
 
 /* Board-alt SPEAK mode: the legacy _header_sizing.scss forces
    `header.new_index.speaking.medium { height: 100px }` (and 50/70/150/200
-   for the other vocalization sizes). The MODERN speak bar only needs the
-   height of its white .speak-bar__button-list-wrap card (~88px), so the
-   forced legacy height leaves a dead band below the bar AND mis-centers
-   the chips (over-tall flex parent → chips pushed down / images clipped).
-   Let the header size to its actual content instead. board/index.js
-   _updateFromSpeakBarResize then measures this real (smaller) height and
-   both #content padding and the board height reserve exactly it — so the
-   grid sits directly under the bar with no whitespace and the bar's
-   content is no longer pushed/clipped. Scoped to board-alt speak only;
-   normal mode (handled above) and board-detail are untouched. The
-   background is set to the page slate so any sub-pixel/first-paint
-   timing gap (before the ResizeObserver fires) blends with #content
-   instead of flashing a light strip. */
+   for the other vocalization sizes). The MODERN speak bar's
+   .speak-bar__button-list-wrap card has a `min-height: 88px` because
+   it must fit the 72px .history_button chip plus 8px top/bottom
+   padding. When the legacy CSS forced the outer header to a value
+   below 88px (tiny: 50, small: 70), the modern card overflowed the
+   header and the spillover sat ON TOP of the grid below. So the
+   override here pins `height: auto` to let the outer header size
+   to its content (the 88px card), and board/index.js's
+   _updateFromSpeakBarResize measures this real height and publishes
+   it as `--speak-header-height` so #content padding + grid height
+   reserve exactly the measured value. Honoring the vocalization_
+   height "small=70px" setting on board-alt would require shrinking
+   the modern card AND its inner chip to fit — out of scope here;
+   board-detail's speak bar already honors the setting via the
+   .md-board-detail-sentence-bar--{size} per-row heights. */
 #within_ember.board-alt-view header.speaking:has(#speak),
 #within_ember.board-alt-view header.speaking:has(#speak) #inner_header {
   height: auto !important;
@@ -1627,6 +1629,19 @@ header:has(#normal_mode) #inner_header {
 }
 #within_ember.board-alt-view header.speaking:has(#speak) {
   background: $brand-charcoal-blue !important;
+}
+/* Match #inner_header's background + suppress the light `border-bottom`
+   on board-alt speak. The base `#inner_header:has(#speak)` rule above
+   sets `background: #fff` and `border-bottom: 1px solid #e9ecef` —
+   intended for light-themed speak pages — but on board-alt the outer
+   header is charcoal-blue, so the white inner bg + light border show
+   as a thin white sliver at the bottom of the speak bar against the
+   dark surround. Override locally so board-alt's bar reads as one
+   continuous dark surface. */
+#within_ember.board-alt-view header.speaking:has(#speak) #inner_header {
+  background: $brand-charcoal-blue !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
 
 /* Applied in: app/templates/application.hbs (line 171), app/templates/brief.hbs (line 32)
@@ -44392,11 +44407,8 @@ a.md-goal-nav-action:hover,
    the chosen vocalization_height so the control has a visible effect
    (px values match the dropdown labels). The home button is a flex
    sibling and stretches to match via the row's default align-items. */
-.nb-preview-sentence-row.nb-preview-sentence-bar--tiny .md-board-detail-sentence-bar {
-  min-height: 50px;
-}
 .nb-preview-sentence-row.nb-preview-sentence-bar--small .md-board-detail-sentence-bar {
-  min-height: 70px;
+  min-height: 90px;
 }
 .nb-preview-sentence-row.nb-preview-sentence-bar--medium .md-board-detail-sentence-bar {
   min-height: 100px;
@@ -53987,14 +53999,23 @@ a.md-goal-nav-action:hover,
   box-shadow: inset 0 2px 6px rgba($la-navy, 0.10);
 }
 .md-shell--board-detail-edit .md-board-detail-sentence-row--preview {
-  padding: 0 12px 10px;
+  /* Removed `10px` bottom padding here — it was inflating the row's
+     measured height beyond the user's vocalization_height setting
+     (e.g. 70px small → 80px+ row). The 10px breathing room between
+     the preview bar and the grid moves to the grid-sidebar-wrap's
+     top padding below, so the visual layout stays the same but the
+     row's height now matches the setting exactly. */
+  padding: 0 12px;
   margin: 0 4px 0 4px;
   background: rgba($la-navy, 0.06);
   border-left: 1px solid rgba($la-navy, 0.10);
   border-right: 1px solid rgba($la-navy, 0.10);
 }
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap {
-  padding: 10px 12px;
+  /* Top padding bumped from 10px → 20px to absorb the 10px that
+     was previously on the preview-row's padding-bottom. Net
+     visual gap between preview bar and grid is unchanged. */
+  padding: 20px 12px 10px;
   margin: 0 4px 4px 4px;
   background: rgba($la-navy, 0.06);
   border: 1px solid rgba($la-navy, 0.10);
@@ -54185,7 +54206,13 @@ a.md-goal-nav-action:hover,
   align-items: center;
   justify-content: center;
   width: 56px;
-  min-height: 72px;
+  /* min-height was 72px — that floor exceeded the canonical 50/70
+     px row heights at "tiny"/"small" and forced the row taller than
+     the user's vocalization_height setting. Lowered to 50px (the
+     smallest canonical row height) so the home button stretches to
+     match the row via `align-items: stretch` on the parent, instead
+     of dictating the row's height. */
+  min-height: 50px;
   padding: 10px;
   /* Negative right margin shrinks the visual gap to the sentence bar
      without touching the row's intentional 13px gap (which is calibrated
@@ -54281,28 +54308,30 @@ a.md-goal-nav-action:hover,
      --nb-sb-minw chip min-width (44 base)
      --nb-sb-sbtn right-side button icon — mic / backspace / trash /
                   chevron (18 base; never below base, grows > medium)
-   Tiny/Small/Medium keep base sizes (no shrink); only Large/Huge
-   enlarge. Home button (left) is intentionally left untouched. */
-.md-board-detail-sentence-row.md-board-detail-sentence-bar--tiny {
-  --nb-sb-h: 46px;  --nb-sb-h2: 92px;  --nb-sb-ph: 38px;  --nb-sb-ph2: 76px;
-  --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
-  --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
-}
-.md-board-detail-sentence-row.md-board-detail-sentence-bar--tiny .md-board-detail-sentence-bar {
-  min-height: 50px;
-}
+   Small/Medium keep base sizes (no shrink); only Large/Huge
+   enlarge. Home button (left) is intentionally left untouched.
+   The `tiny` size was removed because it forced the stacked
+   Options + Sidebar toggles on the right of the bar below their
+   WCAG 2.5.5 AAA 44×44 touch-target floor. `small` is now 90px
+   (was 70) so the stacked toggle pair fits at 44 + 2 gap + 44.
+   Legacy users with `vocalization_height: 'tiny'` saved on their
+   device are mapped to `'small'` by utils/display_prefs.js, so any
+   tiny-tagged element here would render at small's 90px anyway —
+   the CSS just no longer needs a dedicated `--tiny` rule. */
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
-  --nb-sb-h: 66px;  --nb-sb-h2: 132px; --nb-sb-ph: 58px;  --nb-sb-ph2: 116px;
+  --nb-sb-h: 86px;  --nb-sb-h2: 172px; --nb-sb-ph: 78px;  --nb-sb-ph2: 156px;
   --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
   --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
+  min-height: 90px;
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--small .md-board-detail-sentence-bar {
-  min-height: 70px;
+  min-height: 90px;
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium {
   --nb-sb-h: 96px;  --nb-sb-h2: 192px; --nb-sb-ph: 88px;  --nb-sb-ph2: 176px;
   --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 50px; --nb-sb-pimg: 48px; --nb-sb-minw: 44px; --nb-sb-sbtn: 18px;
   --nb-sb-btnh: 55px; --nb-sb-btnw: 44px;
+  min-height: 100px;
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium .md-board-detail-sentence-bar {
   min-height: 100px;
@@ -54311,6 +54340,7 @@ a.md-goal-nav-action:hover,
   --nb-sb-h: 146px; --nb-sb-h2: 292px; --nb-sb-ph: 138px; --nb-sb-ph2: 276px;
   --nb-sb-font: 29px; --nb-sb-lbl: 20px; --nb-sb-img: 73px; --nb-sb-pimg: 70px; --nb-sb-minw: 64px; --nb-sb-sbtn: 26px;
   --nb-sb-btnh: 80px; --nb-sb-btnw: 64px;
+  min-height: 150px;
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar {
   min-height: 150px;
@@ -54319,6 +54349,7 @@ a.md-goal-nav-action:hover,
   --nb-sb-h: 196px; --nb-sb-h2: 392px; --nb-sb-ph: 188px; --nb-sb-ph2: 376px;
   --nb-sb-font: 38px; --nb-sb-lbl: 27px; --nb-sb-img: 95px; --nb-sb-pimg: 91px; --nb-sb-minw: 84px; --nb-sb-sbtn: 34px;
   --nb-sb-btnh: 105px; --nb-sb-btnw: 84px;
+  min-height: 200px;
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar {
   min-height: 200px;
@@ -60588,6 +60619,37 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    possibly knock it off when the active class is present. */
 #within_ember .md-settings-skin-group .md-settings-skin.md-settings-skin--active {
   box-shadow: 0 0 0 4px $brand-blue-grey !important;
+}
+/* Same ring inside the board-detail right panel — the skin grid
+   there uses inline `display: grid` (not `.md-settings-skin-group`,
+   because that class brings its own inline-flex pill layout with a
+   44px height + padding that doesn't fit the 3-column grid). Without
+   this rule the `--active` class was being applied to the button by
+   the template but no visible ring painted. */
+#within_ember .md-board-edit-right-panel__section-body .md-settings-skin.md-settings-skin--active {
+  box-shadow: 0 0 0 4px $brand-blue-grey !important;
+  position: relative;
+}
+/* Checkmark overlay on the active swatch — pairs with the ring above
+   so the selection reads at a glance even without the ring's color
+   cue. Skipped for `--mix-only` and `--mix-prefer` because those
+   buttons already render their own inline glyph (the existing
+   checkmark / bar-chart icons in the template). The check itself is
+   white with a soft shadow so it stays legible across every skin
+   tone — including yellow Original and the white interior of Mix. */
+#within_ember .md-board-edit-right-panel__section-body .md-settings-skin.md-settings-skin--active:not(.md-settings-skin--mix-only):not(.md-settings-skin--mix-prefer)::after {
+  content: '\2713';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 /* "Original" / default — Fitzgerald-neutral yellow of base emoji */
 .md-settings-skin--default,
@@ -74246,6 +74308,20 @@ blockquote small {
 .md-shell--board-detail-edit .md-board-detail-layout:not(:has(.md-board-edit-right-panel--collapsed)) {
   --bd-edit-side-r: 265px;
 }
+/* Expanded left panel: matches the right panel — always 265px on ALL
+   screen sizes (was previously the 15% fallback which shrank below
+   200px on smaller viewports and forced the panel content into a
+   narrower rail layout). Pinning at 265px lets the expanded panel
+   show its full larger-screen content (labels, subheaders, search
+   input) at every breakpoint, mirroring the right panel's behavior.
+   Keyed off `:not(:has(--collapsed))` so the 56px rail rule above
+   still wins when the panel is in collapsed-rail state. The
+   `@media (max-width: 1023px)` content-collapse rules below are
+   scoped to `.md-board-edit-panel--collapsed` so the expanded
+   panel keeps its full layout. */
+.md-shell--board-detail-edit .md-board-detail-layout:not(:has(.md-board-edit-panel--collapsed)) {
+  --bd-edit-side-l: 265px;
+}
 
 /* ── Panel chrome: glassy gradient + backdrop blur + soft border + shadow.
    Light-mode gradient mirrors the edit toolbar's pill gradient
@@ -74922,94 +74998,72 @@ blockquote small {
 @media (max-width: 1023px) {
   .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
   .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Smaller screens keep the SAME 3-panel proportions instead of
-       collapsing to a 64px icon rail: ~15% left / ~70% centre / ~15%
-       right. Panels fill their 15% track (width:100% on the base rule)
-       and their inner content adapts via the icon/tooltip rules below. */
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
+    /* Smaller screens: the expanded left panel is pinned at 265px
+       (matching the right panel via the :not(:has(--collapsed))
+       custom-prop rule above), so its inner content stays at the
+       same larger-screen layout — full labels, subheaders, expanded
+       search input. The collapsed-rail content rules below are
+       scoped to `.md-board-edit-panel--collapsed` so they ONLY apply
+       when the panel is in its 56px icon-rail state. */
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 8px;
   }
-  .md-board-edit-panel {
+  /* All rules below are scoped to `.md-board-edit-panel--collapsed`
+     so the expanded panel at smaller widths shows its full content
+     layout (matching larger screens), and only the collapsed icon
+     rail gets the tighter padding / hidden-content treatment. */
+  .md-board-edit-panel--collapsed {
     padding: 12px 6px 16px;
     gap: 10px;
     align-items: center;
   }
-  .md-board-edit-panel__top {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__top {
     width: 100%;
     align-items: stretch;
     gap: 6px;
   }
-  .md-board-edit-panel__back-link,
-  .md-board-edit-panel__btn,
-  .md-board-edit-panel__row {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__btn,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__row {
     justify-content: center;
     padding: 8px 0;
     min-height: 38px;
     width: 100%;
   }
-  .md-board-edit-panel__action-pair {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__action-pair {
     grid-template-columns: 1fr;
     gap: 6px;
   }
-  .md-board-edit-panel__label {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__label {
     /* Hide labels — icons + tooltips carry the meaning. */
     display: none;
   }
-  .md-board-edit-panel__subheader {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__subheader {
     /* Subheaders consume horizontal space; replace with the divider. */
     display: none;
   }
-  .md-board-edit-panel__search {
-    width: 100%;
-  }
-  .md-board-edit-panel__search-icon {
-    /* Center the icon when the input collapses. */
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .md-board-edit-panel__search-input {
-    /* Visually collapses to an icon-button hit-area; the input is
-       still focusable but its content is hidden. Clicking/tapping
-       (or focusing via keyboard) expands the input below. */
-    padding: 0;
-    color: transparent;
-    text-indent: -9999px;
-    cursor: pointer;
-  }
-  .md-board-edit-panel__search-input::placeholder {
-    color: transparent;
-  }
-  .md-board-edit-panel__search-input:focus {
-    /* Re-expand on focus so the user can type. */
-    text-indent: 0;
-    color: $la-navy;
-    padding: 6px 30px 6px 32px;
-  }
-  .md-board-edit-panel__search-input:focus::placeholder {
-    color: rgba($la-navy, 0.50);
-  }
-  .md-board-edit-panel__search-input:focus + .md-board-edit-panel__search-icon,
-  .md-board-edit-panel__search:focus-within .md-board-edit-panel__search-icon {
-    left: 10px;
-    transform: translateY(-50%);
-  }
+  /* In collapsed-rail mode the dedicated `.md-board-edit-panel--collapsed
+     .md-board-edit-panel__search` rules elsewhere (~line 77269/77331)
+     already make the search wrapper a 40px square with the icon
+     centered via flex and `position: static; transform: none`. We
+     intentionally do NOT re-center the icon here, because a same-
+     specificity rule later in source order would override the reset
+     and shift the icon by translate(-50%, -50%) on top of the static
+     positioning — causing the visible "skew". The search input itself
+     is `display: none` in collapsed (~line 77085), so the input
+     collapse-to-icon treatment from the old <=1023px expanded-panel
+     model is no longer needed. */
 
   /* Tooltip on hover/focus (CSS-only, leveraging `data-tooltip`
-     already wired on each row + back-link + buttons). Positioned
-     to the right of the rail so it doesn't get clipped. */
-  .md-board-edit-panel [data-tooltip] {
+     already wired on each row + back-link + buttons). Tooltips are
+     only useful when labels are hidden — i.e. only in the collapsed
+     rail. Scoped to --collapsed so the expanded panel doesn't get
+     duplicate tooltip + visible-label paint. */
+  .md-board-edit-panel--collapsed [data-tooltip] {
     position: relative;
   }
-  .md-board-edit-panel [data-tooltip]:hover::after,
-  .md-board-edit-panel [data-tooltip]:focus-visible::after {
+  .md-board-edit-panel--collapsed [data-tooltip]:hover::after,
+  .md-board-edit-panel--collapsed [data-tooltip]:focus-visible::after {
     content: attr(data-tooltip);
     position: absolute;
     left: calc(100% + 8px);
@@ -75043,7 +75097,7 @@ blockquote small {
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 6px;
   }
-  .md-board-edit-panel {
+  .md-board-edit-panel--collapsed {
     padding: 10px 4px 14px;
     gap: 8px;
   }
@@ -75063,13 +75117,13 @@ blockquote small {
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 4px;
   }
-  .md-board-edit-panel {
+  .md-board-edit-panel--collapsed {
     padding: 8px 4px 12px;
     gap: 6px;
   }
-  .md-board-edit-panel__row,
-  .md-board-edit-panel__btn,
-  .md-board-edit-panel__back-link {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__row,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__btn,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__back-link {
     min-height: 36px;
     padding: 7px 0;
   }
@@ -75628,11 +75682,12 @@ blockquote small {
   display: none;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-toggle {
-  /* Icon-over-caption button: center the chip + stack the
-     short label below it (matches the left rail's icon-with-
-     caption rhythm). Column flex so the icon is on top, the
-     8px short label sits underneath. */
-  flex-direction: column;
+  /* Label-over-icon button: stack the short label ABOVE the icon
+     (caption-then-icon reading order — matches the left rail's
+     label-first rhythm). column-reverse keeps HTML order (icon
+     first, label second) for accessibility while flipping the
+     visual order so labels read first. */
+  flex-direction: column-reverse;
   justify-content: center;
   align-items: center;
   padding: 4px 0;
@@ -76825,6 +76880,20 @@ blockquote small {
 .md-shell--board-detail-edit .md-board-detail-layout:not(:has(.md-board-edit-right-panel--collapsed)) {
   --bd-edit-side-r: 265px;
 }
+/* Expanded left panel: matches the right panel — always 265px on ALL
+   screen sizes (was previously the 15% fallback which shrank below
+   200px on smaller viewports and forced the panel content into a
+   narrower rail layout). Pinning at 265px lets the expanded panel
+   show its full larger-screen content (labels, subheaders, search
+   input) at every breakpoint, mirroring the right panel's behavior.
+   Keyed off `:not(:has(--collapsed))` so the 56px rail rule above
+   still wins when the panel is in collapsed-rail state. The
+   `@media (max-width: 1023px)` content-collapse rules below are
+   scoped to `.md-board-edit-panel--collapsed` so the expanded
+   panel keeps its full layout. */
+.md-shell--board-detail-edit .md-board-detail-layout:not(:has(.md-board-edit-panel--collapsed)) {
+  --bd-edit-side-l: 265px;
+}
 
 /* ── Panel chrome: glassy gradient + backdrop blur + soft border + shadow.
    Light-mode gradient mirrors the edit toolbar's pill gradient
@@ -77167,11 +77236,14 @@ blockquote small {
    collapsed has been removed — the new pill is rendered only
    inside `{{#if this.left_panel_collapsed}}` in the template, so
    __bottom stays hidden in the rail as originally designed. */
-/* Wrap that stacks the Light/Dark pill above its MODE caption,
-   matching the icon-over-caption rhythm of every other rail row. */
+/* Wrap that stacks MODE caption ABOVE the Light/Dark pill,
+   matching the label-over-icon rhythm of every other rail row.
+   column-reverse keeps HTML order (pill first, caption second) for
+   accessibility while flipping the visual order so the caption
+   reads first. */
 .md-board-edit-panel--collapsed .md-board-edit-panel__row--theme-pill-wrap {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   align-self: center;
   margin: 6px auto 0;
@@ -77240,16 +77312,17 @@ blockquote small {
    the other tile rows). */
 .md-board-edit-panel--collapsed .md-board-edit-panel__search {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
   justify-content: flex-start;
   padding: 0;
   margin: 0;
   gap: 6px;
 }
-/* Every icon-bearing control → a centered icon-over-caption stack
+/* Every icon-bearing control → a centered label-OVER-icon stack
    (was a 40px icon-only square; now auto height so the small label
-   fits beneath the icon). */
+   fits ABOVE the icon). column-reverse flips visual order while
+   keeping HTML order (icon first, label second) for accessibility. */
 .md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
 .md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
 .md-board-edit-panel--collapsed .md-board-edit-panel__tile,
@@ -77258,7 +77331,7 @@ blockquote small {
   min-width: 0;
   height: auto;
   min-height: 44px;
-  flex-direction: column;
+  flex-direction: column-reverse;
   padding: 6px 2px;
   margin: 0 auto;
   justify-content: center;
@@ -77985,94 +78058,72 @@ blockquote small {
 @media (max-width: 1023px) {
   .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
   .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Smaller screens keep the SAME 3-panel proportions instead of
-       collapsing to a 64px icon rail: ~15% left / ~70% centre / ~15%
-       right. Panels fill their 15% track (width:100% on the base rule)
-       and their inner content adapts via the icon/tooltip rules below. */
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
+    /* Smaller screens: the expanded left panel is pinned at 265px
+       (matching the right panel via the :not(:has(--collapsed))
+       custom-prop rule above), so its inner content stays at the
+       same larger-screen layout — full labels, subheaders, expanded
+       search input. The collapsed-rail content rules below are
+       scoped to `.md-board-edit-panel--collapsed` so they ONLY apply
+       when the panel is in its 56px icon-rail state. */
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 8px;
   }
-  .md-board-edit-panel {
+  /* All rules below are scoped to `.md-board-edit-panel--collapsed`
+     so the expanded panel at smaller widths shows its full content
+     layout (matching larger screens), and only the collapsed icon
+     rail gets the tighter padding / hidden-content treatment. */
+  .md-board-edit-panel--collapsed {
     padding: 12px 6px 16px;
     gap: 10px;
     align-items: center;
   }
-  .md-board-edit-panel__top {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__top {
     width: 100%;
     align-items: stretch;
     gap: 6px;
   }
-  .md-board-edit-panel__back-link,
-  .md-board-edit-panel__btn,
-  .md-board-edit-panel__row {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__btn,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__row {
     justify-content: center;
     padding: 8px 0;
     min-height: 38px;
     width: 100%;
   }
-  .md-board-edit-panel__action-pair {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__action-pair {
     grid-template-columns: 1fr;
     gap: 6px;
   }
-  .md-board-edit-panel__label {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__label {
     /* Hide labels — icons + tooltips carry the meaning. */
     display: none;
   }
-  .md-board-edit-panel__subheader {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__subheader {
     /* Subheaders consume horizontal space; replace with the divider. */
     display: none;
   }
-  .md-board-edit-panel__search {
-    width: 100%;
-  }
-  .md-board-edit-panel__search-icon {
-    /* Center the icon when the input collapses. */
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .md-board-edit-panel__search-input {
-    /* Visually collapses to an icon-button hit-area; the input is
-       still focusable but its content is hidden. Clicking/tapping
-       (or focusing via keyboard) expands the input below. */
-    padding: 0;
-    color: transparent;
-    text-indent: -9999px;
-    cursor: pointer;
-  }
-  .md-board-edit-panel__search-input::placeholder {
-    color: transparent;
-  }
-  .md-board-edit-panel__search-input:focus {
-    /* Re-expand on focus so the user can type. */
-    text-indent: 0;
-    color: $la-navy;
-    padding: 6px 30px 6px 32px;
-  }
-  .md-board-edit-panel__search-input:focus::placeholder {
-    color: rgba($la-navy, 0.50);
-  }
-  .md-board-edit-panel__search-input:focus + .md-board-edit-panel__search-icon,
-  .md-board-edit-panel__search:focus-within .md-board-edit-panel__search-icon {
-    left: 10px;
-    transform: translateY(-50%);
-  }
+  /* In collapsed-rail mode the dedicated `.md-board-edit-panel--collapsed
+     .md-board-edit-panel__search` rules elsewhere (~line 77269/77331)
+     already make the search wrapper a 40px square with the icon
+     centered via flex and `position: static; transform: none`. We
+     intentionally do NOT re-center the icon here, because a same-
+     specificity rule later in source order would override the reset
+     and shift the icon by translate(-50%, -50%) on top of the static
+     positioning — causing the visible "skew". The search input itself
+     is `display: none` in collapsed (~line 77085), so the input
+     collapse-to-icon treatment from the old <=1023px expanded-panel
+     model is no longer needed. */
 
   /* Tooltip on hover/focus (CSS-only, leveraging `data-tooltip`
-     already wired on each row + back-link + buttons). Positioned
-     to the right of the rail so it doesn't get clipped. */
-  .md-board-edit-panel [data-tooltip] {
+     already wired on each row + back-link + buttons). Tooltips are
+     only useful when labels are hidden — i.e. only in the collapsed
+     rail. Scoped to --collapsed so the expanded panel doesn't get
+     duplicate tooltip + visible-label paint. */
+  .md-board-edit-panel--collapsed [data-tooltip] {
     position: relative;
   }
-  .md-board-edit-panel [data-tooltip]:hover::after,
-  .md-board-edit-panel [data-tooltip]:focus-visible::after {
+  .md-board-edit-panel--collapsed [data-tooltip]:hover::after,
+  .md-board-edit-panel--collapsed [data-tooltip]:focus-visible::after {
     content: attr(data-tooltip);
     position: absolute;
     left: calc(100% + 8px);
@@ -78106,7 +78157,7 @@ blockquote small {
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 6px;
   }
-  .md-board-edit-panel {
+  .md-board-edit-panel--collapsed {
     padding: 10px 4px 14px;
     gap: 8px;
   }
@@ -78126,13 +78177,13 @@ blockquote small {
   grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
     gap: 4px;
   }
-  .md-board-edit-panel {
+  .md-board-edit-panel--collapsed {
     padding: 8px 4px 12px;
     gap: 6px;
   }
-  .md-board-edit-panel__row,
-  .md-board-edit-panel__btn,
-  .md-board-edit-panel__back-link {
+  .md-board-edit-panel--collapsed .md-board-edit-panel__row,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__btn,
+  .md-board-edit-panel--collapsed .md-board-edit-panel__back-link {
     min-height: 36px;
     padding: 7px 0;
   }
@@ -78691,11 +78742,12 @@ blockquote small {
   display: none;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section-toggle {
-  /* Icon-over-caption button: center the chip + stack the
-     short label below it (matches the left rail's icon-with-
-     caption rhythm). Column flex so the icon is on top, the
-     8px short label sits underneath. */
-  flex-direction: column;
+  /* Label-over-icon button: stack the short label ABOVE the icon
+     (caption-then-icon reading order — matches the left rail's
+     label-first rhythm). column-reverse keeps HTML order (icon
+     first, label second) for accessibility while flipping the
+     visual order so labels read first. */
+  flex-direction: column-reverse;
   justify-content: center;
   align-items: center;
   padding: 4px 0;

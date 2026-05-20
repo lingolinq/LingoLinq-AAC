@@ -13,6 +13,7 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
 import { pick_aac_color } from '../utils/parts_of_speech';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 
 /**
  * Create Board (New) Modal Component
@@ -204,26 +205,22 @@ export default Component.extend({
   }),
 
   /** Text-size in px — published as --bd-button-text-size on the grid so
-   *  symbol cards pick the user's preferred label size. Map mirrors the
-   *  live controller exactly. */
+   *  symbol cards pick the user's preferred label size. Reads from the
+   *  canonical map in utils/display_prefs.js. */
   button_text_size_px: computed('appState.sessionUser.preferences.device.button_text', function() {
-    var size = this.appState.get('sessionUser.preferences.device.button_text') || 'medium';
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[size] || 18;
+    return buttonTextPx(this.appState.get('sessionUser.preferences.device.button_text'));
   }),
 
-  /** Grid gap in px — published as --bd-button-gap. */
+  /** Grid gap in px — published as --bd-button-gap. Reads from
+   *  utils/display_prefs.js (canonical). */
   button_spacing_px: computed('appState.sessionUser.preferences.device.button_spacing', function() {
-    var spacing = this.appState.get('sessionUser.preferences.device.button_spacing') || 'medium';
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    return (map[spacing] != null) ? map[spacing] : 8;
+    return buttonSpacingPx(this.appState.get('sessionUser.preferences.device.button_spacing'));
   }),
 
-  /** Symbol-card outline width in px — published as --bd-button-border. */
+  /** Symbol-card outline width in px — published as --bd-button-border.
+   *  Reads from utils/display_prefs.js (canonical). */
   button_border_px: computed('appState.sessionUser.preferences.device.button_border', function() {
-    var border = this.appState.get('sessionUser.preferences.device.button_border') || 'medium';
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    return (map[border] != null) ? map[border] : 3;
+    return buttonBorderPx(this.appState.get('sessionUser.preferences.device.button_border'));
   }),
 
   /** Shape modifier class (square / tall / wide) for the symbol cards. */
@@ -391,8 +388,7 @@ export default Component.extend({
   // height of the speak-mode header (the sentence/vocalization bar) and
   // the size of fonts + symbol images inside it.
   voice_height_options: [
-    { id: 'tiny',   label: 'Tiny (50px)' },
-    { id: 'small',  label: 'Small (70px)' },
+    { id: 'small',  label: 'Small (90px)' },
     { id: 'medium', label: 'Medium (100px)' },
     { id: 'large',  label: 'Large (150px)' },
     { id: 'huge',   label: 'Huge (200px)' }

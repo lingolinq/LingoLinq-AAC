@@ -22,6 +22,7 @@ import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
 import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
@@ -1356,8 +1357,7 @@ export default Controller.extend(prefClasses, {
   // height of the speak-mode header (the sentence/vocalization bar) and
   // the size of fonts + symbol images inside it.
   voice_height_options: [
-    { id: 'tiny',   label: 'Tiny (50px)' },
-    { id: 'small',  label: 'Small (70px)' },
+    { id: 'small',  label: 'Small (90px)' },
     { id: 'medium', label: 'Medium (100px)' },
     { id: 'large',  label: 'Large (150px)' },
     { id: 'huge',   label: 'Huge (200px)' }
@@ -1909,26 +1909,22 @@ export default Controller.extend(prefClasses, {
   }),
 
   button_text_size_px: computed('app_state.referenced_user.preferences.device.button_text', function() {
-    var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[size] || 18;
+    return buttonTextPx(this.get('app_state.referenced_user.preferences.device.button_text'));
   }),
 
   // Pixel values for button spacing (grid gap) and border (symbol-card outline width) — drive the
   // live preview on board-detail when the user nudges the -/+ steppers in the settings toolbar.
-  // Keeping both computeds dependent on the live user-preferences path means set_display_pref
-  // (which applies pending changes to user.preferences.device.*) updates the rendered grid
-  // immediately, and the eventual user.save() persists the values to the single source of truth.
+  // Both read from the canonical map in utils/display_prefs.js so the same preference produces
+  // identical visual results on board-detail, create-board-new, board-alt, demo-speak, and the
+  // preferences-page canvas. set_display_pref (which applies pending changes to
+  // user.preferences.device.*) updates the rendered grid immediately; the eventual user.save()
+  // persists the values to the single source of truth.
   button_spacing_px: computed('app_state.referenced_user.preferences.device.button_spacing', function() {
-    var spacing = this.get('app_state.referenced_user.preferences.device.button_spacing') || 'medium';
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    return (map[spacing] != null) ? map[spacing] : 8;
+    return buttonSpacingPx(this.get('app_state.referenced_user.preferences.device.button_spacing'));
   }),
 
   button_border_px: computed('app_state.referenced_user.preferences.device.button_border', function() {
-    var border = this.get('app_state.referenced_user.preferences.device.button_border') || 'medium';
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    return (map[border] != null) ? map[border] : 3;
+    return buttonBorderPx(this.get('app_state.referenced_user.preferences.device.button_border'));
   }),
 
   // Shape modifier class — "Square / Tall / Wide" icon picker maps to the

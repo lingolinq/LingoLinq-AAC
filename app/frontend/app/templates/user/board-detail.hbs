@@ -900,6 +900,20 @@
                   </svg>
                   <span>{{t "Share" key="share"}}</span>
                 </button>
+                {{!-- Translate — opens the Translate Boards modal
+                     (same action as the board-details page's
+                     "Translate Board" button). Sits at the top
+                     menu level alongside Share/Download/Print so
+                     any speak-mode viewer can swap languages in one
+                     tap instead of drilling into Session. --}}
+                <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                  <span>{{t "Translate" key="translate"}}</span>
+                </button>
               </div>
 
               {{!-- Session Section --}}
@@ -953,22 +967,6 @@
                           </div>
                         </div>
                       {{/if}}
-                      {{!-- Language — opens the Translate Boards modal
-                           (same action used by the board-details
-                           page's "Translate Board" button). Sits
-                           inside Session so any speak-mode viewer can
-                           swap languages without leaving the board.
-                           Icon is a globe with longitude / latitude
-                           strokes, matching the modern menu icon
-                           vocabulary. --}}
-                      <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="2" y1="12" x2="22" y2="12"/>
-                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                        </svg>
-                        <span>{{t "Language" key="language"}}</span>
-                      </button>
                       {{#unless this.app_state.superProtectedSpeakMode}}
                         {{#if this.stashes.sticky_board}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed="true" {{action "toggle_sticky_board"}}>
