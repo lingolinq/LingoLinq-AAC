@@ -579,14 +579,71 @@ export default Controller.extend(prefClasses, {
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
     var _this = this;
+    if(!(raw.images && raw.images.length)) {
+      if(_this._board_detail_images && _this._board_detail_images.length) {
+        raw.images = _this._board_detail_images;
+      } else {
+        var cached_raw = boardDetailCache.get(raw.key || raw.id);
+        if(cached_raw && cached_raw.images && cached_raw.images.length) {
+          raw.images = cached_raw.images;
+        }
+      }
+    }
+    if(raw.images && raw.images.length) {
+      _this._board_detail_images = raw.images;
+    }
+    var skin = _this.get('app_state.referenced_user.preferences.skin');
+    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
+    if(preferred_symbols && preferred_symbols !== 'original') {
+      _this._preferred_symbols = preferred_symbols;
+    } else {
+      _this._preferred_symbols = null;
+    }
+    var use_ember = _this.get('edit_mode');
+    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
+    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+    var board_has_levels = (raw.buttons || []).some(function(b) {
+      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
+    });
+    var cache_token = (raw.key || raw.id);
+    var cache_ctx = {
+      preferred_symbols: _this._preferred_symbols,
+      skin: skin || null,
+      edit_mode: !!use_ember,
+      label_locale: _this.get('app_state.label_locale') || null,
+      url_cache_primed: !!persistence.primed,
+      board_level: current_level,
+      board_has_levels: board_has_levels
+    };
+    // Cache hit — skip skin_image_map and the full grid rebuild loop.
+    if(!use_ember && cache_token) {
+      var cached_ob_early = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
+      if(cached_ob_early) {
+        var prev_early = _this._last_raw;
+        var is_same_board_early = prev_early && raw && ((prev_early.id && raw.id && prev_early.id === raw.id) || (prev_early.key && raw.key && prev_early.key === raw.key));
+        if(!is_same_board_early) {
+          _this.set('_hidden_row_stack', []);
+          _this.set('_hidden_col_stack', []);
+        }
+        _this._last_raw = raw;
+        if(_this._board_detail_images && _this._board_detail_images.length) {
+          _this._last_raw.images = _this._board_detail_images;
+        }
+        _this.set('ordered_buttons', cached_ob_early);
+        _this._apply_focus_dim_to_ordered_buttons();
+        _this._preload_grid_images(cached_ob_early);
+        return;
+      }
+    }
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id) {
         var url = img.skin_url || img.url;
-        if(url) { image_map[img.id] = url; }
+        if(url) {
+          image_map[String(img.id)] = url;
+        }
       }
     });
-    var skin = _this.get('app_state.referenced_user.preferences.skin');
     image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
     // Cache raw data for preference-triggered rebuilds
     // Reset the row/column hide stacks when the user actually navigates to a
@@ -600,76 +657,13 @@ export default Controller.extend(prefClasses, {
       _this.set('_hidden_col_stack', []);
     }
     _this._last_raw = raw;
-    // Apply preferred_symbols variant URLs
-    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
-    if(preferred_symbols && preferred_symbols !== 'original') {
-      _this._preferred_symbols = preferred_symbols;
-    } else {
-      _this._preferred_symbols = null;
+    if(_this._board_detail_images && _this._board_detail_images.length) {
+      _this._last_raw.images = _this._board_detail_images;
     }
     _this._image_map = image_map;
 
     var board = _this.get('model');
     var grid = raw.grid;
-    var use_ember = _this.get('edit_mode');
-
-    // Current speak-mode level: the level the supervisor last selected
-    // (persisted in stashes.board_level). If none was ever selected,
-    // default to 10 (full vocab — untagged boards "show everything").
-    // This MUST match current_speak_level exactly (saved 1–10 else 10)
-    // so the highlighted pill and the actually-filtered grid always
-    // agree, including for boards that ship an author default_level.
-    // This is the level baked into each button's `hidden` via
-    // apply_button_level in _make_btn, and the level that keys the cache
-    // below — otherwise switching from L1 to L10 would return the stale
-    // L1 grid.
-    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
-    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
-
-    // Does THIS board actually use Button Levels? (Any button carries a
-    // non-empty level_modifications.) The level filter must be a no-op on
-    // boards that don't use levels — otherwise a stale stashes.board_level
-    // (e.g. 3, carried over from a different leveled board) makes the
-    // untagged `else` branch in _make_btn flag EVERY button
-    // display_as_hidden, which the communicator speak-hide CSS then
-    // renders as a blank board. This is NOT the (reverted) blank-button
-    // rule — it only gates the pre-existing untagged-hide.
-    var board_has_levels = (raw.buttons || []).some(function(b) {
-      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
-    });
-
-    // Cache key for the pre-built ordered_buttons. Only used in non-edit
-    // mode: edit-mode buttons are Ember objects with mutable state we
-    // can't safely reuse across navigations.
-    var cache_token = (raw.key || raw.id);
-    var cache_ctx = {
-      preferred_symbols: _this._preferred_symbols,
-      skin: skin || null,
-      edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null,
-      // Invalidate grid reuse when offline url_cache becomes available so
-      // image_url picks up local paths after prime_caches().
-      url_cache_primed: !!persistence.primed,
-      // Level filter is baked into the cached grid by _make_btn
-      // (display_as_hidden). The cached ordered_buttons MUST therefore key
-      // on the active level / whether the board uses levels — otherwise
-      // changing the level reuses the stale grid and the speak-mode level
-      // filter never re-applies.
-      board_level: current_level,
-      board_has_levels: board_has_levels
-    };
-    if(!use_ember && cache_token) {
-      var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
-      if(cached_ob) {
-        // Cache hit — re-use the pre-built grid. Glimmer skips re-render
-        // for cells whose object identity is unchanged, so this nav
-        // costs ~0 CPU on the controller side.
-        _this.set('ordered_buttons', cached_ob);
-        _this._apply_focus_dim_to_ordered_buttons();
-        _this._preload_grid_images(cached_ob);
-        return;
-      }
-    }
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
@@ -749,8 +743,12 @@ export default Controller.extend(prefClasses, {
     if(cached) { return cached; }
     var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
     if(unvarianted !== remote_url) {
-      cached = try_url(unvarianted);
-      if(cached) { return cached; }
+      if(LingoLinq.Board.is_skin_tone_variant_url(remote_url)) {
+        try_url(unvarianted);
+      } else {
+        cached = try_url(unvarianted);
+        if(cached) { return cached; }
+      }
     }
     var alt_url = null;
     if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
@@ -774,8 +772,13 @@ export default Controller.extend(prefClasses, {
         img_url = image_map[btn.image_id];
       }
     }
+    var image_fallback_url = null;
     if(img_url) {
       img_url = this._resolve_cached_image_url(img_url);
+      if(LingoLinq.Board.is_skin_tone_variant_url(img_url)) {
+        image_fallback_url = LingoLinq.Board.unskin_tone_variant_url(img_url);
+        if(image_fallback_url === img_url) { image_fallback_url = null; }
+      }
     }
     // Speak-mode level filter: decide whether the level filter should
     // visually hide this button at the current level. We compute it
@@ -823,6 +826,7 @@ export default Controller.extend(prefClasses, {
       label: btn.label || '',
       vocalization: btn.vocalization || '',
       image_url: img_url,
+      image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
@@ -1650,11 +1654,17 @@ export default Controller.extend(prefClasses, {
     'app_state.currentUser.preferences.hidden_buttons',
     'app_state.currentUser.preferences.stretch_buttons',
     'app_state.currentUser.preferences.skin',
+    'app_state.referenced_user.preferences.preferred_symbols',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
+    'app_state.referenced_user.preferences.skin',
     function() {
       var pending = this.get('pending_display_prefs');
       if(pending) { return pending; }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
-      var device = prefs.device || {};
+      var pref_user = this._pref_user_for_display();
+      var current_prefs = this.get('app_state.currentUser.preferences') || {};
+      var sym_prefs = (pref_user && pref_user.get('preferences')) || current_prefs;
+      var device = current_prefs.device || {};
       return {
         button_spacing:       device.button_spacing       || 'medium',
         button_border:        device.button_border        || 'medium',
@@ -1662,13 +1672,13 @@ export default Controller.extend(prefClasses, {
         button_text_position: device.button_text_position || 'bottom',
         button_style:         device.button_style         || 'default',
         vocalization_height:  device.vocalization_height  || 'medium',
-        hidden_buttons:       prefs.hidden_buttons        || 'grid',
-        stretch_buttons:      prefs.stretch_buttons       || 'none',
-        preferred_symbols:    prefs.preferred_symbols     || 'original',
-        symbol_background:    prefs.symbol_background     || 'clear',
-        high_contrast:        !!prefs.high_contrast,
+        hidden_buttons:       current_prefs.hidden_buttons        || 'grid',
+        stretch_buttons:      current_prefs.stretch_buttons       || 'none',
+        preferred_symbols:    sym_prefs.preferred_symbols     || 'original',
+        symbol_background:    sym_prefs.symbol_background     || 'clear',
+        high_contrast:        !!sym_prefs.high_contrast,
         utterance_text_only:  !!device.utterance_text_only,
-        skin:                 prefs.skin                  || 'default'
+        skin:                 sym_prefs.skin                  || 'default'
       };
     }
   ),
@@ -2541,9 +2551,10 @@ export default Controller.extend(prefClasses, {
         persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
           pending--;
           if(_this.isDestroyed || _this.isDestroying) { return; }
-          if(data && data.board) {
-            boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-            walk(data.board, depth - 1);
+          var merged = boardDetailCache.normalize_board_payload(data);
+          if(merged) {
+            boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+            walk(merged, depth - 1);
           }
           if(pending === 0) { commit_list(); }
         }, function(err) {
@@ -3065,13 +3076,13 @@ export default Controller.extend(prefClasses, {
         }, 0);
       };
       persistence.ajax('/api/v1/boards/' + board.get('key'), { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          // Refresh the raw cache with the post-save server state so the
-          // next navigation back to this board (or the cache-first model
-          // hook firing on transition out of edit mode) sees fresh data
-          // instead of pre-save stale data.
-          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-          _this._build_from_raw(data.board);
+        var merged = boardDetailCache.normalize_board_payload(data);
+        if(merged) {
+          if(merged.images && merged.images.length) {
+            _this._board_detail_images = merged.images;
+          }
+          boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+          _this._build_from_raw(merged);
         }
         finish();
 
@@ -4314,6 +4325,10 @@ export default Controller.extend(prefClasses, {
         user.save();
       }
       if(this._display_pref_render_keys.indexOf(key) >= 0 && this._last_raw) {
+        var rebuild_token = this._last_raw.key || this._last_raw.id;
+        if(rebuild_token) {
+          boardDetailCache.clear_ordered_buttons(rebuild_token);
+        }
         this._build_from_raw(this._last_raw);
       }
     },
@@ -4646,9 +4661,10 @@ export default Controller.extend(prefClasses, {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + lookup, function() {
             _this._push_nav_history();
             return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
-              if(data && data.board && data.board.key) {
-                boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-                return _this._preferred_board_detail_key(data.board.key).then(function(preferred_key) {
+              var merged = boardDetailCache.normalize_board_payload(data);
+              if(merged && merged.key) {
+                boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+                return _this._preferred_board_detail_key(merged.key).then(function(preferred_key) {
                   var parts = preferred_key.split('/');
                   return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
                 });
@@ -5147,9 +5163,13 @@ export default Controller.extend(prefClasses, {
           _this.set('board_loading', true);
           var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
           persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-            if(data && data.board) {
-              _this.set('_raw_board_data', data.board);
-              _this._build_from_raw(data.board);
+            var merged = boardDetailCache.normalize_board_payload(data);
+            if(merged) {
+              if(merged.images && merged.images.length) {
+                _this._board_detail_images = merged.images;
+              }
+              _this.set('_raw_board_data', merged);
+              _this._build_from_raw(merged);
             }
             _this.set('board_loading', false);
           }, function() {

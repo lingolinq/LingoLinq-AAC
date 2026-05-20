@@ -1833,6 +1833,17 @@ LingoLinq.Board.is_skinned_url = function(url) {
     return false;
   }
 };
+// True when URL already selects a concrete skin tone (not the varianted-skin base).
+LingoLinq.Board.is_skin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return false; }
+  if(url.match(/\.variant-(dark|light|medium|medium-dark|medium-light|unskinned)\.\w+$/i)) {
+    return true;
+  }
+  if(url.match(/\/libraries\/twemoji\//) && url.match(/-var[0-9a-f]+UNI/i)) {
+    return true;
+  }
+  return false;
+};
 LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
   var which_override = null;
   if(unskin) {
@@ -1869,18 +1880,18 @@ LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
 // opts.persistence — when provided, falls back to the original URL if the
 //   skinned variant isn't cached locally and the original is (prevents offline
 //    404s when only the base URL has been cached).
-// OpenSymbols library URLs must end in .varianted-skin.{ext} before skin_image_map
-// can rewrite to .variant-{tone}.{ext}. Plain /libraries/.../file.png URLs are
-// upgraded here (same suffix rule as ButtonImage#check_for_variants).
+// Only backend-verified skin bases (.varianted-skin or twemoji skin codes) are
+// rewritten by skin_image_map. Plain /libraries/.../file.png URLs are not
+// speculatively upgraded — many symbols have no variant files on OpenSymbols.
 LingoLinq.Board.upgrade_url_for_skin_variants = function(url) {
   if(!url || typeof url !== 'string') { return url; }
-  if(LingoLinq.Board.is_skinned_url(url)) { return url; }
-  if(url.match(/\/libraries\//) && !url.match(/\.variant-/)) {
-    var filename = (url.split('/').pop() || '');
-    var ext = filename.split('.').pop();
-    if(ext && ext.length <= 5 && !ext.match(/\//)) {
-      return url + '.varianted-skin.' + ext;
-    }
+  return url;
+};
+
+LingoLinq.Board.unskin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  if(url.match(/\.variant(?:ed-skin|-[^.]+)\.\w+$/)) {
+    return url.replace(/\.variant(?:ed-skin|-[^.]+)\.\w+$/, '');
   }
   return url;
 };
@@ -1899,7 +1910,8 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
       which_skin,
       unskin
     );
-    if(persistence && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
+    var online = persistence && (typeof persistence.get === 'function' ? persistence.get('online') : persistence.online);
+    if(persistence && !online && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
       url = base_url;
     }
     return url;

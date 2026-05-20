@@ -48,8 +48,7 @@ function _index(entry) {
 function _drop(entry) {
   if (entry.key && _by_key[entry.key] === entry) { delete _by_key[entry.key]; }
   if (entry.id && _by_id[entry.id] === entry) { delete _by_id[entry.id]; }
-  delete _warmed[entry.key];
-  delete _warmed[entry.id];
+  _drop_warmed_for(entry);
 }
 
 function _lookup(key_or_id) {
@@ -57,7 +56,80 @@ function _lookup(key_or_id) {
   return _by_key[key_or_id] || _by_id[key_or_id] || null;
 }
 
+function _display_prefs_for_warm() {
+  try {
+    if (typeof window !== 'undefined' && LingoLinq && LingoLinq.appState) {
+      var appState = LingoLinq.appState;
+      var user = appState.get('referenced_user') || appState.get('currentUser');
+      if (user) {
+        return {
+          skin: user.get('preferences.skin'),
+          preferred_symbols: user.get('preferences.preferred_symbols')
+        };
+      }
+    }
+  } catch (e) { /* app may not be booted yet during early prefetch */ }
+  return { skin: null, preferred_symbols: null };
+}
+
+function _warm_cache_key(token, skin, preferred_symbols) {
+  if (!token) { return null; }
+  var skinPart = skin || 'default';
+  var symPart = (preferred_symbols && preferred_symbols !== 'original') ? preferred_symbols : 'original';
+  return token + '|' + skinPart + '|' + symPart;
+}
+
+function _drop_warmed_for(entry) {
+  [entry.key, entry.id].forEach(function(token) {
+    if (!token) { return; }
+    Object.keys(_warmed).forEach(function(k) {
+      if (k === token || k.indexOf(token + '|') === 0) { delete _warmed[k]; }
+    });
+  });
+}
+
+function _is_warmed(token, skin, preferred_symbols) {
+  var key = _warm_cache_key(token, skin, preferred_symbols);
+  return !!(key && _warmed[key]);
+}
+
+// Build the same skinned URL set _build_from_raw uses so prefetch hits
+// the browser cache entries the grid will request.
+function _urls_to_warm(raw, skin) {
+  var image_map = raw.image_urls || {};
+  (raw.images || []).forEach(function(img) {
+    if (img && img.id) {
+      var url = img.skin_url || img.url;
+      if (url) { image_map[String(img.id)] = url; }
+    }
+  });
+  image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
+  var urls = [];
+  var seen = {};
+  for (var id in image_map) {
+    if (image_map[id] && !seen[image_map[id]]) {
+      seen[image_map[id]] = true;
+      urls.push(image_map[id]);
+    }
+  }
+  return urls;
+}
+
+// API show/tree/bulk responses wrap images/sounds beside `board`. Merge
+// them onto the raw board object so _build_from_raw can read skin_url.
+function normalize_board_payload(data) {
+  if (!data) { return null; }
+  if (data.board) {
+    var board = JSON.parse(JSON.stringify(data.board));
+    if (data.images) { board.images = data.images; }
+    if (data.sounds) { board.sounds = data.sounds; }
+    return board;
+  }
+  return JSON.parse(JSON.stringify(data));
+}
+
 export default {
+  normalize_board_payload: normalize_board_payload,
   // Returns the cached raw board JSON, or null if missing/stale.
   get: function(key_or_id) {
     var entry = _lookup(key_or_id);
@@ -113,6 +185,13 @@ export default {
     return entry.ordered_buttons;
   },
 
+  clear_ordered_buttons: function(key_or_id) {
+    var entry = _lookup(key_or_id);
+    if (!entry) { return; }
+    entry.ordered_buttons = null;
+    entry.ordered_for = null;
+  },
+
   // Drops a cached entry (e.g. on save or before edit-mode entry).
   invalidate: function(key_or_id) {
     var entry = _lookup(key_or_id);
@@ -128,7 +207,10 @@ export default {
   },
 
   // Warm the browser image cache for every button image URL on the
-  // given raw board.
+  // given raw board, using the active skin tone (same URLs as the grid).
+  //
+  // opts.skin / opts.preferred_symbols — optional overrides; default from
+  // referenced_user (or currentUser) via appState.
   //
   // Returns a Promise that resolves when every image has settled
   // (loaded OR errored). The browser caps parallel fetches per origin
@@ -139,22 +221,19 @@ export default {
   // fully populated before showing the board, OR fire-and-forget for
   // sub-board prefetch.
   //
-  // `_warmed` guard means we never re-dispatch the same board's
-  // images — but we still return a resolved promise so callers can
-  // chain regardless.
-  warm_images: function(raw) {
+  // `_warmed` is keyed by board + skin + symbol library so a skin-tone
+  // change re-warms with the correct variant URLs.
+  warm_images: function(raw, opts) {
+    opts = opts || {};
     if (!raw) { return RSVP.resolve(); }
     var token = raw.key || raw.id;
-    if (token && _warmed[token]) { return RSVP.resolve(); }
-    if (token) { _warmed[token] = true; }
-    var image_map = raw.image_urls || {};
-    (raw.images || []).forEach(function(img) {
-      if (img && img.id && img.url) { image_map[img.id] = img.url; }
-    });
-    var urls = [];
-    for (var id in image_map) {
-      if (image_map[id]) { urls.push(image_map[id]); }
-    }
+    var prefs = _display_prefs_for_warm();
+    var skin = opts.skin !== undefined ? opts.skin : prefs.skin;
+    var preferred_symbols = opts.preferred_symbols !== undefined ? opts.preferred_symbols : prefs.preferred_symbols;
+    var warmKey = _warm_cache_key(token, skin, preferred_symbols);
+    if (warmKey && _warmed[warmKey]) { return RSVP.resolve(); }
+    if (warmKey) { _warmed[warmKey] = true; }
+    var urls = _urls_to_warm(raw, skin);
     if (!urls.length) { return RSVP.resolve(); }
     var promises = urls.map(function(url) {
       return new RSVP.Promise(function(resolve) {
@@ -181,6 +260,9 @@ export default {
     var max = opts.max || MAX_PREFETCH;
     var fetched = 0;
     var _this = this;
+    var prefs = _display_prefs_for_warm();
+    var skin = opts.skin !== undefined ? opts.skin : prefs.skin;
+    var preferred_symbols = opts.preferred_symbols !== undefined ? opts.preferred_symbols : prefs.preferred_symbols;
 
     raw.buttons.forEach(function(btn) {
       if (!btn || !btn.load_board) { return; }
@@ -189,8 +271,9 @@ export default {
 
       var existing = _lookup(lookup);
       if (existing && _is_fresh(existing)) {
-        if (!_warmed[existing.key] && !_warmed[existing.id]) {
-          _this.warm_images(existing.raw);
+        var existingToken = existing.key || existing.id;
+        if (existingToken && !_is_warmed(existingToken, skin, preferred_symbols)) {
+          _this.warm_images(existing.raw, opts);
         }
         return;
       }
@@ -200,9 +283,10 @@ export default {
 
       _inflight[lookup] = persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
         delete _inflight[lookup];
-        if (data && data.board) {
-          _this.set(data.board);
-          _this.warm_images(data.board);
+        var board_raw = normalize_board_payload(data);
+        if (board_raw) {
+          _this.set(board_raw);
+          _this.warm_images(board_raw, opts);
         }
       }, function() {
         delete _inflight[lookup];
@@ -236,18 +320,20 @@ export default {
     var lookup = home_key || home_id;
     if (!lookup) { return; }
     var _this = this;
+    var warm_opts = {
+      skin: user.get('preferences.skin'),
+      preferred_symbols: user.get('preferences.preferred_symbols')
+    };
     // Defer slightly so this doesn't compete with the post-login UI
     // render. By the time the user finishes reading the dashboard,
     // the tree is cached and Boards-tab navigation is instant.
     runLater(function() {
       persistence.ajax('/api/v1/boards/' + lookup + '/tree', { type: 'GET' }).then(function(data) {
         if (!data || !data.root || !data.root.board) { return; }
-        // Cache root.
-        var root_raw = data.root.board;
-        if (data.root.images) { root_raw.images = data.root.images; }
-        if (data.root.sounds) { root_raw.sounds = data.root.sounds; }
+        var root_raw = normalize_board_payload(data.root);
+        if (!root_raw) { return; }
         _this.set(root_raw);
-        _this.warm_images(root_raw);
+        _this.warm_images(root_raw, warm_opts);
         // Try to push root into Ember Data store too so the route's
         // cache-hit check (which requires `cached_record`) passes
         // when the user navigates to it. The store may not be the
@@ -260,12 +346,10 @@ export default {
         } catch (e) { /* ignore */ }
         // Cache + push every descendant.
         (data.descendants || []).forEach(function(wrapped) {
-          var sub_raw = wrapped && wrapped.board;
+          var sub_raw = normalize_board_payload(wrapped);
           if (!sub_raw) { return; }
-          if (wrapped.images) { sub_raw.images = wrapped.images; }
-          if (wrapped.sounds) { sub_raw.sounds = wrapped.sounds; }
           _this.set(sub_raw);
-          _this.warm_images(sub_raw);
+          _this.warm_images(sub_raw, warm_opts);
           try {
             if (typeof window !== 'undefined' && LingoLinq && LingoLinq.store) {
               var subNorm = LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
@@ -312,7 +396,7 @@ export default {
 
     // Warm the current board's images right away. Fire-and-forget;
     // browser cache is the persistence layer.
-    _this.warm_images(raw);
+    _this.warm_images(raw, opts);
 
     // Collect all unvisited sub-board lookups from this board.
     var collect_layer_keys = function(board_raw) {
@@ -340,7 +424,7 @@ export default {
         if (existing && _is_fresh(existing) && existing.raw) {
           // Already cached — feed its sub-board keys into the next
           // layer directly.
-          _this.warm_images(existing.raw);
+          _this.warm_images(existing.raw, opts);
           next_layer = next_layer.concat(collect_layer_keys(existing.raw));
         } else {
           to_fetch.push(key);
@@ -358,17 +442,10 @@ export default {
         }).then(function(data) {
           var boards = (data && data.boards) || [];
           boards.forEach(function(wrapped) {
-            // bulk endpoint returns wrapped form (mirrors single show).
-            // Merge image_urls from the wrapper if present so the
-            // cached raw has the same shape as a single-board fetch.
-            var board_raw = wrapped && wrapped.board;
+            var board_raw = normalize_board_payload(wrapped);
             if (!board_raw) { return; }
-            // Mirror what /boards/:id does — splice `images` into the
-            // raw object so _build_from_raw's image_map works the same.
-            if (wrapped.images) { board_raw.images = wrapped.images; }
-            if (wrapped.sounds) { board_raw.sounds = wrapped.sounds; }
             _this.set(board_raw);
-            _this.warm_images(board_raw);
+            _this.warm_images(board_raw, opts);
             next_layer = next_layer.concat(collect_layer_keys(board_raw));
           });
         }, function() {
@@ -377,10 +454,11 @@ export default {
           // older deploys.
           var promises = to_fetch.map(function(key) {
             return persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
-              if (data && data.board) {
-                _this.set(data.board);
-                _this.warm_images(data.board);
-                next_layer = next_layer.concat(collect_layer_keys(data.board));
+              var board_raw = normalize_board_payload(data);
+              if (board_raw) {
+                _this.set(board_raw);
+                _this.warm_images(board_raw, opts);
+                next_layer = next_layer.concat(collect_layer_keys(board_raw));
               }
             }, function() { /* swallow individual errors */ });
           });

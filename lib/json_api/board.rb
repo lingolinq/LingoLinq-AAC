@@ -169,7 +169,10 @@ module JsonApi::Board
             schedule_skin_enrichment = true if bi.needs_library_url_enrichment?
           end
         end
-        json['board']['image_urls'][i['id']] = i['url']
+        # For simple_refs (tree/bulk) the images[] wrapper is omitted for
+        # payload size — expose skin-capable library URLs via image_urls so
+        # the client skin_image_map can rewrite .varianted-skin → .variant-{tone}.
+        json['board']['image_urls'][i['id']] = i['skin_url'].presence || i['url']
         (i['alternates'] || []).each do |alternate|
           json['board']['image_urls']["#{i['id']}-#{alternate['library']}"] = alternate['url'] unless alternate['library'] == 'unknown'
         end

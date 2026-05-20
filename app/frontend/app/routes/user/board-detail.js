@@ -65,12 +65,18 @@ export default Route.extend({
   // Build the symbol grid, warm current-board images, prefetch linked boards.
   _finalize_board_display: function(controller, raw) {
     if(!raw || !controller || controller.isDestroyed || controller.isDestroying) { return; }
+    if(raw.images && raw.images.length) {
+      controller._board_detail_images = raw.images;
+    }
     controller._build_from_raw(raw);
     if(controller.get('edit_mode')) { return; }
     // Warm browser HTTP cache for this board's symbols (children are warmed by prefetch_linked).
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
-      boardDetailCache.warm_images(raw);
+      boardDetailCache.warm_images(raw, {
+        skin: controller.get('app_state.referenced_user.preferences.skin'),
+        preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
+      });
     }, 100);
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
@@ -149,8 +155,9 @@ export default Route.extend({
 
       var fallbackSingleBoard = function() {
         persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-          if(data && data.board) {
-            handleRoot(data.board);
+          var boardData = boardDetailCache.normalize_board_payload(data);
+          if(boardData) {
+            handleRoot(boardData);
           } else {
             resolve({ error: true, boardname: params.boardname });
           }
@@ -164,9 +171,11 @@ export default Route.extend({
           fallbackSingleBoard();
           return;
         }
-        var rootBoardData = data.root.board;
-        if (data.root.images) { rootBoardData.images = data.root.images; }
-        if (data.root.sounds) { rootBoardData.sounds = data.root.sounds; }
+        var rootBoardData = boardDetailCache.normalize_board_payload(data.root);
+        if (!rootBoardData) {
+          fallbackSingleBoard();
+          return;
+        }
         // Resolve the route with the root FIRST so the user sees the
         // board immediately — descendant caching happens after.
         handleRoot(rootBoardData);
@@ -177,10 +186,8 @@ export default Route.extend({
         // This is the work that makes folder taps instant.
         var subStore = _this.store;
         (data.descendants || []).forEach(function(wrapped) {
-          var sub_raw = wrapped && wrapped.board;
+          var sub_raw = boardDetailCache.normalize_board_payload(wrapped);
           if (!sub_raw) { return; }
-          if (wrapped.images) { sub_raw.images = wrapped.images; }
-          if (wrapped.sounds) { sub_raw.sounds = wrapped.sounds; }
           boardDetailCache.set(sub_raw);
           try {
             var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
