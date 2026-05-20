@@ -15,7 +15,22 @@ Before touching code for ANY fix request, this rule takes precedence over everyt
 2. **Be thorough.** Trace the full path the bug actually travels, including shared code, both the working and broken variants, and the data the code operates on. A fix that addresses a symptom without explaining why the verified root cause produces it is not acceptable.
 3. **Never break existing, working functionality.** Preserve all current behavior. If a fix risks regressing anything that works today, stop and flag it rather than proceeding. Do not "fix" one thing by degrading another.
 4. **If diagnosis is incomplete, do not apply a change.** Report what was verified, what wasn't, and the next investigation step. An honest "not yet diagnosed" beats a confident wrong fix.
-5. **If an attempted correction does not fix the problem, suspect the attempt itself first.** Before trying again, thoroughly re-evaluate whether the change was made on the wrong element, component, route/page, or layer. If it was, **revert the incorrect change** before doing anything else — do not leave wrong edits stacked in place. Only then re-diagnose (per rules 1–4) and fix the real problem. Never pile a second guess on top of an unreverted first guess.
+5. **If an attempted correction does not fix the problem, suspect the attempt itself first.** Before trying again, thoroughly re-evaluate whether the change was made on the wrong element, component, route/page, or layer. If it was, **revert the incorrect change** before doing anything else -- do not leave wrong edits stacked in place. Only then re-diagnose (per rules 1-4) and fix the real problem. Never pile a second guess on top of an unreverted first guess.
+
+## Branching (mandatory before ANY code change)
+
+Before you make any edit in this repo, you MUST be on a properly-named branch.
+
+1. **Branch from `staging`, not `main`.** PRs target `staging` first; release PRs from `staging` to `main` are a separate operation.
+2. **Branch name format:** `<type>/scot-<kebab-case-description>`
+   - `<type>` is one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The type prefix is REQUIRED. A bare `scot-<description>` (no type) is wrong.
+   - `scot-` is REQUIRED so Scot's branches are visually distinct from Melissa, Traci, Dominic.
+   - Use kebab-case after `scot-` (lowercase, hyphens between words).
+   - Examples: `fix/scot-copy-modal-fast-fallback`, `chore/scot-staging-slow-queue-capacity`, `test/scot-feature-flag-stub`.
+3. **Never edit on `main` or `staging` directly.** If you find yourself on one of those branches, `git checkout staging && git pull && git checkout -b <type>/scot-<description>` first.
+4. Date suffixes like `-2026-05-08` are only for time-bound recovery/release branches, not regular feature work.
+
+If you produced a branch name without a type prefix (e.g. `scot-something`), rename it before opening a PR: `git branch -m <type>/scot-something`.
 
 ## Project Overview
 
