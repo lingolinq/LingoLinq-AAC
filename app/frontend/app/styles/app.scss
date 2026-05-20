@@ -57905,28 +57905,96 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* "Soft borders" opt-in style — applied via .md-board-detail-grid--soft-borders
-   on the grid root when the user enables the Soft Borders setting in
-   the right panel's Shape & Border section. Layers ON TOP of whatever
-   border thickness is set (border_none/medium/large/huge or --bd-button-
-   border), softening the visual contrast without replacing the user's
-   chosen thickness. Adds a tonal inset highlight that mutes the outline's
-   inside edge + lightens the outer shadow stack to a single subtle drop. */
-.md-board-detail-grid--soft-borders .md-board-detail-symbol-card {
+   on the grid root. PRESERVES the user's outline-width preference
+   (--bd-button-border) entirely — only the card surface changes.
+   Goal: a clearly dramatic "blended / modern" look. Prior attempts
+   used box-shadow alone (white inset = invisible on white card
+   fills, dark inset = too subtle to perceive). The new approach
+   overlays a radial-gradient background-image on top of the card's
+   inline background-color, so the colored fill now reads as a soft
+   pearl with a bright center fading into the colored edge. The
+   colored outline still sits at the rim but it now meets a
+   GRADUATED fill instead of a flat slab — the eye reads this as
+   "blended". Pairs with a strong inset edge darkening for additional
+   depth, and a much lighter outer drop so the card feels modern /
+   flat rather than anchored. Outlines paint above box-shadow but
+   background-image paints BELOW the outline — so this approach
+   visibly changes the area right next to the outline, which is
+   exactly the transition that reads as "hard" in the default mode. */
+/* Soft borders is for cards that have content — empty cells need
+   their own subtle "available space" treatment and the white-halo
+   gradient otherwise reads as a distracting spotlight on them
+   (the empty rule's `background:` shorthand loses to our
+   `background-image: ... !important`, which fills empty cells with
+   bright pearl centers against the dark board canvas). Excluding
+   `--empty` via :not() keeps empty cells in their dedicated rule. */
+.md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty) {
+  /* Layered gradients for a dramatic glass-card look:
+     1. Top linear sheen — strong bright glow from top fading down,
+        gives the card an obvious "lit from above" highlight that's
+        the hallmark of modern glass-card UI.
+     2. Radial halo — boosted to 0.90 center alpha for a clearly
+        bright pearl center that contrasts strongly with the colored
+        rim, so the categorical color reads as a tonal frame rather
+        than a hard slab.
+     `background-image` layers ON TOP of the inline / class-based
+     `background-color`, so the categorical color still shows
+     through at the rim.
+     `!important` is required to survive the folder-card rule at
+     ~line 62100 which uses `background: #fff !important` (shorthand
+     resets background-image to none); without !important, soft
+     borders wouldn't apply to folder buttons. */
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.70) 0%,
+      rgba(255, 255, 255, 0.30) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.90) 0%,
+      rgba(255, 255, 255, 0.55) 35%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 100%
+    ) !important;
   box-shadow:
-    /* Single subtle outer drop replaces the heavy 3-layer stack. */
-    0 1px 2px rgba($la-navy, 0.06),
-    /* Soft inset top highlight — lifts the tile tonally. */
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    /* Light halo INSIDE the outline edge — mutes the colored
-       outline's perceived contrast (the category color still
-       reads as the cue, just softer). */
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    /* Single lightweight outer drop — replaces the heavy 3-layer
+       stack so the card feels less anchored / more modern. */
+    0 1px 3px rgba($la-navy, 0.06),
+    /* Wider, stronger inset edge darkening — 20px blur at 0.28
+       alpha makes the rim-to-fill transition a clearly graduated
+       fade so the outline visibly blends into the card. */
+    inset 0 0 20px rgba($la-navy, 0.28),
+    /* Bright inset top highlight — emphasizes the "glass / pearl"
+       feel and clearly distinguishes the on-state from the default
+       flat fill. */
+    inset 0 2px 6px rgba(255, 255, 255, 0.95);
 }
-.md-board-detail--dark .md-board-detail-grid--soft-borders .md-board-detail-symbol-card {
+.md-board-detail--dark .md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty) {
+  /* Dark mode: same layered glass effect with reduced center alpha
+     so already-light Fitzgerald card fills don't read as harsh
+     white blobs against the dark canvas. Edge darkening is stronger
+     to keep the rim-fade perceptible against the lighter card
+     interiors that dark-canvas contrast produces. */
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.18) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.35) 35%,
+      rgba(255, 255, 255, 0.10) 75%,
+      transparent 100%
+    ) !important;
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.30),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 1px 3px rgba(0, 0, 0, 0.30),
+    inset 0 0 20px rgba(0, 0, 0, 0.45),
+    inset 0 2px 6px rgba(255, 255, 255, 0.22);
 }
 .md-board-detail-symbol-card__image {
   flex: 1 1 auto;
@@ -61337,25 +61405,39 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* ── Board-Detail: Empty, Hidden, Swapping button states ─ */
-/* Empty cards: noticeably darker gray than the page background so the empty
-   slot is distinguishable from the surrounding canvas — but still neutral
-   so it doesn't compete with real buttons for attention. The previous
-   #eaebee→#e2e3e7 gradient at 0.55 opacity sat too close to white and
-   failed contrast. The bright `inset 0 1px 0 rgba(255,255,255,0.6)`
-   highlight is removed because it created a visible top-band where the
-   gradient appeared to start below the card edge. The full gradient now
-   fills the card edge-to-edge with the existing 16px radius (radius is
-   on the .md-board-detail-symbol-card itself + overflow: hidden, so the
-   gradient fills the rounded shape uniformly). */
+/* Empty cards: should communicate "available space" not "missing
+   content". Subtle translucent wash (lets the board canvas tint
+   through) + faint dot-grid texture for an empty-slot feel. No
+   elevation, no hard outline — empty cells must not compete with
+   real buttons for visual weight. Replaces the older medium-gray
+   gradient + dashed outline + drop shadow, which read as a missing
+   tile instead of a quiet placeholder. */
 .md-board-detail-symbol-card--empty {
   opacity: 1;
+  /* Two-layer background:
+     1. Radial-gradient dot pattern repeated every 10px — gives a
+        soft "empty container" texture cue.
+     2. Translucent neutral tint below — barely there, just enough
+        to read as a cell rather than a hole in the board.
+     Both go in one `background:` shorthand so the !important wins
+     against any earlier base rule reliably. */
   background:
-    linear-gradient(180deg, #c4cad4, #b1b8c4) !important;
-  box-shadow:
-    0 1px 2px rgba($indigo, 0.10),
-    inset 0 -1px 2px rgba($indigo, 0.06) !important;
-  outline: 2px dashed rgba($indigo, 0.18) !important;
-  outline-offset: -6px;
+    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.10) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    rgba($la-navy, 0.04) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.md-board-detail--dark .md-board-detail-symbol-card--empty {
+  /* Dark mode: tone the dots and wash to white so empty cells read
+     against the dark canvas as "available space" rather than
+     "missing tile". Wash bumped 0.025 → 0.08 (was reading as nearly
+     black against the dark board canvas, looking like a hole);
+     0.08 lifts the cell visibly above the canvas without competing
+     with real buttons. Dot alpha also bumped slightly so the
+     texture stays perceptible against the lifted wash. */
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    rgba(255, 255, 255, 0.08) !important;
 }
 .md-board-detail-symbol-card--no-color {
   outline-color: transparent !important;
@@ -63032,6 +63114,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-folder-toggle-row__state--active {
   color: rgba(255, 255, 255, 0.96);
+}
+/* Dark-mode glassy border for the OFF state of the toggle pill. The
+   base rule's navy-on-dark border (rgba(13, 36, 56, 0.18)) and fill
+   (rgba(13, 36, 56, 0.10)) disappear against the panel's dark
+   gradient, leaving the toggle without a visible chrome edge. Swap
+   in a translucent white border + frosted fill + faint inset top
+   highlight so the pill reads as a distinct interactive element.
+   :not(--on) keeps the verdigris ON-state styling untouched (the
+   ON rule lives at .nb-toggle__switch--on; this dark rule wins on
+   specificity for the OFF case only via :not). */
+.md-board-detail--dark .nb-toggle__switch:not(.nb-toggle__switch--on) {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 .md-board-detail--dark .md-board-detail-board-actions {
   background: linear-gradient(135deg, #1f2937, $brand-charcoal-dark);
@@ -75466,19 +75562,20 @@ blockquote small {
 }
 /* In collapsed-rail mode: keep the icons visible, hide labels,
    chevrons, group subheaders, accordion bodies, and the divider
-   bar between groups (replaced with a thin gap). 28px top padding
-   pushes the icon stack clearly below both the SETTINGS caption
-   AND the divider line so they don't overlap (was 16px, bumped
-   per user report of icons rendering on top of the divider). */
+   bar between groups (replaced with a thin gap). The body's
+   margin-top pushes the icon stack clearly below the SETTINGS
+   caption AND the divider line so they don't overlap. */
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__body {
   gap: 4px;
-  /* Push the BODY down (not its individual children) — the
-     user's DevTools showed the body box was rendering flush
-     against the SETTINGS divider above. padding-top on the body
-     wasn't producing visible offset in this flex container, so
-     using margin-top on the body itself instead, which moves the
-     whole box down inside the parent aside. */
-  margin-top: 4px;
+  /* Push the BODY down (not its individual children) — the body
+     box otherwise renders flush against the SETTINGS divider above.
+     padding-top on the body doesn't produce visible offset in this
+     flex container, so margin-top on the body itself moves the
+     whole box down inside the parent aside. Bumped progressively
+     per user reports: 4px → 16px → 32px. The first-icon (LEVELS)
+     now clearly sits below the SETTINGS caption + divider area
+     with visible breathing room. */
+  margin-top: 38px;
 }
 /* Divider sits below the SETTINGS caption (NOT at the top of
    __body — which would render visually ABOVE SETTINGS). Targets
@@ -78528,19 +78625,20 @@ blockquote small {
 }
 /* In collapsed-rail mode: keep the icons visible, hide labels,
    chevrons, group subheaders, accordion bodies, and the divider
-   bar between groups (replaced with a thin gap). 28px top padding
-   pushes the icon stack clearly below both the SETTINGS caption
-   AND the divider line so they don't overlap (was 16px, bumped
-   per user report of icons rendering on top of the divider). */
+   bar between groups (replaced with a thin gap). The body's
+   margin-top pushes the icon stack clearly below the SETTINGS
+   caption AND the divider line so they don't overlap. */
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__body {
   gap: 4px;
-  /* Push the BODY down (not its individual children) — the
-     user's DevTools showed the body box was rendering flush
-     against the SETTINGS divider above. padding-top on the body
-     wasn't producing visible offset in this flex container, so
-     using margin-top on the body itself instead, which moves the
-     whole box down inside the parent aside. */
-  margin-top: 4px;
+  /* Push the BODY down (not its individual children) — the body
+     box otherwise renders flush against the SETTINGS divider above.
+     padding-top on the body doesn't produce visible offset in this
+     flex container, so margin-top on the body itself moves the
+     whole box down inside the parent aside. Bumped progressively
+     per user reports: 4px → 16px → 32px. The first-icon (LEVELS)
+     now clearly sits below the SETTINGS caption + divider area
+     with visible breathing room. */
+  margin-top: 38px;
 }
 /* Divider sits below the SETTINGS caption (NOT at the top of
    __body — which would render visually ABOVE SETTINGS). Targets

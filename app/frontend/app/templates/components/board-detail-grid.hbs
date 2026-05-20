@@ -132,7 +132,18 @@
         {{/if}}
         {{#if this.editMode}}
           {{#if this.labelsEditable}}
-            {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label=(concat (t "Button label" key="board_detail_button_label_aria") " " btn.id)}}
+            {{!-- Suppress the inline label input on empty buttons.
+                 The "enter label" placeholder field competed with
+                 the redesigned subtle empty-cell treatment. Users
+                 add content to empty buttons via the edit modal
+                 (Edit-actions → opens the full button editor), so
+                 the inline shim is redundant for empty cells. Once
+                 the button has any data (label / image / vocalization),
+                 the input field reappears so the label can be edited
+                 in place like other buttons. --}}
+            {{#if (or btn.label btn.image_id btn.image_url btn.vocalization)}}
+              {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label=(concat (t "Button label" key="board_detail_button_label_aria") " " btn.id)}}
+            {{/if}}
           {{else}}
             <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
           {{/if}}
