@@ -4,6 +4,9 @@
 **Author:** AI Infra Audit Team (Claude Code Agent Team)
 **Scope:** Full local environment scan — WSL2 Ubuntu + Mounted Windows drive
 
+> **Note:** User-specific home paths, Windows usernames, and OAuth account identifiers
+> below use `<dev-user>` placeholders so this doc stays portable in a shared repo.
+
 ---
 
 ## Executive Summary
@@ -30,7 +33,7 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
 ## Visual Infrastructure Map
 
 ```
-/home/scotw/  (WSL2 Ubuntu — Primary Dev Environment)
+~/  (WSL2 Ubuntu — Primary Dev Environment)
 │
 ├── .claude.json ★ PRIMARY CONFIG — 13 MCP servers defined here
 │   ├── mcpServers:
@@ -47,22 +50,22 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
 │   │   ├── postgres-dev ....... @anthropic-ai/mcp-server-postgres (npx)
 │   │   ├── playwright ......... @playwright/mcp (npx)
 │   │   └── docker ............. @modelcontextprotocol/server-docker (npx)
-│   ├── oauthAccount: scotwahlquist@gmail.com
+│   ├── oauthAccount: [redacted-email]
 │   └── projects:
-│       ├── /home/scotw
-│       └── /mnt/c/Users/scotw/Projects/LingoLinq-AAC
+│       ├── ~
+│       └── /mnt/c/Users/<dev-user>/Projects/LingoLinq-AAC
 │
 ├── .claude/
 │   ├── settings.json ......... {skipDangerousModePermissionPrompt, AGENT_TEAMS=1}
 │   ├── .credentials.json ..... OAuth credentials (SENSITIVE)
 │   ├── projects/
-│   │   ├── -home-scotw/
+│   │   ├── -home-<dev-user>/
 │   │   │   ├── memory/
 │   │   │   │   ├── MEMORY.md .............. Auto-memory (loaded every session)
 │   │   │   │   ├── mcp-architecture.md .... MCP strategy & security zones
 │   │   │   │   └── compliance-strategy.md . FERPA/HIPAA approach
 │   │   │   └── [session-uuid].jsonl ....... Session transcripts (7 sessions)
-│   │   └── -mnt-c-Users-scotw-Projects-LingoLinq-AAC/
+│   │   └── -mnt-c-Users-<dev-user>-Projects-LingoLinq-AAC/
 │   │       └── [session-uuid].jsonl ....... Session transcripts (2 sessions)
 │   ├── backups/
 │   ├── cache/
@@ -109,11 +112,11 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
 │   │           └── 7eecf316..._.env.example
 │   ├── history/
 │   │   ├── lingolinq-aac/.project_root
-│   │   └── scotw/.project_root
+│   │   └── <dev-user>/.project_root
 │   └── tmp/
 │       ├── bin/rg ............. Bundled ripgrep binary
 │       ├── lingolinq-aac/.project_root
-│       └── scotw/
+│       └── <dev-user>/
 │           ├── .project_root
 │           ├── logs.json
 │           └── chats/
@@ -156,7 +159,7 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
     └── @modelcontextprotocol/server-sequential-thinking@2025.12.18
 
 
-/mnt/c/Users/scotw/  (Windows — Mounted via WSL2)
+/mnt/c/Users/<dev-user>/  (Windows — Mounted via WSL2)
 │
 ├── AppData/Roaming/Claude/
 │   ├── claude_desktop_config.json ★ WINDOWS DESKTOP MCP CONFIG
@@ -165,14 +168,14 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
 │   │       ├── render ............. npx mcp-remote → https://mcp.render.com/mcp
 │   │       ├── deepwiki ........... npx mcp-remote → https://mcp.deepwiki.com/mcp
 │   │       ├── n8n-mcp ............ npx n8n-mcp
-│   │       ├── filesystem ......... npx → C:\Users\scotw\Projects
+│   │       ├── filesystem ......... npx → C:\Users\<dev-user>\Projects
 │   │       ├── sequential-thinking  npx @modelcontextprotocol/server-sequential-thinking
 │   │       ├── notion ............. npx mcp-remote → https://mcp.notion.com/mcp
-│   │       ├── aws-mcp ............ C:\Users\scotw\.local\bin\uvx.exe
+│   │       ├── aws-mcp ............ C:\Users\<dev-user>\.local\bin\uvx.exe
 │   │       ├── perplexity ......... npx @perplexity-ai/mcp-server
 │   │       └── chrome-devtools .... npx chrome-devtools-mcp
 │   └── config/
-│       └── memory.json ............ Shared agent memory → \\wsl.localhost\Ubuntu\home\scotw\lingolinq\agent_memory.json
+│       └── memory.json ............ Shared agent memory → \\wsl.localhost\Ubuntu\home\<dev-user>\lingolinq\agent_memory.json
 │
 ├── .claude/ ★ WINDOWS-SIDE CLAUDE CODE CONFIG
 │   ├── CLAUDE.md .................. Global AI agent instructions (66 lines, synced to GEMINI.md)
@@ -185,7 +188,7 @@ Your AI infrastructure spans **4 runtime environments** (WSL2 Ubuntu, Windows na
 │   │   ├── quick-research/
 │   │   └── startup-ops/
 │   ├── projects/
-│   │   ├── C--Users-scotw/ ........ Home project
+│   │   ├── C--Users-<dev-user>/ ........ Home project
 │   │   ├── LingoLinq-AAC/ ......... Main project + 3 worktrees (practical-gates, dazzling-borg, lucid-benz)
 │   │   ├── C--windows-system32/
 │   │   └── antigravity-playground/
@@ -317,7 +320,7 @@ Claude.ai Cloud (not files — SaaS connectors)
 
 ### Claude Code Skills (11 total across 2 locations)
 
-**LingoLinq Project Skills** (7) — `/mnt/c/Users/scotw/Projects/LingoLinq-AAC/.claude/skills/`
+**LingoLinq Project Skills** (7) — `/mnt/c/Users/<dev-user>/Projects/LingoLinq-AAC/.claude/skills/`
 
 | Skill                          | Purpose                              |
 |--------------------------------|--------------------------------------|
@@ -329,7 +332,7 @@ Claude.ai Cloud (not files — SaaS connectors)
 | `/ember-refactor-safety`       | Safe refactoring guardrails          |
 | `/security-hotfix`             | Security hotfix procedures           |
 
-**Windows Global Skills** (4) — `/mnt/c/Users/scotw/.claude/skills/`
+**Windows Global Skills** (4) — `/mnt/c/Users/<dev-user>/.claude/skills/`
 
 | Skill              | Purpose                       |
 |--------------------|-------------------------------|
@@ -345,7 +348,7 @@ Notable plugin skills: stripe-best-practices, claude-automation-recommender, cla
 frontend-design, hookify writing-rules, plugin-dev (7 sub-skills), skill-creator, playground
 
 ### Claude Code Memory Files (3)
-Located at: `~/.claude/projects/-home-scotw/memory/`
+Located at: `~/.claude/projects/-home-<dev-user>/memory/`
 
 | File                    | Purpose                              |
 |-------------------------|--------------------------------------|
@@ -355,7 +358,7 @@ Located at: `~/.claude/projects/-home-scotw/memory/`
 
 ### Shared Agent Memory
 - `~/.config/claude/memory.json` → `~/lingolinq/agent_memory.json`
-- `/mnt/c/.../Claude/config/memory.json` → `\\wsl.localhost\Ubuntu\home\scotw\lingolinq\agent_memory.json`
+- `/mnt/c/.../Claude/config/memory.json` → `\\wsl.localhost\Ubuntu\home\<dev-user>\lingolinq\agent_memory.json`
 - Strategy: merge_without_overwrite, self-updating
 - Records: user profile, developer level (novice), multi-agent workflow, project context
 
@@ -382,7 +385,7 @@ Located at: `~/.gemini/antigravity/brain/5314e1b9-*/`
 ## Security Findings
 
 ### CRITICAL: Hardcoded API Keys in Windows Gemini Settings
-`/mnt/c/Users/scotw/.gemini/settings.json` contains **4 plaintext API keys**:
+`/mnt/c/Users/<dev-user>/.gemini/settings.json` contains **4 plaintext API keys**:
 
 | Secret                           | Masked Value                    |
 |----------------------------------|---------------------------------|
@@ -395,10 +398,10 @@ Located at: `~/.gemini/antigravity/brain/5314e1b9-*/`
 **Remediation**: Replace hardcoded values with `${ENV_VAR}` references (matching the WSL Claude Code pattern).
 
 ### MODERATE: DB Connection String in Permissions File
-`/mnt/c/Users/scotw/.claude/settings.local.json` (line 42-44) contains a plaintext Render PostgreSQL connection string with password: `sIzw****...****3be`
+`/mnt/c/Users/<dev-user>/.claude/settings.local.json` (line 42-44) contains a plaintext Render PostgreSQL connection string with password: `sIzw****...****3be`
 
 ### LOW: OAuth Tokens in Expected Locations
-- `/mnt/c/Users/scotw/.claude/.credentials.json` — access token, refresh token, Notion MCP OAuth tokens
+- `/mnt/c/Users/<dev-user>/.claude/.credentials.json` — access token, refresh token, Notion MCP OAuth tokens
 - Standard for OAuth flow; included for audit completeness
 
 ### INFO: Dangerous Mode Enabled
@@ -414,7 +417,7 @@ The same MCP servers are defined in **4 places** (not 3 as previously documented
 - `~/.claude.json` (Claude Code — WSL) — 13 MCPs
 - `~/.gemini/settings.json` (Gemini CLI — WSL) — 13 MCPs
 - `/mnt/c/.../claude_desktop_config.json` (Windows Desktop) — 10 MCPs
-- `/mnt/c/Users/scotw/.gemini/settings.json` (Windows Gemini CLI) — 10 MCPs
+- `/mnt/c/Users/<dev-user>/.gemini/settings.json` (Windows Gemini CLI) — 10 MCPs
 
 Any change requires editing up to 4 files manually. A partial sync exists (`~/bin/sync-ai-configs.sh`) but it only syncs CLAUDE.md → GEMINI.md, not MCP configs.
 
@@ -427,9 +430,9 @@ Windows Desktop and Windows Gemini configs lack `postgres-dev`, `docker`, and `p
 - Gemini CLI omits `type` field but uses the same commands
 
 ### 4. Path Divergence (WSL ↔ Windows)
-- WSL: `npx` and `/home/scotw/.local/bin/uvx`
-- Windows: `C:\Program Files\nodejs\npx.cmd` and `C:\Users\scotw\.local\bin\uvx.exe`
-- Filesystem MCP scopes: WSL → `/home/scotw/Projects` vs Windows → `C:\Users\scotw\Projects`
+- WSL: `npx` and `~/.local/bin/uvx`
+- Windows: `C:\Program Files\nodejs\npx.cmd` and `C:\Users\<dev-user>\.local\bin\uvx.exe`
+- Filesystem MCP scopes: WSL → `~/Projects` vs Windows → `C:\Users\<dev-user>\Projects`
 
 ### 5. Deprecated MCP Server
 `@modelcontextprotocol/server-github@2025.4.8` is marked **deprecated** on npm. Currently cached in `~/.npm/_npx/`. Should be replaced with the maintained successor.

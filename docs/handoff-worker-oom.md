@@ -2,7 +2,7 @@
 
 **Created:** 2026-04-17 (end of long thread)
 **Starting thread:** new rails-ember-dev thread
-**Suggested first prompt:** Read this file at `/home/scotw/handoff-worker-oom.md`, then investigate the symptoms below. Begin with section "Suspected root cause" since the prior thread already ruled out memory.
+**Suggested first prompt:** Read this file at `docs/handoff-worker-oom.md`, then investigate the symptoms below. Begin with section "Suspected root cause" since the prior thread already ruled out memory.
 
 ---
 
@@ -62,7 +62,7 @@ PR #191 landed 2026-04-17. The user's report came after that. Correlation is str
 
 ## Files to read first
 
-In the LingoLinq-AAC repo at `/mnt/c/Users/scotw/projects/LingoLinq-AAC`:
+In the LingoLinq-AAC repo at the repository root:
 
 - `lib/uploader.rb` — look at `check_existing_upload` and its S3 client setup
 - `lib/button_set.rb` and `app/models/button_set.rb` — button_set_cache path consumers
@@ -132,4 +132,4 @@ git show <PR_191_SHA> -- Gemfile Gemfile.lock | grep -E "aws-sdk|s3"
 - `gh pr view 177 --repo lingolinq/LingoLinq-AAC` — rebased security/licensing PR
 - `gh pr view 184 --repo lingolinq/LingoLinq-AAC` — Tarheel kill-switch
 - `gh pr view 193 --repo lingolinq/LingoLinq-AAC` — BoardSetCopier integration spec
-- Memory file: `/home/scotw/.claude/projects/-home-scotw/memory/render-puma-config.md`
+- Memory file: `~/.claude/projects/-home-<dev-user>/memory/render-puma-config.md`
