@@ -1796,6 +1796,22 @@ LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
 // opts.persistence — when provided, falls back to the original URL if the
 //   skinned variant isn't cached locally and the original is (prevents offline
 //    404s when only the base URL has been cached).
+// OpenSymbols library URLs must end in .varianted-skin.{ext} before skin_image_map
+// can rewrite to .variant-{tone}.{ext}. Plain /libraries/.../file.png URLs are
+// upgraded here (same suffix rule as ButtonImage#check_for_variants).
+LingoLinq.Board.upgrade_url_for_skin_variants = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  if(LingoLinq.Board.is_skinned_url(url)) { return url; }
+  if(url.match(/\/libraries\//) && !url.match(/\.variant-/)) {
+    var filename = (url.split('/').pop() || '');
+    var ext = filename.split('.').pop();
+    if(ext && ext.length <= 5 && !ext.match(/\//)) {
+      return url + '.varianted-skin.' + ext;
+    }
+  }
+  return url;
+};
+
 LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   image_map = image_map || {};
   if(!skin || skin == 'default') { return image_map; }
@@ -1805,7 +1821,11 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   var which_skin = LingoLinq.Board.which_skinner(skin);
   var res = {};
   var resolve = function(base_url, unskin) {
-    var url = LingoLinq.Board.skinned_url(base_url, which_skin, unskin);
+    var url = LingoLinq.Board.skinned_url(
+      LingoLinq.Board.upgrade_url_for_skin_variants(base_url),
+      which_skin,
+      unskin
+    );
     if(persistence && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
       url = base_url;
     }
