@@ -150,6 +150,25 @@ export default Controller.extend({
   boardPickerBoards: null,
   boardPickerFilter: '',
   boardPickerListId: null,
+  // Set/Change Home Board selection mode for the My Boards picker.
+  // When true, clicking a board tile in the picker writes the picked
+  // board to user.preferences.home_board, saves the user, then
+  // launches speak mode on it (see pickBoard branching below). The
+  // toggle is the "Set Home Board" / "Change Home Board" button next
+  // to the Home Board pill in the picker's filter row. Reset on
+  // closeBoardPicker so reopening the picker starts in normal mode.
+  boardPickerSelectingHome: false,
+  boardPickerHomeButtonLabel: computed('boardPickerHasHomeBoard', 'boardPickerSelectingHome', function() {
+    // Button text mirrors current state: while in selection mode the
+    // user can cancel by clicking again, so the label flips to a
+    // cancel verb regardless of whether they already have a home set.
+    if(this.get('boardPickerSelectingHome')) {
+      return i18n.t('cancel_set_home_board', "Cancel");
+    }
+    return this.get('boardPickerHasHomeBoard')
+      ? i18n.t('change_home_board', "Change Home Board")
+      : i18n.t('set_home_board', "Set Home Board");
+  }),
   filteredBoardPickerBoards: computed('boardPickerBoards.[]', 'boardPickerFilter', function() {
     var boards = this.get('boardPickerBoards');
     if(!boards) { return []; }
@@ -792,8 +811,61 @@ export default Controller.extend({
     closeBoardPicker: function() {
       this.set('boardPickerVisible', false);
       this.set('boardPickerListId', null);
+      // Exit selection mode so reopening the picker starts fresh.
+      this.set('boardPickerSelectingHome', false);
+    },
+    // Toggle the "Set / Change Home Board" selection mode in the My
+    // Boards picker. When ON, clicking a board tile sets it as the
+    // user's home board (see pickBoard) instead of navigating to it.
+    // Clicking the button again cancels and returns to normal mode.
+    toggleSetHomeMode: function() {
+      this.toggleProperty('boardPickerSelectingHome');
+    },
+    // Closes the picker and opens the new-board modal, mirroring the
+    // dashboard Boards card's "New Board" entrypoint (see
+    // components/dashboard/authenticated-view.js#newBoard). Routed
+    // through check_for_needing_purchase so paywalled accounts hit
+    // the same gate they would from the dashboard.
+    newBoardFromBoardPicker: function() {
+      var _this = this;
+      this.set('boardPickerVisible', false);
+      this.set('boardPickerListId', null);
+      this.set('boardPickerSelectingHome', false);
+      this.appState.check_for_needing_purchase().then(function() {
+        modal.open('new-board');
+      });
     },
     pickBoard: function(key) {
+      var _this = this;
+      // Selection-mode branch: clicking a tile sets the picked board
+      // as the user's home board, saves the user record, then jumps
+      // straight into speak mode on the new home board. Falls back to
+      // standard pick behavior if anything in the save chain fails.
+      if(this.get('boardPickerSelectingHome') && key) {
+        var user = this.appState.get('currentUser');
+        var board = (this.get('boardPickerBoards') || []).find(function(b) {
+          return b.get('key') === key;
+        });
+        var board_id = board && board.get('id');
+        if(user && user.set && user.save) {
+          user.set('preferences.home_board', {
+            key: key,
+            id: board_id,
+            locale: this.appState.get('label_locale')
+          });
+          user.save().then(function() {
+            _this.set('boardPickerSelectingHome', false);
+            _this.set('boardPickerVisible', false);
+            _this.set('boardPickerListId', null);
+            // Land in speak mode on the freshly-set home board.
+            _this.appState.home_in_speak_mode({user: user});
+          }, function() {
+            // Save failed — leave selection mode open so the user can
+            // retry. The modal stays visible.
+          });
+          return;
+        }
+      }
       this.set('boardPickerVisible', false);
       // If on board-detail page, navigate to the new board-detail instead of the board page
       if(this.get('on_board_detail') && key) {

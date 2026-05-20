@@ -27,6 +27,14 @@
     {{else}}
       <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);" alt="">
     {{/if}}
+    {{#if this.board_record.has_vocab_icon}}
+      {{!-- Attribution under the shipped Quick Core / Vocal Flair /
+           Sequoia tile art. Rendered only when board.has_vocab_icon
+           (same detection as icon_url_with_fallback's override map).
+           License names and the OpenAAC brand aren't translated, but
+           routed through i18n to keep the no-raw-strings convention. --}}
+      <div class="board-icon__credit">{{t "CC-By OpenAAC" key="cc_by_openaac"}}</div>
+    {{/if}}
     <div class={{if this.noinfo "name compact" "name"}}>
     {{this.best_name}}
     </div>

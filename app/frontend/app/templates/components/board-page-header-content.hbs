@@ -670,7 +670,7 @@
             {{/if}}
           {{/if}}
           {{#if @controller.app_state.currentUser}}
-            <span class='user_holder'>
+            <span class='user_holder {{if @controller.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}'>
               <img src={{@controller.app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if @controller.app_state.modeling_for_user}}

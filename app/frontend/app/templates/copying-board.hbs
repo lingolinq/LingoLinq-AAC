@@ -1,9 +1,22 @@
 {{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
-  <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
-    <h3>
+  {{!-- Header carries a centered "Copy All Boards" shortcut whenever
+       the user is looking at the hierarchy (or the load-failed
+       recovery state) so large boards don't require scrolling past a
+       long checklist to find the body button. Same `copy_all` action,
+       same gating as the body — hidden while loading / errored
+       without recovery / copy in progress. Absolute positioning keeps
+       the button exactly centered regardless of title or close
+       widths. --}}
+  <div class="modal-header md-copying-board-header">
+    <h3 class="md-copying-board-header__title">
       {{t "Copy Board" key="copy_board"}}
     </h3>
+    {{#if (or this.hierarchy this.hierarchyLoadFailed)}}
+      <button type="button" class="btn btn-primary md-copying-board-header__copy-all" {{action "copy_all"}}>
+        {{t "Copy All Boards" key="copy_all_boards"}}
+      </button>
+    {{/if}}
+    <button type="button" class="close md-copying-board-header__close" {{action "close"}}>&times;</button>
   </div>
   <div class="modal-body">
     {{#if this.error}}
@@ -13,7 +26,10 @@
         <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
       {{/if}}
     {{else if this.loading}}
-      <p>{{t "Loading..." key="loading"}}</p>
+      {{!-- Spinner matches the in-progress copy state below for visual
+           consistency, so the user sees a clear "working" indicator
+           while the linked-board hierarchy loads, not just bare text. --}}
+      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Loading linked boards..." key="loading_linked_boards"}}</p>
     {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
       {{#if this.hierarchyRootOnlyWarning}}

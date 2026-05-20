@@ -41,12 +41,25 @@ export default Controller.extend(prefClasses, {
   // dropdown; persisted on user.preferences.folder_colored_face.
   folder_colored_face: false,
   folder_dropdown_open: false,
-  // When true, button labels render on a single line and shrink to
-  // fit the button width (down to a 7px floor). When false (the
-  // default — matches modern AAC industry standard), labels keep
-  // the user's chosen font size and wrap to up to 3 lines at word
-  // boundaries. Persisted on user.preferences.shrink_labels_to_fit.
+  // When true, button labels shrink to fit the button width (down to
+  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
+  // boundaries. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and wrap to up
+  // to 3 lines at word boundaries with no shrinking. The two-line
+  // shrink mode replaces the older one-line-only shrink behavior so
+  // longer labels stay legible without dropping all the way to the
+  // 7px floor on a single line. Persisted on
+  // user.preferences.shrink_labels_to_fit.
   shrink_labels_to_fit: false,
+  // When true, applies a softer / more tonal style to button borders
+  // ON TOP of whatever the user's selected border thickness is —
+  // single subtle outer shadow + soft inset highlight + a light halo
+  // inside the colored outline edge that mutes its visual contrast.
+  // The category color stays as the cue; just reads as a softer
+  // accent rather than a heavy dark rim. When false (default), the
+  // existing border styling renders unchanged. Persisted on
+  // user.preferences.soft_borders.
+  soft_borders: false,
   boardname: null,
   active_category: 'all',
 
@@ -54,11 +67,18 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  /** Speak bar + header back control: session folder trail and/or DB parent board. */
-  show_board_back_nav: computed('board_detail_history.[]', 'model.parent_board_key', function() {
-    if((this.get('board_detail_history') || []).length > 0) { return true; }
-    var pk = this.get('model.parent_board_key');
-    return !!(pk && String(pk).indexOf('/') !== -1);
+  /** Speak bar + header back control — only shows when the user has
+   *  an actual in-session nav trail to go back through. Previously
+   *  it ALSO showed when the board's DB `parent_board_key` was set,
+   *  which produced a phantom back button on direct-loaded boards
+   *  (the user hadn't navigated FROM the parent; the board just
+   *  happened to have parent metadata in the DB). Now strictly:
+   *  history present → back available; otherwise hide. go_back
+   *  still falls back to parent_board_key as a safety net if it
+   *  ever gets fired without history, but the button itself won't
+   *  render in that case. */
+  show_board_back_nav: computed('board_detail_history.[]', function() {
+    return (this.get('board_detail_history') || []).length > 0;
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -227,12 +247,74 @@ export default Controller.extend(prefClasses, {
       }
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
+
+    // Auto-collapse both side panels at ≤1024px. matchMedia fires
+    // when the breakpoint is CROSSED (resize transition); the
+    // companion edit_mode observer below covers the other entry
+    // points (direct page load in edit mode at narrow viewport,
+    // refresh while in edit mode at narrow viewport) — without it,
+    // a user who LOADS edit mode at ≤1024px would never see the
+    // auto-collapse because the viewport never crossed the threshold
+    // while observable. The resize handler ONLY auto-collapses on
+    // wide→narrow transitions (e.matches === true), so manually
+    // expanding while already narrow isn't fought.
+    if(typeof window !== 'undefined' && window.matchMedia) {
+      this._narrowViewportMql = window.matchMedia('(max-width: 1024px)');
+      this._narrowViewportHandler = function(e) {
+        if(e.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      };
+      // addEventListener is the modern API; older Safari needs the
+      // legacy addListener fallback.
+      if(this._narrowViewportMql.addEventListener) {
+        this._narrowViewportMql.addEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.addListener) {
+        this._narrowViewportMql.addListener(this._narrowViewportHandler);
+      }
+      // Initial check — if the page is already in edit mode at a
+      // narrow viewport (refresh, direct load, deep link), collapse
+      // immediately. Use schedule('afterRender') so edit_mode is
+      // resolved before we check.
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this._narrowViewportMql.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      }, 0);
+    }
   },
+
+  // Auto-collapse panels whenever edit_mode flips on at a narrow
+  // viewport (e.g. user clicks "Edit Board" while viewport is
+  // already ≤1024px — matchMedia doesn't fire since the viewport
+  // didn't change). The enterEditNow action handles this for the
+  // in-app click path, but this observer is the catch-all for any
+  // other path that sets edit_mode true. Gated on the narrow
+  // viewport check so wider screens are unaffected.
+  _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
+    if(!this.get('edit_mode')) { return; }
+    if(typeof window === 'undefined' || !window.matchMedia) { return; }
+    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1024px)');
+    if(mql.matches) {
+      this.set('left_panel_collapsed', true);
+      this.set('right_panel_collapsed', true);
+    }
+  }),
 
   willDestroy: function() {
     this._super(...arguments);
     if(this._closeDropdownsHandler) {
       document.removeEventListener('click', this._closeDropdownsHandler, true);
+    }
+    if(this._narrowViewportMql && this._narrowViewportHandler) {
+      if(this._narrowViewportMql.removeEventListener) {
+        this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.removeListener) {
+        this._narrowViewportMql.removeListener(this._narrowViewportHandler);
+      }
     }
   },
 
@@ -3496,6 +3578,14 @@ export default Controller.extend(prefClasses, {
         _this.set('show_color_legend', false);
         _this.set('board_collapsed', false);
         _this.set('panels_collapsed', true);
+        // On smaller screens (<=1024px) start the edit page with BOTH
+        // side panels collapsed to their rail — the board grid needs
+        // the room there. Set on entry only (matches how the rest of
+        // the collapse state is purely user-toggled; no resize hook).
+        var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
+        var collapse_sides = vw > 0 && vw <= 1024;
+        _this.set('left_panel_collapsed', collapse_sides);
+        _this.set('right_panel_collapsed', collapse_sides);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
       };
       ready.then(function(res) {
@@ -4987,29 +5077,11 @@ export default Controller.extend(prefClasses, {
           // exactly where we want to land, so no flag/redirect
           // override is needed.
           _this.send('save_board');
-        } else if(result === 'discard') {
-          if(_this.get('display_prefs_open')) {
-            _this.send('close_display_preferences');
-          }
-          _this.set('edit_mode', false);
-          _this.set('paint_mode', null);
-          _this.set('color_picker_button', null);
-          _this.set('board_recolored', false);
-          _this.set('_saved_recolor', null);
-          _this.set('borders_matched', false);
-          _this.set('_saved_border_colors', null);
-          _this.get('stashes').persist('current_mode', 'default');
-          _this.get('stashes').persist('copy_on_save', null);
-          _this.get('model').rollbackAttributes();
-          _this.set('ordered_buttons', null);
-          _this.set('panels_collapsed', true);
-          _this.set('board_collapsed', true);
-          // Speak-mode board-detail page (the non-edit view), NOT
-          // the boards list — Traci's spec: discard reverts and
-          // returns to the same board in view mode.
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
         }
-        // result undefined → modal closed via X; stay put.
+        // Discard was removed from this modal — discarding lives in ONE
+        // place only, the "Discard Edits" tile (cancel_edit ->
+        // confirm-discard-changes). result undefined → modal closed via
+        // X (keep editing); stay put.
       });
     },
 
@@ -5410,6 +5482,19 @@ export default Controller.extend(prefClasses, {
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
     },
 
+    // Language → opens the Translate Boards modal. Called from the
+    // speak-mode options menu's Session submenu. Does NOT chain
+    // through board-details on close (unlike the
+    // board-details-page version), so when the user dismisses the
+    // translation modal they're back on the speak-mode board, not
+    // bounced into a board-details modal first.
+    translate_board: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('translation-select', { board: board, button_set: board.get('button_set') });
+    },
+
     edit_board_details: function() {
       var board = this.get('model');
       if(!board) { return; }
@@ -5556,11 +5641,12 @@ export default Controller.extend(prefClasses, {
     },
 
     // Toggles the "Shrink labels to fit" preference — when true,
-    // button labels stay on a single line and shrink down to a 7px
-    // floor to fit the button width. When false (default — modern
-    // AAC industry standard), labels keep the user's chosen font
-    // size and wrap to up to 3 lines at word boundaries. Persists
-    // to user.preferences.shrink_labels_to_fit.
+    // button labels shrink down to a 7px floor AND wrap to up to two
+    // lines at word boundaries inside the button. When false
+    // (default — modern AAC industry standard), labels keep the
+    // user's chosen font size and wrap to up to 3 lines at word
+    // boundaries with no shrinking. Persists to
+    // user.preferences.shrink_labels_to_fit.
     toggle_shrink_labels_to_fit: function() {
       var _this = this;
       var next = !_this.get('shrink_labels_to_fit');
@@ -5568,6 +5654,24 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.shrink_labels_to_fit', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Soft borders" preference — when true, the grid
+    // gets the .md-board-detail-grid--soft-borders class which
+    // lightens the per-button outer shadow, adds a subtle inset
+    // highlight, and mutes the colored outline edge so it reads
+    // more tonally without losing the category color cue. Layers ON
+    // TOP of the user's existing border thickness pref — does NOT
+    // change border-width. Persisted on user.preferences.soft_borders.
+    toggle_soft_borders: function() {
+      var _this = this;
+      var next = !_this.get('soft_borders');
+      _this.set('soft_borders', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.soft_borders', next);
         user.save();
       }
     },

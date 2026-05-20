@@ -74,7 +74,7 @@
     {{/unless}}
     <span style="display: inline-block;" class="dropdown">
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
-        <span class="user_holder">
+        <span class="user_holder {{if this.appState.currentUser.avatar_url_is_default 'user_holder--default'}}">
           <img src={{this.appState.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.application.session.invalid_token}}

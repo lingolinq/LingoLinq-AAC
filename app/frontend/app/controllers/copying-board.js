@@ -120,6 +120,19 @@ export default modal.ModalController.extend({
 
       next.then(function(res) {
         if(modal.is_open('copying-board') || (res && res.translated === true)) {
+          // Foreground completion: queue a success toast BEFORE the
+          // jump so the new board's page renders with the toast
+          // already on screen (modal.success routes through the
+          // application-level toast outlet which survives the route
+          // transition). The pre-existing background-completion branch
+          // below already toasts; this closes the gap where a
+          // foreground copy used to whisk the user away in silence.
+          // 6000ms (vs the flash() default of 3000ms) because the
+          // jump_to_board → speak-mode transition typically chews ~1–2s
+          // of that window before the user is looking at the new board
+          // — a default-length toast was disappearing during the redirect
+          // and the user reported never seeing a success message.
+          modal.success(i18n.t('board_copied_loading', "Board copied! Loading your new board..."), false, false, {timeout: 6000});
           board.set('should_reload', true);
           app_state.jump_to_board({
             id: board.get('id'),
@@ -127,6 +140,9 @@ export default modal.ModalController.extend({
           });
           modal.close({copied: true, id: board.get('id'), key: board.get('key')});
         } else {
+          // Background-completion path: user already closed the modal,
+          // so they're on the previous page and there's no redirect to
+          // race the toast — keep the default duration here.
           modal.notice(i18n.t('copy_created', "Copy created! You can find the new board in your profile."));
         }
       }, function(err) {
