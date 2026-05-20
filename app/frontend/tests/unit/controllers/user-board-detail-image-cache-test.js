@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import BoardDetailController from 'frontend/controllers/user/board-detail';
+import LingoLinq from 'frontend/app';
 
 module('Unit | Controller | user/board-detail image cache', function(hooks) {
   var controller;
@@ -53,5 +54,23 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     persistenceSvc.url_cache[remote] = local;
     var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, { bi1: remote });
     assert.equal(btn.image_url, local);
+  });
+
+  test('upgrade_url_for_skin_variants appends .varianted-skin for library URLs', function(assert) {
+    var plain = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/hello.png';
+    var upgraded = LingoLinq.Board.upgrade_url_for_skin_variants(plain);
+    assert.equal(upgraded, plain + '.varianted-skin.png');
+    assert.equal(
+      LingoLinq.Board.upgrade_url_for_skin_variants(upgraded),
+      upgraded
+    );
+  });
+
+  test('_make_btn applies skin tone via skin_image_map for varianted-skin URLs', function(assert) {
+    controller._preferred_symbols = null;
+    var base = 'https://cdn.example.com/lib/sym.png.varianted-skin.png';
+    var map = LingoLinq.Board.skin_image_map({ bi1: base }, 'medium');
+    var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, map);
+    assert.ok(btn.image_url.indexOf('.variant-medium.png') > -1, 'expected medium skin variant URL');
   });
 });

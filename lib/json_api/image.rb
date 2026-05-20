@@ -43,6 +43,8 @@ module JsonApi::Image
     if args[:permissions]
       json['permissions'] = image.permissions_for(args[:permissions])
     end
+    skin_url = image.skin_capable_url
+    json['skin_url'] = skin_url if skin_url && skin_url != json['url']
     if args[:include_other_sources] || (json['permissions'] || {})['edit']
       json['alternates'] = []
       libs = {}.merge(image.settings['library_alternates'] || {})

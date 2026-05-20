@@ -7193,15 +7193,14 @@ body > .popover.bottom {
   filter: contrast(4.0) saturate(100);
 }
 
-/* RESTORED (regressed out by 18a3ad032 / PR #238 on 2026-05-04;
-   present + working on origin/main). `mix-blend-mode: multiply` makes
-   the white-baked background of symbol assets transparent so the
-   Fitzgerald card color shows through in Colored / Colored-Soft mode. */
-.symbol_background_clear .button img.symbol {
-  mix-blend-mode: multiply;
+/* Colored mode: remove opaque white PNG mattes without tinting symbol
+   colors (multiply tints the whole image with the button fill). SVG filter
+   adjusts alpha only; scoped to raster symbols. White/Black/HC modes unchanged. */
+.symbol_background_clear .button img.symbol[src*=".png"] {
+  filter: url(#ll-symbol-white-matte);
 }
 .symbol_background_clear .button img.symbol[src$="square.svg"] {
-  mix-blend-mode: normal;
+  filter: none;
 }
 .symbol_background_white .button img.symbol {
   background: #fff;
@@ -58007,9 +58006,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding: 0;
   overflow: hidden;
 }
-/* White/black symbol background: fill the entire card, make label bg transparent */
-.symbol_background_white .md-board-detail-symbol-card {
-  background-color: #fff !important;
+/* White/black symbol background: match classic board — white/black behind
+   the symbol image only; Fitzgerald card colors stay on the card. */
+.symbol_background_white .md-board-detail-symbol-card__image img.symbol {
+  background: #fff;
 }
 .symbol_background_white .md-board-detail-symbol-card__label,
 .symbol_background_white .md-board-detail-symbol-card__label-input {
@@ -58052,6 +58052,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-symbol-card__image img {
   max-width: 100%;
   max-height: 100%;
+  min-width: 0;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -58059,28 +58060,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   opacity: 1;
   transition: opacity 180ms ease, filter 180ms ease;
 }
-/* RESTORED (regressed out by 18a3ad032 / PR #238 on 2026-05-04;
-   present + working on origin/main). When symbol_background is "clear",
-   mix-blend-mode makes white image backgrounds transparent so the
-   button color shows through. Pairs with the holder `background:
-   transparent` added in 583315b1c. */
-.symbol_background_clear .md-board-detail-symbol-card__image img {
-  mix-blend-mode: multiply;
+.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
+  filter: url(#ll-symbol-white-matte);
 }
-.symbol_background_clear .md-board-detail-symbol-card__image img[src$="square.svg"] {
-  mix-blend-mode: normal;
+.symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
+  filter: none;
 }
 /* "Colored" / "Colored Soft" (symbol_background_clear, the latter
-   also carries .fitzgerald-soft): the symbol assets are transparent
-   PNG/SVG, so keep the image band transparent and let the card's
-   Fitzgerald fill (set inline as background-color / --btn-bg, or via
-   the --fitzgerald-* vars) show through behind the symbol — mirroring
-   board-alt's intent, minus board-alt's opaque #e8f5f4 holder.
-   White/Black/High-Contrast modes are unaffected (separate selectors
-   above force their own card fill). */
+   also carries .fitzgerald-soft): opaque white mattes in imported PNG
+   symbols are knocked out via the ll-symbol-white-matte filter (alpha
+   only — symbol colors preserved). White, Black, and High Contrast
+   modes use separate selectors and are not affected. */
+/* Colored mode: image band matches the Fitzgerald button fill so
+   transparent matte pixels (after ll-symbol-white-matte) show the
+   button color — not black from the dark board shell or filter backdrop. */
 .symbol_background_clear .md-board-detail-symbol-card__image,
 .symbol_background_clear .md-board-detail-symbol-card__image--placeholder {
-  background: transparent !important;
+  background: var(--btn-bg, transparent) !important;
+}
+/* Folder faces: in Colored mode the entire front matches --btn-bg
+   (not just the image band). Same intent as md-board-detail-grid--folder-colored-face. */
+.symbol_background_clear .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
+  background: var(--btn-bg, #fff) !important;
 }
 /* Editor preview parity with runtime: when high_contrast is on, push
    symbol images through the same contrast/saturate filter the live

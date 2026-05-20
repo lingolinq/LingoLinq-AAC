@@ -580,10 +580,13 @@ export default Controller.extend(prefClasses, {
     var _this = this;
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
-      if(img && img.id && img.url) { image_map[img.id] = img.url; }
+      if(img && img.id) {
+        var url = img.skin_url || img.url;
+        if(url) { image_map[img.id] = url; }
+      }
     });
     var skin = _this.get('app_state.referenced_user.preferences.skin');
-    image_map = LingoLinq.Board.skin_image_map(image_map, skin);
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
     // Cache raw data for preference-triggered rebuilds
     // Reset the row/column hide stacks when the user actually navigates to a
     // DIFFERENT board. Same-board refetches (post-save reload, pref changes,
@@ -1071,21 +1074,34 @@ export default Controller.extend(prefClasses, {
   _rebuild_on_pref_change: observer(
     'app_state.referenced_user.preferences.preferred_symbols',
     'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
     'app_state.referenced_user.preferences.device.button_text_position',
+    'app_state.currentUser.preferences.preferred_symbols',
+    'app_state.currentUser.preferences.skin',
+    'app_state.currentUser.preferences.symbol_background',
+    'app_state.currentUser.preferences.high_contrast',
     function() {
       if(!this._last_raw) { return; }
-      var preferred_symbols = this.get('app_state.referenced_user.preferences.preferred_symbols') || null;
-      var skin = this.get('app_state.referenced_user.preferences.skin') || null;
-      var text_pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || null;
+      var pref_user = this._pref_user_for_display();
+      var preferred_symbols = (pref_user && pref_user.get('preferences.preferred_symbols')) || null;
+      var skin = (pref_user && pref_user.get('preferences.skin')) || null;
+      var symbol_background = (pref_user && pref_user.get('preferences.symbol_background')) || null;
+      var high_contrast = !!(pref_user && pref_user.get('preferences.high_contrast'));
+      var text_pos = (pref_user && pref_user.get('preferences.device.button_text_position')) || null;
       if(
         this._last_pref_preferred_symbols === preferred_symbols &&
         this._last_pref_skin === skin &&
+        this._last_pref_symbol_background === symbol_background &&
+        this._last_pref_high_contrast === high_contrast &&
         this._last_pref_text_pos === text_pos
       ) {
         return;
       }
       this._last_pref_preferred_symbols = preferred_symbols;
       this._last_pref_skin = skin;
+      this._last_pref_symbol_background = symbol_background;
+      this._last_pref_high_contrast = high_contrast;
       this._last_pref_text_pos = text_pos;
       this._build_from_raw(this._last_raw);
     }
@@ -1799,6 +1815,21 @@ export default Controller.extend(prefClasses, {
   preview_sentence_text: computed('preview_sentence_parts', function() {
     return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
   }),
+
+  // Prefs that change symbol URLs or grid CSS — apply to referenced_user (communicator).
+  _display_pref_render_keys: ['skin', 'preferred_symbols', 'symbol_background', 'high_contrast'],
+
+  _pref_user_for_display: function() {
+    return this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+  },
+
+  _user_for_display_pref: function(key) {
+    var renderKeys = this._display_pref_render_keys;
+    if(renderKeys.indexOf(key) >= 0) {
+      return this._pref_user_for_display();
+    }
+    return this.get('app_state.currentUser');
+  },
 
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
@@ -4199,7 +4230,8 @@ export default Controller.extend(prefClasses, {
         this.set('display_prefs_open', true);
         return;
       }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
+      var pref_user = this._pref_user_for_display();
+      var prefs = (pref_user && pref_user.get('preferences')) || this.get('app_state.currentUser.preferences') || {};
       var device = prefs.device || {};
       // Seed pending + original (deep copy) with current values
       var snapshot = {
@@ -4223,7 +4255,7 @@ export default Controller.extend(prefClasses, {
 
     close_display_preferences: function() {
       // Restore original values to the live user model so any unsaved changes revert
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var orig = this.get('original_display_prefs');
       var paths = this._display_prefs_paths;
       if(user && orig) {
@@ -4239,11 +4271,17 @@ export default Controller.extend(prefClasses, {
 
     set_display_pref: function(key, value) {
       var pending = this.get('pending_display_prefs');
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
-      // Apply live to user preferences for instant preview on the board.
+      // Apply live to communicator prefs (referenced_user) for symbol rendering keys.
       if(user && path) {
         user.set(path, value);
+      }
+      // Device/layout prefs still target currentUser; mirror to currentUser when distinct
+      // so supervisor session state stays consistent for non-symbol settings.
+      var currentUser = this.get('app_state.currentUser');
+      if(currentUser && user && currentUser !== user && this._display_pref_render_keys.indexOf(key) < 0 && path) {
+        currentUser.set(path, value);
       }
       if(pending) {
         // More Settings panel is open: stash in pending so the panel's
@@ -4279,6 +4317,9 @@ export default Controller.extend(prefClasses, {
         user.set('preferences.device.updated', true);
         user.save();
       }
+      if(this._display_pref_render_keys.indexOf(key) >= 0 && this._last_raw) {
+        this._build_from_raw(this._last_raw);
+      }
     },
 
     toggle_display_pref: function(key) {
@@ -4287,7 +4328,7 @@ export default Controller.extend(prefClasses, {
       var next = !pending[key];
       this.set('pending_display_prefs.' + key, next);
       // Apply live to user preferences for instant preview
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
       if(user && path) {
         user.set(path, next);
@@ -4375,7 +4416,7 @@ export default Controller.extend(prefClasses, {
     },
 
     save_display_preferences: function() {
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var pending = this.get('pending_display_prefs');
       var orig = this.get('original_display_prefs');
       if(!user || !pending || !orig) { return; }
