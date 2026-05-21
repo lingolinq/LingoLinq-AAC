@@ -71,8 +71,8 @@ export default Route.extend({
         var seen = localStorage.getItem('lingolinq_beta_onboarding_seen');
         var appState = controller.get('appState');
         var u = appState && (appState.get('sessionUser') || appState.get('currentUser'));
-        // Testing: show onboarding for all logged-in users (not only beta_program_access).
-        if (!seen && u) {
+        var betaAccess = u && u.get && u.get('preferences.beta_program_access');
+        if (!seen && betaAccess) {
           modal.open('beta-onboarding-modal');
           localStorage.setItem('lingolinq_beta_onboarding_seen', 'true');
         }

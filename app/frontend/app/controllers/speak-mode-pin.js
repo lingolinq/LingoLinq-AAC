@@ -45,9 +45,6 @@ export default modal.ModalController.extend({
       this.set('pin', pin);
       this.set('invalid_pin', false);
     },
-    reveal_pin: function() {
-      this.set('show_pin', true);
-    },
     toggle_typed_digits: function() {
       this.toggleProperty('show_typed_digits');
     },

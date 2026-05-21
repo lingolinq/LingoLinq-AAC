@@ -67,9 +67,6 @@ export default Component.extend({
       this.set('pin', pin);
       this.set('invalid_pin', false);
     },
-    reveal_pin() {
-      this.set('show_pin', true);
-    },
     toggle_typed_digits() {
       this.toggleProperty('show_typed_digits');
     },

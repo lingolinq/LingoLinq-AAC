@@ -53,13 +53,6 @@
     </div>
     <div class="modal-footer md-modal-footer">
       <button type="button" class="btn btn-primary pass_through" {{action "submit_pin"}}>{{t "Submit" key="pin_submit_button"}}</button>
-      {{#unless this.model.hide_hint}}
-        {{#if this.show_pin}}
-          PIN: {{ this.model.actual_pin }}
-        {{else}}
-          <a href="#" class="pass_through" {{action "reveal_pin" on="click"}}>touch here to show the PIN</a>
-        {{/if}}
-      {{/unless}}
     </div>
   </div>
 {{/modal-dialog}}
