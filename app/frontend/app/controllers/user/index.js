@@ -484,6 +484,57 @@ export default Controller.extend({
         //   }
         // });
       }
+      if (_this.get('selected') == 'public' || !_this.get('selected')) {
+        // Deduplicate boards with the same name using priority:
+        // 1. Current user's board
+        // 2. lingolinq_1's board
+        // 3. Same org board
+        // 4. First occurrence
+        var currentUserId = _this.get('model.id');
+        var currentOrgId = _this.get('model.org_id');
+        var seenNames = {};
+        var deduped = [];
+        new_list.forEach(function(ref) {
+          var board = ref.board;
+          if (!board) { deduped.push(ref); return; }
+          var name = (board.get ? board.get('name') : board.name) || '';
+          var nameLower = name.toLowerCase().trim();
+          if (!nameLower) { deduped.push(ref); return; }
+          if (!seenNames[nameLower]) {
+            seenNames[nameLower] = ref;
+            deduped.push(ref);
+          } else {
+            // Check if current ref has higher priority than existing
+            var existing = seenNames[nameLower];
+            var existingBoard = existing.board;
+            var boardUserId = board.get ? board.get('user_id') : board.user_id;
+            var existingUserId = existingBoard.get ? existingBoard.get('user_id') : existingBoard.user_id;
+            var boardKey = (board.get ? board.get('key') : board.key) || '';
+            var existingKey = (existingBoard.get ? existingBoard.get('key') : existingBoard.key) || '';
+            var boardOrgId = board.get ? board.get('org_id') : board.org_id;
+            var existingOrgId = existingBoard.get ? existingBoard.get('org_id') : existingBoard.org_id;
+
+            var priority = function(b, userId, key, orgId) {
+              if (userId == currentUserId) { return 3; }
+              if (key && key.indexOf('lingolinq_1/') === 0) { return 2; }
+              if (orgId && orgId == currentOrgId) { return 1; }
+              return 0;
+            };
+
+            var newPriority = priority(board, boardUserId, boardKey, boardOrgId);
+            var existingPriority = priority(existingBoard, existingUserId, existingKey, existingOrgId);
+
+            if (newPriority > existingPriority) {
+              // Replace existing with higher priority board
+              var idx = deduped.indexOf(existing);
+              if (idx !== -1) { deduped[idx] = ref; }
+              seenNames[nameLower] = ref;
+            }
+            // Otherwise keep existing, discard current
+          }
+        });
+        new_list = deduped;
+      }
       if (cluster_orphans && !this.get('parent_object')) {
         var tagMap = this.get('model.board_tag_map');
         if (tagMap && typeof tagMap === 'object' && Object.keys(tagMap).length > 0) {
