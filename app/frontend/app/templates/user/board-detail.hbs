@@ -562,7 +562,7 @@
            mock). The EDITING pill is placed adjacent to the visible
            --preview row (not here) so it actually appears above the
            speak-bar mock the user sees. --}}
-      <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}}">
+      <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
       <button type="button" class="md-board-detail-home-btn" {{action "go_home"}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
         <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 12 12 3l9 9"/>
@@ -714,10 +714,13 @@
           <div class="md-board-detail-actions-backdrop" {{action "toggle_options_menu"}} aria-hidden="true"></div>
           <div class="md-board-detail-actions-menu" role="menu" {{action "options_menu_keydown" on="keyDown" preventDefault=false}}>
             {{#unless this.edit_mode}}
-              {{!-- Board Section --}}
-              <div class="md-board-detail-actions-menu__section">
-                <span class="md-board-detail-actions-menu__section-label">{{t "Board" key="board"}}</span>
-                {{#if this.can_edit_or_copy_board}}
+              {{!-- Edit Board — pulled out of the BOARD section per
+                   design request and floated above all other items as
+                   the single primary destination from the options
+                   dropdown. No section label / divider on this row so
+                   it reads as a hero-action shortcut. --}}
+              {{#if this.can_edit_or_copy_board}}
+                <div class="md-board-detail-actions-menu__section">
                   <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--edit" {{action "enter_edit_mode"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -725,78 +728,117 @@
                     </svg>
                     <span>{{t "Edit Board" key="board_detail_edit_board"}}</span>
                   </button>
-                {{/if}}
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "open_board_picker"}}>
+                </div>
+              {{/if}}
+
+              {{!-- Board Section — now expandable. Contains My Boards
+                   + Find Boards (Edit Board moved above the section
+                   per request). --}}
+              <div class="md-board-detail-actions-menu__section">
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.board_submenu_open "true" "false"}} {{action "toggle_board_submenu"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
                     <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
                   </svg>
-                  <span>{{t "My Boards" key="my_boards"}}</span>
+                  <span>{{t "Board" key="board"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <LinkTo @route="search" @models={{array "any" "_"}} class="md-board-detail-actions-menu__item">
+                {{#if this.board_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "open_board_picker"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+                      </svg>
+                      <span>{{t "My Boards" key="my_boards"}}</span>
+                    </button>
+                    <LinkTo @route="search" @models={{array "any" "_"}} class="md-board-detail-actions-menu__item">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                      </svg>
+                      <span>{{t "Find Boards" key="find_boards"}}</span>
+                    </LinkTo>
+                  </div>
+                {{/if}}
+              </div>
+
+              {{!-- Buttons Section — now expandable. Contains Find a
+                   Button, Focus Words, Show Hidden Buttons. --}}
+              <div class="md-board-detail-actions-menu__section">
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.buttons_submenu_open "true" "false"}} {{action "toggle_buttons_submenu"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="m21 21-4.35-4.35"/>
+                    <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>
                   </svg>
-                  <span>{{t "Find Boards" key="find_boards"}}</span>
-                </LinkTo>
+                  <span>{{t "Buttons" key="buttons"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {{#if this.buttons_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    {{#if this.app_state.currentBoardState}}
+                      {{#unless this.app_state.eval_mode}}
+                        <button type="button" class="md-board-detail-actions-menu__item" {{action "find_button"}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                          </svg>
+                          <span>{{t "Find a Button" key="find_a_button"}}</span>
+                        </button>
+                      {{/unless}}
+                    {{/if}}
+                    {{#if this.app_state.feature_flags.focus_word_highlighting}}
+                      {{#unless this.app_state.eval_mode}}
+                        <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_focus"}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                          </svg>
+                          <span>
+                            {{#if this.app_state.focus_words}}
+                              {{t "Clear Focus Words" key="clear_focus_words"}}
+                            {{else}}
+                              {{t "Focus Words" key="focus_words"}}
+                            {{/if}}
+                          </span>
+                        </button>
+                      {{/unless}}
+                    {{/if}}
+                    {{#if this.app_state.feature_flags.enable_all_buttons}}
+                      {{#unless this.app_state.currentUser.preferences.prevent_hide_buttons}}
+                        {{#unless this.app_state.eval_mode}}
+                          <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_all_buttons"}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              {{#if this.stashes.all_buttons_enabled}}
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                              {{else}}
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+                              {{/if}}
+                            </svg>
+                            <span>
+                              {{#if this.stashes.all_buttons_enabled}}
+                                {{t "Hide Hidden Buttons" key="hide_disabled_buttons"}}
+                              {{else}}
+                                {{t "Show Hidden Buttons" key="show_all_buttons"}}
+                              {{/if}}
+                            </span>
+                          </button>
+                        {{/unless}}
+                      {{/unless}}
+                    {{/if}}
+                  </div>
+                {{/if}}
               </div>
 
-              {{!-- Buttons Section --}}
+              {{!-- Display Section — now expandable. Previously held
+                   a nested "Change Display" sub-dropdown that only
+                   contained Classic View; flattened per request so the
+                   single child action shows directly under Display
+                   with the board-grid icon (matches My Boards) instead
+                   of the rewind icon. --}}
               <div class="md-board-detail-actions-menu__section">
-                <span class="md-board-detail-actions-menu__section-label">{{t "Buttons" key="buttons"}}</span>
-                {{#if this.app_state.currentBoardState}}
-                  {{#unless this.app_state.eval_mode}}
-                    <button type="button" class="md-board-detail-actions-menu__item" {{action "find_button"}}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      </svg>
-                      <span>{{t "Find a Button" key="find_a_button"}}</span>
-                    </button>
-                  {{/unless}}
-                {{/if}}
-                {{#if this.app_state.feature_flags.focus_word_highlighting}}
-                  {{#unless this.app_state.eval_mode}}
-                    <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_focus"}}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-                      </svg>
-                      <span>
-                        {{#if this.app_state.focus_words}}
-                          {{t "Clear Focus Words" key="clear_focus_words"}}
-                        {{else}}
-                          {{t "Focus Words" key="focus_words"}}
-                        {{/if}}
-                      </span>
-                    </button>
-                  {{/unless}}
-                {{/if}}
-                {{#if this.app_state.feature_flags.enable_all_buttons}}
-                  {{#unless this.app_state.currentUser.preferences.prevent_hide_buttons}}
-                    {{#unless this.app_state.eval_mode}}
-                      <button type="button" class="md-board-detail-actions-menu__item" {{action "toggle_all_buttons"}}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          {{#if this.stashes.all_buttons_enabled}}
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                          {{else}}
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
-                          {{/if}}
-                        </svg>
-                        <span>
-                          {{#if this.stashes.all_buttons_enabled}}
-                            {{t "Hide Hidden Buttons" key="hide_disabled_buttons"}}
-                          {{else}}
-                            {{t "Show Hidden Buttons" key="show_all_buttons"}}
-                          {{/if}}
-                        </span>
-                      </button>
-                    {{/unless}}
-                  {{/unless}}
-                {{/if}}
-              </div>
-
-              {{!-- Display Section --}}
-              <div class="md-board-detail-actions-menu__section">
-                <span class="md-board-detail-actions-menu__section-label">{{t "Display" key="display"}}</span>
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.display_submenu_open "true" "false"}} {{action "toggle_display_submenu"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
+                  <span>{{t "Display" key="display"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
                 {{!-- Expand Sections submenu (Expand/Collapse Side Panels +
                      Mid Panel) temporarily removed from the options menu.
                      Hidden for now — may be re-introduced later. The
@@ -831,66 +873,33 @@
                   {{/if}}
                 </div>
                 --}}
-                <div class="md-board-detail-actions-menu__submenu-wrap">
-                  <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub" {{action "toggle_styles_submenu"}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                    <span>{{t "Change Display" key="change_display"}}</span>
-                    <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  {{#if this.styles_submenu_open}}
-                    <div class="md-board-detail-actions-menu__submenu">
-                      {{!-- Light/Dark Mode toggle moved to the edit
-                           page's right-panel header (a header-level
-                           theme switch is the modern, expected place
-                           for it). --}}
-                      <button type="button" class="md-board-detail-actions-menu__item" {{action "revert_to_old_style"}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                        </svg>
-                        <span>{{t "Classic View" key="board_detail_revert_old_style"}}</span>
-                      </button>
-                    </div>
-                  {{/if}}
-                </div>
+                {{#if this.display_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    {{!-- Light/Dark Mode toggle moved to the edit page's
+                         right-panel header (a header-level theme switch
+                         is the modern, expected place for it). --}}
+                    {{!-- Classic View now sits directly under Display
+                         (no inner "Change Display" wrapper). Icon swapped
+                         from the rewind glyph to the board-grid glyph
+                         per request — matches the My Boards icon style
+                         since it's a display-mode option, not a "go
+                         back" action. --}}
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "revert_to_old_style"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+                      </svg>
+                      <span>{{t "Classic View" key="board_detail_revert_old_style"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
               </div>
 
-              {{!-- Share & Print Section — surfaces the four actions
-                   that previously lived only in the edit page's
-                   SHARE & EXPORT tile grid so users can also reach them
-                   from view mode without entering edit. Always expanded
-                   (a plain labeled section, not a chevron submenu) per
-                   request. Action handlers (share_board, make_a_copy,
-                   print_board, download_board) are unchanged on the
-                   controller; same SVGs as the edit-page tiles, resized
-                   to 16x16 to match the other top-level menu items. --}}
+              {{!-- Share & Print — now expandable. Contains Copy,
+                   Download, Print, Share. Translate was previously
+                   inside this group; pulled out and moved below the
+                   Session section per request. --}}
               <div class="md-board-detail-actions-menu__section">
-                <span class="md-board-detail-actions-menu__section-label">{{t "Share & Print" key="share_and_print"}}</span>
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "make_a_copy"}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                  <span>{{t "Copy" key="copy"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "download_board"}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span>{{t "Download" key="download"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "print_board"}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="6 9 6 2 18 2 18 9"/>
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                    <rect x="6" y="14" width="12" height="8"/>
-                  </svg>
-                  <span>{{t "Print" key="print"}}</span>
-                </button>
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "share_board"}}>
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.share_print_submenu_open "true" "false"}} {{action "toggle_share_print_submenu"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="18" cy="5" r="3"/>
                     <circle cx="6" cy="12" r="3"/>
@@ -898,25 +907,51 @@
                     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                   </svg>
-                  <span>{{t "Share" key="share"}}</span>
+                  <span>{{t "Share & Print" key="share_and_print"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                {{!-- Translate — opens the Translate Boards modal
-                     (same action as the board-details page's
-                     "Translate Board" button). Sits at the top
-                     menu level alongside Share/Download/Print so
-                     any speak-mode viewer can swap languages in one
-                     tap instead of drilling into Session. --}}
-                <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="2" y1="12" x2="22" y2="12"/>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                  </svg>
-                  <span>{{t "Translate" key="translate"}}</span>
-                </button>
+                {{#if this.share_print_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "make_a_copy"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                      <span>{{t "Copy" key="copy"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "download_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      <span>{{t "Download" key="download"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "print_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="6 9 6 2 18 2 18 9"/>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      <span>{{t "Print" key="print"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "share_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3"/>
+                        <circle cx="6" cy="12" r="3"/>
+                        <circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                      </svg>
+                      <span>{{t "Share" key="share"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
               </div>
 
-              {{!-- Session Section --}}
+              {{!-- Session Section — moved ABOVE the Translate row per
+                   request, so the menu reads:
+                   …Share & Print → Session → Translate → Exit. --}}
               <div class="md-board-detail-actions-menu__section">
                 <div class="md-board-detail-actions-menu__submenu-wrap">
                   <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub" {{action "toggle_session_submenu"}}>
@@ -1027,6 +1062,49 @@
                     </div>
                   {{/if}}
                 </div>
+              </div>
+
+              {{!-- Language (expandable) — collapses the Translate and
+                   Switch Language items under one section header.
+                   Translate generates new translations for the board;
+                   Switch Language swaps the active text + speech locale
+                   between languages the board already has translations
+                   for. Grouped under one "Language" header so the menu
+                   reads as: …Share & Print | Session | Language | Exit. --}}
+              <div class="md-board-detail-actions-menu__section">
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.language_submenu_open "true" "false"}} {{action "toggle_language_submenu"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                  <span>{{t "Language" key="language"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {{#if this.language_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                      </svg>
+                      <span>{{t "Translate" key="translate"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" {{action "switch_languages"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="17 1 21 5 17 9"/>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                        <polyline points="7 23 3 19 7 15"/>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                      </svg>
+                      <span>{{t "Switch Language" key="switch_language"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
+              </div>
+
+              <div class="md-board-detail-actions-menu__section">
                 <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--exit" {{action "exit_to_home"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
@@ -1542,7 +1620,7 @@
              show_board_back_nav, same as the real row) is rendered
              after the home button. aria-hidden removed since the
              buttons are now real interactive controls. --}}
-        <div class="md-board-detail-sentence-row md-board-detail-sentence-row--preview {{this.sentence_bar_height_class}}">
+        <div class="md-board-detail-sentence-row md-board-detail-sentence-row--preview {{this.sentence_bar_height_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
           <button type="button" class="md-board-detail-home-btn" {{action "go_home"}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
             <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M3 12 12 3l9 9"/>
@@ -2971,6 +3049,25 @@
                        bindings (display_prefs_voice_height_dropdown_open,
                        display_prefs_current_voice_height_label,
                        voice_height_options). --}}
+                  {{!-- Hide speak bar — collapses the speak row to
+                       just the options chevron. Useful for boards
+                       where the speak bar's chrome isn't needed.
+                       Persists to user.preferences.hide_speak_bar. --}}
+                  <div class="md-folder-toggle-row">
+                    <span class="md-folder-toggle-row__label" id="hide-speak-bar-label">{{t "Hide speak bar" key="board_detail_hide_speak_bar"}}</span>
+                    <div class="md-folder-toggle-row__control">
+                      <span class="md-folder-toggle-row__state {{unless this.hide_speak_bar 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "Off" key="off"}}</span>
+                      <button type="button"
+                        role="switch"
+                        aria-checked={{if this.hide_speak_bar "true" "false"}}
+                        aria-labelledby="hide-speak-bar-label"
+                        class="nb-toggle__switch {{if this.hide_speak_bar 'nb-toggle__switch--on'}}"
+                        {{action "toggle_hide_speak_bar"}}>
+                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                      </button>
+                      <span class="md-folder-toggle-row__state {{if this.hide_speak_bar 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "On" key="on"}}</span>
+                    </div>
+                  </div>
                   <div class="md-board-edit-right-panel__row-pair">
                     <span class="md-board-edit-right-panel__row-pair-label">{{t "Sentence Bar" key="board_detail_settings_voice_height"}}</span>
                     <div class="md-settings-dropdown-wrap">

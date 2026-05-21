@@ -40,7 +40,12 @@ export default Controller.extend(prefClasses, {
   // color (var(--btn-bg)) regardless of which folder display style is
   // selected. Toggled via the checkmark item at the bottom of the folder
   // dropdown; persisted on user.preferences.folder_colored_face.
-  folder_colored_face: false,
+  // Default is `true` — colored folder fronts are now the canonical look.
+  // Users who explicitly turn it off get `false` saved; anyone else
+  // (new users + existing users who never touched the toggle) inherits
+  // the colored style. The route's setupController re-applies this
+  // default when the saved preference is absent.
+  folder_colored_face: true,
   folder_dropdown_open: false,
   // When true, button labels shrink to fit the button width (down to
   // a 7px floor) AND are allowed to wrap to up to TWO lines at word
@@ -57,10 +62,18 @@ export default Controller.extend(prefClasses, {
   // single subtle outer shadow + soft inset highlight + a light halo
   // inside the colored outline edge that mutes its visual contrast.
   // The category color stays as the cue; just reads as a softer
-  // accent rather than a heavy dark rim. When false (default), the
-  // existing border styling renders unchanged. Persisted on
-  // user.preferences.soft_borders.
-  soft_borders: false,
+  // accent rather than a heavy dark rim. Default is `true` — soft
+  // borders are now the canonical look. Users who explicitly turn
+  // them off get `false` saved on user.preferences.soft_borders;
+  // anyone else (including new users + existing users who never
+  // touched the toggle) inherits the soft style. The route's
+  // setupController re-applies this default when the saved
+  // preference is absent.
+  soft_borders: true,
+  // "Hide speak bar" preference — when true the speak row's
+  // contents collapse to just the options chevron. Default off.
+  // Persisted on user.preferences.hide_speak_bar.
+  hide_speak_bar: false,
   boardname: null,
   active_category: 'all',
 
@@ -170,6 +183,14 @@ export default Controller.extend(prefClasses, {
   // Nested expand-state inside the Session submenu in the actions
   // menu (Button Levels row). Starts collapsed.
   levels_submenu_open: false,
+  // Top-level expandable section state inside the options dropdown.
+  // Each section starts collapsed; toggled by the matching
+  // `toggle_<x>_submenu` action.
+  board_submenu_open: false,
+  buttons_submenu_open: false,
+  display_submenu_open: false,
+  share_print_submenu_open: false,
+  language_submenu_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -3500,8 +3521,24 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('session_submenu_open');
     },
 
-    toggle_styles_submenu: function() {
-      this.toggleProperty('styles_submenu_open');
+    toggle_display_submenu: function() {
+      this.toggleProperty('display_submenu_open');
+    },
+
+    toggle_board_submenu: function() {
+      this.toggleProperty('board_submenu_open');
+    },
+
+    toggle_buttons_submenu: function() {
+      this.toggleProperty('buttons_submenu_open');
+    },
+
+    toggle_share_print_submenu: function() {
+      this.toggleProperty('share_print_submenu_open');
+    },
+
+    toggle_language_submenu: function() {
+      this.toggleProperty('language_submenu_open');
     },
 
     // Close the options menu on Escape from anywhere within the menu.
@@ -5552,6 +5589,23 @@ export default Controller.extend(prefClasses, {
       modal.open('translation-select', { board: board, button_set: board.get('button_set') });
     },
 
+    // Opens the Switch Languages modal so the user can change the
+    // active text + speech language for the current board (only
+    // surfaces languages the board has translations for). Mirrors
+    // the application controller's existing `switch_languages`
+    // action so users can reach the same modal from the speak-mode
+    // options menu without leaving board-detail.
+    switch_languages: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('switch-languages', { board: board }).then(function(res) {
+        if(res && res.switched) {
+          editManager.process_for_displaying();
+        }
+      });
+    },
+
     edit_board_details: function() {
       var board = this.get('model');
       if(!board) { return; }
@@ -5729,6 +5783,24 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.soft_borders', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Hide speak bar" preference — when true the speak
+    // row's home button, sentence-bar text/chips, mic, backspace, and
+    // trash buttons are visually hidden via the
+    // .md-board-detail-sentence-row--hide-bar class on the row;
+    // only the options-chevron stays visible so the user can still
+    // open the speak menu to flip the toggle back. Persisted on
+    // user.preferences.hide_speak_bar.
+    toggle_hide_speak_bar: function() {
+      var _this = this;
+      var next = !_this.get('hide_speak_bar');
+      _this.set('hide_speak_bar', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.hide_speak_bar', next);
         user.save();
       }
     },

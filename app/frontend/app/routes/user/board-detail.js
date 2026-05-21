@@ -258,10 +258,24 @@ export default Route.extend({
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
-    controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
+    // Folder colored face defaults to ON for every user. Only the
+    // explicit saved value of `false` turns it off; an undefined /
+    // unset preference (new users, existing users who never touched
+    // the toggle) inherits the colored look.
+    var folder_colored_face_saved = user && user.get && user.get('preferences.folder_colored_face');
+    controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
     controller.set('shrink_labels_to_fit', !!(user && user.get && user.get('preferences.shrink_labels_to_fit')));
-    controller.set('soft_borders', !!(user && user.get && user.get('preferences.soft_borders')));
+    // Soft borders default to ON for every user. Only the explicit
+    // saved value of `false` turns them off; an undefined / unset
+    // preference (new users, existing users who never touched the
+    // toggle) inherits the soft style.
+    var soft_borders_saved = user && user.get && user.get('preferences.soft_borders');
+    controller.set('soft_borders', soft_borders_saved == null ? true : !!soft_borders_saved);
+    // Hide speak bar — default OFF. Only flips on if the user
+    // explicitly toggles it via the right-panel "Hide speak bar"
+    // control in the Speak Bar section.
+    controller.set('hide_speak_bar', !!(user && user.get && user.get('preferences.hide_speak_bar')));
 
     // Re-apply the user's symbol_background scope on every board-detail
     // entry. The app-state `sync_fitzgerald_scope` observer covers the

@@ -64,43 +64,59 @@
     </section>
   </div>
 
-  {{!-- Stats row --}}
+  {{!-- Board Stats accordion. Collapsed by default; clicking the
+       header toggles `board_stats_expanded` on user/index controller
+       which conditionally renders the original stats-row underneath
+       the accordion header. --}}
   {{#if this.model.permissions.view_detailed}}
-    <div class="ub-boards-page__stats-row">
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Home Board" key="home_board"}}</div>
-        <div class="ub-boards-page__stat-value">
-          {{#if this.model.preferences.home_board.key}}
-            <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="ub-boards-page__stat-link">{{this.model.preferences.home_board.key}}</LinkTo>
-          {{else}}
-            <span class="ub-boards-page__stat-none">{{t "None" key="none_upper"}}</span>
-          {{/if}}
+    <div class="ub-boards-page__stats-accordion {{if this.board_stats_expanded 'ub-boards-page__stats-accordion--open'}}">
+      <button type="button"
+        class="ub-boards-page__stats-accordion-toggle"
+        aria-expanded={{if this.board_stats_expanded "true" "false"}}
+        {{action "toggle_board_stats"}}>
+        <span class="ub-boards-page__stats-accordion-label">{{t "Board Stats" key="board_stats"}}</span>
+        <svg class="ub-boards-page__stats-accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {{#if this.board_stats_expanded}}
+        <div class="ub-boards-page__stats-row">
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Home Board" key="home_board"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.preferences.home_board.key}}
+                <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="ub-boards-page__stat-link">{{this.model.preferences.home_board.key}}</LinkTo>
+              {{else}}
+                <span class="ub-boards-page__stat-none">{{t "None" key="none_upper"}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.my_boards.done}}
+                {{t "board" key="n_boards" count=this.model.my_boards.length}}
+              {{else}}
+                <span class="ub-boards-page__stat-loading">—</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Liked Boards" key="starred_boards"}}</div>
+            <div class="ub-boards-page__stat-value">{{t "board" key="n_boards" count=this.model.stats.starred_boards}}</div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Status" key="status"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.public}}
+                <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
+              {{else}}
+                <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
+              {{/if}}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
-        <div class="ub-boards-page__stat-value">
-          {{#if this.model.my_boards.done}}
-            {{t "board" key="n_boards" count=this.model.my_boards.length}}
-          {{else}}
-            <span class="ub-boards-page__stat-loading">—</span>
-          {{/if}}
-        </div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Liked Boards" key="starred_boards"}}</div>
-        <div class="ub-boards-page__stat-value">{{t "board" key="n_boards" count=this.model.stats.starred_boards}}</div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Status" key="status"}}</div>
-        <div class="ub-boards-page__stat-value">
-          {{#if this.model.public}}
-            <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
-          {{else}}
-            <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
-          {{/if}}
-        </div>
-      </div>
+      {{/if}}
     </div>
   {{/if}}
 

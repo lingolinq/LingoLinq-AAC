@@ -50,7 +50,7 @@
         tabindex={{if this.editMode "-1" "0"}}
         aria-label={{or btn.label btn.vocalization}}
         data-id={{btn.id}}
-        style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";")))}}
+        style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";--btn-border:" btn.border_color ";")))}}
         {{action "select_button" btn}}
         {{action "select_button_key" btn on="keyDown" preventDefault=false}}>
         {{#if this.editMode}}
@@ -119,11 +119,61 @@
         {{else}}
           <div class="md-board-detail-symbol-card__image md-board-detail-symbol-card__image--placeholder">
             {{#if btn.load_board}}
-              {{!-- Inline SVG so the folder placeholder picks up the
-                   button's color (var(--btn-bg)) via the Fitzgerald
-                   POS palette, matching the colored-corner tab. --}}
-              <svg class="symbol md-board-detail-symbol-card__folder-placeholder" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+              {{!-- Modern folder fallback — only when this folder
+                   has no associated symbol image. Two-path folder
+                   shape (back panel + front flap) with linear
+                   gradients for tonal depth and a thin top
+                   highlight line on the flap for a subtle gloss.
+                   CSS drop-shadow on the class gives it the
+                   elevation that makes the icon read as "polished
+                   surface" rather than a flat sticker. The
+                   gradient IDs are suffixed with btn.id so multiple
+                   folder placeholders on the same page each get
+                   their own scoped gradient defs. --}}
+              <svg class="symbol md-board-detail-symbol-card__folder-placeholder" viewBox="0 0 64 50" fill="none" aria-hidden="true">
+                <defs>
+                  {{!-- Back tab — diagonal warm-slate gradient (lit upper-left,
+                       deeper lower-right) for a soft three-quarter-light feel. --}}
+                  <linearGradient id="{{concat "fpBack-" btn.id}}" x1="0.25" y1="0" x2="0.65" y2="1">
+                    <stop offset="0%"   stop-color="#a4a8af"/>
+                    <stop offset="55%"  stop-color="#82868d"/>
+                    <stop offset="100%" stop-color="#5e6168"/>
+                  </linearGradient>
+                  {{!-- Front face — 4-stop vertical gradient: bright rim →
+                       lifted body → shaded mid → deep bottom edge for real
+                       tonal depth instead of the prior flat two-stop fade. --}}
+                  <linearGradient id="{{concat "fpFront-" btn.id}}" x1="0.5" y1="0" x2="0.5" y2="1">
+                    <stop offset="0%"   stop-color="#e9ebef"/>
+                    <stop offset="18%"  stop-color="#d4d7dd"/>
+                    <stop offset="65%"  stop-color="#abafb6"/>
+                    <stop offset="100%" stop-color="#7c8088"/>
+                  </linearGradient>
+                  {{!-- Lit-from-above radial highlight overlay on the front face --}}
+                  <radialGradient id="{{concat "fpHi-" btn.id}}" cx="0.28" cy="0.15" r="0.7">
+                    <stop offset="0%"   stop-color="rgba(255,255,255,0.55)"/>
+                    <stop offset="55%"  stop-color="rgba(255,255,255,0.10)"/>
+                    <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                  </radialGradient>
+                  {{!-- Seam shadow band where the front face tucks behind the
+                       tab — gives the folder real "two-piece" depth. --}}
+                  <linearGradient id="{{concat "fpSeam-" btn.id}}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stop-color="rgba(28,38,56,0.40)"/>
+                    <stop offset="100%" stop-color="rgba(28,38,56,0)"/>
+                  </linearGradient>
+                </defs>
+                {{!-- Back panel + tab --}}
+                <path d="M0 8 Q0 4 4 4 L20 4 L25 9 L60 9 Q64 9 64 13 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpBack-" btn.id}})"/>
+                {{!-- Front face — the body of the folder --}}
+                <path d="M0 16 Q0 14 2 14 L62 14 Q64 14 64 16 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpFront-" btn.id}})"/>
+                {{!-- Seam shadow band (6px) drops below the tab edge,
+                     creating the "tucked behind" inset look. --}}
+                <path d="M0 16 L64 16 L64 22 L0 22 Z" fill="url(#{{concat "fpSeam-" btn.id}})"/>
+                {{!-- Lit-from-above highlight overlay on the front face --}}
+                <path d="M0 16 Q0 14 2 14 L62 14 Q64 14 64 16 L64 42 Q64 47 59 47 L5 47 Q0 47 0 42 Z" fill="url(#{{concat "fpHi-" btn.id}})"/>
+                {{!-- Top rim highlight on the front face leading edge --}}
+                <path d="M2.5 14 L61.5 14" stroke="rgba(255,255,255,0.65)" stroke-width="0.8" stroke-linecap="round"/>
+                {{!-- Subtle bottom edge dark line for grounding --}}
+                <path d="M5 46.6 L59 46.6" stroke="rgba(20,30,50,0.18)" stroke-width="0.6" stroke-linecap="round"/>
               </svg>
             {{else if btn.label}}
               <img class="symbol" src="/images/square.svg" alt="" draggable="false" style="max-width: 70%; max-height: 70%;">

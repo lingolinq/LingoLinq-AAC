@@ -1936,7 +1936,18 @@ header:has(#normal_mode) #inner_header {
   padding-right: 12px !important;
 }
 
-/* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap */
+/* Wrapper for button_list + speak_options: container outline and flex layout; grows when words wrap.
+   wrap min-height + chip height + image height are driven by CSS
+   custom properties so the bar scales with the user's
+   vocalization_height (small/medium/large/huge — `tiny` is a legacy
+   alias for small via utils/display_prefs.js). The size-class
+   rules below this block (`header.speaking.small`, `.medium`, etc.)
+   set the per-size values; this rule's fallbacks reproduce the
+   prior hardcoded small/90 baseline so contexts that don't set the
+   vars (e.g. the eval header, no size class on header) stay
+   unchanged. The +2px on each pair (wrap > chip > img) is the 8+8
+   wrap padding + roughly the chip's internal label/padding so the
+   image fills the chip vertically without clipping. */
 #inner_header:has(#speak) .speak-bar__button-list-wrap {
   flex: 1 !important;
 
@@ -1953,13 +1964,43 @@ header:has(#normal_mode) #inner_header {
   border-radius: 0;
   padding: 8px 8px;
   margin: 0;
-  /* Must fit a .history_button chip (72px) plus this card's 8px top +
-     8px bottom padding = 88px. At the old 84px the content box was only
-     68px, so the 72px chip overflowed and `align-items: center` clipped
-     ~2px off the top and bottom (the "images cut off" symptom). */
-  min-height: 88px;
+  min-height: var(--bav-wrap-h, 88px);
   box-sizing: border-box;
   gap: 0;
+}
+
+/* Per-size CSS-var sets — applied to the speaking header so they
+   cascade to the wrap + chip + img descendants. Header sizes match
+   `utils/display_prefs.js`:
+     small  → 90px (also the `tiny` legacy alias)
+     medium → 100px
+     large  → 150px
+     huge   → 200px
+   wrap-h = header - 2px (lets the 1px wrap border fit inside the
+                          header's effective box without overflowing)
+   chip-h = wrap-h - 16px (matches the 8 top + 8 bottom wrap padding)
+   img-h  = chip-h - 22px (leaves room for a single-line label below
+                           the image inside the chip) */
+#within_ember.board-alt-view header.new_index.speaking.small,
+#within_ember.board-alt-view header.new_index.speaking.tiny {
+  --bav-wrap-h: 88px;
+  --bav-chip-h: 72px;
+  --bav-img-h: 50px;
+}
+#within_ember.board-alt-view header.new_index.speaking.medium {
+  --bav-wrap-h: 98px;
+  --bav-chip-h: 82px;
+  --bav-img-h: 60px;
+}
+#within_ember.board-alt-view header.new_index.speaking.large {
+  --bav-wrap-h: 148px;
+  --bav-chip-h: 132px;
+  --bav-img-h: 100px;
+}
+#within_ember.board-alt-view header.new_index.speaking.huge {
+  --bav-wrap-h: 198px;
+  --bav-chip-h: 182px;
+  --bav-img-h: 140px;
 }
 
 /* Sentence bar link inside wrapper: fills space, no scroll; words wrap to next line when needed */
@@ -2022,7 +2063,7 @@ header:has(#normal_mode) #inner_header {
 
 /* Sentence bar word chips: allow full label to show; min width for symbol-only chips */
 #inner_header:has(#speak) #button_list .history_button {
-  height: 72px !important;
+  height: var(--bav-chip-h, 72px) !important;
   min-width: 36px !important;
 
   max-width: none !important;
@@ -2046,7 +2087,7 @@ header:has(#normal_mode) #inner_header {
 }
 
 #inner_header:has(#speak) #button_list .history_button img {
-  height: 50px !important;
+  height: var(--bav-img-h, 50px) !important;
   max-width: 48px !important;
 }
 
@@ -42528,6 +42569,16 @@ a.md-goal-nav-action:hover,
   border-bottom: none !important;
   padding-bottom: 0 !important;
 }
+/* When the speak card is narrow enough that the action button
+   wraps to its own row (flex-wrap: wrap above), `justify-content:
+   space-between` no longer reaches it — wrapped flex rows align
+   their items to flex-start by default. Force the button to the
+   row's right edge with margin-left: auto so the visual reads as
+   "head on the left, action on the right" at every column width,
+   matching the wider single-row layout. */
+.md-card--speak > .md-btn {
+  margin-left: auto !important;
+}
 .md-card--speak .md-card__head,
 .md-card--speak .md-card__row,
 .md-card--speak .md-card__org-list {
@@ -46590,7 +46641,35 @@ a.md-goal-nav-action:hover,
 
   overflow-x: auto !important;
 
+  /* The Home Board tile pins a `.md-strip__home-badge` at `top: -10px`
+     so the badge visibly crowns the tile poking up above its top edge.
+     `overflow-x: auto` here forces `overflow-y` to clip too (CSS spec
+     for scroll containers), which was chopping the badge in half.
+     Reserve ~14px above the tiles so the badge renders inside the
+     scroll container's box. The home tile also carries a 4px
+     verdigris halo via `box-shadow: 0 0 0 4px ...` on
+     `.md-strip__item--home`; without inset side padding the halo
+     gets clipped at the scroll container's left edge when the home
+     tile is the first item (and at the right edge when scrolled to
+     the last). 8px of horizontal padding on each side gives the
+     halo enough room to render without changing the visible tile
+     gap or scroll geometry meaningfully. */
+  padding-top: 14px !important;
+
+  padding-left: 12px !important;
+
+  padding-right: 8px !important;
+
   padding-bottom: 8px !important;
+
+  /* Teach the scroll snapper where the visible "start" actually is.
+     Without scroll-padding, `scroll-snap-align: start` on each tile
+     snaps its leading edge to the scroll container's border edge
+     (ignoring the inner padding-left), so on release the first
+     tile snapped flush against the container's left rim and the
+     padding-left was effectively only visible mid-drag. Matches
+     `padding-left` so the snap rests with the tile's halo intact. */
+  scroll-padding-left: 12px !important;
 
   scroll-snap-type: x mandatory !important;
 
@@ -50210,29 +50289,32 @@ a.md-goal-nav-action:hover,
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   }
 
-  /* Match the board-detail "Colored Corner" folder setting exactly:
-     a square quarter-circle "fan" wedge in the top-right, colored from
-     the button's own bg — `var(--btn-bg, currentColor)` at
-     `brightness(0.75)`, fully opaque. Same shape + coloring assignment
-     + transparency assignment as
-     `.md-board-detail-grid--folder-colored-corner
-     .md-board-detail-symbol-card--folder::after`. Constant 26px (the
-     prior text-size-scaled rounded-rect variants are intentionally
-     dropped, and the `&.home` darker shade too, so board-alt folders
-     read identically to the board-detail colored-corner setting). */
+  /* Match the board-detail "Colored Corner" folder setting:
+     a square quarter-circle "fan" wedge in the top-right, fully
+     saturated (no brightness filter), painted with the button's
+     darkened ring color — same depth as the inner ring on its
+     siblings, mirroring board-detail's use of `var(--btn-border)`.
+     `--btn-ring-color` is set by bound_classes alongside `--btn-bg`
+     (autoBorder.darken(20)) for every colored button, so the corner
+     reads at the same depth as the outline rather than the lighter
+     fill. Falls back to `--btn-bg` for legacy buttons that only have
+     a fill set. Size scales fluidly with button width via clamp(),
+     so small buttons get small corners and large buttons get
+     proportionally larger ones — no text-size-class breakpoints. */
   .board .button .action_container.folder,
   .board .button .action_container.integration {
     top: 0 !important;
     right: 0 !important;
-    width: 20px !important;
-    height: 20px !important;
+    width: clamp(10px, 22%, 28px) !important;
+    height: clamp(10px, 22%, 28px) !important;
     border: none !important;
     border-radius: 0 0 0 100% !important;
-    background: var(--btn-bg, currentColor) !important;
-    filter: brightness(0.75);
+    background: var(--btn-ring-color, var(--btn-bg, currentColor)) !important;
+    filter: none !important;
     opacity: 1 !important;
     z-index: 3;
     pointer-events: none;
+    transform: none !important;
     .action {
       visibility: hidden !important;
     }
@@ -51915,6 +51997,55 @@ a.md-goal-nav-action:hover,
     margin: 0;
   }
 
+  // ── Board Stats accordion (collapsed by default) ──────────
+  // Wraps the stats-row below so the user can choose to expand it.
+  // Header reads as a discrete clickable surface with chevron;
+  // body (the stats-row grid) only renders when expanded.
+  &__stats-accordion {
+    margin-bottom: 24px;
+  }
+  &__stats-accordion-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid rgba($brand-blue-black, 0.08);
+    border-radius: 12px;
+    color: $la-navy;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba($brand-blue-black, 0.06);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  &__stats-accordion-toggle:hover,
+  &__stats-accordion-toggle:focus-visible {
+    background: rgba($brand-teal, 0.04);
+    border-color: rgba($brand-teal, 0.30);
+    outline: none;
+  }
+  &__stats-accordion-label {
+    flex: 1 1 auto;
+    text-align: left;
+  }
+  &__stats-accordion-chevron {
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  &__stats-accordion--open &__stats-accordion-toggle {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: transparent;
+  }
+  &__stats-accordion--open &__stats-accordion-chevron {
+    transform: rotate(180deg);
+    opacity: 0.9;
+  }
+
   // ── Stats row ─────────────────────────────────────────────
   &__stats-row {
     display: grid;
@@ -51923,6 +52054,14 @@ a.md-goal-nav-action:hover,
     margin-bottom: 24px;
     @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
     @media (max-width: 480px) { grid-template-columns: 1fr; }
+  }
+  // Inside the accordion: zero the row's own bottom margin (the
+  // accordion wrapper owns that spacing now) and round the top
+  // corners of the first stat-card to nothing so the row reads as
+  // a continuation of the accordion header.
+  &__stats-accordion &__stats-row {
+    margin-bottom: 0;
+    margin-top: -1px;
   }
   &__stat-card {
     background: #ffffff;
@@ -54370,6 +54509,37 @@ a.md-goal-nav-action:hover,
   height: auto;
   min-width: var(--nb-sb-minw, 44px);
 }
+/* "Hide speak bar" preference — toggle in the right panel's Speak
+   Bar section. When the user enables it, the speak row collapses
+   to a single compact strip showing ONLY the options chevron
+   (the third __tool-btn that opens the speak menu). Everything
+   else on the row — home button, sentence-bar text/chips/mic/
+   backspace/trash, modeling badge, the stacked actions-wrap on
+   the right — is hidden via display: none. The chevron stays so
+   the user can still open the speak menu (where they'll flip the
+   toggle back when they want the bar visible again). Applies to
+   both the live speak row (#speak) and the edit-mode preview row
+   so the preference is visible live in the right panel. */
+.md-board-detail-sentence-row--hide-bar .md-board-detail-home-btn,
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__back-btn,
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__modeling-badge,
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__text,
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__btn,
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__tools .md-board-detail-sentence-bar__tool-btn:not(:last-child),
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__actions-wrap {
+  display: none !important;
+}
+.md-board-detail-sentence-row--hide-bar {
+  /* Override the per-size sentence-bar height (50/70/100/150/200)
+     when hidden — the row no longer needs to fit chips, so collapse
+     to a single touch-target strip. */
+  min-height: 44px !important;
+}
+.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar {
+  min-height: 44px !important;
+  justify-content: flex-end;
+  padding: 4px 8px;
+}
 .md-board-detail-sentence-row .md-board-detail-sentence-bar__chip-img {
   width: var(--nb-sb-img, 50px);
   height: var(--nb-sb-img, 50px);
@@ -55118,22 +55288,58 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   justify-self: end;
 }
 .md-board-detail-header__title-row-left {
-  display: flex;
+  /* Grid layout so the board image sits in the LEFT column spanning
+     both rows, while the title and the Privacy pill stack in the
+     RIGHT column (title row 1, pill row 2):
+       [image]  Title  (license)
+       [image]  Private Pill
+     The board icon's `grid-row: 1 / 3` spans both rows, anchoring
+     the image on the left of the title AND the pill. License (if
+     present) stays inline next to the title in row 1. */
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
   align-items: center;
-  gap: 8px;
   min-width: 0;
   justify-self: start;
-  /* The title cluster grows to fill the left grid column (1fr). The
-     Private / Protected pill at the end uses `margin-left: auto` to
-     float to the right edge of this column — visually placing the
-     pill in the gap between the title and the centered Discard/Save
-     tiles, rather than packed flush against the title. */
-  flex: 1 1 auto;
   width: 100%;
+}
+.md-board-detail-header__title-row-left .md-board-detail-header__board-icon--in-card {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  align-self: center;
+}
+.md-board-detail-header__title-row-left .md-board-detail-header__title {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: end;
+}
+.md-board-detail-header__title-row-left .md-board-detail-header__license-icon {
+  grid-row: 1;
+  grid-column: 3;
+  justify-self: start;
+  align-self: end;
 }
 .md-board-detail-header__title-row-left .md-board-detail-header__info-icon--private,
 .md-board-detail-header__title-row-left .md-board-detail-header__info-icon--lock {
-  margin-left: auto;
+  /* Sit in row 2, under the title (column 2), at content-width. */
+  grid-row: 2;
+  grid-column: 2 / -1;
+  justify-self: start;
+  align-self: start;
+  /* Compact pill — smaller than the default 28px / 0 10px so it
+     reads as a sub-attribute of the title rather than a primary
+     control. */
+  height: 24px;
+  padding: 0 9px;
+  font-size: 13px;
+}
+.md-board-detail-header__title-row-left .md-board-detail-header__info-icon--private svg,
+.md-board-detail-header__title-row-left .md-board-detail-header__info-icon--lock svg {
+  width: 13px;
+  height: 13px;
 }
 .md-board-detail-header__title-row-center {
   justify-self: center;
@@ -55217,8 +55423,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    without dominating the row. Sized ~30% larger than the previous
    inline 44px tile per Traci's spec. */
 .md-board-detail-header__board-icon--in-card {
-  width: 57px;
-  height: 57px;
+  width: 66px;
+  height: 66px;
   border-radius: 14px;
   padding: 5px;
 }
@@ -56506,6 +56712,163 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* ──────────────────────────────────────────────────────────────────
+   Speak-mode surface layering (board-detail, non-edit only).
+   Three-layer depth treatment so the communicator reads as a focused
+   speaking environment rather than the warm "studio" canvas used in
+   edit mode:
+     1. Page (shell) bg  → deep navy with soft radial bloom for life
+     2. Board panel bg   → slightly lighter navy, sits on the page
+     3. Symbol-card tile → stronger drop-shadow so coloured buttons
+                           pop forward as elevated cards on the
+                           darker surface.
+   Excluded when the user has the explicit `dark_mode` preference on
+   (`.md-board-detail--dark`) — that mode has its own pure-black
+   treatment further down (~line 63014) and should keep winning.
+   Excluded in edit mode so the warm authoring canvas stays intact. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) {
+  background:
+    radial-gradient(1200px 600px at 15% 0%,  rgba(58, 77, 110, 0.38), transparent 55%),
+    radial-gradient(1100px 500px at 85% 12%, rgba(30, 51, 88, 0.45),  transparent 55%),
+    radial-gradient(900px 600px at 50% 100%, rgba(21, 34, 55, 0.55),  transparent 50%),
+    linear-gradient(180deg, #0e1830 0%, #0b1426 100%);
+}
+
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-main {
+  background: linear-gradient(180deg, #1b2741 0%, #182135 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Tiles get a stronger drop-shadow stack on the dark surface so the
+   colored fills read as floating cards. Inset top-edge highlight
+   stays soft white — the universal "lit from above" cue. !important
+   wins over the base card box-shadow rule (line 57959) without
+   needing a more-specific selector everywhere.
+   Restricted to grids WITHOUT soft-borders — soft-borders cards
+   already get a dramatic raised-pill shadow stack from the
+   `.md-board-detail-grid--soft-borders .md-board-detail-symbol-card`
+   rule (~line 58081), which intentionally mirrors the label's
+   floating-plate look across the whole card. Letting soft-borders
+   own the shadow on those cards keeps both contexts consistent
+   instead of clobbering them here. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-grid:not(.md-board-detail-grid--soft-borders) .md-board-detail-symbol-card {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.40),
+    0 12px 32px rgba(0, 0, 0, 0.22),
+    0 1px 3px  rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30) !important;
+}
+
+/* Right-panel chrome stays legible against the deep navy page: lift
+   the border and headings to light-on-dark values. Panel content
+   surface remains transparent — sits directly on the page bg. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel {
+  border-left-color: rgba(255, 255, 255, 0.10);
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel__heading {
+  color: rgba(255, 255, 255, 0.72);
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel__empty {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Speak-mode top compose-bar refinements (board-detail, non-edit).
+   Coordinated with the deep-navy speak-mode page bg above so the
+   compose row reads as a calm, breathy band on the dark canvas
+   instead of a tight cluster of heavy chrome controls.
+   Three coordinated changes:
+     1. Breathing room — bump inner horizontal padding + gap on the
+        sentence bar so chips / text / action buttons get more space
+        between them. Vertical padding intentionally untouched — the
+        bar's height is locked to the user's vocalization_height
+        preference and adding vertical padding inflates it past the
+        contract.
+     2. Softer tonal tool buttons — backspace / clear / options
+        chevron. The base white-translucent treatment is OK but the
+        text color (indigo @ 0.60) reads dim on the dark canvas;
+        lift to high-alpha white for readability while keeping the
+        translucent bg so they stay secondary to the primary speak
+        button.
+     3. Lighter right utility rail — the stacked options + sidebar
+        toggles currently use solid `$brand-blue-grey` (#7693B9), a
+        heavy steel-blue block that fights the calm dark surface.
+        Switch to a translucent white-on-dark treatment so the rail
+        reads as secondary chrome, not a primary action cluster.
+        The base sidebar-toggle--stacked rule uses !important
+        everywhere (~line 56487); these overrides match with
+        !important + higher specificity to win. */
+
+/* 1. Breathing room + bar surface tuned for the dark canvas.
+   Wider horizontal padding + bigger gap give the chips and action
+   buttons real breathing room. The default bar bg is
+   `rgba(110, 122, 140, 0.32)` (frosted gray-blue) with a heavy
+   inset-shadow "sunken well" effect — on the new deep-navy page
+   that combination reads as a stark steel-gray block embedded in
+   the canvas. Switch to a translucent navy-tinted bg + soft inner
+   highlight so the bar reads as a calm raised band sitting ON the
+   dark surface, not a depression drilled into it. The vertical
+   padding stays at 2px so the bar's height contract with
+   `vocalization_height` stays intact. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
+  padding: 2px 18px;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Home button — mirrors the sentence-bar surface so the two read
+   as one coordinated row on the dark canvas instead of a frosted
+   sunken well sitting next to a translucent band. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* 2. Softer tonal tool buttons (backspace / clear / options chevron) */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.78);
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
+  background: rgba(255, 255, 255, 0.20);
+  color: #fff;
+}
+
+/* 3. Lighter right utility rail (options + sidebar toggles) */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle {
+  background: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle:hover {
+  background: rgba(255, 255, 255, 0.20) !important;
+  color: #fff !important;
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked {
+  background: rgba(255, 255, 255, 0.10) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked:hover {
+  background: rgba(255, 255, 255, 0.20) !important;
+  color: #fff !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
    Phrase Builder view (replaces symbol grid in center content)
    ────────────────────────────────────────────────────────────────── */
 .md-board-detail-phrase-builder {
@@ -57363,6 +57726,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba($la-navy, 0.45);
   padding: 4px 14px 2px;
 }
+/* Section-header button — used when a section becomes its own
+   expandable (Board / Buttons / Display / Share & Print). Matches
+   the Session toggle's typography (proper case, regular weight) so
+   all expandable section headers read consistently. The parent
+   `__item` styling supplies hover/keyboard affordances and the
+   `__chevron` shows expand state. */
+.md-board-detail-actions-menu__section-toggle {
+  /* Inherit base `__item` typography (no uppercase / no tracking).
+     Keep this rule in place as a marker class so future tweaks
+     (e.g. weight shift on hover) have a single hook. */
+}
 .md-board-detail-actions-menu__submenu-wrap {
   position: relative;
 }
@@ -57912,7 +58286,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   justify-content: flex-end;
   padding: 4px;
-  border-radius: 16px;
+  /* Responsive corner radius so cards stay rectangular on small
+     viewports instead of collapsing into pill shapes. A fixed 16px
+     reads as ~40% of card height at typical phone widths where the
+     grid compresses cards to ~40px tall, which turns every button
+     into a fully-rounded oval and lets folder cards (same class)
+     drift visually away from non-folder buttons because the corner
+     overlay on folders preserves their squared top-right while
+     buttons go pill. Scaling with viewport keeps both shapes
+     proportional across breakpoints — same rule applies to folder
+     cards via this shared class, so the two stay consistent
+     ("same shape; same responsiveness"). */
+  border-radius: clamp(6px, 1.2vw, 16px);
   min-width: 0;
   min-height: 0;
   border: none !important;
@@ -57989,9 +58374,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
       transparent 100%
     ) !important;
   box-shadow:
-    /* Single lightweight outer drop — replaces the heavy 3-layer
-       stack so the card feels less anchored / more modern. */
-    0 1px 3px rgba($la-navy, 0.06),
+    /* Multi-layer OUTER drop — extends the raised-pill effect the
+       label reads with (bright sheen on top of the gradient creates
+       the appearance of a floating plate) to the whole card, so
+       the entire button floats above the board surface as one
+       coherent elevated tile. Three drops give close grounding +
+       diffuse halo + crisp 1px edge contact, mirroring how a
+       real raised pill would catch light. Soft-borders only —
+       regular cards keep their flatter base shadow. */
+    0 4px 14px rgba($la-navy, 0.22),
+    0 10px 28px rgba($la-navy, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.10),
     /* Wider, stronger inset edge darkening — 20px blur at 0.28
        alpha makes the rim-to-fill transition a clearly graduated
        fade so the outline visibly blends into the card. */
@@ -58022,6 +58415,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
       transparent 100%
     ) !important;
   box-shadow:
+    /* Multi-layer OUTER drop matching the light-mode soft-borders
+       elevation so the whole card reads as a raised pill on dark
+       canvases too. Higher black alpha because cast shadows on
+       dark surfaces need more contrast to be perceptible. */
+    0 4px 14px rgba(0, 0, 0, 0.55),
+    0 10px 28px rgba(0, 0, 0, 0.40),
     0 1px 3px rgba(0, 0, 0, 0.30),
     inset 0 0 20px rgba(0, 0, 0, 0.45),
     inset 0 2px 6px rgba(255, 255, 255, 0.22);
@@ -58036,6 +58435,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   justify-content: center;
   padding: 0;
   overflow: hidden;
+  /* Match the responsive corner radius applied to the outer card
+     (`.md-board-detail-symbol-card` further up). The outer card
+     clips its content via `overflow: hidden`, so this radius isn't
+     strictly required for clipping — but giving the image holder
+     its own matching radius keeps any background-image or gradient
+     painted directly on this element (the symbol_background_clear
+     `var(--btn-bg)` fill + the soft-borders pearl gradient layered
+     on top) trimmed to the same rounded silhouette the card uses,
+     so the inner fill and outer card stay in lockstep across
+     breakpoints. */
+  border-radius: clamp(6px, 1.2vw, 16px);
 }
 /* White/black symbol background: match classic board — white/black behind
    the symbol image only; Fitzgerald card colors stay on the card. */
@@ -58109,11 +58519,72 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .symbol_background_clear .md-board-detail-symbol-card__image--placeholder {
   background: var(--btn-bg, transparent) !important;
 }
-/* Folder faces: in Colored mode the entire front matches --btn-bg
-   (not just the image band). Same intent as md-board-detail-grid--folder-colored-face. */
-.symbol_background_clear .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
-  background: var(--btn-bg, #fff) !important;
+/* Soft-borders + colored mode: paint the image container with the
+   SAME glassy gradient stack the card uses for soft-borders, scoped
+   to the image-container's own bounds. The earlier approach made
+   the image container transparent so the card's gradient bled
+   through — but the card's gradient is anchored to the whole card,
+   so the image area only saw a portion of it (the bottom half,
+   where alphas have already faded) and read as flat / dim compared
+   to the folder face (which IS the whole card, so it sees the full
+   bright-top → halo-center → fade-bottom gradient).
+   By repainting the same gradient ON the image container, the
+   image area becomes its own "mini folder face": linear sheen
+   bright at its top, radial halo at its center, fading toward its
+   bottom. Result is a glassy peach-on-peach finish that visually
+   matches what a folder face looks like, while preserving the
+   categorical fill (`var(--btn-bg)`) underneath as the matte-fill
+   backstop for PNG symbol transparency.
+   Folder cards excluded — they already get the gradient at the
+   card level. Empty cells excluded — they have their own subtle
+   "available space" treatment. */
+.symbol_background_clear .md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty):not(.md-board-detail-symbol-card--folder) .md-board-detail-symbol-card__image,
+.symbol_background_clear .md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty):not(.md-board-detail-symbol-card--folder) .md-board-detail-symbol-card__image--placeholder {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.70) 0%,
+      rgba(255, 255, 255, 0.30) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.90) 0%,
+      rgba(255, 255, 255, 0.55) 35%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 100%
+    ) !important;
 }
+/* Dark-mode variant — alphas reduced to match the dark-mode soft-
+   borders card rule (~line 58109) so the image area's mini glass
+   effect tracks the card's overall attenuation on dark canvases. */
+.md-board-detail--dark .symbol_background_clear .md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty):not(.md-board-detail-symbol-card--folder) .md-board-detail-symbol-card__image,
+.md-board-detail--dark .symbol_background_clear .md-board-detail-grid--soft-borders .md-board-detail-symbol-card:not(.md-board-detail-symbol-card--empty):not(.md-board-detail-symbol-card--folder) .md-board-detail-symbol-card__image--placeholder {
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.18) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.35) 35%,
+      rgba(255, 255, 255, 0.10) 75%,
+      transparent 100%
+    ) !important;
+}
+/* (Removed: previously paired with the placeholder rule above, this
+   forced the folder face to `var(--btn-bg)` whenever Colored
+   (`symbol_background_clear`) mode was on — which is the default
+   symbol_background for almost everyone. That made the "Colored
+   Folder Front" toggle effectively a no-op (folders ALWAYS read as
+   colored regardless of the toggle state). The dedicated
+   `.md-board-detail-grid--folder-colored-face` rule at line ~62140
+   is the canonical way to paint the folder face and is gated on
+   the user's toggle. Deleted this duplicate so the toggle works
+   as documented.) */
 /* Editor preview parity with runtime: when high_contrast is on, push
    symbol images through the same contrast/saturate filter the live
    board uses (line ~6982 — `.board.high_contrast .button img.symbol`).
@@ -58175,6 +58646,52 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 100%;
   flex-shrink: 0;
   padding: 3px 2px 5px;
+}
+/* Tight viewports: drop the bottom padding on button labels. At
+   <=768px the grid compresses cards enough that the 5px bottom
+   padding eats a noticeable slice of the card height — pushing the
+   label visually into the image and leaving a dead-zone between
+   text and card bottom. Top + horizontal padding kept so the
+   label still sits clear of the card rim. 768px chosen to align
+   with the codebase's most-used responsive breakpoint
+   (tablet-portrait threshold). */
+@media (max-width: 768px) {
+  .md-board-detail-symbol-card__label {
+    padding-bottom: 0;
+  }
+}
+/* Short viewports — progressive image-size compensation in board-
+   detail speak mode. As viewport height drops, the grid cells get
+   short, the image container inside each card gets short, and the
+   `object-fit: contain` image shrinks to fit — eventually below
+   readable. A single fixed scale at the 500px breakpoint isn't
+   enough; the underlying image keeps shrinking past it. Step the
+   `transform: scale()` factor up at each shorter breakpoint so the
+   on-screen image size stays roughly constant from 500px down to
+   ~280px. transform-only — layout boxes don't move, so the label
+   stays put; overflow:hidden on the parent image container clips
+   any minor edge overshoot at scale. Scoped to speak mode (not the
+   edit page, where the toolbar is already eating vertical space). */
+@media (max-height: 500px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
+    transform: scale(1.25);
+    transform-origin: center;
+  }
+}
+@media (max-height: 420px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
+    transform: scale(1.5);
+  }
+}
+@media (max-height: 350px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
+    transform: scale(1.8);
+  }
+}
+@media (max-height: 280px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
+    transform: scale(2.1);
+  }
 }
 // Shrink-to-fit opt-in (Text Settings → Shrink labels to fit).
 // Two-line word-boundary shrinking inside the container: same
@@ -58311,13 +58828,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-direction: column-reverse;
 }
 .md-board-detail-grid--text-pos-top .md-board-detail-symbol-card__image {
-  border-radius: 0 0 12px 12px;
+  /* Match the outer card's responsive radius (clamp(6px, 1.2vw, 16px))
+     so the inner image's rounded edge tracks the outer card at every
+     viewport. Hardcoded 12px previously read smaller than the outer
+     card on wide viewports (16px outer vs 12px inner = visible card-bg
+     gap at the corner) and larger than the outer card on narrow
+     viewports (~8px outer vs 12px inner = the inner curve got clipped
+     by the smaller outer curve). Same clamp keeps them in lockstep. */
+  border-radius: 0 0 clamp(6px, 1.2vw, 16px) clamp(6px, 1.2vw, 16px);
 }
 .md-board-detail-grid--text-pos-bottom .md-board-detail-symbol-card {
   flex-direction: column;
 }
 .md-board-detail-grid--text-pos-bottom .md-board-detail-symbol-card__image {
-  border-radius: 12px 12px 0 0;
+  border-radius: clamp(6px, 1.2vw, 16px) clamp(6px, 1.2vw, 16px) 0 0;
 }
 .md-board-detail-grid--text-pos-none .md-board-detail-symbol-card__label,
 .md-board-detail-grid--text-pos-none .md-board-detail-symbol-card__label-input {
@@ -61928,8 +62452,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      spans less of the folder. */
   width: 20px;
   height: 20px;
-  background: var(--btn-bg, currentColor);
-  filter: brightness(0.75);
+  /* Uses --btn-border (the button's outline color — the darker
+     Fitzgerald-derived border the rest of the grid uses for its
+     button outlines), with --btn-bg as a fallback when the button
+     doesn't have a border color set. This makes the folder's
+     colored corner match the categorical OUTLINE color of regular
+     buttons, not the lighter fill — so a green-verb folder corner
+     reads at the same depth as the green outline ring on the
+     siblings around it. No brightness filter — full saturation. */
+  background: var(--btn-border, var(--btn-bg, currentColor));
   border-radius: 0 0 0 100%;
   z-index: 3;
   pointer-events: none;
@@ -62234,6 +62765,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   z-index: 1;
   background: #fff !important;
   border: none !important;
+  /* No categorical outline on folder cards — the folder-back/tab
+     (or the colored-corner triangle in that mode) is the only
+     color cue the folder design needs. The outline ring used by
+     regular buttons would compete with that decoration. */
   outline: none !important;
   box-shadow:
     0 4px 12px rgba($la-navy, 0.12),
@@ -62270,18 +62805,40 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    button outline; the placeholder div behind it carries the lighter
    tinted fill. */
 .md-board-detail-symbol-card__folder-placeholder {
-  color: color-mix(in srgb, var(--btn-bg, #888) 80%, black 20%);
-  max-width: 60%;
-  max-height: 60%;
+  /* Polished folder fallback. The SVG carries the multi-layer
+     glass treatment internally — diagonal back-tab gradient,
+     4-stop front-face gradient, lit-from-above radial highlight,
+     seam shadow band, top rim highlight, bottom grounding line.
+     CSS adds a layered drop-shadow stack so the icon reads as a
+     real lifted card on the colored button surface. Three layers:
+     a tight contact shadow + a medium soft halo + a long ambient
+     diffusion — same approach a 3D illustration would use to
+     ground a card in its environment. */
+  max-width: 70%;
+  max-height: 70%;
+  width: auto;
+  height: auto;
+  filter:
+    drop-shadow(0 1px 1px rgba(13, 36, 56, 0.22))
+    drop-shadow(0 4px 8px rgba(13, 36, 56, 0.18))
+    drop-shadow(0 10px 22px rgba(13, 36, 56, 0.10));
 }
-/* Folder cards' placeholder image area: tint the wrapping div with the
-   folder's color (var(--btn-bg)) at low opacity so the area behind the
-   folder SVG icon picks up the Fitzgerald POS color too. Falls back to
-   the verdigris tint used by non-folder placeholders when the folder
-   has no assigned color. Scoped to folder cards so non-folder empty
-   buttons keep their neutral verdigris background. */
+/* Folder image area: TRANSPARENT so the card face shows through.
+   The base `.symbol_background_clear .__image, .__image--placeholder`
+   rule (line ~58139) paints BOTH the image-band div and the
+   placeholder variant with `var(--btn-bg) !important` — that's
+   for the PNG-matte fix on regular (non-folder) cards, where
+   transparent PNG pixels need to show the categorical color. For
+   FOLDER cards, that override forces the image band to the
+   categorical color even when the "Colored Folder Front" toggle is
+   OFF (card face goes white but the image area stays colored,
+   leaving a peach square inside an otherwise-white folder).
+   Forcing transparent here lets the card's face color win
+   uniformly — white when the toggle is off, colored when it's on.
+   Folder-scoped so non-folder cards keep the PNG-matte behavior. */
+.md-board-detail-symbol-card--folder .md-board-detail-symbol-card__image,
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__image--placeholder {
-  background: color-mix(in srgb, var(--btn-bg, #2A9D8F) 25%, transparent);
+  background: transparent !important;
 }
 /* Folder label styling */
 .md-board-detail-symbol-card--folder .md-board-detail-symbol-card__label {
@@ -63703,6 +64260,189 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @keyframes md-modal-progress-slide {
   0%   { left: -40%; }
   100% { left: 100%; }
+}
+
+/* ── Translation modal (button-set) ─────────────────────────────
+   Replaces the legacy Bootstrap list-group + float layouts inside
+   the Translate Boards modal with a calm 2-column row grid: source
+   label on the left, translation input on the right, board-key
+   path muted underneath. Each row reads as a self-contained card
+   with subtle borders and hover state, matching the modern modal
+   vocabulary (md-modal-*). The .md-modal-body { text-align:center }
+   rule stays for the hero copy; the list overrides to
+   text-align:left so words and inputs line up properly. */
+.md-translate-hero {
+  margin-bottom: 24px;
+}
+.md-translate-hero__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  margin: 0 0 8px;
+}
+.md-translate-hero__caption {
+  font-size: 14px;
+  color: $brand-slate-gray;
+  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 540px;
+}
+.md-translate-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+  text-align: left;
+}
+.md-translate-filters {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.md-translate-filter {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-slate-gray;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.md-translate-filter:hover,
+.md-translate-filter:focus-visible {
+  background: rgba($la-navy, 0.10);
+  color: $la-navy;
+  text-decoration: none;
+  outline: none;
+}
+.md-translate-filter--active {
+  background: rgba($brand-verdigris-aa, 0.15);
+  color: $brand-verdigris-aa;
+  border-color: rgba($brand-verdigris-aa, 0.25);
+}
+.md-translate-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: $brand-charcoal-blue;
+  text-decoration: none;
+}
+.md-translate-download:hover {
+  color: $la-navy;
+  text-decoration: underline;
+}
+.md-translate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.md-translate-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+  row-gap: 6px;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.08);
+  background: rgba(255, 255, 255, 0.55);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.md-translate-row:hover {
+  border-color: rgba($la-navy, 0.16);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.05);
+}
+.md-translate-row--repeat {
+  opacity: 0.7;
+  border-style: dashed;
+}
+.md-translate-row--board {
+  background: rgba($brand-verdigris-aa, 0.06);
+  border-color: rgba($brand-verdigris-aa, 0.18);
+}
+.md-translate-row__source {
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  word-break: break-word;
+}
+.md-translate-row__source-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
+}
+.md-translate-row__source-tag {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  font-weight: 400;
+  margin-left: 4px;
+}
+.md-translate-row__target {
+  min-width: 0;
+}
+.md-translate-row__path {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: $brand-slate-gray;
+  margin: 2px 0 0;
+}
+.md-translate-row__path a {
+  color: inherit;
+  text-decoration: none;
+}
+.md-translate-row__path a:hover {
+  color: $brand-charcoal-blue;
+  text-decoration: underline;
+}
+.md-translate-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.15);
+  background: #fff;
+  color: $la-navy;
+  font-size: 15px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+.md-translate-input:focus,
+.md-translate-input:focus-visible {
+  outline: none;
+  border-color: $brand-verdigris-aa;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris-aa, 0.20);
+}
+.md-translate-input::placeholder {
+  color: rgba($la-navy, 0.35);
+  font-style: italic;
+}
+.md-translate-status {
+  text-align: center;
+  font-size: 14px;
+  color: $brand-slate-gray;
+  padding: 24px 0;
+}
+.md-translate-status--error {
+  color: $brand-danger;
+}
+/* Stack rows full-width on narrow viewports — source above input. */
+@media (max-width: 540px) {
+  .md-translate-row {
+    grid-template-columns: 1fr;
+    row-gap: 8px;
+  }
 }
 
 /* ── Edit Room Details modal — curriculum row repeater ──────────── */
@@ -74996,22 +75736,13 @@ blockquote small {
    subheaders disappear (replaced by the divider alone), and the
    search input collapses to an icon-button placeholder. ──────────── */
 @media (max-width: 1023px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Smaller screens: the expanded left panel is pinned at 265px
-       (matching the right panel via the :not(:has(--collapsed))
-       custom-prop rule above), so its inner content stays at the
-       same larger-screen layout — full labels, subheaders, expanded
-       search input. The collapsed-rail content rules below are
-       scoped to `.md-board-edit-panel--collapsed` so they ONLY apply
-       when the panel is in its 56px icon-rail state. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 8px;
-  }
-  /* All rules below are scoped to `.md-board-edit-panel--collapsed`
-     so the expanded panel at smaller widths shows its full content
-     layout (matching larger screens), and only the collapsed icon
-     rail gets the tighter padding / hidden-content treatment. */
+  /* Layout grid + gap override removed: the expanded left panel
+     now inherits the base layout rule's 12px gap and identical
+     `grid-template-columns` at every viewport width, so the
+     expanded panel renders the same on every screen width
+     (`--bd-edit-side-l` is pinned to 265px above for non-collapsed
+     state). The `.md-board-edit-panel--collapsed` rules below
+     stay — they only affect the icon-rail (collapsed) state. */
   .md-board-edit-panel--collapsed {
     padding: 12px 6px 16px;
     gap: 10px;
@@ -75084,19 +75815,8 @@ blockquote small {
 }
 
 @media (max-width: 819px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 6px;
-  }
+  /* Layout grid + gap override removed — expanded panel keeps the
+     base 12px layout gap and pinned 265px width at every viewport. */
   .md-board-edit-panel--collapsed {
     padding: 10px 4px 14px;
     gap: 8px;
@@ -75104,19 +75824,8 @@ blockquote small {
 }
 
 @media (max-width: 640px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 4px;
-  }
+  /* Layout grid + gap override removed — expanded panel keeps the
+     base 12px layout gap and pinned 265px width at every viewport. */
   .md-board-edit-panel--collapsed {
     padding: 8px 4px 12px;
     gap: 6px;
@@ -78056,22 +78765,13 @@ blockquote small {
    subheaders disappear (replaced by the divider alone), and the
    search input collapses to an icon-button placeholder. ──────────── */
 @media (max-width: 1023px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Smaller screens: the expanded left panel is pinned at 265px
-       (matching the right panel via the :not(:has(--collapsed))
-       custom-prop rule above), so its inner content stays at the
-       same larger-screen layout — full labels, subheaders, expanded
-       search input. The collapsed-rail content rules below are
-       scoped to `.md-board-edit-panel--collapsed` so they ONLY apply
-       when the panel is in its 56px icon-rail state. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 8px;
-  }
-  /* All rules below are scoped to `.md-board-edit-panel--collapsed`
-     so the expanded panel at smaller widths shows its full content
-     layout (matching larger screens), and only the collapsed icon
-     rail gets the tighter padding / hidden-content treatment. */
+  /* Layout grid + gap override removed: the expanded left panel
+     now inherits the base layout rule's 12px gap and identical
+     `grid-template-columns` at every viewport width, so the
+     expanded panel renders the same on every screen width
+     (`--bd-edit-side-l` is pinned to 265px above for non-collapsed
+     state). The `.md-board-edit-panel--collapsed` rules below
+     stay — they only affect the icon-rail (collapsed) state. */
   .md-board-edit-panel--collapsed {
     padding: 12px 6px 16px;
     gap: 10px;
@@ -78144,19 +78844,8 @@ blockquote small {
 }
 
 @media (max-width: 819px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 6px;
-  }
+  /* Layout grid + gap override removed — expanded panel keeps the
+     base 12px layout gap and pinned 265px width at every viewport. */
   .md-board-edit-panel--collapsed {
     padding: 10px 4px 14px;
     gap: 8px;
@@ -78164,19 +78853,8 @@ blockquote small {
 }
 
 @media (max-width: 640px) {
-  .md-shell--board-detail-edit .md-board-detail-layout:has(.md-board-edit-panel),
-  .md-shell--board-detail-edit .md-board-detail-layout:not(.md-board-detail-layout--collapsed):has(.md-board-edit-panel) {
-    /* Side widths via per-side custom props (deterministic — replaces
-     fit-content(15%), whose content-measurement collapsed the
-     COLLAPSED rail to slivers):
-       - default/EXPANDED: var fallback 15% (the MAX side width).
-       - COLLAPSED: the :has() rules below set the side's var to the
-         fixed rail width (72px) — the floor; the side never shrinks
-         below its collapsed width.
-     Centre minmax(0,1fr) absorbs whatever the sides don't use. */
-  grid-template-columns: var(--bd-edit-side-l, 15%) minmax(0, 1fr) var(--bd-edit-side-r, 15%) !important;
-    gap: 4px;
-  }
+  /* Layout grid + gap override removed — expanded panel keeps the
+     base 12px layout gap and pinned 265px width at every viewport. */
   .md-board-edit-panel--collapsed {
     padding: 8px 4px 12px;
     gap: 6px;

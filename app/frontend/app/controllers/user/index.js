@@ -48,6 +48,12 @@ export default Controller.extend({
   // Explicit injection for app_state to avoid implicit injection deprecation warning
 
   // Explicit injection for persistence to avoid implicit injection deprecation warning
+
+  // Board Stats accordion (user.boards page) — collapsed by default
+  // so the stats-row only shows when the user explicitly expands it.
+  // Toggled by `toggle_board_stats` in the actions block below.
+  board_stats_expanded: false,
+
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
@@ -793,6 +799,9 @@ export default Controller.extend({
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
   actions: {
+    toggle_board_stats: function() {
+      this.toggleProperty('board_stats_expanded');
+    },
     sync: function() {
       console.debug('syncing because manually triggered');
       this.persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
