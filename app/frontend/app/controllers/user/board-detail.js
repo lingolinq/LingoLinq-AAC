@@ -390,12 +390,22 @@ export default Controller.extend(prefClasses, {
       return p && p.label && !p.in_progress && !p.image_url;
     });
     if(!pending.length) { return; }
+    if(!this._sentence_image_lookups) {
+      this._sentence_image_lookups = {};
+    }
+    var lookups = this._sentence_image_lookups;
     var lookup_ids = wordSuggestionsModule.lookup_board_ids(this.get('app_state'), this.get('stashes'), [this.get('model.id')]);
     pending.forEach(function(part) {
+      var key = part.raw_index != null ?
+        ('r:' + part.raw_index) :
+        ('l:' + (part.label || '').toLowerCase());
+      if(lookups[key]) { return; }
       var local_img = _this._find_local_image_for_label(part.label);
       if(local_img && _this._apply_sentence_chip_image(part, local_img)) {
+        lookups[key] = true;
         return;
       }
+      lookups[key] = true;
       wordSuggestionsModule.attach_image_for_label(part.label, lookup_ids, function(img) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this._apply_sentence_chip_image(part, img);
@@ -4818,6 +4828,7 @@ export default Controller.extend(prefClasses, {
       // subsequent activation that grows it would re-sync the stale
       // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
+      this._sentence_image_lookups = {};
       try { utterance.clear(); } catch(e) { }
     },
 

@@ -1358,23 +1358,20 @@ LingoLinq.Board = DS.Model.extend({
     }
     var show_predictions = word_predictions_visible(this.appState);
     var changed = false;
-    ordered.forEach(function(row) {
-      (row || []).forEach(function(btn) {
-        if(!btn || btn.id == null || btn.id.toString() !== button_id) { return; }
-        if(show_predictions) {
-          if(btn.label !== suggestion.word) {
-            btn.label = suggestion.word;
-            changed = true;
-          }
-          if(url && btn.image_url !== url) {
-            btn.image_url = url;
-            changed = true;
-          }
-        }
+    var newOb = ordered.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || btn.id == null || btn.id.toString() !== button_id) { return btn; }
+        if(!show_predictions) { return btn; }
+        var updates = {};
+        if(btn.label !== suggestion.word) { updates.label = suggestion.word; }
+        if(url && btn.image_url !== url) { updates.image_url = url; }
+        if(!Object.keys(updates).length) { return btn; }
+        changed = true;
+        return Object.assign({}, btn, updates);
       });
     });
     if(changed) {
-      ctrl.set('ordered_buttons', ordered.map(function(row) { return (row || []).slice(); }));
+      ctrl.set('ordered_buttons', newOb);
     }
   },
   update_suggestion_button: function(button, suggestion) {

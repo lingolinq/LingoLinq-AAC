@@ -569,6 +569,9 @@ word_suggestions.get_persistence = function() {
 };
 word_suggestions.is_placeholder_image = function(url) {
   if(!url || typeof url !== 'string') { return true; }
+  if(/\/blank\.gif(\?|$)/i.test(url) || /\/square\.svg(\?|$)/i.test(url)) {
+    return true;
+  }
   return /mulberry\/(paper\.svg|pencil(%20| )and(%20| )paper)/i.test(url);
 };
 word_suggestions.resolve_word_image = function(word) {
