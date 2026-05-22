@@ -291,6 +291,10 @@ export default Controller.extend({
       args.user_id = userId;
     }
 
+    /* Server caps per_page at 50 (lib/json_api/board.rb MAX_PAGE = 50).
+       Asking for 100 here is harmless but a no-op — clamping to the
+       real ceiling for clarity. */
+    if(args.per_page && args.per_page > 50) { args.per_page = 50; }
     var loadedBoards = [];
     var loadBoards = function() {
       return LingoLinq.store.query('board', args).then(function(boards) {
@@ -307,7 +311,17 @@ export default Controller.extend({
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          return loadBoards();
+          /* Throttle subsequent pages — matches the boards-page sweep
+             in user/index.js#generate_or_append_to_list so the picker
+             doesn't fire a back-to-back burst of /api/v1/boards calls
+             that read as a network "flood" and compete with other
+             foreground traffic. */
+          return new RSVP.Promise(function(resolve, reject) {
+            runLater(function() {
+              if(_this.get('boardPickerListId') != listId) { return resolve(); }
+              loadBoards().then(resolve, reject);
+            }, 200);
+          });
         }
         return RSVP.resolve();
       });

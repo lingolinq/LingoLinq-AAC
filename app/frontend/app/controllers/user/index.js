@@ -718,6 +718,12 @@ export default Controller.extend({
   generate_or_append_to_list: function(args, list_name, list_id, append) {
     var _this = this;
     if(list_id != _this.get('list_id')) { return; }
+    /* Default to the server's MAX_PAGE (50, per lib/json_api/board.rb).
+       The server caps higher values to 50 anyway, so asking for 50 up
+       front halves request count vs the prior implicit default of 25
+       — a power user with ~250 boards goes from 10 paginated round-
+       trips to 5. Honor an explicit per_page if a caller sets one. */
+    if(!args.per_page) { args.per_page = 50; }
     var prior = _this.get(list_name) || [];
     if(prior.error || prior.loading) { prior = []; }
     if(!append && !prior.length) {
@@ -737,7 +743,19 @@ export default Controller.extend({
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          _this.generate_or_append_to_list(args, list_name, list_id, true);
+          /* Throttle subsequent pages so a 5-page sweep doesn't fire as
+             a single back-to-back burst (which read as a network
+             "flood" in the dev tools, and competed with foreground
+             traffic like board-preview image loads). 200ms is small
+             enough that the full list still finishes streaming in ~1s
+             for typical cases, and large enough that the requests
+             interleave cleanly with user-initiated work. The list_id
+             check at the top of the function still guards against tab
+             changes during the gap. */
+          runLater(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this.generate_or_append_to_list(args, list_name, list_id, true);
+          }, 200);
         } else {
           _this.set(list_name + '.done', true);
         }

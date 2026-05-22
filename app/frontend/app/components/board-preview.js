@@ -42,10 +42,30 @@ export default Component.extend({
       }
     };
     emitLoading(true);
+    /* Helper: a cached board can ship with image_urls set to an empty
+       object `{}` (from a list query that filled the field but not
+       its entries). `!board.get('image_urls')` returns false on `{}`,
+       so an empty map slips through the partial-load check. Use
+       Object.keys.length to detect both missing AND empty. */
+    var imageUrlsMissing = function(board) {
+      var urls = board.get('image_urls');
+      if(!urls) { return true; }
+      if(typeof urls !== 'object') { return true; }
+      return Object.keys(urls).length === 0;
+    };
     if(_this.get('key')) {
       LingoLinq.store.findRecord('board', _this.get('key')).then(function(board) {
-        if(!board.get('permissions')) {
-          board.reload(false).then(function(board) {
+        /* Mirror persistence.js#find_record's partial-load check: a
+           cached board record can have `permissions` set (from an
+           earlier list query that ships a summary row) but be missing
+           `image_urls` — and without image_urls the canvas has no
+           per-button URL map to render symbols from, so every cell
+           draws as a colored rectangle with a label and no image.
+           Reload when EITHER is missing OR image_urls is an empty
+           object so the preview always has the full record before we
+           paint. */
+        if(!board.get('permissions') || imageUrlsMissing(board)) {
+          board.reload().then(function(board) {
             _this.set('model', board);
             _this.set('_model_loaded', true);
             _this._emitCombinedLoading();

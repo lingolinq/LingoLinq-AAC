@@ -64787,11 +64787,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    modal close pattern (48×48 WCAG AAA target, navy-tinted surface
    with a soft border, charcoal icon that flips to white on hover).
    Double-class selector raises specificity above `.la-modal-close`
-   so we win the cascade regardless of source-order. */
+   so we win the cascade regardless of source-order.
+   IMPORTANT: must explicitly reset `transform: none` — the global
+   `.md-modal-header .la-modal-close` rule sets
+   `top: 50%; transform: translateY(-50%)` to vertically center,
+   and at our explicit `top: 18px` the translate pulled a 48px
+   button to y = -6, clipping its top half against the modal's
+   `overflow: hidden` + `border-radius: 22px` corner. */
 .md-board-details-modal__close.md-board-details-modal__close {
   position: absolute;
-  top: 14px;
-  right: 16px;
+  top: 18px;
+  right: 18px;
+  transform: none;
   width: 48px;
   height: 48px;
   min-width: 48px;

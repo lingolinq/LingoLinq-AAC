@@ -65,6 +65,47 @@ export default Component.extend({
       if(pending > 0) { pending--; }
       maybe_emit_canvas_ready();
     };
+    /* Pick a label color (dark or light) that contrasts with the
+       button's actual fill. Author-set background colors override the
+       dark/light palette default, so a hard-coded label like
+       `palette.label = #f1f4f8` reads as invisible white on a pastel
+       yellow/green/blue. Compute relative luminance from the fill and
+       flip the label to charcoal on light fills, off-white on dark
+       fills. Handles hex (#abc, #aabbcc) and rgb/rgba. */
+    var contrast_label = function(fill, fallback) {
+      if(!fill) { return fallback; }
+      var r, g, b, a = 1;
+      var m = String(fill).trim().match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+      if(m) {
+        r = parseInt(m[1], 10);
+        g = parseInt(m[2], 10);
+        b = parseInt(m[3], 10);
+        if(m[4] != null) { a = parseFloat(m[4]); }
+      } else if(/^#[0-9a-f]{3,8}$/i.test(fill)) {
+        var hex = fill.replace('#', '');
+        if(hex.length === 3) { hex = hex.split('').map(function(c) { return c + c; }).join(''); }
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      } else {
+        return fallback;
+      }
+      /* Translucent fills blend with the canvas background — for the
+         dark-mode background fill at #0d2438 (very dark), a low-alpha
+         author color reads as mostly dark, so the label should stay
+         light. Approximate the blended luminance. */
+      if(a < 1 && dark) {
+        var bgR = 0x0d, bgG = 0x24, bgB = 0x38;
+        r = Math.round(r * a + bgR * (1 - a));
+        g = Math.round(g * a + bgG * (1 - a));
+        b = Math.round(b * a + bgB * (1 - a));
+      }
+      /* Standard relative-luminance approximation (Rec. 601 weights).
+         Threshold 140/255 ≈ 0.55 — comfortable middle-ground for AAC
+         pastel palettes. */
+      var lum = (0.299 * r + 0.587 * g + 0.114 * b);
+      return lum > 140 ? '#1a1a1a' : '#f1f4f8';
+    };
     /* Dark-mode palette mirrors the speak-mode board-detail surface:
        deep navy field, lighter-on-navy borders, off-white labels.
        When dark_mode is false the original light palette is used. */
@@ -213,7 +254,16 @@ export default Component.extend({
                       }
                     }
                     if(button.label) {
-                      context.fillStyle = palette.label;
+                      /* Per-button label color — picks dark text on a
+                         light fill and light text on a dark fill.
+                         Critical for AAC boards whose author colors
+                         (Fitzgerald / Goossens palette) are pastel
+                         yellow/green/blue/pink; the dark-mode default
+                         `palette.label` would otherwise paint
+                         off-white text on those pastels and read as
+                         invisible. */
+                      var fill_for_label = button.background_color || (show_links ? palette.link_fallback_fill : palette.fill);
+                      context.fillStyle = contrast_label(fill_for_label, palette.label);
                       context.fillText(button.label, x + (button_width / 2), y + pad + (text_height * 0.85));
                     }
                   }
