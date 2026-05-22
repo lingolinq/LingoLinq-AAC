@@ -21,8 +21,13 @@ export default Route.extend({
     }
   },
   setupController: function(controller) {
+    var searchParams = new URLSearchParams(window.location.search || '');
     controller.set('login_id', "");
     controller.set('login_password', "");
+    controller.set('tmp_token', null);
+    controller.set('google_link_nonce', null);
+    controller.set('google_error', null);
+    controller.set('google_popout_id', null);
     if(location.search && location.search.match(/^\?model-/)) {
       var parts = decodeURIComponent(location.search.replace(/^\?/, '')).split(/:/);
       if(parts[0] && parts[1]) {
@@ -31,12 +36,30 @@ export default Route.extend({
         history.replaceState({}, null, "/login");
       }
     } else if(location.search && location.search.match(/^\?auth-/)) {
-      var parts = location.search.replace(/^\?auth-/, '').split(/_/);
-      var un = parts[1];
-      var tmp_token = parts[0];
-      controller.set('login_id', un);
-      controller.set('tmp_token', tmp_token);
+      var authParts = location.search.replace(/^\?auth-/, '').split(/_/);
+      var tmpToken = authParts.shift();
+      var userName = authParts.join('_');
+      controller.set('login_id', userName);
+      controller.set('tmp_token', tmpToken);
       history.replaceState({}, null, "/login");
+    } else {
+      var googleLink = searchParams.get('google_link');
+      var googleError = searchParams.get('google_error');
+      var googlePopout = searchParams.get('google_popout');
+      if(googleLink) {
+        controller.set('google_link_nonce', googleLink);
+        try { sessionStorage.setItem('google_link_nonce', googleLink); } catch (e) { /* ignore */ }
+        history.replaceState({}, null, "/login");
+      } else if(googleError) {
+        controller.set('google_error', googleError);
+        try { sessionStorage.removeItem('google_link_nonce'); } catch (e) { /* ignore */ }
+        history.replaceState({}, null, "/login");
+      } else if(googlePopout) {
+        controller.set('google_popout_id', googlePopout);
+        history.replaceState({}, null, "/login");
+      } else {
+        try { sessionStorage.removeItem('google_link_nonce'); } catch (e) { /* ignore */ }
+      }
     }
   }
 });

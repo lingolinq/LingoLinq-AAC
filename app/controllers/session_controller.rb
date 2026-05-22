@@ -724,6 +724,212 @@ class SessionController < ApplicationController
     render json: {ok: false}, status: 503
   end
 
+  def google_start
+    unless google_sso_available?
+      return render inline: 'Google sign-in is not available', status: :not_found
+    end
+    flow = params['flow'].to_s == 'register' ? 'register' : 'login'
+    code = GoSecure.nonce('google_oauth_state')
+    config = {
+      'flow' => flow,
+      'device_id' => params['device_id'] || request.headers['X-Device-Id'] || 'default',
+      'popout_id' => params['popout_id'],
+      'app' => ActiveModel::Type::Boolean.new.cast(params['app'] || false)
+    }
+    return_origin = params['return_origin'].to_s.strip
+    origin = GoogleOAuth.frontend_origin(request, return_origin.present? ? { 'return_origin' => return_origin } : nil)
+    config['return_origin'] = origin if origin.present?
+    GoogleOAuth.store_state(code, config)
+    redirect_to GoogleOAuth.authorization_url(request, code, config), allow_other_host: true
+  end
+
+  def google_callback
+    unless google_sso_available?
+      return redirect_to google_frontend_redirect('/login', nil)
+    end
+    if params['error'].present?
+      return redirect_to google_auth_error_redirect('access_denied', nil)
+    end
+    config = GoogleOAuth.fetch_state(params['state'])
+    unless config
+      return redirect_to google_auth_error_redirect('session_expired', nil)
+    end
+    GoogleOAuth.clear_state(params['state'])
+    begin
+      payload = GoogleOAuth.exchange_code(request, params['code'], config)
+    rescue GoogleOAuth::Error
+      return redirect_to google_auth_error_redirect('auth_failed', config)
+    end
+    profile = GoogleOAuth.profile_from_payload(payload)
+    unless profile[:sub].present? && profile[:email_verified] && profile[:email].present?
+      return redirect_to google_auth_error_redirect('unverified_email', config)
+    end
+
+    linked_users = User.find_all_by_google_sub(profile[:sub]).reject(&:google_sso_blocked?)
+    unlinked_candidates = google_unlinked_email_candidates(profile, linked_users)
+    if linked_users.length > 1
+      nonce = GoSecure.nonce('google_link')
+      GoogleOAuth.store_link(nonce, google_link_config(profile, config, linked_users, 'account_select', unlinked_candidates: unlinked_candidates, allow_manual_link: true))
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+    elsif linked_users.length == 1
+      if unlinked_candidates.length > 1
+        nonce = GoSecure.nonce('google_link')
+        GoogleOAuth.store_link(nonce, google_link_config(profile, config, unlinked_candidates, 'email_match'))
+        return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+      elsif unlinked_candidates.length == 1
+        nonce = GoSecure.nonce('google_link')
+        GoogleOAuth.store_link(nonce, google_link_config(profile, config, unlinked_candidates, 'email_match', single_candidate: true))
+        return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+      end
+      return google_finish_login(linked_users.first, config) unless linked_users.first.google_sso_blocked?
+      return redirect_to google_auth_error_redirect('org_sso_required', config)
+    end
+
+    candidates = User.users_by_verified_email(profile[:email]).reject(&:google_sso_blocked?)
+    if candidates.length > 1
+      nonce = GoSecure.nonce('google_link')
+      GoogleOAuth.store_link(nonce, google_link_config(profile, config, candidates, 'email_match'))
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+    elsif candidates.length == 1
+      nonce = GoSecure.nonce('google_link')
+      GoogleOAuth.store_link(nonce, google_link_config(profile, config, candidates, 'email_match', single_candidate: true))
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+    elsif config['flow'] == 'register'
+      nonce = GoSecure.nonce('google_link')
+      GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'signup_complete'))
+      return redirect_to google_frontend_redirect("/register?google_signup=#{nonce}", config)
+    end
+
+    nonce = GoSecure.nonce('google_link')
+    GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'manual_link'))
+    redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+  end
+
+  def google_link_candidates
+    unless google_sso_available?
+      return api_error 404, {error: 'not available'}
+    end
+    link = GoogleOAuth.fetch_link(params['nonce'])
+    unless link
+      return api_error 404, {error: 'session_expired'}
+    end
+    candidates = google_link_candidates_for(link)
+    unlinked_candidates = google_link_unlinked_candidates_for(link)
+    selected_user_name = candidates.length == 1 ? candidates[0][:user_name] : nil
+    render json: {
+      mode: link['mode'] || 'email_match',
+      candidates: candidates,
+      unlinked_candidates: unlinked_candidates,
+      allow_manual_link: !!link['allow_manual_link'],
+      email: link['email'],
+      single_candidate: !!link['single_candidate'] || candidates.length == 1,
+      selected_user_name: selected_user_name
+    }
+  end
+
+  def google_link_complete
+    unless google_sso_available?
+      return api_error 404, {error: 'not available'}
+    end
+    link = GoogleOAuth.fetch_link(params['nonce'])
+    unless link
+      return api_error 400, {error: 'session_expired'}
+    end
+    mode = link['mode'] || 'email_match'
+    user = resolve_google_link_user(link, params)
+    return if performed?
+
+    if mode == 'account_select'
+      linked_ids = link['candidate_user_ids'] || []
+      if linked_ids.include?(user.global_id)
+        if user.google_sso_blocked?
+          return api_error 403, {error: 'org_sso_required'}
+        end
+        config = google_link_session_config(link)
+        GoogleOAuth.clear_link(params['nonce'])
+        return finish_google_link_json(user, config)
+      end
+
+      unlinked_ids = link['unlinked_candidate_user_ids'] || []
+      linking_allowed = unlinked_ids.include?(user.global_id) || !!link['allow_manual_link']
+      unless linking_allowed
+        return api_error 400, {error: 'invalid_user'}
+      end
+    end
+
+    unless user && user.valid_password?(params['password'].to_s)
+      return api_error 401, {error: 'invalid_password'}
+    end
+    if user.google_sso_blocked?
+      return api_error 403, {error: 'org_sso_required'}
+    end
+    user.link_google!(link['sub'], email: link['email'], name: link['name'])
+    user.password_used!
+    config = google_link_session_config(link)
+    GoogleOAuth.clear_link(params['nonce'])
+    finish_google_link_json(user, config)
+  end
+
+  def google_signup_candidates
+    unless google_sso_available?
+      return api_error 404, {error: 'not available'}
+    end
+    link = GoogleOAuth.fetch_link(params['nonce'])
+    unless link
+      return api_error 404, {error: 'session_expired'}
+    end
+    unless ['manual_link', 'signup_complete'].include?(link['mode'])
+      return api_error 400, {error: 'invalid_mode'}
+    end
+    if link['mode'] == 'manual_link'
+      link['mode'] = 'signup_complete'
+      GoogleOAuth.store_link(params['nonce'], link)
+    end
+    render json: {
+      email: link['email'],
+      name: link['name']
+    }
+  end
+
+  def google_signup_complete
+    unless google_sso_available?
+      return api_error 404, {error: 'not available'}
+    end
+    link = GoogleOAuth.fetch_link(params['nonce'])
+    unless link && link['mode'] == 'signup_complete'
+      return api_error 400, {error: 'session_expired'}
+    end
+    unless ActiveModel::Type::Boolean.new.cast(params['terms_agree'])
+      return api_error 400, {error: 'terms_required'}
+    end
+    profile = {
+      sub: link['sub'],
+      email: link['email'],
+      name: link['name']
+    }
+    begin
+      user = User.create_from_google_signup!(
+        profile,
+        user_name: params['user_name'],
+        registration_type: params['registration_type'],
+        terms_agree: params['terms_agree']
+      )
+    rescue GoogleOAuth::Error => e
+      error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
+      return api_error 400, {error: error}
+    end
+    unless user.coppa_parental_consent_pending?
+      UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+      UserMailer.schedule_delivery(:new_user_registration, user.global_id)
+      ExternalTracker.track_new_user(user)
+    else
+      UserMailer.schedule_delivery(:parental_consent_request, user.global_id)
+    end
+    config = google_link_session_config(link)
+    GoogleOAuth.clear_link(params['nonce'])
+    finish_google_link_json(user, config)
+  end
+
   def status
     # Security: only expose internal diagnostics to authenticated API users.
     # Unauthenticated callers get a minimal response (use /api/v1/health for orchestrators).
@@ -752,6 +958,221 @@ class SessionController < ApplicationController
   end
 
   protected
+  def google_sso_available?
+    GoogleOAuth.enabled?
+  end
+
+  def google_auth_error_redirect(error_code, config = nil)
+    google_frontend_redirect("/login?google_error=#{CGI.escape(error_code.to_s)}", config)
+  end
+
+  def google_finish_login(user, config)
+    if user.coppa_parental_consent_pending?
+      return redirect_to google_frontend_redirect('/register?coppa_waiting=1', config), allow_other_host: true
+    end
+    if user.google_sso_blocked?
+      return redirect_to google_auth_error_redirect('org_sso_required', config)
+    end
+    data = google_login_response(user, config)
+    if data[:popout_id]
+      return redirect_to google_frontend_redirect("/login?google_popout=#{data[:popout_id]}", config), allow_other_host: true
+    end
+    redirect_to google_frontend_redirect(data[:redirect], config), allow_other_host: true
+  end
+
+  def google_frontend_redirect(path, config = nil)
+    GoogleOAuth.frontend_redirect_url(request, config, path)
+  end
+
+  def google_link_config(profile, config, candidates, mode, single_candidate: false, unlinked_candidates: [], allow_manual_link: false)
+    link = {
+      'mode' => mode,
+      'sub' => profile[:sub],
+      'email' => profile[:email],
+      'name' => profile[:name],
+      'candidate_user_ids' => candidates.map(&:global_id),
+      'candidates' => candidates.map { |u| google_link_user_candidate(u, include_user_id: true).stringify_keys },
+      'flow' => config['flow'],
+      'device_id' => config['device_id'],
+      'popout_id' => config['popout_id'],
+      'app' => config['app'],
+      'return_origin' => config['return_origin']
+    }
+    link['single_candidate'] = true if single_candidate
+    if unlinked_candidates.any?
+      link['unlinked_candidate_user_ids'] = unlinked_candidates.map(&:global_id)
+      link['unlinked_candidates'] = unlinked_candidates.map { |u| google_link_user_candidate(u, include_user_id: true).stringify_keys }
+    end
+    link['allow_manual_link'] = true if allow_manual_link
+    link
+  end
+
+  def google_unlinked_email_candidates(profile, linked_users)
+    User.users_by_verified_email(profile[:email]).reject(&:google_sso_blocked?).reject do |user|
+      linked_users.any? { |linked| linked.id == user.id }
+    end
+  end
+
+  def google_link_user_display_name(user)
+    (user.settings && user.settings['name'].presence) || user.display_user_name
+  end
+
+  def google_link_user_candidate(user, include_user_id: false)
+    entry = {
+      user_name: user.user_name,
+      display_name: google_link_user_display_name(user)
+    }
+    entry[:user_id] = user.global_id if include_user_id
+    entry
+  end
+
+  def google_link_candidates_for(link)
+    candidates = google_link_candidates_from_stored(link)
+    if candidates.empty?
+      users = User.find_all_by_global_id(link['candidate_user_ids'] || [])
+      candidates = users.map { |u| google_link_user_candidate(u) }
+      if candidates.empty? && (link['candidate_user_ids'] || []).length == 1
+        user = User.find_by_global_id(link['candidate_user_ids'][0])
+        candidates = [google_link_user_candidate(user)] if user
+      end
+    end
+    if candidates.empty?
+      mode = link['mode'] || 'email_match'
+      if mode == 'email_match' && link['email'].present?
+        candidates = User.users_by_verified_email(link['email']).reject(&:google_sso_blocked?).map do |u|
+          google_link_user_candidate(u)
+        end
+      elsif mode == 'account_select' && (link['candidate_user_ids'] || []).any?
+        users = User.find_all_by_global_id(link['candidate_user_ids'])
+        candidates = users.map { |u| google_link_user_candidate(u) }
+      end
+    end
+    candidates.uniq { |c| c[:user_name] }
+  end
+
+  def google_link_unlinked_candidates_for(link)
+    candidates = google_link_candidates_from_stored(link, 'unlinked_candidates')
+    if candidates.empty?
+      users = User.find_all_by_global_id(link['unlinked_candidate_user_ids'] || [])
+      candidates = users.map { |u| google_link_user_candidate(u) }
+    end
+    if candidates.empty? && link['mode'] == 'account_select' && link['email'].present?
+      linked_ids = link['candidate_user_ids'] || []
+      candidates = User.users_by_verified_email(link['email']).reject(&:google_sso_blocked?).reject do |user|
+        linked_ids.include?(user.global_id)
+      end.map { |u| google_link_user_candidate(u) }
+    end
+    candidates.uniq { |c| c[:user_name] }
+  end
+
+  def google_link_candidates_from_stored(link, key = 'candidates')
+    stored = link[key]
+    return [] unless stored.is_a?(Array)
+
+    stored.filter_map do |c|
+      user_name = (c['user_name'] || c[:user_name]).to_s.strip
+      next if user_name.blank?
+
+      entry = {user_name: user_name}
+      display_name = (c['display_name'] || c[:display_name]).to_s.strip
+      entry[:display_name] = display_name if display_name.present?
+      entry
+    end
+  end
+
+  def google_link_session_config(link)
+    {
+      'flow' => link['flow'],
+      'device_id' => link['device_id'],
+      'popout_id' => link['popout_id'],
+      'app' => link['app'],
+      'return_origin' => link['return_origin']
+    }
+  end
+
+  def resolve_google_link_user(link, params)
+    mode = link['mode'] || 'email_match'
+    user = nil
+    if mode == 'account_select'
+      user_name = params['user_name'].to_s.strip
+      if user_name.blank?
+        api_error(400, {error: 'username_required'})
+        return nil
+      end
+      user = User.find_by(user_name: user_name)
+      unless user
+        api_error(400, {error: 'invalid_user'})
+        return nil
+      end
+      linked_ids = link['candidate_user_ids'] || []
+      unlinked_ids = link['unlinked_candidate_user_ids'] || []
+      if linked_ids.include?(user.global_id) || unlinked_ids.include?(user.global_id) || link['allow_manual_link']
+        return user
+      end
+      api_error(400, {error: 'invalid_user'})
+      return nil
+    end
+    if mode == 'manual_link'
+      user_name = params['user_name'].to_s.strip
+      if user_name.blank?
+        api_error(400, {error: 'username_required'})
+        return nil
+      end
+      user = User.find_by(user_name: user_name)
+      unless user
+        api_error(400, {error: 'invalid_user'})
+        return nil
+      end
+      return user
+    end
+    if params['user_name'].present?
+      user = User.find_by(user_name: params['user_name'].to_s.strip)
+      unless user && (link['candidate_user_ids'] || []).include?(user.global_id)
+        api_error(400, {error: 'invalid_user'})
+        return nil
+      end
+    elsif link['single_candidate'] && (link['candidate_user_ids'] || []).length == 1
+      user = User.find_by_global_id(link['candidate_user_ids'][0])
+    else
+      api_error(400, {error: 'username_required'})
+      return nil
+    end
+    user
+  end
+
+  def finish_google_link_json(user, config)
+    device_key = config['device_id'] || 'default'
+    native_app_device = ActiveModel::Type::Boolean.new.cast(config['app'])
+    device = Device.find_or_create_by(user_id: user.id, developer_key_id: 0, device_key: device_key)
+    device.save! if device.new_record?
+    assert_session_device(device, user, native_app_device, force_device_classification: true)
+    render json: {token: JsonApi::Token.as_json(user, device, :include_refresh => true)}
+  end
+
+  def google_login_response(user, config)
+    device_key = config['device_id'] || 'default'
+    native_app_device = ActiveModel::Type::Boolean.new.cast(config['app'])
+    device = Device.find_or_create_by(user_id: user.id, developer_key_id: 0, device_key: device_key)
+    device.save! if device.new_record?
+    assert_session_device(device, user, native_app_device, force_device_classification: true)
+
+    if config['popout_id'].present?
+      Permissions.setex(
+        RedisInit.default,
+        "token_popout_#{config['popout_id']}",
+        30.minutes.to_i,
+        {user_id: user.global_id, device_id: device.global_id}.to_json,
+        true
+      )
+      return {popout_id: config['popout_id']}
+    end
+
+    nonce = GoSecure.nonce('google_tmp_token')
+    access, _refresh = device.tokens
+    Permissions.setex(RedisInit.default, "token_tmp_#{nonce}", 15.minutes.to_i, access, true)
+    {redirect: "/login?auth-#{nonce}_#{user.user_name}", tmp_token: nonce}
+  end
+
   # native_app_device: true when this auth flow is a native/installed client — from password token
   # (installed_app?) or SAML (normalized config['app']). When true, request browser signals must not downgrade
   # the device to :browser (SAML ACS posts often lack the install header).

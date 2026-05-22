@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
+import RSVP from 'rsvp';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
@@ -41,6 +42,18 @@ export default Route.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
   telemetry: service('telemetry'),
+  beforeModel: function() {
+    if(typeof window === 'undefined') { return; }
+    var path = window.location.pathname;
+    if(path !== '/auth' && path.indexOf('/auth/') !== 0) { return; }
+    // OAuth paths must be handled by Rails, not the Ember SPA. If the app
+    // booted here, the /auth proxy did not run — fall back to Rails on :5000.
+    if(window.location.port === '8184') {
+      var qs = window.location.search || '';
+      window.location.replace('http://localhost:5000' + path + qs);
+      return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+    }
+  },
   activate: function() {
     var session = this.get('session');
     if(session && typeof session.restore === 'function') {

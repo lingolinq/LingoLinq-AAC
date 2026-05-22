@@ -81,6 +81,7 @@ gem 'boy_band'
 gem 'ttfunk', '1.7'
 gem 'ruby-saml'
 gem 'rotp'
+gem 'googleauth', '~> 1.11'
 
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
