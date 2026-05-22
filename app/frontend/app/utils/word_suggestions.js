@@ -438,7 +438,7 @@ var word_suggestions = EmberObject.extend({
               // the "used retrieved image …" console spam on every
               // button press and unnecessarily warmed the persistence
               // url cache on every prediction cycle.
-              if(word && !emberGet(word, 'original_image') && button.depth < word.depth) {
+              if(word && !word_suggestions.resolve_word_image(word) && button.depth < word.depth) {
                 word.depth = button.depth;
                 LingoLinq.Buttonset.fix_image(button, images).then(function() {
                   if(!emberGet(word, 'original_image') && button.image) {
@@ -566,6 +566,165 @@ word_suggestions.get_app_state = function() {
 };
 word_suggestions.get_persistence = function() {
   return word_suggestions._services.persistence || persistence;
+};
+word_suggestions.is_placeholder_image = function(url) {
+  if(!url || typeof url !== 'string') { return true; }
+  if(/\/blank\.gif(\?|$)/i.test(url) || /\/square\.svg(\?|$)/i.test(url)) {
+    return true;
+  }
+  return /mulberry\/(paper\.svg|pencil(%20| )and(%20| )paper)/i.test(url);
+};
+word_suggestions.resolve_word_image = function(word) {
+  if(!word) { return null; }
+  var candidates = [word.data_image, word.original_image, word.image];
+  for(var idx = 0; idx < candidates.length; idx++) {
+    if(candidates[idx] && !word_suggestions.is_placeholder_image(candidates[idx])) {
+      return candidates[idx];
+    }
+  }
+  return null;
+};
+word_suggestions.button_sets_for_board_ids = function(board_ids) {
+  var sets = [];
+  var seen = {};
+  (board_ids || []).forEach(function(id) {
+    if(!id) { return; }
+    var candidates = [];
+    var direct = LingoLinq.store.peekRecord('buttonset', id);
+    if(direct) { candidates.push(direct); }
+    LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
+      if(bs && ((bs.get('board_ids') || []).indexOf(id) !== -1 || bs.get('key') === id)) {
+        candidates.push(bs);
+      }
+    });
+    candidates.forEach(function(bs) {
+      var bs_id = bs.get && bs.get('id');
+      if(!bs_id || seen[bs_id]) { return; }
+      if((bs.get('buttons') && bs.get('buttons').length) || bs.get('root_url')) {
+        seen[bs_id] = true;
+        sets.push(bs);
+      }
+    });
+  });
+  return sets;
+};
+word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
+  var ids = [];
+  var push = function(id) {
+    if(id && ids.indexOf(id) === -1) { ids.push(id); }
+  };
+  if(appState && appState.get) {
+    push(appState.get('currentUser.preferences.home_board.id'));
+    push(appState.get('currentBoardState.id'));
+    var user = appState.get('currentUser');
+    if(user) {
+      (user.get('preferences.sidebar_boards') || []).forEach(function(b) {
+        if(b && b.key) { push(b.key); }
+      });
+      if(user.get('preferences.sync_starred_boards')) {
+        (user.get('stats.starred_board_refs') || []).forEach(function(ref) {
+          if(ref && ref.id) { push(ref.id); }
+        });
+      }
+    }
+    (appState.get('sidebar_boards') || []).forEach(function(brd) {
+      if(brd && (brd.id || brd.key)) { push(brd.id || brd.key); }
+    });
+  }
+  if(stashes && stashes.get) {
+    push(stashes.get('temporary_root_board_state.id'));
+    push(stashes.get('root_board_state.id'));
+  }
+  (extra_ids || []).forEach(push);
+  return ids;
+};
+word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra_ids) {
+  var ids = word_suggestions.lookup_board_ids(appState, stashes, extra_ids);
+  var warmed = word_suggestions.button_sets_for_board_ids(ids);
+  var covered = {};
+  warmed.forEach(function(bs) {
+    if(!bs || !bs.get) { return; }
+    covered[bs.get('id')] = true;
+    (bs.get('board_ids') || []).forEach(function(bid) { covered[bid] = true; });
+    if(bs.get('key')) { covered[bs.get('key')] = true; }
+  });
+  var missing = ids.filter(function(id) { return id && !covered[id]; });
+  if(!missing.length) {
+    return RSVP.resolve(warmed);
+  }
+  return RSVP.all_wait(missing.map(function(id) {
+    return LingoLinq.Buttonset.load_button_set(id).then(function(bs) { return bs; }, function() { return null; });
+  })).then(function(loaded) {
+    var seen = {};
+    var all = [];
+    warmed.concat(loaded || []).forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
+      var bs_id = bs.get('id');
+      if(!bs_id || seen[bs_id]) { return; }
+      seen[bs_id] = true;
+      all.push(bs);
+    });
+    return all;
+  });
+};
+word_suggestions._best_exact_button_for_label = function(label, sets) {
+  var key = (label || '').toLowerCase();
+  if(!key) { return null; }
+  var best = null;
+  (sets || []).forEach(function(bs) {
+    if(!bs) { return; }
+    var buttons = bs.redepth(bs.get('id'));
+    (buttons || []).forEach(function(button) {
+      if(!button || !button.image_id) { return; }
+      var bl = (button.label || '').toLowerCase();
+      var bv = (button.vocalization || '').toLowerCase();
+      if((bl === key || bv === key) && (!best || button.depth < best.depth)) {
+        best = button;
+      }
+    });
+  });
+  return best;
+};
+word_suggestions.attach_image_for_label = function(label, board_ids, on_image, context) {
+  if(!label || !on_image) { return RSVP.resolve(null); }
+  var key = label.toLowerCase();
+  var appState = context && context.appState;
+  var stashes = context && context.stashes;
+  var lookup_ids = board_ids || [];
+  var deliver = function(img, word) {
+    if(img && !word_suggestions.is_placeholder_image(img)) {
+      on_image(img, word);
+    }
+  };
+  var load_sets = appState ?
+    word_suggestions.load_vocabulary_button_sets(appState, stashes, lookup_ids) :
+    RSVP.resolve(word_suggestions.button_sets_for_board_ids(lookup_ids));
+  return load_sets.then(function(sets) {
+    var images = LingoLinq.store.peekAll('image');
+    var best = word_suggestions._best_exact_button_for_label(label, sets);
+    if(best) {
+      return LingoLinq.Buttonset.fix_image(best, images).then(function() {
+        deliver(best.image, { word: label, image: best.image, original_image: best.original_image });
+        return best.image;
+      }, function() { return null; });
+    }
+    return word_suggestions.lookup({
+      word_in_progress: label,
+      board_ids: lookup_ids,
+      button_sets: sets
+    }).then(function(result) {
+      var match = (result || []).find(function(w) {
+        return w.word && w.word.toLowerCase() === key;
+      });
+      if(!match) { return null; }
+      var finish = function() {
+        deliver(word_suggestions.resolve_word_image(match), match);
+      };
+      match.image_update = function() { finish(); };
+      finish();
+      return match;
+    });
+  });
 };
 
 export default word_suggestions;

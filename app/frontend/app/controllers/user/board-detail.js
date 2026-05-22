@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
-import { set as emberSet } from '@ember/object';
+import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import { later as runLater, cancel as runCancel, next } from '@ember/runloop';
@@ -296,36 +296,133 @@ export default Controller.extend(prefClasses, {
    *     local-only sources (quick phrases, completions, phrase
    *     builder) carry no `raw_index` and never collide with globals.
    *   - Empty global list is a no-op (local clear was the trigger).
+   *   - In-progress keyboard words show in the bar as text only (s → st →
+   *     str …), matching classic speak-bar behavior. When the word
+   *     completes (space or prediction), the symbol image is added.
    */
-  _sync_sentence_from_global: observer('app_state.button_list.[]', function() {
+  _find_local_image_for_label: function(label) {
+    var key = (label || '').toLowerCase();
+    if(!key) { return null; }
+    var flat = this.get('flat_ordered_buttons') || [];
+    for(var idx = 0; idx < flat.length; idx++) {
+      var btn = flat[idx];
+      if(!btn) { continue; }
+      var lbl = (btn.label || btn.vocalization || '').toLowerCase();
+      if(lbl === key && btn.image_url && !wordSuggestionsModule.is_placeholder_image(btn.image_url)) {
+        return btn.image_url;
+      }
+    }
+    return null;
+  },
+
+  _apply_sentence_chip_image: function(part, img) {
+    if(!part || !img) { return false; }
+    var current = (this.get('sentence_parts') || []).slice();
+    var idx = current.findIndex(function(p) {
+      return p && ((part.raw_index != null && p.raw_index === part.raw_index) ||
+        (p.label === part.label && !p.image_url));
+    });
+    if(idx >= 0 && current[idx].image_url !== img) {
+      current[idx] = Object.assign({}, current[idx], { image_url: img });
+      this.set('sentence_parts', current);
+      return true;
+    }
+    return false;
+  },
+
+  sync_sentence_from_button_list: function() {
+    var _this = this;
     var global_list = this.get('app_state.button_list') || [];
     if(!global_list.length) { return; }
-    var existing = this.get('sentence_parts') || [];
-    var seen_raw = {};
-    existing.forEach(function(p) {
-      if(p && p.raw_index != null) { seen_raw[p.raw_index] = true; }
+    var parts = (this.get('sentence_parts') || []).slice();
+    var by_raw = {};
+    parts.forEach(function(p, idx) {
+      if(p && p.raw_index != null) { by_raw[p.raw_index] = idx; }
     });
-    var to_add = [];
-    global_list.forEach(function(b) {
-      if(!b) { return; }
-      // Skip hint entries (utterance pushes a transient hint button
-      // for find-a-button guidance — those should not enter the
-      // visible sentence bar).
-      if(b.hint || b.in_progress) { return; }
-      if(b.raw_index == null) { return; }
-      if(seen_raw[b.raw_index]) { return; }
-      seen_raw[b.raw_index] = true;
-      to_add.push({
-        id: b.button_id || ('utt-' + b.raw_index),
-        raw_index: b.raw_index,
-        label: b.label || b.vocalization || '',
-        image_url: b.image
-      });
+    var changed = false;
+    global_list.forEach(function(b, list_idx) {
+      if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { return; }
+      var raw_index = emberGet(b, 'raw_index');
+      if(raw_index == null) { raw_index = list_idx; }
+      var label = (emberGet(b, 'label') || emberGet(b, 'vocalization') || '').replace(/\s+$/, '');
+      if(!label) { return; }
+      var in_progress = !!emberGet(b, 'in_progress');
+      var image_url = null;
+      if(!in_progress) {
+        image_url = wordSuggestionsModule.resolve_word_image({
+          image: emberGet(b, 'image'),
+          original_image: emberGet(b, 'original_image')
+        });
+        if(!image_url) {
+          image_url = _this._find_local_image_for_label(label);
+        }
+      }
+      var chip = {
+        id: emberGet(b, 'button_id') || ('utt-' + raw_index),
+        raw_index: raw_index,
+        label: label,
+        in_progress: in_progress,
+        image_url: image_url
+      };
+      if(by_raw[raw_index] != null) {
+        var existing = parts[by_raw[raw_index]];
+        if(existing.label !== chip.label || existing.image_url !== chip.image_url ||
+          !!existing.in_progress !== in_progress) {
+          parts[by_raw[raw_index]] = Object.assign({}, existing, chip);
+          changed = true;
+        }
+      } else {
+        parts.push(chip);
+        by_raw[raw_index] = parts.length - 1;
+        changed = true;
+      }
     });
-    if(to_add.length > 0) {
-      this.set('sentence_parts', existing.concat(to_add));
+    if(changed) {
+      this.set('sentence_parts', parts);
     }
-  }),
+    this._resolve_missing_sentence_images();
+  },
+
+  _resolve_missing_sentence_images: function() {
+    var _this = this;
+    var parts = this.get('sentence_parts') || [];
+    var pending = parts.filter(function(p) {
+      return p && p.label && !p.in_progress && !p.image_url;
+    });
+    if(!pending.length) { return; }
+    if(!this._sentence_image_lookups) {
+      this._sentence_image_lookups = {};
+    }
+    var lookups = this._sentence_image_lookups;
+    var lookup_ids = wordSuggestionsModule.lookup_board_ids(this.get('app_state'), this.get('stashes'), [this.get('model.id')]);
+    pending.forEach(function(part) {
+      var key = part.raw_index != null ?
+        ('r:' + part.raw_index) :
+        ('l:' + (part.label || '').toLowerCase());
+      if(lookups[key]) { return; }
+      var local_img = _this._find_local_image_for_label(part.label);
+      if(local_img && _this._apply_sentence_chip_image(part, local_img)) {
+        lookups[key] = true;
+        return;
+      }
+      lookups[key] = true;
+      wordSuggestionsModule.attach_image_for_label(part.label, lookup_ids, function(img) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._apply_sentence_chip_image(part, img);
+      }, { appState: _this.get('app_state'), stashes: _this.get('stashes') });
+    });
+  },
+
+  _sync_sentence_from_global: observer(
+    'app_state.button_list.[]',
+    'app_state.button_list.@each.in_progress',
+    'app_state.button_list.@each.label',
+    'app_state.button_list.@each.image',
+    'app_state.button_list.@each.original_image',
+    function() {
+      this.sync_sentence_from_button_list();
+    }
+  ),
 
   utterance_show_symbols: computed('app_state.referenced_user.preferences.device.utterance_text_only', function() {
     return !this.get('app_state.referenced_user.preferences.device.utterance_text_only');
@@ -932,6 +1029,54 @@ export default Controller.extend(prefClasses, {
     if (anyChanged) { this._finalizeFocusDimGrid(ob); }
   },
 
+  _apply_shift_to_ordered_buttons: function() {
+    var appState = this.get('app_state');
+    var board = this.get('model');
+    var ob = this.get('ordered_buttons');
+    if(!appState || !board || !ob || !ob.length) { return; }
+    var cap = !!appState.get('shift');
+    var history = this.get('stashes.working_vocalization') || [];
+    var contextualized = board.contextualized_buttons(
+      appState.get('label_locale'),
+      appState.get('vocalization_locale'),
+      history,
+      false,
+      appState.get('inflection_shift')
+    );
+    var labelMap = {};
+    (contextualized || []).forEach(function(button) {
+      if((button.vocalization || '').match(/^:/)) { return; }
+      var base = button.original_label || button.label;
+      var str = base;
+      if(button.tweaked) {
+        var revert = (history.length === 0 && !appState.get('inflection_shift'));
+        str = revert ? base : button.label;
+      }
+      labelMap[String(button.id)] = cap ? utterance.capitalize(str) : str;
+    });
+    var changed = false;
+    var newOb = ob.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || btn.id == null || btn.empty) { return btn; }
+        var next = labelMap[String(btn.id)];
+        if(next == null || btn.label === next) { return btn; }
+        changed = true;
+        return Object.assign({}, btn, { label: next });
+      });
+    });
+    if(changed) {
+      this.set('ordered_buttons', newOb);
+    }
+  },
+
+  _shift_label_observer: observer(
+    'app_state.shift',
+    'ordered_buttons',
+    function() {
+      this._apply_shift_to_ordered_buttons();
+    }
+  ),
+
   /**
    * Warm the browser cache for every image URL referenced by
    * `ordered_buttons`. Fire-and-forget — does NOT block rendering and
@@ -1110,43 +1255,55 @@ export default Controller.extend(prefClasses, {
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
 
-      // Local n-gram lookup, text-only. We deliberately do NOT pass
-      // `button_sets` or `board_ids` — image matching from the user's
-      // vocabulary tree was disabled. Predictions render as text-only
-      // tiles in the sentence bar; the costly per-tap fix_image /
-      // persistence.find_url chain is gone.
       var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
       if(word_suggestions && word_suggestions.lookup) {
-        word_suggestions.lookup({
-          last_finished_word: last_finished_word,
-          word_in_progress: word_in_progress
-        }).then(function(result) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          if(result && result.length > 0) {
-            _this.set('suggestions', { ready: true, list: result });
-          } else {
-            // Fallback to AI predictor if n-gram data has no match
-            var sentence = button_list.map(function(b) {
-              return b.label || b.vocalization || '';
-            }).join(' ').trim();
-            if(sentence) {
-              _this.set('suggestions', { loading: true });
-              aiPredictor.predict(sentence, {
-                locale: _this.get('app_state.label_locale') || 'en'
-              }).then(function(words) {
+        var lookup_ids = word_suggestions.lookup_board_ids(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]);
+        word_suggestions.load_vocabulary_button_sets(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]).then(function(warmed_sets) {
+          word_suggestions.lookup({
+            last_finished_word: last_finished_word,
+            word_in_progress: word_in_progress,
+            board_ids: lookup_ids,
+            button_sets: warmed_sets
+          }).then(function(result) {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            (result || []).forEach(function(word) {
+              word.image_update = function() {
                 if(_this.isDestroyed || _this.isDestroying) { return; }
-                var list = words.map(function(w) { return { word: w }; });
-                _this.set('suggestions', { ready: true, list: list });
-              }, function() {
-                if(_this.isDestroyed || _this.isDestroying) { return; }
-                _this.set('suggestions', { ready: true, list: [] });
-              });
+                var current = _this.get('suggestions');
+                if(current && current.list) {
+                  _this.set('suggestions', { ready: true, list: current.list.slice() });
+                }
+                if(typeof _this.sync_sentence_from_button_list === 'function') {
+                  _this.sync_sentence_from_button_list();
+                }
+              };
+            });
+            if(result && result.length > 0) {
+              _this.set('suggestions', { ready: true, list: result });
+            } else {
+              // Fallback to AI predictor if n-gram data has no match
+              var sentence = button_list.map(function(b) {
+                return b.label || b.vocalization || '';
+              }).join(' ').trim();
+              if(sentence) {
+                _this.set('suggestions', { loading: true });
+                aiPredictor.predict(sentence, {
+                  locale: _this.get('app_state.label_locale') || 'en'
+                }).then(function(words) {
+                  if(_this.isDestroyed || _this.isDestroying) { return; }
+                  var list = words.map(function(w) { return { word: w }; });
+                  _this.set('suggestions', { ready: true, list: list });
+                }, function() {
+                  if(_this.isDestroyed || _this.isDestroying) { return; }
+                  _this.set('suggestions', { ready: true, list: [] });
+                });
+              }
             }
-          }
-        }, function() {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          _this.set('suggestions', { ready: true, list: [] });
-        });
+          }, function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this.set('suggestions', { ready: true, list: [] });
+          });
+        }, function() { });
       }
     }
   ),
@@ -4671,6 +4828,7 @@ export default Controller.extend(prefClasses, {
       // subsequent activation that grows it would re-sync the stale
       // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
+      this._sentence_image_lookups = {};
       try { utterance.clear(); } catch(e) { }
     },
 
@@ -4692,21 +4850,26 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       if(!word) { return; }
       var text = word.word;
+      var button = editManager.fake_button();
+      button.set('label', text);
+      button.set('vocalization', ':complete');
+      var list = this.get('app_state.button_list') || [];
+      if(!emberGet(list[0] || {}, 'in_progress')) {
+        button.set('vocalization', ':predict');
+      }
+      button.set('completion', text);
+      var word_image = wordSuggestionsModule.resolve_word_image(word);
+      if(word_image) {
+        button.set('image', LingoLinq.store.createRecord('image'));
+        button.set('image.url', word_image);
+      }
+      button.set('empty', false);
 
-      // Add to the global utterance so sentence bar + logging stay in sync
-      utterance.add_button({
-        label: text,
-        vocalization: text,
-        image: word.image || word.original_image,
-        button_id: null,
-        source: 'prediction',
-        board: { id: 'word_prediction', key: 'core/word_prediction' },
-        type: 'speak'
-      });
-      speecher.speak_text(text);
-
-      // The updateSuggestions observer will fire when button_list
-      // updates from add_button above, handling the next prediction.
+      var board = this.get('model');
+      var app = this.get('app_state.controller');
+      if(app && app.activateButton && board) {
+        app.activateButton(button, { board: board, trigger_source: 'completion' });
+      }
     },
 
     speak_sentence: function() {
