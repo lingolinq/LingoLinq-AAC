@@ -1,4 +1,4 @@
-class Utterance < ActiveRecord::Base
+class Utterance < ApplicationRecord
   include GlobalId
   include Processable
   include Permissions

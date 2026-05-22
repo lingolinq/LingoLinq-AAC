@@ -1,4 +1,4 @@
-class UserBadge < ActiveRecord::Base
+class UserBadge < ApplicationRecord
   include Permissions
   include Processable
   include Async

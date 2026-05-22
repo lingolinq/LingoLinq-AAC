@@ -1,4 +1,4 @@
-class ButtonImage < ActiveRecord::Base
+class ButtonImage < ApplicationRecord
   include Processable
   include Permissions
   include Uploadable

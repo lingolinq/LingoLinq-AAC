@@ -4,7 +4,7 @@ require 'ipaddr'
 # https://developers.google.com/places/documentation/search
 # https://developers.google.com/maps/documentation/geocoding/#ReverseGeocoding
 
-class ClusterLocation < ActiveRecord::Base
+class ClusterLocation < ApplicationRecord
   include GlobalId
   include Permissions
   include Async

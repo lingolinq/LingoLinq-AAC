@@ -1,4 +1,4 @@
-class ContactMessage < ActiveRecord::Base
+class ContactMessage < ApplicationRecord
   include GlobalId
   include Processable
   include SecureSerialize

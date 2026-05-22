@@ -1,4 +1,4 @@
-class TelemetryEvent < ActiveRecord::Base
+class TelemetryEvent < ApplicationRecord
   include SecureSerialize
 
   secure_serialize :data
