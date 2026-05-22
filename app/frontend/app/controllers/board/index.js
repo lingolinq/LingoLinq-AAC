@@ -6,6 +6,7 @@ import word_suggestions from '../../utils/word_suggestions';
 import editManager, { fastHtmlHasRenderableContent } from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { buttonSpacingHalfPx, buttonBorderPx } from '../../utils/display_prefs';
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
@@ -529,14 +530,18 @@ export default Controller.extend(prefClasses, {
     // isn't found.
     var outerHeader = innerHeader.closest('header') || innerHeader;
     var measuredHeader = Math.round(outerHeader.getBoundingClientRect().height) || actualHeight;
-    // The measured header includes the speak-bar card's 8px bottom
-    // padding — visual breathing room INSIDE the bar, not part of the
-    // footprint the grid must clear. Reserving it leaves a ~8px hairline
-    // of (now slate, bg-matched) header below the card before the grid.
-    // Subtract it at this single source so the CSS #content padding and
-    // the JS board height stay locked to the same value. Clamp >= 0.
-    var SPEAK_BAR_BOTTOM_PADDING = 8;
-    var headerHeight = Math.max(0, measuredHeader - SPEAK_BAR_BOTTOM_PADDING);
+    // Previously this subtracted an 8px "SPEAK_BAR_BOTTOM_PADDING"
+    // from the measured header on the theory that the 8px padding
+    // BELOW the speak-bar card was decorative and could be left
+    // unreserved by #content (the header bg would peek through as a
+    // thin slate hairline). In practice the outer header bg is now
+    // charcoal-blue (board-alt-specific rule, app.scss ~line 1628),
+    // so that 8px reads as a dark band sitting ON TOP of the first
+    // 8px of the button grid — user-reported as the speak bar
+    // "overlapping the top row." Reserving the FULL measured header
+    // height lines the grid up flush with the bottom of the header
+    // and pushes the buttons cleanly below it.
+    var headerHeight = Math.max(0, measuredHeader);
     var prevExtra = this.appState.get('extra_header_height') || 0;
     var prevHeaderHeight = this.appState.get('speak_header_height') || 0;
     if (prevExtra === extra && prevHeaderHeight === headerHeight) { return; }
@@ -991,22 +996,15 @@ export default Controller.extend(prefClasses, {
     'appState.currentUser.preferences.device.button_spacing',
     'appState.window_inner_width',
     function() {
+      // Board-alt grid gap. Reads from the canonical display-prefs
+      // map in utils/display_prefs.js so the SAME user preference
+      // produces the SAME visual gap on both board-alt and board-
+      // detail. `buttonSpacingHalfPx` returns half the canonical px
+      // because each button on board-alt has `extra_pad` of empty
+      // space on every side (position math at ~line 700) — adjacent
+      // buttons add up to 2 * extra_pad of rendered gap.
       var spacing = this.appState.get('currentUser.preferences.device.button_spacing') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_spacing);
-      if(spacing == 'none') {
-        return 0;
-      } else if(spacing == 'minimal' || this.appState.get('window_inner_width') < 600) {
-        return 1;
-      } else if(spacing == "extra-small" || this.appState.get('window_inner_width') < 750) {
-        return 2;
-      } else if(spacing == "medium") {
-        return 10;
-      } else if(spacing == "large") {
-        return 20;
-      } else if(spacing == "huge") {
-        return 45;
-      } else {
-        return 4;
-      }
+      return buttonSpacingHalfPx(spacing);
     }
   ),
   inner_pad: computed(

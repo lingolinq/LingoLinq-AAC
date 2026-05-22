@@ -2,11 +2,12 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 
 /**
- * Three-option confirmation when leaving the board edit page via the
- * panel's "Back to Boards" action. Returns one of:
- *   'save'    — save changes, then exit to /:user/boards
- *   'discard' — roll back changes, then exit to /:user/boards
- *   undefined — close (modal dismissed via Keep Editing or X)
+ * Save-or-keep-editing confirmation when leaving the board edit page
+ * via "Save and Exit". Returns one of:
+ *   'save'    — save changes, then exit
+ *   undefined — close (keep editing; modal dismissed via X)
+ * Discard was removed here: discarding lives in ONE place only, the
+ * "Discard Edits" tile (-> confirm-discard-changes).
  */
 export default Component.extend({
   modal: service('modal'),
@@ -30,9 +31,6 @@ export default Component.extend({
     closing() {},
     save() {
       this.get('modal').close('save');
-    },
-    discard() {
-      this.get('modal').close('discard');
     }
   }
 });

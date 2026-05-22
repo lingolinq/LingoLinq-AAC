@@ -422,8 +422,7 @@ export default Controller.extend({
     {name: i18n.t('next', "Next"), id: "next"}
   ],
   vocalizationHeightList: [
-    {name: i18n.t('tiny_50', "Tiny (50px)"), id: "tiny"},
-    {name: i18n.t('small_70', "Small (70px)"), id: "small"},
+    {name: i18n.t('small_90', "Small (90px)"), id: "small"},
     {name: i18n.t('medium_100', "Medium (100px)"), id: "medium"},
     {name: i18n.t('large_150', "Large (150px)"), id: "large"},
     {name: i18n.t('huge_200', "Huge (200px)"), id: "huge"}

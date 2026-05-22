@@ -6,11 +6,34 @@
       <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
       <LinkTo @route="user.extras" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
     </nav>
+{{!-- Full-viewport loading overlay (matches the login/boot overlay):
+     blocks the whole page until my_boards has resolved so users see
+     a single "ready" reveal instead of partial chips popping in as
+     data trickles in. Lives OUTSIDE the page wrapper + uses the
+     global `.ll-loading-overlay` z-index (10050) so it sits above
+     navbars and everything else. --}}
+{{#unless this.model.my_boards.done}}
+  <div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-loading-overlay__card">
+      <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
+      <p class="ll-loading-overlay__message">{{t "Loading boards..." key="loading_boards"}}</p>
+    </div>
+  </div>
+{{/unless}}
+
 <div class="ub-boards-page ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
     <div class="la-hero-title-wrap">
-      <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
+      {{!-- "Let's Communicate" — the per-letter typewriter animation
+           on "Communicate" only starts when the letters first mount
+           in the DOM. If we render them while the loading overlay is
+           up, the animation plays unseen and the user misses it.
+           Gating on `my_boards.done` defers the mount until the
+           overlay drops, so the user sees the animation play fresh. --}}
+      {{#if this.model.my_boards.done}}
+        <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
+      {{/if}}
     </div>
     <p class="la-pricing-hero-subtitle">{{t "Browse, manage, and open your boards — or create" key="ub_boards_subtitle_pre"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{action "newBoard"}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>
@@ -64,43 +87,100 @@
     </section>
   </div>
 
-  {{!-- Stats row --}}
+  {{!-- Board Stats accordion. Collapsed by default; clicking the
+       header toggles `board_stats_expanded` on user/index controller
+       which conditionally renders the original stats-row underneath
+       the accordion header. --}}
   {{#if this.model.permissions.view_detailed}}
-    <div class="ub-boards-page__stats-row">
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Home Board" key="home_board"}}</div>
-        <div class="ub-boards-page__stat-value">
-          {{#if this.model.preferences.home_board.key}}
-            <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="ub-boards-page__stat-link">{{this.model.preferences.home_board.key}}</LinkTo>
-          {{else}}
-            <span class="ub-boards-page__stat-none">{{t "None" key="none_upper"}}</span>
-          {{/if}}
-        </div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
-        <div class="ub-boards-page__stat-value">
+    <div class="ub-boards-page__stats-accordion {{if this.board_stats_expanded 'ub-boards-page__stats-accordion--open'}}">
+      <button type="button"
+        class="ub-boards-page__stats-accordion-toggle"
+        aria-expanded={{if this.board_stats_expanded "true" "false"}}
+        {{action "toggle_board_stats"}}>
+        <span class="ub-boards-page__stats-accordion-label">{{t "Board Stats" key="board_stats"}}</span>
+        {{!-- Inline stat chips so the collapsed header still surfaces
+             the most actionable numbers without the user expanding.
+             Pattern follows Linear/Stripe/GitHub PR summaries — small
+             pills, each a number + short label, separated by chips
+             rather than punctuation. --}}
+        <span class="ub-boards-page__stats-chips" aria-hidden="true">
           {{#if this.model.my_boards.done}}
-            {{t "board" key="n_boards" count=this.model.my_boards.length}}
-          {{else}}
-            <span class="ub-boards-page__stat-loading">—</span>
+            <span class="ub-boards-page__stats-chip">
+              <span class="ub-boards-page__stats-chip-num">{{this.model.my_boards.length}}</span>
+              {{!-- Filled board-grid icon between the count and
+                   label, mirroring how the FAVORITES chip places its
+                   filled heart. --}}
+              <svg class="ub-boards-page__stats-chip-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              <span class="ub-boards-page__stats-chip-label">{{t "BOARDS" key="boards_upper"}}</span>
+            </span>
           {{/if}}
-        </div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Liked Boards" key="starred_boards"}}</div>
-        <div class="ub-boards-page__stat-value">{{t "board" key="n_boards" count=this.model.stats.starred_boards}}</div>
-      </div>
-      <div class="ub-boards-page__stat-card">
-        <div class="ub-boards-page__stat-label">{{t "Status" key="status"}}</div>
-        <div class="ub-boards-page__stat-value">
-          {{#if this.model.public}}
-            <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
-          {{else}}
-            <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
+          {{#if this.model.stats.starred_boards}}
+            <span class="ub-boards-page__stats-chip ub-boards-page__stats-chip--liked">
+              <span class="ub-boards-page__stats-chip-num">{{this.model.stats.starred_boards}}</span>
+              <svg class="ub-boards-page__stats-chip-heart" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+              </svg>
+              <span class="ub-boards-page__stats-chip-label">{{t "FAVORITES" key="favorites_upper"}}</span>
+            </span>
           {{/if}}
+          {{!-- Count of the user's OWNED boards that are public — fed
+               by the public_boards_count computed on user/index. Only
+               render the chip when at least one is public; users with
+               zero public boards don't need a "0 PUBLIC" badge. --}}
+          {{#if this.public_boards_count}}
+            <span class="ub-boards-page__stats-chip ub-boards-page__stats-chip--status ub-boards-page__stats-chip--public">
+              <span class="ub-boards-page__stats-chip-num">{{this.public_boards_count}}</span>
+              {{t "PUBLIC" key="public_upper"}}
+            </span>
+          {{/if}}
+        </span>
+        <svg class="ub-boards-page__stats-accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {{#if this.board_stats_expanded}}
+        <div class="ub-boards-page__stats-row">
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Home Board" key="home_board"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.preferences.home_board.key}}
+                <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="ub-boards-page__stat-link">{{this.model.preferences.home_board.key}}</LinkTo>
+              {{else}}
+                <span class="ub-boards-page__stat-none">{{t "None" key="none_upper"}}</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.my_boards.done}}
+                {{t "board" key="n_boards" count=this.model.my_boards.length}}
+              {{else}}
+                <span class="ub-boards-page__stat-loading">—</span>
+              {{/if}}
+            </div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Liked Boards" key="starred_boards"}}</div>
+            <div class="ub-boards-page__stat-value">{{t "board" key="n_boards" count=this.model.stats.starred_boards}}</div>
+          </div>
+          <div class="ub-boards-page__stat-card">
+            <div class="ub-boards-page__stat-label">{{t "Status" key="status"}}</div>
+            <div class="ub-boards-page__stat-value">
+              {{#if this.model.public}}
+                <span class="ub-boards-page__badge ub-boards-page__badge--public">{{t "public" key="public_lower"}}</span>
+              {{else}}
+                <span class="ub-boards-page__badge ub-boards-page__badge--private">{{t "private" key="private_lower"}}</span>
+              {{/if}}
+            </div>
+          </div>
         </div>
-      </div>
+      {{/if}}
     </div>
   {{/if}}
 

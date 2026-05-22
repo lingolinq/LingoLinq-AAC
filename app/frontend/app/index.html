@@ -159,6 +159,26 @@
     <!-- Ember mounts here. config has rootElement: '#ember-application-root'. App template renders #within_ember > header + #content (main outlet). Do not add wrappers inside this div or change its id, or app styles (#content, #within_ember, etc.) may not apply. -->
     <div id="ember-application-root">{{content-for "body"}}</div>
 
+    <!-- AAC symbol white-matte removal: knocks out near-pure-white pixels
+         (imported PNG mattes) via alpha only — symbol RGB stays intact, unlike
+         mix-blend-mode multiply which tints art with the button color. -->
+
+    <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden">
+      <defs>
+        <filter id="ll-symbol-white-matte" color-interpolation-filters="sRGB">
+          <feColorMatrix in="SourceGraphic" type="matrix" result="matteMask" values="
+            1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            -1 -1 -1 0 3"/>
+          <feComponentTransfer in="matteMask" result="alphaMask">
+            <feFuncA type="linear" slope="8" intercept="-0.96"/>
+          </feComponentTransfer>
+          <feComposite in="SourceGraphic" in2="alphaMask" operator="in"/>
+        </filter>
+      </defs>
+    </svg>
+
     <script src="{{rootURL}}assets/vendor.js"></script>
     <script src="{{rootURL}}assets/frontend.js"></script>
 

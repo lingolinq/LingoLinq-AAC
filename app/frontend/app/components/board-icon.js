@@ -2,6 +2,7 @@ import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
+import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -135,6 +136,26 @@ export default Component.extend({
     } else {
       return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
     }
+  }),
+  /* Translated-language marker for the tile. Returns the readable
+     language name (e.g. "Spanish", "Polish") when the board has been
+     translated to a non-English locale OR has multiple locales
+     available; null otherwise. The board's `locale` field reflects
+     the CURRENT default locale (set when a translation is accepted
+     as default), so a Spanish-translated board has `locale = 'es'`
+     even if the board name itself is still the original English.
+     Multi-locale boards still mark with the current locale so the
+     user can tell at a glance which language they'd be picking. */
+  translated_language_label: computed('board_record.locale', 'board_record.locales.length', function() {
+    var board = this.get('board_record');
+    if (!board || !board.get) { return null; }
+    var locale = board.get('locale');
+    var locales = board.get('locales') || [];
+    var hasMultiple = locales && locales.length > 1;
+    var nonDefault = locale && locale !== 'en' && locale !== 'en-US';
+    if (!hasMultiple && !nonDefault) { return null; }
+    if (!locale) { return null; }
+    return i18n.readable_language(locale);
   }),
   actions: {
     board_preview: function(board) {

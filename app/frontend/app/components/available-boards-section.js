@@ -24,6 +24,11 @@ export default Component.extend({
   confirmingFolderDelete: false,
   deletingFolder: false,
   folderFilterString: '',
+  /* Collapsed by default — the panel can take a lot of vertical space
+     when full of folders, and the boards-page user almost always wants
+     to reach the boards list, not the organizing layer. Click the
+     header to reveal the filter + folder strip. */
+  foldersExpanded: false,
 
   filteredFolderSummaries: computed(
     'boardsCtrl.mineTagFolderSummaries.[]',
@@ -75,6 +80,9 @@ export default Component.extend({
   dragSourceTag: null,
 
   actions: {
+    toggleFoldersExpanded() {
+      this.toggleProperty('foldersExpanded');
+    },
     folderDragOver(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       if (event && event.dataTransfer) {

@@ -53,15 +53,19 @@ export default Route.extend({
   },
   afterModel: function(model) {
     if (model && model.get('user_name') && session.get('access_token')) {
-      var progress = model.get('preferences.progress') || {};
       var home_board_key = model.get('preferences.home_board.key');
-      if (this.appState.get('_index_login_entry') && progress.setup_done && home_board_key && !model.get('supporter_view') && !model.get('eval_ended')) {
-        // Regular user past getting-started, arriving via login/app-boot:
-        // jump straight into speak mode on their home board. Done in
-        // afterModel (not setupController) so the dashboard doesn't flash
-        // first. Gated on `_index_login_entry` so an in-app return here
-        // (Exit Speak Mode) lands on the dashboard instead of bouncing
-        // back into speak mode.
+      // Direct users straight to their home board on login/app-boot —
+      // the `progress.setup_done` gate was tied to the Getting Started
+      // onboarding flow (now disabled / under evaluation for re-add),
+      // and held users on the dashboard until that flow was complete.
+      // With onboarding off, any user who has a home_board_key should
+      // skip the dashboard and land in speak mode on their board.
+      // Other gates kept: `_index_login_entry` so in-app returns to
+      // index (e.g. Exit Speak Mode) don't bounce back into speak,
+      // and supporter_view / eval_ended which need the dashboard.
+      // Users without a home_board_key still fall through to the
+      // dashboard below — there's no board to send them to yet.
+      if (this.appState.get('_index_login_entry') && home_board_key && !model.get('supporter_view') && !model.get('eval_ended')) {
         this.appState.home_in_speak_mode({user: model});
         this.appState.set('already_homed', true);
         return;

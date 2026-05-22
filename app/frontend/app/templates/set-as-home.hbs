@@ -51,9 +51,11 @@
     {{#if this.status.errored}}
       <p class='text-danger'>{{t "Setting home board failed, please try again." key="setting_home_failed"}}</p>
     {{else if this.status.updating}}
-      <p class='text-info'>{{t "Updating user settings..." key="updating_user_settings"}}</p>
+      {{!-- Spinner with the working text so the "saving" state is
+           visually unambiguous, not just italic text. --}}
+      <p class='text-info'><img src={{path "images/spinner.gif"}} style="vertical-align: middle; padding-right: 8px;"> {{t "Updating user settings..." key="updating_user_settings"}}</p>
     {{else if this.status.copying}}
-      <p class='text-info'>{{t "Copying boards..." key="copying_boards"}}</p>
+      <p class='text-info'><img src={{path "images/spinner.gif"}} style="vertical-align: middle; padding-right: 8px;"> {{t "Copying boards, this could take a few minutes..." key="copying_boards_in_progress"}}</p>
     {{/if}}
   </div>
 {{/modal-dialog}}

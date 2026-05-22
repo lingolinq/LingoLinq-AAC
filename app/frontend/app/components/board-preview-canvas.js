@@ -14,15 +14,22 @@ export default Component.extend({
   didInsertElement: function() {
     this.render_canvas();
   },
-  preview_style: computed('size', function() {
+  preview_style: computed('size', 'dark_mode', function() {
+    /* In dark_mode, the canvas wrapper gets a deep-navy fill + matching
+       border so the speak-mode appearance is reproduced inside the
+       modal. Light mode keeps the original light-gray frame. */
+    var dark = this.get('dark_mode');
     if(this.get('size') == 'modal') {
       this.element.style.height = 'calc(70vh - 140px)';
+      if(dark) {
+        return htmlSafe('width: 100%; height: 100%; border: 1px solid rgba(255,255,255,0.10); padding: 2px; border-radius: 8px; background: #0d2438;');
+      }
       return htmlSafe('width: 100%; height: 100%; border: 1px solid #ccc; padding: 2px; border-radius: 5px;');
     } else {
       this.element.style.height = 'calc(100% - 55px)';
       return htmlSafe('width: 100%; height: 100%;');
     }
-  }), 
+  }),
   render_canvas: function() {
     if(this.get('size') == 'modal') {
       this.element.style.height = 'calc(70vh - 140px)';
@@ -37,6 +44,91 @@ export default Component.extend({
     var level = this.get('current_level') || this.get('base_level') || 10;
     var show_links = this.get('show_links');
     var preferred_symbols = this.get('preferred_symbols') || (this.appState && this.appState.get('referenced_user.preferences.preferred_symbols')) || 'original';
+    /* Track image-load completion for the modal overlay. Each per-cell
+       image draw increments `pending`; each onload/onerror decrements
+       it. After the synchronous render loop sets `loop_done = true`,
+       `maybe_emit_canvas_ready` fires `onCanvasReady` as soon as
+       `pending` reaches zero (or immediately if there were no images
+       to load at all). */
+    var pending = 0;
+    var loop_done = false;
+    var emitted = false;
+    var maybe_emit_canvas_ready = function() {
+      if(emitted) { return; }
+      if(!loop_done) { return; }
+      if(pending > 0) { return; }
+      emitted = true;
+      var cb = _this.get('onCanvasReady');
+      if(cb && typeof cb === 'function') { cb(); }
+    };
+    var mark_image_done = function() {
+      if(pending > 0) { pending--; }
+      maybe_emit_canvas_ready();
+    };
+    /* Pick a label color (dark or light) that contrasts with the
+       button's actual fill. Author-set background colors override the
+       dark/light palette default, so a hard-coded label like
+       `palette.label = #f1f4f8` reads as invisible white on a pastel
+       yellow/green/blue. Compute relative luminance from the fill and
+       flip the label to charcoal on light fills, off-white on dark
+       fills. Handles hex (#abc, #aabbcc) and rgb/rgba. */
+    var contrast_label = function(fill, fallback) {
+      if(!fill) { return fallback; }
+      var r, g, b, a = 1;
+      var m = String(fill).trim().match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+      if(m) {
+        r = parseInt(m[1], 10);
+        g = parseInt(m[2], 10);
+        b = parseInt(m[3], 10);
+        if(m[4] != null) { a = parseFloat(m[4]); }
+      } else if(/^#[0-9a-f]{3,8}$/i.test(fill)) {
+        var hex = fill.replace('#', '');
+        if(hex.length === 3) { hex = hex.split('').map(function(c) { return c + c; }).join(''); }
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      } else {
+        return fallback;
+      }
+      /* Translucent fills blend with the canvas background — for the
+         dark-mode background fill at #0d2438 (very dark), a low-alpha
+         author color reads as mostly dark, so the label should stay
+         light. Approximate the blended luminance. */
+      if(a < 1 && dark) {
+        var bgR = 0x0d, bgG = 0x24, bgB = 0x38;
+        r = Math.round(r * a + bgR * (1 - a));
+        g = Math.round(g * a + bgG * (1 - a));
+        b = Math.round(b * a + bgB * (1 - a));
+      }
+      /* Standard relative-luminance approximation (Rec. 601 weights).
+         Threshold 140/255 ≈ 0.55 — comfortable middle-ground for AAC
+         pastel palettes. */
+      var lum = (0.299 * r + 0.587 * g + 0.114 * b);
+      return lum > 140 ? '#1a1a1a' : '#f1f4f8';
+    };
+    /* Dark-mode palette mirrors the speak-mode board-detail surface:
+       deep navy field, lighter-on-navy borders, off-white labels.
+       When dark_mode is false the original light palette is used. */
+    var dark = this.get('dark_mode');
+    var palette = dark ? {
+      bg: '#0d2438',
+      hidden_stroke: 'rgba(255,255,255,0.18)',
+      hidden_fill: 'rgba(255,255,255,0.05)',
+      stroke: 'rgba(255,255,255,0.35)',
+      fill: 'rgba(255,255,255,0.10)',
+      link_fallback_stroke: 'rgba(255,255,255,0.45)',
+      link_fallback_fill: 'rgba(20,40,68,0.85)',
+      label: '#f1f4f8'
+    } : {
+      bg: null,
+      hidden_stroke: '#ddd',
+      hidden_fill: '#fff',
+      stroke: '#aaa',
+      fill: '#eee',
+      link_fallback_stroke: '#CCC',
+      link_fallback_fill: '#FFF',
+      label: '#000'
+    };
 
     if(board && this.get('board.id')) {
       var canvas = this.element.getElementsByTagName('canvas')[0];
@@ -52,6 +144,13 @@ export default Component.extend({
 
         context.save();
         context.clearRect(0, 0, width, height);
+        /* Paint the dark-mode background fill across the whole canvas
+           before drawing any buttons so the inter-button gutters read
+           as the speak-mode dark surface. */
+        if(dark) {
+          context.fillStyle = palette.bg;
+          context.fillRect(0, 0, width, height);
+        }
 
         var rows = board.get('grid.rows');
         var columns = board.get('grid.columns');
@@ -111,15 +210,19 @@ export default Component.extend({
                 var draw_button = function(button, x, y, fill) {
                   context.beginPath();
                   if(button.hidden) {
-                    context.strokeStyle = "#ddd";
-                    context.fillStyle = "#fff";
+                    context.strokeStyle = palette.hidden_stroke;
+                    context.fillStyle = palette.hidden_fill;
                     context.lineWidth = border_size / 2;
                   } else {
-                    context.strokeStyle = "#aaa";
-                    context.fillStyle = "#eee";
+                    context.strokeStyle = palette.stroke;
+                    context.fillStyle = palette.fill;
                     if(show_links) {
-                      context.strokeStyle = button.border_color || '#CCC';
-                      context.fillStyle = button.background_color || '#FFF';
+                      /* Author-set colors WIN over the palette so
+                         buttons that the board owner explicitly
+                         colored keep their hue. Only buttons WITHOUT
+                         explicit colors take the palette default. */
+                      context.strokeStyle = button.border_color || palette.link_fallback_stroke;
+                      context.fillStyle = button.background_color || palette.link_fallback_fill;
                     }
                     context.lineWidth = border_size;
                   }
@@ -151,7 +254,16 @@ export default Component.extend({
                       }
                     }
                     if(button.label) {
-                      context.fillStyle = '#000';
+                      /* Per-button label color — picks dark text on a
+                         light fill and light text on a dark fill.
+                         Critical for AAC boards whose author colors
+                         (Fitzgerald / Goossens palette) are pastel
+                         yellow/green/blue/pink; the dark-mode default
+                         `palette.label` would otherwise paint
+                         off-white text on those pastels and read as
+                         invisible. */
+                      var fill_for_label = button.background_color || (show_links ? palette.link_fallback_fill : palette.fill);
+                      context.fillStyle = contrast_label(fill_for_label, palette.label);
                       context.fillText(button.label, x + (button_width / 2), y + pad + (text_height * 0.85));
                     }
                   }
@@ -162,13 +274,25 @@ export default Component.extend({
                 if(show_links && !button.hidden && button.image_id && board.get('image_urls') && board.get('image_urls')[button.image_id]) {
                   var orig_url = variant_urls[button.image_id];
                   var url = variant_urls[button.image_id + "-" + preferred_symbols] || orig_url;
+                  /* Each cell with an image counts toward the overlay's
+                     "all images settled" check. `cell_finish` is called
+                     exactly once per cell — on onload, onerror, or any
+                     early-exit path — so the pending counter always
+                     reaches zero. */
+                  pending++;
                   (function(button, x, y, url, persistenceService, component) {
+                    var cell_done = false;
+                    var cell_finish = function() {
+                      if(cell_done) { return; }
+                      cell_done = true;
+                      mark_image_done();
+                    };
                     var draw = function(url) {
-                      if (component.isDestroyed || component.isDestroying) { return; }
+                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                       var img = new Image();
                       var button_ratio = image_width / image_height;
                       img.onload = function() {
-                        if (component.isDestroyed || component.isDestroying) { return; }
+                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                         var image_ratio = img.width / img.height;
                         var width = image_width;
                         var height = image_height;
@@ -186,19 +310,21 @@ export default Component.extend({
                           width -= diff;
                         }
                         context.drawImage(img, image_x, image_y, width, height);
+                        cell_finish();
                       };
+                      img.onerror = cell_finish;
                       img.src = url;
                     };
                     persistenceService.find_url(url).then(function(uri) {
-                      if (component.isDestroyed || component.isDestroying) { return; }
+                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                       draw(uri);
                     }, function() {
-                      if (component.isDestroyed || component.isDestroying) { return; }
+                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                       persistenceService.find_url(orig_url).then(function(found_url) {
-                        if (component.isDestroyed || component.isDestroying) { return; }
+                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                         draw(found_url);
                       }, function() {
-                        if (component.isDestroyed || component.isDestroying) { return; }
+                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
                         draw(url);
                       });
                     });
@@ -213,6 +339,29 @@ export default Component.extend({
             handle_button(button_id);
           }
         }
+        /* Loop finished synchronously — flip the gate and try to emit.
+           Only reached when we actually drew (board.id present). The
+           initial render (model loading, no id) skips this and waits
+           for the `update_board` observer to re-fire render_canvas
+           once the real board record is available. If no images were
+           queued (text-only board, persistence offline) we emit
+           immediately; otherwise the per-cell `cell_finish` calls
+           drive the counter down and emit on the last one. */
+        loop_done = true;
+        maybe_emit_canvas_ready();
+        /* Safety net: if a `find_url` promise never settles (network
+           hang, persistence wedged), guarantee the overlay still
+           hides after a bounded wait. 8s is long enough for normal
+           cached loads to win and short enough that a stuck modal
+           isn't silently broken. */
+        runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          if (!emitted) {
+            emitted = true;
+            var cb = _this.get('onCanvasReady');
+            if(cb && typeof cb === 'function') { cb(); }
+          }
+        }, 8000);
       }
     }
   },

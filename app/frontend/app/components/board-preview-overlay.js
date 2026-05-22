@@ -19,6 +19,11 @@ export default Component.extend({
   model_style: null,
   style_needed: false,
   style_boards: null,
+  /* Combined loading state surfaced by the inner {{board-preview}}
+     component via onLoadingChange. Stays true until the board record
+     resolves AND every canvas button-image promise has settled. The
+     header pill and the full-body overlay both gate on this flag. */
+  preview_loading: true,
 
   init() {
     this._super(...arguments);
@@ -33,6 +38,11 @@ export default Component.extend({
     var board = preview.board;
     this.set('model_key', board.get ? board.get('key') : board.key);
     this.set('model_style', null);
+    /* Re-show the loading affordance whenever a new board is wired up
+       (e.g. switching between style variants in-modal) so the user
+       sees the spinner for the new fetch, not the previous board's
+       fully-loaded state. */
+    this.set('preview_loading', true);
     var styleOpts = board.get ? board.get('style.options') : board.style && board.style.options;
     this.set('style_needed', !!(preview.allowStyle && styleOpts && styleOpts.length));
     this.set('style_boards', this._buildStyleBoards(preview, board));
@@ -81,6 +91,13 @@ export default Component.extend({
   }),
 
   actions: {
+    /* Receives the combined loading flag (model + canvas images) from
+       the {{board-preview}} child. Same wiring as the controller-
+       rendered board-preview.hbs path. */
+    set_preview_loading(value) {
+      if(this.isDestroyed || this.isDestroying) { return; }
+      this.set('preview_loading', !!value);
+    },
     close() {
       this.set('model_style', null);
       this.get('modal').close(null, 'board-preview');
@@ -88,6 +105,9 @@ export default Component.extend({
     preview(key) {
       this.set('model_style', true);
       this.set('model_key', key);
+      /* Switching to a different style variant — show the spinner
+         until the new board's images settle. */
+      this.set('preview_loading', true);
     },
     select() {
       var opt = this.get('model_key');

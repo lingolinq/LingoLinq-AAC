@@ -26,68 +26,133 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
-    this.set('saving_translations', null);
-    this.set('error_saving_translations', null);
-    var buttonSet = this.get('model.button_set');
-    if (persistence.get('online') && buttonSet && typeof buttonSet.reload === 'function') {
-      buttonSet.reload();
-    }
-    this.set('translating', null);
+    var _this = this;
+    _this.set('saving_translations', null);
+    _this.set('error_saving_translations', null);
+    _this.set('translating', null);
 
-    if (this.get('model.locale') && this.get('model.button_set')) {
-      var _this = this;
+    /* Ensure button_set.buttons is fresh from the server before we
+       partition the list. Two prior issues:
+        1. The previous `buttonSet.reload()` only refetched the Ember
+           Data record's METADATA (root_url, full_set_revision, …) —
+           it did NOT refetch the buttons array, which is stored in
+           S3 and fetched separately via `load_buttons(true)`.
+        2. Even that wrong call was fire-and-forget, so the partition
+           below ran against whatever was in memory regardless.
+       The visible symptom was an empty Re-Translate modal: the
+       client still had a button_set generated BEFORE the first
+       translation, with every button tagged `locale: 'en'`. The
+       old `b.locale !== model.locale` filter then excluded every
+       button when the user re-translated back to English. We now
+       drop that filter entirely (over-optimization — auto-
+       translating an already-target-locale button is harmless) AND
+       force-fresh the buttons via load_buttons so any subsequent
+       use of button_set.buttons sees current data. */
+    var buttonSet = _this.get('model.button_set');
+    var prepButtons = function() {
+      if (persistence.get('online') && buttonSet && typeof buttonSet.load_buttons === 'function') {
+        return buttonSet.load_buttons(true).then(function() {}, function() {});
+      }
+      return RSVP.resolve();
+    };
+
+    if (_this.get('model.locale') && _this.get('model.button_set')) {
       _this.set('translating', { loading: true });
-
-      var lists = [];
-      var list = [];
-      list.push({ label: this.get('model.board.name') });
-      (this.get('model.button_set.buttons') || []).forEach(function(b) {
-        if (b.locale !== _this.get('model.locale')) {
-          list.push(b);
-        }
-        if (list.length >= 100) {
-          lists.push(list);
-          list = [];
-        }
+      prepButtons().then(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._startTranslating();
       });
-      _this.set('translations', {});
-      if (list.length > 0) { lists.push(list); }
+    }
+  },
 
-      var promises = [];
-      lists.forEach(function(buttons, idx) {
-        var words = [];
-        buttons.forEach(function(b) {
-          if (b.label) { words.push(b.label); }
-          if (b.vocalization && b.vocalization !== b.label) { words.push(b.vocalization); }
-        });
-        promises.push(new RSVP.Promise(function(res, rej) {
-          runLater(function() {
-            persistence.ajax('/api/v1/users/self/translate', {
-              type: 'POST',
-              data: {
-                words: words,
-                destination_lang: _this.get('model.locale'),
-                source_lang: _this.get('model.board.locale') || 'en'
-              }
-            }).then(function(data) {
-              var trans = _this.get('translations');
-              for (var key in data.translations) {
+  _startTranslating() {
+    var _this = this;
+    var dest_lang = _this.get('model.locale');
+    var board_locale = _this.get('model.board.locale') || 'en';
+
+    /* Group buttons by their OWN locale so each translate batch uses
+       the actual source language. Buttons in a button_set can have
+       mixed locales — e.g. a Spanish parent board linking to English
+       children whose buttons were never translated. Sending all words
+       with a single source_lang (the parent's locale) meant the
+       translate API couldn't reliably translate buttons from other
+       locales, so the right-side fields stayed empty. The board
+       name uses the board's locale. */
+    var by_locale = {};
+    var push_word = function(locale, word) {
+      if (!word) { return; }
+      locale = locale || board_locale;
+      by_locale[locale] = by_locale[locale] || [];
+      if (by_locale[locale].indexOf(word) === -1) {
+        by_locale[locale].push(word);
+      }
+    };
+
+    push_word(board_locale, _this.get('model.board.name'));
+    (_this.get('model.button_set.buttons') || []).forEach(function(b) {
+      var loc = b.locale || board_locale;
+      if (b.label) { push_word(loc, b.label); }
+      if (b.vocalization && b.vocalization !== b.label) { push_word(loc, b.vocalization); }
+    });
+
+    /* Chunk each locale's words into batches of <= 100 so big board
+       sets still respect the translate endpoint's batch ceiling. */
+    var batches = [];
+    Object.keys(by_locale).forEach(function(src_lang) {
+      var words = by_locale[src_lang];
+      for (var i = 0; i < words.length; i += 100) {
+        batches.push({ src: src_lang, words: words.slice(i, i + 100) });
+      }
+    });
+
+    _this.set('translations', {});
+
+    if (batches.length === 0) {
+      _this.set('translating', { done: true });
+      return;
+    }
+
+    var promises = batches.map(function(batch, idx) {
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) { resolve(); return; }
+          persistence.ajax('/api/v1/users/self/translate', {
+            type: 'POST',
+            data: {
+              words: batch.words,
+              destination_lang: dest_lang,
+              source_lang: batch.src
+            }
+          }).then(function(data) {
+            if (_this.isDestroyed || _this.isDestroying) { resolve(); return; }
+            var trans = _this.get('translations');
+            for (var key in (data && data.translations) || {}) {
+              /* Only accept translations that actually differ from
+                 the source word — Google sometimes echoes the input
+                 unchanged when source_lang doesn't match the actual
+                 word language, and an echo-translation in the input
+                 would mislead the user into thinking it was
+                 reviewed. */
+              if (data.translations[key] && data.translations[key] !== key) {
                 trans[key] = data.translations[key];
               }
-              _this.set('translation_index', (_this.get('translation_index') || 0) + 1);
-              res(data);
-            }, function(err) {
-              rej(err);
-            });
-          }, idx * 1000);
-        }));
+            }
+            _this.set('translation_index', (_this.get('translation_index') || 0) + 1);
+            resolve(data);
+          }, function(err) {
+            reject(err);
+          });
+        }, idx * 1000);
       });
-      RSVP.all_wait(promises).then(function() {
-        _this.set('translating', { done: true });
-      }, function() {
-        _this.set('translating', { error: true });
-      });
-    }
+    });
+
+    RSVP.all_wait(promises).then(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('translating', { done: true });
+    }, function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('translating', { error: true });
+    });
   },
 
   destination_language: computed('model.locale', function() {
@@ -119,14 +184,17 @@ export default Component.extend({
         });
       }
       var res = [];
-      var locale = this.get('model.locale');
       var board_ids = this.get('model.old_board_ids_to_translate');
       var translations = this.get('translations') || {};
       var original_board_id = this.get('model.board.global_id') || this.get('model.board.id');
       var translating = !!(this.get('translating'));
       words.forEach(function(b, idx) {
         if (translating) {
-          if (locale && b.locale && b.locale === locale) { return; }
+          /* No more `b.locale === model.locale` skip — see the matching
+             comment in didInsertElement. Buttons whose locale field is
+             stale (still tagged with the original locale after a
+             translation round-trip) need to render in the editor so
+             the user can review/overwrite them. */
           if (board_ids && board_ids.indexOf(b.board_id) === -1) { return; }
           if (!board_ids && b.board_id !== original_board_id) { return; }
         }

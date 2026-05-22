@@ -183,18 +183,24 @@ header.new_index {
         }
         .badge_earned {
           img {
-            height: 40px; 
-            width: 40px; 
+            height: 40px;
+            width: 40px;
           }
         }
       }
     }
     &.tiny {
-      height: 50px;
+      // `tiny` was removed from the user-facing dropdown — see
+      // utils/display_prefs.js. Legacy users with `vocalization_
+      // height: 'tiny'` still produce this class via the legacy
+      // resolver, but render at 90px (the new "small" minimum) so
+      // their bar still meets WCAG AAA touch-target floor for the
+      // stacked Options + Sidebar toggles.
+      height: 90px;
       + #content {
-        margin-top: 50px;
+        margin-top: 90px;
         + #sidebar, + #sidebar_tease {
-          margin-top: 50px;
+          margin-top: 90px;
         }
       }
       #reply_icon {

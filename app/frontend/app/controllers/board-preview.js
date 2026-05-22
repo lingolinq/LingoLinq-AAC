@@ -5,6 +5,19 @@ import EmberObject from '@ember/object';
 import app_state from '../utils/app_state';
 
 export default Controller.extend({
+  /* Header loading indicator state — defaults true (showing spinner)
+     while the inner board-preview component fetches the board and
+     paints its canvas. The component fires `onLoadingChange(false)`
+     once the board record resolves; the modal hides the indicator. */
+  preview_loading: true,
+  reset_preview_loading: observer('model_key', function() {
+    /* Reset to loading whenever the modal opens with a new key, so
+       reusing the same modal for a different board correctly
+       re-shows the indicator. */
+    if(this.get('model_key')) {
+      this.set('preview_loading', true);
+    }
+  }),
   update_style_needed: observer('model.board.key', 'model.allow_style', 'model.board.style.options', function() {
     if(this.get('model.board.key')) {
       if(this.get('model.board.key') != this.get('model_key')) {
@@ -71,6 +84,9 @@ export default Controller.extend({
     }
   }),
   actions: {
+    set_preview_loading: function(value) {
+      this.set('preview_loading', !!value);
+    },
     close: function() {
       this.set('model_style', null);
       modal.close_board_preview();

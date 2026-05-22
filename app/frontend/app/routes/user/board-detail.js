@@ -65,16 +65,24 @@ export default Route.extend({
   // Build the symbol grid, warm current-board images, prefetch linked boards.
   _finalize_board_display: function(controller, raw) {
     if(!raw || !controller || controller.isDestroyed || controller.isDestroying) { return; }
+    if(raw.images && raw.images.length) {
+      controller._board_detail_images = raw.images;
+    }
     controller._build_from_raw(raw);
     if(controller.get('edit_mode')) { return; }
-    // Warm browser HTTP cache for this board's symbols (children are warmed by prefetch_linked).
+    var warm_opts = {
+      skin: controller.get('app_state.referenced_user.preferences.skin'),
+      preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
+    };
+    // Current board first, then batched image warm for every cached child
+    // (folder / load_board targets), then fetch JSON for any missing children.
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
-      boardDetailCache.warm_images(raw);
+      boardDetailCache.warm_images(raw, warm_opts);
     }, 100);
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
-      boardDetailCache.prefetch_linked(raw);
+      boardDetailCache.prefetch_linked(raw, warm_opts);
     }, 500);
   },
 
@@ -135,22 +143,21 @@ export default Route.extend({
       var handleRoot = function(boardData) {
         var raw_copy = JSON.parse(JSON.stringify(boardData));
         _this.set('_raw_board_data', raw_copy);
-        boardDetailCache.set(JSON.parse(JSON.stringify(boardData)));
+        // force: network response is authoritative for this navigation.
+        boardDetailCache.set(raw_copy, { force: true });
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
-        // Warm current board's images in the background (no await).
-        if (boardDetailCache.warm_images) {
-          try { boardDetailCache.warm_images(raw_copy); } catch (e) { /* ignore */ }
-        }
+        // Image warm runs in _finalize_board_display for the visible board.
         // Resolve immediately — grid renders now, no overlay.
         resolve(record);
       };
 
       var fallbackSingleBoard = function() {
         persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-          if(data && data.board) {
-            handleRoot(data.board);
+          var boardData = boardDetailCache.normalize_board_payload(data);
+          if(boardData) {
+            handleRoot(boardData);
           } else {
             resolve({ error: true, boardname: params.boardname });
           }
@@ -164,9 +171,11 @@ export default Route.extend({
           fallbackSingleBoard();
           return;
         }
-        var rootBoardData = data.root.board;
-        if (data.root.images) { rootBoardData.images = data.root.images; }
-        if (data.root.sounds) { rootBoardData.sounds = data.root.sounds; }
+        var rootBoardData = boardDetailCache.normalize_board_payload(data.root);
+        if (!rootBoardData) {
+          fallbackSingleBoard();
+          return;
+        }
         // Resolve the route with the root FIRST so the user sees the
         // board immediately — descendant caching happens after.
         handleRoot(rootBoardData);
@@ -176,19 +185,17 @@ export default Route.extend({
         // (boardDetailCache.get → raw AND store.peekAll → record).
         // This is the work that makes folder taps instant.
         var subStore = _this.store;
+        // JSON + Ember Data only — do not warm descendant images here.
+        // Warming every sub-board floods the browser queue (same rationale
+        // as prefetch_for_user). Images load when the user opens that board.
         (data.descendants || []).forEach(function(wrapped) {
-          var sub_raw = wrapped && wrapped.board;
+          var sub_raw = boardDetailCache.normalize_board_payload(wrapped);
           if (!sub_raw) { return; }
-          if (wrapped.images) { sub_raw.images = wrapped.images; }
-          if (wrapped.sounds) { sub_raw.sounds = wrapped.sounds; }
           boardDetailCache.set(sub_raw);
           try {
             var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
             subStore.push(sub_normalized);
           } catch (e) { /* serializer edge cases shouldn't block prefetch */ }
-          if (boardDetailCache.warm_images) {
-            try { boardDetailCache.warm_images(sub_raw); } catch(e) { /* ignore */ }
-          }
         });
       }, function() {
         fallbackSingleBoard();
@@ -198,6 +205,13 @@ export default Route.extend({
 
   setupController: function(controller, model) {
     var _this = this;
+    /* Hide any pending board-loading overlay set by callers that
+       fired show_loading_overlay before this transition (the My
+       Boards picker, the boards-page tile click, etc.). The
+       overlay's LOADING_OVERLAY_MIN_MS still enforces a minimum
+       visible duration so a fast cache-hit transition doesn't
+       flash-and-disappear. */
+    this.appState.hide_loading_overlay();
     var user = this.modelFor('user');
 
     // Reset the exit-in-progress flag each time the route is set up, so that
@@ -251,9 +265,24 @@ export default Route.extend({
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
-    controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
+    // Folder colored face defaults to ON for every user. Only the
+    // explicit saved value of `false` turns it off; an undefined /
+    // unset preference (new users, existing users who never touched
+    // the toggle) inherits the colored look.
+    var folder_colored_face_saved = user && user.get && user.get('preferences.folder_colored_face');
+    controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
     controller.set('shrink_labels_to_fit', !!(user && user.get && user.get('preferences.shrink_labels_to_fit')));
+    // Soft borders default to ON for every user. Only the explicit
+    // saved value of `false` turns them off; an undefined / unset
+    // preference (new users, existing users who never touched the
+    // toggle) inherits the soft style.
+    var soft_borders_saved = user && user.get && user.get('preferences.soft_borders');
+    controller.set('soft_borders', soft_borders_saved == null ? true : !!soft_borders_saved);
+    // Hide speak bar — default OFF. Only flips on if the user
+    // explicitly toggles it via the right-panel "Hide speak bar"
+    // control in the Speak Bar section.
+    controller.set('hide_speak_bar', !!(user && user.get && user.get('preferences.hide_speak_bar')));
 
     // Re-apply the user's symbol_background scope on every board-detail
     // entry. The app-state `sync_fitzgerald_scope` observer covers the
