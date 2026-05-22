@@ -50,7 +50,7 @@ export default Route.extend({
     // booted here, the /auth proxy did not run — fall back to Rails on :5000.
     if(window.location.port === '8184') {
       var qs = window.location.search || '';
-      window.location.replace('http://localhost:5000' + path + qs);
+      window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
       return new RSVP.Promise(function() { /* wait for full-page navigation */ });
     }
   },

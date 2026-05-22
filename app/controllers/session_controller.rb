@@ -748,24 +748,24 @@ class SessionController < ApplicationController
 
   def google_callback
     unless google_sso_available?
-      return redirect_to google_frontend_redirect('/login', nil)
+      return redirect_to google_frontend_redirect('/login', nil), allow_other_host: true
     end
     if params['error'].present?
-      return redirect_to google_auth_error_redirect('access_denied', nil)
+      return redirect_to google_auth_error_redirect('access_denied', nil), allow_other_host: true
     end
     config = GoogleOAuth.fetch_state(params['state'])
     unless config
-      return redirect_to google_auth_error_redirect('session_expired', nil)
+      return redirect_to google_auth_error_redirect('session_expired', nil), allow_other_host: true
     end
     GoogleOAuth.clear_state(params['state'])
     begin
       payload = GoogleOAuth.exchange_code(request, params['code'], config)
     rescue GoogleOAuth::Error
-      return redirect_to google_auth_error_redirect('auth_failed', config)
+      return redirect_to google_auth_error_redirect('auth_failed', config), allow_other_host: true
     end
     profile = GoogleOAuth.profile_from_payload(payload)
     unless profile[:sub].present? && profile[:email_verified] && profile[:email].present?
-      return redirect_to google_auth_error_redirect('unverified_email', config)
+      return redirect_to google_auth_error_redirect('unverified_email', config), allow_other_host: true
     end
 
     linked_users = User.find_all_by_google_sub(profile[:sub]).reject(&:google_sso_blocked?)
@@ -773,39 +773,30 @@ class SessionController < ApplicationController
     if linked_users.length > 1
       nonce = GoSecure.nonce('google_link')
       GoogleOAuth.store_link(nonce, google_link_config(profile, config, linked_users, 'account_select', unlinked_candidates: unlinked_candidates, allow_manual_link: true))
-      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config), allow_other_host: true
     elsif linked_users.length == 1
-      if unlinked_candidates.length > 1
-        nonce = GoSecure.nonce('google_link')
-        GoogleOAuth.store_link(nonce, google_link_config(profile, config, unlinked_candidates, 'email_match'))
-        return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
-      elsif unlinked_candidates.length == 1
-        nonce = GoSecure.nonce('google_link')
-        GoogleOAuth.store_link(nonce, google_link_config(profile, config, unlinked_candidates, 'email_match', single_candidate: true))
-        return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
-      end
       return google_finish_login(linked_users.first, config) unless linked_users.first.google_sso_blocked?
-      return redirect_to google_auth_error_redirect('org_sso_required', config)
+      return redirect_to google_auth_error_redirect('org_sso_required', config), allow_other_host: true
     end
 
     candidates = User.users_by_verified_email(profile[:email]).reject(&:google_sso_blocked?)
     if candidates.length > 1
       nonce = GoSecure.nonce('google_link')
       GoogleOAuth.store_link(nonce, google_link_config(profile, config, candidates, 'email_match'))
-      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config), allow_other_host: true
     elsif candidates.length == 1
       nonce = GoSecure.nonce('google_link')
       GoogleOAuth.store_link(nonce, google_link_config(profile, config, candidates, 'email_match', single_candidate: true))
-      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+      return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config), allow_other_host: true
     elsif config['flow'] == 'register'
       nonce = GoSecure.nonce('google_link')
       GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'signup_complete'))
-      return redirect_to google_frontend_redirect("/register?google_signup=#{nonce}", config)
+      return redirect_to google_frontend_redirect("/register?google_signup=#{nonce}", config), allow_other_host: true
     end
 
     nonce = GoSecure.nonce('google_link')
     GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'manual_link'))
-    redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config)
+    redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config), allow_other_host: true
   end
 
   def google_link_candidates
@@ -974,7 +965,7 @@ class SessionController < ApplicationController
       return redirect_to google_frontend_redirect('/register?coppa_waiting=1', config), allow_other_host: true
     end
     if user.google_sso_blocked?
-      return redirect_to google_auth_error_redirect('org_sso_required', config)
+      return redirect_to google_auth_error_redirect('org_sso_required', config), allow_other_host: true
     end
     data = google_login_response(user, config)
     if data[:popout_id]

@@ -58,7 +58,12 @@ export default Route.extend({
         controller.set('google_popout_id', googlePopout);
         history.replaceState({}, null, "/login");
       } else {
-        try { sessionStorage.removeItem('google_link_nonce'); } catch (e) { /* ignore */ }
+        try {
+          var storedNonce = sessionStorage.getItem('google_link_nonce');
+          if(storedNonce) {
+            controller.set('google_link_nonce', storedNonce);
+          }
+        } catch (e) { /* ignore */ }
       }
     }
   }

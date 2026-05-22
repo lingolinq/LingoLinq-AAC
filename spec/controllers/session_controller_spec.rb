@@ -2209,6 +2209,42 @@ describe SessionController, :type => :controller do
       expect(response).to redirect_to('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
     end
 
+    it "finishes login when Google sub matches one linked user despite other email matches" do
+      linked = User.process_new({
+        'user_name' => 'linked_google_user',
+        'name' => 'Linked Google User',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_google!(google_profile[:sub], email: google_profile[:email], name: google_profile[:name])
+      unlinked = User.process_new({
+        'user_name' => 'unlinked_email_match',
+        'name' => 'Unlinked Email Match',
+        'email' => 'google@example.com',
+        'password' => 'secret456',
+        'terms_agree' => true
+      }, { pending: true })
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184'
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      allow(User).to receive(:find_all_by_google_sub).with(google_profile[:sub]).and_return([linked])
+      allow(User).to receive(:users_by_verified_email).with(google_profile[:email]).and_return([linked, unlinked])
+      expect(GoogleOAuth).not_to receive(:store_link)
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/login\?auth-})
+      expect(response.location).not_to include('google_link')
+    end
+
     it "redirects zero-candidate login to manual_link on the frontend origin" do
       allow(GoogleOAuth).to receive(:fetch_state).and_return({
         'flow' => 'login',

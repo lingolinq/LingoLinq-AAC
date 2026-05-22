@@ -32,6 +32,12 @@ class GoogleOAuth
 
     uri = URI.parse(origin.to_s.strip)
     return false unless uri.is_a?(URI::HTTP) && uri.host.present?
+    return false if uri.userinfo.present?
+    return false if uri.fragment.present?
+    return false if uri.query.present?
+
+    path = uri.path.to_s
+    return false if path.present? && path != '/'
 
     host = uri.host.downcase
     allowed_hosts = ['localhost', '127.0.0.1']
