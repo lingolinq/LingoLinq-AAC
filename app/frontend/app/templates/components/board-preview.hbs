@@ -1,44 +1,46 @@
-<div class='row'>
-  <div class={{if this.include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}}>
-    <button class='btn btn-lg btn-primary' style='width: 100%;' {{action "select"}}>
-      {{#if this.select_option}}
-        {{t "Choose This Board" key="choose_this_board"}}
-      {{else}}
-        {{t "Try This Board" key="try_this_board"}}
+<div class='row md-board-preview'>
+  <div class="{{if this.include_canvas "col-sm-4" "col-sm-8 col-sm-offset-2"}} md-board-preview__info">
+    <div class='md-board-preview__actions'>
+      <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{action "select"}}>
+        {{#if this.select_option}}
+          {{t "Choose This Board" key="choose_this_board"}}
+        {{else}}
+          {{t "Try This Board" key="try_this_board"}}
+        {{/if}}
+      </button>
+      {{#if this.back}}
+        <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action this.back}}>
+          {{t "Back to List" key="back_to_list"}}
+        </button>
       {{/if}}
-    </button>
-    {{#if this.back}}
-      <button class='btn btn-lg btn-default' style='width: 100%; margin-top: 2px;' {{action this.back}}>
-        {{t "Back to List" key="back_to_list"}}
-      </button>
-    {{/if}}
-    {{#if this.select_option}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "close"}}>
-        {{t "Cancel" key="cancel"}}
-      </button>
-    {{else}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "visit"}}>
-        {{t "Board Actions" key="board_actions"}}
-      </button>
-    {{/if}}
-    {{#if this.app_state.currentUser.supervisees}}
-      <button class='btn btn-default' style='width: 100%; margin-top: 2px;' {{action "copy"}}>
-        {{t "Copy For..." key="copy_for_ellipses"}}
-      </button>
-    {{/if}}
+      {{#if this.select_option}}
+        <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{action "close"}}>
+          {{t "Cancel" key="cancel"}}
+        </button>
+      {{else}}
+        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "visit"}}>
+          {{t "Board Actions" key="board_actions"}}
+        </button>
+      {{/if}}
+      {{#if this.app_state.currentUser.supervisees}}
+        <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{action "copy"}}>
+          {{t "Copy For..." key="copy_for_ellipses"}}
+        </button>
+      {{/if}}
+    </div>
     {{#if this.model.loading}}
-      {{t "Loading board..." key="loading_board"}}
+      <div class='md-board-preview__status'>{{t "Loading board..." key="loading_board"}}</div>
     {{else if this.model.error}}
-      {{t "Error loading board" key="error_loading_board"}}
+      <div class='md-board-preview__status md-board-preview__status--error'>{{t "Error loading board" key="error_loading_board"}}</div>
     {{else if this.model}}
-      <div style='text-align: center;'>
-        <h3>{{this.model.name}}</h3>
-        <div style='margin: -10px 0 10px 0;'>{{t "by" key="by"}} {{this.model.user_name}}</div>
+      <div class='md-board-preview__heading'>
+        <h3 class='md-board-preview__title'>{{this.model.name}}</h3>
+        <div class='md-board-preview__byline'>{{t "by" key="by"}} {{this.model.user_name}}</div>
       </div>
-      <div style='max-height: 190px; overflow: auto;'>
-          <span style="white-space: pre-line;">{{this.model.description}}</span>
+      <div class='md-board-preview__description'>
+          <span class='md-board-preview__description-text'>{{this.model.description}}</span>
       </div>
-      <dl class="dl-horizontal">
+      <dl class="dl-horizontal md-board-preview__meta">
         <dt>{{t "Full Name" key="full_name"}}</dt>
           <dd>{{this.model.key}}</dd>
         <dt>{{t "Dimensions" key="dimensions"}}</dt>
@@ -73,12 +75,12 @@
           </dd>
       </dl>
     {{else}}
-      {{t "No data to show" key="no_data_to_show"}}
+      <div class='md-board-preview__status'>{{t "No data to show" key="no_data_to_show"}}</div>
     {{/if}}
   </div>
   {{#if this.include_canvas}}
-    <div class='col-sm-8'>
-      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal"}}
+    <div class='col-sm-8 md-board-preview__canvas-col'>
+      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(action "canvas_ready")}}
     </div>
   {{/if}}
 </div>

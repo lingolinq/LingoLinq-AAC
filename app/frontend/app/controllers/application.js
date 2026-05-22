@@ -150,6 +150,37 @@ export default Controller.extend({
   boardPickerBoards: null,
   boardPickerFilter: '',
   boardPickerListId: null,
+  /* Tab strip on the My Boards picker, mirroring the boards-browser
+     component on /u/:user_name. Tab values match the boards page:
+     mine | public | root | starred | shared | prior_home | private | tagged.
+     `boardPickerCurrentTag` is set when the user picks a tag from the
+     "More ▾" dropdown (sets tab to 'tagged' and stores the tag name).
+     Default 'mine' matches the boards page default for users with edit. */
+  boardPickerTab: 'mine',
+  boardPickerCurrentTag: null,
+  /* Mirrors `other_selected` on user/index.js — true when the active
+     tab lives under the "More ▾" dropdown rather than the visible tab
+     row. Used to give the dropdown its is-active styling and to set the
+     dropdown's label. */
+  boardPickerOtherSelected: computed('boardPickerTab', function() {
+    var tab = this.get('boardPickerTab');
+    return tab && ['mine', 'public', 'root', 'starred', 'liked'].indexOf(tab) == -1;
+  }),
+  /* Label for the "More ▾" dropdown trigger. When a More-tab is active
+     the label flips to that tab's name (Shared with Me / Prior Home
+     Boards / Private / <tag>); otherwise it reads "More...". Same
+     pattern as `more_label` on user/index.js. */
+  boardPickerMoreLabel: computed('boardPickerTab', 'boardPickerCurrentTag', 'boardPickerOtherSelected', function() {
+    if(!this.get('boardPickerOtherSelected')) {
+      return i18n.t('more_ellipsis', "More...");
+    }
+    var tab = this.get('boardPickerTab');
+    if(tab == 'shared') { return i18n.t('shared', "Shared with Me"); }
+    if(tab == 'prior_home') { return i18n.t('prior_home', "Prior Home Boards"); }
+    if(tab == 'private') { return i18n.t('private', "Private"); }
+    if(tab == 'tagged') { return this.get('boardPickerCurrentTag') || i18n.t('tagged', "Tagged"); }
+    return i18n.t('other', "Other");
+  }),
   // Set/Change Home Board selection mode for the My Boards picker.
   // When true, clicking a board tile in the picker writes the picked
   // board to user.preferences.home_board, saves the user, then
@@ -183,6 +214,136 @@ export default Controller.extend({
   boardPickerHasHomeBoard: computed('boardPickerVisible', 'appState.referenced_user.preferences.home_board.key', function() {
     return !!this.appState.get('referenced_user.preferences.home_board.key');
   }),
+  /* Load (or reload) the board picker's results for the currently-
+     selected tab. Mirrors the per-tab query-argument table from
+     user/index.js#update_selected so the modal returns the SAME boards
+     the user would see on /u/:user_name for the same tab. The
+     `prior_home` branch is special-cased: there's no backend tab query
+     for it on the boards page either; we resolve it client-side by
+     turning the user.prior_home_boards JSON list into store records. */
+  _loadBoardPickerForTab: function() {
+    var _this = this;
+    var listId = Math.random().toString();
+    _this.set('boardPickerLoading', true);
+    _this.set('boardPickerBoards', null);
+    _this.set('boardPickerListId', listId);
+    var tab = _this.get('boardPickerTab') || 'mine';
+    var tag = _this.get('boardPickerCurrentTag');
+    var user = _this.appState.get('referenced_user');
+    var userId = (user && user.get && user.get('id')) || 'self';
+
+    /* prior_home: no tab query on the backend. Read the cached
+       prior_home_boards JSON off the user model and resolve each entry
+       through the store (peek first, fall back to findRecord). */
+    if(tab == 'prior_home') {
+      var entries = (user && user.get && user.get('prior_home_boards')) || [];
+      var promises = entries.map(function(entry) {
+        var key = entry && (entry.key || entry.id);
+        if(!key) { return RSVP.resolve(null); }
+        var peeked = null;
+        try { peeked = LingoLinq.store.peekRecord('board', entry.id || key); } catch(e) { }
+        if(peeked) { return RSVP.resolve(peeked); }
+        return LingoLinq.store.findRecord('board', key).then(function(b) { return b; }, function() { return null; });
+      });
+      RSVP.all(promises).then(function(boards) {
+        if(_this.get('boardPickerListId') != listId) { return; }
+        _this.set('boardPickerBoards', boards.filter(function(b) { return !!b; }));
+        _this.set('boardPickerLoading', false);
+      }, function() {
+        if(_this.get('boardPickerListId') != listId) { return; }
+        _this.set('boardPickerLoading', false);
+      });
+      return;
+    }
+
+    /* All other tabs map onto the same backend search the boards page
+       hits — see user/index.js#update_selected for the canonical args
+       per tab. Default per_page mirrors the picker's prior behavior. */
+    var args = {per_page: 100, sort: 'home_popularity'};
+    if(tab == 'mine') {
+      args.user_id = userId;
+    } else if(tab == 'public') {
+      args = {q: '', locale: 'en', sort: 'popularity', per_page: 100};
+    } else if(tab == 'private') {
+      args.user_id = userId;
+      args.private = true;
+    } else if(tab == 'root') {
+      args.user_id = userId;
+      args.root = true;
+    } else if(tab == 'starred' || tab == 'liked') {
+      args.user_id = userId;
+      args.starred = true;
+      /* The boards page falls back to a public-only starred list for
+         non-supervisors. Mirror that gating so the modal returns the
+         same set for the same user. */
+      if(!user || !user.get('permissions.supervise')) {
+        args.public = true;
+      }
+    } else if(tab == 'shared') {
+      args.user_id = userId;
+      args.shared = true;
+    } else if(tab == 'tagged') {
+      args.user_id = userId;
+      args.tag = tag;
+    } else {
+      /* Unknown tab — fall back to mine so the modal never ends up
+         loading an empty page with no clear way out. */
+      args.user_id = userId;
+    }
+
+    var loadedBoards = [];
+    var loadBoards = function() {
+      return LingoLinq.store.query('board', args).then(function(boards) {
+        if(_this.get('boardPickerListId') != listId) { return RSVP.resolve(); }
+        loadedBoards.pushObjects(boards.map(function(i) { return i; }));
+        var seen = {};
+        loadedBoards = loadedBoards.filter(function(board) {
+          var id = board.get('global_id') || board.get('id') || board.get('key');
+          if(seen[id]) { return false; }
+          seen[id] = true;
+          return true;
+        });
+        var meta = _this.persistence.meta('board', boards);
+        if(meta && meta.more) {
+          args.per_page = meta.per_page;
+          args.offset = meta.next_offset;
+          return loadBoards();
+        }
+        return RSVP.resolve();
+      });
+    };
+    loadBoards().then(function() {
+      if(_this.get('boardPickerListId') != listId) { return; }
+      var arr = loadedBoards;
+      /* Mine-tab ordering: Home Board first, then liked (starred)
+         boards alphabetically by name, then everything else alpha.
+         All other tabs keep the server's order (home_popularity for
+         most, popularity for public) — that's the order the boards
+         page also presents. */
+      if(tab == 'mine') {
+        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
+        /* Use the board.starred_for_current_user computed (not the raw
+           `starred` attr) — the boards-index endpoint doesn't ship
+           per-board starred status, so `starred` is undefined on every
+           list-loaded record. The computed falls back to checking the
+           user's stats.starred_board_refs list, which IS loaded. */
+        arr = loadedBoards.sort(function(a, b) {
+          if(a.get('key') === homeKey) { return -1; }
+          if(b.get('key') === homeKey) { return 1; }
+          var aStar = a.get('starred_for_current_user');
+          var bStar = b.get('starred_for_current_user');
+          if(aStar && !bStar) { return -1; }
+          if(bStar && !aStar) { return 1; }
+          return (a.get('name') || '').localeCompare(b.get('name') || '');
+        });
+      }
+      _this.set('boardPickerBoards', arr);
+      _this.set('boardPickerLoading', false);
+    }, function() {
+      if(_this.get('boardPickerListId') != listId) { return; }
+      _this.set('boardPickerLoading', false);
+    });
+  },
 
   init() {
     this._super(...arguments);
@@ -762,51 +923,27 @@ export default Controller.extend({
     },
     openBoardPicker: function() {
       var _this = this;
-      var listId = Math.random().toString();
       _this.set('boardPickerVisible', true);
-      _this.set('boardPickerLoading', true);
-      _this.set('boardPickerBoards', null);
       _this.set('boardPickerFilter', '');
-      _this.set('boardPickerListId', listId);
-      var userId = _this.appState.get('referenced_user.id');
-      var args = {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 100};
-      var loadedBoards = [];
-      var loadBoards = function() {
-        return LingoLinq.store.query('board', args).then(function(boards) {
-          if(_this.get('boardPickerListId') != listId) { return RSVP.resolve(); }
-          loadedBoards.pushObjects(boards.map(function(i) { return i; }));
-          var seen = {};
-          loadedBoards = loadedBoards.filter(function(board) {
-            var id = board.get('global_id') || board.get('id') || board.get('key');
-            if(seen[id]) { return false; }
-            seen[id] = true;
-            return true;
-          });
-          var meta = _this.persistence.meta('board', boards);
-          if(meta && meta.more) {
-            args.per_page = meta.per_page;
-            args.offset = meta.next_offset;
-            return loadBoards();
-          }
-          return RSVP.resolve();
-        });
-      };
-      loadBoards().then(function() {
-        if(_this.get('boardPickerListId') != listId) { return; }
-        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        var arr = loadedBoards.sort(function(a, b) {
-          if(a.get('key') === homeKey) { return -1; }
-          if(b.get('key') === homeKey) { return 1; }
-          if(a.get('starred') && !b.get('starred')) { return -1; }
-          if(b.get('starred') && !a.get('starred')) { return 1; }
-          return (a.get('name') || '').localeCompare(b.get('name') || '');
-        });
-        _this.set('boardPickerBoards', arr);
-        _this.set('boardPickerLoading', false);
-      }, function() {
-        if(_this.get('boardPickerListId') != listId) { return; }
-        _this.set('boardPickerLoading', false);
-      });
+      _this.set('boardPickerTab', 'mine');
+      _this.set('boardPickerCurrentTag', null);
+      _this._loadBoardPickerForTab();
+    },
+    /* Tab actions for the My Boards picker. setBoardPickerTab swaps
+       which tab is active and reloads the list; setBoardPickerTag is the
+       "tagged" branch — it picks a tag from user.board_tags and flips
+       the tab to 'tagged' before reloading. */
+    setBoardPickerTab: function(tab) {
+      this.set('boardPickerTab', tab);
+      this.set('boardPickerCurrentTag', null);
+      this.set('boardPickerFilter', '');
+      this._loadBoardPickerForTab();
+    },
+    setBoardPickerTag: function(tag) {
+      this.set('boardPickerTab', 'tagged');
+      this.set('boardPickerCurrentTag', tag);
+      this.set('boardPickerFilter', '');
+      this._loadBoardPickerForTab();
     },
     closeBoardPicker: function() {
       this.set('boardPickerVisible', false);
@@ -831,9 +968,16 @@ export default Controller.extend({
       this.set('boardPickerVisible', false);
       this.set('boardPickerListId', null);
       this.set('boardPickerSelectingHome', false);
-      this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
-      });
+      /* Route the user to the modern create-board-new page instead
+         of the legacy new-board modal. Mirrors the dashboard
+         Boards card's `openNewBoardOnBoards` action
+         (see components/dashboard/authenticated-view.js). The
+         purchase gate is preserved; both branches of the promise
+         (resolve = paid OK, reject = e.g. modal cancelled) fall
+         through to the same transition so the user reaches the
+         page after the gate completes either way. */
+      var go = function() { _this.get('router').transitionTo('create-board-new'); };
+      this.appState.check_for_needing_purchase().then(go, go);
     },
     pickBoard: function(key) {
       var _this = this;

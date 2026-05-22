@@ -190,7 +190,7 @@
         {{else if this.previewBoards.length}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards as |preview|}}
-            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}}" role="listitem" {{action "goToBoard" preview.key}}>
+            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{action "goToBoard" preview.key}}>
               {{#if preview.isHome}}
                 {{!-- Home Board badge — pinned to the top of the tile
                      (absolute, see .md-strip__home-badge in app.scss)
@@ -198,8 +198,28 @@
                      the thumb/label layout that the other tiles use. --}}
                 <span class="md-strip__home-badge">{{t "Home Board" key="home_board"}}</span>
               {{/if}}
+              {{#if preview.board.starred_for_current_user}}
+                {{!-- Filled-heart indicator in the top-right for liked
+                     boards (mirrors the My Boards picker + boards-page
+                     treatments). pointer-events:none so the tile's
+                     own click still navigates. --}}
+                <span class="md-strip__heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                    <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                  </svg>
+                </span>
+              {{/if}}
               <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
-                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
+                {{!-- Bind directly to the board record's
+                     icon_url_with_fallback computed when we have the
+                     record, so the thumb auto-refreshes when the
+                     board's image attrs change after a visit (the
+                     observer that fires `checkForDataURL` mutates
+                     `image_data_uri` on the underlying record).
+                     `preview.imageUrl` is the captured fallback for
+                     the home-board case where peekRecord returned
+                     null — see add() in previewBoards computed. --}}
+                <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
               <div class="md-strip__label">{{preview.name}}</div>
             </button>

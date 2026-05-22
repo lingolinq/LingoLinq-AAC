@@ -4648,21 +4648,15 @@ tr.accuracy_non_mastered {
   font-size: 14px;
 }
 .md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .info {
-  top: 10px;
-  right: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border-left: none;
-  border-bottom: none;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--md-muted);
-  font-size: 14px;
-}
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .info .size {
-  position: static;
-  width: auto;
-  text-align: center;
-  color: inherit;
+  /* BOTTOM-CENTER Preview pill (matches the boards-page treatment).
+     Silver-glass background inherits from the base .info rule. */
+  top: auto;
+  left: 50%;
+  right: auto;
+  bottom: 10px;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  font-size: 11px;
 }
 
 .md-home-boards-picker__grid-message {
@@ -8478,33 +8472,142 @@ body.pretty_loader #loading_box {
     margin-bottom: 20px;
   }
   .info {
-    position: absolute; 
-    top: 0px; 
-    right: 0px; 
-    padding: 10px 15px; 
-    border-left: 2px solid #ccc; 
-    border-bottom: 2px solid #ccc; 
-    border-bottom-left-radius: 10px; 
-    border-top-right-radius: 15px; 
-    background: rgba(255, 255, 255, 0.7); color: #aaa;
-    .size {
-      font-size: 14px;
-      position: absolute;
-      top: 35px;
-      right: 0;
-      color: #777;
-      width: 100%;
-      text-align: center;
+    /* "PREVIEW" pill anchored to the BOTTOM-CENTER of every board
+       tile (was top-left). Centered horizontally via
+       `left: 50%; transform: translateX(-50%)`. Same brushed-silver
+       glass chrome as the size + heart badges in the top-right
+       (cool linear gradient + backdrop blur + dual inset highlights
+       + layered drop shadow) so all three badges read as a coherent
+       family. Surface-specific overrides further down may shift
+       padding/font-size to fit their tile dimensions but all inherit
+       the silver-glass treatment from here. */
+    position: absolute;
+    top: auto;
+    left: 50%;
+    right: auto;
+    bottom: 10px;
+    transform: translateX(-50%);
+    padding: 4px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(232, 237, 243, 0.65) 55%,
+        rgba(206, 213, 224, 0.55) 100%
+      );
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    color: $brand-charcoal-blue;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(13, 36, 56, 0.06),
+      0 1px 2px rgba(13, 36, 56, 0.10),
+      0 4px 10px rgba(13, 36, 56, 0.16);
+    z-index: 3;
+    transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    &:hover {
+      color: $la-navy;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -1px 0 rgba(13, 36, 56, 0.08),
+        0 2px 4px rgba(13, 36, 56, 0.14),
+        0 6px 14px rgba(13, 36, 56, 0.20);
     }
-  
+    /* The .info pill is now a horizontal flex row so the label,
+       divider, and (optional) count line up cleanly. */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    .info__label {
+      display: inline-block;
+      line-height: 1;
+    }
+    /* Thin vertical separator between "PREVIEW" and the child-board
+       count. Subtle dark hairline against the silver-glass background
+       so it reads as a divider rather than competing with the text. */
+    .info__divider {
+      flex-shrink: 0;
+      width: 1px;
+      height: 12px;
+      background: rgba(13, 36, 56, 0.20);
+    }
+    /* Child-board count — same uppercase weight as the label so the
+     two read as one combined chip; muted ink so the label remains
+     the louder element. */
+    .info__count {
+      display: inline-block;
+      line-height: 1;
+      color: rgba(13, 36, 56, 0.62);
+      font-weight: 700;
+    }
+  }
+  /* Grid-size badge — small "Nrows x Ncols" pill in the top-right of
+     every board tile. Constant fixture (was previously nested inside
+     the .info Preview button; lifted out so it can stack above the
+     favorites heart). Same brushed-silver glass chrome as the heart
+     (cool linear gradient + backdrop blur + dual inset highlights +
+     layered drop shadow) so the two stacked badges read as a family. */
+  .board-icon__size {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(232, 237, 243, 0.65) 55%,
+        rgba(206, 213, 224, 0.55) 100%
+      );
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    color: rgba(13, 36, 56, 0.7);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba(13, 36, 56, 0.06),
+      0 1px 2px rgba(13, 36, 56, 0.10),
+      0 4px 10px rgba(13, 36, 56, 0.16);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .board-icon__size-icon {
+    color: rgba(13, 36, 56, 0.55);
+    flex-shrink: 0;
+  }
+  .board-icon__size-text {
+    display: inline-block;
+    line-height: 1;
   }
   .name {
-    width: 100%; 
-    overflow: hidden; 
-    height: 53px; 
+    width: 100%;
+    overflow: hidden;
+    /* Was `height: 53px` (a fixed two-line reservation). That forced
+       single-line titles to reserve the same vertical space as
+       two-line titles, leaving a visible empty gap below the text
+       and pushing the PREVIEW pill further from the title.
+       `max-height: 53px` still caps at ~two lines while allowing
+       the box to shrink to one line's height naturally. */
+    max-height: 53px;
     margin-bottom: 5px;
-    margin-top: -10px; 
-    white-space: normal; 
+    margin-top: -10px;
+    white-space: normal;
     line-height: 25px;
     &.compact {
       margin-bottom: 0;
@@ -8599,16 +8702,10 @@ body.pretty_loader #loading_box {
     border-color: #aaa;
     background: #e6e6e6;
     position: relative;
-
-    &:before {
-      content: "";
-      position: absolute;
-      top: 0;
-      right: 0;
-      border-width: 0 30px 30px 0;
-      border-style: solid;
-      border-color: #aaa #eee;
-    }
+    /* The top-right folded-corner `::before` triangle was removed —
+       it conflicted with the new top-LEFT Preview pill and the
+       "N boards" caption below the name already signals the tile is
+       a folder, so the triangle was redundant chrome. */
   }
   &.unlinked {
     cursor: default;
@@ -19574,15 +19671,19 @@ header.header--unauthenticated ~ #content .la-topbar {
   }
 
   .info {
+    /* BOTTOM-CENTER Preview pill (matches the boards-page treatment).
+     Silver-glass background inherits from base .info. */
     position: absolute;
-    top: 8px;
-    right: 8px;
-    border: none;
-    border-radius: 10px;
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.92);
-    color: var(--ll-bento-muted);
-    box-shadow: 0 2px 8px rgba(19, 29, 56, 0.08);
+    top: auto;
+    left: 50%;
+    right: auto;
+    bottom: 8px;
+    transform: translateX(-50%);
+    padding: 4px 11px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
 }
 
@@ -41633,25 +41734,19 @@ a.md-goal-nav-action:hover,
   text-align: center;
 }
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon .info {
-  top: 2rem;
-  right: 2rem;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border-left: none;
-  border-bottom: none;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--md-muted);
-  font-size: 16px;
-  display: flex;
-  flex-direction: column;
+  /* Pin BOTTOM-CENTER (matching the boards-page Preview pill). The
+     silver-glass background inherits from the base .info rule. */
+  top: auto;
+  left: 50%;
+  right: auto;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 5px 13px;
+  font-size: 12px;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-}
-.md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon .info .size {
-  position: static;
-  width: auto;
-  text-align: center;
-  color: inherit;
+  gap: 6px;
 }
 
 /* ---------- User summary: responsive on all screen sizes ---------- */
@@ -43306,6 +43401,41 @@ a.md-goal-nav-action:hover,
   transform: translate(-50%, -50%);
   margin: 0;
 }
+/* Narrow screens: swap the two — the "Other Create Board Methods"
+   button moves up onto the title row (centered, absolute) and the AI
+   badge drops back into the grid's left column. Mirrors the desktop
+   placements exactly, just with the elements traded. */
+@media (max-width: 1024px) {
+  .new-board--modern .modal-header .create-board-actions:has(.nb-ai-mode-wrap) .nb-ai-mode-badge {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    /* 1rem top margin so the badge sits below (not flush against) the
+       absolute-positioned Other Create Board Methods button on the title
+       row. Set here (instead of on the lower-specificity wrap rule below)
+       so this rule's margin shorthand doesn't zero it out. */
+    margin: 1rem 0 0;
+  }
+  .new-board--modern .modal-header .create-board-actions:has(.nb-ai-mode-wrap) .nb-ai-mode-other {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+  }
+  .nb-ai-mode-wrap .nb-ai-mode-badge {
+    /* Span the full grid track and center horizontally so the badge
+       sits on the page's centerline (not constrained by the 1fr/auto/1fr
+       column the button used to anchor). */
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  .nb-ai-mode-wrap .nb-ai-mode-other {
+    grid-column: 2;
+    justify-self: center;
+  }
+}
 .nb-ai-mode-badge {
   padding: 6px 21px 9px;
   gap: 3px;
@@ -44362,11 +44492,16 @@ a.md-goal-nav-action:hover,
    the grid attached to its left edge (shared seam, no gap). */
 .nb-preview-stage {
   display: flex;
+  /* Plain flex row: wrap on the left, rail on the right. With
+     `align-items: stretch`, both children share the same height —
+     whichever child is taller drives the stage height and the
+     shorter child stretches to match. */
   align-items: stretch;
   gap: 0;
   width: 100%;
   max-width: 1180px;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 .nb-preview-stage .new-board-mockup-wrap {
   flex: 1 1 auto;
@@ -44382,9 +44517,19 @@ a.md-goal-nav-action:hover,
 }
 .nb-create-rail.md-board-edit-right-panel {
   /* Reuse all the board-detail panel styling, but neutralise the
-     page-level sticky/full-viewport rules for in-modal use. */
+     page-level sticky/full-viewport rules for in-modal use. The base
+     rule pins the edit-page rail to the viewport with
+     `height: calc(100dvh - topbar - 16)` + sticky positioning so it
+     stays in place while the long board scrolls. In the create-page
+     preview stage the rail is a sibling of the board mockup wrap and
+     should size to the WRAP's content — clear the height caps and the
+     sticky props so `align-items: stretch` on the stage governs
+     instead. */
   position: static;
   top: auto;
+  height: auto;
+  max-height: none;
+  overflow-y: visible;
   /* Edit-page rail fills its 15% grid track at EVERY width (no
      max-width cap — the grid owns the fixed 15%/70%/15% ratio).
      `flex: 0 0 250px` is kept ONLY for the in-modal `.nb-create-rail`
@@ -44808,6 +44953,26 @@ a.md-goal-nav-action:hover,
   cursor: grab;
   min-height: 110px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+/* On narrow viewports cap each preview cell card at 80px tall so the
+   preview grid stays compact alongside the rail. Shrinks the cell's
+   min-height (110px → 80px) and the grid row floor (also 110 → 80) in
+   tandem so the layout collapses cohesively rather than leaving the
+   card clipped inside a taller cell. MUST come after the base
+   .md-board-detail-grid--preview .md-board-detail-grid__cell rule above
+   (equal specificity, source-order decides). */
+@media (max-width: 1024px) {
+  .md-board-detail-grid--preview .md-board-detail-symbol-card {
+    max-height: 80px;
+  }
+  .md-board-detail-grid--preview .md-board-detail-grid__cell {
+    min-height: 80px;
+  }
+  .nb-preview-stage .md-board-detail-grid--preview {
+    /* Fixed 80px row track (not minmax(80px, auto)) so the row cannot
+       grow past the card's 80px cap and leave dead space below. */
+    grid-template-rows: repeat(var(--board-rows, 3), 80px) !important;
+  }
 }
 .md-board-detail-grid--preview .md-board-detail-grid__cell:active {
   cursor: grabbing;
@@ -45318,15 +45483,19 @@ a.md-goal-nav-action:hover,
   padding: 20px 22px 22px;
   border-radius: 22px;
   border: 1px solid rgba(13, 36, 56, 0.07);
+  /* Solid translucent gradient that mimics the frosted-glass look the
+     `backdrop-filter: blur(16px) saturate(150%)` used to produce — but
+     without the per-scroll rasterize/blur cost. High-opacity near-white
+     stops (~92-96%) so almost nothing of the page background shows
+     through, with a subtle cool-blue tint at the top edge to keep the
+     same "cooled-down" feel the saturation pass gave. */
   background:
     linear-gradient(
       180deg,
-      rgba(13, 36, 56, 0.025) 0%,
-      rgba(255, 255, 255, 0.45) 45%,
-      rgba(255, 255, 255, 0.55) 100%
+      rgba(242, 246, 250, 0.94) 0%,
+      rgba(252, 253, 254, 0.95) 45%,
+      rgba(255, 255, 255, 0.96) 100%
     );
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
   box-shadow:
     inset 0 1px 8px rgba(13, 36, 56, 0.18),
     inset 0 -1px 0 rgba(255, 255, 255, 0.6),
@@ -49478,9 +49647,18 @@ a.md-goal-nav-action:hover,
   #within_ember > header.header-index-with-dark-toggle:has(.app-navbar) {
     min-height: 0 !important;
   }
-  .md-shell {
+  /* Zero the shell's 3rem top padding on narrow viewports so authenticated
+     pages sit flush against the navbar — EXCEPT the create-board-new shell,
+     which keeps its own (smaller) padding so the modal-card has breathing
+     room below the (hidden) topbar. */
+  .md-shell:not(.md-shell--create-board-new) {
     padding-top: 0 !important;
 
+  }
+  /* Create-board-new shell: drop from base 3rem to 1rem at ≤1024px so the
+     modal-card sits closer to the top while still breathing. */
+  .md-shell--create-board-new {
+    padding-top: 1rem !important;
   }
   #content,
   #content > .ember-view,
@@ -51500,41 +51678,48 @@ a.md-goal-nav-action:hover,
   align-items: stretch;
   flex-wrap: wrap;
   gap: 10px;
-  /* Wider container now hosts Home Board + Set/Change Home Board +
-     Filter input + New Board on the same row. Bumped max-width to
-     give room; flex-wrap keeps it usable on narrow viewports. */
+  /* Row now hosts just Change Home Board + New Board (the Home Board
+     shortcut and Filter input were lifted out to other slots). Center
+     the pair on the modal centerline so they read as a balanced
+     two-button group, rather than getting glued to the left/right
+     edges by `margin-left: auto`. */
+  justify-content: center;
   width: 92%;
   max-width: 720px;
-  margin: 0 auto;
+  /* 1rem top margin so the row sits lower in the modal, off the
+     header's bottom edge. */
+  margin: 1rem auto 0;
 }
-/* "Set Home Board" / "Change Home Board" toggle — sibling of the
-   Home Board pill. Active state (= user is in selection mode) flips
-   to a verdigris fill so the modal reads as "now in special mode". */
+/* "Set Home Board" / "Change Home Board" toggle. Base style copied
+   verbatim from the (removed) `.board-picker__home-btn` so the
+   visual continuity carries: same white pill, navy ink, 1.5px subtle
+   border, verdigris hover accent. The --active (selection mode)
+   variant stays loud-verdigris so the modal still announces "you're
+   now picking a home board" when toggled on. */
 .board-picker__set-home-btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 44px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   background: rgba(255, 255, 255, 0.8);
-  border: 1.5px dashed rgba($brand-verdigris-aa, 0.5);
+  border: 1.5px solid rgba($la-navy, 0.12);
   border-radius: 12px;
-  color: $brand-verdigris-aa;
-  font-size: 14px;
+  color: $la-navy;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .board-picker__set-home-btn:hover {
-  border-style: solid;
-  border-color: $brand-verdigris-aa;
-  background: rgba($brand-verdigris-aa, 0.08);
+  border-color: $brand-verdigris;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 4px rgba($brand-verdigris, 0.12);
 }
 .board-picker__set-home-btn--active {
   background: $brand-verdigris-aa;
-  border-style: solid;
   border-color: $brand-verdigris-aa;
   color: #fff;
   box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
@@ -51543,33 +51728,101 @@ a.md-goal-nav-action:hover,
   background: $brand-verdigris;
   border-color: $brand-verdigris;
   color: #fff;
+  box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
+}
+/* Home-glyph icon to the left of the label — verdigris-aa fill so it
+   reads as the "home" accent and not as decoration. In --active mode
+   the parent flips to a verdigris fill, so the icon needs to flip to
+   white to stay legible against it. */
+.board-picker__set-home-btn-icon {
+  flex-shrink: 0;
+  color: $brand-verdigris-aa;
+}
+.board-picker__set-home-btn--active .board-picker__set-home-btn-icon {
+  color: #fff;
 }
 /* "New Board" — pushed to the far right of the filter row via
-   margin-left: auto. Same primary-action styling as the home-board
-   pill so the row reads as a unified control bar. */
+   margin-left: auto. Background mirrors the home-page dashboard's
+   `.md-btn--primary.md-btn--pill` so the entry-point reads the same
+   wherever the user sees it (home dashboard, My Boards modal,
+   boards page). Text/border colors match too, since the gradient is
+   light enough that white text would be unreadable. */
 .board-picker__new-board-btn {
   flex-shrink: 0;
-  margin-left: auto;
+  /* `margin-left: auto` previously pushed this to the far right of
+     the filter row. Removed so the parent's `justify-content: center`
+     can keep the (Change Home Board + New Board) pair grouped on
+     the centerline instead. */
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 44px;
   padding: 8px 14px;
-  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
-  border: 1px solid rgba($brand-charcoal-blue, 0.30);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 12px;
-  color: #fff;
+  color: var(--md-ink);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba($la-navy, 0.18);
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  /* Stronger shadow so the low-contrast translucent gradient still
+     reads as a raised, tappable control against the modal/page
+     background (the gradient alone fails WCAG vs the surrounding
+     surface). Outer drop + close inner lift + subtle inset top
+     highlight for depth. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .board-picker__new-board-btn:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 4px 12px rgba($la-navy, 0.24);
-  color: #fff;
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15));
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 2px 4px rgba($la-navy, 0.14),
+    0 10px 22px rgba($la-navy, 0.28);
+  color: var(--md-ink);
+}
+/* Boards page "New Board" button (components/boards-browser.hbs) had
+   no styling — gets the same gradient look as the My Boards modal +
+   home dashboard pill, plus the matching pill shape since browser
+   defaults left it unstyled before. */
+.ub-boards-page__new-board-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: calc(6px + 0.25rem) calc(12px + 0.25rem);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  color: var(--md-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Stronger shadow so the low-contrast translucent gradient still
+     reads as a raised, tappable control against the modal/page
+     background (the gradient alone fails WCAG vs the surrounding
+     surface). Outer drop + close inner lift + subtle inset top
+     highlight for depth. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ub-boards-page__new-board-btn:hover {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15));
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 2px 4px rgba($la-navy, 0.14),
+    0 10px 22px rgba($la-navy, 0.28);
+  color: var(--md-ink);
 }
 /* Selection-mode banner: shown above the filter row while the user
    is in "Set/Change Home Board" mode. Reuses the verdigris notice
@@ -51700,6 +51953,123 @@ a.md-goal-nav-action:hover,
   padding: 24px 0;
 }
 
+/* Tab strip — rendered as a single segmented-control unit so the
+   individual pills read as one group. Shared across:
+     - My Boards picker          (.board-picker__tabs)
+     - Boards page tab strip     (.ub-boards-page__tabs — boards-browser)
+     - Account page tab strip    (.ub-boards-page__tabs — user/index)
+     - Home dashboard's boards   (.ub-boards-page__tabs — dashboard-user-boards)
+   All four use the same class chain because the boards-browser /
+   dashboard-user-boards components emit the same markup. Treatment:
+   - Outer UL gets a tinted track + rounded container that "holds"
+     the pills; `width: fit-content` + `margin: auto` centers it.
+   - Above the group, a thin top divider visually separates it from
+     whatever sits above (filter row / boards header / etc.).
+   - Inner pills sit flush together (gap: 4px) and shed their
+     individual borders, letting the active fill stand out against
+     the shared track. */
+.board-picker__tabs,
+.ub-boards-page__tabs {
+  list-style: none;
+  padding: 4px;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 36, 56, 0.06);
+  border: 1px solid rgba(13, 36, 56, 0.08);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.05);
+  position: relative;
+}
+/* Top divider — kept ONLY on the My Boards picker (where it
+   visually separates the segmented tab control from the filter
+   row above). Removed from the reusable boards component
+   (.ub-boards-page__tabs on boards page / account page / dashboard)
+   per the user's preference for a cleaner look. */
+.board-picker__tabs::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -12px;
+  width: 92vw;
+  max-width: 720px;
+  height: 1px;
+  background: rgba(13, 36, 56, 0.10);
+  pointer-events: none;
+}
+/* Push the tabs down so the ::before divider has room to sit above
+   the segmented control without overlapping whatever's above it. */
+.board-picker__filter-row + .board-picker__tabs,
+.ub-boards-page__boards-header + .ub-boards-page__tabs {
+  margin-top: 18px;
+}
+.board-picker__tabs > li,
+.ub-boards-page__tabs > li {
+  display: inline-flex;
+}
+.board-picker__tabs > li > a,
+.board-picker__tabs > li > .dropdown-toggle,
+.ub-boards-page__tabs > li > a,
+.ub-boards-page__tabs > li > .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(13, 36, 56, 0.70);
+  background: transparent;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.board-picker__tabs > li > a:hover,
+.board-picker__tabs > li > a:focus-visible,
+.board-picker__tabs > li > .dropdown-toggle:hover,
+.board-picker__tabs > li > .dropdown-toggle:focus-visible,
+.ub-boards-page__tabs > li > a:hover,
+.ub-boards-page__tabs > li > a:focus-visible,
+.ub-boards-page__tabs > li > .dropdown-toggle:hover,
+.ub-boards-page__tabs > li > .dropdown-toggle:focus-visible {
+  color: $la-navy;
+  background: rgba(13, 36, 56, 0.07);
+  outline: none;
+  text-decoration: none;
+}
+.board-picker__tabs > li.is-active > a,
+.board-picker__tabs > li.is-active > .dropdown-toggle,
+.ub-boards-page__tabs > li.is-active > a,
+.ub-boards-page__tabs > li.is-active > .dropdown-toggle {
+  color: #fff;
+  background: $brand-charcoal-blue;
+}
+.board-picker__tabs > li.is-active > a:hover,
+.board-picker__tabs > li.is-active > .dropdown-toggle:hover,
+.ub-boards-page__tabs > li.is-active > a:hover,
+.ub-boards-page__tabs > li.is-active > .dropdown-toggle:hover {
+  color: #fff;
+  background: $brand-charcoal-blue;
+}
+
+/* Filter input sits in its own row directly below the tab strip
+   (was previously in .board-picker__filter-row alongside the buttons).
+   Constrains width and centers so the filter doesn't stretch full-bleed
+   on wide modals. 12px top margin gives breathing room from the
+   segmented tab control above. */
+.board-picker__filter-below-tabs {
+  width: 92%;
+  max-width: 720px;
+  margin: 12px auto 0;
+}
+
 #board_picker_inner {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(clamp(90px, 18%, 140px), 1fr));
@@ -51816,6 +52186,119 @@ a.md-goal-nav-action:hover,
   max-width: 100%;
   color: #2d3f5e;
   transition: color 0.18s ease;
+}
+
+/* Home Board tile distinction in the My Boards picker — mirrors the
+   dashboard board strip's `.md-strip__item--home` + `.md-strip__home-
+   badge` treatment so the user's home board reads as the "primary"
+   tile in this list too. Verdigris outline + soft glow halo on the
+   tile, floating uppercase "HOME BOARD" pill crowning it. */
+.board-picker__item--home {
+  position: relative;
+  border-color: $brand-verdigris !important;
+  border-width: 2px !important;
+  box-shadow:
+    0 0 0 4px rgba($brand-verdigris, 0.12),
+    0 8px 24px rgba($brand-verdigris, 0.18),
+    0 2px 8px rgba($brand-blue-black, 0.05);
+}
+.board-picker__home-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba($la-navy, 0.22);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+/* Filled-heart indicator in the top-right of a liked (starred) tile.
+   The tile itself is the clickable target, so the heart needs to be
+   inert (pointer-events:none) so a click on it still navigates.
+   Same visual treatment across all three surfaces (My Boards picker,
+   boards page, dashboard preview strip) so the meaning carries. */
+.board-picker__item--liked,
+.ub-boards-page__board-item--liked,
+.md-strip__item--liked {
+  position: relative;
+}
+.board-picker__heart,
+.ub-boards-page__board-item-heart,
+.md-strip__heart {
+  position: absolute;
+  /* Sits in the top-right of the tile, BELOW the grid-size badge so
+     the two stack vertically without overlapping. Size badge is ~20px
+     tall at top:8px (ends around y=28); heart starts at top:34px to
+     leave a small gap. Stays right-anchored at 12px. */
+  top: 34px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  /* Modern silverish glass — cool linear gradient (white → cool-silver)
+     instead of flat translucent white. Backdrop blur softens what's
+     behind; the gradient + dual inset highlights (bright top edge,
+     subtle bottom rim) give it a brushed-metal/iOS-control feel.
+     Outer multi-layer shadow lifts the disc off the tile. */
+  background:
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(232, 237, 243, 0.65) 55%,
+      rgba(206, 213, 224, 0.55) 100%
+    );
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  color: #e0245e;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(13, 36, 56, 0.06),
+    0 1px 2px rgba(13, 36, 56, 0.10),
+    0 4px 10px rgba(13, 36, 56, 0.16);
+  pointer-events: none;
+  z-index: 2;
+}
+/* On the boards page, a `> .simple_board_holder > *` rule earlier in
+   app.scss (line ~36561) forces every direct child to `width: 100%;
+   display: flex; flex-direction: column; align-items: stretch`,
+   which stretches the heart's white circle into a wide rectangle and
+   distorts the SVG. This higher-specificity selector (0,3,1) wins
+   against the offending (0,2,1) rule and restores the small square
+   heart pill. Same defensive boost given to the SVG inside. */
+.ub-boards-page__board-item.simple_board_holder > .ub-boards-page__board-item-heart {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  box-sizing: content-box;
+}
+.ub-boards-page__board-item.simple_board_holder > .ub-boards-page__board-item-heart svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+/* Dashboard strip tile is smaller than the picker/boards-page tiles,
+   so dial the heart down a notch. */
+.md-strip__heart {
+  width: 18px;
+  height: 18px;
+  top: 4px;
+  right: 4px;
 }
 
 // Grid icon on home button for board/board-alt: override the CSS ::after home icon
@@ -51952,6 +52435,11 @@ a.md-goal-nav-action:hover,
     padding: 0 $aac-spacing-24 $aac-spacing-48;
   }
 
+  /* Page-loading: handled by the global `.ll-loading-overlay`
+     (z-index 10050, matches login/boot overlay). Template renders
+     it OUTSIDE the .ub-boards-page wrapper so it sits above the
+     navbar and any other in-page content. */
+
   // ── Hero ──────────────────────────────────────────────────
   &__hero {
     display: flex;
@@ -51998,52 +52486,130 @@ a.md-goal-nav-action:hover,
   }
 
   // ── Board Stats accordion (collapsed by default) ──────────
-  // Wraps the stats-row below so the user can choose to expand it.
-  // Header reads as a discrete clickable surface with chevron;
-  // body (the stats-row grid) only renders when expanded.
+  // Sunken nb-section chrome matching the folders accordion so both
+  // expand-panels on the boards page read as a family. Header is a
+  // full-width toggle button; inline stat chips sit between the label
+  // and chevron so collapsed view still surfaces the headline numbers
+  // (Linear/Stripe/GitHub PR pattern).
+  // Width: shrink to fit the header content in collapsed state, then
+  // grow to fit the stats-row grid when expanded. Centered either way.
   &__stats-accordion {
-    margin-bottom: 24px;
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 16px;
+    border-radius: 22px;
+    border: 1px solid rgba(13, 36, 56, 0.07);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 246, 250, 0.94) 0%,
+        rgba(252, 253, 254, 0.95) 45%,
+        rgba(255, 255, 255, 0.96) 100%
+      );
+    box-shadow:
+      inset 0 1px 8px rgba(13, 36, 56, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.5);
+    overflow: hidden;
   }
   &__stats-accordion-toggle {
+    appearance: none;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     width: 100%;
-    padding: 12px 16px;
-    background: #ffffff;
-    border: 1px solid rgba($brand-blue-black, 0.08);
-    border-radius: 12px;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
     color: $la-navy;
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.01em;
+    text-align: left;
     cursor: pointer;
-    box-shadow: 0 1px 4px rgba($brand-blue-black, 0.06);
-    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  &__stats-accordion-toggle:hover,
-  &__stats-accordion-toggle:focus-visible {
-    background: rgba($brand-teal, 0.04);
-    border-color: rgba($brand-teal, 0.30);
-    outline: none;
+    transition: background 0.12s ease;
+    &:hover { background: rgba(13, 36, 56, 0.04); }
+    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
   }
   &__stats-accordion-label {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 14px;
+    color: $brand-charcoal-blue;
+  }
+  /* Inline stat chips row — flex middle slot between label + chevron. */
+  &__stats-chips {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+  }
+  &__stats-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(13, 36, 56, 0.06);
+    color: rgba(13, 36, 56, 0.78);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  &__stats-chip-num {
+    font-weight: 800;
+    color: $la-navy;
+    font-size: 12px;
+  }
+  &__stats-chip-label {
+    color: rgba(13, 36, 56, 0.55);
+  }
+  /* Generic chip icon (board-grid glyph on the BOARDS chip etc.) —
+     same muted-ink color as the label so the number stays the loud
+     element. flex-shrink keeps it from squishing when the row wraps. */
+  &__stats-chip-icon {
+    color: rgba(13, 36, 56, 0.55);
+    flex-shrink: 0;
+  }
+  /* Liked chip gets the red heart accent matching the board-tile heart. */
+  &__stats-chip--liked {
+    background: rgba(224, 36, 94, 0.10);
+  }
+  &__stats-chip--liked &__stats-chip-num {
+    color: #b51d4a;
+  }
+  &__stats-chip-heart {
+    color: #e0245e;
+    flex-shrink: 0;
+  }
+  /* Status chip (PUBLIC / PRIVATE) — colored fill to communicate state. */
+  &__stats-chip--status {
+    padding: 4px 10px;
+  }
+  &__stats-chip--public {
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+  }
+  &__stats-chip--private {
+    background: rgba(13, 36, 56, 0.10);
+    color: $la-navy;
   }
   &__stats-accordion-chevron {
     flex-shrink: 0;
-    opacity: 0.6;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-  &__stats-accordion--open &__stats-accordion-toggle {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    border-bottom-color: transparent;
+    margin-left: auto;
+    color: rgba(13, 36, 56, 0.45);
+    transition: transform 0.18s ease;
   }
   &__stats-accordion--open &__stats-accordion-chevron {
     transform: rotate(180deg);
-    opacity: 0.9;
   }
 
   // ── Stats row ─────────────────────────────────────────────
@@ -52055,13 +52621,13 @@ a.md-goal-nav-action:hover,
     @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
     @media (max-width: 480px) { grid-template-columns: 1fr; }
   }
-  // Inside the accordion: zero the row's own bottom margin (the
-  // accordion wrapper owns that spacing now) and round the top
-  // corners of the first stat-card to nothing so the row reads as
-  // a continuation of the accordion header.
+  // Inside the accordion: push the stat cards inward with comfortable
+  // left/right/bottom padding so they don't bleed into the panel's
+  // edges. The top margin stays small — the cards sit just below the
+  // header. Mirrors the nb-section breathing room on create-board-new.
   &__stats-accordion &__stats-row {
-    margin-bottom: 0;
-    margin-top: -1px;
+    margin: 0;
+    padding: 4px 18px 18px;
   }
   &__stat-card {
     background: #ffffff;
@@ -52251,40 +52817,20 @@ a.md-goal-nav-action:hover,
   }
 
   // ── Tab strip ─────────────────────────────────────────────
-  &__tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    list-style: none;
-    padding: 0;
-    margin: 0 0 16px;
-    border-bottom: 2px solid rgba($brand-blue-black, 0.07);
-    padding-bottom: 4px;
-
-    li {
-      a {
-        display: block;
-        padding: 6px 14px;
-        border-radius: 8px 8px 0 0;
-        font-size: 1.43rem;
-        font-weight: 500;
-        color: $brand-slate-blue;
-        text-decoration: none;
-        transition: color 0.15s ease, background 0.15s ease;
-        &:hover { color: $brand-teal; background: rgba($brand-teal, 0.07); }
-      }
-      &.is-active > a {
-        color: $brand-teal;
-        font-weight: 700;
-        border-bottom: 2px solid $brand-teal;
-        margin-bottom: -2px;
-        background: none;
-      }
-    }
-  }
+  // Tab strip rules moved to the consolidated segmented-control block
+  // (.board-picker__tabs, .ub-boards-page__tabs) earlier in app.scss
+  // around line 51877. The previous nested `&__tabs { li a { ... } &.is-active > a { ... } }`
+  // block lived here and was overriding the segmented-control treatment
+  // (its `li.is-active > a` rule painted just a teal underline + color
+  // instead of the dark filled pill). Source-order won because this
+  // nested copy sat after the consolidated rules, so the segmented
+  // control's outer pill chrome showed but the active state didn't.
 
   // ── Filter & grid ─────────────────────────────────────────
   &__filter-form {
+    /* 1rem top margin so the filter row sits below the tab strip
+       (which now lives right above it) with breathing room. */
+    margin-top: 1rem;
     margin-bottom: 20px;
     display: flex;
     justify-content: center;
@@ -52358,11 +52904,81 @@ a.md-goal-nav-action:hover,
   }
 
   &__folders-section {
-    margin: 0 0 24px;
-    padding: 20px 24px;
-    background: rgba(248, 250, 252, 0.8);
-    border: 1px solid rgba($brand-blue-black, 0.07);
-    border-radius: 16px;
+    /* Sunken-in surface that mirrors the create-board-new `.nb-section`
+       chrome (cool-blue gradient + inset top shadow + subtle highlights).
+       This is the collapsed/resting state — when expanded the body
+       padding grows to make room for the inner content. */
+    margin: 0 0 16px;
+    padding: 0;
+    border-radius: 22px;
+    border: 1px solid rgba(13, 36, 56, 0.07);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 246, 250, 0.94) 0%,
+        rgba(252, 253, 254, 0.95) 45%,
+        rgba(255, 255, 255, 0.96) 100%
+      );
+    box-shadow:
+      inset 0 1px 8px rgba(13, 36, 56, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.5);
+    overflow: hidden;
+  }
+  /* Header acts as the accordion toggle button. Full-width row, click
+     anywhere to open/close. Chevron sits on the far right and rotates
+     when the panel is open. */
+  &__folders-toggle {
+    appearance: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    transition: background 0.12s ease;
+    &:hover { background: rgba(13, 36, 56, 0.04); }
+    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
+  }
+  &__folders-chevron {
+    margin-left: auto;
+    color: rgba(13, 36, 56, 0.45);
+    transition: transform 0.18s ease;
+    flex-shrink: 0;
+  }
+  &__folders-section--open &__folders-chevron {
+    transform: rotate(180deg);
+  }
+  /* Compact "N" count pill shown next to the FOLDERS label so users
+     see how many folders exist without expanding. */
+  &__folders-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 8px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  /* Inner body — only renders when the accordion is expanded. Inherits
+     the panel's gradient + inset shadow. Padding mirrors the nb-section
+     spacing for visual continuity. */
+  &__folders-body {
+    padding: 4px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
   &__folders-header {
     display: flex;
@@ -52432,10 +53048,23 @@ a.md-goal-nav-action:hover,
     gap: 14px;
     padding: 20px;
     list-style: none;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba($brand-blue-black, 0.06);
-    border-radius: 12px;
-    box-shadow: inset 0 1px 3px rgba($brand-blue-black, 0.04);
+    /* Sunken-in chrome matching the create-board-new `.nb-section`
+       treatment — cool-blue gradient + stronger inset top shadow +
+       subtle highlights — so the folder strip reads as an inset
+       surface within the already-sunken folders accordion. */
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 246, 250, 0.94) 0%,
+        rgba(252, 253, 254, 0.95) 45%,
+        rgba(255, 255, 255, 0.96) 100%
+      );
+    border: 1px solid rgba(13, 36, 56, 0.07);
+    border-radius: 22px;
+    box-shadow:
+      inset 0 1px 8px rgba(13, 36, 56, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.5);
     &--no-hover .ub-boards-page__tag-folder,
     &--no-hover .ub-boards-page__tag-folder:hover,
     &--no-hover .ub-boards-page__tag-folder:focus-visible {
@@ -52881,6 +53510,53 @@ a.md-goal-nav-action:hover,
     }
   }
 
+  /* Home Board tile distinction on the boards page — mirrors the
+     dashboard board strip's `.md-strip__item--home` + badge and the
+     My Boards picker's `.board-picker__item--home` so all three
+     surfaces flag the user's home board the same way. Verdigris
+     halo on the tile, floating uppercase "HOME BOARD" pill above. */
+  &__board-item--home {
+    position: relative;
+    .btn.simple_board_icon {
+      border-color: $brand-verdigris !important;
+      border-width: 2px !important;
+      box-shadow:
+        0 0 0 4px rgba($brand-verdigris, 0.12),
+        0 8px 24px rgba($brand-verdigris, 0.18),
+        0 2px 12px rgba(0, 0, 0, 0.06) !important;
+    }
+  }
+  &__board-item-home-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba($la-navy, 0.22);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+  }
+  /* Defensive override: the boards-page parent grid sets
+     `> .simple_board_holder > * { width: 100%; display: flex;
+     align-items: stretch }` (line ~36561) which stretches the home
+     badge into a wide ribbon across the top of the tile. Higher
+     specificity (0,3,0) wins against that (0,2,1) rule and keeps the
+     badge as a centered shrink-to-fit pill. */
+  &__board-item.simple_board_holder > &__board-item-home-badge {
+    width: auto;
+    max-width: max-content;
+    display: inline-block;
+    align-self: auto;
+  }
+
   /* Fixed card width so every board tile aligns on boards + search pages */
   $ub-boards-page-card-w: 280px;
   &__board-grid {
@@ -52927,8 +53603,19 @@ a.md-goal-nav-action:hover,
       max-width: 100%;
       box-sizing: border-box;
       height: auto;
-      min-height: 0;
-      padding: 2.4rem 2.4rem 2rem;
+      /* Consistent min-height so every tile in the grid takes up the
+         same vertical footprint by default (gives the boards page a
+         clean uniform-grid feel). Tiles auto-grow past this when
+         their content needs more room (long titles, longer author
+         lines, etc.) thanks to `height: auto`. */
+      min-height: 300px;
+      /* Top padding bumped 1rem (2.4rem → 3.4rem) so the icon,
+         title, and PREVIEW pill stack sit 1rem lower from the top
+         edge. Bottom padding back to 2rem (the PREVIEW pill is
+         anchored at the bottom of the flex column via margin-top:
+         auto, so this padding becomes the breathing strip beneath
+         the pill). */
+      padding: 3.4rem 2.4rem 2rem;
       border-radius: var(--md-r-lg, 16px);
       border: 1px solid var(--md-line, rgba($brand-blue-black, 0.12));
       background: rgba(255, 255, 255, 0.92);
@@ -52986,25 +53673,30 @@ a.md-goal-nav-action:hover,
       font-size: 14px;
     }
     .simple_board_holder .btn.simple_board_icon .info {
-      top: 2rem;
-      right: 2rem;
-      padding: 10px 14px;
-      border-radius: 10px;
-      border-left: none;
-      border-bottom: none;
-      background: rgba(255, 255, 255, 0.95);
-      color: var(--md-muted);
-      font-size: 16px;
-      display: flex;
-      flex-direction: column;
+      /* PREVIEW pill: in-flow flex child of the simple_board_icon,
+         pushed to the BOTTOM of the tile via `margin-top: auto`. Since
+         every tile has `min-height: 300px` and `justify-content:
+         flex-start`, `margin-top: auto` absorbs all the empty space
+         between the title block and the pill — so the pill always
+         sits at the same bottom position across all tiles, regardless
+         of title length. `order: 99` keeps it as the last flex
+         child. */
+      position: static !important;
+      top: auto !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: none !important;
+      order: 99;
+      align-self: center;
+      margin-top: auto;
+      padding: 5px 13px;
+      font-size: 12px;
+      display: inline-flex;
+      flex-direction: row;
       align-items: center;
-      gap: 2px;
-    }
-    .simple_board_holder .btn.simple_board_icon .info .size {
-      position: static;
-      width: auto;
-      text-align: center;
-      color: inherit;
+      gap: 6px;
+      z-index: 4;
     }
 
     @media (min-width: 480px) { gap: 0.75rem 1rem; }
@@ -53521,6 +54213,18 @@ a.md-goal-nav-action:hover,
      card. Bottom margin kept at 40px so the gradient still shows beneath. */
   margin: 0 auto 40px !important;
   max-width: calc(100% - 128px) !important;
+}
+/* At ≤1024px shrink the 64px side gutters to 1rem and bump max-width to
+   match — must live AFTER the base rule above so source order wins the
+   equal-specificity (0,2,0) !important tie. Also drop the inherited
+   .md-workspace padding (40px 40px 0 40px) down to a flat 20px. */
+@media (max-width: 1024px) {
+  .md-workspace--create-board-new.new-board--modern {
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+    max-width: calc(100% - 2rem) !important;
+    padding: 20px !important;
+  }
 }
 /* Modal-style close button — sits in the top-right of the workspace card
    and routes back to the previous page via the `close` action. */
@@ -54202,11 +54906,11 @@ a.md-goal-nav-action:hover,
   gap: 6px;
 }
 .md-board-detail-header__edit-actions-grid .md-board-edit-panel__tile {
-  /* Tighter L/R padding for a more compact, modern feel + a glassy
-     translucent surface that lifts on hover. !important because the
-     scoped __top rules in app.scss declare these props with
-     !important too. */
-  padding: 5px 10px !important;
+  /* Bumped from 5px 10px → 9px 12px (+4 T/B, +2 L/R) for a
+     more comfortable touch target. Glassy translucent surface
+     that lifts on hover. !important because the scoped __top
+     rules in app.scss declare these props with !important too. */
+  padding: 9px 12px !important;
   min-height: 0 !important;
   font-size: 13px !important;
   border-radius: 10px !important;
@@ -64026,6 +64730,307 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   text-align: center;
   font-size: 16px;
 }
+
+/* Board Details modal — fill the viewport. We pin the dialog via
+   `position: fixed` with explicit insets rather than relying on
+   Bootstrap's centered `.modal-dialog` margin, because the
+   surrounding `#within_ember` ancestor uses `position: fixed; inset: 0`
+   under some routes (bento layout) which makes the auto-centered
+   sizing fragile. Pinning directly to the viewport is deterministic
+   and survives both layouts. */
+.md-board-details-modal__dialog.md-board-details-modal__dialog {
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: 12px !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 1051; /* above the .modal-backdrop (1040) and the .modal (1050) */
+}
+.md-board-details-modal__content {
+  /* Fill the dialog box (which is sized to nearly the full viewport).
+     Body scrolls when content exceeds the available height. */
+  height: 100%;
+  max-height: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba($la-navy, 0.08);
+  background: #fff;
+  box-shadow: 0 24px 64px rgba($la-navy, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Modern modal header: title centered with the loading indicator
+   sitting next to it, close button pinned right via la-modal-close. */
+.md-board-details-modal__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: $la-navy;
+    letter-spacing: -0.01em;
+  }
+}
+/* Close X button — modern circular chrome matching the beta-feedback
+   modal close pattern (48×48 WCAG AAA target, navy-tinted surface
+   with a soft border, charcoal icon that flips to white on hover).
+   Double-class selector raises specificity above `.la-modal-close`
+   so we win the cascade regardless of source-order. */
+.md-board-details-modal__close.md-board-details-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba($la-navy, 0.06);
+  color: $brand-charcoal-blue;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+  &:hover, &:focus-visible {
+    background: $brand-charcoal-blue;
+    border-color: $brand-charcoal-blue;
+    color: #fff;
+    outline: none;
+  }
+}
+/* Inline loading indicator on the header — spinner + "Loading
+   preview..." text next to the title. Shrinks gracefully on narrow
+   modals. */
+.md-board-details-modal__header-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
+  font-size: 13px;
+  font-weight: 600;
+}
+.md-board-details-modal__header-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba($brand-verdigris, 0.22);
+  border-top-color: $brand-verdigris;
+  animation: ll-loading-overlay-spin 0.9s linear infinite;
+}
+.md-board-details-modal__header-loading-text {
+  white-space: nowrap;
+}
+.md-board-details-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 28px 28px;
+  text-align: left;
+  font-size: 15px;
+  /* Positioning context for the loading overlay so it pins to the
+     body bounds instead of the document. */
+  position: relative;
+}
+
+/* Full-body loading overlay — covers the modal body with a soft white
+   wash + centered spinner card until the canvas image-loading promises
+   have all settled. Shown until either the board model failed to load
+   or the canvas component emits `onCanvasReady`. */
+.md-board-details-modal__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.88);
+  z-index: 5;
+  /* Modern blur effect on the obscured content; degrades gracefully
+     on browsers that don't support backdrop-filter. */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: md-board-details-modal__overlay-fade 0.18s ease-out;
+}
+.md-board-details-modal__overlay-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 26px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba($la-navy, 0.18);
+  border: 1px solid rgba($la-navy, 0.08);
+}
+.md-board-details-modal__overlay-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba($brand-verdigris, 0.22);
+  border-top-color: $brand-verdigris;
+  animation: ll-loading-overlay-spin 0.9s linear infinite;
+  flex: 0 0 auto;
+}
+.md-board-details-modal__overlay-text {
+  color: $la-navy;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.005em;
+}
+@keyframes md-board-details-modal__overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* The canvas wrapper inside the body picks up dark-mode styling via
+   the inline `style` attribute the component sets; we just give the
+   surrounding column a tiny breathing strip so the dark preview has
+   room to breathe from the left actions column. */
+.md-board-details-modal__body .col-sm-8 {
+  padding-left: 18px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   BOARD PREVIEW inner column — modernizes the bootstrap btn /
+   dl-horizontal vocabulary inside the preview modal so the inner
+   content matches the modal chrome (md-board-details-modal__*).
+   Scoped under .md-board-preview to avoid leaking into other
+   places that still use the older bootstrap classes.
+   ────────────────────────────────────────────────────────────── */
+.md-board-preview__info {
+  font-size: 15px;
+  color: $brand-charcoal-blue;
+}
+.md-board-preview__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+/* Modern button override — beats the legacy `.btn` / `.btn-lg`
+   bootstrap rules that were on these elements (we keep the bootstrap
+   classes for safety, and let the md-* rules take over via specificity
+   + the !important in md-modal-btn--primary). */
+.md-board-preview__action.md-board-preview__action {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 12px;
+  min-height: 48px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  /* Bootstrap's .btn applies a 1px transparent border + its own
+     focus shadow; reset both so the modern style reads cleanly. */
+  border: none;
+  text-shadow: none;
+}
+.md-board-preview__action--primary.md-board-preview__action--primary {
+  font-size: 16px;
+  min-height: 52px;
+  letter-spacing: 0.02em;
+}
+.md-board-preview__heading {
+  text-align: center;
+  margin-bottom: 14px;
+}
+.md-board-preview__title {
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+  letter-spacing: -0.01em;
+  margin: 0 0 2px;
+  line-height: 1.2;
+}
+.md-board-preview__byline {
+  font-size: 13px;
+  color: rgba($la-navy, 0.65);
+  font-weight: 500;
+}
+.md-board-preview__description {
+  max-height: 190px;
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  font-size: 14px;
+  line-height: 1.5;
+  color: $brand-charcoal-blue;
+  margin-bottom: 14px;
+}
+.md-board-preview__description-text {
+  white-space: pre-line;
+}
+.md-board-preview__status {
+  padding: 14px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba($la-navy, 0.55);
+  font-style: italic;
+}
+.md-board-preview__status--error {
+  color: #b03a3a;
+  font-style: normal;
+  font-weight: 600;
+}
+/* Modern definition list — replaces the bootstrap .dl-horizontal
+   look (floated dt with fixed width + truncation). Uses a 2-column
+   grid so labels and values align neatly without truncating long
+   board keys. */
+.md-board-preview__meta.md-board-preview__meta {
+  display: grid;
+  grid-template-columns: minmax(110px, 38%) 1fr;
+  column-gap: 14px;
+  row-gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  dt {
+    /* Override bootstrap's float / width / overflow rules. */
+    float: none;
+    width: auto;
+    overflow: visible;
+    text-align: left;
+    text-overflow: clip;
+    white-space: normal;
+    color: rgba($la-navy, 0.6);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  dd {
+    margin-left: 0;
+    color: $brand-charcoal-blue;
+    font-weight: 500;
+    word-break: break-word;
+  }
+}
+
 .md-modal-icon-row {
   display: flex;
   justify-content: center;
@@ -75076,8 +76081,12 @@ blockquote small {
      container-type:inline-size + the fluid root font-size make all
      panel text/icons scale to THIS panel's own width (cqi units, see
      the scoped `font-size:1em` rule below) — true responsive, not
-     viewport-coupled, no breakpoint overrides. */
+     viewport-coupled, no breakpoint overrides.
+     min-height:0 hardens the scroll behavior on short viewports —
+     without it, a tall content stack can ignore overflow:auto and
+     push the panel past its max-height cap (no scroll). */
   min-width: 0;
+  min-height: 0;
   container-type: inline-size;
   /* Fluid panel type: scales with the panel's own width (cqi). 6cqi
      descends to the 10px floor on small screens (≈167px panel) so
@@ -76318,11 +77327,20 @@ blockquote small {
      the panel contains and can jump straight into a section by
      clicking its icon. Fill the grid track (--bd-edit-side-r width)
      instead of a fixed 56px so there's no empty gap to the panel's
-     right. */
+     right.
+     Outer (between-row) gap is 8px here per design — tighter than
+     the left rail's 12px because the right rail has more sections
+     and a denser vertical rhythm reads better with the SETTINGS
+     PANEL header. Padding matches the left rail so the two share
+     the same outer inset. */
   width: 100%;
   min-width: 0;
   max-width: none;
-  padding: 12px 6px 16px;
+  padding: 12px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 /* In collapsed-rail mode: keep the icons visible, hide labels,
    chevrons, group subheaders, accordion bodies, and the divider
@@ -76330,16 +77348,14 @@ blockquote small {
    margin-top pushes the icon stack clearly below the SETTINGS
    caption AND the divider line so they don't overlap. */
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__body {
-  gap: 4px;
-  /* Push the BODY down (not its individual children) — the body
-     box otherwise renders flush against the SETTINGS divider above.
-     padding-top on the body doesn't produce visible offset in this
-     flex container, so margin-top on the body itself moves the
-     whole box down inside the parent aside. Bumped progressively
-     per user reports: 4px → 16px → 32px. The first-icon (LEVELS)
-     now clearly sits below the SETTINGS caption + divider area
-     with visible breathing room. */
-  margin-top: 38px;
+  /* Outer (between-row) gap on the right rail — 8px per design
+     (left rail uses 12px). Inner icon/label gap is set on
+     .__section-toggle at 6px. */
+  gap: 8px;
+  /* margin-top removed per design — body sits flush below the
+     collapsed rail's SETTINGS divider, matching the expanded
+     panel's flush-body treatment. */
+  margin-top: 0;
 }
 /* Divider sits below the SETTINGS caption (NOT at the top of
    __body — which would render visually ABOVE SETTINGS). Targets
@@ -76368,7 +77384,10 @@ blockquote small {
   background: rgba(255, 255, 255, 0.20);
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__group {
-  gap: 4px;
+  /* Match the __body's 8px between-group gap so within-group
+     spacing reads the same as cross-group spacing — single
+     uniform 8px rhythm down the entire right rail. */
+  gap: 8px;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__subheader {
   /* Previously this rule converted each section subheader into a
@@ -76395,7 +77414,8 @@ blockquote small {
      (caption-then-icon reading order — matches the left rail's
      label-first rhythm). column-reverse keeps HTML order (icon
      first, label second) for accessibility while flipping the
-     visual order so labels read first. */
+     visual order so labels read first. Inner icon/label gap kept
+     in lockstep with the left rail (bumped together 2px → 6px). */
   flex-direction: column-reverse;
   justify-content: center;
   align-items: center;
@@ -76403,7 +77423,7 @@ blockquote small {
   min-height: 40px;
   border: none;
   background: transparent;
-  gap: 2px;
+  gap: 6px;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-toggle {
   background: transparent;
@@ -76453,9 +77473,15 @@ blockquote small {
   transform: none;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__header {
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
+  /* Mirror the left rail's `display: contents` collapse trick — the
+     header element dissolves so its children (chevron + SETTINGS
+     title) become direct flex children of the panel grid, picking
+     up the panel's own 12px gap rhythm. Without this the header
+     was its own flex container at 6px gap + 0 padding, which made
+     the chevron-to-first-row distance different from the left
+     rail's chevron-to-first-row distance, so the two rails didn't
+     line up across rows. */
+  display: contents;
 }
 /* Collapsed rail: restore static flow so the column rail layout
    places the chevron, not the absolute edge placement. 30×30 size
@@ -76527,15 +77553,11 @@ blockquote small {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* Push the body content down from the header so the SETTINGS
-     PANEL title isn't flush against the first section row.
-     Mirrors the collapsed-rail `--collapsed __body { margin-top:
-     4px }` rule above. Was previously achieved indirectly by the
-     stacked header layout giving the header extra vertical
-     height; the inline-row header layout (now used at all widths
-     for the right panel) is shorter, so the body needs explicit
-     margin-top to keep the same visual breathing room. */
-  margin-top: 4px;
+  /* Small 8px top margin so the body sits just below the header
+     with a hint of breathing room (was 0; bumped per design). The
+     collapsed-rail `--collapsed __body { margin-top: 0 }` rule
+     stays at 0 — the rail's caption sits flush. */
+  margin-top: 8px;
 }
 .md-board-edit-right-panel__divider {
   height: 1px;
@@ -77617,8 +78639,12 @@ blockquote small {
      container-type:inline-size + the fluid root font-size make all
      panel text/icons scale to THIS panel's own width (cqi units, see
      the scoped `font-size:1em` rule below) — true responsive, not
-     viewport-coupled, no breakpoint overrides. */
+     viewport-coupled, no breakpoint overrides.
+     min-height:0 hardens the scroll behavior on short viewports —
+     without it, a tall content stack can ignore overflow:auto and
+     push the panel past its max-height cap (no scroll). */
   min-width: 0;
+  min-height: 0;
   container-type: inline-size;
   /* Fluid panel type: scales with the panel's own width (cqi). 6cqi
      descends to the 10px floor on small screens (≈167px panel) so
@@ -77810,12 +78836,21 @@ blockquote small {
      the panel never mismatches its track (no empty gap) and the
      caption has room. Lateral padding is 2px per request — the
      longer captions (DOWNLOAD, CATEGORY) need every horizontal
-     pixel they can get to render fully without truncation. */
+     pixel they can get to render fully without truncation.
+     gap is the BETWEEN-ROW spacing only — each row's internal
+     icon-above-label spacing is owned by the per-row `__btn` /
+     `__row` rules below (margin between label + icon inside the
+     row), so bumping this gap adds breathing room between groups
+     without crowding the icon/label pair. */
   width: 100%;
   min-width: 0;
   max-width: none;
   padding: 12px 2px;
-  gap: 10px;
+  /* Between-row gap. Each row is label-on-top / icon-on-bottom
+     (column-reverse), so this gap renders as the space BELOW each
+     icon and ABOVE the next group's label. Share-grid gap below
+     matches this so all rail items read at the same rhythm. */
+  gap: 16px;
   align-items: center;
   cursor: pointer;
   overflow-y: auto;
@@ -77956,7 +78991,7 @@ blockquote small {
   align-items: center;
   align-self: center;
   margin: 6px auto 0;
-  gap: 3px;
+  gap: 6px;
 }
 .md-board-edit-panel--collapsed .md-board-edit-panel__row--theme-pill {
   align-self: center;
@@ -78044,12 +79079,41 @@ blockquote small {
   padding: 6px 2px;
   margin: 0 auto;
   justify-content: center;
+  /* Inner icon/label gap — matched to the right rail's
+     collapsed section-toggle gap (bumped together from 2px → 6px
+     so the two rails stay in lockstep at the same comfortable
+     breathing room between caption and icon). */
+  gap: 6px;
 }
-/* Share/Export 2×2 grid → single icon column in the rail. */
+/* Share/Export 2×2 grid → single icon column in the rail. Gap
+   matches the parent rail's between-group gap so the Copy /
+   Download / Print / Share tiles don't read as a tightly-packed
+   cluster while everything around them has breathing room. Kept
+   in lockstep with the rail gap. */
 .md-board-edit-panel--collapsed .md-board-edit-panel__share-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
+}
+/* The Classic View shortcut row is a collapsed-rail-only
+   convenience — it duplicates the View Style segmented toggle
+   that lives in the bottom block. The toggle is `display: none`
+   in the collapsed rail (hence the shortcut), but in the EXPANDED
+   panel the toggle IS visible, which made the shortcut redundant.
+   Hide it when expanded so it only surfaces on the rail. */
+.md-board-edit-panel:not(.md-board-edit-panel--collapsed) .md-board-edit-panel__row--classic {
+  display: none;
+}
+/* Extra breathing room above the Download tile. The two-line
+   "DOWN-LOAD" caption otherwise sits visually close to the COPY
+   icon above. 16px margin-top stacks with the panel's gap so the
+   COPY icon ↔ DOWN-LOAD label distance reads as ~32px (vs ~16px
+   between other tile pairs). Targets the 2nd tile in the share-
+   grid; the share-grid uses `display: contents` further down so
+   the tile selector still matches via DOM order, not flex
+   container hierarchy. */
+.md-board-edit-panel--collapsed .md-board-edit-panel__share-grid .md-board-edit-panel__tile:nth-child(2) {
+  margin-top: 16px;
 }
 /* Icons stay visible; the controls themselves don't take clicks so
    the rail expands instead of firing an action while collapsed. The
@@ -78117,7 +79181,10 @@ blockquote small {
    force them all to one identical 40px box. The single container gap
    then spaces them identically. */
 .md-board-edit-panel--collapsed {
-  gap: 10px;
+  /* Aligned with the earlier rule on the same selector (and the
+     share-grid) so every between-row gap in the collapsed rail
+     reads the same. Single value, single rhythm. */
+  gap: 16px;
 }
 .md-board-edit-panel--collapsed .md-board-edit-panel__group--share,
 .md-board-edit-panel--collapsed .md-board-edit-panel__group--search,
@@ -79347,11 +80414,20 @@ blockquote small {
      the panel contains and can jump straight into a section by
      clicking its icon. Fill the grid track (--bd-edit-side-r width)
      instead of a fixed 56px so there's no empty gap to the panel's
-     right. */
+     right.
+     Outer (between-row) gap is 8px here per design — tighter than
+     the left rail's 12px because the right rail has more sections
+     and a denser vertical rhythm reads better with the SETTINGS
+     PANEL header. Padding matches the left rail so the two share
+     the same outer inset. */
   width: 100%;
   min-width: 0;
   max-width: none;
-  padding: 12px 6px 16px;
+  padding: 12px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 /* In collapsed-rail mode: keep the icons visible, hide labels,
    chevrons, group subheaders, accordion bodies, and the divider
@@ -79359,16 +80435,14 @@ blockquote small {
    margin-top pushes the icon stack clearly below the SETTINGS
    caption AND the divider line so they don't overlap. */
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__body {
-  gap: 4px;
-  /* Push the BODY down (not its individual children) — the body
-     box otherwise renders flush against the SETTINGS divider above.
-     padding-top on the body doesn't produce visible offset in this
-     flex container, so margin-top on the body itself moves the
-     whole box down inside the parent aside. Bumped progressively
-     per user reports: 4px → 16px → 32px. The first-icon (LEVELS)
-     now clearly sits below the SETTINGS caption + divider area
-     with visible breathing room. */
-  margin-top: 38px;
+  /* Outer (between-row) gap on the right rail — 8px per design
+     (left rail uses 12px). Inner icon/label gap is set on
+     .__section-toggle at 6px. */
+  gap: 8px;
+  /* margin-top removed per design — body sits flush below the
+     collapsed rail's SETTINGS divider, matching the expanded
+     panel's flush-body treatment. */
+  margin-top: 0;
 }
 /* Divider sits below the SETTINGS caption (NOT at the top of
    __body — which would render visually ABOVE SETTINGS). Targets
@@ -79397,7 +80471,10 @@ blockquote small {
   background: rgba(255, 255, 255, 0.20);
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__group {
-  gap: 4px;
+  /* Match the __body's 8px between-group gap so within-group
+     spacing reads the same as cross-group spacing — single
+     uniform 8px rhythm down the entire right rail. */
+  gap: 8px;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__subheader {
   /* Previously this rule converted each section subheader into a
@@ -79424,7 +80501,8 @@ blockquote small {
      (caption-then-icon reading order — matches the left rail's
      label-first rhythm). column-reverse keeps HTML order (icon
      first, label second) for accessibility while flipping the
-     visual order so labels read first. */
+     visual order so labels read first. Inner icon/label gap kept
+     in lockstep with the left rail (bumped together 2px → 6px). */
   flex-direction: column-reverse;
   justify-content: center;
   align-items: center;
@@ -79432,7 +80510,7 @@ blockquote small {
   min-height: 40px;
   border: none;
   background: transparent;
-  gap: 2px;
+  gap: 6px;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__section--open .md-board-edit-right-panel__section-toggle {
   background: transparent;
@@ -79482,9 +80560,15 @@ blockquote small {
   transform: none;
 }
 .md-board-edit-right-panel--collapsed .md-board-edit-right-panel__header {
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
+  /* Mirror the left rail's `display: contents` collapse trick — the
+     header element dissolves so its children (chevron + SETTINGS
+     title) become direct flex children of the panel grid, picking
+     up the panel's own 12px gap rhythm. Without this the header
+     was its own flex container at 6px gap + 0 padding, which made
+     the chevron-to-first-row distance different from the left
+     rail's chevron-to-first-row distance, so the two rails didn't
+     line up across rows. */
+  display: contents;
 }
 /* Collapsed rail: restore static flow so the column rail layout
    places the chevron, not the absolute edge placement. 30×30 size
@@ -79821,15 +80905,11 @@ blockquote small {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* Push the body content down from the header so the SETTINGS
-     PANEL title isn't flush against the first section row.
-     Mirrors the collapsed-rail `--collapsed __body { margin-top:
-     4px }` rule above. Was previously achieved indirectly by the
-     stacked header layout giving the header extra vertical
-     height; the inline-row header layout (now used at all widths
-     for the right panel) is shorter, so the body needs explicit
-     margin-top to keep the same visual breathing room. */
-  margin-top: 4px;
+  /* Small 8px top margin so the body sits just below the header
+     with a hint of breathing room (was 0; bumped per design). The
+     collapsed-rail `--collapsed __body { margin-top: 0 }` rule
+     stays at 0 — the rail's caption sits flush. */
+  margin-top: 8px;
 }
 .md-board-edit-right-panel__divider {
   height: 1px;

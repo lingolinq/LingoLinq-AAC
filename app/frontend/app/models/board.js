@@ -163,7 +163,7 @@ LingoLinq.Board = DS.Model.extend({
     key = key.toLowerCase().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+$/, '').replace(/-+/g, '-');
     return key;
   }),
-  icon_url_with_fallback: computed('image_url', 'key', function() {
+  icon_url_with_fallback: computed('image_url', 'image_data_uri', 'key', function() {
     // Curated vocab boards use our shipped branded tile art instead of the
     // stale ARASAAC image_url. /images/ assets are bundled with the app, so
     // this is safe online and offline and intentionally takes precedence
@@ -834,6 +834,30 @@ LingoLinq.Board = DS.Model.extend({
   sharing_key: DS.attr('string'),
   starred: DS.attr('boolean'),
   stars: DS.attr('number'),
+  /* `starred` is only populated by the backend on responses that pass
+     `:permissions => @api_user` (see lib/json_api/board.rb#starred).
+     The boards-index endpoint (used by the dashboard preview, boards
+     page, and My Boards picker) does NOT pass permissions, so records
+     loaded via list queries have starred=undefined. This computed
+     fills the gap by checking the user's `stats.starred_board_refs`
+     list (loaded with the user record), so any surface that needs
+     "is this board liked by the current user" has a reliable answer.
+     Falls back to the server-provided `starred` if it IS set (i.e.
+     records loaded via the single-board endpoint), so we never lose
+     accuracy. */
+  starred_for_current_user: computed(
+    'starred',
+    'id',
+    'global_id',
+    'appState.referenced_user.stats.starred_board_refs.[]',
+    function() {
+      if(this.get('starred')) { return true; }
+      var id = this.get('id') || this.get('global_id');
+      if(!id) { return false; }
+      var refs = this.appState.get('referenced_user.stats.starred_board_refs') || [];
+      return !!refs.find(function(ref) { return ref && (ref.id == id || ref.id == this.get('global_id')); }.bind(this));
+    }
+  ),
   non_author_starred: DS.attr('boolean'),
   star_or_unstar: function(star) {
     var _this = this;

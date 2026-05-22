@@ -17,46 +17,10 @@
     {{/if}}
   </div>
 
-  {{!-- Tab strip --}}
-  <ul class="ub-boards-page__tabs" role="tablist">
-    {{#if this.boardsCtrl.model.permissions.edit}}
-      <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "setSelected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
-    {{else if this.boardsCtrl.model.permissions.model}}
-      <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "setSelected" "mine"}}>{{t "Mine" key="mine"}}</a></li>
-    {{/if}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{action "setSelected" "public"}}>{{t "Public" key="public"}}</a></li>
-    {{/unless}}
-    {{#if this.boardsCtrl.model.permissions.model}}
-      <li role="presentation" class={{if this.boardsCtrl.root_selected "is-active"}}><a href="#" {{action "setSelected" "root"}}>{{t "Root" key="root"}}</a></li>
-    {{/if}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      <li role="presentation" class={{if this.boardsCtrl.starred_selected "is-active"}}><a href="#" {{action "setSelected" "starred"}}>{{t "Liked" key="starred"}}</a></li>
-    {{/unless}}
-    {{#unless this.appState.currentUser.modeling_only}}
-      {{#if this.boardsCtrl.model.permissions.model}}
-        <li role="presentation" class="dropdown {{if this.boardsCtrl.other_selected "is-active"}}">
-          <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-            {{this.boardsCtrl.more_label}} <span class="caret"></span>
-          </a>
-          <ul class="dropdown-menu">
-            {{#if this.boardsCtrl.model.permissions.edit}}
-              <li><a href="#" {{action "setSelected" "shared"}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
-            {{/if}}
-            {{#if this.boardsCtrl.model.prior_home_boards}}
-              <li><a href="#" {{action "setSelected" "prior_home"}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
-            {{/if}}
-            {{#if this.boardsCtrl.model.permissions.edit}}
-              <li><a href="#" {{action "setSelected" "private"}}>{{t "Private" key="private"}}</a></li>
-            {{/if}}
-            {{#each this.boardsCtrl.model.board_tags as |tag|}}
-              <li><a href="#" {{action "setTag" tag}}>{{tag}}</a></li>
-            {{/each}}
-          </ul>
-        </li>
-      {{/if}}
-    {{/unless}}
-  </ul>
+  {{!-- Tab strip was moved into available-boards-section.hbs (placed
+       directly above the Boards Filter) so the user picks a tab and
+       then refines with the filter input. See that template for the
+       rendered <ul class="ub-boards-page__tabs"> markup. --}}
 
   {{!-- Board grid (Mine folders, filter, DnD) --}}
   <div class="ub-boards-page__boards-body">

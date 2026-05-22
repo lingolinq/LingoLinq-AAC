@@ -344,12 +344,20 @@ export default {
             LingoLinq.store.push(rootNorm);
           }
         } catch (e) { /* ignore */ }
-        // Cache + push every descendant.
+        // Cache + push every descendant — JSON only. We intentionally
+        // DO NOT warm-prefetch descendant images here: for a home
+        // board with many sub-boards (e.g. Quick Core 112 with ~95
+        // descendants × ~100 buttons each), warm_images() per
+        // descendant flooded the browser request queue with 8k+
+        // pending image requests, blocking everything else (including
+        // the Board Details modal's canvas image loads). Sub-board
+        // images now load lazily when the user actually navigates
+        // into that sub-board — the JSON cache still keeps the
+        // navigation fast; only the image fetch is deferred.
         (data.descendants || []).forEach(function(wrapped) {
           var sub_raw = normalize_board_payload(wrapped);
           if (!sub_raw) { return; }
           _this.set(sub_raw);
-          _this.warm_images(sub_raw, warm_opts);
           try {
             if (typeof window !== 'undefined' && LingoLinq && LingoLinq.store) {
               var subNorm = LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(sub_raw)));

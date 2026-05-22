@@ -635,6 +635,14 @@ export default Component.extend({
     // (home → liked-alpha → others-alpha) reads both per-board.
     '_fetchedPreviewBoards.@each.starred',
     '_fetchedPreviewBoards.@each.name',
+    // Re-snapshot when a board's image attrs change. The board model's
+    // checkForDataURLOnChange observer sets `image_data_uri` after a
+    // user visits a board (offline-caching), and `image_url` itself
+    // can refresh during a record reload. Without tracking these,
+    // the POJO's captured `imageUrl` stayed pointing at the original
+    // (sometimes now-invalid) URL, leaving the thumb broken on return.
+    '_fetchedPreviewBoards.@each.image_url',
+    '_fetchedPreviewBoards.@each.image_data_uri',
     'appState.currentUser.preferences.home_board.key',
     'appState.currentUser.preferences.home_board.id',
     function() {

@@ -3,19 +3,44 @@
      buttons inside buttons). --}}
 <div class={{this.display_class}} style={{this.cursor_style}}>
   {{#unless this.noinfo}}
-    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
+    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
       {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
           {{this.override_count}}
         </span>
       {{else}}
-        <span class='glyphicon glyphicon-info-sign' aria-hidden="true"></span>
-        {{#if this.board_record.grid.rows}}
-          <span class='size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
+        {{!-- "PREVIEW" label + (when the board is a folder/container)
+             the child-board count, separated by a thin vertical
+             divider so the two pieces of info read as one combined
+             chip. The count only renders when the board actually has
+             children — leaf boards just show "PREVIEW". --}}
+        <span class='info__label'>{{t "Preview" key="preview"}}</span>
+        {{#if this.children.length}}
+          <span class='info__divider' aria-hidden="true"></span>
+          <span class='info__count'>{{t "board" key="n_boards" count=this.children.length}}</span>
         {{/if}}
       {{/if}}
     </button>
   {{/unless}}
+  {{!-- Grid-size badge: pulled out of the .info Preview button so it
+       can live independently in the top-right of the tile (above the
+       favorites heart, if any). Always rendered when the board has
+       grid metadata — constant fixture, not part of the Preview
+       affordance. --}}
+  {{#if this.board_record.grid.rows}}
+    <span class='board-icon__size' aria-label={{t "Grid size" key="grid_size"}}>
+      {{!-- Filled 2x2 grid glyph — IDENTICAL to the BOARDS-chip
+           icon on the Board Stats accordion (same viewBox, same rects,
+           same 12x12 render size) so the two read as the same symbol. --}}
+      <svg class='board-icon__size-icon' width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span class='board-icon__size-text'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
+    </span>
+  {{/if}}
   {{#if this.flag_home }}
     {{#if this.board_record.home_board}}
       <div style='position: absolute; top: 0; left: 5px; color: #888;' aria-label={{t "Home board" key="home_board"}}><span class='glyphicon glyphicon-home' aria-hidden="true"></span></div>
@@ -38,13 +63,14 @@
     <div class={{if this.noinfo "name compact" "name"}}>
     {{this.best_name}}
     </div>
-    <div class='author'>
-      {{#if this.children}}
-        {{t "board" key="n_boards" count=this.children.length}}
-      {{else}}
+    {{!-- Author/count line: for folder boards the count now lives
+         inside the Preview pill (PREVIEW · N boards), so the line
+         only renders for leaf boards (showing "by Username"). --}}
+    {{#unless this.children}}
+      <div class='author'>
         <span class="author__label">{{t "by" key="by"}}</span>
         <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
-      {{/if}}
-    </div>
+      </div>
+    {{/unless}}
   </button>
 </div>

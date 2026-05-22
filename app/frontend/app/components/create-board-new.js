@@ -355,14 +355,18 @@ export default Component.extend({
   // Shell only — no controls wired yet; mirrors the board-detail edit
   // panel's section list (subset that applies to board creation).
   create_rail_sections: [
-    { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") },
-    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
+    /* Reordered per design:
+       Background → Board Layout → Board Symbols → Paint at the
+       top; then Shape & Border, Skin Tones, Speak Bar; with
+       Text Settings sitting at the bottom of the rail. */
     { id: 'background', label: i18n.t('board_detail_background', "Background") },
-    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
     { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
     { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
+    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
+    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
+    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
     { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
-    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") }
+    { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") }
     /* Gap removed — Grid Gap lives in the Board Layout section. */
   ],
 
@@ -1272,7 +1276,14 @@ export default Component.extend({
         var onClose = this.get('onClose');
         if (onClose && typeof onClose === 'function') {
           onClose();
+        } else if (window.history && window.history.length > 1) {
+          // Return to whichever page the user was on when they opened
+          // create-board-new (board picker, dashboard, a board, etc.)
+          // rather than always landing them on user.home.
+          window.history.back();
         } else {
+          // Fallback for direct navigation (bookmark, fresh tab, deep
+          // link) where there's no history to walk back.
           var un = this.appState.get('currentUser.user_name');
           var r = this.get('router');
           var st = this.get('store');

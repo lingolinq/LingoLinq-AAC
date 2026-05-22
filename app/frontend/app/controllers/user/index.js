@@ -54,6 +54,28 @@ export default Controller.extend({
   // Toggled by `toggle_board_stats` in the actions block below.
   board_stats_expanded: false,
 
+  // Count of the user's owned boards that are flagged public — feeds
+  // the "N PUBLIC" chip on the Board Stats accordion header. Uses
+  // model.my_boards (loaded by the Mine-tab query in update_selected)
+  // and `.public` on each board record (always shipped, see
+  // lib/json_api/board.rb line 65 — not gated by permissions like
+  // `starred` is). Returns 0 until my_boards finishes loading.
+  // Dep uses `.[]` to match the existing my_boards computeds on this
+  // controller (line 172, 196, 237) — `@each.public` on a non-array
+  // value (e.g. Promise during initial render) can throw and break
+  // the whole boards page below.
+  public_boards_count: computed('model.my_boards.[]', function() {
+    var boards = this.get('model.my_boards');
+    if(!boards) { return 0; }
+    var arr = (typeof boards.toArray === 'function') ? boards.toArray()
+            : (typeof boards.forEach === 'function') ? boards
+            : null;
+    if(!arr) { return 0; }
+    var count = 0;
+    arr.forEach(function(b) { if(b && b.get && b.get('public')) { count++; } });
+    return count;
+  }),
+
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
@@ -553,10 +575,38 @@ export default Controller.extend({
           }
         }
       }
+      /* Mine-tab sort: Home Board first, then liked/favorite boards
+         alphabetically by name, then everything else alphabetically.
+         Mirrors the My Boards modal Mine-tab order. Scoped to the
+         Mine tab only — other tabs (Public, Liked, Root, Shared,
+         etc.) keep the server's `home_popularity`/`popularity` order. */
+      if(this.get('selected') == 'mine' || !this.get('selected')) {
+        var homeKey = this.get('model.preferences.home_board.key');
+        new_list = new_list.sort(function(a, b) {
+          var aBoard = a && a.board;
+          var bBoard = b && b.board;
+          if(!aBoard || !aBoard.get) { return 1; }
+          if(!bBoard || !bBoard.get) { return -1; }
+          var aIsHome = aBoard.get('key') === homeKey;
+          var bIsHome = bBoard.get('key') === homeKey;
+          if(aIsHome && !bIsHome) { return -1; }
+          if(bIsHome && !aIsHome) { return 1; }
+          /* `starred_for_current_user` falls back to the user's
+             stats.starred_board_refs since list-loaded boards don't
+             ship `starred` (see lib/json_api/board.rb). */
+          var aStar = aBoard.get('starred_for_current_user');
+          var bStar = bBoard.get('starred_for_current_user');
+          if(aStar && !bStar) { return -1; }
+          if(bStar && !aStar) { return 1; }
+          var aName = (aBoard.get('name') || '').toLowerCase();
+          var bName = (bBoard.get('name') || '').toLowerCase();
+          return aName.localeCompare(bName);
+        });
+      }
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');
-        new_list = new_list.filter(function(i) { 
-          return i.board.get('search_string').match(re) || i.children.find(function(c)  { return c.board.get('search_string').match(re); }); 
+        new_list = new_list.filter(function(i) {
+          return i.board.get('search_string').match(re) || i.children.find(function(c)  { return c.board.get('search_string').match(re); });
         });
         res.filtered_results = new_list.slice(0, 18);
       } else */ if(this.get('show_all_boards')) {

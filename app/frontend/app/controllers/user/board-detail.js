@@ -114,6 +114,16 @@ export default Controller.extend(prefClasses, {
   right_panel_collapsed: false,
   left_panel_collapsed: false,
   right_panel_open_section: null,
+  /* True when the currently-open right-panel section was opened
+     while the panel was in COLLAPSED rail mode — i.e. the user
+     was looking at the icon rail, clicked a section icon, the
+     panel expanded INTO that section. In that flow, the Back
+     button should collapse the panel back to the rail (not show
+     the full expanded section list, which the user hadn't
+     navigated through). Cleared when the user opens a section
+     from the already-expanded panel, manually toggles the panel
+     open/closed, or after Back has fired. */
+  _section_opened_from_rail: false,
   panels_collapsed: false,
   board_search_string: '',
 
@@ -4925,14 +4935,33 @@ export default Controller.extend(prefClasses, {
     /* Right panel: collapse/expand the entire Live Preview Edit
        container (independent of any open accordion section). */
     toggle_right_panel: function() {
+      /* Manual user toggle resets the "opened from rail"
+         provenance — Back should behave normally on the next
+         section open since the user has explicitly taken control
+         of the panel state. */
+      this.set('_section_opened_from_rail', false);
       this.toggleProperty('right_panel_collapsed');
     },
 
-    // Fully expand the right panel: clear BOTH the rail-collapsed
-    // state and any open section, so the user lands back on the
-    // complete section list (used by the Back chevron — it expands
-    // the whole panel, not just the previously-open section).
+    // Back button on the section header. Two flows:
+    //   1. User was in expanded panel → opened a section → clicked
+    //      Back. Original behavior: clear the section, panel stays
+    //      expanded showing the full section list.
+    //   2. User was in COLLAPSED rail → clicked a section icon
+    //      (panel expanded INTO that section) → clicked Back.
+    //      New behavior: collapse the panel back to the icon rail
+    //      where they came from — they didn't navigate through
+    //      the expanded section list, so returning to it would
+    //      not match their mental "back" destination.
+    // The `_section_opened_from_rail` flag tracks which flow the
+    // current section open belongs to.
     expand_right_panel: function() {
+      if(this.get('_section_opened_from_rail')) {
+        this.set('right_panel_open_section', null);
+        this.set('right_panel_collapsed', true);
+        this.set('_section_opened_from_rail', false);
+        return;
+      }
       this.set('right_panel_collapsed', false);
       this.set('right_panel_open_section', null);
     },
@@ -4954,15 +4983,22 @@ export default Controller.extend(prefClasses, {
        the same section closes it). Keeps the panel uncluttered.
        If the panel is collapsed (icon-rail mode), clicking a
        section icon re-expands the panel AND opens that section
-       — VS Code / Notion-style "click rail icon to jump back in". */
+       — VS Code / Notion-style "click rail icon to jump back in".
+       The `_section_opened_from_rail` flag is set in that flow so
+       the Back button knows to collapse the panel back to the rail
+       (rather than show the full expanded section list the user
+       never navigated through). Opening a section from the
+       already-expanded panel clears the flag. */
     toggle_right_panel_section: function(section_id) {
       if(this.get('right_panel_collapsed')) {
         this.set('right_panel_collapsed', false);
         this.set('right_panel_open_section', section_id);
+        this.set('_section_opened_from_rail', true);
         return;
       }
       var current = this.get('right_panel_open_section');
       this.set('right_panel_open_section', current === section_id ? null : section_id);
+      this.set('_section_opened_from_rail', false);
     },
 
     nav_select: function(item_id) {
