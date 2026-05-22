@@ -1331,7 +1331,7 @@ export default Controller.extend(prefClasses, {
       if(merged.images && merged.images.length) {
         _this._board_detail_images = merged.images;
       }
-      boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
       _this._build_from_raw(merged);
     }, function() {
       /* Network or auth failure — leave the stale render in place
@@ -2775,7 +2775,7 @@ export default Controller.extend(prefClasses, {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           var merged = boardDetailCache.normalize_board_payload(data);
           if(merged) {
-            boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+            boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
             walk(merged, depth - 1);
           }
           if(pending === 0) { commit_list(); }
@@ -3303,7 +3303,7 @@ export default Controller.extend(prefClasses, {
           if(merged.images && merged.images.length) {
             _this._board_detail_images = merged.images;
           }
-          boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+          boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
           _this._build_from_raw(merged);
         }
         finish();
@@ -4901,7 +4901,7 @@ export default Controller.extend(prefClasses, {
             return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
               var merged = boardDetailCache.normalize_board_payload(data);
               if(merged && merged.key) {
-                boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+                boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
                 return _this._preferred_board_detail_key(merged.key).then(function(preferred_key) {
                   var parts = preferred_key.split('/');
                   return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));

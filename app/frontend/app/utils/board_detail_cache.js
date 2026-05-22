@@ -5,7 +5,9 @@
 //      route's model hook can resolve without an HTTP roundtrip and
 //      _build_from_raw can rebuild ordered_buttons from the cached copy.
 //   2. Pre-fetch immediate child boards (depth=1) so that a folder click
-//      on the current board lands on a cached entry.
+//      on the current board lands on a cached entry. When the parent board
+//      is shown, warm_linked_images batches browser-cache fills for every
+//      cached child (from /tree or prior navigation) without re-fetching.
 //
 // Mirrors the cache-first pattern used by routes/user/board-alt.js, which
 // peeks Ember Data's identity map. We also keep this parallel raw-JSON
@@ -33,6 +35,8 @@ var _by_id = {};
 var _inflight = {};
 // boards whose image cache has been warmed this session: key|id → true
 var _warmed = {};
+// remote image URLs already dispatched to Image() this session
+var _warmed_urls = {};
 
 function _now() { return Date.now(); }
 
@@ -128,6 +132,52 @@ function normalize_board_payload(data) {
   return JSON.parse(JSON.stringify(data));
 }
 
+// Load URLs in small batches so warming many sub-boards does not flood
+// the browser's per-origin connection pool (same constants as prefetch).
+function _warm_urls_batched(urls) {
+  if (!urls.length) { return RSVP.resolve(); }
+  return new RSVP.Promise(function(resolve) {
+    var offset = 0;
+    var run_batch = function() {
+      var batch = urls.slice(offset, offset + WARM_BATCH);
+      offset += WARM_BATCH;
+      if (!batch.length) { return resolve(); }
+      var promises = batch.map(function(url) {
+        return new RSVP.Promise(function(res) {
+          try {
+            var img = new Image();
+            img.onload = function() { res(); };
+            img.onerror = function() { res(); };
+            img.src = url;
+            if (img.complete) { res(); }
+          } catch (e) { res(); }
+        });
+      });
+      RSVP.all(promises).then(function() {
+        if (offset < urls.length) {
+          runLater(run_batch, WARM_BATCH_GAP_MS);
+        } else {
+          resolve();
+        }
+      });
+    };
+    run_batch();
+  });
+}
+
+function _collect_linked_lookups(raw) {
+  var lookups = [];
+  var seen = {};
+  (raw.buttons || []).forEach(function(btn) {
+    if (!btn || !btn.load_board) { return; }
+    var lookup = btn.load_board.key || btn.load_board.id;
+    if (!lookup || seen[lookup]) { return; }
+    seen[lookup] = true;
+    lookups.push(lookup);
+  });
+  return lookups;
+}
+
 export default {
   normalize_board_payload: normalize_board_payload,
   // Returns the cached raw board JSON, or null if missing/stale.
@@ -144,8 +194,18 @@ export default {
   // Stores a raw board response. Indexed under both key and id.
   // Replacing an entry drops any previously-cached ordered_buttons since
   // the underlying data may have changed.
-  set: function(raw) {
+  //
+  // When a fresh entry already exists, skip re-indexing unless opts.force
+  // is true (e.g. after save or an explicit server refetch).
+  set: function(raw, opts) {
+    opts = opts || {};
     if (!raw || (!raw.key && !raw.id)) { return; }
+    if (!opts.force) {
+      var existing = _lookup(raw.key) || _lookup(raw.id);
+      if (existing && _is_fresh(existing)) {
+        return existing;
+      }
+    }
     var entry = {
       key: raw.key,
       id: raw.id,
@@ -204,6 +264,7 @@ export default {
     _by_id = {};
     _inflight = {};
     _warmed = {};
+    _warmed_urls = {};
   },
 
   // Warm the browser image cache for every button image URL on the
@@ -213,9 +274,9 @@ export default {
   // referenced_user (or currentUser) via appState.
   //
   // Returns a Promise that resolves when every image has settled
-  // (loaded OR errored). The browser caps parallel fetches per origin
-  // (~6) so dispatching all URLs at once is safe — browser internally
-  // queues, no throttling needed at our layer.
+  // (loaded OR errored). URLs are loaded in batches (WARM_BATCH) so
+  // warming a large board or many sub-boards does not monopolize the
+  // browser request queue.
   //
   // Callers can await the promise to guarantee the image cache is
   // fully populated before showing the board, OR fire-and-forget for
@@ -232,65 +293,102 @@ export default {
     var preferred_symbols = opts.preferred_symbols !== undefined ? opts.preferred_symbols : prefs.preferred_symbols;
     var warmKey = _warm_cache_key(token, skin, preferred_symbols);
     if (warmKey && _warmed[warmKey]) { return RSVP.resolve(); }
-    if (warmKey) { _warmed[warmKey] = true; }
-    var urls = _urls_to_warm(raw, skin);
-    if (!urls.length) { return RSVP.resolve(); }
-    var promises = urls.map(function(url) {
-      return new RSVP.Promise(function(resolve) {
-        try {
-          var img = new Image();
-          img.onload = function() { resolve(); };
-          img.onerror = function() { resolve(); };
-          img.src = url;
-          // Already-cached images may resolve `complete` immediately
-          // and never fire onload — short-circuit so we don't hang.
-          if (img.complete) { resolve(); }
-        } catch (e) { resolve(); }
-      });
+    var urls = _urls_to_warm(raw, skin).filter(function(url) {
+      return url && !_warmed_urls[url];
     });
-    return RSVP.all(promises);
+    if (!urls.length) {
+      if (warmKey) { _warmed[warmKey] = true; }
+      return RSVP.resolve();
+    }
+    urls.forEach(function(url) { _warmed_urls[url] = true; });
+    return _warm_urls_batched(urls).then(function() {
+      if (warmKey) { _warmed[warmKey] = true; }
+    });
   },
 
-  // Fetches every immediate-child board (load_board entries) into the
-  // cache and warms their images. Skips boards already cached/in-flight
-  // to dedupe rapid clicks. Caps total fetches at MAX_PREFETCH.
+  // Warm browser image cache for every immediate child board (folder
+  // buttons with load_board) whose JSON is already in the in-memory
+  // cache — typically from a prior /tree fetch. No network; URLs are
+  // deduped across children and loaded in batches so opening a parent
+  // with many folders does not flood the request queue.
+  warm_linked_images: function(raw, opts) {
+    if (!raw || !raw.buttons) { return RSVP.resolve(); }
+    opts = opts || {};
+    var prefs = _display_prefs_for_warm();
+    var skin = opts.skin !== undefined ? opts.skin : prefs.skin;
+    var preferred_symbols = opts.preferred_symbols !== undefined ? opts.preferred_symbols : prefs.preferred_symbols;
+    var boards_to_mark = [];
+    var all_urls = [];
+    var seen_url = {};
+
+    _collect_linked_lookups(raw).forEach(function(lookup) {
+      var existing = _lookup(lookup);
+      if (!existing || !_is_fresh(existing) || !existing.raw) { return; }
+      var token = existing.key || existing.id;
+      if (!token || _is_warmed(token, skin, preferred_symbols)) { return; }
+      var warmKey = _warm_cache_key(token, skin, preferred_symbols);
+      var board_urls = _urls_to_warm(existing.raw, skin).filter(function(url) {
+        if (!url || _warmed_urls[url] || seen_url[url]) { return false; }
+        seen_url[url] = true;
+        return true;
+      });
+      if (board_urls.length) {
+        boards_to_mark.push(warmKey);
+        all_urls = all_urls.concat(board_urls);
+      } else if (warmKey) {
+        _warmed[warmKey] = true;
+      }
+    });
+
+    if (!all_urls.length) { return RSVP.resolve(); }
+    all_urls.forEach(function(url) { _warmed_urls[url] = true; });
+    return _warm_urls_batched(all_urls).then(function() {
+      boards_to_mark.forEach(function(warmKey) {
+        if (warmKey) { _warmed[warmKey] = true; }
+      });
+    });
+  },
+
+  // Fetches immediate-child board JSON when missing from cache, then
+  // warms their images via warm_linked_images. Skips boards already
+  // cached/in-flight to dedupe rapid clicks. Caps network fetches at
+  // MAX_PREFETCH; image warming has no cap (batched + URL-deduped).
   prefetch_linked: function(raw, opts) {
-    if (!raw || !raw.buttons) { return; }
+    if (!raw || !raw.buttons) { return RSVP.resolve(); }
     opts = opts || {};
     var max = opts.max || MAX_PREFETCH;
     var fetched = 0;
     var _this = this;
-    var prefs = _display_prefs_for_warm();
-    var skin = opts.skin !== undefined ? opts.skin : prefs.skin;
-    var preferred_symbols = opts.preferred_symbols !== undefined ? opts.preferred_symbols : prefs.preferred_symbols;
+    var fetch_promises = [];
 
-    raw.buttons.forEach(function(btn) {
-      if (!btn || !btn.load_board) { return; }
-      var lookup = btn.load_board.key || btn.load_board.id;
-      if (!lookup) { return; }
+    // Warm every child that already has JSON (e.g. from /tree).
+    _this.warm_linked_images(raw, opts);
 
+    _collect_linked_lookups(raw).forEach(function(lookup) {
       var existing = _lookup(lookup);
-      if (existing && _is_fresh(existing)) {
-        var existingToken = existing.key || existing.id;
-        if (existingToken && !_is_warmed(existingToken, skin, preferred_symbols)) {
-          _this.warm_images(existing.raw, opts);
-        }
+      if (existing && _is_fresh(existing)) { return; }
+      if (_inflight[lookup]) {
+        fetch_promises.push(_inflight[lookup]);
         return;
       }
-      if (_inflight[lookup]) { return; }
       if (fetched >= max) { return; }
       fetched++;
 
-      _inflight[lookup] = persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
+      var p = persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
         delete _inflight[lookup];
         var board_raw = normalize_board_payload(data);
         if (board_raw) {
           _this.set(board_raw);
-          _this.warm_images(board_raw, opts);
         }
       }, function() {
         delete _inflight[lookup];
       });
+      _inflight[lookup] = p;
+      fetch_promises.push(p);
+    });
+
+    return RSVP.all(fetch_promises).then(function() {
+      return _this.warm_linked_images(raw, opts);
     });
   },
 

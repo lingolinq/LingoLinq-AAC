@@ -70,17 +70,19 @@ export default Route.extend({
     }
     controller._build_from_raw(raw);
     if(controller.get('edit_mode')) { return; }
-    // Warm browser HTTP cache for this board's symbols (children are warmed by prefetch_linked).
+    var warm_opts = {
+      skin: controller.get('app_state.referenced_user.preferences.skin'),
+      preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
+    };
+    // Current board first, then batched image warm for every cached child
+    // (folder / load_board targets), then fetch JSON for any missing children.
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
-      boardDetailCache.warm_images(raw, {
-        skin: controller.get('app_state.referenced_user.preferences.skin'),
-        preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
-      });
+      boardDetailCache.warm_images(raw, warm_opts);
     }, 100);
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
-      boardDetailCache.prefetch_linked(raw);
+      boardDetailCache.prefetch_linked(raw, warm_opts);
     }, 500);
   },
 
@@ -141,14 +143,12 @@ export default Route.extend({
       var handleRoot = function(boardData) {
         var raw_copy = JSON.parse(JSON.stringify(boardData));
         _this.set('_raw_board_data', raw_copy);
-        boardDetailCache.set(JSON.parse(JSON.stringify(boardData)));
+        // force: network response is authoritative for this navigation.
+        boardDetailCache.set(raw_copy, { force: true });
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
-        // Warm current board's images in the background (no await).
-        if (boardDetailCache.warm_images) {
-          try { boardDetailCache.warm_images(raw_copy); } catch (e) { /* ignore */ }
-        }
+        // Image warm runs in _finalize_board_display for the visible board.
         // Resolve immediately — grid renders now, no overlay.
         resolve(record);
       };
@@ -185,6 +185,9 @@ export default Route.extend({
         // (boardDetailCache.get → raw AND store.peekAll → record).
         // This is the work that makes folder taps instant.
         var subStore = _this.store;
+        // JSON + Ember Data only — do not warm descendant images here.
+        // Warming every sub-board floods the browser queue (same rationale
+        // as prefetch_for_user). Images load when the user opens that board.
         (data.descendants || []).forEach(function(wrapped) {
           var sub_raw = boardDetailCache.normalize_board_payload(wrapped);
           if (!sub_raw) { return; }
@@ -193,9 +196,6 @@ export default Route.extend({
             var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
             subStore.push(sub_normalized);
           } catch (e) { /* serializer edge cases shouldn't block prefetch */ }
-          if (boardDetailCache.warm_images) {
-            try { boardDetailCache.warm_images(sub_raw); } catch(e) { /* ignore */ }
-          }
         });
       }, function() {
         fallbackSingleBoard();
