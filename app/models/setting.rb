@@ -1,4 +1,4 @@
-class Setting < ActiveRecord::Base
+class Setting < ApplicationRecord
   include SecureSerialize
   secure_serialize :data
 

@@ -1,4 +1,4 @@
-class Device < ActiveRecord::Base
+class Device < ApplicationRecord
   include GlobalId
   include SecureSerialize
   secure_serialize :settings
