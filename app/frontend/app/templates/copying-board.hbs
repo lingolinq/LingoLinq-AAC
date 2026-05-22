@@ -26,10 +26,13 @@
         <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
       {{/if}}
     {{else if this.loading}}
-      {{!-- Spinner matches the in-progress copy state below for visual
-           consistency, so the user sees a clear "working" indicator
-           while the linked-board hierarchy loads, not just bare text. --}}
-      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Loading linked boards..." key="loading_linked_boards"}}</p>
+      {{!-- Modern CSS spinner (md-loading-spinner) — replaces the
+           legacy spinner.gif so the loading indicator matches the
+           rest of the app's modern modals. --}}
+      <div class="md-copying-board-loading">
+        <div class="md-loading-spinner" aria-hidden="true"></div>
+        <p class="md-copying-board-loading__label">{{t "Loading linked boards..." key="loading_linked_boards"}}</p>
+      </div>
     {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
       {{#if this.hierarchyRootOnlyWarning}}
@@ -43,7 +46,10 @@
         <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
       {{/if}}
     {{else}}
-      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}} </p>
+      <div class="md-copying-board-loading">
+        <div class="md-loading-spinner" aria-hidden="true"></div>
+        <p class="md-copying-board-loading__label">{{t "Copying the board <strong>%{board_key}</strong>, this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}}</p>
+      </div>
       <p>{{t "You can close this window and the copy will continue in the background." key="copy_continues_if_closed"}}</p>
     {{/if}}
   </div>

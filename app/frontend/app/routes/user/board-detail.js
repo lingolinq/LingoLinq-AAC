@@ -205,6 +205,13 @@ export default Route.extend({
 
   setupController: function(controller, model) {
     var _this = this;
+    /* Hide any pending board-loading overlay set by callers that
+       fired show_loading_overlay before this transition (the My
+       Boards picker, the boards-page tile click, etc.). The
+       overlay's LOADING_OVERLAY_MIN_MS still enforces a minimum
+       visible duration so a fast cache-hit transition doesn't
+       flash-and-disappear. */
+    this.appState.hide_loading_overlay();
     var user = this.modelFor('user');
 
     // Reset the exit-in-progress flag each time the route is set up, so that

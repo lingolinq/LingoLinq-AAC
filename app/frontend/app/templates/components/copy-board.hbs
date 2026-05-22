@@ -42,8 +42,18 @@
     </div>
 
     {{#if this.has_supervisees}}
-      <div class="md-modal-field">
+      <div class="md-modal-field md-modal-field--user-select">
         <p class="md-modal-hint">{{t "For which user would you like to make a copy of this board? If you are planning to use this board for multiple communicators, you should probably copy it for yourself and manually add it for each communicator." key="which-user"}}</p>
+        {{!-- Required-selection marker — surfaces the "Copy" footer
+             buttons stay disabled until a user is picked. Without it,
+             the disabled state reads as "broken" rather than "pending
+             a choice", which was the source of confusion. Sits below
+             the hint paragraph so it reads as a label-for-the-grid,
+             not a callout-for-the-paragraph. --}}
+        <p class="md-modal-required-label">
+          <span class="md-modal-required-label__asterisk" aria-hidden="true">*</span>
+          {{t "Required Selection" key="required_selection"}}
+        </p>
         {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(action "updateCurrentlySelectedId") }}
       </div>
     {{/if}}

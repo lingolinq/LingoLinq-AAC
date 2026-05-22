@@ -16,7 +16,13 @@
         <button class='btn btn-primary' {{action "copy_all"}}>{{t "Copy All Boards" key="copy_all_boards"}}</button>
       {{/if}}
     {{else if this.loading}}
-      <p>{{t "Loading..." key="loading"}}</p>
+      {{!-- Modern CSS spinner (md-loading-spinner) centered above the
+           label so the "we're working" signal is unmistakable. The
+           prior bare "Loading…" string looked like a stuck modal. --}}
+      <div class="md-copying-board-loading">
+        <div class="md-loading-spinner" aria-hidden="true"></div>
+        <p class="md-copying-board-loading__label">{{t "Loading..." key="loading"}}</p>
+      </div>
     {{else if this.hierarchy}}
       <p>{{t "Please choose the boards you would like copied. By default all are copied." key="choose_boards_to_copy"}}</p>
       {{#if this.hierarchyRootOnlyWarning}}
@@ -30,7 +36,13 @@
         <button class='btn btn-primary' {{action "start_copying"}} disabled={{this.hierarchy.root_deselected}}>{{t "Copy Selected Boards" key="copy_selected_boards"}}</button>
       {{/if}}
     {{else}}
-      <p><img src={{path "images/spinner.gif"}} style="float: left; padding-right: 15px;"> {{t "Copying the board <strong>%{board_key}</strong>,<br> this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}} </p>
+      {{!-- In-progress copy state — same spinner pattern as the
+           hierarchy-loading branch above, replacing the legacy
+           spinner.gif so visuals stay coherent across modal states. --}}
+      <div class="md-copying-board-loading">
+        <div class="md-loading-spinner" aria-hidden="true"></div>
+        <p class="md-copying-board-loading__label">{{t "Copying the board <strong>%{board_key}</strong>, this could take a few minutes..." key="copying_the_board" board_key=this.model.board.key}}</p>
+      </div>
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">

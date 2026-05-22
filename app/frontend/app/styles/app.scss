@@ -1152,6 +1152,17 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
   position: relative;
 }
 
+/* Wrapper around hamburger button + dropdown — gives the dropdown
+   a tight positioning context so it anchors directly below the
+   hamburger button rather than #normal_mode's full-width container
+   (which let the menu drop down from the far-right of the header).
+   Inline-block so the wrapper hugs the button width. */
+.la-board-hamburger-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .la-board-mobile-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -1161,9 +1172,20 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
   box-shadow: 0 8px 32px rgba($la-navy, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba($la-navy, 0.08);
   padding: 8px;
-  z-index: 200;
+  /* Bumped from 200 to 2000 so the dropdown clears every interactive
+     layer on board-alt — the speak grid + board cells were rendering
+     ON TOP of the menu at z-index 200 because the board surface
+     itself paints into a higher stacking context. 2000 stays below
+     true overlay layers (modal-backdrop ~1040, picker 901/900) so
+     real modals still cover it correctly. */
+  z-index: 2000;
   min-width: 240px;
   animation: la-board-menu-fade-in 0.15s ease;
+  /* Cap the menu height to the available viewport space and scroll
+     internally so users on short viewports can reach Exit Boards at
+     the bottom. The 16px buffer pads against the page edge. */
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 @keyframes la-board-menu-fade-in {
   from { opacity: 0; transform: translateY(-6px); }
@@ -1212,8 +1234,13 @@ header #normal_mode .board-view-modern-btn.btn .glyphicon {
   color: #fff !important;
 }
 
-/* ── Board page responsive: collapse action buttons into hamburger ── */
-@media (max-width: 1024px) {
+/* ── Board page responsive: collapse action buttons into hamburger ──
+   Breakpoint bumped from 1024px → 1500px so the hamburger collapse
+   kicks in earlier and the right-side action cluster on board-alt
+   normal mode never overruns the header. Affects both the classic
+   board view (.nav-header__board-bar) and board-alt; the hamburger
+   menu items themselves are unchanged. */
+@media (max-width: 1500px) {
   /* Show hamburger */
   #inner_header .la-board-hamburger {
     display: flex !important;
@@ -4337,6 +4364,28 @@ tr.accuracy_non_mastered {
 }
 @keyframes md-spin {
   to { transform: rotate(360deg); }
+}
+
+/* Copy-Board modal loading rows — used by both the route and the
+   component template. Vertically stacks the modern spinner above its
+   label so the "working" signal is unmistakable (the prior bare
+   "Loading…" string read as a stuck modal). Center the column within
+   the modal body and give it enough vertical space that it doesn't
+   look cramped against the header/footer chrome. */
+.md-copying-board-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 16px;
+  text-align: center;
+}
+.md-copying-board-loading__label {
+  margin: 0;
+  font-size: 15px;
+  color: $la-navy;
+  font-weight: 500;
 }
 
 /* ── Download page ── */
@@ -8595,6 +8644,67 @@ body.pretty_loader #loading_box {
     display: inline-block;
     line-height: 1;
   }
+
+  /* Translated-language marker — sits ABOVE the bottom-center PREVIEW
+     pill (which is positioned at `bottom: ~8px` inside `.simple_board_icon`).
+     `bottom: 40px` clears the pill's height + a small gap.
+     Visually matches the size badge family (same glass chrome, same
+     pill shape, same type weight) so the two chips read as siblings,
+     just placed at different corners. `pointer-events: none` so the
+     marker is purely informational — clicks pass through to the tile
+     beneath. The translation chip color is gently differentiated
+     with a verdigris-tinted accent so users can scan for translated
+     boards at a glance without confusing it with the grid-size chip. */
+  .board-icon__lang-marker {
+    position: absolute;
+    /* Bumped from `bottom: 40px` → `bottom: 56px` so the language
+       chip clears the bottom-center PREVIEW pill (sized ~26px tall
+       + ~12px from the tile bottom) instead of sitting right on
+       top of it. Leaves visible breathing room between the two
+       chips. */
+    bottom: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.92) 0%,
+        rgba(232, 244, 241, 0.78) 55%,
+        rgba(206, 233, 224, 0.65) 100%
+      );
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    color: $brand-verdigris-aa;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba($brand-verdigris, 0.12),
+      0 1px 2px rgba(13, 36, 56, 0.10),
+      0 4px 10px rgba($brand-verdigris, 0.18);
+    pointer-events: none;
+    z-index: 3;
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .board-icon__lang-marker-icon {
+    color: $brand-verdigris;
+    flex-shrink: 0;
+  }
+  .board-icon__lang-marker-text {
+    display: inline-block;
+    line-height: 1;
+  }
   .name {
     width: 100%;
     overflow: hidden;
@@ -11144,12 +11254,12 @@ video.button_image {
   transition: background 0.12s ease, box-shadow 0.12s ease;
 }
 .la-confirm-edit__btn--primary {
-  background: $brand-verdigris;
+  background: $brand-slate-blue;
   color: #fff;
 }
 .la-confirm-edit__btn--primary:hover {
-  background: #238b7e;
-  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
+  background: color.adjust($brand-slate-blue, $lightness: -8%);
+  box-shadow: 0 2px 10px rgba($brand-slate-blue, 0.3);
 }
 .la-confirm-edit__btn--default {
   background: $brand-charcoal-blue;
@@ -16505,6 +16615,21 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   #inner_header .app-navbar__large-only {
     display: none !important;
   }
+  /* Higher-specificity hide for the full pill — the
+     `#inner_header:has(#nav_header) .app-navbar__beta-feedback-link`
+     rule at ~line 16503 sets `display: inline-flex !important` on
+     all beta-feedback links inside the board-alt / board-detail
+     header. That rule (specificity 1,1,0) was beating the global
+     `.app-navbar__large-only` hide (0,1,0) and forcing the full pill
+     visible alongside the circular β at ≤1200px on board-alt. This
+     selector reaches (1,3,0) by stacking `--full` + `--large-only`
+     class chains so the hide wins regardless of source order. */
+  #inner_header:has(#nav_header) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
+  .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only {
+    display: none !important;
+  }
   .app-navbar__small-only,
   .app-navbar__beta-feedback-link.app-navbar__small-only,
   .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
@@ -16517,6 +16642,7 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
   }
   /* order: -1 no longer needed — beta lives in .app-navbar__quick-actions now
      and sits to the left of settings by DOM order. */
+
 }
 
 /* At ≥768px, the .app-navbar__quick-actions wrapper dissolves — its children
@@ -16574,23 +16700,75 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
     margin-left: 0 !important;
   }
 }
-/* Exception: the beta-feedback collapse (full pill → circular β) at ≤1200px is only intended for
-   the board-alt page, whose header cluster is tight. On every other page, restore the full pill
-   and keep the circular variant hidden. Scoped to min-width: 768px so the ≤767px rule (which
-   hides both nav variants and moves the link into the dropdown) continues to take effect. */
-@media (min-width: 768px) and (max-width: 1200px) {
-  #within_ember:not(.board-alt-view) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
-  #within_ember:not(.board-alt-view) #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
-  #within_ember:not(.board-alt-view) #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only,
-  #within_ember:not(.board-alt-view) .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--full.app-navbar__large-only {
-    display: inline-flex !important;
+/* Beta-feedback responsive behavior is uniform across all routes:
+   - >1200px: full pill (`--large-only`) shown, circular β
+     (`--small-only`) hidden
+   - ≤1200px: full pill hidden, circular β shown
+   The handling lives entirely in the @media (max-width: 1200px) block
+   above (.app-navbar__large-only → display:none, .app-navbar__small-only
+   → display:inline-flex). A prior non-board-alt exception that forced
+   the full pill back on at 768-1200px was removed because the user
+   wants the larger pill to disappear on smaller screens regardless
+   of route — keeping only the circular β as the compact entry point. */
+
+/* Header right-cluster spacing at ≤1200px on board-alt — fix the
+   visual overlap reported between the circular β, the settings cog,
+   and the identity avatar by giving each element comfortable gutter
+   space. Prior margin-right: 4px on the β at line 16653 left the
+   β and the settings cog (just below it in DOM order) tightly
+   packed; the avatar circle on the right then crowded the β. This
+   block bumps the β's left+right margins and adds breathing room to
+   the settings cog so the trio reads as a properly-spaced cluster
+   instead of three near-overlapping circles. Scoped to board-alt
+   (and speak headers) so other routes' header layouts aren't
+   touched. */
+@media (max-width: 1200px) {
+  #within_ember.board-alt-view #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular,
+  #within_ember.board-alt-view #inner_header:has(#nav_header) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular,
+  #within_ember.board-alt-view #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular {
+    margin-left: 10px !important;
+    margin-right: 10px !important;
   }
-  #within_ember:not(.board-alt-view) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
-  #within_ember:not(.board-alt-view) #identity .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
-  #within_ember:not(.board-alt-view) #inner_header .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
-  #within_ember:not(.board-alt-view) #inner_header:has(#nav_header) .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only,
-  #within_ember:not(.board-alt-view) .app-navbar .app-navbar__beta-feedback-link.app-navbar__beta-feedback-link--circular.app-navbar__small-only {
-    display: none !important;
+  /* Identity avatar button — give it a 6px left margin so the
+     β + avatar don't touch when the layout flows tight. */
+  #within_ember.board-alt-view #inner_header #identity_button.btn,
+  #within_ember.board-alt-view #inner_header #identity > #identity_button.btn {
+    margin-left: 6px !important;
+  }
+}
+
+/* Identity dropdown menu — cap height + internal scroll so the menu
+   doesn't get clipped at the viewport bottom on board-alt normal
+   mode (where the page itself doesn't scroll). The menu contains
+   8-12 items depending on permissions (My Account / My Boards /
+   Settings / Messages / Help / Try New Style / LingoLinq / language /
+   Beta feedback / View Beta Feedback admin / Database / About / …)
+   and tall menus were running off the bottom edge with no way to
+   reach the lower items. Scoped to the identity dropdown trigger
+   so other dropdowns keep their natural sizing. */
+.dropdown-menu[aria-labelledby="dLabel"]:has(.dropdown-menu__try-new-style-item),
+#identity_button + .dropdown-menu,
+.dropdown:has(> #identity_button) > .dropdown-menu {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* Exit Boards entry in the identity dropdown — hidden by default
+   (the hamburger menu already has Exit Boards, and the full-size
+   header has Done with Boards), surfaced only on board-alt-view at
+   the narrow breakpoint where the user needs a secondary
+   discoverability path. Rendered above My Account so it's the
+   first actionable row when the dropdown opens. */
+.dropdown-menu__exit-boards-item,
+.dropdown-menu__exit-boards-divider {
+  display: none !important;
+}
+@media (max-width: 1024px) {
+  #within_ember.board-alt-view .dropdown-menu__exit-boards-item {
+    display: list-item !important;
+  }
+  #within_ember.board-alt-view .dropdown-menu__exit-boards-divider {
+    display: list-item !important;
   }
 }
 /* "Try New Style" dropdown item: mirrors the style-switcher icon on the navbar — the icon is shown
@@ -19078,9 +19256,9 @@ header.header--unauthenticated ~ #content .la-topbar {
    properties; `!important` on every property and a high-specificity chain
    together ensure these win regardless of source-order tiebreakers. */
 @media (max-width: 768px) {
-  #within_ember header #inner_header #header_search,
-  #within_ember header #inner_header .ll-header-settings-btn,
-  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular {
+  #within_ember:not(.board-alt-view) header #inner_header #header_search,
+  #within_ember:not(.board-alt-view) header #inner_header .ll-header-settings-btn,
+  #within_ember:not(.board-alt-view) header #inner_header .app-navbar__beta-feedback-link--circular {
     position: absolute !important;
     top: 50% !important;
     left: auto !important;
@@ -19097,13 +19275,14 @@ header.header--unauthenticated ~ #content .la-topbar {
      and the hamburger / right edge. Shifting search + settings right
      by 50px closes that gap; beta-circular stays at 58px so layouts
      that DO render the inline beta link (legacy speak-mode boards)
-     still align. */
-  #within_ember header #inner_header #header_search {
+     still align. Scoped to non-board-alt so board-alt's flex-flow
+     header layout is preserved at small widths. */
+  #within_ember:not(.board-alt-view) header #inner_header #header_search {
     right: 102px !important;
     transform: translateY(calc(-50% - 6px)) !important;
   }
-  #within_ember header #inner_header .ll-header-settings-btn { right: 58px !important; }
-  #within_ember header #inner_header .app-navbar__beta-feedback-link--circular { right: 12px !important; }
+  #within_ember:not(.board-alt-view) header #inner_header .ll-header-settings-btn { right: 58px !important; }
+  #within_ember:not(.board-alt-view) header #inner_header .app-navbar__beta-feedback-link--circular { right: 12px !important; }
 }
 
 /* At ≤766px, neutralize rule ~15711's position: absolute + display: flex on
@@ -19115,8 +19294,8 @@ header.header--unauthenticated ~ #content .la-topbar {
    positioning rules above (right: 152/108/58px) then work correctly.
    Scoped to ≤766 so the existing 767/768 layouts are untouched. */
 @media (max-width: 766px) {
-  #within_ember header #inner_header .app-navbar__nav-header,
-  #within_ember header #inner_header .app-navbar__quick-actions {
+  #within_ember:not(.board-alt-view) header #inner_header .app-navbar__nav-header,
+  #within_ember:not(.board-alt-view) header #inner_header .app-navbar__quick-actions {
     display: contents !important;
   }
 }
@@ -51106,8 +51285,15 @@ a.md-goal-nav-action:hover,
   }
 }
 
-/* ── Board header responsive: hide buttons into hamburger at ≤975px ── */
-@media (max-width: 1024px) {
+/* ── Board header responsive: hide buttons into hamburger ──
+   Breakpoint bumped from 1024px → 1500px (matches the
+   `.la-board-hamburger` show-rule at line 1216) so the action
+   cluster hides at the same width the hamburger appears. Previously
+   the hamburger toggled on at 1024 but the original board-alt rules
+   here only matched at 1024 too — now both are at 1500 so the
+   hamburger reveals action items the header was no longer rendering
+   at the wider 1024-1500 range. */
+@media (max-width: 1500px) {
   #within_ember.board-alt-view #inner_header:has(#nav_header) #board_done,
   #within_ember.board-view #inner_header:has(#nav_header) #board_done {
     display: none !important;
@@ -51986,22 +52172,280 @@ a.md-goal-nav-action:hover,
   box-shadow: inset 0 1px 2px rgba($la-navy, 0.05);
   position: relative;
 }
-/* Top divider — kept ONLY on the My Boards picker (where it
-   visually separates the segmented tab control from the filter
-   row above). Removed from the reusable boards component
-   (.ub-boards-page__tabs on boards page / account page / dashboard)
-   per the user's preference for a cleaner look. */
-.board-picker__tabs::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: -12px;
-  width: 92vw;
+/* Divider removed — the {{board-folders-section}} component now
+   sits between the filter row and the tabs (Mine tab only) and
+   provides its own visual section break. */
+
+/* ──────────────────────────────────────────────────────────────
+   board-folders-section — reusable folders accordion shared by the
+   boards page (available-boards-section) and the My Boards picker.
+   Visual vocabulary borrowed from the boards-page rules at
+   .ub-boards-page__folders-section so the two surfaces read as the
+   same control. */
+.board-folders-section {
+  position: relative;
+  z-index: 1;
+  width: 92%;
   max-width: 720px;
-  height: 1px;
-  background: rgba(13, 36, 56, 0.10);
-  pointer-events: none;
+  /* Bottom margin pushes the section away from the Mine/Public tab
+     strip below — without it, the tabs sit immediately under the
+     accordion. 18px matches the gap the boards page uses between
+     its surrounding sections. */
+  margin: 12px auto 18px;
+  border: 1px solid rgba(13, 36, 56, 0.07);
+  border-radius: 22px;
+  /* Match `.nb-section` (create-board-new chrome) — the same
+     "sunken-in" inset shadow + cool-tinted near-white gradient the
+     boards page now reads as. Gives the folders accordion the
+     pressed-into-the-surface look the boards page has and the modal
+     was missing. */
+  background:
+    linear-gradient(
+      180deg,
+      rgba(242, 246, 250, 0.94) 0%,
+      rgba(252, 253, 254, 0.95) 45%,
+      rgba(255, 255, 255, 0.96) 100%
+    );
+  box-shadow:
+    inset 0 1px 8px rgba(13, 36, 56, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.board-folders-section--open {
+  border-color: rgba(13, 36, 56, 0.12);
+  /* Keep the inset chrome AND add a soft outer halo when expanded
+     so the accordion reads as the active section. */
+  box-shadow:
+    inset 0 1px 8px rgba(13, 36, 56, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 16px rgba(13, 36, 56, 0.08);
+}
+.board-folders-section__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.board-folders-section__toggle:hover,
+.board-folders-section__toggle:focus-visible {
+  background: rgba($la-navy, 0.04);
+  outline: none;
+}
+.board-folders-section__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.board-folders-section__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  color: $la-navy;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.board-folders-section__subtitle {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba($la-navy, 0.62);
+  letter-spacing: 0.005em;
+}
+.board-folders-section__chevron {
+  flex: 0 0 auto;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.18s ease;
+}
+.board-folders-section--open .board-folders-section__chevron {
+  transform: rotate(180deg);
+}
+.board-folders-section__body {
+  padding: 4px 16px 14px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-folders-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.board-folders-section__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.board-folders-section__action-btn:hover,
+.board-folders-section__action-btn:focus-visible {
+  background: rgba($la-navy, 0.06);
+  border-color: rgba($la-navy, 0.24);
+  outline: none;
+}
+.board-folders-section__filter-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.board-folders-section__filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.board-folders-section__filter-input {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  font-size: 13px;
+  color: $la-navy;
+}
+.board-folders-section__filter-clear {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  color: $la-navy;
+}
+.board-folders-section__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.board-folders-section__chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.board-folders-section__chip:hover,
+.board-folders-section__chip:focus-visible {
+  background: rgba($brand-verdigris, 0.08);
+  border-color: rgba($brand-verdigris, 0.30);
+  transform: translateY(-1px);
+  outline: none;
+}
+.board-folders-section__chip-back,
+.board-folders-section__chip-tab,
+.board-folders-section__chip-card {
+  display: inline-flex;
+  align-items: center;
+}
+.board-folders-section__chip-name {
+  letter-spacing: 0.005em;
+}
+.board-folders-section__chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+  font-size: 11px;
+  font-weight: 700;
+}
+.board-folders-section__strip-empty {
+  font-size: 12px;
+  color: rgba($la-navy, 0.5);
+  padding: 6px 4px;
+}
+.board-folders-section__strip-empty-text {
+  font-style: italic;
+}
+.board-folders-section__drilled-in {
+  width: 92%;
+  max-width: 720px;
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba($brand-verdigris, 0.08);
+  border: 1px solid rgba($brand-verdigris, 0.22);
+}
+.board-folders-section__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.board-folders-section__back:hover,
+.board-folders-section__back:focus-visible {
+  background: rgba($la-navy, 0.06);
+  border-color: rgba($la-navy, 0.24);
+  outline: none;
+}
+.board-folders-section__back-arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+.board-folders-section__current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: $brand-verdigris-aa;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
 }
 /* Push the tabs down so the ::before divider has room to sit above
    the segmented control without overlapping whatever's above it. */
@@ -52068,6 +52512,208 @@ a.md-goal-nav-action:hover,
   width: 92%;
   max-width: 720px;
   margin: 12px auto 0;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   FOLDERS STRIP in the My Boards picker (Mine tab only) — mirrors
+   the boards-page folders accordion at
+   .ub-boards-page__folders-section but scoped to the modal width
+   constraints and the picker's flat-tile vocabulary. Sits between
+   the tab strip and the filter input as a section break (replacing
+   the prior implicit divider).
+   ────────────────────────────────────────────────────────────── */
+.board-picker__folders {
+  width: 92%;
+  max-width: 720px;
+  margin: 12px auto 0;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba($la-navy, 0.025), rgba($la-navy, 0.015));
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.board-picker__folders--open {
+  border-color: rgba($la-navy, 0.16);
+  box-shadow: 0 4px 16px rgba($la-navy, 0.06);
+}
+.board-picker__folders-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.board-picker__folders-toggle:hover,
+.board-picker__folders-toggle:focus-visible {
+  background: rgba($la-navy, 0.04);
+  outline: none;
+}
+.board-picker__folders-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.board-picker__folders-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  color: $la-navy;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.board-picker__folders-subtitle {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba($la-navy, 0.62);
+  letter-spacing: 0.005em;
+}
+.board-picker__folders-chevron {
+  flex: 0 0 auto;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.18s ease;
+}
+.board-picker__folders--open .board-picker__folders-chevron {
+  transform: rotate(180deg);
+}
+.board-picker__folders-body {
+  padding: 4px 16px 14px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-picker__folders-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.board-picker__folders-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.board-picker__folders-action-btn:hover,
+.board-picker__folders-action-btn:focus-visible {
+  background: rgba($la-navy, 0.06);
+  border-color: rgba($la-navy, 0.24);
+  outline: none;
+}
+.board-picker__folder-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.board-picker__folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.board-picker__folder-chip:hover,
+.board-picker__folder-chip:focus-visible {
+  background: rgba($brand-verdigris, 0.08);
+  border-color: rgba($brand-verdigris, 0.30);
+  transform: translateY(-1px);
+  outline: none;
+}
+.board-picker__folder-chip-name {
+  letter-spacing: 0.005em;
+}
+.board-picker__folder-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+  font-size: 11px;
+  font-weight: 700;
+}
+/* Drilled-in state — replaces the accordion entirely with a
+   back-to-all affordance + current-folder label. */
+.board-picker__folder-drilled-in {
+  width: 92%;
+  max-width: 720px;
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba($brand-verdigris, 0.08);
+  border: 1px solid rgba($brand-verdigris, 0.22);
+}
+.board-picker__folder-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $la-navy;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.board-picker__folder-back:hover,
+.board-picker__folder-back:focus-visible {
+  background: rgba($la-navy, 0.06);
+  border-color: rgba($la-navy, 0.24);
+  outline: none;
+}
+.board-picker__folder-back-arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+.board-picker__folder-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: $brand-verdigris-aa;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
 }
 
 #board_picker_inner {
@@ -52208,6 +52854,44 @@ a.md-goal-nav-action:hover,
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba($la-navy, 0.22);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Currently-viewing tile + badge — distinct visual treatment from
+   the home-board tile so users can tell the two states apart at a
+   glance. Uses the brand slate-blue family (rather than verdigris)
+   for the outline and shadow halo; the bottom-anchored "CURRENTLY
+   VIEWING" badge mirrors the top-anchored "HOME BOARD" pill so when
+   a tile is BOTH home AND currently active, the two badges stack
+   nicely (home on top, current on bottom). */
+.board-picker__item--current {
+  position: relative;
+  border-color: $brand-slate-blue !important;
+  border-width: 2px !important;
+  box-shadow:
+    0 0 0 4px rgba($brand-slate-blue, 0.14),
+    0 8px 24px rgba($brand-slate-blue, 0.20),
+    0 2px 8px rgba($brand-blue-black, 0.05);
+}
+/* Stack the two pills when a tile is both home AND current. The
+   home pill sits at top:-10px; the current pill sits at bottom:-10px
+   so they don't overlap. */
+.board-picker__current-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -75941,8 +76625,14 @@ blockquote small {
   // anywhere lets the line break inside the token (modern browsers
   // honor underscores/hyphens as break candidates without it, but
   // `anywhere` covers the truly-no-separator case too).
+  // Bootstrap's `.btn` ships `white-space: nowrap`, which suppresses
+  // overflow-wrap and word-break — long usernames stayed on one line
+  // and spilled past the card edge. Force `white-space: normal` with
+  // !important to beat Bootstrap's `.btn` specificity so the wrap
+  // rules below actually take effect.
   min-width: 0;
   text-align: center;
+  white-space: normal !important;
   overflow-wrap: anywhere;
   word-break: break-word;
   hyphens: auto;
@@ -75957,14 +76647,66 @@ blockquote small {
 }
 .modal-content .user_select.btn-info,
 .user-select-modern .user_select.btn-info {
-  /* Selected state: subtle verdigris ring + soft tint, not the harsh
-     bootstrap btn-info blue. */
-  background: rgba($brand-verdigris, 0.08) !important;
-  border-color: rgba($brand-verdigris, 0.55) !important;
+  /* Selected state — deliberately LOUD so the choice is unmistakable.
+     The earlier soft tint read as a hover state, not a commit. Now:
+     a verdigris tint fill, a 2px solid verdigris border, a wide 4px
+     verdigris focus-ring halo, and a checkmark badge in the corner
+     (see ::after below) make "this user is selected" a single glance
+     read. Color flips slightly so the name text retains AA contrast
+     against the tinted background. */
+  background: rgba($brand-verdigris, 0.18) !important;
+  border: 2px solid $brand-verdigris-aa !important;
   box-shadow:
-    0 0 0 3px rgba($brand-verdigris, 0.15),
-    0 4px 12px rgba($la-navy, 0.08) !important;
+    0 0 0 4px rgba($brand-verdigris, 0.28),
+    0 6px 16px rgba($brand-verdigris-aa, 0.20) !important;
   color: $la-navy !important;
+  position: relative;
+  /* Compensate for the 1px → 2px border swap so the card doesn't
+     shift its neighbors by 1px when toggled. */
+  margin: -1px;
+}
+/* Checkmark badge pinned to the top-right of the selected card so
+   even at a glance it reads as "picked" rather than "highlighted". */
+.modal-content .user_select.btn-info::after,
+.user-select-modern .user_select.btn-info::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: $brand-verdigris-aa
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E")
+    no-repeat center/14px 14px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
+  pointer-events: none;
+}
+/* Required-selection marker — small amber notice sitting above the
+   user-select grid, paired with the asterisk-led label. The asterisk
+   itself uses the danger red so the user maps "* = mandatory" without
+   having to read the copy. */
+.md-modal-required-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(217, 138, 36, 0.10);
+  border: 1px solid rgba(217, 138, 36, 0.30);
+  color: #7a4a08;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.md-modal-required-label__asterisk {
+  color: #c0392b;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
 }
 .modal-content .user_select.btn:disabled,
 .user-select-modern .user_select.btn:disabled {

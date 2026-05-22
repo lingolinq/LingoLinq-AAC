@@ -866,6 +866,23 @@ export default Controller.extend({
   external_device_or_no_home: computed('model.external_device', 'model.preference.home_board', function() {
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
+  /* "Set / Change Home Board" selection mode — mirrors the My Boards
+     modal's `boardPickerSelectingHome` flow (see controllers/application.js).
+     When ON, clicking a board tile sets that board as the currentUser's
+     home board (see open_board_in_user_view) and jumps into speak mode
+     instead of opening the board. */
+  selectingHome: false,
+  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
+    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  }),
+  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
+    if(this.get('selectingHome')) {
+      return i18n.t('cancel_set_home_board', "Cancel");
+    }
+    return this.get('hasHomeBoard')
+      ? i18n.t('change_home_board', "Change Home Board")
+      : i18n.t('set_home_board', "Set Home Board");
+  }),
   actions: {
     toggle_board_stats: function() {
       this.toggleProperty('board_stats_expanded');
@@ -1005,12 +1022,75 @@ export default Controller.extend({
       this.set('show_all_boards', false);
       if(obj) {
         this.set('prior_filter_string', this.get('filterString') || '');
-        this.set('filterString', '');  
+        this.set('filterString', '');
       } else {
-        this.set('filterString', this.get('prior_filter_string') || '');  
+        this.set('filterString', this.get('prior_filter_string') || '');
         this.set('prior_filter_string', '');
       }
       this.set('parent_object', obj);
+    },
+    /* Boards-page tile click — open the board the user actually clicked,
+       respecting `currentUser.preferences.board_view_style`:
+         - 'classic'  → user.board-alt.index  (the modern speak grid)
+         - 'modern'   → user.board-detail.index  (the panelled view)
+       Default is 'modern' (per board/index.js#board_view_style).
+       Previously the template bound `onAction=(action "load_children" …)`
+       for boards with copies, so clicking a parent tile drilled into
+       its copy cluster instead of opening the parent. The copy-cluster
+       drill-in is still reachable via the Preview chip (which now
+       shows the children count). `obj` is either a {board, children}
+       wrapper or a raw board record — unwrap defensively. */
+    open_board_in_user_view: function(obj) {
+      var board = (obj && obj.board) || obj;
+      if(!board) { return; }
+      var key = board.get ? board.get('key') : board.key;
+      if(!key) { return; }
+      var _this = this;
+      /* Set-Home selection-mode branch — mirrors the modal's pickBoard
+         branch (see controllers/application.js#pickBoard). Clicking a
+         tile while selecting-home sets the picked board as currentUser's
+         home, saves the user, and home-in-speak-mode lands the user on
+         their new home. Falls through to the standard open flow if the
+         save chain can't proceed. */
+      if(this.get('selectingHome')) {
+        var user = this.appState.get('currentUser');
+        var board_id = board.get ? board.get('id') : board.id;
+        if(user && user.set && user.save) {
+          user.set('preferences.home_board', {
+            key: key,
+            id: board_id,
+            locale: this.appState.get('label_locale')
+          });
+          user.save().then(function() {
+            _this.set('selectingHome', false);
+            _this.appState.home_in_speak_mode({user: user});
+          }, function() {
+            /* Save failed — leave selection mode on so the user can retry. */
+          });
+          return;
+        }
+      }
+      var parts = key.split('/');
+      if(parts.length !== 2) { return; }
+      var pref = this.get('appState.currentUser.preferences.board_view_style');
+      var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
+      /* Show full-viewport loading overlay so the click registers
+         visually while the route resolves the board record + tree.
+         board-detail / board-alt setupController calls
+         hide_loading_overlay when ready. .catch handler clears the
+         overlay if the transition aborts (setupController would
+         never run in that case). */
+      var _appState = this.appState;
+      _appState.show_loading_overlay(i18n.t('loading_board', "Loading board..."));
+      var transition = this.get('router').transitionTo(route, parts[0], parts[1]);
+      if(transition && typeof transition.catch === 'function') {
+        transition.catch(function() { _appState.hide_loading_overlay(); });
+      }
+    },
+    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
+       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    toggleSetHomeMode: function() {
+      this.toggleProperty('selectingHome');
     },
     nothing: function() {
     },

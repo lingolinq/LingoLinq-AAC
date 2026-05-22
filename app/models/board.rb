@@ -2376,6 +2376,7 @@ class Board < ActiveRecord::Base
 
   def translate_set(translations, opts)
     allow_fallbacks = opts['allow_fallbacks']
+    force_update_default = opts['force_update_default']
     source_lang = opts['source']
     dest_lang = opts['dest']
     board_ids = opts['board_ids']
@@ -2391,7 +2392,13 @@ class Board < ActiveRecord::Base
     return {done: true, translated: false, reason: 'mismatched user'} if user_local_id != self.user_id
     raise "can't translate for a shallow clone" if @sub_id
     set_as_default_here = !!set_as_default
-    set_as_default_here = false if self.settings['locale'] == label_lang
+    # Default behavior: a same-locale re-translation skips reapplying
+    # the labels (set_as_default_here = false), preserving any prior
+    # button text. The Re-Translate flow in translation-select.js sets
+    # `force_update_default` to opt out of that short-circuit so the
+    # new translations overwrite the visible labels — that's the only
+    # reason a user clicks Re-Translate.
+    set_as_default_here = false if self.settings['locale'] == label_lang && !force_update_default
     if board_ids.blank? || board_ids.include?(self.global_id)
       self.settings['translations'] = BoardContent.load_content(self, 'translations') || {}
       self.settings['translations']['board_name'] ||= {}
@@ -2505,6 +2512,10 @@ class Board < ActiveRecord::Base
         'user_key' => user_for_paper_trail,
         'user_local_id' => user_local_id,
         'allow_fallbacks' => allow_fallbacks,
+        # Propagate the same-locale override to downstream boards
+        # so a Re-Translate updates the entire selected set, not
+        # just the root.
+        'force_update_default' => force_update_default,
         'visited_board_ids' => visited_board_ids
       })
       visited_board_ids << brd.global_id

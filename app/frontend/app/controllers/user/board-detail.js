@@ -1161,6 +1161,40 @@ export default Controller.extend(prefClasses, {
     function() { runBoardStateSync(this, this.app_state); }
   ),
 
+  /* Re-fetch and rebuild this board's grid whenever a board-set mutation
+     finishes (translate, swap_images, slice-locales, privacy change…).
+     `app_state.board_reload_key` is the project-wide signal those flows
+     bump after their server-side progress completes. The model record
+     itself gets reloaded by the originating modal, but the rendered
+     buttons here come from `_last_raw` — a cached plain-object payload
+     built from `persistence.ajax('/api/v1/boards/:key')`, not directly
+     from model attributes. Without this observer the labels stay stale
+     until the user manually reloads or transitions away. Mirrors the
+     same fetch/normalize/cache/build sequence used after Save. */
+  _refresh_on_board_reload_key: observer('app_state.board_reload_key', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('_exiting')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    var key = board.get('key');
+    if(!key) { return; }
+    var _this = this;
+    persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(!merged) { return; }
+      if(merged.images && merged.images.length) {
+        _this._board_detail_images = merged.images;
+      }
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)));
+      _this._build_from_raw(merged);
+    }, function() {
+      /* Network or auth failure — leave the stale render in place
+         rather than blanking the grid. Next route activation will
+         retry naturally. */
+    });
+  }),
+
   reload_on_connect: observer('persistence.online', function() {
     runReloadOnConnect(this, this.persistence);
   }),

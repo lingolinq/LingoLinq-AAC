@@ -541,7 +541,12 @@
             {{/if}}
           {{/if}}
 
-          {{!-- Hamburger menu for small screens --}}
+          {{!-- Hamburger menu for small screens. The button + dropdown
+               share a positioning wrapper so the menu anchors directly
+               below the hamburger instead of inheriting #normal_mode's
+               wider positioning context (which dropped the menu out
+               to the right of the button). --}}
+          <span class="la-board-hamburger-wrap">
           <button class="la-board-hamburger" type="button" {{action "toggleBoardMenu"}} aria-label={{t "Menu" key="menu"}}>
             <span class="la-board-hamburger__bar"></span>
             <span class="la-board-hamburger__bar"></span>
@@ -586,6 +591,27 @@
                     <span class="glyphicon glyphicon-duplicate"></span>
                     {{t "Make a Copy" key="make_copy"}}
                   </button>
+                  {{!-- Set as Home Board: same gate as the full-size
+                       "Set as Home" link in the dropdown menu (board
+                       isn't already the user's current home AND the
+                       user is signed in) so the action is only offered
+                       when it would actually do something. Wires to
+                       the existing `setAsHome` action used at full
+                       size. --}}
+                  {{#if this.app_state.current_board_not_home_or_supervising}}
+                    <button type="button" class="la-board-mobile-menu__item" {{action "setAsHome"}}>
+                      <span class="glyphicon glyphicon-home"></span>
+                      {{t "Set as Home Board" key="set_as_home_board"}}
+                    </button>
+                  {{/if}}
+                  {{!-- Add to Sidebar: same action as the full-size
+                       More-menu item; only offered to signed-in users
+                       (mirrors the same condition wrapping the
+                       full-size entry at application.hbs ~492). --}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "add_to_sidebar"}}>
+                    <span class="glyphicon glyphicon-list"></span>
+                    {{t "Add to Sidebar" key="add_to_sidebar"}}
+                  </button>
                 {{/if}}
                 <button type="button" class="la-board-mobile-menu__item" {{action "downloadBoard"}}>
                   <span class="glyphicon glyphicon-cloud-download"></span>
@@ -595,6 +621,16 @@
                   <span class="glyphicon glyphicon-print"></span>
                   {{t "Print Board" key="print_board"}}
                 </button>
+                {{!-- Other Actions: wires to the same `board_actions`
+                     action used at full size (opens modals/board-actions
+                     via application.js#board_actions), gated on the
+                     feature flag that controls the full-size link. --}}
+                {{#if this.app_state.feature_flags.other_menu}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "board_actions"}}>
+                    <span class="glyphicon glyphicon-cog"></span>
+                    {{t "Other Actions" key="other_actions"}}
+                  </button>
+                {{/if}}
               {{/unless}}
               <div class="la-board-mobile-menu__divider"></div>
               <button type="button" class="la-board-mobile-menu__item la-board-mobile-menu__item--exit" {{action "exitBoards"}}>
@@ -603,6 +639,7 @@
               </button>
             </div>
           {{/if}}
+          </span>
         </span>
         <span id="board_id">
           {{#if this.app_state.current_board_is_home}}
@@ -1326,6 +1363,22 @@
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
+             the user a way out when they're on board-alt normal mode and
+             the dropdown is the only menu surface visible. Class
+             `dropdown-menu__exit-boards-item` is hidden by default and
+             revealed at ≤1024px on board-alt-view via SCSS. Wires to
+             the same `exitBoards` action used by the hamburger menu and
+             the full-size header so behavior is consistent. --}}
+        {{#if this.app_state.currentBoardState.id}}
+          <li role="presentation" class="dropdown-menu__exit-boards-item">
+            <a href="#" {{action "exitBoards" preventDefault=true}}>
+              <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>
+              {{t "Exit Boards" key="exit_boards"}}
+            </a>
+          </li>
+          <li role="presentation" class="dropdown-menu__exit-boards-divider divider" aria-hidden="true"></li>
+        {{/if}}
         <li role="presentation">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
@@ -1559,6 +1612,25 @@
         {{t "New Board" key="create_a_new_board"}}
       </button>
     </div>
+    {{!-- Folders section (Mine tab only) — replaces the prior
+         divider above the tabs. Reusable {{board-folders-section}}
+         shared with /u/:user_name/boards so the picker stays in
+         sync with the boards page as folder UX evolves. Hidden on
+         non-Mine tabs. --}}
+    {{#if (is-equal this.boardPickerTab "mine")}}
+      {{board-folders-section
+        enabled=this.boardPickerFoldersEnabled
+        drillIn=this.boardPickerFolderDrillIn
+        summaries=this.boardPickerFolderSummaries
+        canModel=this.appState.referenced_user.permissions.model
+        filterEnabled=false
+        showStripEmptyState=false
+        onEnterFolder=(action "drillIntoBoardPickerFolder")
+        onExitFolder=(action "exitBoardPickerFolder")
+        onOpenTagBoard=(action "openTagBoardFromPicker")
+        onOpenNewFolder=(action "openNewBoardFolderFromPicker")
+      }}
+    {{/if}}
     {{!-- Tab strip — mirrors the boards-browser component used on
          /u/:user_name. Tab labels, conditions, and order all match
          components/boards-browser.hbs. The active tab swaps which
@@ -1630,9 +1702,34 @@
         </div>
       {{else}}
         {{#each this.filteredBoardPickerBoards as |board|}}
-          <a href="#" {{action "pickBoard" board.key}} class="board-picker__item {{if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key) 'board-picker__item--home'}} {{if board.starred_for_current_user 'board-picker__item--liked'}}">
+          {{!-- <button> rather than <a href="#"> — eliminates any
+               implicit "#" navigation that competes with the action
+               handler in some Ember/browser combos. Mirrors the
+               board-icon component pattern on the boards page,
+               which uses <button type="button"> for its tile click
+               (confirmed working there).
+
+               bubbles=false — without it the click event propagates
+               up to #board_picker_backdrop (`{{action "closeBoardPicker"}}`
+               which fires a parallel state-clear that races
+               pickBoard's transition. The backdrop sits behind the
+               dialog (z-index 900 vs 901) but the dialog's clicks
+               still bubble up to it through the document tree. Stop
+               propagation here so the picker's tile-click path
+               doesn't trigger the close-modal handler too. --}}
+          <button type="button" {{action "pickBoard" board.key bubbles=false}} class="board-picker__item {{if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key) 'board-picker__item--home'}} {{if (is-equal board.key this.app_state.currentBoardState.key) 'board-picker__item--current'}} {{if board.starred_for_current_user 'board-picker__item--liked'}}">
             {{#if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key)}}
               <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
+            {{/if}}
+            {{!-- CURRENT badge — pinned to the bottom of the tile so it
+                 reads as a stable "you're here" indicator. Renders for
+                 the board the user is actively viewing
+                 (currentBoardState.key match). If that board is ALSO
+                 the home board, only the CURRENT badge shows underneath
+                 (the home-board badge sits at the top of the tile, so
+                 they stack — top: HOME BOARD, bottom: CURRENT). --}}
+            {{#if (is-equal board.key this.app_state.currentBoardState.key)}}
+              <span class="board-picker__current-badge">{{t "Currently Viewing" key="currently_viewing"}}</span>
             {{/if}}
             {{#if board.starred_for_current_user}}
               {{!-- Filled-heart indicator in the top-right corner so
@@ -1648,7 +1745,7 @@
               <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
             </span>
             <span class="board-picker__name">{{board.name}}</span>
-          </a>
+          </button>
         {{else}}
           {{#if this.boardPickerFilter}}
             <p class="board-picker__empty">{{t "No boards match your filter" key="no_boards_match_filter"}}</p>

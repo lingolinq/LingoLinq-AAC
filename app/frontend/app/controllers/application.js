@@ -22,6 +22,7 @@ import { inject } from '@ember/controller';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from '../utils/sync';
+import mineGrouping from '../utils/mine_board_grouping';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
@@ -158,6 +159,39 @@ export default Controller.extend({
      Default 'mine' matches the boards page default for users with edit. */
   boardPickerTab: 'mine',
   boardPickerCurrentTag: null,
+  /* Mirrors `mineTagFolderDrillIn` on user/index.js — when set to a
+     folder name (tag string), the Mine tab in the picker filters to
+     boards in that folder only. Cleared when the user clicks the
+     "back to all" affordance or switches tabs. */
+  boardPickerFolderDrillIn: null,
+  /* Collapsed/expanded state for the in-modal folders accordion.
+     Defaults closed (matches boards-page behavior at
+     available-boards-section.js#foldersExpanded). */
+  boardPickerFoldersExpanded: false,
+  /* Folder summaries [{tag, count}] for the strip. Reads the user
+     model's board_tag_map — same source as the boards page. */
+  boardPickerFolderSummaries: computed('appState.referenced_user.board_tag_map', function() {
+    var user = this.appState.get('referenced_user');
+    var tagMap = user && user.get ? user.get('board_tag_map') : null;
+    return mineGrouping.folder_summaries(tagMap);
+  }),
+  /* Gates the folders accordion's visibility in the picker. Mirrors
+     user/index.js#mineFoldersEnabled so the picker matches what the
+     boards page shows: ANY user with edit permissions sees the
+     accordion (even with zero folders so far) so the "New folder"
+     and "Tag a board" entry points are always reachable. Without
+     this, a brand-new user — or anyone who's never tagged a board —
+     would see no accordion at all and have no way to start organizing. */
+  boardPickerFoldersEnabled: computed(
+    'appState.referenced_user.permissions.edit',
+    'appState.referenced_user.board_tag_map',
+    function() {
+      var user = this.appState.get('referenced_user');
+      if (user && user.get && user.get('permissions.edit')) { return true; }
+      var tagMap = user && user.get ? user.get('board_tag_map') : null;
+      return !!(tagMap && typeof tagMap === 'object' && Object.keys(tagMap).length > 0);
+    }
+  ),
   /* Mirrors `other_selected` on user/index.js — true when the active
      tab lives under the "More ▾" dropdown rather than the visible tab
      row. Used to give the dropdown its is-active styling and to set the
@@ -329,27 +363,45 @@ export default Controller.extend({
     loadBoards().then(function() {
       if(_this.get('boardPickerListId') != listId) { return; }
       var arr = loadedBoards;
-      /* Mine-tab ordering: Home Board first, then liked (starred)
-         boards alphabetically by name, then everything else alpha.
-         All other tabs keep the server's order (home_popularity for
-         most, popularity for public) — that's the order the boards
-         page also presents. */
+      /* Mine tab needs to mirror what /u/:user_name/boards renders —
+         apply the SAME copy-clustering + tag-folder filter + sort.
+         Before this, the picker showed every owned board flat (e.g.
+         every copy of every starter as a separate tile, and every
+         board sorted into a folder), while the boards page applied
+         these reductions client-side. The mismatch made the picker
+         look like a different, longer list. See
+         utils/mine_board_grouping.js for the shared transform that
+         both surfaces now share. */
       if(tab == 'mine') {
-        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        /* Use the board.starred_for_current_user computed (not the raw
-           `starred` attr) — the boards-index endpoint doesn't ship
-           per-board starred status, so `starred` is undefined on every
-           list-loaded record. The computed falls back to checking the
-           user's stats.starred_board_refs list, which IS loaded. */
-        arr = loadedBoards.sort(function(a, b) {
-          if(a.get('key') === homeKey) { return -1; }
-          if(b.get('key') === homeKey) { return 1; }
-          var aStar = a.get('starred_for_current_user');
-          var bStar = b.get('starred_for_current_user');
-          if(aStar && !bStar) { return -1; }
-          if(bStar && !aStar) { return 1; }
-          return (a.get('name') || '').localeCompare(b.get('name') || '');
-        });
+        var user = _this.appState.get('referenced_user');
+        var drillIn = _this.get('boardPickerFolderDrillIn');
+        var transformed = mineGrouping.transform_mine(loadedBoards, user, { drill_in: drillIn });
+        arr = transformed.boards;
+      }
+      /* Promote the currently-active board (the one the user is
+         viewing right now) to the second position in the list — RIGHT
+         after the home board. If the home board IS the currently-
+         active board, the list is already correct (home stays first;
+         the highlight badge in the template just renders under it).
+         Applies on every tab so the user always sees their current
+         board near the top. */
+      var currentKey = _this.appState.get('currentBoardState.key');
+      var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
+      if (currentKey && currentKey !== homeKey && arr && arr.length > 1) {
+        var idx = -1;
+        for (var i = 0; i < arr.length; i++) {
+          var k = arr[i] && arr[i].get && arr[i].get('key');
+          if (k === currentKey) { idx = i; break; }
+        }
+        if (idx > 1) {
+          var current = arr[idx];
+          arr.splice(idx, 1);
+          /* Place at index 1 (after the home board at index 0). If
+             home isn't first for any reason, this still puts current
+             in the second slot — close enough to the top to be
+             prominent. */
+          arr.splice(1, 0, current);
+        }
       }
       _this.set('boardPickerBoards', arr);
       _this.set('boardPickerLoading', false);
@@ -951,13 +1003,49 @@ export default Controller.extend({
       this.set('boardPickerTab', tab);
       this.set('boardPickerCurrentTag', null);
       this.set('boardPickerFilter', '');
+      /* Switching off Mine clears the folder drill-in so the user
+         doesn't return to a stale folder context. */
+      this.set('boardPickerFolderDrillIn', null);
       this._loadBoardPickerForTab();
     },
     setBoardPickerTag: function(tag) {
       this.set('boardPickerTab', 'tagged');
       this.set('boardPickerCurrentTag', tag);
       this.set('boardPickerFilter', '');
+      this.set('boardPickerFolderDrillIn', null);
       this._loadBoardPickerForTab();
+    },
+    /* Folder accordion + drill-in actions for the in-modal folders
+       strip. Mirrors the boards-page available-boards-section flow. */
+    toggleBoardPickerFolders: function() {
+      this.toggleProperty('boardPickerFoldersExpanded');
+    },
+    drillIntoBoardPickerFolder: function(tag) {
+      this.set('boardPickerFolderDrillIn', tag);
+      this._loadBoardPickerForTab();
+    },
+    exitBoardPickerFolder: function() {
+      this.set('boardPickerFolderDrillIn', null);
+      this._loadBoardPickerForTab();
+    },
+    /* Opens the same "tag a board into a folder" modal used by the
+       boards page (modals/tag-board). Picker stays open behind it
+       since modal.open replaces the current modal — when the user
+       closes tag-board they return to the underlying page; the
+       picker reopens via its own button if needed. */
+    openTagBoardFromPicker: function() {
+      var user = this.appState.get('referenced_user');
+      if (!user) { return; }
+      modal.open('modals/tag-board', {
+        user: user,
+        board: null,
+        boardChoices: user.get('my_boards')
+      });
+    },
+    openNewBoardFolderFromPicker: function() {
+      var user = this.appState.get('referenced_user');
+      if (!user) { return; }
+      modal.open('modals/new-board-folder', { user: user });
     },
     closeBoardPicker: function() {
       this.set('boardPickerVisible', false);
@@ -1025,15 +1113,50 @@ export default Controller.extend({
         }
       }
       this.set('boardPickerVisible', false);
-      // If on board-detail page, navigate to the new board-detail instead of the board page
-      if(this.get('on_board_detail') && key) {
-        var parts = key.split('/');
-        if(parts.length === 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts[1]);
-          return;
+      if(!key) { return; }
+      /* Same-board click: the user picked the board they're already
+         viewing. transitionTo with identical params is a no-op in
+         Ember, so without this branch the modal would just close
+         and nothing else happens — confusing UX ("did the click
+         register?"). Refresh the current route instead so the
+         page visibly reloads and the user gets feedback. */
+      var currentKey = this.appState.get('currentBoardState.key');
+      if(key === currentKey) {
+        var router = this.get('router');
+        if(router && typeof router.refresh === 'function') {
+          router.refresh();
         }
+        return;
       }
-      this.jumpToBoard({ key: key });
+      var parts = key.split('/');
+      if(parts.length !== 2) {
+        /* Non-standard key (no user_name prefix) — fall back to
+           the canonical jump path. */
+        this.jumpToBoard({ key: key });
+        return;
+      }
+      /* Mirrors user/index.js#open_board_in_user_view (the boards-page
+         tile click). Direct router.transitionTo to `.index` is the
+         confirmed-working pattern; `jumpToBoard` → `jump_to_board` →
+         `transitionToBoardForCurrentUiStyle` swallows rejection of
+         its polling promise so failures never surface. */
+      var pref = this.get('appState.referenced_user.preferences.board_view_style')
+              || this.get('appState.currentUser.preferences.board_view_style');
+      var route_name = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
+      this.appState.set('referenced_board', { key: key });
+      /* Show the full-viewport loading overlay so the user gets
+         visible feedback that the board is loading. The board-detail
+         and board-alt routes call hide_loading_overlay in their
+         setupController, which runs after the model resolves. The
+         .catch handler is a safety net: a failed/aborted transition
+         never reaches setupController, so without this the overlay
+         would stay up indefinitely. */
+      var _appState = this.appState;
+      _appState.show_loading_overlay(i18n.t('loading_board', "Loading board..."));
+      var transition = this.get('router').transitionTo(route_name, parts[0], parts[1]);
+      if(transition && typeof transition.catch === 'function') {
+        transition.catch(function() { _appState.hide_loading_overlay(); });
+      }
     },
     pickHomeBoard: function() {
       var homeKey = this.appState.get('referenced_user.preferences.home_board.key');
