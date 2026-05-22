@@ -25,6 +25,29 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
 
+// Classic boards use `.button-label`; board-detail uses
+// `.md-board-detail-symbol-card__label`. Word-prediction buttons
+// update the DOM directly, so both selectors must be supported.
+function suggestion_label_element(button_elem) {
+  if(!button_elem || !button_elem.getElementsByClassName) { return null; }
+  return button_elem.getElementsByClassName('button-label')[0] ||
+    button_elem.getElementsByClassName('md-board-detail-symbol-card__label')[0];
+}
+
+function is_suggestion_label(elem) {
+  return elem && (elem.classList.contains('button-label') ||
+    elem.classList.contains('md-board-detail-symbol-card__label'));
+}
+
+function word_predictions_visible(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  if(appState.get('speak_mode')) { return true; }
+  if(typeof appState.board_detail_inflections_active === 'function') {
+    return appState.board_detail_inflections_active();
+  }
+  return false;
+}
+
 LingoLinq.Board = DS.Model.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
@@ -567,7 +590,6 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
       if(capitalize) {
-        debugger
         // TODO: support capitalization
       }
     }
@@ -1171,10 +1193,15 @@ LingoLinq.Board = DS.Model.extend({
       lbls.push(lbls_tmp[idx]);
     }
     lbls.forEach(function(lbl) {
-      if(lbl.classList.contains('button-label') && !lbl.closest('.clone')) {
+      if(is_suggestion_label(lbl) && !lbl.closest('.clone')) {
         lbl.innerText = lbl.getAttribute('original-text');
         lbl.classList.remove('tweaked_label');
-        var sym = lbl.closest('.button').querySelector('img.symbol.overridden');
+        var btn = lbl.closest('.button');
+        if(btn && btn.getAttribute('original-aria-label') != null) {
+          btn.setAttribute('aria-label', btn.getAttribute('original-aria-label'));
+          btn.removeAttribute('original-aria-label');
+        }
+        var sym = btn && btn.querySelector('img.symbol.overridden');
         if(sym) {
           sym.style.display = '';
           lbl.style.fontSize = '';
@@ -1283,42 +1310,79 @@ LingoLinq.Board = DS.Model.extend({
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
       }
     });
-    word_suggestions.lookup({
-      last_finished_word: last_word || "",
-      second_to_last_word: second_to_last_word,
-      word_in_progress: in_progress,
-      board_ids: board_ids,
-      max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)
-    }).then(function(result) {
-      var unique_result = (result || []).filter(function(sugg) { return sugg.word && !skip_labels[sugg.word.toLowerCase()]; });
-      result = unique_result.concat(result).uniq();
-      (result || []).forEach(function(sugg, idx) {
-        if(suggested_buttons[idx]) {
-          var suggestion_button = suggested_buttons[idx];
-          if(sugg.word && _this.appState.get('shift')) {
-            sugg = $.extend({}, sugg);
-            sugg.word = utterance.capitalize(sugg.word);
+    var lookup_ids = word_suggestions.lookup_board_ids(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id')));
+    word_suggestions.load_vocabulary_button_sets(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id'))).then(function(warmed_sets) {
+      word_suggestions.lookup({
+        last_finished_word: last_word || "",
+        second_to_last_word: second_to_last_word,
+        word_in_progress: in_progress,
+        board_ids: lookup_ids,
+        button_sets: warmed_sets,
+        max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)
+      }).then(function(result) {
+        var unique_result = (result || []).filter(function(sugg) { return sugg.word && !skip_labels[sugg.word.toLowerCase()]; });
+        result = unique_result.concat(result).uniq();
+        (result || []).forEach(function(sugg, idx) {
+          if(suggested_buttons[idx]) {
+            var suggestion_button = suggested_buttons[idx];
+            if(sugg.word && _this.appState.get('shift')) {
+              sugg = $.extend({}, sugg);
+              sugg.word = utterance.capitalize(sugg.word);
+            }
+            _this.update_suggestion_button(suggestion_button, sugg);
+            var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+            sugg.image_update = function() {
+              if(!persistenceForSugg) { return; }
+              persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
+                sugg.data_image = data_uri;
+                _this.update_suggestion_button(suggestion_button, sugg);
+              }, function() {
+                _this.update_suggestion_button(suggestion_button, sugg);
+              });
+            };
           }
-          _this.update_suggestion_button(suggestion_button, sugg);
-          var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
-          sugg.image_update = function() {
-            if(!persistenceForSugg) { return; }
-            persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
-              sugg.data_image = data_uri;
-              _this.update_suggestion_button(suggestion_button, sugg);
-            }, function() {
-              _this.update_suggestion_button(suggestion_button, sugg);
-            });
-          };
+        });
+      }, function() { });
+    }, function() { });
+  },
+  _sync_ordered_button_suggestion: function(button, suggestion) {
+    if(!suggestion || suggestion.temporary || !suggestion.word) { return; }
+    var ctrl = editManager.controller;
+    if(!ctrl || !ctrl.get || !ctrl.get('is_board_detail')) { return; }
+    var ordered = ctrl.get('ordered_buttons');
+    if(!ordered || !ordered.length) { return; }
+    var button_id = button.id.toString();
+    var url = word_suggestions.resolve_word_image(suggestion);
+    if(url && this.persistence && this.persistence.url_cache && this.persistence.url_cache[url]) {
+      url = this.persistence.url_cache[url];
+    }
+    var show_predictions = word_predictions_visible(this.appState);
+    var changed = false;
+    ordered.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        if(!btn || btn.id == null || btn.id.toString() !== button_id) { return; }
+        if(show_predictions) {
+          if(btn.label !== suggestion.word) {
+            btn.label = suggestion.word;
+            changed = true;
+          }
+          if(url && btn.image_url !== url) {
+            btn.image_url = url;
+            changed = true;
+          }
         }
       });
-    }, function() { });
+    });
+    if(changed) {
+      ctrl.set('ordered_buttons', ordered.map(function(row) { return (row || []).slice(); }));
+    }
   },
   update_suggestion_button: function(button, suggestion) {
     var _this = this;
     var lookups = _this.get('suggestion_lookups') || {};
     var brds = document.getElementsByClassName('board');
     var font_family = Button.style(this.appState.get('currentUser.preferences.device.button_style')).font_family;
+    var show_predictions = word_predictions_visible(this.appState);
     for(var idx = 0; idx < brds.length; idx++) {
       var brd = brds[idx];
       if(brd && brd.getAttribute('data-id') == _this.get('id')) {
@@ -1330,19 +1394,26 @@ LingoLinq.Board = DS.Model.extend({
             var url = null;
             if(!suggestion.temporary) {
               lookups[button.id.toString()] = suggestion;
-              url = suggestion.data_image || suggestion.image;
-              if(this.persistence.url_cache[url]) {
+              url = word_suggestions.resolve_word_image(suggestion);
+              if(url && this.persistence && this.persistence.url_cache && this.persistence.url_cache[url]) {
                 url = this.persistence.url_cache[url];
               }
             }
-            var lbl = btn.getElementsByClassName('button-label')[0];
+            var lbl = suggestion_label_element(btn);
             var img = btn.getElementsByClassName('symbol')[0]
             if(lbl && lbl.tagName != 'INPUT') {
               if(!lbl.getAttribute('original-text')) {
                 lbl.setAttribute('original-text', button.original_label || lbl.innerText);
               }
               lbl.classList.add('tweaked_label');
-              lbl.innerText = this.appState.get('speak_mode') ? suggestion.word : button.label;
+              var display_word = show_predictions ? suggestion.word : button.label;
+              lbl.innerText = display_word;
+              if(btn.classList.contains('md-board-detail-symbol-card') && display_word) {
+                if(btn.getAttribute('original-aria-label') == null) {
+                  btn.setAttribute('original-aria-label', btn.getAttribute('aria-label') || '');
+                }
+                btn.setAttribute('aria-label', display_word);
+              }
               if(button.text_only) {
                 var width = parseInt(btn.style.width, 10);
                 var height = parseInt(btn.style.height, 10);
@@ -1357,17 +1428,26 @@ LingoLinq.Board = DS.Model.extend({
                 }
               }
             }
-            if(img && url) {
-              if(!img.getAttribute('original-src')) {
+            if(img) {
+              if(!img.getAttribute('original-src') && img.src) {
                 img.setAttribute('original-src', img.src);
               }
-              img.src = this.appState.get('speak_mode') ? url : (img.getAttribute('original-src') || url);
+              if(url) {
+                img.style.display = '';
+                img.src = show_predictions ? url : (img.getAttribute('original-src') || url);
+              } else if(show_predictions && !suggestion.temporary && img.getAttribute('original-src')) {
+                img.style.display = '';
+                img.src = img.getAttribute('original-src');
+              }
             }
           }
         }
       }
     }
     _this.set('suggestion_lookups', lookups);
+    if(!suggestion.temporary) {
+      _this._sync_ordered_button_suggestion(button, suggestion);
+    }
 
   },
   add_classes: function() {

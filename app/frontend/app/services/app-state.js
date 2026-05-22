@@ -25,6 +25,7 @@ import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 import editManager from '../utils/edit_manager';
+import word_suggestions from '../utils/word_suggestions';
 import boardDetailCache from '../utils/board_detail_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -2792,7 +2793,7 @@ export default Service.extend({
     }
   ),
   refresh_suggestions: function() {
-    var board = this.controller && this.controller.get('board.model');
+    var board = this.resolve_board_from_controller();
     // Guard `board.get`: board.model can transiently be a non-Ember
     // object (the { error: true, boardname } POJO board-detail's model()
     // resolves with on a failed /tree fetch). Calling .get on that throws
@@ -2802,11 +2803,13 @@ export default Service.extend({
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
       var ref = board.id + "::" + history_string + "::" + this.get('shift');
       if(ref != this.get('suggestion_id')) {
+        var routeName = this.get('current_route') || '';
+        var on_board_detail = routeName.indexOf('board-detail') !== -1;
         var $board = $(".board[data-id='" + board.id + "']");
-        if($board.length > 0) {
+        if($board.length > 0 || on_board_detail) {
           this.set('suggestion_id', ref);
           board.clear_real_time_changes();
-          board.load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
+          board.load_word_suggestions(word_suggestions.lookup_board_ids(this, this.stashes, [board.id]));
           if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
             board.load_real_time_inflections();
           }
@@ -3501,10 +3504,21 @@ export default Service.extend({
           obj.label = suggestion.word;
           obj.completion = suggestion.word;
           obj.suggestion_override = true;
-          obj.image = suggestion.image;
-          obj.image_license = suggestion.image_license;
+          var suggestion_image = word_suggestions.resolve_word_image(suggestion);
+          if(suggestion_image) {
+            obj.image = suggestion_image;
+            obj.image_license = suggestion.image_license;
+          }
         }
       }
+    }
+
+    // Keyboard letter keys use vocalizations like +t. Speak only the new
+    // character while utterance accumulates the in-progress word.
+    var activation_vocalization = obj.vocalization || button.vocalization || '';
+    var keyboard_letter = null;
+    if(activation_vocalization.match(/^\+.$/)) {
+      keyboard_letter = activation_vocalization.substring(1);
     }
 
     if(obj.vocalization == ':predict' || obj.vocalization == ':complete') {
@@ -3665,10 +3679,17 @@ export default Service.extend({
             var doSpeak = function() {
               if(speakDone) { return; }
               speakDone = true;
-              if (typeof console !== 'undefined' && console.log) {
-                console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
+              var to_speak = button_to_speak;
+              if(keyboard_letter && to_speak) {
+                to_speak = Object.assign({}, to_speak, {
+                  vocalization: keyboard_letter,
+                  label: keyboard_letter
+                });
               }
-              utterance.speak_button(button_to_speak);
+              if (typeof console !== 'undefined' && console.log) {
+                console.log('[speak-mode] button activate:', to_speak.label || '(no label)', 'sound:', !!to_speak.sound, 'vocalization:', (to_speak.vocalization || to_speak.label) || '(none)');
+              }
+              utterance.speak_button(to_speak);
               vibrate();
             };
             if (button_to_speak && !button_to_speak.sound) {
@@ -3883,6 +3904,16 @@ export default Service.extend({
           smParts.push({ id: 'punct_' + Date.now(), label: punct, image_url: null });
         }
         detailSm.set('sentence_parts', smParts);
+      }
+    }
+    // Keep board-detail sentence bar in sync (partial words while typing,
+    // symbol image when a word completes).
+    if(this.board_detail_inflections_active() && button_added_or_spoken) {
+      var ownerBd = getOwner(this);
+      var detailBd = ownerBd && (ownerBd.lookup('controller:user.board-detail') ||
+        ownerBd.lookup('controller:user/board-detail'));
+      if(detailBd && typeof detailBd.sync_sentence_from_button_list === 'function') {
+        detailBd.sync_sentence_from_button_list();
       }
     }
     frame_listener.notify_of_button(button, obj);
