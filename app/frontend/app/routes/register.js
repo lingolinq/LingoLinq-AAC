@@ -23,6 +23,9 @@ export default Route.extend({
     if(model.get('reg_params.code') && model.get('reg_params.v')) {
       controller.start_code_lookup();
     }
+    if(controller.get('google_signup')) {
+      controller.loadGoogleSignup();
+    }
     if(!this.appState.get('domain_settings.full_domain')) {
       this.appState.return_to_index();
       return;

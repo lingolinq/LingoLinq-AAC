@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import LingoLinq from '../app';
 import { computed, observer } from '@ember/object';
 import persistence from '../utils/persistence';
+import capabilities from '../utils/capabilities';
 
 // TODO: Maybe a pretty img they can send/embed to share with users
 
@@ -12,7 +13,26 @@ export default Controller.extend({
   appState: service('app-state'),
   session: service('session'),
   title: "Register",
-  queryParams: ['code', 'v'],
+  queryParams: ['code', 'v', 'google_signup'],
+  googleSignupProfile: null,
+  googleSignupBusy: false,
+  googleSignupError: null,
+  googleSignupUserName: '',
+  googleSignupRegistrationType: 'individual',
+  googleSignupTerms: false,
+  showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
+    return !!(this.get('google_signup') && this.get('googleSignupProfile'));
+  }),
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupUserName', 'googleSignupTerms', 'showCoppaConsent', 'coppa_age_group', function() {
+    if(this.get('googleSignupBusy')) { return true; }
+    if(!this.get('googleSignupTerms')) { return true; }
+    if((this.get('googleSignupUserName') || '').trim().length === 0) { return true; }
+    if(this.get('showCoppaConsent')) {
+      if(!this.get('coppa_age_group')) { return true; }
+      if(this.get('coppa_age_group') === 'under_13') { return true; }
+    }
+    return false;
+  }),
   registration_types: LingoLinq.registrationTypes,
   triedToSave: false,
   badEmail: computed('model.email', 'triedToSave', function() {
@@ -63,6 +83,19 @@ export default Controller.extend({
     if(pe.toLowerCase() === ce) { return true; }
     return false;
   }),
+  googleSsoEnabled: computed('appState.feature_flags.google_sso', function() {
+    return !!this.get('appState.feature_flags.google_sso');
+  }),
+  googleRegisterAllowed: computed('model.terms_agree', 'showCoppaConsent', 'coppa_age_group', 'googleSsoEnabled', function() {
+    if(!this.get('googleSsoEnabled')) { return false; }
+    if(!this.get('model.terms_agree')) { return false; }
+    if(this.get('showCoppaConsent') && this.get('coppa_age_group') === 'under_13') { return false; }
+    if(this.get('showCoppaConsent') && !this.get('coppa_age_group')) { return false; }
+    return true;
+  }),
+  googleRegisterDisabled: computed('googleRegisterAllowed', function() {
+    return !this.get('googleRegisterAllowed');
+  }),
   clear_start_code_ref: observer('model.start_code', 'start_code_ref', function() {
     if(this.get('model.start_code') && this.get('model.start_code') != this.get('start_code_ref.code')) {
       this.set('start_code_ref', null);
@@ -79,9 +112,68 @@ export default Controller.extend({
       
     });
   },
+  loadGoogleSignup: function() {
+    var _this = this;
+    var nonce = this.get('google_signup');
+    if(!nonce) { return; }
+    this.set('googleSignupBusy', true);
+    this.set('googleSignupError', null);
+    this.persistence.ajax('/auth/google/signup?nonce=' + encodeURIComponent(nonce), { type: 'GET' }).then(function(res) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('googleSignupProfile', res);
+      _this.set('googleSignupBusy', false);
+      if(res.name && !_this.get('googleSignupUserName')) {
+        _this.set('googleSignupUserName', '');
+      }
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('googleSignupBusy', false);
+      _this.set('googleSignupError', true);
+    });
+  },
   actions: {
     allow_start_code: function() {
       this.set('start_code', !this.get('start_code'));
+    },
+    continue_with_google: function() {
+      if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
+      var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
+      url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
+      if(capabilities.installed_app) {
+        url = url + '&app=true&popout_id=' + encodeURIComponent((new Date()).getTime() + 'T' + Math.round(Math.random() * 999999));
+        window.open(url, '_blank');
+      } else {
+        location.href = url;
+      }
+    },
+    saveGoogleSignup: function() {
+      var _this = this;
+      if(_this.get('googleSignupSubmitDisabled')) { return; }
+      _this.set('googleSignupBusy', true);
+      _this.set('googleSignupError', null);
+      _this.persistence.ajax('/auth/google/signup', {
+        type: 'POST',
+        data: {
+          nonce: _this.get('google_signup'),
+          user_name: (_this.get('googleSignupUserName') || '').trim(),
+          registration_type: _this.get('googleSignupRegistrationType') || 'individual',
+          terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false'
+        }
+      }).then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('googleSignupBusy', false);
+        if(res.token) {
+          _this.session.confirm_authentication(res.token).then(function() {
+            _this.appState.return_to_index();
+          }, function() {
+            _this.set('googleSignupError', true);
+          });
+        }
+      }, function(xhr) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('googleSignupBusy', false);
+        _this.set('googleSignupError', true);
+      });
     }
   }
 });

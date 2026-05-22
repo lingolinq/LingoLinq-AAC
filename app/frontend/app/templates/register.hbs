@@ -17,6 +17,76 @@
         </div>
         <p>{{t "We emailed the parent or guardian address you provided. They must approve your account before you can sign in. Ask them to check their inbox (and spam folder)." key="coppa_waiting_parent_body"}}</p>
         <p><LinkTo @route="login" class="register-btn">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
+      {{else if this.showGoogleSignup}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Create with Google" key="google_create_with_google"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
+        <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.googleSignupProfile.email key="google_signed_in_as"}}</p>
+        <p>{{t "Choose a username and role, then agree to the terms to finish creating your account." key="google_signup_complete_body"}}</p>
+        <div class="form-group">
+          <label for="google_signup_user_name">{{t "Username" key="username"}}</label>
+          <Input @value={{this.googleSignupUserName}} class="form-control" id="google_signup_user_name" placeholder="User name" />
+        </div>
+        <div class="form-group">
+          <label for="google_signup_registration_type">{{t "Type" key="type"}}</label>
+          {{bound-select select_class="form-control" select_id="google_signup_registration_type" content=this.registration_types selection=this.googleSignupRegistrationType action=(action (mut this.googleSignupRegistrationType)) }}
+        </div>
+        {{#if this.showCoppaConsent}}
+          <div class="form-group">
+            <fieldset>
+              <legend class="sr-only">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</legend>
+              <span id="google-signup-coppa-age-prompt">{{t "How old is the person creating this account?" key="coppa_age_gate_prompt"}}</span>
+              <div class="checkbox big_checkbox" style="margin-top: 0.5rem;">
+                <label>
+                  <input type="radio" name="google_signup_coppa_age" checked={{is-equal this.coppa_age_group "over_13"}} onclick={{action (mut this.coppa_age_group) "over_13"}} />
+                  {{t "13 or older" key="coppa_age_13_or_older"}}
+                </label>
+              </div>
+              <div class="checkbox big_checkbox">
+                <label>
+                  <input type="radio" name="google_signup_coppa_age" checked={{is-equal this.coppa_age_group "under_13"}} onclick={{action (mut this.coppa_age_group) "under_13"}} />
+                  {{t "Under 13" key="coppa_age_under_13"}}
+                </label>
+              </div>
+            </fieldset>
+          </div>
+        {{/if}}
+        <div class="register-checkboxes">
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
+              By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
+            </label>
+          </div>
+        </div>
+        <div class="register-btn-wrap">
+          <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
+            {{#if this.googleSignupBusy}}
+              {{t "Signing Up..." key="signing_up"}}
+            {{else}}
+              {{t "Create Account" key="google_signup_create_account"}}
+            {{/if}}
+          </button>
+        </div>
+        {{#if this.googleSignupError}}
+          <p class="register-error">{{t "There was an unexpected error while registering" key="error_registering"}}</p>
+        {{/if}}
+      {{else if this.google_signup}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Create with Google" key="google_create_with_google"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
+        {{#if this.googleSignupBusy}}
+          <p>{{t "Checking..." key="checking"}}</p>
+        {{else if this.googleSignupError}}
+          <p class="register-error">{{t "This Google sign-in session expired. Please try again." key="google_link_session_expired"}}</p>
+          <p><LinkTo @route="login" class="register-btn">{{t "Back to login" key="coppa_waiting_parent_login"}}</LinkTo></p>
+        {{/if}}
       {{else}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">
@@ -24,7 +94,7 @@
         </div>
         <hr class="la-about-hero-separator" aria-hidden="true">
       </div>
-      <form novalidate {{action "saveProfile" on="submit"}}>
+      <form novalidate autocomplete="off" {{action "saveProfile" on="submit"}}>
       {{#if this.start_code_ref}}
         <div class="register-invite">
           <div class="register-invite-icon">
@@ -50,11 +120,11 @@
       {{/if}}
       <div class="form-group">
         <label for="name">{{t "Name" key="name"}}</label>
-        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" />
+        <Input @type="text" @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" autocomplete="name" />
       </div>
       <div class="form-group">
         <label for="user_name">{{t "Username" key="username"}}</label>
-        <Input @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" />
+        <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name" placeholder="User name (optional, we can pick for you)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         {{#if this.noSpacesName}}
           <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
         {{else if this.user.user_name_check.checking}}
@@ -66,7 +136,7 @@
       </div>
       <div class="form-group">
         <label for="email">{{t "Email" key="email"}}</label>
-        <Input @value={{this.model.email}} class="form-control" id="email" placeholder="" />
+        <Input @type="email" @value={{this.model.email}} class="form-control" id="email" placeholder="" autocomplete="email" inputmode="email" />
         {{#if this.badEmail}}
           <span class='text-danger'>{{t "email required" key="email_required"}}</span>
         {{/if}}
@@ -108,7 +178,7 @@
       {{/if}}
       <div class="form-group">
         <label for="password">{{t "Password" key="password"}}</label>
-        <Input @type="password" @value={{this.model.password}} class="form-control" id="password" placeholder="at least 6 characters" />
+        {{password-field id="password" class="form-control" value=this.model.password placeholder="at least 6 characters" autocomplete="new-password"}}
         {{#if this.shortPassword}}
           <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
         {{/if}}
@@ -142,6 +212,14 @@
         </div>
       </div>
       <div class="register-btn-wrap">
+      {{#if this.googleSsoEnabled}}
+        <button type="button" disabled={{this.googleRegisterDisabled}} class="register-btn register-btn--google" {{action "continue_with_google"}}>
+          {{t "Continue with Google" key="continue_with_google"}}
+        </button>
+        <div class="login-google-divider">
+          <span>{{t "or" key="google_or_divider"}}</span>
+        </div>
+      {{/if}}
       {{#if (persistence-online)}}
         <button type="submit" disabled={{this.registering.saving}} class="register-btn">
           {{#if this.registering.initializing}}

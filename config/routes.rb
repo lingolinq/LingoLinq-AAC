@@ -52,6 +52,13 @@ LingoLinq::Application.routes.draw do
   delete 'oauth2/token' => 'session#oauth_logout'
   get 'oauth2/token/status' => 'session#oauth_local', :as => 'oauth_local'
   post 'auth/lookup' => 'session#auth_lookup'
+  get 'auth' => redirect('/login')
+  get 'auth/google/start' => 'session#google_start'
+  get 'auth/google/callback' => 'session#google_callback'
+  get 'auth/google/link' => 'session#google_link_candidates'
+  post 'auth/google/link' => 'session#google_link_complete'
+  get 'auth/google/signup' => 'session#google_signup_candidates'
+  post 'auth/google/signup' => 'session#google_signup_complete'
   get 'saml/init/:org_id' => 'session#saml_redirect'
   get 'saml/init' => 'session#saml_start'
   post 'saml/tmp_token' => 'session#saml_tmp_token'

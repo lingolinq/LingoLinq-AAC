@@ -40,6 +40,181 @@
       <p>{{t "This account is only allowed to log in to one dedicated device at a time. If you log in on this device it will force a log out on your other device. How would you like to proceed?" key="confirm_device_force_logout"}}</p>
       <button {{action "login_force_logut" true}} class='login-btn login-btn--outline' style='width: 100%;'><div style='font-size: 25px;'>{{t "Log In on this Device" key="log_in_on_this_device"}}</div>{{t "Any other device will be logged out" key="other_device_logged_out"}}</button>
       <button {{action "login_force_logut" false}} class='login-btn login-btn--outline' style='width: 100%; margin-top: 10px;'><div style='font-size: 25px;'>{{t "Never Mind, Don't Log In" key="do_not_log_in"}}</div>{{t "Keep me logged in on the other device" key="keep_logged_in"}}</button>
+    {{else if this.showGoogleLinkStep}}
+      {{#if this.googleLinkStepLoading}}
+        <div class="la-section-header">
+          <div class="la-hero-title-wrap">
+            <h2 class="la-hero-title">{{t "Checking..." key="checking"}}</h2>
+          </div>
+          <hr class="la-about-hero-separator" aria-hidden="true">
+        </div>
+      {{else}}
+      <div class="la-section-header">
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">
+            {{#if this.googleLinkAccountSelectMode}}
+              {{t "Choose an account to sign in" key="google_link_choose_account"}}
+            {{else if this.googleLinkManualMode}}
+              {{t "Connect Google to your LingoLinq account" key="google_link_manual_title"}}
+            {{else if this.googleLinkNeedsPicker}}
+              {{t "We found multiple accounts" key="google_link_multiple_accounts"}}
+            {{else}}
+              {{t "We found your account" key="google_link_single_account"}}
+            {{/if}}
+          </h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+      </div>
+        {{#if this.google_link_state.email}}
+          <p class="google-link-context">{{t "Signed in to Google as %{email}" email=this.google_link_state.email key="google_signed_in_as"}}</p>
+        {{/if}}
+        {{#if this.googleLinkManualMode}}
+          <p>{{t "No LingoLinq account was found for this Google email. Enter your username and password to link an existing account, or create a new account with Google." key="google_link_manual_body"}}</p>
+        {{/if}}
+        {{#if this.googleLinkShowsReadonlyCandidate}}
+          <p class="google-link-found-accounts__lead">{{t "We found this LingoLinq account with your email:" key="google_link_found_account_single"}}</p>
+          {{#each this.googleLinkDisplayCandidates as |candidate|}}
+            <div class="google-link-picker__option">
+              <div class="google-link-picker__label google-link-picker__label--readonly" aria-label={{candidate.user_name}}>
+                <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                {{#if candidate.display_name}}
+                  <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                {{/if}}
+              </div>
+            </div>
+          {{/each}}
+        {{else if this.googleLinkResolvedUsername}}
+          <div class="form-group google-link-account-name">
+            <p class="google-link-found-accounts__lead">{{t "LingoLinq account" key="google_link_account_label"}}</p>
+            <div class="google-link-picker__option">
+              <div class="google-link-picker__label google-link-picker__label--readonly" aria-label={{this.googleLinkResolvedUsername}}>
+                <span class="google-link-picker__username">{{this.googleLinkResolvedUsername}}</span>
+                {{#if this.googleLinkResolvedDisplayName}}
+                  <span class="google-link-picker__display-name">{{this.googleLinkResolvedDisplayName}}</span>
+                {{/if}}
+              </div>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.googleLinkAccountSelectMode}}
+          <p class="google-link-found-accounts__lead">{{t "Choose a linked account to sign in:" key="google_link_choose_linked_account"}}</p>
+          {{#if this.googleLinkNeedsPicker}}
+            <fieldset class="google-link-picker">
+              <legend class="sr-only">{{t "Choose your username" key="google_link_choose_username"}}</legend>
+              {{#each this.google_link_state.candidates as |candidate|}}
+                <div class="google-link-picker__option">
+                  <label class="google-link-picker__label">
+                    <input type="radio" name="google_link_user" checked={{is-equal this.google_link_selected_user_name candidate.user_name}} onclick={{action "select_google_link_user" candidate.user_name}} />
+                    <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                    {{#if candidate.display_name}}
+                      <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                    {{/if}}
+                  </label>
+                </div>
+              {{/each}}
+            </fieldset>
+          {{else if this.googleLinkDisplayCandidates.length}}
+            {{#each this.googleLinkDisplayCandidates as |candidate|}}
+              <div class="google-link-picker__option">
+                <div class="google-link-picker__label google-link-picker__label--readonly" aria-label={{candidate.user_name}}>
+                  <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                  {{#if candidate.display_name}}
+                    <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                  {{/if}}
+                </div>
+              </div>
+            {{/each}}
+          {{/if}}
+          {{#if this.googleLinkHasUnlinkedCandidates}}
+            <p class="google-link-found-accounts__lead">{{t "Or link another account with your Google email:" key="google_link_link_unlinked_email"}}</p>
+            {{#if this.googleLinkUnlinkedNeedsPicker}}
+              <fieldset class="google-link-picker">
+                <legend class="sr-only">{{t "Choose an account to link" key="google_link_choose_link_account"}}</legend>
+                {{#each this.googleLinkUnlinkedCandidates as |candidate|}}
+                  <div class="google-link-picker__option">
+                    <label class="google-link-picker__label">
+                      <input type="radio" name="google_link_user" checked={{is-equal this.google_link_selected_user_name candidate.user_name}} onclick={{action "select_google_link_user" candidate.user_name}} />
+                      <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                      {{#if candidate.display_name}}
+                        <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                      {{/if}}
+                    </label>
+                  </div>
+                {{/each}}
+              </fieldset>
+            {{else}}
+              {{#each this.googleLinkUnlinkedCandidates as |candidate|}}
+                <div class="google-link-picker__option">
+                  <label class="google-link-picker__label">
+                    <input type="radio" name="google_link_user" checked={{is-equal this.google_link_selected_user_name candidate.user_name}} onclick={{action "select_google_link_user" candidate.user_name}} />
+                    <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                    {{#if candidate.display_name}}
+                      <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                    {{/if}}
+                  </label>
+                </div>
+              {{/each}}
+            {{/if}}
+          {{/if}}
+          {{#if this.googleLinkShowLinkAnother}}
+            <div class="form-group">
+              <button type="button" {{action "start_google_link_another"}} class="login-btn login-btn--outline" style="width: 100%;">
+                {{t "Link another account" key="google_link_another_account"}}
+              </button>
+            </div>
+          {{/if}}
+        {{else if this.googleLinkNeedsPicker}}
+          <p class="google-link-found-accounts__lead">{{t "We found these LingoLinq accounts with your email. Choose yours:" key="google_link_found_accounts_multiple"}}</p>
+          <fieldset class="google-link-picker">
+            <legend class="sr-only">{{t "Choose your username" key="google_link_choose_username"}}</legend>
+            {{#each this.google_link_state.candidates as |candidate|}}
+              <div class="google-link-picker__option">
+                <label class="google-link-picker__label">
+                  <input type="radio" name="google_link_user" checked={{is-equal this.google_link_selected_user_name candidate.user_name}} onclick={{action (mut this.google_link_selected_user_name) candidate.user_name}} />
+                  <span class="google-link-picker__username">{{candidate.user_name}}</span>
+                  {{#if candidate.display_name}}
+                    <span class="google-link-picker__display-name">{{candidate.display_name}}</span>
+                  {{/if}}
+                </label>
+              </div>
+            {{/each}}
+          </fieldset>
+        {{/if}}
+        {{#if this.googleLinkNeedsUsernameField}}
+          <div class="form-group">
+            <label for="google_link_user_name">{{t "Username" key="username"}}</label>
+            {{lowercase-text-field id="google_link_user_name" class="form-control input-lg touchy" value=this.google_link_selected_user_name placeholder="username" autocomplete="username"}}
+          </div>
+        {{/if}}
+        {{#if this.googleLinkNeedsPassword}}
+          <div class="form-group">
+            <label for="google_link_password">{{t "Please enter the password for this account to link your account with Google. You only need to enter it once to link." key="google_link_password_prompt"}}</label>
+            {{password-field id="google_link_password" class="form-control input-lg touchy" value=this.google_link_password autocomplete="current-password"}}
+          </div>
+        {{/if}}
+        {{#if this.google_link_error}}
+          <div class="login-error">{{this.google_link_error}}</div>
+        {{/if}}
+        <div class="form-group">
+          <button type="button" {{action "confirm_google_link"}} disabled={{this.googleLinkSubmitDisabled}} class="login-btn" style="width: 100%;">
+            {{#if this.google_link_state.linking}}
+              {{t "Signing In..." key="logging_in"}}
+            {{else if this.googleLinkConfirmIsSignIn}}
+              {{t "Sign In" key="log_in"}}
+            {{else}}
+              {{t "Link and Sign In" key="google_link_confirm"}}
+            {{/if}}
+          </button>
+          {{#if this.googleLinkManualMode}}
+            <button type="button" {{action "start_google_signup"}} class="login-btn login-btn--google" style="width: 100%; margin-top: 10px;">
+              {{t "Create with Google" key="google_create_with_google"}}
+            </button>
+          {{/if}}
+          <button type="button" {{action "cancel_google_link"}} class="login-btn login-btn--outline" style="width: 100%; margin-top: 10px;">
+            {{t "Cancel and use password login" key="google_link_cancel"}}
+          </button>
+        </div>
+      {{/if}}
     {{else if this.prompt_2fa}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">
@@ -92,7 +267,7 @@
         </div>
         <div class="form-group">
           <label for="password">{{t "Password" key="password"}}</label>
-          <Input @type="password" id="password" class="form-control input-lg touchy" @value={{this.password}} placeholder="password" autocomplete="current-password" />
+          {{password-field id="password" class="form-control input-lg touchy" value=this.password placeholder="password" autocomplete="current-password"}}
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>
@@ -170,6 +345,20 @@
           </div>
         </div>
       </form>
+      {{#if this.googleSsoEnabled}}
+        <div class="login-google-divider">
+          <span>{{t "or" key="google_or_divider"}}</span>
+        </div>
+        <div class="form-group">
+          <button type="button" {{action "continue_with_google"}} class="login-btn login-btn--google" disabled={{this.noSecret}} style="width: 100%;">
+            {{#if this.redirecting}}
+              {{t "Redirecting..." key="redirecting_upper"}}
+            {{else}}
+              {{t "Continue with Google" key="continue_with_google"}}
+            {{/if}}
+          </button>
+        </div>
+      {{/if}}
     {{else}}
       <div class="la-section-header">
         <div class="la-hero-title-wrap">
