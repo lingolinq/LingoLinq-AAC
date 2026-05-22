@@ -82,6 +82,7 @@ class SessionController < ApplicationController
       end
       authorized_user = User.find_by_path(config['authorized_user_id']) if config['authorized_user_id'] && params['resume']
       user = authorized_user
+      stash_coppa_sentry_user(user) if user
       if !user
         auth_org = Organization.external_auth_for(params['username'])
         if auth_org
@@ -90,6 +91,7 @@ class SessionController < ApplicationController
           return
         end
         user = User.find_for_login(params['username'], (@domain_overrides || {})['org_id'], params['password'])
+        stash_coppa_sentry_user(user) if user
 
         if user && user.valet_mode?
           error = 'invalid_login'
@@ -517,6 +519,7 @@ class SessionController < ApplicationController
       u = nil
       if params['client_id'] == 'browser' && GoSecure.valid_browser_token?(params['client_secret'])
         u = pending_u
+        stash_coppa_sentry_user(u) if u
       else
         return api_error 400, { error: "Invalid client_secret for client_id", client_id: params['client_id'] }
       end

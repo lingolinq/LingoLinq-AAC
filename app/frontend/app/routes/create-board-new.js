@@ -9,11 +9,11 @@ export default Route.extend({
   activate() {
     this._super(...arguments);
     window.scrollTo(0, 0);
-    this.appState.controller.set('hide_header', true);
+    this.appState.controller.set('hide_header_force', true);
   },
 
   deactivate() {
-    this.appState.controller.set('hide_header', false);
+    this.appState.controller.set('hide_header_force', false);
   },
 
   actions: {

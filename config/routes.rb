@@ -146,11 +146,13 @@ LingoLinq::Application.routes.draw do
 
     resources :boards, :constraints => {:id => board_id_regex} do
       get 'stats' => 'boards#stats'
+      get 'tree' => 'boards#tree'
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
       post 'from_html' => 'boards#from_html', on: :collection
       post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
+      post 'bulk' => 'boards#bulk', on: :collection
       post 'stars' => 'boards#star'
       post 'slice_locales' => 'boards#slice_locales'
       delete 'stars' => 'boards#unstar'

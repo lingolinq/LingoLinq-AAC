@@ -41,6 +41,13 @@ isn't tall enough to grow). For those cases, find and remove the
 - `.la-board-privacy-wrap .bound-select__list` — privacy modal
 - `.md-edit-profile__form .modern-select__list` — `/<user>/edit` page
 - `.modal-content .bound-select__list` — universal modal block
+- create-board-new rail Paint section — first attempt reused the
+  center toolbar's absolute `__paint-dropdown` (clipped + wrong
+  theme). Real fix: reuse board-detail's own in-panel paint markup
+  (`.md-board-edit-right-panel__paint-grid` / `__paint-pill` /
+  `__custom-picker`), which is already flow-positioned and dark-themed
+  for the rail. Lesson: when porting a control into the rail, reuse
+  the rail's existing classes, not the toolbar's absolute ones.
 
 ---
 

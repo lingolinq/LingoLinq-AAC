@@ -407,7 +407,174 @@ class User < ActiveRecord::Base
     end
     res
   end
-  
+
+  # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
+  # consent record exists at the queried disclosures_version. Per D-03: missing
+  # settings['ai_consent'] is treated as "not granted", no migration needed.
+  # `disclosures_version:` is required: callers that forget the kwarg get
+  # ArgumentError at boot/test time rather than a silent false (which Phase 4
+  # would interpret as "guard fired, AI suppressed for an actually-consented user").
+  def ai_consent_granted?(disclosures_version:)
+    c = self.settings && self.settings['ai_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['granted_at'].blank?
+    return false if c['revoked_at'].present?
+    return false if c['disclosures_version'].blank?
+    return false unless c['disclosures_version'] == disclosures_version
+    true
+  end
+
+  # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
+  # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
+  # value pulled from params. New sources must be added here explicitly.
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+
+  # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
+  # because the valid actors for revocation (parent, admin, automated system)
+  # differ from the valid acquisition channels for a grant. Same anti-poisoning
+  # rationale: a controller passing an arbitrary `source` param cannot dirty the
+  # audit taxonomy.
+  AI_CONSENT_REVOKE_SOURCES = %w[parent admin system].freeze
+
+  # Records a parent-granted AI data-sharing consent at the given disclosures_version.
+  # Idempotent on same-version re-call (returns false). Does NOT silently grant on
+  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX).
+  #
+  # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
+  # internally and will raise ActiveRecord::RecordNotFound on a User.new.
+  #
+  # The body runs inside `with_lock(requires_new: true)` (SELECT FOR UPDATE on the
+  # user row, wrapping a SAVEPOINT-backed nested transaction). User#save! and
+  # AuditEvent.create! both run under that transaction, so a failure in the audit
+  # insert rolls back the consent write - even when the caller wraps this in its
+  # own outer transaction and rescues the AR error. The `requires_new: true` is
+  # load-bearing for that guarantee: without it, Rails would join the outer
+  # transaction and a rescued audit failure would leave the consent write
+  # committed. The pessimistic lock also serializes concurrent grant/revoke
+  # against the same user. D-04 / D-05.
+  #
+  # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES),
+  # `invalid_granted_by_user_id` (malformed granted_by_user_id), and
+  # `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
+  # are stable machine tokens, not English prose - Phase 3 owns user-facing copy.
+  #
+  # `granted_by_user_id:` must be a global_id ("1_42") or bare numeric db id;
+  # bare ids are normalized to global_id form before the self-grant check.
+  def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
+    if granted_by_user_id.present?
+      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
+      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    end
+
+    res = false
+    prior_disclosures_version = nil
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_consent']
+      c = {} unless c.is_a?(Hash)
+      # D-04 three-branch idempotency for an existing active (unrevoked) consent:
+      #   - same version requested:           no-op, return false (already granted)
+      #   - older version requested:          no-op, return false (downgrade refused;
+      #                                       Phase 3 controller re-prompts at current
+      #                                       version)
+      #   - newer version requested:          fall through; record the upgrade,
+      #                                       preserve record_id, capture the prior
+      #                                       version in the audit payload so audit
+      #                                       queries can distinguish first-grant
+      #                                       from version-upgrade events.
+      if c['granted_at'].present? && c['revoked_at'].blank?
+        next if c['disclosures_version'] == disclosures_version
+        next if disclosures_version.nil? || c['disclosures_version'].nil?
+        next if disclosures_version < c['disclosures_version']
+        prior_disclosures_version = c['disclosures_version']
+      end
+      # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
+      c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
+      c['granted_at'] = Time.now.utc.iso8601
+      c['granted_by'] = granted_by
+      c['granted_by_user_id'] = granted_by_user_id
+      c['disclosures_version'] = disclosures_version
+      c['source'] = source
+      c['ip'] = ip
+      c['user_agent'] = user_agent
+      c.delete('pending_token')
+      c.delete('pending_token_expires_at')
+      c.delete('revoked_at')
+      c.delete('revoked_by')
+      c.delete('revoked_reason')
+      self.settings['ai_consent'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'ai_consent_grant',
+          'disclosures_version' => disclosures_version,
+          'prior_disclosures_version' => prior_disclosures_version,
+          'granted_by' => granted_by,
+          'source' => source,
+          'record_id' => c['record_id']
+        },
+        event_type: 'ai_consent_grant',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # Revokes the current AI data-sharing consent. Idempotent on already-revoked
+  # (returns false). Mirrors grant_ai_consent!: runs inside `with_lock(requires_new:
+  # true)` so the User update and AuditEvent insert are atomic - including under
+  # an outer transaction that rescues the AR error - and concurrent grant/revoke
+  # against the same user are serialized. D-05.
+  #
+  # Raises ArgumentError 'invalid_source' if source is not in
+  # AI_CONSENT_REVOKE_SOURCES (parent / admin / system). Phase 3 controllers
+  # cannot poison the revocation audit taxonomy by passing arbitrary params.
+  def revoke_ai_consent!(revoked_by: nil, reason: nil, source: 'parent')
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_REVOKE_SOURCES.include?(source)
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_consent']
+      next unless c.is_a?(Hash)
+      next if c['granted_at'].blank?
+      next if c['revoked_at'].present?
+      c['revoked_at'] = Time.now.utc.iso8601
+      c['revoked_by'] = revoked_by
+      c['revoked_reason'] = reason
+      self.settings['ai_consent'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'ai_consent_revoke',
+          'disclosures_version' => c['disclosures_version'],
+          'source' => source,
+          'record_id' => c['record_id']
+        },
+        event_type: 'ai_consent_revoke',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # Coerces granted_by_user_id to shard-prefixed global_id ("1_42") so the
+  # self-grant guard cannot be bypassed with a bare ActiveRecord id.
+  def normalize_ai_consent_granted_by_user_id!(raw)
+    str = raw.to_s.strip
+    if str.match?(/\A\d+_\d+/)
+      str
+    elsif str.match?(/\A\d+\z/)
+      related_global_id(str.to_i)
+    else
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    end
+  end
+
   def anonymized_identifier(str=nil)
     str ||= ""
     self.settings ||= {}
@@ -436,7 +603,11 @@ class User < ActiveRecord::Base
       },
       'any_user' => {
         'activation_location' => 'end',
-        'auto_home_return' => true,
+        # Default to staying in-place after a button activation so the user
+        # can compose a multi-chip sentence inside a sub-folder without the
+        # board navigating back to home after every tap. Communicators
+        # using the classic auto-home flow can opt in via their preferences.
+        'auto_home_return' => false,
         'vocalize_buttons' => true,
         'external_links' => 'confirm_custom',
         'clear_on_vocalize' => true,
@@ -452,7 +623,13 @@ class User < ActiveRecord::Base
         'utterance_interruptions' => true,
         'click_buttons' => true,
         'auto_capitalize' => true,
-        'prefer_native_keyboard' => false
+        'prefer_native_keyboard' => false,
+        # Which board UI the user sees when opening a board: the
+        # 'modern' panelled experience (board-detail) or the 'classic'
+        # full-device grid (board-alt). Both render the same board
+        # content — this is purely a visual/UX shell preference.
+        # Default 'modern' to surface the newer, feature-richer UI.
+        'board_view_style' => 'modern'
       },
       'authenticated_user' => {
         'long_press_edit' => false,
@@ -913,7 +1090,7 @@ class User < ActiveRecord::Base
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards', 'beta_program_access'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access'
     ]
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']

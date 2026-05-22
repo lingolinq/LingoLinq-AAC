@@ -17,7 +17,7 @@ import Button from '../../utils/button';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -31,6 +31,14 @@ export default Controller.extend(prefClasses, {
   app_state: alias('appState'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  router: service('router'),
+  // The user's saved board-UI preference. 'modern' = the board-detail
+  // panelled experience; 'classic' = this board-alt grid. Defaults to
+  // 'modern'. Drives the edit-mode view toggle's active state + the
+  // conditional "open the other view" jump link.
+  board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
+  }),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -366,7 +374,29 @@ export default Controller.extend(prefClasses, {
       this.appState.set('window_inner_width', inner_width);
       this.appState.set('window_inner_height', height);
       var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
-      var topHeight = this.appState.get('header_height') + 5 + (this.appState.get('extra_header_height') || 0);
+      // Fixed top offset the board height must reserve. Normally
+      // header_height + 5. EXCEPTION: board-alt (classic) in speak mode.
+      // There the fixed outer <header> overlays the content and #content
+      // clears it via padding-top. The header height varies with the
+      // user's vocalization_height (legacy `header.speaking.<size>`), so
+      // no constant is correct. _updateFromSpeakBarResize measures the
+      // real fixed-header height and publishes it as `speak_header_height`
+      // (+ the matching `--speak-header-height` CSS var the #content rule
+      // reads). Reserve EXACTLY that here so the grid clears the header
+      // with no clipped top row and no dead strip — CSS and JS stay in
+      // lockstep off the same measurement. Fall back to header_height
+      // until the first measurement lands. Scoped to the board-alt speak
+      // route only: /board (board-view) and normal mode are unchanged.
+      var header_base = this.appState.get('header_height') + 5;
+      if(this.appState.get('speak_mode') && this.appState.get('current_route') === 'user.board-alt.index') {
+        var measured = this.appState.get('speak_header_height');
+        if(measured && measured > 0) {
+          // speak_header_height already includes extra_header_height
+          // (it's the full measured header), so do NOT add extra again.
+          header_base = measured - (this.appState.get('extra_header_height') || 0);
+        }
+      }
+      var topHeight = header_base + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
       this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
       if(this.get('show_word_suggestions')) {
@@ -459,7 +489,9 @@ export default Controller.extend(prefClasses, {
     } else {
       _this._teardownSpeakBarObserver();
       _this.appState.set('extra_header_height', 0);
+      _this.appState.set('speak_header_height', 0);
       document.documentElement.style.removeProperty('--speak-bar-extra');
+      document.documentElement.style.removeProperty('--speak-header-height');
     }
   }),
   _setupSpeakBarObserver() {
@@ -487,17 +519,43 @@ export default Controller.extend(prefClasses, {
       getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')
     ) || this.appState.get('header_height') || 0;
     var extra = Math.max(0, actualHeight - topbarHeight);
+    // The element that actually overlays the content is the fixed outer
+    // <header> (position: fixed, top: 0 — see _header_sizing.scss and
+    // app.scss `#within_ember > header`). Its height is what #content
+    // must reserve. It varies with the user's vocalization_height
+    // (legacy `header.speaking.<size>` heights), so NO constant (34,
+    // --topbar-height, header_height) reserves the right amount across
+    // sizes — measure it. Fall back to inner_header if the outer header
+    // isn't found.
+    var outerHeader = innerHeader.closest('header') || innerHeader;
+    var measuredHeader = Math.round(outerHeader.getBoundingClientRect().height) || actualHeight;
+    // The measured header includes the speak-bar card's 8px bottom
+    // padding — visual breathing room INSIDE the bar, not part of the
+    // footprint the grid must clear. Reserving it leaves a ~8px hairline
+    // of (now slate, bg-matched) header below the card before the grid.
+    // Subtract it at this single source so the CSS #content padding and
+    // the JS board height stay locked to the same value. Clamp >= 0.
+    var SPEAK_BAR_BOTTOM_PADDING = 8;
+    var headerHeight = Math.max(0, measuredHeader - SPEAK_BAR_BOTTOM_PADDING);
     var prevExtra = this.appState.get('extra_header_height') || 0;
-    if (prevExtra === extra) { return; }
+    var prevHeaderHeight = this.appState.get('speak_header_height') || 0;
+    if (prevExtra === extra && prevHeaderHeight === headerHeight) { return; }
     this.appState.set('extra_header_height', extra);
+    this.appState.set('speak_header_height', headerHeight);
     document.documentElement.style.setProperty('--speak-bar-extra', extra + 'px');
+    // Both #content padding (CSS) and the board height (computeHeight)
+    // reserve EXACTLY this measured height, so the grid clears the
+    // header with no dead strip and no clipped top row.
+    document.documentElement.style.setProperty('--speak-header-height', headerHeight + 'px');
     this.computeHeight();
   },
   willDestroy() {
     this._super(...arguments);
     this._teardownSpeakBarObserver();
     this.appState.set('extra_header_height', 0);
+    this.appState.set('speak_header_height', 0);
     document.documentElement.style.removeProperty('--speak-bar-extra');
+    document.documentElement.style.removeProperty('--speak-header-height');
   },
   board_style: computed('height', 'model.background.color', function() {
     var str = "position: relative; height: " + (this.get('height') + 5) + "px;";
@@ -1202,6 +1260,148 @@ export default Controller.extend(prefClasses, {
   boardMenuOpen: false,
 
   actions: {
+    // Persist the user's preferred board UI shell. 'classic' = this
+    // board-alt grid, 'modern' = board-detail. Saves only — navigation
+    // is the separate go_to_modern_edit action so flipping the
+    // preference doesn't yank the user away mid-edit. Same dirty-bit
+    // trick board-detail uses: poke preferences.device.updated so
+    // Ember Data ships the full raw preferences blob.
+    set_board_view_style: function(style) {
+      if(style !== 'modern' && style !== 'classic') { return; }
+      var user = this.get('appState.currentUser');
+      if(!user) { return; }
+      user.set('preferences.board_view_style', style);
+      this.notifyPropertyChange('board_view_style');
+      if(user.save) {
+        user.set('preferences.device.updated', true);
+        user.save();
+      }
+    },
+
+    // "Take me to the Modern View (in edit mode)". board-detail HAS a
+    // dedicated /edit subroute, so we transition straight into it.
+    go_to_modern_edit: function() {
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var key_parts = key ? key.split('/') : [];
+      // board-detail fetches /api/v1/boards/<user_name>/<boardname>, so
+      // user_name MUST be the board's OWNER (key prefix), not the
+      // session/communicator user — otherwise a board owned by another
+      // user (seeded/shared boards) 404s. Mirrors style-switcher.js.
+      var user_name = (key_parts.length > 1 ? key_parts[0] : null) ||
+        this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var boardname = key_parts.length > 1 ? key_parts.slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      this.get('router').transitionTo('user.board-detail.edit', user_name, boardname);
+    },
+
+    // Normal-mode "Modern View" button: persist the user's preference
+    // to 'modern' (so future logins land in the modern view) AND then
+    // take them straight to the modern (board-detail) view.
+    go_to_modern: function() {
+      var user = this.get('appState.currentUser');
+      if(user) {
+        user.set('preferences.board_view_style', 'modern');
+        this.notifyPropertyChange('board_view_style');
+        if(user.save) {
+          user.set('preferences.device.updated', true);
+          user.save();
+        }
+      }
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var key_parts = key ? key.split('/') : [];
+      // board-detail fetches /api/v1/boards/<user_name>/<boardname>, so
+      // user_name MUST be the board's OWNER (key prefix), not the
+      // session/communicator user — otherwise a board owned by another
+      // user (seeded/shared boards) 404s. Mirrors style-switcher.js.
+      var user_name = (key_parts.length > 1 ? key_parts[0] : null) ||
+        this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var boardname = key_parts.length > 1 ? key_parts.slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      // Anti-flash: board-detail's route model hook does an async /tree
+      // fetch on cache-miss, and Ember keeps THIS classic route rendered
+      // until it resolves — that's the visible flash of stale content.
+      // Reuse the exact mechanism login uses (login-form.js
+      // login_success / _login_dispatch_after_wait): a full-screen
+      // overlay appended to document.body (OUTSIDE the Ember outlet so
+      // it survives the transition), removed only after the destination
+      // route has settled (routeDidChange quiet for 150ms) and painted
+      // (2x rAF). Same #ll-pre-reload-overlay id + .ll-loading-overlay
+      // markup so the styling matches the login flow exactly.
+      var _this = this;
+      var routerSvc = this.get('router');
+      if(typeof document !== 'undefined' && document.body && !document.getElementById('ll-pre-reload-overlay')) {
+        var overlay = document.createElement('div');
+        overlay.id = 'll-pre-reload-overlay';
+        overlay.className = 'll-loading-overlay';
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.setAttribute('aria-busy', 'true');
+        overlay.style.zIndex = '2147483646';
+        var card = document.createElement('div');
+        card.className = 'll-loading-overlay__card';
+        var spinner = document.createElement('div');
+        spinner.className = 'll-loading-overlay__spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        var msg = document.createElement('p');
+        msg.className = 'll-loading-overlay__message';
+        msg.textContent = i18n.t('loading', "Loading...");
+        card.appendChild(spinner);
+        card.appendChild(msg);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+      }
+      var removeOverlay = function() {
+        try {
+          var ov = document.getElementById('ll-pre-reload-overlay');
+          if(ov && ov.parentNode) { ov.parentNode.removeChild(ov); }
+        } catch(e) { /* DOM may be unavailable; ignore */ }
+      };
+      var pending = null;
+      var safetyTimer = null;
+      var listenerCleanedUp = false;
+      var cleanup = function() {
+        if(listenerCleanedUp) { return; }
+        listenerCleanedUp = true;
+        try { routerSvc.off('routeDidChange', onRouteDidChange); } catch(e) {}
+        if(pending) { try { cancelLater(pending); } catch(e) {} pending = null; }
+        if(safetyTimer) { try { cancelLater(safetyTimer); } catch(e) {} safetyTimer = null; }
+      };
+      var dismiss = function() {
+        cleanup();
+        var raf = window.requestAnimationFrame;
+        if(typeof raf === 'function') {
+          raf(function() { raf(function() { removeOverlay(); }); });
+        } else {
+          removeOverlay();
+        }
+      };
+      var onRouteDidChange = function() {
+        if(listenerCleanedUp) { return; }
+        if(pending) { try { cancelLater(pending); } catch(e) {} }
+        pending = runLater(dismiss, 150);
+      };
+      routerSvc.on('routeDidChange', onRouteDidChange);
+      // Safety net: never trap the user behind the overlay if
+      // routeDidChange somehow never fires.
+      safetyTimer = runLater(dismiss, 8000);
+      var promise = routerSvc.transitionTo('user.board-detail', user_name, boardname);
+      if(promise && typeof promise.then === 'function') {
+        promise.then(null, function(err) {
+          // TransitionAborted is expected if a nested redirect occurs;
+          // routeDidChange still fires for the final route and dismisses.
+          var errName = err && (err.name || (err.constructor && err.constructor.name));
+          var errMsg = err && err.message;
+          var isAborted = errName === 'TransitionAborted' ||
+            (errMsg && /TransitionAborted|transition.*aborted/i.test(errMsg));
+          if(isAborted) { return; }
+          // Real failure: don't strand the user behind the overlay.
+          dismiss();
+        });
+      }
+    },
+
     toggleBoardMenu: function() {
       this.toggleProperty('boardMenuOpen');
       if(this.get('boardMenuOpen')) {

@@ -173,7 +173,20 @@ export default Component.extend({
         var key = board_record.get ? board_record.get('key') : board_record.key;
         _this.triggerExternalAction('action_override', key);
       } else if(_this.onAction && typeof _this.onAction === 'function') {
-        _this.onAction(board_record);
+        // Copy-cluster folders are passed in as a { board, children }
+        // wrapper, and load_children needs that wrapper intact (board_list
+        // reads parent_object.board / parent_object.children when drilling
+        // in). set_board_record unwraps `board` down to the inner record
+        // for display, so when this icon represents a children cluster
+        // hand back the ORIGINAL wrapper; otherwise (e.g. find-a-board's
+        // selectFoundBoard, which has no children) keep the unwrapped
+        // record so that behavior is unchanged.
+        var orig = _this.get('board');
+        if(_this.get('children') && orig && orig.children) {
+          _this.onAction(orig);
+        } else {
+          _this.onAction(board_record);
+        }
       } else if(this.get('children')) {
         _this.triggerExternalAction('action', board_record);
       } else if(this.get('option') == 'select') {

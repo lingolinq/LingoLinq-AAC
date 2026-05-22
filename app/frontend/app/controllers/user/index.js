@@ -385,9 +385,14 @@ export default Controller.extend({
 
       if(this.get('parent_object')) {
         list = [];
-        list.push({board: this.get('parent_object.board')});
+        var parentBoard = this.get('parent_object.board');
+        if (parentBoard) {
+          list.push({ board: parentBoard });
+        }
         (this.get('parent_object.children') || []).forEach(function(b) {
-          list.push({board: b.board});
+          if (b && b.board) {
+            list.push({ board: b.board });
+          }
         });
         list.done = true;
         res.sub_result = true;
@@ -399,7 +404,10 @@ export default Controller.extend({
       var _this = this;
       if(this.get('parent_object')) {
         list.forEach(function(ref) {
-          if(ref.board.id == _this.get('parent_object.board.id')) {
+          if (!ref || !ref.board) { return; }
+          var parentObjBoard = _this.get('parent_object.board');
+          var parentId = parentObjBoard && emberGet(parentObjBoard, 'id');
+          if (emberGet(ref.board, 'id') == parentId) {
             ref.str = "a " + ref.board.name;
           } else {
             ref.str = "b" + (parseInt(ref.board.name, 10) || 0).toString().padStart(6, '0') + ' ' + ref.board.name.toLowerCase();
@@ -411,20 +419,28 @@ export default Controller.extend({
         var roots = [];
         var shallow_roots = {};
         list.forEach(function(b) {
-          if(emberGet(b, 'id').match(/-/) && (!emberGet(b, 'copy_id') || emberGet(b, 'copy_id') == emberGet(b, 'id') || emberGet(b, 'copy_id') == emberGet(b, 'id').split(/-/)[0])) {
-            var user_id = emberGet(b, 'id').split(/-/)[1];
+          if (!b) { return; }
+          var bidRaw = emberGet(b, 'id');
+          if (bidRaw == null || bidRaw === '') { return; }
+          var bid = String(bidRaw);
+          if(bid.match(/-/) && (!emberGet(b, 'copy_id') || emberGet(b, 'copy_id') == bid || emberGet(b, 'copy_id') == bid.split(/-/)[0])) {
+            var user_id = bid.split(/-/)[1];
             if(user_id == _this.get('model.id')) {
-              shallow_roots[emberGet(b, 'copy_id') || emberGet(b, 'id').split(/-/)[0]] = b;
+              shallow_roots[emberGet(b, 'copy_id') || bid.split(/-/)[0]] = b;
             }
           }
         });
         list.forEach(function(b) {
-          if(emberGet(b, 'id').match(/-/) && emberGet(b, 'id').split(/-/)[1] == _this.get('model.id') && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) {
+          if (!b) { return; }
+          var bidRaw2 = emberGet(b, 'id');
+          if (bidRaw2 == null || bidRaw2 === '') { return; }
+          var bid = String(bidRaw2);
+          if(bid.match(/-/) && bid.split(/-/)[1] == _this.get('model.id') && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) {
             // Shallow clones are a little trickier to get added as sub-boards to their root
             var shallow = shallow_roots[emberGet(b, 'copy_id')];
             copies[emberGet(shallow, 'id')] = copies[emberGet(shallow, 'id')] || [];
             copies[emberGet(shallow, 'id')].push(b);
-          } else if(emberGet(b, 'copy_id') && emberGet(b, 'copy_id') != emberGet(b, 'id')) {
+          } else if(emberGet(b, 'copy_id') && emberGet(b, 'copy_id') != bid) {
             var copy_id = emberGet(b, 'copy_id');
             copies[copy_id] = copies[copy_id] || [];
             copies[copy_id].push(b);
@@ -433,6 +449,7 @@ export default Controller.extend({
           }
         });
         roots.forEach(function(b) {
+          if (!b) { return; }
           var obj = {board: b, children: []};
           var id = emberGet(b, 'id');
           if(copies[id]) {
@@ -547,7 +564,13 @@ export default Controller.extend({
         res.filtered_results = new_list.slice(0, 18);
         res.has_more = new_list.length > 18;
       }
-      res.filtered_results_key = res.filtered_results.map(function(b) { return (b.id || b.board.id) + (b.children || []).length; }).join(',');
+      res.filtered_results_key = (res.filtered_results || []).map(function(row) {
+        var boardId = row && row.board && emberGet(row.board, 'id');
+        var rowId = row && row.id;
+        var keyId = rowId || boardId || '';
+        var kids = (row && row.children) || [];
+        return keyId + kids.length;
+      }).join(',');
       return res;
     }
   ),

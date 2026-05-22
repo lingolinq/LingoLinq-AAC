@@ -139,6 +139,14 @@ module JsonApi::Board
       json['board']['protected_settings'] = board.settings['protected'] || {}
       json['board']['protected_settings']['copyable'] = true if board.copyable_if_authorized?(args[:permissions])
     end
+    # If this save fired a folder-level cascade, surface the touched
+    # boards so the client can invalidate its boardDetailCache entries
+    # for them. Otherwise the 5-min cache TTL would serve pre-cascade
+    # data when the user next navigates into a downstream board.
+    cascade_invalidations = board.instance_variable_get(:@cascade_invalidations)
+    if cascade_invalidations && cascade_invalidations.is_a?(Array) && cascade_invalidations.any?
+      json['board']['cascade_invalidations'] = cascade_invalidations
+    end
     self.trace_execution_scoped(['json/board/images_and_sounds']) do
       hash = board.images_and_sounds_for(args[:permissions])
       unless json['board'] && json['board']['simple_refs']

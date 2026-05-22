@@ -54,8 +54,11 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  has_board_history: computed('board_detail_history.[]', function() {
-    return (this.get('board_detail_history') || []).length > 0;
+  /** Speak bar + header back control: session folder trail and/or DB parent board. */
+  show_board_back_nav: computed('board_detail_history.[]', 'model.parent_board_key', function() {
+    if((this.get('board_detail_history') || []).length > 0) { return true; }
+    var pk = this.get('model.parent_board_key');
+    return !!(pk && String(pk).indexOf('/') !== -1);
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -75,6 +78,7 @@ export default Controller.extend(prefClasses, {
   /* Right-panel "Live Preview Edit" — collapsed/expanded state for
      the whole panel + the currently-open accordion section id. */
   right_panel_collapsed: false,
+  left_panel_collapsed: false,
   right_panel_open_section: null,
   panels_collapsed: false,
   board_search_string: '',
@@ -124,6 +128,7 @@ export default Controller.extend(prefClasses, {
 
   edit_mode: false,
   board_collapsed: true,
+  board_actions_collapsed: true,
   inlineSidebarOpen: false,
   color_picker_button: null,
   custom_color_value: null,
@@ -161,6 +166,28 @@ export default Controller.extend(prefClasses, {
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
+  // Edit-mode entry settling overlay: when true, the grid renders with
+  // opacity:0 so the user doesn't see the intermediate flash as
+  // ordered_buttons gets replaced 2-3 times during route transition
+  // (cached plain objects → _build_from_raw rebuild → process_for_displaying
+  // rebuild). Set true synchronously on edit route enter; cleared once
+  // ordered_buttons has stopped changing (see _grid_loading_settle below)
+  // or by the fallback timer in edit.js if the observer never fires.
+  grid_loading: false,
+  _grid_settle_timer: null,
+  // Watches ordered_buttons during edit-mode entry. Each replacement
+  // resets a 150ms debounce timer. When no replacement occurs for
+  // 150ms, the grid is "settled" and the fade clears.
+  _grid_loading_settle: observer('ordered_buttons', function() {
+    if(!this.get('grid_loading')) { return; }
+    if(this._grid_settle_timer) { runCancel(this._grid_settle_timer); }
+    var _this = this;
+    this._grid_settle_timer = runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('grid_loading', false);
+      _this._grid_settle_timer = null;
+    }, 150);
+  }),
   noUndo: true,
   noRedo: true,
 
@@ -500,6 +527,31 @@ export default Controller.extend(prefClasses, {
     var grid = raw.grid;
     var use_ember = _this.get('edit_mode');
 
+    // Current speak-mode level: the level the supervisor last selected
+    // (persisted in stashes.board_level). If none was ever selected,
+    // default to 10 (full vocab — untagged boards "show everything").
+    // This MUST match current_speak_level exactly (saved 1–10 else 10)
+    // so the highlighted pill and the actually-filtered grid always
+    // agree, including for boards that ship an author default_level.
+    // This is the level baked into each button's `hidden` via
+    // apply_button_level in _make_btn, and the level that keys the cache
+    // below — otherwise switching from L1 to L10 would return the stale
+    // L1 grid.
+    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
+    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+
+    // Does THIS board actually use Button Levels? (Any button carries a
+    // non-empty level_modifications.) The level filter must be a no-op on
+    // boards that don't use levels — otherwise a stale stashes.board_level
+    // (e.g. 3, carried over from a different leveled board) makes the
+    // untagged `else` branch in _make_btn flag EVERY button
+    // display_as_hidden, which the communicator speak-hide CSS then
+    // renders as a blank board. This is NOT the (reverted) blank-button
+    // rule — it only gates the pre-existing untagged-hide.
+    var board_has_levels = (raw.buttons || []).some(function(b) {
+      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
+    });
+
     // Cache key for the pre-built ordered_buttons. Only used in non-edit
     // mode: edit-mode buttons are Ember objects with mutable state we
     // can't safely reuse across navigations.
@@ -508,7 +560,17 @@ export default Controller.extend(prefClasses, {
       preferred_symbols: _this._preferred_symbols,
       skin: skin || null,
       edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null
+      label_locale: _this.get('app_state.label_locale') || null,
+      // Invalidate grid reuse when offline url_cache becomes available so
+      // image_url picks up local paths after prime_caches().
+      url_cache_primed: !!persistence.primed,
+      // Level filter is baked into the cached grid by _make_btn
+      // (display_as_hidden). The cached ordered_buttons MUST therefore key
+      // on the active level / whether the board uses levels — otherwise
+      // changing the level reuses the stale grid and the speak-mode level
+      // filter never re-applies.
+      board_level: current_level,
+      board_has_levels: board_has_levels
     };
     if(!use_ember && cache_token) {
       var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
@@ -518,16 +580,18 @@ export default Controller.extend(prefClasses, {
         // costs ~0 CPU on the controller side.
         _this.set('ordered_buttons', cached_ob);
         _this._apply_focus_dim_to_ordered_buttons();
+        _this._preload_grid_images(cached_ob);
         return;
       }
     }
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
-        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map);
+        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map, current_level, board_has_levels);
       });
       _this.set('ordered_buttons', [buttons]);
       _this._apply_focus_dim_to_ordered_buttons();
+      _this._preload_grid_images([buttons]);
       if(!use_ember && cache_token) {
         boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx);
       }
@@ -546,7 +610,7 @@ export default Controller.extend(prefClasses, {
         var btn_id = (grid.order[ri] || [])[ci];
         var raw_btn = btn_id !== null && btn_id !== undefined ? button_map[String(btn_id)] : null;
         if(raw_btn) {
-          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map));
+          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map, current_level, board_has_levels));
         } else {
           if(use_ember) {
             var fake = editManager.Button.create({ empty: true, label: '', id: btn_id || ('fake_' + ri + '_' + ci) });
@@ -562,6 +626,13 @@ export default Controller.extend(prefClasses, {
     _this.set('ordered_buttons', result);
 
     _this._apply_focus_dim_to_ordered_buttons();
+    // Warm the browser image cache before clearing any active loading
+    // overlay. Without this the user sees the grid appear instantly but
+    // images load in one-by-one over the next second or two, which reads
+    // as a janky "filling-in" effect. Browser HTTP cache covers repeat
+    // visits — but on first entry, on symbol-library switches, or after
+    // a level change, the images are cold and need to be fetched.
+    _this._preload_grid_images(result);
 
     // Resolve POS for untyped buttons
     if(!use_ember) {
@@ -574,13 +645,91 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  _make_btn: function(btn, image_map) {
+  // Prefer a locally-synced copy from persistence.url_cache when available
+  // (same lookup order as Board#render_fast_html).
+  _resolve_cached_image_url: function(remote_url) {
+    if(!remote_url) { return null; }
+    var url_cache = persistence.url_cache;
+    if(!url_cache) { return remote_url; }
+    var url_uncache = persistence.url_uncache;
+    var try_url = function(u) {
+      if(!u) { return null; }
+      if(url_uncache && url_uncache[u]) { return null; }
+      var cached = url_cache[u];
+      if(cached && cached !== false) { return cached; }
+      return null;
+    };
+    var cached = try_url(remote_url);
+    if(cached) { return cached; }
+    var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
+    if(unvarianted !== remote_url) {
+      cached = try_url(unvarianted);
+      if(cached) { return cached; }
+    }
+    var alt_url = null;
+    if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    } else if(remote_url.match(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    }
+    if(alt_url) {
+      cached = try_url(alt_url);
+      if(cached) { return cached; }
+    }
+    return remote_url;
+  },
+
+  _make_btn: function(btn, image_map, level, board_has_levels) {
     var img_url = null;
     if(btn.image_id && image_map) {
       if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
         img_url = image_map[btn.image_id + '-' + this._preferred_symbols];
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
+      }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
+    }
+    // Speak-mode level filter: decide whether the level filter should
+    // visually hide this button at the current level. We compute it
+    // into `display_as_hidden` (a plain bool that mirrors the Ember
+    // Button computed of the same name) so the template's existing
+    // `--hidden` class binding picks it up. We deliberately do NOT
+    // touch `hidden` — the raw author-intent flag stays intact so
+    // edit-mode rendering and any other code path that reads
+    // btn.hidden gets the original value. At level 10 (or no level)
+    // the filter is off and display_as_hidden stays false.
+    var display_as_hidden = false;
+    if(level && level < 10) {
+      if(btn.level_modifications) {
+        // Walk pre → 0..level → override on a working copy. If the
+        // resolved hidden is true, the rule excludes this button.
+        // NOTE: rule values arrive as STRINGS ("true"/"false") in
+        // legacy/copied boards, not booleans — `!!"false"` is `true`,
+        // so a naive truthy check inverts the meaning. Use an explicit
+        // string-or-bool comparison instead.
+        var working = { hidden: btn.hidden };
+        var mods = btn.level_modifications;
+        var keys = ['pre'];
+        for(var k = 0; k <= level; k++) { keys.push(k); }
+        keys.push('override');
+        keys.forEach(function(key) {
+          if(mods[key]) {
+            for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
+          }
+        });
+        display_as_hidden = (working.hidden === true || working.hidden === 'true');
+      } else if(board_has_levels) {
+        // Untagged at level < 10 on a board that DOES use levels — the
+        // level filter excludes unpromoted buttons. Without this, picking
+        // a low level on a partially-tagged board would surface every
+        // untagged button, defeating the filter. GATED on
+        // board_has_levels: on a board with NO level rules at all, level
+        // selection is meaningless and must not hide anything (a stale
+        // stashes.board_level from another board would otherwise blank
+        // the whole board once the speak-hide CSS removes the cards).
+        display_as_hidden = true;
       }
     }
     return {
@@ -591,6 +740,7 @@ export default Controller.extend(prefClasses, {
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
+      display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
       border_color: (btn.background_color && window.tinycolor) ? window.tinycolor(btn.background_color).darken(20).toRgbString() : (btn.border_color || null),
@@ -611,6 +761,9 @@ export default Controller.extend(prefClasses, {
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
       }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
@@ -653,6 +806,18 @@ export default Controller.extend(prefClasses, {
       return;
     }
 
+    // Track whether any button's focus/dim state actually CHANGED. The
+    // `_focus_dim_observer` fires per-tap (Ember dep chains for
+    // app_state.focus_words / sessionUser.id / referenced_user.id all
+    // re-emit identity-changed events on session restores and on each
+    // utterance update, even when the underlying values stayed the
+    // same). Without this gate, `_finalizeFocusDimGrid` ran on every
+    // tap and replaced the entire `ordered_buttons` array with
+    // brand-new Object.assign() clones — Glimmer saw new identity for
+    // every cell and tore down + re-mounted every `<img>`, which read
+    // as "all images re-render on every button press."
+    var anyChanged = false;
+
     var walk = function(fn) {
       ob.forEach(function(row) {
         row.forEach(function(btn) {
@@ -662,22 +827,40 @@ export default Controller.extend(prefClasses, {
     };
 
     var setDim = function(btn, on) {
+      var next = !!on;
+      var current;
       if (btn.set) {
-        btn.set('dim', !!on);
-      } else if (!on) {
-        delete btn.dim;
+        current = !!btn.get('dim');
+        if (current !== next) {
+          anyChanged = true;
+          btn.set('dim', next);
+        }
       } else {
-        btn.dim = true;
+        current = !!btn.dim;
+        if (current !== next) {
+          anyChanged = true;
+          if (!next) { delete btn.dim; }
+          else { btn.dim = true; }
+        }
       }
     };
 
     var setFocusMatch = function(btn, on) {
+      var next = !!on;
+      var current;
       if (btn.set) {
-        btn.set('focus_word_match', !!on);
-      } else if (!on) {
-        delete btn.focus_word_match;
+        current = !!btn.get('focus_word_match');
+        if (current !== next) {
+          anyChanged = true;
+          btn.set('focus_word_match', next);
+        }
       } else {
-        btn.focus_word_match = true;
+        current = !!btn.focus_word_match;
+        if (current !== next) {
+          anyChanged = true;
+          if (!next) { delete btn.focus_word_match; }
+          else { btn.focus_word_match = true; }
+        }
       }
     };
 
@@ -706,7 +889,7 @@ export default Controller.extend(prefClasses, {
           boundClasses.add_classes(btn);
         } catch (e) { /* skip */ }
       });
-      this._finalizeFocusDimGrid(ob);
+      if (anyChanged) { this._finalizeFocusDimGrid(ob); }
       return;
     }
 
@@ -725,7 +908,7 @@ export default Controller.extend(prefClasses, {
           boundClasses.add_classes(btn);
         } catch (e) { /* skip */ }
       });
-      this._finalizeFocusDimGrid(ob);
+      if (anyChanged) { this._finalizeFocusDimGrid(ob); }
       return;
     }
 
@@ -746,7 +929,29 @@ export default Controller.extend(prefClasses, {
     walk(function(btn) {
       applyFocusState(btn, dimMap, matchMap);
     });
-    this._finalizeFocusDimGrid(ob);
+    if (anyChanged) { this._finalizeFocusDimGrid(ob); }
+  },
+
+  /**
+   * Warm the browser cache for every image URL referenced by
+   * `ordered_buttons`. Fire-and-forget — does NOT block rendering and
+   * does NOT show a loading overlay (per UX requirement: board-detail
+   * never displays a "Loading board…" message). The grid paints
+   * immediately and individual `<img>` tags pull from the warmed
+   * cache as they mount.
+   */
+  _preload_grid_images: function(ordered_buttons) {
+    if(!ordered_buttons || !ordered_buttons.length) { return; }
+    var urls = {};
+    ordered_buttons.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        var url = btn && (btn.image_url || (btn.get && btn.get('image_url')));
+        if(url) { urls[url] = true; }
+      });
+    });
+    for(var url in urls) {
+      try { var img = new Image(); img.src = url; } catch(e) { /* ignore */ }
+    }
   },
 
   _focus_dim_observer: observer(
@@ -770,15 +975,37 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  // Re-build buttons when display preferences change
+  // Re-build buttons when display preferences change.
+  //
+  // The Ember dep keys fire whenever any link in the chain changes
+  // identity, NOT just when the leaf value changes — and periodic
+  // session restores (every few seconds) re-push the user record into
+  // the store with the SAME values. Without a value-comparison gate
+  // this re-fired `_build_from_raw` continuously, tearing down and
+  // re-mounting every `<img>` in the grid on every observed re-push
+  // (and on every button tap that triggers utterance state which
+  // re-resolves `referenced_user`). Cache the last observed leaf
+  // values and skip the rebuild when nothing actually changed.
   _rebuild_on_pref_change: observer(
     'app_state.referenced_user.preferences.preferred_symbols',
     'app_state.referenced_user.preferences.skin',
     'app_state.referenced_user.preferences.device.button_text_position',
     function() {
-      if(this._last_raw) {
-        this._build_from_raw(this._last_raw);
+      if(!this._last_raw) { return; }
+      var preferred_symbols = this.get('app_state.referenced_user.preferences.preferred_symbols') || null;
+      var skin = this.get('app_state.referenced_user.preferences.skin') || null;
+      var text_pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || null;
+      if(
+        this._last_pref_preferred_symbols === preferred_symbols &&
+        this._last_pref_skin === skin &&
+        this._last_pref_text_pos === text_pos
+      ) {
+        return;
       }
+      this._last_pref_preferred_symbols = preferred_symbols;
+      this._last_pref_skin = skin;
+      this._last_pref_text_pos = text_pos;
+      this._build_from_raw(this._last_raw);
     }
   ),
 
@@ -883,13 +1110,16 @@ export default Controller.extend(prefClasses, {
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
 
-      // Try local n-gram lookup first (instant, zero API cost)
+      // Local n-gram lookup, text-only. We deliberately do NOT pass
+      // `button_sets` or `board_ids` — image matching from the user's
+      // vocabulary tree was disabled. Predictions render as text-only
+      // tiles in the sentence bar; the costly per-tap fix_image /
+      // persistence.find_url chain is gone.
       var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
       if(word_suggestions && word_suggestions.lookup) {
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
-          word_in_progress: word_in_progress,
-          board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
+          word_in_progress: word_in_progress
         }).then(function(result) {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           if(result && result.length > 0) {
@@ -1208,12 +1438,14 @@ export default Controller.extend(prefClasses, {
   // entries.
   current_speak_level: computed(
     'stashes.board_level',
-    'model.default_level',
     function() {
-      var lvl = this.get('stashes.board_level');
-      if(lvl) { return String(lvl); }
-      var def = this.get('model.default_level');
-      if(def) { return String(def); }
+      // Show the last level the supervisor selected (persisted in
+      // stashes.board_level). If none was ever selected, default to 10
+      // (full vocab) — matches toggle_levels_submenu's applied value so
+      // the highlighted pill and the actually-filtered level always
+      // agree.
+      var lvl = parseInt(this.get('stashes.board_level'), 10);
+      if(lvl >= 1 && lvl <= 10) { return String(lvl); }
       return '10';
     }
   ),
@@ -1438,11 +1670,52 @@ export default Controller.extend(prefClasses, {
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
   }),
-  display_prefs_current_voice_height_label: computed('pending_display_prefs.vocalization_height', 'voice_height_options', function() {
-    var current = this.get('pending_display_prefs.vocalization_height') || 'medium';
+  display_prefs_current_voice_height_label: computed('current_display_prefs.vocalization_height', 'voice_height_options', function() {
+    // Read current_display_prefs (pending when More Settings is open,
+    // live otherwise) — the SAME source the dropdown's selected-state
+    // check uses — so the trigger label always matches the checked
+    // option. (Previously read only pending_display_prefs, which is
+    // empty in the Edit Tools rail context, so the label stuck.)
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
     var opts = this.get('voice_height_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Medium (100px)';
+  }),
+
+  // Speak Bar "Sentence Bar" size → live class on the speak row so
+  // the bar visibly resizes as the dropdown changes. Reads
+  // current_display_prefs (same source the dropdown's selected check
+  // uses) so it tracks the pending value when More Settings is open
+  // and the live value otherwise.
+  sentence_bar_height_class: computed('current_display_prefs.vocalization_height', function() {
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
+    return 'md-board-detail-sentence-bar--' + current;
+  }),
+
+  // Edit-mode Speak Bar PREVIEW content. The live #speak bar is
+  // hidden while editing, so this feeds a visible preview so Speak
+  // Bar settings can be seen. If the user has tapped anything into
+  // the speak bar, mirror that (sentence_parts); otherwise show the
+  // current board's first five real (non-empty) buttons as samples.
+  preview_sentence_parts: computed('sentence_parts.[]', 'ordered_buttons', function() {
+    var parts = this.get('sentence_parts');
+    if(parts && parts.length) { return parts; }
+    var rows = this.get('ordered_buttons') || [];
+    var out = [];
+    for(var i = 0; i < rows.length && out.length < 5; i++) {
+      var row = rows[i] || [];
+      for(var j = 0; j < row.length && out.length < 5; j++) {
+        var b = row[j];
+        if(b && !b.empty && (b.label || b.image_url)) {
+          out.push({ id: b.id, label: b.label || b.vocalization || '', image_url: b.image_url });
+        }
+      }
+    }
+    return out;
+  }),
+
+  preview_sentence_text: computed('preview_sentence_parts', function() {
+    return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
   }),
 
   // Map of pending-prefs key → user.preferences path
@@ -2491,6 +2764,17 @@ export default Controller.extend(prefClasses, {
 
   saveButtonChanges: function() {
     var _this = this;
+    // Clear preview state BEFORE serializing so preview-induced
+    // mutations (especially `hidden=true` on untagged buttons at
+    // preview level < 10) don't leak into the saved data. The save
+    // flow exits edit mode anyway, so we'd be tearing down preview
+    // shortly regardless.
+    if(this.get('preview_levels_mode')) {
+      editManager.clear_preview_levels();
+      this.set('level_paint_action', null);
+      this.set('level_paint_level', null);
+      editManager.clear_paint_mode();
+    }
     var orderedButtons = this.get('ordered_buttons') || [];
     var board = this.get('model');
     if(!board) { return; }
@@ -2608,6 +2892,21 @@ export default Controller.extend(prefClasses, {
           if(!current[k]) { current[k] = imageUrlsBeforeSave[k]; }
         }
         board.set('image_urls', current);
+      }
+
+      // Folder-level cascade invalidations. If the save fired a folder
+      // cascade on the server, the response carries the list of boards
+      // whose buttons were updated. Invalidate each entry in the client
+      // cache so a subsequent navigation into that sub-board refetches
+      // the post-cascade buttons instead of serving stale (pre-cascade)
+      // ordered_buttons from the 5-min TTL cache.
+      var invs = board.get('cascade_invalidations');
+      if(invs && invs.forEach) {
+        invs.forEach(function(entry) {
+          if(!entry) { return; }
+          if(entry.id) { boardDetailCache.invalidate(entry.id); }
+          if(entry.key) { boardDetailCache.invalidate(entry.key); }
+        });
       }
 
       if(update_locale) {
@@ -3143,7 +3442,6 @@ export default Controller.extend(prefClasses, {
       } else if(key === 'Tab' || key === 9) {
         event.preventDefault();
         event.stopPropagation();
-        console.log('[DROPDOWN-TAB] Tab pressed, btn_id=', btn_id);
         // Close dropdown, find the next board button's label input
         var currentBtnId = btn_id;
         _this.set('button_menu_id', null);
@@ -3272,7 +3570,6 @@ export default Controller.extend(prefClasses, {
       }
       ready.then(function(res) {
         if(!res || !res.correct_pin) { return; }
-        console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
         // Signal any in-flight async work on this controller to bail.
         // _build_from_raw and its callers check this flag and return early.
         _this.set('_exiting', true);
@@ -3384,8 +3681,34 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // "Classic View" button on the board-detail EDIT page: persist the
+    // user's preference to 'classic' (so future logins land in the
+    // classic view) AND navigate to the board-alt page in normal mode.
+    // Uses the same dirty-bit trick as set_display_pref: Ember Data
+    // doesn't reliably mark the raw `preferences` blob dirty on a
+    // nested set, so we also poke `preferences.device.updated` to
+    // force the full blob to ship.
+    go_to_classic: function() {
+      var user = this.get('user');
+      var boardname = this.get('boardname');
+      var prefUser = this.get('app_state.currentUser');
+      if(prefUser) {
+        prefUser.set('preferences.board_view_style', 'classic');
+        if(prefUser.save) {
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save();
+        }
+      }
+      if(!user || !boardname) { return; }
+      this.get('router').transitionTo('user.board-alt', user.get('user_name'), boardname);
+    },
+
     toggle_board_collapsed: function() {
       this.toggleProperty('board_collapsed');
+    },
+
+    toggle_board_actions: function() {
+      this.toggleProperty('board_actions_collapsed');
     },
 
     toggle_color_legend: function() {
@@ -3459,9 +3782,24 @@ export default Controller.extend(prefClasses, {
     go_back: function() {
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
-      if(!prev) { return; }
-      this.set('app_state.board_detail_nav_history', history);
-      this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+      if(prev) {
+        this.set('app_state.board_detail_nav_history', history);
+        this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+        return;
+      }
+      // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
+      var parentKey = this.get('model.parent_board_key');
+      if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
+      if(this.get('stashes').get('sticky_board')) {
+        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        return;
+      }
+      var _this = this;
+      this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var parts = preferred_key.split('/');
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      });
     },
 
     go_home: function() {
@@ -3517,11 +3855,23 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('dark_mode');
     },
 
+    // Explicit setter for the both-options segmented toggle in the
+    // left panel (vs toggle_dark_mode which just flips). Idempotent —
+    // clicking the already-active side is a harmless no-op.
+    set_dark_mode: function(on) {
+      this.set('dark_mode', !!on);
+    },
+
     toggle_modeling: function() {
       this.set('show_options_menu', false);
       this.get('app_state').toggle_modeling_if_possible(
         !this.get('app_state.modeling')
       );
+    },
+
+    toggle_modeling_pause: function() {
+      var appState = this.get('app_state');
+      appState.set('modeling_paused', !appState.get('modeling_paused'));
     },
 
     toggle_details_dropdown: function() {
@@ -4398,6 +4748,28 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('right_panel_collapsed');
     },
 
+    // Fully expand the right panel: clear BOTH the rail-collapsed
+    // state and any open section, so the user lands back on the
+    // complete section list (used by the Back chevron — it expands
+    // the whole panel, not just the previously-open section).
+    expand_right_panel: function() {
+      this.set('right_panel_collapsed', false);
+      this.set('right_panel_open_section', null);
+    },
+
+    toggle_left_panel: function() {
+      this.toggleProperty('left_panel_collapsed');
+    },
+
+    // Clicking anywhere on the collapsed rail re-expands it. Only ever
+    // expands (never collapses) so it's a safe no-op when the panel is
+    // already open and inner clicks bubble up here.
+    expand_left_panel: function() {
+      if(this.get('left_panel_collapsed')) {
+        this.set('left_panel_collapsed', false);
+      }
+    },
+
     /* Right panel: open one accordion section at a time (clicking
        the same section closes it). Keeps the panel uncluttered.
        If the panel is collapsed (icon-rail mode), clicking a
@@ -4733,6 +5105,35 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // Bulk reveal: walks every cell in ordered_buttons and forces
+    // hidden=false on each. Leaves level_modifications intact — if a
+    // button has a pre.hidden=true rule, it'll re-hide at the matching
+    // preview level, but the in-edit-mode rendering shows it visible.
+    reveal_all_hidden_buttons: function() {
+      // Reveal All is a one-shot batch action, not a paint stroke —
+      // disarm any active Hide/Reveal paint mode so those toggle
+      // buttons drop their active state (paint_mode_is_hide /
+      // paint_mode_is_show both read paint_mode).
+      this.send('clear_paint_mode');
+      var count = 0;
+      (this.get('ordered_buttons') || []).forEach(function(row) {
+        (row || []).forEach(function(btn) {
+          if(btn && btn.get && btn.get('hidden')) {
+            btn.set('hidden', false);
+            count++;
+          }
+        });
+      });
+      // Bump the color key so the grid re-renders the hidden→visible
+      // transitions in a single pass.
+      editManager.update_color_key_id();
+      if(count > 0) {
+        modal.notice(i18n.t('reveal_all_done', "Revealed %{count} hidden buttons.", { count: count }));
+      } else {
+        modal.notice(i18n.t('reveal_all_none', "No hidden buttons to reveal."));
+      }
+    },
+
     toggle_paint_color_picker: function() {
       this.toggleProperty('show_paint_color_picker');
     },
@@ -4875,7 +5276,6 @@ export default Controller.extend(prefClasses, {
               if(item._keydownBound) { return; }
               item._keydownBound = true;
               item.addEventListener('keydown', function(e) {
-                console.log('[DROPDOWN-KEY] native keydown fired, key=', e.key);
                 var dd = document.getElementById('button-edit-dropdown');
                 if(!dd) { return; }
                 var btnId = dd.getAttribute('data-btn-id');
@@ -5388,11 +5788,30 @@ export default Controller.extend(prefClasses, {
             if(!btn) { return; }
             var mods = btn.get && btn.get('level_modifications');
             if(mods && Object.keys(mods).length > 0) {
+              // Reset hidden=false for any button that had a level
+              // rule. The rule's purpose was visibility control, so
+              // removing the rule should restore visibility regardless
+              // of how the rule encoded its hide-state. Also overwrite
+              // the preview-mode stash so the subsequent
+              // clear_preview_levels call doesn't restore a stale value.
+              emberSet(btn, 'hidden', false);
+              btn._preview_original_hidden = false;
               emberSet(btn, 'level_modifications', null);
               any_cleared = true;
             }
           });
         });
+        // Exit preview mode and disarm any paint action. With no rules
+        // left, the preview filter has nothing to filter — leaving it
+        // engaged would keep formerly-tagged buttons grayed by stale
+        // preview-mutation state. clear_preview_levels restores each
+        // button's pre-preview `hidden` via the stash so user-hidden
+        // buttons return to their normal edit-mode appearance and
+        // formerly-tagged buttons surface in full CSS.
+        editManager.clear_preview_levels();
+        editManager.clear_paint_mode();
+        this.set('level_paint_action', null);
+        this.set('level_paint_level', null);
         // Toggle the levels_change signal so button_level_count
         // recomputes synchronously and the section gate updates.
         this.set('levels_change', !this.get('levels_change'));
@@ -5404,45 +5823,56 @@ export default Controller.extend(prefClasses, {
 
       var current = this.get('level_paint_action');
       // Toggle off if clicking the same add-action again — clears
-      // paint mode too if it was armed by that action.
+      // paint mode AND exits preview, since preview is now implicit
+      // while a paint action is armed.
       if(current === action) {
         this.set('level_paint_action', null);
         this.set('level_paint_level', null);
         editManager.clear_paint_mode();
+        editManager.clear_preview_levels();
         return;
       }
       this.set('level_paint_action', action);
-      // Switching to an add-action while a level was already chosen:
-      // re-arm paint mode with the new action + existing level so the
-      // user doesn't have to re-click the level pill.
+      // Switching to an add-action: engage preview so the user sees
+      // the level-filtered view as they paint. Preview level matches
+      // the armed paint level (defaults to Level 1 on first activation).
       var lvl = this.get('level_paint_level');
-      if(lvl) {
-        editManager.set_paint_mode('level', action, parseInt(lvl, 10));
-      } else {
-        // No level yet — clear any previously-armed paint while the
-        // user picks a level.
-        editManager.clear_paint_mode();
+      if(!lvl) {
+        this.set('level_paint_level', 1);
+        lvl = 1;
       }
+      var n = parseInt(lvl, 10);
+      editManager.set_paint_mode('level', action, n);
+      editManager.preview_levels();
+      this.set('preview_level', n);
+      editManager.apply_preview_level(n);
     },
     set_level_paint_level: function(level) {
       var current = this.get('level_paint_level');
-      // Click same level again → unarm (paint off).
+      // Click same level again → unarm (paint off + exit preview).
       if(current === level) {
         this.set('level_paint_level', null);
         editManager.clear_paint_mode();
+        editManager.clear_preview_levels();
         return;
       }
       this.set('level_paint_level', level);
-      // Auto-arm paint mode now that both action + level are set.
       var action = this.get('level_paint_action');
       if(action) {
-        editManager.set_paint_mode('level', action, parseInt(level, 10));
+        var n = parseInt(level, 10);
+        editManager.set_paint_mode('level', action, n);
+        // Update preview to match the newly-picked level so the user
+        // sees the board AS it would appear at this level.
+        editManager.preview_levels();
+        this.set('preview_level', n);
+        editManager.apply_preview_level(n);
       }
     },
     clear_level_paint: function() {
       this.set('level_paint_action', null);
       this.set('level_paint_level', null);
       editManager.clear_paint_mode();
+      editManager.clear_preview_levels();
     },
 
     set_speak_level: function(level) {
@@ -5460,13 +5890,38 @@ export default Controller.extend(prefClasses, {
       if(ctrl && ctrl.notifyPropertyChange) {
         ctrl.notifyPropertyChange('current_level');
       }
+      // Refresh board-detail's own grid. The cached ordered_buttons
+      // were built against the previous level — invalidate by board
+      // key/id, then rebuild from the last raw response so
+      // _make_btn picks up the new level via cache_ctx + apply.
+      var model = this.get('model');
+      var key = model && model.get && model.get('key');
+      var id = model && model.get && (model.get('id') || model.get('global_id'));
+      if(key) { boardDetailCache.invalidate(key); }
+      if(id) { boardDetailCache.invalidate(id); }
+      // Also notify current_speak_level so the pill UI re-highlights.
+      this.notifyPropertyChange('current_speak_level');
+      this.processButtons();
     },
 
     toggle_levels_submenu: function() {
       // Nested expand-state inside the Session submenu so the level
       // pill grid stays out of the way until the user explicitly
       // wants it.
+      var was_open = this.get('levels_submenu_open');
       this.toggleProperty('levels_submenu_open');
+      // On expand, RE-APPLY the level the supervisor last selected
+      // (persisted in stashes.board_level) so the board is actually
+      // filtered to it and the matching pill highlights. If no level was
+      // ever selected, default to 10 (full vocab). Previously this
+      // hard-coded level 1, which overwrote and re-persisted the saved
+      // level on every open — so the supervisor's choice never survived
+      // re-opening the menu or a new session.
+      if(!was_open) {
+        var saved = parseInt(this.get('stashes.board_level'), 10);
+        var lvl = (saved >= 1 && saved <= 10) ? saved : 10;
+        this.send('set_speak_level', lvl);
+      }
     },
 
     // ── Misc actions dispatched by raw_events or other systems ──

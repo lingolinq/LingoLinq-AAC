@@ -21,8 +21,13 @@
       {{/if}}
     {{else}}
       {{#if this.boardsCtrl.board_list.sub_result}}
-        <p><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</em></p>
-        <a href="#" class="md-btn" {{action "load_children" target=this.boardsCtrl}}>← {{t "Back to Full List" key="back_to_full_list"}}</a>
+        <div class="ub-boards-page__subresult">
+          <button type="button" class="ub-boards-page__subresult-back" {{action "load_children" target=this.boardsCtrl}}>
+            <span class="ub-boards-page__subresult-back-arrow" aria-hidden="true">←</span>
+            {{t "Back to Full List" key="back_to_full_list"}}
+          </button>
+          <p class="ub-boards-page__subresult-label">{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</p>
+        </div>
       {{/if}}
 
       {{#if this.boardsCtrl.mineFoldersEnabled}}

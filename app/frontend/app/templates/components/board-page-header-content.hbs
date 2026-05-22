@@ -581,6 +581,26 @@
                 <a role="menuitem" href="#" tabindex="-1" {{action "preview_levels" target=@controller}}>{{t "Preview Levels" key="preview_levels"}}</a>
               </li>
             {{/if}}
+            <li role="presentation" class="divider"></li>
+            <li role="presentation" class="dropdown-header">{{t "View Style" key="board_view_style_label"}}</li>
+            <li role="presentation">
+              <a role="menuitem" href="#" tabindex="-1" {{action "set_board_view_style" "classic" target=@controller}}>
+                {{#if (is-equal @controller.board_view_style 'classic')}}<span class="glyphicon glyphicon-ok"></span> {{else}}<span style="display:inline-block; width: 16px;"></span> {{/if}}{{t "Classic View" key="board_view_classic"}}
+              </a>
+            </li>
+            <li role="presentation">
+              <a role="menuitem" href="#" tabindex="-1" {{action "set_board_view_style" "modern" target=@controller}}>
+                {{#if (is-equal @controller.board_view_style 'modern')}}<span class="glyphicon glyphicon-ok"></span> {{else}}<span style="display:inline-block; width: 16px;"></span> {{/if}}{{t "Modern View" key="board_view_modern"}}
+              </a>
+            </li>
+            {{#if (is-equal @controller.board_view_style 'modern')}}
+              <li role="presentation">
+                <a role="menuitem" href="#" tabindex="-1" {{action "go_to_modern_edit" target=@controller}} style="font-weight: 700;">
+                  <span class="glyphicon glyphicon-arrow-right"></span> {{t "Open Modern View (Edit)" key="board_view_open_modern_edit"}}
+                </a>
+              </li>
+            {{/if}}
+            <li role="presentation" class="divider"></li>
             <li role="presentation really_skinny">
               <a role="menuitem" href="#" tabindex="-1" {{action "saveBoard" target=@controller}}>{{t "Save Board" key="save_board"}}</a>
             </li>

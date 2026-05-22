@@ -87,7 +87,16 @@ export default Service.extend({
     }
     this.stashes.persist('prior_login', 'true');
     this.stashes.persist_object('just_logged_in', true, false);
-    return RSVP.all_wait(promises).then(null, function() { return RSVP.resolve(); });
+    return RSVP.all_wait(promises).then(function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+    }, function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+      return RSVP.resolve();
+    });
   },
 
   hashed_password: function(password) {

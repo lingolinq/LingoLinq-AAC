@@ -631,12 +631,24 @@ export default Component.extend({
       var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
+      // When a board's display name falls back to its key (no `name`
+      // setting or no record loaded), the key has the shape
+      // "user_name/board-slug" and overflows the 150px tile width.
+      // Insert a zero-width space after each `/` so the browser's
+      // line-breaking algorithm prefers that as the wrap point
+      // (otherwise it picks the dash inside the slug and produces
+      // "vocal-" / "flair-84" instead of "user_name/" / "vocal-flair-84").
+      // ZWSP doesn't affect text width, copy-paste, or accessibility.
       var add = function(board, fallbackName, key, fallbackImg) {
         if (!key || seen[key]) { return; }
         seen[key] = true;
+        var rawName = (board && board.get && board.get('name')) || fallbackName || key;
+        var displayName = (typeof rawName === 'string' && rawName.indexOf('/') !== -1)
+          ? rawName.replace(/\//g, '/​')
+          : rawName;
         ordered.push({
           board: board,
-          name: (board && board.get && board.get('name')) || fallbackName || key,
+          name: displayName,
           imageUrl: (board && board.get && board.get('icon_url_with_fallback')) || fallbackImg || '',
           key: key
         });
