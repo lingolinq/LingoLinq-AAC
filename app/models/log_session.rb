@@ -1,4 +1,4 @@
-class LogSession < ActiveRecord::Base
+class LogSession < ApplicationRecord
   include Async
   include Processable
   include GlobalId

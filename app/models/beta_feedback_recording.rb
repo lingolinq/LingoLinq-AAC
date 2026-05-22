@@ -1,6 +1,6 @@
 require 'fileutils'
 
-class BetaFeedbackRecording < ActiveRecord::Base
+class BetaFeedbackRecording < ApplicationRecord
   include GlobalId
   include SecureSerialize
   include Async

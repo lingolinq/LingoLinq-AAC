@@ -1,4 +1,4 @@
-class UserVideo < ActiveRecord::Base
+class UserVideo < ApplicationRecord
   include Processable
   include Permissions
   include Uploadable

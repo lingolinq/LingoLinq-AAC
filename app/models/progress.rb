@@ -1,4 +1,4 @@
-class Progress < ActiveRecord::Base
+class Progress < ApplicationRecord
   include GlobalId
   include SecureSerialize
   protect_global_id

@@ -1,4 +1,4 @@
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   include Processable
   include Permissions
   include Passwords
@@ -12,6 +12,7 @@ class User < ActiveRecord::Base
   include Subscription
   include BoardCaching
   include Renaming
+  include GoogleAuthentication
   has_many :log_sessions
   has_many :boards
   has_many :devices

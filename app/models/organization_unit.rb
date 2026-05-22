@@ -1,4 +1,4 @@
-class OrganizationUnit < ActiveRecord::Base
+class OrganizationUnit < ApplicationRecord
   include Permissions
   include Processable
   include GlobalId

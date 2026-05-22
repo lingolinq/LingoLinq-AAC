@@ -1,4 +1,4 @@
-class BoardButtonSound < ActiveRecord::Base
+class BoardButtonSound < ApplicationRecord
   belongs_to :board
   belongs_to :button_sound
   include Replicate

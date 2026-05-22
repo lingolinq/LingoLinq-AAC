@@ -1,4 +1,4 @@
-class ButtonSound < ActiveRecord::Base
+class ButtonSound < ApplicationRecord
   include Processable
   include Permissions
   include Uploadable
