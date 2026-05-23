@@ -635,7 +635,7 @@ describe Api::UsersController, :type => :controller do
       user = json['user']
       expect(user).not_to eq(nil)
       expect(user['preferences']).not_to eq(nil)
-      expect(user['preferences']['auto_home_return']).to eq(true)
+      expect(user['preferences']['auto_home_return']).to eq(false)
       expect(user['preferences']['clear_on_vocalize']).to eq(true)
       expect(user['preferences']['logging']).to eq(false)
     end
@@ -1830,7 +1830,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -1840,7 +1840,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow redeeming a gift purchase" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc', for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'gift_code'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2016,7 +2016,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow updating a subscription with no api token, but a confirmation code" do
       @user = User.create
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: nil).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :confirmation => @user.registration_code, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2052,7 +2052,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe', for_user: @user).and_return(p)
       delete :unsubscribe, params: {:user_id => @user.global_id}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2637,18 +2637,14 @@ describe Api::UsersController, :type => :controller do
       expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
-    it "should allow a supervisor with supervise access to check a supervisee's daily use" do
+    it "should not allow a supervisor with supervise access to check a supervisee's daily use" do
       sup = User.create
       comm = User.create
       dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'daily_use_sup')
       request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
       User.link_supervisor_to_user(sup, comm, nil, true)
       get :daily_use, params: {:user_id => comm.global_id}
-      expect(response).to be_successful
-      json = JSON.parse(response.body)
-      expect(json['log']).to_not eq(nil)
-      expect(json['log']['daily_use']).to eq([])
-      expect(json['log']['empty_daily_use_log']).to eq(true)
+      assert_unauthorized
     end
 
     it "should not allow a modeling-only supervisor to check another user's daily use" do
@@ -3639,7 +3635,7 @@ describe Api::UsersController, :type => :controller do
       json = assert_success_json
       expect(json['progress']).to_not eq(nil)
       p = Progress.find_by_path(json['progress']['id'])
-      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}]})
+      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}], 'for_user_global_id' => @user.global_id})
     end
   end
 

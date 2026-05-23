@@ -51,6 +51,7 @@ LingoLinq.Log = DS.Model.extend({
   guid: DS.attr('string'),
   video: DS.attr('raw'),
   evaluation: DS.attr('raw'),
+  tiered_eval: DS.attr('raw'),
   nonce: DS.attr('string'),
   encryption_settings: DS.attr('raw'),
   data_url: DS.attr('string'),
@@ -78,6 +79,18 @@ LingoLinq.Log = DS.Model.extend({
   }),
   eval_type: computed('type', function() {
     return this.get('type') == 'eval';
+  }),
+  // New tiered eval payload (Quick Screen / Targeted). Distinct
+  // from `evaluation` which carries the legacy eval shape.
+  tiered_eval_type: computed('tiered_eval', function() {
+    var t = this.get('tiered_eval');
+    return !!(t && t.eval_mode);
+  }),
+  tiered_eval_is_targeted: computed('tiered_eval.eval_mode', function() {
+    return this.get('tiered_eval.eval_mode') === 'targeted';
+  }),
+  tiered_eval_is_comprehensive: computed('tiered_eval.eval_mode', function() {
+    return this.get('tiered_eval.eval_mode') === 'comprehensive';
   }),
   goal_status_class: computed('goal.status', function() {
     var status = this.get('goal.status');

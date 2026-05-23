@@ -2,10 +2,10 @@ import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { observer } from '@ember/object';
-import { set as emberSet } from '@ember/object';
+import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
-import { later as runLater, cancel as runCancel } from '@ember/runloop';
+import { later as runLater, cancel as runCancel, next } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -20,7 +20,9 @@ import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
+import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
@@ -38,8 +40,40 @@ export default Controller.extend(prefClasses, {
   // color (var(--btn-bg)) regardless of which folder display style is
   // selected. Toggled via the checkmark item at the bottom of the folder
   // dropdown; persisted on user.preferences.folder_colored_face.
-  folder_colored_face: false,
+  // Default is `true` — colored folder fronts are now the canonical look.
+  // Users who explicitly turn it off get `false` saved; anyone else
+  // (new users + existing users who never touched the toggle) inherits
+  // the colored style. The route's setupController re-applies this
+  // default when the saved preference is absent.
+  folder_colored_face: true,
   folder_dropdown_open: false,
+  // When true, button labels shrink to fit the button width (down to
+  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
+  // boundaries. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and wrap to up
+  // to 3 lines at word boundaries with no shrinking. The two-line
+  // shrink mode replaces the older one-line-only shrink behavior so
+  // longer labels stay legible without dropping all the way to the
+  // 7px floor on a single line. Persisted on
+  // user.preferences.shrink_labels_to_fit.
+  shrink_labels_to_fit: false,
+  // When true, applies a softer / more tonal style to button borders
+  // ON TOP of whatever the user's selected border thickness is —
+  // single subtle outer shadow + soft inset highlight + a light halo
+  // inside the colored outline edge that mutes its visual contrast.
+  // The category color stays as the cue; just reads as a softer
+  // accent rather than a heavy dark rim. Default is `true` — soft
+  // borders are now the canonical look. Users who explicitly turn
+  // them off get `false` saved on user.preferences.soft_borders;
+  // anyone else (including new users + existing users who never
+  // touched the toggle) inherits the soft style. The route's
+  // setupController re-applies this default when the saved
+  // preference is absent.
+  soft_borders: true,
+  // "Hide speak bar" preference — when true the speak row's
+  // contents collapse to just the options chevron. Default off.
+  // Persisted on user.preferences.hide_speak_bar.
+  hide_speak_bar: false,
   boardname: null,
   active_category: 'all',
 
@@ -47,7 +81,17 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  has_board_history: computed('board_detail_history.[]', function() {
+  /** Speak bar + header back control — only shows when the user has
+   *  an actual in-session nav trail to go back through. Previously
+   *  it ALSO showed when the board's DB `parent_board_key` was set,
+   *  which produced a phantom back button on direct-loaded boards
+   *  (the user hadn't navigated FROM the parent; the board just
+   *  happened to have parent metadata in the DB). Now strictly:
+   *  history present → back available; otherwise hide. go_back
+   *  still falls back to parent_board_key as a safety net if it
+   *  ever gets fired without history, but the button itself won't
+   *  render in that case. */
+  show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
   }),
   sentence_parts: null,
@@ -59,6 +103,27 @@ export default Controller.extend(prefClasses, {
   show_color_legend: false,
   show_quick_phrases: false,
   show_categories: false,
+  /* Edit-panel "Filter by Category" expander state — independent
+     of the toolbar's `show_categories` so the two UIs can be open
+     simultaneously without fighting; both write to the same
+     `active_category` so the underlying grid filter stays in sync. */
+  panel_filter_open: false,
+
+  /* Right-panel "Live Preview Edit" — collapsed/expanded state for
+     the whole panel + the currently-open accordion section id. */
+  right_panel_collapsed: false,
+  left_panel_collapsed: false,
+  right_panel_open_section: null,
+  /* True when the currently-open right-panel section was opened
+     while the panel was in COLLAPSED rail mode — i.e. the user
+     was looking at the icon rail, clicked a section icon, the
+     panel expanded INTO that section. In that flow, the Back
+     button should collapse the panel back to the rail (not show
+     the full expanded section list, which the user hadn't
+     navigated through). Cleared when the user opens a section
+     from the already-expanded panel, manually toggles the panel
+     open/closed, or after Back has fired. */
+  _section_opened_from_rail: false,
   panels_collapsed: false,
   board_search_string: '',
 
@@ -107,12 +172,35 @@ export default Controller.extend(prefClasses, {
 
   edit_mode: false,
   board_collapsed: true,
+  board_actions_collapsed: true,
   inlineSidebarOpen: false,
   color_picker_button: null,
   custom_color_value: null,
   show_paint_color_picker: false,
   custom_paint_color: '#4a90d9',
   paint_mode: null,
+  // Button Levels paint state — UI selections in the right panel's
+  // Button Levels accordion. They feed into editManager.set_paint_mode('level', action, level)
+  // (the same call the legacy paint-level modal uses), so the underlying
+  // edit-manager + save-state machinery is shared. UI-only — not persisted.
+  level_paint_action: null,
+  level_paint_level: null,
+  // Toggled true by edit_manager.paint_button when a level paint is
+  // applied to a button — provides a reactive signal for the
+  // button_level_count computed since plain `@each.level_modifications`
+  // doesn't always fire when a sub-property of a JSON blob mutates.
+  levels_change: false,
+  // Nested expand-state inside the Session submenu in the actions
+  // menu (Button Levels row). Starts collapsed.
+  levels_submenu_open: false,
+  // Top-level expandable section state inside the options dropdown.
+  // Each section starts collapsed; toggled by the matching
+  // `toggle_<x>_submenu` action.
+  board_submenu_open: false,
+  buttons_submenu_open: false,
+  display_submenu_open: false,
+  share_print_submenu_open: false,
+  language_submenu_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -122,12 +210,36 @@ export default Controller.extend(prefClasses, {
   display_prefs_font_dropdown_open: false,
   display_prefs_symbol_library_dropdown_open: false,
   display_prefs_symbol_background_dropdown_open: false,
+  display_prefs_voice_height_dropdown_open: false,
+  display_prefs_skin_dropdown_open: false,
   pending_display_prefs: null,
   original_display_prefs: null,
   dark_mode: true,
   board_saving: false,
   ordered_buttons: null,
   preview_level: null,
+  // Edit-mode entry settling overlay: when true, the grid renders with
+  // opacity:0 so the user doesn't see the intermediate flash as
+  // ordered_buttons gets replaced 2-3 times during route transition
+  // (cached plain objects → _build_from_raw rebuild → process_for_displaying
+  // rebuild). Set true synchronously on edit route enter; cleared once
+  // ordered_buttons has stopped changing (see _grid_loading_settle below)
+  // or by the fallback timer in edit.js if the observer never fires.
+  grid_loading: false,
+  _grid_settle_timer: null,
+  // Watches ordered_buttons during edit-mode entry. Each replacement
+  // resets a 150ms debounce timer. When no replacement occurs for
+  // 150ms, the grid is "settled" and the fade clears.
+  _grid_loading_settle: observer('ordered_buttons', function() {
+    if(!this.get('grid_loading')) { return; }
+    if(this._grid_settle_timer) { runCancel(this._grid_settle_timer); }
+    var _this = this;
+    this._grid_settle_timer = runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('grid_loading', false);
+      _this._grid_settle_timer = null;
+    }, 150);
+  }),
   noUndo: true,
   noRedo: true,
 
@@ -167,12 +279,74 @@ export default Controller.extend(prefClasses, {
       }
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
+
+    // Auto-collapse both side panels at ≤1024px. matchMedia fires
+    // when the breakpoint is CROSSED (resize transition); the
+    // companion edit_mode observer below covers the other entry
+    // points (direct page load in edit mode at narrow viewport,
+    // refresh while in edit mode at narrow viewport) — without it,
+    // a user who LOADS edit mode at ≤1024px would never see the
+    // auto-collapse because the viewport never crossed the threshold
+    // while observable. The resize handler ONLY auto-collapses on
+    // wide→narrow transitions (e.matches === true), so manually
+    // expanding while already narrow isn't fought.
+    if(typeof window !== 'undefined' && window.matchMedia) {
+      this._narrowViewportMql = window.matchMedia('(max-width: 1024px)');
+      this._narrowViewportHandler = function(e) {
+        if(e.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      };
+      // addEventListener is the modern API; older Safari needs the
+      // legacy addListener fallback.
+      if(this._narrowViewportMql.addEventListener) {
+        this._narrowViewportMql.addEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.addListener) {
+        this._narrowViewportMql.addListener(this._narrowViewportHandler);
+      }
+      // Initial check — if the page is already in edit mode at a
+      // narrow viewport (refresh, direct load, deep link), collapse
+      // immediately. Use schedule('afterRender') so edit_mode is
+      // resolved before we check.
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this._narrowViewportMql.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      }, 0);
+    }
   },
+
+  // Auto-collapse panels whenever edit_mode flips on at a narrow
+  // viewport (e.g. user clicks "Edit Board" while viewport is
+  // already ≤1024px — matchMedia doesn't fire since the viewport
+  // didn't change). The enterEditNow action handles this for the
+  // in-app click path, but this observer is the catch-all for any
+  // other path that sets edit_mode true. Gated on the narrow
+  // viewport check so wider screens are unaffected.
+  _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
+    if(!this.get('edit_mode')) { return; }
+    if(typeof window === 'undefined' || !window.matchMedia) { return; }
+    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1024px)');
+    if(mql.matches) {
+      this.set('left_panel_collapsed', true);
+      this.set('right_panel_collapsed', true);
+    }
+  }),
 
   willDestroy: function() {
     this._super(...arguments);
     if(this._closeDropdownsHandler) {
       document.removeEventListener('click', this._closeDropdownsHandler, true);
+    }
+    if(this._narrowViewportMql && this._narrowViewportHandler) {
+      if(this._narrowViewportMql.removeEventListener) {
+        this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.removeListener) {
+        this._narrowViewportMql.removeListener(this._narrowViewportHandler);
+      }
     }
   },
 
@@ -236,36 +410,133 @@ export default Controller.extend(prefClasses, {
    *     local-only sources (quick phrases, completions, phrase
    *     builder) carry no `raw_index` and never collide with globals.
    *   - Empty global list is a no-op (local clear was the trigger).
+   *   - In-progress keyboard words show in the bar as text only (s → st →
+   *     str …), matching classic speak-bar behavior. When the word
+   *     completes (space or prediction), the symbol image is added.
    */
-  _sync_sentence_from_global: observer('app_state.button_list.[]', function() {
+  _find_local_image_for_label: function(label) {
+    var key = (label || '').toLowerCase();
+    if(!key) { return null; }
+    var flat = this.get('flat_ordered_buttons') || [];
+    for(var idx = 0; idx < flat.length; idx++) {
+      var btn = flat[idx];
+      if(!btn) { continue; }
+      var lbl = (btn.label || btn.vocalization || '').toLowerCase();
+      if(lbl === key && btn.image_url && !wordSuggestionsModule.is_placeholder_image(btn.image_url)) {
+        return btn.image_url;
+      }
+    }
+    return null;
+  },
+
+  _apply_sentence_chip_image: function(part, img) {
+    if(!part || !img) { return false; }
+    var current = (this.get('sentence_parts') || []).slice();
+    var idx = current.findIndex(function(p) {
+      return p && ((part.raw_index != null && p.raw_index === part.raw_index) ||
+        (p.label === part.label && !p.image_url));
+    });
+    if(idx >= 0 && current[idx].image_url !== img) {
+      current[idx] = Object.assign({}, current[idx], { image_url: img });
+      this.set('sentence_parts', current);
+      return true;
+    }
+    return false;
+  },
+
+  sync_sentence_from_button_list: function() {
+    var _this = this;
     var global_list = this.get('app_state.button_list') || [];
     if(!global_list.length) { return; }
-    var existing = this.get('sentence_parts') || [];
-    var seen_raw = {};
-    existing.forEach(function(p) {
-      if(p && p.raw_index != null) { seen_raw[p.raw_index] = true; }
+    var parts = (this.get('sentence_parts') || []).slice();
+    var by_raw = {};
+    parts.forEach(function(p, idx) {
+      if(p && p.raw_index != null) { by_raw[p.raw_index] = idx; }
     });
-    var to_add = [];
-    global_list.forEach(function(b) {
-      if(!b) { return; }
-      // Skip hint entries (utterance pushes a transient hint button
-      // for find-a-button guidance — those should not enter the
-      // visible sentence bar).
-      if(b.hint || b.in_progress) { return; }
-      if(b.raw_index == null) { return; }
-      if(seen_raw[b.raw_index]) { return; }
-      seen_raw[b.raw_index] = true;
-      to_add.push({
-        id: b.button_id || ('utt-' + b.raw_index),
-        raw_index: b.raw_index,
-        label: b.label || b.vocalization || '',
-        image_url: b.image
-      });
+    var changed = false;
+    global_list.forEach(function(b, list_idx) {
+      if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { return; }
+      var raw_index = emberGet(b, 'raw_index');
+      if(raw_index == null) { raw_index = list_idx; }
+      var label = (emberGet(b, 'label') || emberGet(b, 'vocalization') || '').replace(/\s+$/, '');
+      if(!label) { return; }
+      var in_progress = !!emberGet(b, 'in_progress');
+      var image_url = null;
+      if(!in_progress) {
+        image_url = wordSuggestionsModule.resolve_word_image({
+          image: emberGet(b, 'image'),
+          original_image: emberGet(b, 'original_image')
+        });
+        if(!image_url) {
+          image_url = _this._find_local_image_for_label(label);
+        }
+      }
+      var chip = {
+        id: emberGet(b, 'button_id') || ('utt-' + raw_index),
+        raw_index: raw_index,
+        label: label,
+        in_progress: in_progress,
+        image_url: image_url
+      };
+      if(by_raw[raw_index] != null) {
+        var existing = parts[by_raw[raw_index]];
+        if(existing.label !== chip.label || existing.image_url !== chip.image_url ||
+          !!existing.in_progress !== in_progress) {
+          parts[by_raw[raw_index]] = Object.assign({}, existing, chip);
+          changed = true;
+        }
+      } else {
+        parts.push(chip);
+        by_raw[raw_index] = parts.length - 1;
+        changed = true;
+      }
     });
-    if(to_add.length > 0) {
-      this.set('sentence_parts', existing.concat(to_add));
+    if(changed) {
+      this.set('sentence_parts', parts);
     }
-  }),
+    this._resolve_missing_sentence_images();
+  },
+
+  _resolve_missing_sentence_images: function() {
+    var _this = this;
+    var parts = this.get('sentence_parts') || [];
+    var pending = parts.filter(function(p) {
+      return p && p.label && !p.in_progress && !p.image_url;
+    });
+    if(!pending.length) { return; }
+    if(!this._sentence_image_lookups) {
+      this._sentence_image_lookups = {};
+    }
+    var lookups = this._sentence_image_lookups;
+    var lookup_ids = wordSuggestionsModule.lookup_board_ids(this.get('app_state'), this.get('stashes'), [this.get('model.id')]);
+    pending.forEach(function(part) {
+      var key = part.raw_index != null ?
+        ('r:' + part.raw_index) :
+        ('l:' + (part.label || '').toLowerCase());
+      if(lookups[key]) { return; }
+      var local_img = _this._find_local_image_for_label(part.label);
+      if(local_img && _this._apply_sentence_chip_image(part, local_img)) {
+        lookups[key] = true;
+        return;
+      }
+      lookups[key] = true;
+      wordSuggestionsModule.attach_image_for_label(part.label, lookup_ids, function(img) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._apply_sentence_chip_image(part, img);
+      }, { appState: _this.get('app_state'), stashes: _this.get('stashes') });
+    });
+  },
+
+  _sync_sentence_from_global: observer(
+    'app_state.button_list.[]',
+    'app_state.button_list.@each.in_progress',
+    'app_state.button_list.@each.label',
+    'app_state.button_list.@each.image',
+    'app_state.button_list.@each.original_image',
+    function() {
+      this.sync_sentence_from_button_list();
+    }
+  ),
 
   utterance_show_symbols: computed('app_state.referenced_user.preferences.device.utterance_text_only', function() {
     return !this.get('app_state.referenced_user.preferences.device.utterance_text_only');
@@ -351,7 +622,14 @@ export default Controller.extend(prefClasses, {
     ];
   }),
 
-  color_picker_swatches: computed(function() {
+  color_picker_swatches: computed('app_state.currentUser.preferences.symbol_background', function() {
+    // Dep on `symbol_background` makes the swatches refresh when the user
+    // picks Colored Soft (or any other bg variant) — without it, this
+    // computed runs once at controller creation and the toolbar keeps
+    // showing the original Fitzgerald hexes even after `set_fitzgerald_scope`
+    // has swapped <html> to `.fitzgerald-soft` and invalidated the JS palette
+    // cache. The `app_state.*` path mirrors what `pending_display_prefs` and
+    // `display_prefs_current_symbol_background_id` use elsewhere in this file.
     var darken = function(color) {
       if(window.tinycolor) {
         return window.tinycolor(color).darken(30).toHexString();
@@ -429,12 +707,72 @@ export default Controller.extend(prefClasses, {
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
     var _this = this;
+    if(!(raw.images && raw.images.length)) {
+      if(_this._board_detail_images && _this._board_detail_images.length) {
+        raw.images = _this._board_detail_images;
+      } else {
+        var cached_raw = boardDetailCache.get(raw.key || raw.id);
+        if(cached_raw && cached_raw.images && cached_raw.images.length) {
+          raw.images = cached_raw.images;
+        }
+      }
+    }
+    if(raw.images && raw.images.length) {
+      _this._board_detail_images = raw.images;
+    }
+    var skin = _this.get('app_state.referenced_user.preferences.skin');
+    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
+    if(preferred_symbols && preferred_symbols !== 'original') {
+      _this._preferred_symbols = preferred_symbols;
+    } else {
+      _this._preferred_symbols = null;
+    }
+    var use_ember = _this.get('edit_mode');
+    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
+    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+    var board_has_levels = (raw.buttons || []).some(function(b) {
+      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
+    });
+    var cache_token = (raw.key || raw.id);
+    var cache_ctx = {
+      preferred_symbols: _this._preferred_symbols,
+      skin: skin || null,
+      edit_mode: !!use_ember,
+      label_locale: _this.get('app_state.label_locale') || null,
+      url_cache_primed: !!persistence.primed,
+      board_level: current_level,
+      board_has_levels: board_has_levels
+    };
+    // Cache hit — skip skin_image_map and the full grid rebuild loop.
+    if(!use_ember && cache_token) {
+      var cached_ob_early = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
+      if(cached_ob_early) {
+        var prev_early = _this._last_raw;
+        var is_same_board_early = prev_early && raw && ((prev_early.id && raw.id && prev_early.id === raw.id) || (prev_early.key && raw.key && prev_early.key === raw.key));
+        if(!is_same_board_early) {
+          _this.set('_hidden_row_stack', []);
+          _this.set('_hidden_col_stack', []);
+        }
+        _this._last_raw = raw;
+        if(_this._board_detail_images && _this._board_detail_images.length) {
+          _this._last_raw.images = _this._board_detail_images;
+        }
+        _this.set('ordered_buttons', cached_ob_early);
+        _this._apply_focus_dim_to_ordered_buttons();
+        _this._preload_grid_images(cached_ob_early);
+        return;
+      }
+    }
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
-      if(img && img.id && img.url) { image_map[img.id] = img.url; }
+      if(img && img.id) {
+        var url = img.skin_url || img.url;
+        if(url) {
+          image_map[String(img.id)] = url;
+        }
+      }
     });
-    var skin = _this.get('app_state.referenced_user.preferences.skin');
-    image_map = LingoLinq.Board.skin_image_map(image_map, skin);
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
     // Cache raw data for preference-triggered rebuilds
     // Reset the row/column hide stacks when the user actually navigates to a
     // DIFFERENT board. Same-board refetches (post-save reload, pref changes,
@@ -447,47 +785,21 @@ export default Controller.extend(prefClasses, {
       _this.set('_hidden_col_stack', []);
     }
     _this._last_raw = raw;
-    // Apply preferred_symbols variant URLs
-    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
-    if(preferred_symbols && preferred_symbols !== 'original') {
-      _this._preferred_symbols = preferred_symbols;
-    } else {
-      _this._preferred_symbols = null;
+    if(_this._board_detail_images && _this._board_detail_images.length) {
+      _this._last_raw.images = _this._board_detail_images;
     }
     _this._image_map = image_map;
 
     var board = _this.get('model');
     var grid = raw.grid;
-    var use_ember = _this.get('edit_mode');
-
-    // Cache key for the pre-built ordered_buttons. Only used in non-edit
-    // mode: edit-mode buttons are Ember objects with mutable state we
-    // can't safely reuse across navigations.
-    var cache_token = (raw.key || raw.id);
-    var cache_ctx = {
-      preferred_symbols: _this._preferred_symbols,
-      skin: skin || null,
-      edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null
-    };
-    if(!use_ember && cache_token) {
-      var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
-      if(cached_ob) {
-        // Cache hit — re-use the pre-built grid. Glimmer skips re-render
-        // for cells whose object identity is unchanged, so this nav
-        // costs ~0 CPU on the controller side.
-        _this.set('ordered_buttons', cached_ob);
-        _this._apply_focus_dim_to_ordered_buttons();
-        return;
-      }
-    }
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
-        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map);
+        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map, current_level, board_has_levels);
       });
       _this.set('ordered_buttons', [buttons]);
       _this._apply_focus_dim_to_ordered_buttons();
+      _this._preload_grid_images([buttons]);
       if(!use_ember && cache_token) {
         boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx);
       }
@@ -506,7 +818,7 @@ export default Controller.extend(prefClasses, {
         var btn_id = (grid.order[ri] || [])[ci];
         var raw_btn = btn_id !== null && btn_id !== undefined ? button_map[String(btn_id)] : null;
         if(raw_btn) {
-          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map));
+          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map, current_level, board_has_levels));
         } else {
           if(use_ember) {
             var fake = editManager.Button.create({ empty: true, label: '', id: btn_id || ('fake_' + ri + '_' + ci) });
@@ -522,6 +834,13 @@ export default Controller.extend(prefClasses, {
     _this.set('ordered_buttons', result);
 
     _this._apply_focus_dim_to_ordered_buttons();
+    // Warm the browser image cache before clearing any active loading
+    // overlay. Without this the user sees the grid appear instantly but
+    // images load in one-by-one over the next second or two, which reads
+    // as a janky "filling-in" effect. Browser HTTP cache covers repeat
+    // visits — but on first entry, on symbol-library switches, or after
+    // a level change, the images are cold and need to be fetched.
+    _this._preload_grid_images(result);
 
     // Resolve POS for untyped buttons
     if(!use_ember) {
@@ -534,7 +853,45 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  _make_btn: function(btn, image_map) {
+  // Prefer a locally-synced copy from persistence.url_cache when available
+  // (same lookup order as Board#render_fast_html).
+  _resolve_cached_image_url: function(remote_url) {
+    if(!remote_url) { return null; }
+    var url_cache = persistence.url_cache;
+    if(!url_cache) { return remote_url; }
+    var url_uncache = persistence.url_uncache;
+    var try_url = function(u) {
+      if(!u) { return null; }
+      if(url_uncache && url_uncache[u]) { return null; }
+      var cached = url_cache[u];
+      if(cached && cached !== false) { return cached; }
+      return null;
+    };
+    var cached = try_url(remote_url);
+    if(cached) { return cached; }
+    var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
+    if(unvarianted !== remote_url) {
+      if(LingoLinq.Board.is_skin_tone_variant_url(remote_url)) {
+        try_url(unvarianted);
+      } else {
+        cached = try_url(unvarianted);
+        if(cached) { return cached; }
+      }
+    }
+    var alt_url = null;
+    if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    } else if(remote_url.match(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//)) {
+      alt_url = remote_url.replace(/^https\:\/\/opensymbols\.s3\.amazonaws\.com\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+    }
+    if(alt_url) {
+      cached = try_url(alt_url);
+      if(cached) { return cached; }
+    }
+    return remote_url;
+  },
+
+  _make_btn: function(btn, image_map, level, board_has_levels) {
     var img_url = null;
     if(btn.image_id && image_map) {
       if(this._preferred_symbols && image_map[btn.image_id + '-' + this._preferred_symbols]) {
@@ -543,14 +900,65 @@ export default Controller.extend(prefClasses, {
         img_url = image_map[btn.image_id];
       }
     }
+    var image_fallback_url = null;
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
+      if(LingoLinq.Board.is_skin_tone_variant_url(img_url)) {
+        image_fallback_url = LingoLinq.Board.unskin_tone_variant_url(img_url);
+        if(image_fallback_url === img_url) { image_fallback_url = null; }
+      }
+    }
+    // Speak-mode level filter: decide whether the level filter should
+    // visually hide this button at the current level. We compute it
+    // into `display_as_hidden` (a plain bool that mirrors the Ember
+    // Button computed of the same name) so the template's existing
+    // `--hidden` class binding picks it up. We deliberately do NOT
+    // touch `hidden` — the raw author-intent flag stays intact so
+    // edit-mode rendering and any other code path that reads
+    // btn.hidden gets the original value. At level 10 (or no level)
+    // the filter is off and display_as_hidden stays false.
+    var display_as_hidden = false;
+    if(level && level < 10) {
+      if(btn.level_modifications) {
+        // Walk pre → 0..level → override on a working copy. If the
+        // resolved hidden is true, the rule excludes this button.
+        // NOTE: rule values arrive as STRINGS ("true"/"false") in
+        // legacy/copied boards, not booleans — `!!"false"` is `true`,
+        // so a naive truthy check inverts the meaning. Use an explicit
+        // string-or-bool comparison instead.
+        var working = { hidden: btn.hidden };
+        var mods = btn.level_modifications;
+        var keys = ['pre'];
+        for(var k = 0; k <= level; k++) { keys.push(k); }
+        keys.push('override');
+        keys.forEach(function(key) {
+          if(mods[key]) {
+            for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
+          }
+        });
+        display_as_hidden = (working.hidden === true || working.hidden === 'true');
+      } else if(board_has_levels) {
+        // Untagged at level < 10 on a board that DOES use levels — the
+        // level filter excludes unpromoted buttons. Without this, picking
+        // a low level on a partially-tagged board would surface every
+        // untagged button, defeating the filter. GATED on
+        // board_has_levels: on a board with NO level rules at all, level
+        // selection is meaningless and must not hide anything (a stale
+        // stashes.board_level from another board would otherwise blank
+        // the whole board once the speak-hide CSS removes the cards).
+        display_as_hidden = true;
+      }
+    }
     return {
       id: btn.id,
       label: btn.label || '',
       vocalization: btn.vocalization || '',
       image_url: img_url,
+      image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
+      display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
       border_color: (btn.background_color && window.tinycolor) ? window.tinycolor(btn.background_color).darken(20).toRgbString() : (btn.border_color || null),
@@ -571,6 +979,9 @@ export default Controller.extend(prefClasses, {
       } else if(image_map[btn.image_id]) {
         img_url = image_map[btn.image_id];
       }
+    }
+    if(img_url) {
+      img_url = this._resolve_cached_image_url(img_url);
     }
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
@@ -613,6 +1024,18 @@ export default Controller.extend(prefClasses, {
       return;
     }
 
+    // Track whether any button's focus/dim state actually CHANGED. The
+    // `_focus_dim_observer` fires per-tap (Ember dep chains for
+    // app_state.focus_words / sessionUser.id / referenced_user.id all
+    // re-emit identity-changed events on session restores and on each
+    // utterance update, even when the underlying values stayed the
+    // same). Without this gate, `_finalizeFocusDimGrid` ran on every
+    // tap and replaced the entire `ordered_buttons` array with
+    // brand-new Object.assign() clones — Glimmer saw new identity for
+    // every cell and tore down + re-mounted every `<img>`, which read
+    // as "all images re-render on every button press."
+    var anyChanged = false;
+
     var walk = function(fn) {
       ob.forEach(function(row) {
         row.forEach(function(btn) {
@@ -622,22 +1045,40 @@ export default Controller.extend(prefClasses, {
     };
 
     var setDim = function(btn, on) {
+      var next = !!on;
+      var current;
       if (btn.set) {
-        btn.set('dim', !!on);
-      } else if (!on) {
-        delete btn.dim;
+        current = !!btn.get('dim');
+        if (current !== next) {
+          anyChanged = true;
+          btn.set('dim', next);
+        }
       } else {
-        btn.dim = true;
+        current = !!btn.dim;
+        if (current !== next) {
+          anyChanged = true;
+          if (!next) { delete btn.dim; }
+          else { btn.dim = true; }
+        }
       }
     };
 
     var setFocusMatch = function(btn, on) {
+      var next = !!on;
+      var current;
       if (btn.set) {
-        btn.set('focus_word_match', !!on);
-      } else if (!on) {
-        delete btn.focus_word_match;
+        current = !!btn.get('focus_word_match');
+        if (current !== next) {
+          anyChanged = true;
+          btn.set('focus_word_match', next);
+        }
       } else {
-        btn.focus_word_match = true;
+        current = !!btn.focus_word_match;
+        if (current !== next) {
+          anyChanged = true;
+          if (!next) { delete btn.focus_word_match; }
+          else { btn.focus_word_match = true; }
+        }
       }
     };
 
@@ -666,7 +1107,7 @@ export default Controller.extend(prefClasses, {
           boundClasses.add_classes(btn);
         } catch (e) { /* skip */ }
       });
-      this._finalizeFocusDimGrid(ob);
+      if (anyChanged) { this._finalizeFocusDimGrid(ob); }
       return;
     }
 
@@ -685,7 +1126,7 @@ export default Controller.extend(prefClasses, {
           boundClasses.add_classes(btn);
         } catch (e) { /* skip */ }
       });
-      this._finalizeFocusDimGrid(ob);
+      if (anyChanged) { this._finalizeFocusDimGrid(ob); }
       return;
     }
 
@@ -706,7 +1147,77 @@ export default Controller.extend(prefClasses, {
     walk(function(btn) {
       applyFocusState(btn, dimMap, matchMap);
     });
-    this._finalizeFocusDimGrid(ob);
+    if (anyChanged) { this._finalizeFocusDimGrid(ob); }
+  },
+
+  _apply_shift_to_ordered_buttons: function() {
+    var appState = this.get('app_state');
+    var board = this.get('model');
+    var ob = this.get('ordered_buttons');
+    if(!appState || !board || !ob || !ob.length) { return; }
+    var cap = !!appState.get('shift');
+    var history = this.get('stashes.working_vocalization') || [];
+    var contextualized = board.contextualized_buttons(
+      appState.get('label_locale'),
+      appState.get('vocalization_locale'),
+      history,
+      false,
+      appState.get('inflection_shift')
+    );
+    var labelMap = {};
+    (contextualized || []).forEach(function(button) {
+      if((button.vocalization || '').match(/^:/)) { return; }
+      var base = button.original_label || button.label;
+      var str = base;
+      if(button.tweaked) {
+        var revert = (history.length === 0 && !appState.get('inflection_shift'));
+        str = revert ? base : button.label;
+      }
+      labelMap[String(button.id)] = cap ? utterance.capitalize(str) : str;
+    });
+    var changed = false;
+    var newOb = ob.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || btn.id == null || btn.empty) { return btn; }
+        var next = labelMap[String(btn.id)];
+        if(next == null || btn.label === next) { return btn; }
+        changed = true;
+        return Object.assign({}, btn, { label: next });
+      });
+    });
+    if(changed) {
+      this.set('ordered_buttons', newOb);
+    }
+  },
+
+  _shift_label_observer: observer(
+    'app_state.shift',
+    'ordered_buttons',
+    function() {
+      this._apply_shift_to_ordered_buttons();
+    }
+  ),
+
+  /**
+   * Warm the browser cache for every image URL referenced by
+   * `ordered_buttons`. Fire-and-forget — does NOT block rendering and
+   * does NOT show a loading overlay (per UX requirement: board-detail
+   * never displays a "Loading board…" message). The grid paints
+   * immediately and individual `<img>` tags pull from the warmed
+   * cache as they mount.
+   */
+  _preload_grid_images: function(ordered_buttons) {
+    if(!ordered_buttons || !ordered_buttons.length) { return; }
+    var urls = {};
+    ordered_buttons.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        var url = btn && (btn.image_url || (btn.get && btn.get('image_url')));
+        if(url) { urls[url] = true; }
+      });
+    });
+    for(var url in urls) {
+      try { var img = new Image(); img.src = url; } catch(e) { /* ignore */ }
+    }
   },
 
   _focus_dim_observer: observer(
@@ -730,15 +1241,50 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  // Re-build buttons when display preferences change
+  // Re-build buttons when display preferences change.
+  //
+  // The Ember dep keys fire whenever any link in the chain changes
+  // identity, NOT just when the leaf value changes — and periodic
+  // session restores (every few seconds) re-push the user record into
+  // the store with the SAME values. Without a value-comparison gate
+  // this re-fired `_build_from_raw` continuously, tearing down and
+  // re-mounting every `<img>` in the grid on every observed re-push
+  // (and on every button tap that triggers utterance state which
+  // re-resolves `referenced_user`). Cache the last observed leaf
+  // values and skip the rebuild when nothing actually changed.
   _rebuild_on_pref_change: observer(
     'app_state.referenced_user.preferences.preferred_symbols',
     'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
     'app_state.referenced_user.preferences.device.button_text_position',
+    'app_state.currentUser.preferences.preferred_symbols',
+    'app_state.currentUser.preferences.skin',
+    'app_state.currentUser.preferences.symbol_background',
+    'app_state.currentUser.preferences.high_contrast',
     function() {
-      if(this._last_raw) {
-        this._build_from_raw(this._last_raw);
+      if(!this._last_raw) { return; }
+      var pref_user = this._pref_user_for_display();
+      var preferred_symbols = (pref_user && pref_user.get('preferences.preferred_symbols')) || null;
+      var skin = (pref_user && pref_user.get('preferences.skin')) || null;
+      var symbol_background = (pref_user && pref_user.get('preferences.symbol_background')) || null;
+      var high_contrast = !!(pref_user && pref_user.get('preferences.high_contrast'));
+      var text_pos = (pref_user && pref_user.get('preferences.device.button_text_position')) || null;
+      if(
+        this._last_pref_preferred_symbols === preferred_symbols &&
+        this._last_pref_skin === skin &&
+        this._last_pref_symbol_background === symbol_background &&
+        this._last_pref_high_contrast === high_contrast &&
+        this._last_pref_text_pos === text_pos
+      ) {
+        return;
       }
+      this._last_pref_preferred_symbols = preferred_symbols;
+      this._last_pref_skin = skin;
+      this._last_pref_symbol_background = symbol_background;
+      this._last_pref_high_contrast = high_contrast;
+      this._last_pref_text_pos = text_pos;
+      this._build_from_raw(this._last_raw);
     }
   ),
 
@@ -759,6 +1305,40 @@ export default Controller.extend(prefClasses, {
     'model.locales',
     function() { runBoardStateSync(this, this.app_state); }
   ),
+
+  /* Re-fetch and rebuild this board's grid whenever a board-set mutation
+     finishes (translate, swap_images, slice-locales, privacy change…).
+     `app_state.board_reload_key` is the project-wide signal those flows
+     bump after their server-side progress completes. The model record
+     itself gets reloaded by the originating modal, but the rendered
+     buttons here come from `_last_raw` — a cached plain-object payload
+     built from `persistence.ajax('/api/v1/boards/:key')`, not directly
+     from model attributes. Without this observer the labels stay stale
+     until the user manually reloads or transitions away. Mirrors the
+     same fetch/normalize/cache/build sequence used after Save. */
+  _refresh_on_board_reload_key: observer('app_state.board_reload_key', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('_exiting')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    var key = board.get('key');
+    if(!key) { return; }
+    var _this = this;
+    persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(!merged) { return; }
+      if(merged.images && merged.images.length) {
+        _this._board_detail_images = merged.images;
+      }
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+      _this._build_from_raw(merged);
+    }, function() {
+      /* Network or auth failure — leave the stale render in place
+         rather than blanking the grid. Next route activation will
+         retry naturally. */
+    });
+  }),
 
   reload_on_connect: observer('persistence.online', function() {
     runReloadOnConnect(this, this.persistence);
@@ -843,21 +1423,56 @@ export default Controller.extend(prefClasses, {
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
 
-      // Try local n-gram lookup first (instant, zero API cost)
       var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
       if(word_suggestions && word_suggestions.lookup) {
-        word_suggestions.lookup({
-          last_finished_word: last_finished_word,
-          word_in_progress: word_in_progress,
-          topic_context: (_this.get('model') && _this.get('model.name')) || '',
-          board_ids: [this.get('app_state.currentUser.preferences.home_board.id')]
-        }).then(function(result) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          _this.set('suggestions', { ready: true, list: result || [] });
-        }, function() {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
-          _this.set('suggestions', { ready: true, list: [] });
-        });
+        var lookup_ids = word_suggestions.lookup_board_ids(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]);
+        word_suggestions.load_vocabulary_button_sets(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]).then(function(warmed_sets) {
+          word_suggestions.lookup({
+            last_finished_word: last_finished_word,
+            word_in_progress: word_in_progress,
+            topic_context: (_this.get('model') && _this.get('model.name')) || '',
+            board_ids: lookup_ids,
+            button_sets: warmed_sets
+          }).then(function(result) {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            (result || []).forEach(function(word) {
+              word.image_update = function() {
+                if(_this.isDestroyed || _this.isDestroying) { return; }
+                var current = _this.get('suggestions');
+                if(current && current.list) {
+                  _this.set('suggestions', { ready: true, list: current.list.slice() });
+                }
+                if(typeof _this.sync_sentence_from_button_list === 'function') {
+                  _this.sync_sentence_from_button_list();
+                }
+              };
+            });
+            if(result && result.length > 0) {
+              _this.set('suggestions', { ready: true, list: result });
+            } else {
+              // Fallback to AI predictor if n-gram data has no match
+              var sentence = button_list.map(function(b) {
+                return b.label || b.vocalization || '';
+              }).join(' ').trim();
+              if(sentence) {
+                _this.set('suggestions', { loading: true });
+                aiPredictor.predict(sentence, {
+                  locale: _this.get('app_state.label_locale') || 'en'
+                }).then(function(words) {
+                  if(_this.isDestroyed || _this.isDestroying) { return; }
+                  var list = words.map(function(w) { return { word: w }; });
+                  _this.set('suggestions', { ready: true, list: list });
+                }, function() {
+                  if(_this.isDestroyed || _this.isDestroying) { return; }
+                  _this.set('suggestions', { ready: true, list: [] });
+                });
+              }
+            }
+          }, function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this.set('suggestions', { ready: true, list: [] });
+          });
+        }, function() { });
       }
     }
   ),
@@ -897,21 +1512,43 @@ export default Controller.extend(prefClasses, {
     { id: 'text_only', label: 'Text Only' }
   ],
   button_style_options: [
-    { id: 'default', label: 'Default' },
-    { id: 'default_caps', label: 'Default (caps)' },
-    { id: 'default_small', label: 'Default (small)' },
-    { id: 'arial', label: 'Arial' },
-    { id: 'arial_caps', label: 'Arial (caps)' },
-    { id: 'arial_small', label: 'Arial (small)' },
-    { id: 'comic_sans', label: 'Comic Sans' },
-    { id: 'comic_sans_caps', label: 'Comic Sans (caps)' },
-    { id: 'comic_sans_small', label: 'Comic Sans (small)' },
-    { id: 'open_dyslexic', label: 'Open Dyslexic' },
-    { id: 'open_dyslexic_caps', label: 'Open Dyslexic (caps)' },
-    { id: 'open_dyslexic_small', label: 'Open Dyslexic (small)' },
-    { id: 'architects_daughter', label: "Architect's Daughter" },
-    { id: 'architects_daughter_caps', label: "Architect's Daughter (caps)" },
-    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" }
+    { id: 'architects_daughter',       label: "Architect's Daughter" },
+    { id: 'architects_daughter_caps',  label: "Architect's Daughter (caps)" },
+    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" },
+    { id: 'arial',                     label: 'Arial' },
+    { id: 'arial_caps',                label: 'Arial (caps)' },
+    { id: 'arial_small',               label: 'Arial (small)' },
+    { id: 'comic_sans',                label: 'Comic Sans' },
+    { id: 'comic_sans_caps',           label: 'Comic Sans (caps)' },
+    { id: 'comic_sans_small',          label: 'Comic Sans (small)' },
+    { id: 'default',                   label: 'Default' },
+    { id: 'default_caps',              label: 'Default (caps)' },
+    { id: 'default_small',             label: 'Default (small)' },
+    { id: 'open_dyslexic',             label: 'Open Dyslexic' },
+    { id: 'open_dyslexic_caps',        label: 'Open Dyslexic (caps)' },
+    { id: 'open_dyslexic_small',       label: 'Open Dyslexic (small)' },
+    { divider: true },
+    { id: 'brush_script',    label: 'Brush Script MT' },
+    { id: 'calibri',         label: 'Calibri' },
+    { id: 'cambria',         label: 'Cambria' },
+    { id: 'chalkboard',      label: 'Chalkboard SE' },
+    { id: 'consolas',        label: 'Consolas' },
+    { id: 'courier_new',     label: 'Courier New' },
+    { id: 'garamond',        label: 'Garamond' },
+    { id: 'georgia',         label: 'Georgia' },
+    { id: 'helvetica',       label: 'Helvetica' },
+    { id: 'impact',          label: 'Impact' },
+    { id: 'lucida_sans',     label: 'Lucida Sans' },
+    { id: 'marker_felt',     label: 'Marker Felt' },
+    { id: 'monaco',          label: 'Monaco' },
+    { id: 'optima',          label: 'Optima' },
+    { id: 'palatino',        label: 'Palatino' },
+    { id: 'segoe_ui',        label: 'Segoe UI' },
+    { id: 'snell_roundhand', label: 'Snell Roundhand' },
+    { id: 'tahoma',          label: 'Tahoma' },
+    { id: 'times_new_roman', label: 'Times New Roman' },
+    { id: 'trebuchet',       label: 'Trebuchet MS' },
+    { id: 'verdana',         label: 'Verdana' }
   ],
   hidden_buttons_options: [
     { id: 'grid', label: 'Show as Grid' },
@@ -937,10 +1574,20 @@ export default Controller.extend(prefClasses, {
   // Options for the "Image Background" dropdown (parallel to
   // `symbolBackgroundList` on the user-preferences page).
   symbol_background_options: [
-    { id: 'clear', label: 'Colored' },
-    { id: 'white', label: 'White' },
-    { id: 'black', label: 'Black' },
+    { id: 'clear',         label: 'Colored' },
+    { id: 'clear_soft',    label: 'Colored Soft' },
+    { id: 'white',         label: 'White' },
+    { id: 'black',         label: 'Black' },
     { id: 'high_contrast', label: 'High Contrast' }
+  ],
+  // Mirror of user/preferences.js#vocalizationHeightList — drives the
+  // height of the speak-mode header (the sentence/vocalization bar) and
+  // the size of fonts + symbol images inside it.
+  voice_height_options: [
+    { id: 'small',  label: 'Small (90px)' },
+    { id: 'medium', label: 'Medium (100px)' },
+    { id: 'large',  label: 'Large (150px)' },
+    { id: 'huge',   label: 'Huge (200px)' }
   ],
   // Options for the "Words Combined" dropdown (the `device.utterance_text_only`
   // pref — stored as boolean but exposed as a select with labeled modes).
@@ -969,15 +1616,55 @@ export default Controller.extend(prefClasses, {
   // Simple prefix checks for the three compound skin variants. Concrete tones
   // (default/light/medium-light/medium/medium-dark/dark) compare directly
   // against pending_display_prefs.skin in the template — no indirection.
-  skin_is_mix: computed('pending_display_prefs.skin', function() {
-    var s = this.get('pending_display_prefs.skin') || '';
+  // Skin computeds read current_display_prefs (which falls back to
+  // user.preferences.skin when pending is null) so they work both
+  // inside More Settings and in the right panel.
+  skin_is_mix: computed('current_display_prefs.skin', function() {
+    var s = this.get('current_display_prefs.skin') || '';
     return s === 'mix' || s.indexOf('mix::') === 0;
   }),
-  skin_is_mix_only: computed('pending_display_prefs.skin', function() {
-    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_only') === 0;
+  skin_is_mix_only: computed('current_display_prefs.skin', function() {
+    return (this.get('current_display_prefs.skin') || '').indexOf('mix_only') === 0;
   }),
-  skin_is_mix_prefer: computed('pending_display_prefs.skin', function() {
-    return (this.get('pending_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
+  skin_is_mix_prefer: computed('current_display_prefs.skin', function() {
+    return (this.get('current_display_prefs.skin') || '').indexOf('mix_prefer') === 0;
+  }),
+
+  // CSS modifier class for the mobile-collapse skin-tones dropdown trigger
+  // swatch. The trigger renders as a single .md-settings-skin dot whose
+  // appearance must mirror the currently-active inline swatch button. Mix
+  // variants take precedence over the simple-tone string because the data
+  // field encodes both: e.g. 'mix_only::limit-100100' still has
+  // pending_display_prefs.skin starting with 'mix_only'. Simple tones
+  // map directly except 'default', which uses the --original swatch class
+  // (yellow Fitzgerald-neutral) following the existing template convention.
+  display_prefs_current_skin_class: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+    if(this.get('skin_is_mix_only'))   { return 'md-settings-skin--mix-only'; }
+    if(this.get('skin_is_mix_prefer')) { return 'md-settings-skin--mix-prefer'; }
+    if(this.get('skin_is_mix'))        { return 'md-settings-skin--mix'; }
+    var skin = this.get('pending_display_prefs.skin') || 'default';
+    if(skin === 'default') { return 'md-settings-skin--original'; }
+    return 'md-settings-skin--' + skin;
+  }),
+
+  // Human-readable label for the currently-selected skin tone, used as
+  // the tiny helper text below the swatch grid in the ≤640px popover.
+  // Returns null for the mix_only/mix_prefer variants since their
+  // suboptions row already provides context (the "Only:" / "Prefer:"
+  // sublabel + suboption swatches make the mode self-evident).
+  display_prefs_current_skin_label: computed('pending_display_prefs.skin', 'skin_is_mix', 'skin_is_mix_only', 'skin_is_mix_prefer', function() {
+    if(this.get('skin_is_mix_only') || this.get('skin_is_mix_prefer')) { return null; }
+    if(this.get('skin_is_mix')) { return i18n.t('skin_label_mix', "Mix of tones"); }
+    var skin = this.get('pending_display_prefs.skin') || 'default';
+    var labels = {
+      'default':      i18n.t('skin_label_original',     "Original"),
+      'light':        i18n.t('skin_label_light',        "Light"),
+      'medium-light': i18n.t('skin_label_medium_light', "Medium Light"),
+      'medium':       i18n.t('skin_label_medium',       "Medium"),
+      'medium-dark':  i18n.t('skin_label_medium_dark',  "Medium Dark"),
+      'dark':         i18n.t('skin_label_dark',         "Dark")
+    };
+    return labels[skin] || null;
   }),
 
   // Returns null when the skin isn't a mix_only/mix_prefer variant; otherwise
@@ -996,8 +1683,146 @@ export default Controller.extend(prefClasses, {
     return !!(pm && pm.hidden === false);
   }),
 
-  skin_suboptions: computed('pending_display_prefs.skin', function() {
-    var s = this.get('pending_display_prefs.skin') || '';
+  // ──── Button Levels paint computeds ─────────────────────────────
+  // The legacy paint-level modal sets `paint_mode = { level, attribute, paint_id }`.
+  // We use the same shape, so any computed reading paint_mode.level reflects
+  // whether a level paint is currently armed.
+  level_paint_armed: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    return !!(pm && pm.level);
+  }),
+  // True for actions that need a level (hidden/link_disabled). 'clear' doesn't.
+  level_paint_needs_level: computed('level_paint_action', function() {
+    var a = this.get('level_paint_action');
+    return a === 'hidden' || a === 'link_disabled';
+  }),
+  // True when the chosen action is one of the "add" variants
+  // (hidden / link_disabled). The remove ('clear') action shows
+  // inline with a red glow rather than collapsing to the banner,
+  // so we gate the banner-collapse behavior on this.
+  level_paint_action_is_add: computed('level_paint_action', function() {
+    var a = this.get('level_paint_action');
+    return a === 'hidden' || a === 'link_disabled';
+  }),
+
+  // (Previous observer that watched for the last level-rule
+  // removal removed — Remove level rules is now an instant batch
+  // action handled directly in set_level_paint_action.)
+  // True when user has made enough selections to arm paint mode.
+  level_paint_can_apply: computed('level_paint_action', 'level_paint_level', 'level_paint_needs_level', function() {
+    if(!this.get('level_paint_action')) { return false; }
+    if(!this.get('level_paint_needs_level')) { return true; } // clear
+    return !!this.get('level_paint_level');
+  }),
+  // Available level options (1-10), filtering out the empty placeholder
+  // entry that LingoLinq.board_levels carries for the legacy bound-select.
+  level_paint_options: computed(function() {
+    return (LingoLinq.board_levels || []).filter(function(l) { return l.id; });
+  }),
+  // Per-level color palette — modern Tailwind-inspired progression
+  // (cool blues at lower levels → warmer / achievement-green at the
+  // top). Keys are stringified level numbers so {{get}} can look
+  // them up by opt.id from LingoLinq.board_levels.
+  // Mirrors the same map in utils/button.js so the side-panel pill
+  // and the button-card badge always agree.
+  level_color_map: computed(function() {
+    return {
+      '1':  '#0EA5E9', // sky
+      '2':  '#3B82F6', // blue
+      '3':  '#6366F1', // indigo
+      '4':  '#8B5CF6', // violet
+      '5':  '#A855F7', // purple
+      '6':  '#EC4899', // pink
+      '7':  '#F43F5E', // rose
+      '8':  '#F97316', // orange
+      '9':  '#F59E0B', // amber
+      '10': '#10B981'  // emerald (achievement / full vocab)
+    };
+  }),
+  // Color for the Preview Levels badge — looks up the current
+  // preview_level (number) in the same palette so the badge matches
+  // the Step 2 pill that paints the same level.
+  preview_level_color: computed('preview_level', 'level_color_map', function() {
+    var lvl = this.get('preview_level');
+    if(!lvl) { return null; }
+    var map = this.get('level_color_map') || {};
+    return map[String(lvl)] || null;
+  }),
+
+  // 1-10 as strings for the speak-mode level picker in the actions
+  // menu's Session submenu. {{get level_color_map lvl}} works
+  // because keys are strings.
+  speak_level_options: computed(function() {
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  }),
+
+  // Currently-selected board level (read from stashes — same source
+  // board/index.js#current_level reads from). Falls back to the
+  // board's default_level, then 10. Returned as a string so the
+  // template's {{is-equal}} check matches the speak_level_options
+  // entries.
+  current_speak_level: computed(
+    'stashes.board_level',
+    function() {
+      // Show the last level the supervisor selected (persisted in
+      // stashes.board_level). If none was ever selected, default to 10
+      // (full vocab) — matches toggle_levels_submenu's applied value so
+      // the highlighted pill and the actually-filtered level always
+      // agree.
+      var lvl = parseInt(this.get('stashes.board_level'), 10);
+      if(lvl >= 1 && lvl <= 10) { return String(lvl); }
+      return '10';
+    }
+  ),
+  // Counts how many cells on the board grid have at least one level
+  // rule attached. Includes empty cells in the total since they're
+  // still part of the grid the user is configuring. Used by the
+  // Button Levels section to show progress like "3 of 24 buttons
+  // have level rules". Mirrors the dependency keys used by
+  // board/index.js#button_levels — @each.level_modifications +
+  // levels_change — so the count updates reactively as the user
+  // paints rules.
+  button_level_count: computed('ordered_buttons.@each.level_modifications', 'levels_change', 'model.buttons.[]', 'model.id', function() {
+    var rows = this.get('ordered_buttons') || [];
+    var total = 0;
+    var with_rules = 0;
+    rows.forEach(function(row) {
+      (row || []).forEach(function(btn) {
+        if(!btn) { return; }
+        total += 1;
+        var mods = btn.get('level_modifications');
+        if(mods && Object.keys(mods).length > 0) {
+          with_rules += 1;
+        }
+      });
+    });
+    // Reset the levels_change flag so future edits can re-trigger
+    // the computed (mirrors board/index.js#button_levels pattern).
+    if(this.get('levels_change')) {
+      var _this = this;
+      next(function() {
+        if(!_this.isDestroyed && !_this.isDestroying) {
+          _this.set('levels_change', false);
+        }
+      });
+    }
+    return { with_rules: with_rules, total: total };
+  }),
+  // Human-readable summary of what's currently being painted.
+  level_paint_active_summary: computed('paint_mode', function() {
+    var pm = this.get('paint_mode');
+    if(!pm || !pm.level) { return null; }
+    if(pm.level === 'clear') {
+      return i18n.t('level_paint_clearing_v2', "Removing level rules — click buttons to apply");
+    }
+    var phrase = pm.level === 'hidden'
+      ? i18n.t('level_paint_show_starting_phrase', "Showing button starting at level")
+      : i18n.t('level_paint_activate_folder_phrase', "Activating folder starting at level");
+    return phrase + ' ' + pm.attribute + ' — ' + i18n.t('level_paint_click_to_apply', "click buttons to apply");
+  }),
+
+  skin_suboptions: computed('current_display_prefs.skin', function() {
+    var s = this.get('current_display_prefs.skin') || '';
     var is_only = s.indexOf('mix_only') === 0;
     var is_prefer = s.indexOf('mix_prefer') === 0;
     if(!is_only && !is_prefer) { return null; }
@@ -1021,41 +1846,62 @@ export default Controller.extend(prefClasses, {
   // built from the live user preferences when not. Lets the same toolbar
   // markup work in both contexts (toolbar-direct and More Settings).
   current_display_prefs: computed(
+    // Observe BOTH the pending object as a whole AND each individual
+    // sub-property. Without the per-key observers a `set('pending_display_prefs.X', val)`
+    // mutation wouldn't invalidate this computed in Ember 3.x — it tracks
+    // sub-property changes only when the path is explicitly listed.
     'pending_display_prefs',
     'pending_display_prefs.button_text',
     'pending_display_prefs.button_text_position',
     'pending_display_prefs.button_style',
+    'pending_display_prefs.button_spacing',
+    'pending_display_prefs.button_border',
     'pending_display_prefs.utterance_text_only',
+    'pending_display_prefs.preferred_symbols',
+    'pending_display_prefs.symbol_background',
+    'pending_display_prefs.high_contrast',
+    'pending_display_prefs.hidden_buttons',
+    'pending_display_prefs.stretch_buttons',
+    'pending_display_prefs.skin',
+    'pending_display_prefs.vocalization_height',
     'app_state.currentUser.preferences.device.button_text',
     'app_state.currentUser.preferences.device.button_text_position',
     'app_state.currentUser.preferences.device.button_style',
     'app_state.currentUser.preferences.device.button_spacing',
     'app_state.currentUser.preferences.device.button_border',
     'app_state.currentUser.preferences.device.utterance_text_only',
+    'app_state.currentUser.preferences.device.vocalization_height',
     'app_state.currentUser.preferences.preferred_symbols',
     'app_state.currentUser.preferences.symbol_background',
     'app_state.currentUser.preferences.high_contrast',
     'app_state.currentUser.preferences.hidden_buttons',
     'app_state.currentUser.preferences.stretch_buttons',
     'app_state.currentUser.preferences.skin',
+    'app_state.referenced_user.preferences.preferred_symbols',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
+    'app_state.referenced_user.preferences.skin',
     function() {
       var pending = this.get('pending_display_prefs');
       if(pending) { return pending; }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
-      var device = prefs.device || {};
+      var pref_user = this._pref_user_for_display();
+      var current_prefs = this.get('app_state.currentUser.preferences') || {};
+      var sym_prefs = (pref_user && pref_user.get('preferences')) || current_prefs;
+      var device = current_prefs.device || {};
       return {
         button_spacing:       device.button_spacing       || 'medium',
         button_border:        device.button_border        || 'medium',
         button_text:          device.button_text          || 'medium',
         button_text_position: device.button_text_position || 'bottom',
         button_style:         device.button_style         || 'default',
-        hidden_buttons:       prefs.hidden_buttons        || 'grid',
-        stretch_buttons:      prefs.stretch_buttons       || 'none',
-        preferred_symbols:    prefs.preferred_symbols     || 'original',
-        symbol_background:    prefs.symbol_background     || 'clear',
-        high_contrast:        !!prefs.high_contrast,
+        vocalization_height:  device.vocalization_height  || 'medium',
+        hidden_buttons:       current_prefs.hidden_buttons        || 'grid',
+        stretch_buttons:      current_prefs.stretch_buttons       || 'none',
+        preferred_symbols:    sym_prefs.preferred_symbols     || 'original',
+        symbol_background:    sym_prefs.symbol_background     || 'clear',
+        high_contrast:        !!sym_prefs.high_contrast,
         utterance_text_only:  !!device.utterance_text_only,
-        skin:                 prefs.skin                  || 'default'
+        skin:                 sym_prefs.skin                  || 'default'
       };
     }
   ),
@@ -1068,20 +1914,26 @@ export default Controller.extend(prefClasses, {
     var idx = ['small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_text'));
     return idx >= 3;
   }),
-  display_prefs_border_at_min: computed('pending_display_prefs.button_border', function() {
-    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+  // current_display_prefs falls back to live user prefs when pending
+  // is null, so these computeds work in BOTH contexts: the center
+  // toolbar (which seeds pending when More Settings opens) and the
+  // right panel (which never seeds pending). Without the fallback the
+  // stepper's "thinner"/"tighter" buttons stayed perpetually disabled
+  // outside More Settings.
+  display_prefs_border_at_min: computed('current_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_border'));
     return idx <= 0;
   }),
-  display_prefs_border_at_max: computed('pending_display_prefs.button_border', function() {
-    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_border'));
+  display_prefs_border_at_max: computed('current_display_prefs.button_border', function() {
+    var idx = ['none', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_border'));
     return idx >= 4;
   }),
-  display_prefs_spacing_at_min: computed('pending_display_prefs.button_spacing', function() {
-    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+  display_prefs_spacing_at_min: computed('current_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_spacing'));
     return idx <= 0;
   }),
-  display_prefs_spacing_at_max: computed('pending_display_prefs.button_spacing', function() {
-    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('pending_display_prefs.button_spacing'));
+  display_prefs_spacing_at_max: computed('current_display_prefs.button_spacing', function() {
+    var idx = ['none', 'minimal', 'extra-small', 'small', 'medium', 'large', 'huge'].indexOf(this.get('current_display_prefs.button_spacing'));
     return idx >= 6;
   }),
   grid_rows_at_min: computed('current_grid.rows', function() {
@@ -1098,6 +1950,21 @@ export default Controller.extend(prefClasses, {
     return match ? match.label : 'Default';
   }),
 
+  display_prefs_font_filter: '',
+
+  /** Filtered font list driven by the dropdown's search input. Empty filter
+   *  returns the full list (with divider). When filtering, drops the divider
+   *  since section grouping is no longer meaningful. */
+  filtered_button_style_options: computed('button_style_options', 'display_prefs_font_filter', function() {
+    var opts = this.get('button_style_options') || [];
+    var q = (this.get('display_prefs_font_filter') || '').trim().toLowerCase();
+    if(!q) { return opts; }
+    return opts.filter(function(o) {
+      if(o.divider) { return false; }
+      return (o.label || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }),
+
   display_prefs_current_symbol_library_label: computed('pending_display_prefs.preferred_symbols', 'preferred_symbols_options', function() {
     var current = this.get('pending_display_prefs.preferred_symbols');
     var opts = this.get('preferred_symbols_options') || [];
@@ -1110,16 +1977,92 @@ export default Controller.extend(prefClasses, {
   // the dropdown displays "High Contrast" regardless of the stored
   // symbol_background value, so the two prefs appear as a single 4-option list
   // to the user.
-  display_prefs_current_symbol_background_id: computed('pending_display_prefs.symbol_background', 'pending_display_prefs.high_contrast', function() {
-    if(this.get('pending_display_prefs.high_contrast')) { return 'high_contrast'; }
-    return this.get('pending_display_prefs.symbol_background') || 'clear';
-  }),
+  // Falls back to the live user prefs when pending_display_prefs is null
+  // (e.g. right-panel use where the center "More Settings" panel hasn't been
+  // opened) so the dropdown reflects the current setting at all times.
+  // Mirrors the utterance_text_only_str pattern above.
+  display_prefs_current_symbol_background_id: computed(
+    'pending_display_prefs.symbol_background',
+    'pending_display_prefs.high_contrast',
+    'app_state.currentUser.preferences.symbol_background',
+    'app_state.currentUser.preferences.high_contrast',
+    function() {
+      var pending = this.get('pending_display_prefs');
+      var hc = pending ? this.get('pending_display_prefs.high_contrast')
+                       : this.get('app_state.currentUser.preferences.high_contrast');
+      if(hc) { return 'high_contrast'; }
+      var bg = pending ? this.get('pending_display_prefs.symbol_background')
+                       : this.get('app_state.currentUser.preferences.symbol_background');
+      return bg || 'clear';
+    }),
   display_prefs_current_symbol_background_label: computed('display_prefs_current_symbol_background_id', 'symbol_background_options', function() {
     var current = this.get('display_prefs_current_symbol_background_id');
     var opts = this.get('symbol_background_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
   }),
+  display_prefs_current_voice_height_label: computed('current_display_prefs.vocalization_height', 'voice_height_options', function() {
+    // Read current_display_prefs (pending when More Settings is open,
+    // live otherwise) — the SAME source the dropdown's selected-state
+    // check uses — so the trigger label always matches the checked
+    // option. (Previously read only pending_display_prefs, which is
+    // empty in the Edit Tools rail context, so the label stuck.)
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
+    var opts = this.get('voice_height_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Medium (100px)';
+  }),
+
+  // Speak Bar "Sentence Bar" size → live class on the speak row so
+  // the bar visibly resizes as the dropdown changes. Reads
+  // current_display_prefs (same source the dropdown's selected check
+  // uses) so it tracks the pending value when More Settings is open
+  // and the live value otherwise.
+  sentence_bar_height_class: computed('current_display_prefs.vocalization_height', function() {
+    var current = this.get('current_display_prefs.vocalization_height') || 'medium';
+    return 'md-board-detail-sentence-bar--' + current;
+  }),
+
+  // Edit-mode Speak Bar PREVIEW content. The live #speak bar is
+  // hidden while editing, so this feeds a visible preview so Speak
+  // Bar settings can be seen. If the user has tapped anything into
+  // the speak bar, mirror that (sentence_parts); otherwise show the
+  // current board's first five real (non-empty) buttons as samples.
+  preview_sentence_parts: computed('sentence_parts.[]', 'ordered_buttons', function() {
+    var parts = this.get('sentence_parts');
+    if(parts && parts.length) { return parts; }
+    var rows = this.get('ordered_buttons') || [];
+    var out = [];
+    for(var i = 0; i < rows.length && out.length < 5; i++) {
+      var row = rows[i] || [];
+      for(var j = 0; j < row.length && out.length < 5; j++) {
+        var b = row[j];
+        if(b && !b.empty && (b.label || b.image_url)) {
+          out.push({ id: b.id, label: b.label || b.vocalization || '', image_url: b.image_url });
+        }
+      }
+    }
+    return out;
+  }),
+
+  preview_sentence_text: computed('preview_sentence_parts', function() {
+    return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
+  }),
+
+  // Prefs that change symbol URLs or grid CSS — apply to referenced_user (communicator).
+  _display_pref_render_keys: ['skin', 'preferred_symbols', 'symbol_background', 'high_contrast'],
+
+  _pref_user_for_display: function() {
+    return this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+  },
+
+  _user_for_display_pref: function(key) {
+    var renderKeys = this._display_pref_render_keys;
+    if(renderKeys.indexOf(key) >= 0) {
+      return this._pref_user_for_display();
+    }
+    return this.get('app_state.currentUser');
+  },
 
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
@@ -1133,6 +2076,7 @@ export default Controller.extend(prefClasses, {
     preferred_symbols:    'preferences.preferred_symbols',
     symbol_background:    'preferences.symbol_background',
     high_contrast:        'preferences.high_contrast',
+    vocalization_height:  'preferences.device.vocalization_height',
     utterance_text_only:  'preferences.device.utterance_text_only',
     skin:                 'preferences.skin'
   },
@@ -1198,26 +2142,22 @@ export default Controller.extend(prefClasses, {
   }),
 
   button_text_size_px: computed('app_state.referenced_user.preferences.device.button_text', function() {
-    var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[size] || 18;
+    return buttonTextPx(this.get('app_state.referenced_user.preferences.device.button_text'));
   }),
 
   // Pixel values for button spacing (grid gap) and border (symbol-card outline width) — drive the
   // live preview on board-detail when the user nudges the -/+ steppers in the settings toolbar.
-  // Keeping both computeds dependent on the live user-preferences path means set_display_pref
-  // (which applies pending changes to user.preferences.device.*) updates the rendered grid
-  // immediately, and the eventual user.save() persists the values to the single source of truth.
+  // Both read from the canonical map in utils/display_prefs.js so the same preference produces
+  // identical visual results on board-detail, create-board-new, board-alt, demo-speak, and the
+  // preferences-page canvas. set_display_pref (which applies pending changes to
+  // user.preferences.device.*) updates the rendered grid immediately; the eventual user.save()
+  // persists the values to the single source of truth.
   button_spacing_px: computed('app_state.referenced_user.preferences.device.button_spacing', function() {
-    var spacing = this.get('app_state.referenced_user.preferences.device.button_spacing') || 'medium';
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    return (map[spacing] != null) ? map[spacing] : 8;
+    return buttonSpacingPx(this.get('app_state.referenced_user.preferences.device.button_spacing'));
   }),
 
   button_border_px: computed('app_state.referenced_user.preferences.device.button_border', function() {
-    var border = this.get('app_state.referenced_user.preferences.device.button_border') || 'medium';
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    return (map[border] != null) ? map[border] : 3;
+    return buttonBorderPx(this.get('app_state.referenced_user.preferences.device.button_border'));
   }),
 
   // Shape modifier class — "Square / Tall / Wide" icon picker maps to the
@@ -1245,6 +2185,12 @@ export default Controller.extend(prefClasses, {
   button_font_style: computed('app_state.referenced_user.preferences.device.button_style', function() {
     var style = this.get('app_state.referenced_user.preferences.device.button_style') || 'default';
     var fonts = {
+      // 'default' is treated as Arial — when the user has not set a font
+      // preference, the rendered font should be Arial (not the browser
+      // default serif).
+      'default':       'Arial, sans-serif',
+      'default_caps':  'Arial, sans-serif',
+      'default_small': 'Arial, sans-serif',
       'arial': 'Arial, sans-serif',
       'arial_caps': 'Arial, sans-serif',
       'arial_small': 'Arial, sans-serif',
@@ -1256,7 +2202,28 @@ export default Controller.extend(prefClasses, {
       'open_dyslexic_small': 'OpenDyslexic, sans-serif',
       'architects_daughter': 'ArchitectsDaughter, cursive',
       'architects_daughter_caps': 'ArchitectsDaughter, cursive',
-      'architects_daughter_small': 'ArchitectsDaughter, cursive'
+      'architects_daughter_small': 'ArchitectsDaughter, cursive',
+      'helvetica':       'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      'verdana':         'Verdana, Geneva, sans-serif',
+      'tahoma':          'Tahoma, Geneva, sans-serif',
+      'trebuchet':       '"Trebuchet MS", "Lucida Grande", sans-serif',
+      'calibri':         'Calibri, "Segoe UI", sans-serif',
+      'segoe_ui':        '"Segoe UI", Tahoma, sans-serif',
+      'lucida_sans':     '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+      'optima':          'Optima, Segoe, sans-serif',
+      'times_new_roman': '"Times New Roman", Times, serif',
+      'georgia':         'Georgia, "Times New Roman", serif',
+      'garamond':        'Garamond, "Times New Roman", serif',
+      'palatino':        '"Palatino Linotype", Palatino, serif',
+      'cambria':         'Cambria, Georgia, serif',
+      'courier_new':     '"Courier New", Courier, monospace',
+      'consolas':        'Consolas, "Courier New", monospace',
+      'monaco':          'Monaco, Menlo, monospace',
+      'impact':          'Impact, Charcoal, sans-serif',
+      'brush_script':    '"Brush Script MT", cursive',
+      'marker_felt':     '"Marker Felt", Casual, cursive',
+      'chalkboard':      '"Chalkboard SE", Chalkboard, sans-serif',
+      'snell_roundhand': '"Snell Roundhand", "Apple Chancery", cursive'
     };
     var cases = {};
     if(style && style.match(/_caps$/)) { cases.transform = 'uppercase'; }
@@ -1351,7 +2318,8 @@ export default Controller.extend(prefClasses, {
     if(!btn) { return 'default'; }
     var load_board = btn.get ? btn.get('load_board') : btn.load_board;
     var folder_action = btn.get ? btn.get('folderAction') : btn.folderAction;
-    if(load_board || folder_action) {
+    var link_disabled = btn.get ? btn.get('link_disabled') : btn.link_disabled;
+    if((load_board && !link_disabled) || folder_action) {
       return 'folder';
     }
     var pos = (btn.get ? btn.get('part_of_speech') : btn.part_of_speech) ||
@@ -1616,7 +2584,7 @@ export default Controller.extend(prefClasses, {
       if(!btn) { return; }
       if(_get(btn, 'empty') || _get(btn, 'hidden')) { return; }
       // Skip folder buttons — phrase builder is for words only
-      if(_get(btn, 'load_board')) { return; }
+      if(_get(btn, 'load_board') && !_get(btn, 'link_disabled')) { return; }
       var label = (_get(btn, 'label') || _get(btn, 'vocalization') || '').toString().trim();
       if(!label) { return; }
       var key = label.toLowerCase();
@@ -1735,7 +2703,7 @@ export default Controller.extend(prefClasses, {
       raw_board.buttons.forEach(function(btn) {
         if(!btn) { return; }
         if(btn.hidden) { return; }
-        if(btn.load_board || btn.linked_board_id || btn.linked_board_key) { return; }
+        if((btn.load_board && !btn.link_disabled) || btn.linked_board_id || btn.linked_board_key) { return; }
         var label = (btn.label || btn.vocalization || '').toString().trim();
         if(!label) { return; }
         var key = label.toLowerCase();
@@ -1786,7 +2754,7 @@ export default Controller.extend(prefClasses, {
       (raw_board.buttons || []).forEach(function(btn) {
         if(!btn) { return; }
         var load_board = btn.load_board;
-        if(!load_board) { return; }
+        if(!load_board || btn.link_disabled) { return; }
         var next_key = load_board.key;
         var next_id = load_board.id;
         var lookup = next_key || next_id;
@@ -1806,9 +2774,10 @@ export default Controller.extend(prefClasses, {
         persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
           pending--;
           if(_this.isDestroyed || _this.isDestroying) { return; }
-          if(data && data.board) {
-            boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-            walk(data.board, depth - 1);
+          var merged = boardDetailCache.normalize_board_payload(data);
+          if(merged) {
+            boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+            walk(merged, depth - 1);
           }
           if(pending === 0) { commit_list(); }
         }, function(err) {
@@ -2138,6 +3107,17 @@ export default Controller.extend(prefClasses, {
 
   saveButtonChanges: function() {
     var _this = this;
+    // Clear preview state BEFORE serializing so preview-induced
+    // mutations (especially `hidden=true` on untagged buttons at
+    // preview level < 10) don't leak into the saved data. The save
+    // flow exits edit mode anyway, so we'd be tearing down preview
+    // shortly regardless.
+    if(this.get('preview_levels_mode')) {
+      editManager.clear_preview_levels();
+      this.set('level_paint_action', null);
+      this.set('level_paint_level', null);
+      editManager.clear_paint_mode();
+    }
     var orderedButtons = this.get('ordered_buttons') || [];
     var board = this.get('model');
     if(!board) { return; }
@@ -2257,6 +3237,21 @@ export default Controller.extend(prefClasses, {
         board.set('image_urls', current);
       }
 
+      // Folder-level cascade invalidations. If the save fired a folder
+      // cascade on the server, the response carries the list of boards
+      // whose buttons were updated. Invalidate each entry in the client
+      // cache so a subsequent navigation into that sub-board refetches
+      // the post-cascade buttons instead of serving stale (pre-cascade)
+      // ordered_buttons from the 5-min TTL cache.
+      var invs = board.get('cascade_invalidations');
+      if(invs && invs.forEach) {
+        invs.forEach(function(entry) {
+          if(!entry) { return; }
+          if(entry.id) { boardDetailCache.invalidate(entry.id); }
+          if(entry.key) { boardDetailCache.invalidate(entry.key); }
+        });
+      }
+
       if(update_locale) {
         stashes.persist('label_locale', update_locale);
         _this.get('app_state').set('label_locale', update_locale);
@@ -2272,6 +3267,14 @@ export default Controller.extend(prefClasses, {
       // non-edit page shows up with the saving overlay still stuck on.
       var finish = function() {
         _this.set('board_saving', false);
+        // Stay-in-edit-mode path (header Save button): the save
+        // round-trip and post-save fetch are done; keep edit_mode
+        // true and don't transition out. Reset the flag so subsequent
+        // back_to_boards saves exit normally.
+        if(_this.get('_save_keep_editing')) {
+          _this.set('_save_keep_editing', false);
+          return;
+        }
         runLater(function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           _this.set('edit_mode', false);
@@ -2284,17 +3287,25 @@ export default Controller.extend(prefClasses, {
           stashes.persist('current_mode', 'default');
           _this.set('panels_collapsed', true);
           _this.set('board_collapsed', true);
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          // Honor "Save & Continue" flow from the panel's "Back to
+          // Boards" prompt — redirect to the user's boards list rather
+          // than the board view page when that flag is set.
+          if(_this.get('_save_exit_to_boards')) {
+            _this.set('_save_exit_to_boards', false);
+            _this.get('router').transitionTo('user.boards', _this.get('user.user_name'));
+          } else {
+            _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          }
         }, 0);
       };
       persistence.ajax('/api/v1/boards/' + board.get('key'), { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          // Refresh the raw cache with the post-save server state so the
-          // next navigation back to this board (or the cache-first model
-          // hook firing on transition out of edit mode) sees fresh data
-          // instead of pre-save stale data.
-          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-          _this._build_from_raw(data.board);
+        var merged = boardDetailCache.normalize_board_payload(data);
+        if(merged) {
+          if(merged.images && merged.images.length) {
+            _this._board_detail_images = merged.images;
+          }
+          boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+          _this._build_from_raw(merged);
         }
         finish();
 
@@ -2401,6 +3412,20 @@ export default Controller.extend(prefClasses, {
     // Cap at 20 entries
     if(history.length > 20) { history = history.slice(history.length - 20); }
     this.set('app_state.board_detail_nav_history', history);
+  },
+
+  _preferred_board_detail_key: function(key) {
+    if(!key || key.indexOf('/') === -1) { return RSVP.resolve(key); }
+    var parts = key.split('/');
+    var routeUser = this.get('user.user_name') || (this.get('model.key') || '').split('/')[0];
+    if(!routeUser || parts[0] == routeUser) { return RSVP.resolve(key); }
+
+    var preferredKey = routeUser + '/' + parts.slice(1).join('/');
+    return LingoLinq.store.findRecord('board', preferredKey).then(function() {
+      return preferredKey;
+    }, function() {
+      return key;
+    });
   },
 
   // Helper to extract button ID (Button objects use .get, plain objects use direct access)
@@ -2527,6 +3552,122 @@ export default Controller.extend(prefClasses, {
     this.send('set_display_pref', 'skin', skin);
   },
 
+  /** Hardcoded BASE ↔ SOFT hex map for the Fitzgerald palette. Edit
+   *  styles/_variables.scss to change a value, then update the
+   *  corresponding entry below — kept in sync by hand because a
+   *  computed map would require running the SCSS color.adjust math at
+   *  runtime. The values below are the literal results of
+   *  color.adjust($base, $saturation: -25%) (or +10% lightness for
+   *  determiner-gray) per _variables.scss. */
+  _FITZGERALD_BASE_TO_SOFT: {
+    '#ffffaa': '#f4f4b5',  // pronoun-yellow
+    '#ccffaa': '#cef4b5',  // verb-green
+    '#aaccff': '#b5cef4',  // adjective-blue
+    '#ffccaa': '#f4ceb5',  // noun-orange
+    '#ffaacc': '#f4b5ce',  // social-pink
+    '#ffaaaa': '#f4b5b5',  // negation-red
+    '#ccaaff': '#ceb5f4',  // question-purple
+    '#ffccdd': '#f8d2df',  // preposition-pink
+    '#ccaa88': '#b6aa9d',  // adverb-brown
+    '#cccccc': '#e6e6e6',  // determiner-gray (lightness +10%, not desat)
+    '#73ccff': '#84c7ed'   // other-blue
+  },
+
+  /** Walks ordered_buttons and swaps each button's background_color
+   *  via the BASE ↔ SOFT lookup table. Pure hex match — no color-math
+   *  evaluator. Buttons whose stored bg isn't in the table (manual
+   *  paints, custom hexes) are left alone. Mutates the Ember Button
+   *  wrapper, the raw board.buttons entry, and the rendered DOM
+   *  element's inline style directly so the change is visible
+   *  immediately and persists on save.
+   *
+   *  Defined as a controller method (not inside the actions hash) so
+   *  it's reachable as `this._refresh_auto_button_colors(...)` from
+   *  inside an action handler. */
+  _refresh_auto_button_colors: function(target_is_soft) {
+    if(typeof window === 'undefined' || !window.tinycolor) { return; }
+
+    // Build base→soft (or soft→base) lookup, normalized to lowercase
+    // hex so any color storage format (rgb, #FFCCAA, etc.) maps the
+    // same. Reverse direction is built by inverting the same table —
+    // there's no derivation here, just a fixed lookup.
+    var BASE_TO_SOFT = this._FITZGERALD_BASE_TO_SOFT;
+    var lookup = {};
+    Object.keys(BASE_TO_SOFT).forEach(function(base_hex) {
+      var soft_hex = BASE_TO_SOFT[base_hex].toLowerCase();
+      var base_lc = base_hex.toLowerCase();
+      if(target_is_soft) { lookup[base_lc] = soft_hex; }
+      else               { lookup[soft_hex] = base_lc; }
+    });
+    var norm = function(c) {
+      if(!c) { return ''; }
+      try { return window.tinycolor(c).toHexString().toLowerCase(); } catch(e) { return (c + '').toLowerCase().trim(); }
+    };
+
+    var ob = this.get('ordered_buttons') || [];
+    var board = this.get('model');
+    var raw_buttons = (board && board.get && board.get('buttons')) || [];
+    var raw_by_id = {};
+    raw_buttons.forEach(function(rb) { if(rb && rb.id != null) { raw_by_id[String(rb.id)] = rb; } });
+
+    var any_changed = false;
+    ob.forEach(function(row) {
+      if(!row || !row.forEach) { return; }
+      row.forEach(function(btn) {
+        if(!btn) { return; }
+        var bg = (btn.get ? btn.get('background_color') : btn.background_color);
+        if(!bg) { return; }
+        var bg_norm = norm(bg);
+        var new_color = lookup[bg_norm];
+        if(!new_color) { return; }  // not a recognized base/soft hex → leave alone (manual paint preserved)
+        var new_border;
+        try { new_border = window.tinycolor(new_color).darken(20).toRgbString(); }
+        catch(e) { new_border = new_color; }
+        var btn_id = (btn.get ? btn.get('id') : btn.id);
+        // 1. Mutate the Ember Button wrapper so any future re-render
+        //    picks up the new value.
+        if(btn.set && typeof btn.set === 'function') {
+          btn.set('background_color', new_color);
+          btn.set('border_color', new_border);
+        } else {
+          btn.background_color = new_color;
+          btn.border_color = new_border;
+        }
+        // 2. Mutate the raw board.buttons entry so the change persists
+        //    when the board is saved.
+        var raw = btn_id != null ? raw_by_id[String(btn_id)] : null;
+        if(raw) {
+          raw.background_color = new_color;
+          raw.border_color = new_border;
+        }
+        // 3. Mutate the rendered DOM element's inline style directly
+        //    so the visual update is immediate without depending on
+        //    Ember's template binding to re-evaluate. The card that
+        //    carries the inline background-color is the
+        //    .md-board-detail-symbol-card with data-id matching the
+        //    button id (the outer .md-board-detail-grid__cell with
+        //    the same data-id has no bg of its own).
+        if(typeof document !== 'undefined' && btn_id != null) {
+          var sel = '.md-board-detail-symbol-card[data-id="' + btn_id + '"]';
+          var dom_card = document.querySelector(sel);
+          if(dom_card) {
+            dom_card.style.backgroundColor = new_color;
+            dom_card.style.setProperty('--btn-bg', new_color);
+            dom_card.style.outlineColor = new_border;
+          }
+        }
+        any_changed = true;
+      });
+    });
+    // Invalidate any cached fast-html / contextualized buttons so a
+    // subsequent re-render uses the new colors rather than a snapshot
+    // built from the old raw data.
+    if(any_changed && board && board.set) {
+      board.set('last_cb', null);
+      if(board.get('fast_html')) { board.set('fast_html', null); }
+    }
+  },
+
   actions: {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
@@ -2582,8 +3723,24 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('session_submenu_open');
     },
 
-    toggle_styles_submenu: function() {
-      this.toggleProperty('styles_submenu_open');
+    toggle_display_submenu: function() {
+      this.toggleProperty('display_submenu_open');
+    },
+
+    toggle_board_submenu: function() {
+      this.toggleProperty('board_submenu_open');
+    },
+
+    toggle_buttons_submenu: function() {
+      this.toggleProperty('buttons_submenu_open');
+    },
+
+    toggle_share_print_submenu: function() {
+      this.toggleProperty('share_print_submenu_open');
+    },
+
+    toggle_language_submenu: function() {
+      this.toggleProperty('language_submenu_open');
     },
 
     // Close the options menu on Escape from anywhere within the menu.
@@ -2644,7 +3801,6 @@ export default Controller.extend(prefClasses, {
       } else if(key === 'Tab' || key === 9) {
         event.preventDefault();
         event.stopPropagation();
-        console.log('[DROPDOWN-TAB] Tab pressed, btn_id=', btn_id);
         // Close dropdown, find the next board button's label input
         var currentBtnId = btn_id;
         _this.set('button_menu_id', null);
@@ -2699,6 +3855,14 @@ export default Controller.extend(prefClasses, {
         _this.set('show_color_legend', false);
         _this.set('board_collapsed', false);
         _this.set('panels_collapsed', true);
+        // On smaller screens (<=1024px) start the edit page with BOTH
+        // side panels collapsed to their rail — the board grid needs
+        // the room there. Set on entry only (matches how the rest of
+        // the collapse state is purely user-toggled; no resize hook).
+        var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
+        var collapse_sides = vw > 0 && vw <= 1024;
+        _this.set('left_panel_collapsed', collapse_sides);
+        _this.set('right_panel_collapsed', collapse_sides);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
       };
       ready.then(function(res) {
@@ -2711,23 +3875,42 @@ export default Controller.extend(prefClasses, {
             enterEditNow();
             return;
           }
-          // Non-owner path: if the board is publicly copyable, prompt
-          // the user to confirm a copy. On confirm we set the
-          // `copy_on_save` stash flag — saveButtonChanges already
-          // delegates to the application's `tweakBoard` action when the
-          // flag is set, which handles the actual board copy + jump
-          // (see controllers/application.js:tweakBoard +
-          // copy_board). On cancel we do nothing.
+          // Non-owner path: copy first, then edit the user's copy. Deferring
+          // copy until save can leave folder links pointing back to the source set.
           var session_user = _this.get('app_state.sessionUser');
           var copyable = !_this.get('model.uncopyable') && !_this.get('model.for_sale');
           if(session_user && copyable) {
             modal.open('confirm-needs-copying', { board: _this.get('model') }).then(function(confirmRes) {
               if(confirmRes === 'confirm') {
-                var board_id = _this.get('model.id') || _this.get('model.global_id') || _this.get('app_state.currentBoardState.id');
-                if(board_id) {
-                  _this.get('stashes').persist('copy_on_save', board_id);
+                var appController = _this.get('app_state.controller');
+                if(!appController || typeof appController.copy_board !== 'function') {
+                  appController = getOwner(_this).lookup('controller:application');
                 }
-                enterEditNow();
+                if(!appController || typeof appController.copy_board !== 'function') {
+                  modal.error(i18n.t('app_not_ready', "App is not ready. Please try again."));
+                  return;
+                }
+                var source_board = _this.get('model');
+                var finish_copy = function(copied_board) {
+                  if(!copied_board || _this.isDestroyed || _this.isDestroying) { return; }
+                  var copied_key = copied_board.get ? copied_board.get('key') : copied_board.key;
+                  if(!copied_key) { return; }
+                  var parts = copied_key.split(/\//);
+                  var user_name = parts.shift();
+                  var board_name = parts.join('/');
+                  _this.get('stashes').persist('copy_on_save', null);
+                  _this.get('router').transitionTo('user.board-detail.edit', user_name, board_name);
+                };
+                RSVP.resolve(source_board).then(function(copy_board) {
+                  return modal.open('copy-board', {
+                    board: copy_board,
+                    original_board: copy_board === source_board ? null : source_board,
+                    for_editing: true
+                  });
+                }).then(function(opts) {
+                  if(opts === false) { return RSVP.resolve(); }
+                  return appController.copy_board(opts, true, null, finish_copy);
+                }).then(finish_copy, function() { });
               }
             }, function() { });
             return;
@@ -2754,7 +3937,6 @@ export default Controller.extend(prefClasses, {
       }
       ready.then(function(res) {
         if(!res || !res.correct_pin) { return; }
-        console.log('[LOADING-OVERLAY] exit_to_home action fired (board-detail)');
         // Signal any in-flight async work on this controller to bail.
         // _build_from_raw and its callers check this flag and return early.
         _this.set('_exiting', true);
@@ -2878,8 +4060,34 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // "Classic View" button on the board-detail EDIT page: persist the
+    // user's preference to 'classic' (so future logins land in the
+    // classic view) AND navigate to the board-alt page in normal mode.
+    // Uses the same dirty-bit trick as set_display_pref: Ember Data
+    // doesn't reliably mark the raw `preferences` blob dirty on a
+    // nested set, so we also poke `preferences.device.updated` to
+    // force the full blob to ship.
+    go_to_classic: function() {
+      var user = this.get('user');
+      var boardname = this.get('boardname');
+      var prefUser = this.get('app_state.currentUser');
+      if(prefUser) {
+        prefUser.set('preferences.board_view_style', 'classic');
+        if(prefUser.save) {
+          prefUser.set('preferences.device.updated', true);
+          prefUser.save();
+        }
+      }
+      if(!user || !boardname) { return; }
+      this.get('router').transitionTo('user.board-alt', user.get('user_name'), boardname);
+    },
+
     toggle_board_collapsed: function() {
       this.toggleProperty('board_collapsed');
+    },
+
+    toggle_board_actions: function() {
+      this.toggleProperty('board_actions_collapsed');
     },
 
     toggle_color_legend: function() {
@@ -2894,6 +4102,56 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('description_info_expanded');
     },
 
+    // Edit-card description textarea auto-resize. On focus and on
+    // each keystroke, expand the textarea to fit its full content
+    // (style.height = scrollHeight). The CSS still caps the unfocused
+    // height at 150px with internal scroll; this action runs while
+    // focused, so the user always sees their full text without the
+    // textarea's internal scrollbar — the page scroll handles content
+    // taller than the viewport. Reset height to 'auto' first so
+    // shrinking on delete works too.
+    auto_resize_description: function(ev) {
+      var el = ev && ev.target;
+      if(!el) { return; }
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    },
+    // On blur, clear the inline height so the CSS rules (max-height:
+    // 150px + overflow-y: auto in the unfocused state) take over
+    // again. Without this the inline style.height set on focus would
+    // keep the textarea at its expanded size after blurring.
+    auto_resize_description_blur: function(ev) {
+      var el = ev && ev.target;
+      if(!el) { return; }
+      el.style.height = '';
+    },
+
+    // Opens the board-privacy modal so the user can change this board's
+    // public/private/protected setting from the inline header indicator.
+    // Same modal opened by the Visibility & License row in the
+    // board-details component, so the flow matches what the user gets in
+    // their preferences screen.
+    //
+    // If the user was in edit mode when they opened the modal, we restore
+    // edit_mode after the modal closes (on either success or cancel) so
+    // they land back on the board-detail edit page rather than the
+    // read-only view — the privacy POST + model reload can otherwise
+    // sometimes drop edit state via re-render.
+    open_board_privacy: function() {
+      var _this = this;
+      var was_editing = this.get('edit_mode');
+      var restore = function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (was_editing && !_this.get('edit_mode')) {
+          _this.set('edit_mode', true);
+        }
+      };
+      modal.open('modals/board-privacy', {
+        board: this.get('model'),
+        button_set: this.get('model.button_set')
+      }).then(restore, restore);
+    },
+
     speak_phrase: function(phrase) {
       if(phrase && phrase.text) {
         utterance.speak_text(phrase.text);
@@ -2903,9 +4161,24 @@ export default Controller.extend(prefClasses, {
     go_back: function() {
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
-      if(!prev) { return; }
-      this.set('app_state.board_detail_nav_history', history);
-      this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+      if(prev) {
+        this.set('app_state.board_detail_nav_history', history);
+        this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
+        return;
+      }
+      // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
+      var parentKey = this.get('model.parent_board_key');
+      if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
+      if(this.get('stashes').get('sticky_board')) {
+        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+        return;
+      }
+      var _this = this;
+      this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var parts = preferred_key.split('/');
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      });
     },
 
     go_home: function() {
@@ -2961,11 +4234,23 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('dark_mode');
     },
 
+    // Explicit setter for the both-options segmented toggle in the
+    // left panel (vs toggle_dark_mode which just flips). Idempotent —
+    // clicking the already-active side is a harmless no-op.
+    set_dark_mode: function(on) {
+      this.set('dark_mode', !!on);
+    },
+
     toggle_modeling: function() {
       this.set('show_options_menu', false);
       this.get('app_state').toggle_modeling_if_possible(
         !this.get('app_state.modeling')
       );
+    },
+
+    toggle_modeling_pause: function() {
+      var appState = this.get('app_state');
+      appState.set('modeling_paused', !appState.get('modeling_paused'));
     },
 
     toggle_details_dropdown: function() {
@@ -2995,15 +4280,54 @@ export default Controller.extend(prefClasses, {
     // ── Display Preferences Panel ──
     toggle_display_font_dropdown: function() {
       this.toggleProperty('display_prefs_font_dropdown_open');
+      if(this.get('display_prefs_font_dropdown_open')) {
+        this.set('display_prefs_font_filter', '');
+        next(function() {
+          var input = document.getElementById('bd-font-dropdown-search');
+          if(input) { input.focus(); }
+        });
+      }
     },
 
     close_display_font_dropdown: function() {
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
     },
 
     pick_display_font: function(font_id) {
+      // [TEMP DEBUG] Remove after we've diagnosed the right-panel
+      // font dropdown not updating the preview.
+      try {
+        console.log('[trace] pick_display_font fired', {
+          font_id: font_id,
+          font_id_type: typeof font_id,
+          before_button_style: this.get('app_state.currentUser.preferences.device.button_style'),
+          pending_set: !!this.get('pending_display_prefs')
+        });
+      } catch(e) { /* ignore */ }
       this.send('set_display_pref', 'button_style', font_id);
+      try {
+        console.log('[trace] pick_display_font after set_display_pref', {
+          after_button_style: this.get('app_state.currentUser.preferences.device.button_style')
+        });
+      } catch(e) { /* ignore */ }
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
+    },
+
+    filter_display_fonts: function(value) {
+      this.set('display_prefs_font_filter', value || '');
+    },
+
+    font_dropdown_keydown: function(event) {
+      if(event && event.key === 'Escape') {
+        event.preventDefault();
+        this.send('close_display_font_dropdown');
+      } else if(event && event.key === 'Enter') {
+        event.preventDefault();
+        var first = (this.get('filtered_button_style_options') || []).find(function(o) { return !o.divider; });
+        if(first) { this.send('pick_display_font', first.id); }
+      }
     },
 
     toggle_display_symbol_library_dropdown: function() {
@@ -3011,6 +4335,53 @@ export default Controller.extend(prefClasses, {
     },
     close_display_symbol_library_dropdown: function() {
       this.set('display_prefs_symbol_library_dropdown_open', false);
+    },
+
+    // The skin-tones popover deliberately doesn't render the shared
+    // .md-settings-dropdown-backdrop overlay (it covers the whole viewport
+    // with `position: fixed; inset: 0` and blocks page scroll). Instead we
+    // attach a document-level pointerdown listener on open that closes the
+    // popover when a tap lands outside both the trigger and the popover —
+    // giving us tap-outside-to-close without sacrificing scroll. The
+    // listener is registered on `next` so the click that opened the
+    // popover doesn't immediately close it.
+    toggle_display_skin_dropdown: function() {
+      var _this = this;
+      var was_open = this.get('display_prefs_skin_dropdown_open');
+      this.toggleProperty('display_prefs_skin_dropdown_open');
+      if(!was_open) {
+        next(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var handler = function(e) {
+            var trigger = document.querySelector('.md-settings-skin-trigger');
+            var popover = document.querySelector('.md-settings-skin-popover--open');
+            if(trigger && trigger.contains(e.target)) { return; }
+            if(popover && popover.contains(e.target)) { return; }
+            _this.set('display_prefs_skin_dropdown_open', false);
+            document.removeEventListener('mousedown', handler, true);
+            document.removeEventListener('touchstart', handler, true);
+            _this._skin_dropdown_outside_handler = null;
+          };
+          _this._skin_dropdown_outside_handler = handler;
+          // Capture phase + mousedown/touchstart so we close as soon as a
+          // tap begins, before any action handler on the underlying element
+          // fires its click.
+          document.addEventListener('mousedown', handler, true);
+          document.addEventListener('touchstart', handler, true);
+        });
+      } else if(this._skin_dropdown_outside_handler) {
+        document.removeEventListener('mousedown', this._skin_dropdown_outside_handler, true);
+        document.removeEventListener('touchstart', this._skin_dropdown_outside_handler, true);
+        this._skin_dropdown_outside_handler = null;
+      }
+    },
+    close_display_skin_dropdown: function() {
+      this.set('display_prefs_skin_dropdown_open', false);
+      if(this._skin_dropdown_outside_handler) {
+        document.removeEventListener('mousedown', this._skin_dropdown_outside_handler, true);
+        document.removeEventListener('touchstart', this._skin_dropdown_outside_handler, true);
+        this._skin_dropdown_outside_handler = null;
+      }
     },
     pick_display_symbol_library: function(id) {
       this.send('set_display_pref', 'preferred_symbols', id);
@@ -3028,14 +4399,73 @@ export default Controller.extend(prefClasses, {
       // "Black with High Contrast" option: symbol_background='black' +
       // high_contrast=true. Picking any other option turns HC off and sets
       // symbol_background to the chosen value.
-      if(id === 'high_contrast') {
-        this.send('set_display_pref', 'high_contrast', true);
-        this.send('set_display_pref', 'symbol_background', 'black');
-      } else {
-        this.send('set_display_pref', 'high_contrast', false);
-        this.send('set_display_pref', 'symbol_background', id);
+      // 'clear', 'clear_soft', 'clear_faded', 'white', 'black' all store
+      // directly. The soft/faded variants additionally cause the
+      // .fitzgerald-soft / .fitzgerald-faded class to be emitted by
+      // pref-classes.js#symbol_background_class, swapping the
+      // --fitzgerald-* CSS custom properties to the muted variants.
+      //
+      // We CAN'T just call set_display_pref twice (the natural-looking
+      // approach) because each call triggers user.save() when the
+      // More Settings panel is closed (pending_display_prefs is null).
+      // The first save sends a snapshot with symbol_background still
+      // at its OLD value (we update it on the second call) — and if
+      // that first save's response comes back AFTER the second save's,
+      // the server-echoed old value clobbers the model and the
+      // sync_fitzgerald_scope observer reapplies the old class. Users
+      // see the buttons flash to the new bg, then revert. To prevent
+      // the race we mutate both fields on the local model first, then
+      // call user.save() once at the end with both new values in the
+      // payload.
+      var pending = this.get('pending_display_prefs');
+      var user = this.get('app_state.currentUser');
+      var hc = (id === 'high_contrast');
+      var bg = hc ? 'black' : id;
+      if(user) {
+        user.set('preferences.high_contrast', hc);
+        user.set('preferences.symbol_background', bg);
+      }
+      if(pending) {
+        this.set('pending_display_prefs.high_contrast', hc);
+        this.set('pending_display_prefs.symbol_background', bg);
+      }
+      if(!pending && user && user.save) {
+        // Ember Data doesn't reliably mark `preferences` (DS.attr('raw'))
+        // as dirty when only sub-properties are mutated, so a plain
+        // user.save() can ship the OLD preferences blob and the server
+        // echo back overwrites our local change. The center's
+        // save_display_preferences uses this same trick on line 3732.
+        user.set('preferences.device.updated', true);
+        user.save();
       }
       this.set('display_prefs_symbol_background_dropdown_open', false);
+      // Apply the Fitzgerald-soft / -faded class at <html> so :root has
+      // the override. Necessary for any code path that reads colors via
+      // getComputedStyle (the JS palette, button auto-coloring) to see
+      // the muted values rather than the base palette.
+      if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+        window.LingoLinq.set_fitzgerald_scope(id);
+      }
+      // For Colored / Colored Soft toggles, swap any button whose stored
+      // bg matches a known Fitzgerald hex (base ↔ soft via the hardcoded
+      // _FITZGERALD_BASE_TO_SOFT lookup). Manually painted buttons with
+      // any other hex are left untouched. The swap mutates the wrapper,
+      // the raw board.buttons (so it persists on save), and the rendered
+      // DOM element directly (so the visual update is instant).
+      if(id === 'clear' || id === 'clear_soft') {
+        this._refresh_auto_button_colors(id === 'clear_soft');
+      }
+    },
+
+    toggle_display_voice_height_dropdown: function() {
+      this.toggleProperty('display_prefs_voice_height_dropdown_open');
+    },
+    close_display_voice_height_dropdown: function() {
+      this.set('display_prefs_voice_height_dropdown_open', false);
+    },
+    pick_display_voice_height: function(id) {
+      this.send('set_display_pref', 'vocalization_height', id);
+      this.set('display_prefs_voice_height_dropdown_open', false);
     },
 
     toggle_display_settings: function() {
@@ -3058,7 +4488,8 @@ export default Controller.extend(prefClasses, {
         this.set('display_prefs_open', true);
         return;
       }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
+      var pref_user = this._pref_user_for_display();
+      var prefs = (pref_user && pref_user.get('preferences')) || this.get('app_state.currentUser.preferences') || {};
       var device = prefs.device || {};
       // Seed pending + original (deep copy) with current values
       var snapshot = {
@@ -3082,7 +4513,7 @@ export default Controller.extend(prefClasses, {
 
     close_display_preferences: function() {
       // Restore original values to the live user model so any unsaved changes revert
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var orig = this.get('original_display_prefs');
       var paths = this._display_prefs_paths;
       if(user && orig) {
@@ -3098,11 +4529,17 @@ export default Controller.extend(prefClasses, {
 
     set_display_pref: function(key, value) {
       var pending = this.get('pending_display_prefs');
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
-      // Apply live to user preferences for instant preview on the board.
+      // Apply live to communicator prefs (referenced_user) for symbol rendering keys.
       if(user && path) {
         user.set(path, value);
+      }
+      // Device/layout prefs still target currentUser; mirror to currentUser when distinct
+      // so supervisor session state stays consistent for non-symbol settings.
+      var currentUser = this.get('app_state.currentUser');
+      if(currentUser && user && currentUser !== user && this._display_pref_render_keys.indexOf(key) < 0 && path) {
+        currentUser.set(path, value);
       }
       if(pending) {
         // More Settings panel is open: stash in pending so the panel's
@@ -3128,7 +4565,22 @@ export default Controller.extend(prefClasses, {
       if(!pending && user && user.save) {
         // Toolbar use (no pending session): persist immediately, like
         // set_folder_style. No Save button is in scope here.
+        // Ember Data doesn't reliably mark `preferences` (DS.attr('raw'))
+        // as dirty when only sub-properties are mutated, so a plain
+        // user.save() can ship the OLD preferences blob and the server
+        // echo overwrites our local change. The center's
+        // save_display_preferences uses this same trick on line 3732 —
+        // setting any sub-property of `preferences.device` forces the
+        // raw attribute's dirty bit on so the new full blob is sent.
+        user.set('preferences.device.updated', true);
         user.save();
+      }
+      if(this._display_pref_render_keys.indexOf(key) >= 0 && this._last_raw) {
+        var rebuild_token = this._last_raw.key || this._last_raw.id;
+        if(rebuild_token) {
+          boardDetailCache.clear_ordered_buttons(rebuild_token);
+        }
+        this._build_from_raw(this._last_raw);
       }
     },
 
@@ -3138,12 +4590,13 @@ export default Controller.extend(prefClasses, {
       var next = !pending[key];
       this.set('pending_display_prefs.' + key, next);
       // Apply live to user preferences for instant preview
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
       if(user && path) {
         user.set(path, next);
       }
     },
+
 
     // Speak Bar appearance toggle. Lives on the main edit toolbar (moved
     // out of More Settings), but can also be reached if More Settings is
@@ -3225,7 +4678,7 @@ export default Controller.extend(prefClasses, {
     },
 
     save_display_preferences: function() {
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var pending = this.get('pending_display_prefs');
       var orig = this.get('original_display_prefs');
       if(!user || !pending || !orig) { return; }
@@ -3419,7 +4872,7 @@ export default Controller.extend(prefClasses, {
 
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(button, 'load_board');
-      if(load_board) {
+      if(load_board && !_get(button, 'link_disabled')) {
         // Board lock: prevent navigation when sticky_board is enabled
         if(_this.get('stashes').get('sticky_board')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
@@ -3427,10 +4880,12 @@ export default Controller.extend(prefClasses, {
         }
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
-          var key_parts = board_key.split('/');
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
             _this._push_nav_history();
-            return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            return _this._preferred_board_detail_key(board_key).then(function(preferred_key) {
+              var key_parts = preferred_key.split('/');
+              return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            });
           }, {timeout: 5000});
           return;
         }
@@ -3442,10 +4897,12 @@ export default Controller.extend(prefClasses, {
           // taps don't queue duplicate transitions.
           var cached_raw = boardDetailCache.get(lookup);
           if(cached_raw && cached_raw.key && cached_raw.key.indexOf('/') !== -1) {
-            var cached_parts = cached_raw.key.split('/');
             actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + cached_raw.key, function() {
               _this._push_nav_history();
-              return _this.get('router').transitionTo('user.board-detail', cached_parts[0], cached_parts.slice(1).join('/'));
+              return _this._preferred_board_detail_key(cached_raw.key).then(function(preferred_key) {
+                var cached_parts = preferred_key.split('/');
+                return _this.get('router').transitionTo('user.board-detail', cached_parts[0], cached_parts.slice(1).join('/'));
+              });
             }, {timeout: 5000});
             return;
           }
@@ -3455,10 +4912,13 @@ export default Controller.extend(prefClasses, {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + lookup, function() {
             _this._push_nav_history();
             return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
-              if(data && data.board && data.board.key) {
-                boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-                var parts = data.board.key.split('/');
-                return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+              var merged = boardDetailCache.normalize_board_payload(data);
+              if(merged && merged.key) {
+                boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+                return _this._preferred_board_detail_key(merged.key).then(function(preferred_key) {
+                  var parts = preferred_key.split('/');
+                  return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+                });
               }
             });
           }, {timeout: 5000});
@@ -3605,6 +5065,7 @@ export default Controller.extend(prefClasses, {
       // subsequent activation that grows it would re-sync the stale
       // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
+      this._sentence_image_lookups = {};
       try { utterance.clear(); } catch(e) { }
     },
 
@@ -3626,6 +5087,20 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       if(!word) { return; }
       var text = word.word;
+      var button = editManager.fake_button();
+      button.set('label', text);
+      button.set('vocalization', ':complete');
+      var list = this.get('app_state.button_list') || [];
+      if(!emberGet(list[0] || {}, 'in_progress')) {
+        button.set('vocalization', ':predict');
+      }
+      button.set('completion', text);
+      var word_image = wordSuggestionsModule.resolve_word_image(word);
+      if(word_image) {
+        button.set('image', LingoLinq.store.createRecord('image'));
+        button.set('image.url', word_image);
+      }
+      button.set('empty', false);
 
       try {
         var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
@@ -3634,20 +5109,11 @@ export default Controller.extend(prefClasses, {
         }
       } catch(e) { }
 
-      // Add to the global utterance so sentence bar + logging stay in sync
-      utterance.add_button({
-        label: text,
-        vocalization: text,
-        image: word.image || word.original_image,
-        button_id: null,
-        source: 'prediction',
-        board: { id: 'word_prediction', key: 'core/word_prediction' },
-        type: 'speak'
-      });
-      speecher.speak_text(text);
-
-      // The updateSuggestions observer will fire when button_list
-      // updates from add_button above, handling the next prediction.
+      var board = this.get('model');
+      var app = this.get('app_state.controller');
+      if(app && app.activateButton && board) {
+        app.activateButton(button, { board: board, trigger_source: 'completion' });
+      }
     },
 
     speak_sentence: function() {
@@ -3667,6 +5133,89 @@ export default Controller.extend(prefClasses, {
       this.set('active_category', category_id);
       this.set('show_categories', false);
       this._apply_category_filter(category_id);
+    },
+
+    /* Edit-panel: toggle the "Filter by Category" expander. */
+    toggle_panel_filter: function() {
+      this.toggleProperty('panel_filter_open');
+    },
+
+    /* Edit-panel: pick a category from the expanded list. Mirrors
+       set_category but keeps the panel expander open so the user
+       can switch filters without re-clicking the header — and
+       leaves the toolbar's show_categories alone. */
+    set_panel_category: function(category_id) {
+      this.set('active_category', category_id);
+      this._apply_category_filter(category_id);
+    },
+
+    /* Right panel: collapse/expand the entire Live Preview Edit
+       container (independent of any open accordion section). */
+    toggle_right_panel: function() {
+      /* Manual user toggle resets the "opened from rail"
+         provenance — Back should behave normally on the next
+         section open since the user has explicitly taken control
+         of the panel state. */
+      this.set('_section_opened_from_rail', false);
+      this.toggleProperty('right_panel_collapsed');
+    },
+
+    // Back button on the section header. Two flows:
+    //   1. User was in expanded panel → opened a section → clicked
+    //      Back. Original behavior: clear the section, panel stays
+    //      expanded showing the full section list.
+    //   2. User was in COLLAPSED rail → clicked a section icon
+    //      (panel expanded INTO that section) → clicked Back.
+    //      New behavior: collapse the panel back to the icon rail
+    //      where they came from — they didn't navigate through
+    //      the expanded section list, so returning to it would
+    //      not match their mental "back" destination.
+    // The `_section_opened_from_rail` flag tracks which flow the
+    // current section open belongs to.
+    expand_right_panel: function() {
+      if(this.get('_section_opened_from_rail')) {
+        this.set('right_panel_open_section', null);
+        this.set('right_panel_collapsed', true);
+        this.set('_section_opened_from_rail', false);
+        return;
+      }
+      this.set('right_panel_collapsed', false);
+      this.set('right_panel_open_section', null);
+    },
+
+    toggle_left_panel: function() {
+      this.toggleProperty('left_panel_collapsed');
+    },
+
+    // Clicking anywhere on the collapsed rail re-expands it. Only ever
+    // expands (never collapses) so it's a safe no-op when the panel is
+    // already open and inner clicks bubble up here.
+    expand_left_panel: function() {
+      if(this.get('left_panel_collapsed')) {
+        this.set('left_panel_collapsed', false);
+      }
+    },
+
+    /* Right panel: open one accordion section at a time (clicking
+       the same section closes it). Keeps the panel uncluttered.
+       If the panel is collapsed (icon-rail mode), clicking a
+       section icon re-expands the panel AND opens that section
+       — VS Code / Notion-style "click rail icon to jump back in".
+       The `_section_opened_from_rail` flag is set in that flow so
+       the Back button knows to collapse the panel back to the rail
+       (rather than show the full expanded section list the user
+       never navigated through). Opening a section from the
+       already-expanded panel clears the flag. */
+    toggle_right_panel_section: function(section_id) {
+      if(this.get('right_panel_collapsed')) {
+        this.set('right_panel_collapsed', false);
+        this.set('right_panel_open_section', section_id);
+        this.set('_section_opened_from_rail', true);
+        return;
+      }
+      var current = this.get('right_panel_open_section');
+      this.set('right_panel_open_section', current === section_id ? null : section_id);
+      this.set('_section_opened_from_rail', false);
     },
 
     nav_select: function(item_id) {
@@ -3840,11 +5389,43 @@ export default Controller.extend(prefClasses, {
       editManager.redo();
     },
 
-    save_board: function() {
+    save_board: function(stay_in_edit) {
+      // The header's Save button passes true so we stay in edit mode
+      // after the save (Traci's spec: Save = persist current work,
+      // keep editing). The back_to_boards flow calls save_board with
+      // no arg → exits to view mode as before. Flag is read inside
+      // saveButtonChanges' finish() helper.
+      if(stay_in_edit) {
+        this.set('_save_keep_editing', true);
+      }
       if(this.get('display_prefs_open')) {
         this.send('save_display_preferences');
       }
       this.saveButtonChanges();
+    },
+
+    /**
+     * Triggered by the edit-panel's "Back to Boards" button. Always
+     * presents a Save / Discard modal so the user is never able to
+     * leave with unsaved work by accident. Both branches end on
+     * the speak-mode board-detail page (the non-edit view of the
+     * same board).
+     */
+    back_to_boards: function() {
+      var _this = this;
+      modal.open('confirm-leave-edit', {}).then(function(result) {
+        if(result === 'save') {
+          // save_board's existing finish() path already transitions
+          // to user.board-detail.index after a successful save —
+          // exactly where we want to land, so no flag/redirect
+          // override is needed.
+          _this.send('save_board');
+        }
+        // Discard was removed from this modal — discarding lives in ONE
+        // place only, the "Discard Edits" tile (cancel_edit ->
+        // confirm-discard-changes). result undefined → modal closed via
+        // X (keep editing); stay put.
+      });
     },
 
     cancel_edit: function() {
@@ -3872,9 +5453,13 @@ export default Controller.extend(prefClasses, {
           _this.set('board_loading', true);
           var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
           persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-            if(data && data.board) {
-              _this.set('_raw_board_data', data.board);
-              _this._build_from_raw(data.board);
+            var merged = boardDetailCache.normalize_board_payload(data);
+            if(merged) {
+              if(merged.images && merged.images.length) {
+                _this._board_detail_images = merged.images;
+              }
+              _this.set('_raw_board_data', merged);
+              _this._build_from_raw(merged);
             }
             _this.set('board_loading', false);
           }, function() {
@@ -3936,6 +5521,35 @@ export default Controller.extend(prefClasses, {
       this.set('show_paint_color_picker', false);
       if(editManager.controller === this) {
         editManager.clear_paint_mode();
+      }
+    },
+
+    // Bulk reveal: walks every cell in ordered_buttons and forces
+    // hidden=false on each. Leaves level_modifications intact — if a
+    // button has a pre.hidden=true rule, it'll re-hide at the matching
+    // preview level, but the in-edit-mode rendering shows it visible.
+    reveal_all_hidden_buttons: function() {
+      // Reveal All is a one-shot batch action, not a paint stroke —
+      // disarm any active Hide/Reveal paint mode so those toggle
+      // buttons drop their active state (paint_mode_is_hide /
+      // paint_mode_is_show both read paint_mode).
+      this.send('clear_paint_mode');
+      var count = 0;
+      (this.get('ordered_buttons') || []).forEach(function(row) {
+        (row || []).forEach(function(btn) {
+          if(btn && btn.get && btn.get('hidden')) {
+            btn.set('hidden', false);
+            count++;
+          }
+        });
+      });
+      // Bump the color key so the grid re-renders the hidden→visible
+      // transitions in a single pass.
+      editManager.update_color_key_id();
+      if(count > 0) {
+        modal.notice(i18n.t('reveal_all_done', "Revealed %{count} hidden buttons.", { count: count }));
+      } else {
+        modal.notice(i18n.t('reveal_all_none', "No hidden buttons to reveal."));
       }
     },
 
@@ -4081,7 +5695,6 @@ export default Controller.extend(prefClasses, {
               if(item._keydownBound) { return; }
               item._keydownBound = true;
               item.addEventListener('keydown', function(e) {
-                console.log('[DROPDOWN-KEY] native keydown fired, key=', e.key);
                 var dd = document.getElementById('button-edit-dropdown');
                 if(!dd) { return; }
                 var btnId = dd.getAttribute('data-btn-id');
@@ -4216,6 +5829,36 @@ export default Controller.extend(prefClasses, {
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
     },
 
+    // Language → opens the Translate Boards modal. Called from the
+    // speak-mode options menu's Session submenu. Does NOT chain
+    // through board-details on close (unlike the
+    // board-details-page version), so when the user dismisses the
+    // translation modal they're back on the speak-mode board, not
+    // bounced into a board-details modal first.
+    translate_board: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('translation-select', { board: board, button_set: board.get('button_set') });
+    },
+
+    // Opens the Switch Languages modal so the user can change the
+    // active text + speech language for the current board (only
+    // surfaces languages the board has translations for). Mirrors
+    // the application controller's existing `switch_languages`
+    // action so users can reach the same modal from the speak-mode
+    // options menu without leaving board-detail.
+    switch_languages: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('switch-languages', { board: board }).then(function(res) {
+        if(res && res.switched) {
+          editManager.process_for_displaying();
+        }
+      });
+    },
+
     edit_board_details: function() {
       var board = this.get('model');
       if(!board) { return; }
@@ -4255,6 +5898,12 @@ export default Controller.extend(prefClasses, {
 
       modal.open('confirm-recolor-board', {}).then(function(result) {
         if(result === 'recolor') {
+          // Collapse the right panel's Recolor Tool accordion now
+          // that the user has confirmed — the action is committing,
+          // there's no reason to keep the section expanded.
+          if(_this.get('right_panel_open_section') === 'recolor') {
+            _this.set('right_panel_open_section', null);
+          }
           var ob = _this.get('ordered_buttons') || [];
           var colors = window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
           var savedColors = {};
@@ -4266,7 +5915,7 @@ export default Controller.extend(prefClasses, {
               var btn = row[ci];
               if(!btn) { continue; }
               var is_empty = btn.get ? btn.get('empty') : btn.empty;
-              var is_folder = btn.get ? btn.get('load_board') : btn.load_board;
+              var is_folder = (btn.get ? btn.get('load_board') : btn.load_board) && !(btn.get ? btn.get('link_disabled') : btn.link_disabled);
               var label = btn.get ? btn.get('label') : btn.label;
               if(is_empty || is_folder || !label) { continue; }
               var btn_id = btn.get ? btn.get('id') : btn.id;
@@ -4315,7 +5964,7 @@ export default Controller.extend(prefClasses, {
                   var b = row2[ci2];
                   if(!b) { continue; }
                   var bEmpty = (b.get && b.get('empty')) || b.empty;
-                  var bFolder = (b.get && b.get('load_board')) || b.load_board;
+                  var bFolder = ((b.get && b.get('load_board')) || b.load_board) && !((b.get && b.get('link_disabled')) || b.link_disabled);
                   var bBg = (b.get && b.get('background_color')) || b.background_color;
                   if(bEmpty || bFolder || !bBg) { continue; }
                   var bId = (b.get && b.get('id')) || b.id;
@@ -4351,6 +6000,60 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.folder_colored_face', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Shrink labels to fit" preference — when true,
+    // button labels shrink down to a 7px floor AND wrap to up to two
+    // lines at word boundaries inside the button. When false
+    // (default — modern AAC industry standard), labels keep the
+    // user's chosen font size and wrap to up to 3 lines at word
+    // boundaries with no shrinking. Persists to
+    // user.preferences.shrink_labels_to_fit.
+    toggle_shrink_labels_to_fit: function() {
+      var _this = this;
+      var next = !_this.get('shrink_labels_to_fit');
+      _this.set('shrink_labels_to_fit', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.shrink_labels_to_fit', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Soft borders" preference — when true, the grid
+    // gets the .md-board-detail-grid--soft-borders class which
+    // lightens the per-button outer shadow, adds a subtle inset
+    // highlight, and mutes the colored outline edge so it reads
+    // more tonally without losing the category color cue. Layers ON
+    // TOP of the user's existing border thickness pref — does NOT
+    // change border-width. Persisted on user.preferences.soft_borders.
+    toggle_soft_borders: function() {
+      var _this = this;
+      var next = !_this.get('soft_borders');
+      _this.set('soft_borders', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.soft_borders', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Hide speak bar" preference — when true the speak
+    // row's home button, sentence-bar text/chips, mic, backspace, and
+    // trash buttons are visually hidden via the
+    // .md-board-detail-sentence-row--hide-bar class on the row;
+    // only the options-chevron stays visible so the user can still
+    // open the speak menu to flip the toggle back. Persisted on
+    // user.preferences.hide_speak_bar.
+    toggle_hide_speak_bar: function() {
+      var _this = this;
+      var next = !_this.get('hide_speak_bar');
+      _this.set('hide_speak_bar', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.hide_speak_bar', next);
         user.save();
       }
     },
@@ -4406,7 +6109,7 @@ export default Controller.extend(prefClasses, {
             var btn = row[ci];
             if(!btn) { continue; }
             var is_empty = (btn.get && btn.get('empty')) || btn.empty;
-            var is_folder = (btn.get && btn.get('load_board')) || btn.load_board;
+            var is_folder = ((btn.get && btn.get('load_board')) || btn.load_board) && !((btn.get && btn.get('link_disabled')) || btn.link_disabled);
             var bg = (btn.get && btn.get('background_color')) || btn.background_color;
             if(is_empty || is_folder || !bg) { continue; }
             var btn_id = (btn.get && btn.get('id')) || btn.id;
@@ -4515,10 +6218,20 @@ export default Controller.extend(prefClasses, {
     // ── Level Preview ──
 
     toggle_preview_levels: function() {
-      this.toggleProperty('preview_levels_mode');
-      if(!this.get('preview_levels_mode')) {
-        this.set('preview_level', null);
+      var on = this.get('preview_levels_mode');
+      if(on) {
+        // Turning OFF: editManager.clear_preview_levels resets every
+        // button to level 10 (full vocab) and clears preview_level /
+        // preview_levels_mode on the controller.
+        editManager.clear_preview_levels();
+        return;
       }
+      // Turning ON: always start at Level 1 (the most basic / most
+      // restricted view) so the user sees the "starting state" first
+      // and can step up from there.
+      editManager.preview_levels();
+      this.set('preview_level', 1);
+      editManager.apply_preview_level(1);
     },
 
     shift_level: function(direction) {
@@ -4532,11 +6245,169 @@ export default Controller.extend(prefClasses, {
       } else if(direction === 'down') {
         idx = Math.max(idx - 1, 0);
       } else if(direction === 'done') {
-        this.set('preview_level', null);
-        this.set('preview_levels_mode', false);
+        // Exit preview entirely — same path as toggle off.
+        editManager.clear_preview_levels();
         return;
       }
-      this.set('preview_level', levels[idx]);
+      var nextLevel = levels[idx];
+      this.set('preview_level', nextLevel);
+      // Apply the new level to every button on the grid so the
+      // preview actually reflects the change.
+      editManager.apply_preview_level(nextLevel);
+    },
+
+    // ── Button Levels paint actions ──
+    // These delegate to the same editManager.set_paint_mode call the legacy
+    // paint-level modal uses (components/paint-level.js), so the underlying
+    // paint engine + dirty/save tracking is unchanged.
+    set_level_paint_action: function(action) {
+      // 'clear' is an instant batch action, not a paint mode. One
+      // click wipes every button's level_modifications across the
+      // whole board, which makes the badges disappear from the
+      // preview, hides the OR + Remove sub-card via the
+      // button_level_count gate, and toasts confirmation.
+      if(action === 'clear') {
+        var rows = this.get('ordered_buttons') || [];
+        var any_cleared = false;
+        rows.forEach(function(row) {
+          (row || []).forEach(function(btn) {
+            if(!btn) { return; }
+            var mods = btn.get && btn.get('level_modifications');
+            if(mods && Object.keys(mods).length > 0) {
+              // Reset hidden=false for any button that had a level
+              // rule. The rule's purpose was visibility control, so
+              // removing the rule should restore visibility regardless
+              // of how the rule encoded its hide-state. Also overwrite
+              // the preview-mode stash so the subsequent
+              // clear_preview_levels call doesn't restore a stale value.
+              emberSet(btn, 'hidden', false);
+              btn._preview_original_hidden = false;
+              emberSet(btn, 'level_modifications', null);
+              any_cleared = true;
+            }
+          });
+        });
+        // Exit preview mode and disarm any paint action. With no rules
+        // left, the preview filter has nothing to filter — leaving it
+        // engaged would keep formerly-tagged buttons grayed by stale
+        // preview-mutation state. clear_preview_levels restores each
+        // button's pre-preview `hidden` via the stash so user-hidden
+        // buttons return to their normal edit-mode appearance and
+        // formerly-tagged buttons surface in full CSS.
+        editManager.clear_preview_levels();
+        editManager.clear_paint_mode();
+        this.set('level_paint_action', null);
+        this.set('level_paint_level', null);
+        // Toggle the levels_change signal so button_level_count
+        // recomputes synchronously and the section gate updates.
+        this.set('levels_change', !this.get('levels_change'));
+        if(any_cleared) {
+          modal.notice(i18n.t('all_level_rules_removed', "All level rules have been removed from this board."));
+        }
+        return;
+      }
+
+      var current = this.get('level_paint_action');
+      // Toggle off if clicking the same add-action again — clears
+      // paint mode AND exits preview, since preview is now implicit
+      // while a paint action is armed.
+      if(current === action) {
+        this.set('level_paint_action', null);
+        this.set('level_paint_level', null);
+        editManager.clear_paint_mode();
+        editManager.clear_preview_levels();
+        return;
+      }
+      this.set('level_paint_action', action);
+      // Switching to an add-action: engage preview so the user sees
+      // the level-filtered view as they paint. Preview level matches
+      // the armed paint level (defaults to Level 1 on first activation).
+      var lvl = this.get('level_paint_level');
+      if(!lvl) {
+        this.set('level_paint_level', 1);
+        lvl = 1;
+      }
+      var n = parseInt(lvl, 10);
+      editManager.set_paint_mode('level', action, n);
+      editManager.preview_levels();
+      this.set('preview_level', n);
+      editManager.apply_preview_level(n);
+    },
+    set_level_paint_level: function(level) {
+      var current = this.get('level_paint_level');
+      // Click same level again → unarm (paint off + exit preview).
+      if(current === level) {
+        this.set('level_paint_level', null);
+        editManager.clear_paint_mode();
+        editManager.clear_preview_levels();
+        return;
+      }
+      this.set('level_paint_level', level);
+      var action = this.get('level_paint_action');
+      if(action) {
+        var n = parseInt(level, 10);
+        editManager.set_paint_mode('level', action, n);
+        // Update preview to match the newly-picked level so the user
+        // sees the board AS it would appear at this level.
+        editManager.preview_levels();
+        this.set('preview_level', n);
+        editManager.apply_preview_level(n);
+      }
+    },
+    clear_level_paint: function() {
+      this.set('level_paint_action', null);
+      this.set('level_paint_level', null);
+      editManager.clear_paint_mode();
+      editManager.clear_preview_levels();
+    },
+
+    set_speak_level: function(level) {
+      // Available to anyone with the actions menu open (no edit
+      // permission required) — changing the viewable level is a
+      // caregiving concern, not an editing one. Writes to
+      // stashes.board_level so board/index.js#current_level picks
+      // it up on its next render.
+      var n = parseInt(level, 10);
+      if(!n || n < 1 || n > 10) { return; }
+      this.get('stashes').persist('board_level', n);
+      // Notify the board controller (if any) so its current_level
+      // computed re-evaluates and re-renders the grid.
+      var ctrl = this.get('app_state.controller');
+      if(ctrl && ctrl.notifyPropertyChange) {
+        ctrl.notifyPropertyChange('current_level');
+      }
+      // Refresh board-detail's own grid. The cached ordered_buttons
+      // were built against the previous level — invalidate by board
+      // key/id, then rebuild from the last raw response so
+      // _make_btn picks up the new level via cache_ctx + apply.
+      var model = this.get('model');
+      var key = model && model.get && model.get('key');
+      var id = model && model.get && (model.get('id') || model.get('global_id'));
+      if(key) { boardDetailCache.invalidate(key); }
+      if(id) { boardDetailCache.invalidate(id); }
+      // Also notify current_speak_level so the pill UI re-highlights.
+      this.notifyPropertyChange('current_speak_level');
+      this.processButtons();
+    },
+
+    toggle_levels_submenu: function() {
+      // Nested expand-state inside the Session submenu so the level
+      // pill grid stays out of the way until the user explicitly
+      // wants it.
+      var was_open = this.get('levels_submenu_open');
+      this.toggleProperty('levels_submenu_open');
+      // On expand, RE-APPLY the level the supervisor last selected
+      // (persisted in stashes.board_level) so the board is actually
+      // filtered to it and the matching pill highlights. If no level was
+      // ever selected, default to 10 (full vocab). Previously this
+      // hard-coded level 1, which overwrote and re-persisted the saved
+      // level on every open — so the supervisor's choice never survived
+      // re-opening the menu or a new session.
+      if(!was_open) {
+        var saved = parseInt(this.get('stashes.board_level'), 10);
+        var lvl = (saved >= 1 && saved <= 10) ? saved : 10;
+        this.send('set_speak_level', lvl);
+      }
     },
 
     // ── Misc actions dispatched by raw_events or other systems ──

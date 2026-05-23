@@ -1,0 +1,227 @@
+{{!-- Saved tiered-eval summary, rendered on the user.log detail
+     page when log.tiered_eval_type is true. Mirrors the live flow's
+     eval-quick-report card so SLPs see the same view in the saved
+     log as they did at the end of the running session. --}}
+<header class="evq-saved__header">
+  <span class="evq-saved__eyebrow">{{this.modeLabel}}</span>
+  <h2 class="evq-saved__title">{{t "Recommended starting point" key="saved_eval_title"}}</h2>
+  <div class="evq-saved__meta">
+    <span class="evq-saved__chip">{{this.durationLabel}}</span>
+    <span class="evq-saved__chip evq-saved__chip--confidence">
+      {{t "%{pct}% confidence" key="saved_eval_confidence" pct=this.confidencePct}}
+    </span>
+    {{#if this.payload.item_bank_profile}}
+      <span class="evq-saved__chip">{{this.payload.item_bank_profile}}</span>
+    {{/if}}
+  </div>
+</header>
+
+<div class="evq-saved__grid">
+  <article class="evq-saved__card">
+    <span class="evq-saved__card-label">{{t "Access method" key="saved_eval_access"}}</span>
+    <strong class="evq-saved__card-value">{{this.recommendation.access_method}}</strong>
+    {{#if this.recommendation.access_secondary}}
+      <small class="evq-saved__card-hint">
+        {{t "Secondary: %{m}" key="saved_eval_access_secondary" m=this.recommendation.access_secondary}}
+      </small>
+    {{/if}}
+  </article>
+  <article class="evq-saved__card">
+    <span class="evq-saved__card-label">{{t "Grid" key="saved_eval_grid"}}</span>
+    <strong class="evq-saved__card-value">{{this.gridLabel}}</strong>
+  </article>
+  <article class="evq-saved__card">
+    <span class="evq-saved__card-label">{{t "Symbol library" key="saved_eval_library"}}</span>
+    <strong class="evq-saved__card-value">
+      {{#if this.recommendation.library}}
+        {{this.recommendation.library}}
+      {{else}}
+        {{t "Not captured" key="saved_eval_library_unknown"}}
+      {{/if}}
+    </strong>
+  </article>
+  <article class="evq-saved__card">
+    <span class="evq-saved__card-label">{{t "Communicator stage" key="saved_eval_stage"}}</span>
+    <strong class="evq-saved__card-value">{{this.recommendation.communicator_stage}}</strong>
+    <small class="evq-saved__card-hint">{{t "Communication Matrix scale (1–7)" key="saved_eval_stage_hint"}}</small>
+  </article>
+  <article class="evq-saved__card evq-saved__card--wide">
+    <span class="evq-saved__card-label">{{t "Vocabulary" key="saved_eval_vocab"}}</span>
+    <strong class="evq-saved__card-value">{{this.recommendation.vocab_recommendation.band}}</strong>
+    {{#if this.fringeCategories}}
+      <ul class="evq-saved__chips">
+        {{#each this.fringeCategories as |cat|}}
+          <li class="evq-saved__chip evq-saved__chip--soft">{{cat}}</li>
+        {{/each}}
+      </ul>
+    {{/if}}
+  </article>
+</div>
+
+{{#if this.isTargeted}}
+  <section class="evq-saved__targeted">
+    <header class="evq-saved__targeted-head">
+      <span class="evq-saved__targeted-eyebrow">{{t "Feature-match detail" key="saved_eval_targeted_eyebrow"}}</span>
+      <h3 class="evq-saved__targeted-title">{{t "Targeted subtests" key="saved_eval_targeted_title"}}</h3>
+    </header>
+    <div class="evq-saved__targeted-grid">
+      {{#if this.adaptiveGridReport}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Adaptive grid sweep" key="saved_eval_targeted_grid"}}</span>
+          <strong class="evq-saved__targeted-value">
+            {{this.adaptiveGridReport.rows}} × {{this.adaptiveGridReport.cols}}
+          </strong>
+          <small class="evq-saved__targeted-hint">
+            {{t "Converged in %{n} attempts" key="saved_eval_targeted_grid_hint" n=this.adaptiveGridReport.attempts}}
+          </small>
+        </article>
+      {{/if}}
+      {{#if this.library3wayReport}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Library bake-off" key="saved_eval_targeted_library"}}</span>
+          <strong class="evq-saved__targeted-value">{{this.library3wayReport.winner}}</strong>
+          <ul class="evq-saved__targeted-picks">
+            {{#each this.libraryPicksList as |row|}}
+              <li class="evq-saved__targeted-pick">
+                <span>{{row.id}}</span>
+                <span class="evq-saved__targeted-pick-count">{{row.count}}</span>
+              </li>
+            {{/each}}
+          </ul>
+        </article>
+      {{/if}}
+      {{#if this.accessCoTrialReport}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Access co-trial" key="saved_eval_targeted_access"}}</span>
+          <strong class="evq-saved__targeted-value">{{this.accessCoTrialReport.method}}</strong>
+          <ul class="evq-saved__targeted-picks">
+            {{#each this.accessSummaryList as |row|}}
+              <li class="evq-saved__targeted-pick">
+                <span>{{row.method}}</span>
+                <span class="evq-saved__targeted-pick-count">
+                  {{#if row.accuracy}}
+                    {{t "%{p}%" key="saved_eval_pct" p=row.accuracy}}
+                  {{else}}
+                    —
+                  {{/if}}
+                </span>
+              </li>
+            {{/each}}
+          </ul>
+        </article>
+      {{/if}}
+      {{#if this.motorMapReport}}
+        <article class="evq-saved__targeted-card evq-saved__targeted-card--motor-map">
+          <span class="evq-saved__targeted-label">{{t "Motor map" key="saved_eval_motor_map"}}</span>
+          <strong class="evq-saved__targeted-value">
+            {{#if this.motorMapAccuracyPct}}
+              {{t "%{p}%% accurate" key="saved_eval_motor_map_pct" p=this.motorMapAccuracyPct}}
+            {{else}}
+              —
+            {{/if}}
+          </strong>
+          <small class="evq-saved__targeted-hint">
+            {{t "%{h} of %{t} target cells" key="saved_eval_motor_map_hint" h=this.motorMapReport.total_correct t=this.motorMapReport.total_trials}}
+          </small>
+          <div class="evq-saved__motor-map-heatmap">
+            {{stats/eval-hits hits=this.motorMapHits}}
+          </div>
+        </article>
+      {{/if}}
+      {{#if this.syntaxProbeReport}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Syntax probe" key="saved_eval_targeted_syntax"}}</span>
+          <div class="evq-saved__targeted-bars">
+            <div class="evq-saved__targeted-bar">
+              <span>{{t "Receptive" key="saved_eval_syntax_receptive"}}</span>
+              <span class="evq-saved__targeted-bar-value">
+                {{#if this.syntaxReceptivePct}}
+                  {{t "%{p}%" key="saved_eval_pct" p=this.syntaxReceptivePct}}
+                {{else}}
+                  —
+                {{/if}}
+              </span>
+            </div>
+            <div class="evq-saved__targeted-bar">
+              <span>{{t "Expressive" key="saved_eval_syntax_expressive"}}</span>
+              <span class="evq-saved__targeted-bar-value">
+                {{#if this.syntaxExpressivePct}}
+                  {{t "%{p}%" key="saved_eval_pct" p=this.syntaxExpressivePct}}
+                {{else}}
+                  —
+                {{/if}}
+              </span>
+            </div>
+          </div>
+        </article>
+      {{/if}}
+    </div>
+  </section>
+{{/if}}
+
+{{#if this.isComprehensive}}
+  <section class="evq-saved__targeted" aria-labelledby="evq-saved-comprehensive-title">
+    <header class="evq-saved__targeted-head">
+      <span class="evq-saved__targeted-eyebrow">{{t "Comprehensive detail" key="saved_eval_comprehensive_eyebrow"}}</span>
+      <h3 id="evq-saved-comprehensive-title" class="evq-saved__targeted-title">
+        {{t "Dynamic assessment & SETT" key="saved_eval_comprehensive_title"}}
+      </h3>
+    </header>
+    <div class="evq-saved__targeted-grid">
+      {{#if this.daSummary}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Dynamic assessment" key="saved_eval_comprehensive_da"}}</span>
+          <strong class="evq-saved__targeted-value">
+            {{t "%{p}%% independent" key="saved_eval_comprehensive_da_independent" p=this.daSummary.independence_pct}}
+          </strong>
+          <small class="evq-saved__targeted-hint">
+            {{t "Avg prompt level %{a} · %{s}%% supported · %{n}%% not yet" key="saved_eval_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
+          </small>
+        </article>
+      {{/if}}
+      {{#if this.literacySummary}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "Literacy probe" key="saved_eval_comprehensive_literacy"}}</span>
+          <strong class="evq-saved__targeted-value">
+            {{#if this.literacyAccuracyPct}}
+              {{t "%{p}%%" key="saved_eval_pct" p=this.literacyAccuracyPct}}
+            {{else}}
+              —
+            {{/if}}
+          </strong>
+          <small class="evq-saved__targeted-hint">
+            {{t "%{h} of %{t} items" key="saved_eval_comprehensive_literacy_hint" h=this.literacySummary.hits t=this.literacySummary.trials}}
+          </small>
+        </article>
+      {{/if}}
+      {{#if this.comprehensiveSett}}
+        <article class="evq-saved__targeted-card">
+          <span class="evq-saved__targeted-label">{{t "SETT framework" key="saved_eval_comprehensive_sett"}}</span>
+          {{#if this.comprehensiveSett.student}}
+            <small class="evq-saved__targeted-hint"><strong>{{t "Student:" key="saved_eval_sett_student"}}</strong> {{this.comprehensiveSett.student}}</small>
+          {{/if}}
+          {{#if this.comprehensiveSett.environment}}
+            <small class="evq-saved__targeted-hint"><strong>{{t "Environment:" key="saved_eval_sett_environment"}}</strong> {{this.comprehensiveSett.environment}}</small>
+          {{/if}}
+          {{#if this.comprehensiveSett.task}}
+            <small class="evq-saved__targeted-hint"><strong>{{t "Task:" key="saved_eval_sett_task"}}</strong> {{this.comprehensiveSett.task}}</small>
+          {{/if}}
+        </article>
+      {{/if}}
+    </div>
+  </section>
+{{/if}}
+
+{{#if this.aiNarrative}}
+  <section class="evq-saved__narrative">
+    <span class="evq-saved__notes-label">{{t "AI-drafted narrative" key="saved_eval_narrative_label"}}</span>
+    <p class="evq-saved__notes-body">{{this.aiNarrative}}</p>
+  </section>
+{{/if}}
+
+{{#if this.slpNotes}}
+  <section class="evq-saved__notes">
+    <span class="evq-saved__notes-label">{{t "SLP notes" key="saved_eval_slp_notes_label"}}</span>
+    <p class="evq-saved__notes-body">{{this.slpNotes}}</p>
+  </section>
+{{/if}}

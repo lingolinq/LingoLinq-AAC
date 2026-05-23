@@ -8,12 +8,51 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
+import 'frontend/tests/helpers/ember_helper';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import EmberObject from '@ember/object';
+import RSVP from 'rsvp';
 
 describe('UserIndexController', 'controller:user-index', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+  });
+
   it("should exist", function() {
     expect(this).not.toEqual(null);
     expect(this).not.toEqual(window);
+  });
+
+  it('loads global public boards with the same query as /search/en/_', function() {
+    var controller = testOwner.lookup('controller:user/index');
+    var queryArgs = null;
+
+    controller.set('store', {
+      query: function(type, args) {
+        queryArgs = args;
+        expect(type).toEqual('board');
+        return RSVP.resolve([]);
+      }
+    });
+    controller.set('persistence', EmberObject.create({
+      online: true,
+      meta: function() { return null; }
+    }));
+    controller.set('model', EmberObject.create({
+      id: 'larry',
+      permissions: { edit: false, model: true },
+      preferences: { home_board: { key: 'larry/home' } }
+    }));
+    controller.set('selected', 'public');
+
+    controller.update_selected();
+
+    waitsFor(function() { return queryArgs; });
+    runs(function() {
+      expect(queryArgs).toEqual({q: '', locale: 'en', sort: 'popularity'});
+    });
   });
 });
 // import Ember from 'ember';

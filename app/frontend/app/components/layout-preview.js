@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import $ from 'jquery';
 import { observer } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { vocalizationHeightPx, buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../utils/display_prefs';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -74,33 +75,23 @@ export default Component.extend({
       }
       var x_ratio = canvas.height / screen_height;
       var y_ratio = canvas.width / screen_width;
-      var voc_height = 70 * y_ratio;
-      if(prefs.device.vocalization_height == 'tiny') { voc_height = 50 * y_ratio; }
-      else if(prefs.device.vocalization_height == 'medium') { voc_height = 100 * y_ratio; }
-      else if(prefs.device.vocalization_height == 'large') { voc_height = 150 * y_ratio; }
-      else if(prefs.device.vocalization_height == 'huge') { voc_height = 200 * y_ratio; }
+      // All three preference mappings now read from the canonical
+      // utils/display_prefs.js. Previously this file had its own
+      // values that drifted from the live board renderings — e.g.
+      // button_spacing.medium was 10 here but 8 on board-detail, and
+      // 'small' had no explicit case at all (fell through to a 5px
+      // default). Consolidated so the preferences-page canvas
+      // matches the actual rendered grid exactly.
+      var voc_height = vocalizationHeightPx(prefs.device.vocalization_height) * y_ratio;
       var pad = 5;
-      var spacing = 5;
-      if(prefs.device.button_spacing == 'minimal') { spacing = 1; }
-      else if(prefs.device.button_spacing == 'extra-small') { spacing = 2; }
-      else if(prefs.device.button_spacing == 'medium') { spacing = 10; }
-      else if(prefs.device.button_spacing == 'large') { spacing = 20; }
-      else if(prefs.device.button_spacing == 'huge') { spacing = 45; }
-      else if(prefs.device.button_spacing == 'none') { spacing = 0; }
+      var spacing = buttonSpacingPx(prefs.device.button_spacing);
       var x_padding = spacing * x_ratio;
       var y_padding = spacing * y_ratio;
-      var border = 1;
-      if(prefs.device.button_border == 'none') { border = 0; }
-      else if(prefs.device.button_border == 'medium') { border = 2; }
-      else if(prefs.device.button_border == 'large') { border = 5; }
-      else if(prefs.device.button_border == 'huge') { border = 10; }
+      var border = buttonBorderPx(prefs.device.button_border);
       var border_ratio = Math.max((x_ratio + y_ratio) / 2, 1);
       border = border * border_ratio;
       var text_ratio = y_ratio; //Math.max(y_ratio, 0.6);
-      var text_height = 18 * text_ratio; // prefs.device.button_text
-      if(prefs.device.button_text == 'small') { text_height = 14 * text_ratio; }
-      else if(prefs.device.button_text == 'large') { text_height = 22 * text_ratio; }
-      else if(prefs.device.button_text == 'huge') { text_height = 35 * text_ratio; }
+      var text_height = buttonTextPx(prefs.device.button_text) * text_ratio;
       var voc_text_height = text_height;
       var position = prefs.device.button_text_position || 'top';
       var text_only = position == 'text_only';
@@ -108,15 +99,8 @@ export default Component.extend({
       var flipped_voc_height = voc_height;
       var flipped_text_height = voc_text_height;
       if(prefs.device.flipped_override) {
-        var flipped_text_height = 18 * text_ratio;
-        if(prefs.device.flipped_text == 'small') { flipped_text_height = 14 * text_ratio; }
-        else if(prefs.device.flipped_text == 'large') { flipped_text_height = 22 * text_ratio; }
-        else if(prefs.device.flipped_text == 'huge') { flipped_text_height = 35 * text_ratio; }
-        flipped_voc_height = 70 * text_ratio;
-        if(prefs.device.flipped_height == 'tiny') { flipped_voc_height = 50 * y_ratio; }
-        else if(prefs.device.flipped_height == 'medium') { flipped_voc_height = 100 * y_ratio; }
-        else if(prefs.device.flipped_height == 'large') { flipped_voc_height = 150 * y_ratio; }
-        else if(prefs.device.flipped_height == 'huge') { flipped_voc_height = 200 * y_ratio; }
+        flipped_text_height = buttonTextPx(prefs.device.flipped_text) * text_ratio;
+        flipped_voc_height = vocalizationHeightPx(prefs.device.flipped_height) * y_ratio;
       }
       var flipping = this.get('flipping');
       if(flipping) {

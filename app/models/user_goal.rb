@@ -1,4 +1,4 @@
-class UserGoal < ActiveRecord::Base
+class UserGoal < ApplicationRecord
   include Processable
   include Permissions
   include Async

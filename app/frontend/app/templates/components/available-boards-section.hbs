@@ -21,91 +21,202 @@
       {{/if}}
     {{else}}
       {{#if this.boardsCtrl.board_list.sub_result}}
-        <p><em>{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</em></p>
-        <a href="#" class="md-btn" {{action "load_children" target=this.boardsCtrl}}>← {{t "Back to Full List" key="back_to_full_list"}}</a>
+        <div class="ub-boards-page__subresult">
+          <button type="button" class="ub-boards-page__subresult-back" {{action "load_children" target=this.boardsCtrl}}>
+            <span class="ub-boards-page__subresult-back-arrow" aria-hidden="true">←</span>
+            {{t "Back to Full List" key="back_to_full_list"}}
+          </button>
+          <p class="ub-boards-page__subresult-label">{{t "Showing boards copied with %{k}" key="showing_boards_copied_with" k=this.boardsCtrl.parent_object.board.key}}</p>
+        </div>
       {{/if}}
+
+      {{!-- "Set / Change Home Board" button used to live up here as a
+           centered single-pill row, but design moved it onto the
+           Boards Filter row below (right-aligned next to the filter
+           input). See the .ub-boards-page__boards-filter-row wrapper
+           further down for the new mount point. --}}
 
       {{#if this.boardsCtrl.mineFoldersEnabled}}
         {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
-        <div class="ub-boards-page__folders-section">
-          <div class="ub-boards-page__folders-header">
-            <span class="ub-boards-page__folders-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
-              {{t "Folders" key="folders"}}
-              <span class="ub-boards-page__folders-subtitle">{{t "Drag boards here to organize" key="mine_folders_multi_tag_hint"}}</span>
-            </span>
-            {{#if this.boardsCtrl.model.permissions.model}}
-            <div class="ub-boards-page__folders-actions">
-              <button type="button" class="ub-boards-page__folders-action-btn" {{action "openNewBoardFolderModal" target=this.boardsCtrl}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                {{t "New folder" key="new_board_folder_title"}}
-              </button>
-              <button type="button" class="ub-boards-page__folders-action-btn" {{action "openTagBoardModal"}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                {{t "Tag a board" key="tag_a_board"}}
-              </button>
-            </div>
-            {{/if}}
-          </div>
-          <form class="ub-boards-page__folder-filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
-            <span id="folder-filter-input-label" class="ub-boards-page__folder-filter-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              {{t "Filter" key="filter"}}
-            </span>
-            <input
-              id="folder-filter-input"
-              type="text"
-              class="ub-boards-page__folder-filter-input"
-              aria-labelledby="folder-filter-input-label"
-              autocomplete="off"
-              placeholder={{t "Search folders and boards..." key="filter_folders"}}
-              value={{this.folderFilterString}}
-              {{on "input" (action "updateFolderFilter")}}
-            />
-            {{#if this.folderFilterString}}
-              <button type="button" class="ub-boards-page__folder-filter-clear" {{action "clearFolderFilter"}} aria-label={{t "Clear filter" key="clear_filter"}}>
-                {{t "Clear" key="clear"}}
-              </button>
-            {{/if}}
-          </form>
-          <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
-            {{on "dragover" (action "emptyFolderDragOver")}}
-            {{on "drop" (action "emptyFolderDrop")}}
+        {{!-- Folders accordion: collapsed by default. Header is a
+             toggle button — shows the folder icon, label, count chip,
+             and a chevron that rotates on expand. Inner content
+             (action buttons, filter, folder strip) only renders when
+             expanded, so the panel reads compact in its resting
+             state. Sunken-in surface (inset shadow + cool gradient)
+             matches the create-board-new `.nb-section` chrome.
+             Boards-page markup is intentionally inline (not the
+             reusable {{board-folders-section}} component the My Boards
+             modal uses) so the boards-page visual treatment can stay
+             distinct — see the matching `.ub-boards-page__folders-*`
+             rules in app.scss. --}}
+        {{!-- Entire folders accordion is a drop target — boards
+             dragged onto the header, the toolbar, or the empty area
+             beside the folder strip all fire the same "open the tag
+             modal" flow. Inner folder tags and the strip drop zone
+             have their own handlers and call stopPropagation so they
+             win when the drop lands on them specifically. --}}
+        <div class="ub-boards-page__folders-section {{if this.foldersExpanded 'ub-boards-page__folders-section--open'}}"
+          {{on "dragover" (action "emptyFolderDragOver")}}
+          {{on "drop" (action "emptyFolderDrop")}}>
+          <button
+            type="button"
+            class="ub-boards-page__folders-toggle"
+            aria-expanded={{if this.foldersExpanded "true" "false"}}
+            aria-controls="ub-boards-page__folders-body"
+            {{action "toggleFoldersExpanded"}}
           >
-            {{#each this.filteredFolderSummaries as |folder|}}
-              <button
-                type="button"
-                class="ub-boards-page__tag-folder"
-                role="listitem"
-                {{action "enterMineFolderTag" folder.tag target=this.boardsCtrl}}
-                {{on "dragover" (action "folderDragOver" folder.tag)}}
-                {{on "dragenter" (action "folderDragEnter" folder.tag)}}
-                {{on "dragleave" (action "folderDragLeave" folder.tag)}}
-                {{on "drop" (action "folderDrop" folder.tag)}}
-              >
-                <span class="ub-boards-page__tag-folder-back">
-                  <span class="ub-boards-page__tag-folder-tab"></span>
-                </span>
-                <span class="ub-boards-page__tag-folder-card">
-                  <span class="ub-boards-page__tag-folder-name">{{folder.tag}}</span>
-                  <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
-                </span>
-              </button>
+            <span class="ub-boards-page__folders-title">
+              <span class="ub-boards-page__section-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+              </span>
+              {{t "Folders" key="folders"}}
+              <span class="ub-boards-page__folders-count" aria-label={{t "Folder count" key="folder_count"}}>{{this.filteredFolderSummaries.length}}</span>
+            </span>
+            {{#if this.foldersExpanded}}
+              <span class="ub-boards-page__folders-subtitle">{{t "Drag boards here to organize, or click Tag a board to manually assign a folder" key="mine_folders_multi_tag_hint_v2"}}</span>
             {{else}}
-              <div class="ub-boards-page__folder-strip-empty">
-                <span class="ub-boards-page__folder-strip-empty-text">{{t "No folders yet — drag a board here to create one" key="no_folders_yet_drag"}}</span>
+              <span class="ub-boards-page__folders-subtitle">{{t "Organize your boards into folders for easy access" key="folders_collapsed_subtitle"}}</span>
+            {{/if}}
+            <svg class="ub-boards-page__folders-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {{#if this.foldersExpanded}}
+          <div id="ub-boards-page__folders-body" class="ub-boards-page__folders-body">
+            {{!-- Single toolbar row: Folders Filter pinned left, action
+                 buttons pinned right via flex space-between. Filter +
+                 buttons share vertical center. The filter form is
+                 hidden when the user has zero folders — nothing to
+                 filter yet. The New folder / Tag a board buttons stay
+                 visible so the user can still create their first
+                 folder; once one exists, the filter form (and the
+                 folder strip below) come back automatically. --}}
+            <div class="ub-boards-page__folders-toolbar">
+              {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
+                <form class="ub-boards-page__folder-filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
+                  <span id="folder-filter-input-label" class="ub-boards-page__folder-filter-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    {{t "Folders Filter" key="folders_filter"}}
+                  </span>
+                  <input
+                    id="folder-filter-input"
+                    type="text"
+                    class="ub-boards-page__folder-filter-input"
+                    aria-labelledby="folder-filter-input-label"
+                    autocomplete="off"
+                    placeholder={{t "Search folders and boards..." key="filter_folders"}}
+                    value={{this.folderFilterString}}
+                    {{on "input" (action "updateFolderFilter")}}
+                  />
+                  {{#if this.folderFilterString}}
+                    <button type="button" class="ub-boards-page__folder-filter-clear" {{action "clearFolderFilter"}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                      {{t "Clear" key="clear"}}
+                    </button>
+                  {{/if}}
+                </form>
+              {{/if}}
+              {{#if this.boardsCtrl.model.permissions.model}}
+              <div class="ub-boards-page__folders-actions">
+                <button type="button" class="ub-boards-page__folders-action-btn" {{action "openNewBoardFolderModal" target=this.boardsCtrl}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  {{t "New folder" key="new_board_folder_title"}}
+                </button>
+                <button type="button" class="ub-boards-page__folders-action-btn" {{action "openTagBoardModal"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  {{t "Tag a board" key="tag_a_board"}}
+                </button>
               </div>
-            {{/each}}
+              {{/if}}
+            </div>
+            {{!-- Folder strip — only renders when the user has at
+                 least one folder. The drag-to-empty drop target
+                 (which used to show the "No folders yet" hint) is
+                 gone when empty; users create their first folder via
+                 the "New folder" / "Tag a board" buttons above. Once
+                 a folder exists, the strip reappears and drag-onto
+                 reordering / new-folder creation works as before. --}}
+            {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
+              <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
+                {{on "dragover" (action "emptyFolderDragOver")}}
+                {{on "drop" (action "emptyFolderDrop")}}
+              >
+                {{#each this.filteredFolderSummaries as |folder|}}
+                  <button
+                    type="button"
+                    class="ub-boards-page__tag-folder"
+                    role="listitem"
+                    {{action "enterMineFolderTag" folder.tag target=this.boardsCtrl}}
+                    {{on "dragover" (action "folderDragOver" folder.tag)}}
+                    {{on "dragenter" (action "folderDragEnter" folder.tag)}}
+                    {{on "dragleave" (action "folderDragLeave" folder.tag)}}
+                    {{on "drop" (action "folderDrop" folder.tag)}}
+                  >
+                    <span class="ub-boards-page__tag-folder-back">
+                      <span class="ub-boards-page__tag-folder-tab"></span>
+                    </span>
+                    <span class="ub-boards-page__tag-folder-card">
+                      <span class="ub-boards-page__tag-folder-name">{{folder.tag}}</span>
+                      <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
+                    </span>
+                  </button>
+                {{/each}}
+              </div>
+            {{/if}}
           </div>
+          {{/if}}
         </div>
         {{/unless}}
       {{/if}}
 
+      {{!-- Boards Summary section: same sunken-in chrome as the
+           Folders accordion above (`.ub-boards-page__folders-section`
+           inset gradient + shadow). Static header — no chevron, no
+           toggle — surfaces the BOARDS / FAVORITES counts and the
+           "+ New Board" entry point. Body always-open; wraps the
+           filter row, tabs, folder-drill-in context, and the board
+           grid so they read as the contents of this section. --}}
+      <div class="ub-boards-page__boards-summary-section">
+        <div class="ub-boards-page__boards-summary-header">
+          <span class="ub-boards-page__boards-summary-title">
+            <span class="ub-boards-page__section-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </span>
+            {{t "BOARDS" key="boards_upper"}}
+            {{#if this.boardsCtrl.model.my_boards.done}}
+              <span class="ub-boards-page__boards-summary-count" aria-label={{t "Board count" key="board_count"}}>{{this.boardsCtrl.model.my_boards.length}}</span>
+            {{/if}}
+          </span>
+          <button type="button"
+            class="ub-boards-page__set-home-btn ub-boards-page__set-home-btn--in-header {{if this.boardsCtrl.selectingHome 'ub-boards-page__set-home-btn--active'}}"
+            {{action "toggleSetHomeMode" target=this.boardsCtrl}}
+            aria-pressed={{if this.boardsCtrl.selectingHome "true" "false"}}>
+            <svg class="ub-boards-page__set-home-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="16" height="16" aria-hidden="true">
+              <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
+            </svg>
+            {{this.boardsCtrl.setHomeButtonLabel}}
+          </button>
+        </div>
+        <div class="ub-boards-page__boards-summary-body">
+
       {{#unless this.boardsCtrl.allBoardsCategorized}}
+        {{!-- Boards Filter row: filter form pinned left (aligned with
+             the boards grid below), Set/Change Home Board button
+             pinned right. Wrapper flexes them onto one row.
+             Order is filter row FIRST, then the tabs (underline
+             variant) — design moved the tabs below the filter so
+             the primary affordance on first glance is the search,
+             not the category switch. --}}
+        <div class="ub-boards-page__boards-filter-row">
         <form class="ub-boards-page__filter-form" {{action "nothing" on="submit" target=this.boardsCtrl}}>
           <span id="{{this.filterInputId}}-label" class="ub-boards-page__filter-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            {{t "Filter" key="filter"}}
+            {{t "Boards Filter" key="boards_filter"}}
           </span>
           <input
             id={{this.filterInputId}}
@@ -123,6 +234,57 @@
             </button>
           {{/if}}
         </form>
+        </div>
+        {{!-- Tabs row — tabs on the left, "+ New Board" button
+             pinned right on the same baseline. The wrapper hosts the
+             layered gradient divider beneath both so the seam under
+             the tab strip extends across the full row (including the
+             button area), not just under the tabs. --}}
+        <div class="ub-boards-page__tabs-row">
+        <ul class="ub-boards-page__tabs ub-boards-page__tabs--boards" role="tablist">
+          {{#if this.boardsCtrl.model.permissions.edit}}
+            <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "set_selected" "mine" target=this.boardsCtrl}}>{{t "My Boards" key="my_boards"}}</a></li>
+          {{else if this.boardsCtrl.model.permissions.model}}
+            <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "set_selected" "mine" target=this.boardsCtrl}}>{{t "My Boards" key="my_boards"}}</a></li>
+          {{/if}}
+          {{#unless this.appState.currentUser.modeling_only}}
+            <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{action "set_selected" "public" target=this.boardsCtrl}}>{{t "Public Boards" key="public_boards"}}</a></li>
+          {{/unless}}
+          {{#unless this.appState.currentUser.modeling_only}}
+            {{#if this.boardsCtrl.model.permissions.model}}
+              <li role="presentation" class="dropdown {{if this.boardsCtrl.other_selected "is-active"}}">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+                  {{this.boardsCtrl.more_label}} <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu">
+                  {{#if this.boardsCtrl.model.permissions.model}}
+                    <li><a href="#" {{action "set_selected" "root" target=this.boardsCtrl}}>{{t "Root" key="root"}}</a></li>
+                  {{/if}}
+                  <li><a href="#" {{action "set_selected" "starred" target=this.boardsCtrl}}>{{t "Liked" key="starred"}}</a></li>
+                  {{#if this.boardsCtrl.model.permissions.edit}}
+                    <li><a href="#" {{action "set_selected" "shared" target=this.boardsCtrl}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
+                  {{/if}}
+                  {{#if this.boardsCtrl.model.prior_home_boards}}
+                    <li><a href="#" {{action "set_selected" "prior_home" target=this.boardsCtrl}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
+                  {{/if}}
+                  {{#if this.boardsCtrl.model.permissions.edit}}
+                    <li><a href="#" {{action "set_selected" "private" target=this.boardsCtrl}}>{{t "Private" key="private"}}</a></li>
+                  {{/if}}
+                  {{#each this.boardsCtrl.model.board_tags as |tag|}}
+                    <li><a href="#" {{action "set_tag" tag target=this.boardsCtrl}}>{{tag}}</a></li>
+                  {{/each}}
+                </ul>
+              </li>
+            {{/if}}
+          {{/unless}}
+        </ul>
+        {{#if this.boardsCtrl.model.permissions.edit}}
+          <button type="button" class="ub-boards-page__boards-summary-new-btn ub-boards-page__boards-summary-new-btn--in-tabs-row" {{action "newBoard" target=this.boardsCtrl}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            {{t "New Board" key="create_a_new_board"}}
+          </button>
+        {{/if}}
+        </div>{{!-- /.ub-boards-page__tabs-row --}}
       {{/unless}}
 
       {{#if this.boardsCtrl.mineFoldersEnabled}}
@@ -165,7 +327,7 @@
             <div class="la-delete-folder-backdrop" {{action "cancelDeleteFolder"}}></div>
             <div class="la-delete-folder-modal la-delete-folder-modal--inline">
               <div class="la-modal-header">
-                <span class="la-modal-header-label">{{t "Delete Folder" key="delete_folder"}}</span>
+                <span class="la-modal-header-label">{{t "Delete folder" key="delete_folder"}}</span>
                 <button type="button" class="la-modal-close" {{action "cancelDeleteFolder"}} aria-label={{t "Close" key="close"}}>✕</button>
               </div>
               <div class="la-delete-folder-modal-body">
@@ -178,7 +340,7 @@
               <div class="la-delete-folder-modal-actions">
                 <button type="button" class="la-delete-folder-modal-delete" {{action "confirmDeleteFolder"}} disabled={{this.deletingFolder}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  {{t "Delete Folder" key="delete_folder"}}
+                  {{t "Delete folder" key="delete_folder"}}
                 </button>
                 <button type="button" class="la-delete-folder-modal-cancel" {{action "cancelDeleteFolder"}}>{{t "Cancel" key="cancel"}}</button>
               </div>
@@ -196,15 +358,34 @@
           {{#if board.board.key}}
             {{#unless board.board.removed}}
               <div
-                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}}"
+                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
                 draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) (if board.children false true) false}}
                 {{on "dragstart" (action "boardDragStart" board.board)}}
               >
-                {{#if board.children}}
-                  {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
-                {{else}}
-                  {{board-icon board=board.board}}
+                {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                  <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
                 {{/if}}
+                {{#if board.board.starred_for_current_user}}
+                  {{!-- Filled-heart indicator in the top-right corner
+                       for liked boards (mirrors the My Boards picker
+                       treatment). Inert (pointer-events:none) so it
+                       doesn't intercept the tile's click. --}}
+                  <span class="ub-boards-page__board-item-heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                      <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                    </svg>
+                  </span>
+                {{/if}}
+                {{!-- Tile click opens the clicked board in the user's
+                     preferred view (classic = board-alt, modern =
+                     board-detail). The copy-cluster drill-in that
+                     `load_children` used to fire was confusing —
+                     clicking the Vocal Flair 84 - Categorías Comida
+                     tile drilled into its copies instead of opening
+                     it. The Preview chip (with its "N boards" count)
+                     still provides the cluster-inspection
+                     affordance. --}}
+                {{board-icon board=board onAction=(action "open_board_in_user_view" target=this.boardsCtrl)}}
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
@@ -217,7 +398,7 @@
           {{else if board.orphan}}
             {{#if board.children}}
               <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                {{board-icon board=board noinfo=true onAction=(action "load_children" target=this.boardsCtrl)}}
+                {{board-icon board=board onAction=(action "load_children" target=this.boardsCtrl)}}
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   <button type="button" class="board_action" {{action "remove_board" "delete_orphans" board target=this.boardsCtrl}}>
                     <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>
@@ -240,6 +421,8 @@
           {{/unless}}
         {{/if}}
       </div>
+        </div>{{!-- /.ub-boards-page__boards-summary-body --}}
+      </div>{{!-- /.ub-boards-page__boards-summary-section --}}
     {{/if}}
   {{else}}
     <p class="ub-boards-page__loading">{{t "None found" key="none_found"}}</p>

@@ -34,6 +34,18 @@ context('Button', function() {
       expect(button.get('talkAction')).toEqual(true);
       expect(button.get('folderAction')).toEqual(false);
     });
+
+    it("should treat disabled links as talk buttons", function() {
+      var button = Button.create({
+        load_board: {id: '1_2', key: 'example/linked'},
+        link_disabled: true
+      });
+      expect(button.get('buttonAction')).toEqual('talk');
+      expect(button.get('talkAction')).toEqual(true);
+      expect(button.get('folderAction')).toEqual(false);
+      button.set('link_disabled', false);
+      expect(button.get('buttonAction')).toEqual('folder');
+    });
   });
 
   it("should run this test once", function() {

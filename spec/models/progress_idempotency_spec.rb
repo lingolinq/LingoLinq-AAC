@@ -68,4 +68,98 @@ describe Progress, "idempotency" do
     p2 = Progress.schedule(obj, method, *args)
     expect(p2.id).not_to eq(p1.id)
   end
+
+  describe "cross-user safety (audit-reports/security-review-2026-05-04 finding #2)" do
+    it "does NOT pool a progress across users when for_user differs" do
+      obj = User.create
+      user_a = User.create
+      user_b = User.create
+      method = :count
+      args = [11, 12]
+
+      p1 = Progress.schedule(obj, method, *args, for_user: user_a)
+      p2 = Progress.schedule(obj, method, *args, for_user: user_b)
+
+      expect(p1.id).not_to eq(p2.id)
+      expect(p1.settings['for_user_global_id']).to eq(user_a.global_id)
+      expect(p2.settings['for_user_global_id']).to eq(user_b.global_id)
+    end
+
+    it "DOES pool a progress for the same user when args match" do
+      obj = User.create
+      user_a = User.create
+      method = :count
+      args = [13, 14]
+
+      p1 = Progress.schedule(obj, method, *args, for_user: user_a)
+      p2 = Progress.schedule(obj, method, *args, for_user: user_a)
+
+      expect(p1.id).to eq(p2.id)
+    end
+
+    it "treats two nil-owner progresses as poolable (legacy / system path)" do
+      obj = User.create
+      method = :count
+      args = [15, 16]
+
+      p1 = Progress.schedule(obj, method, *args)
+      p2 = Progress.schedule(obj, method, *args)
+
+      expect(p1.id).to eq(p2.id)
+      expect(p1.settings['for_user_global_id']).to be_nil
+    end
+
+    it "does NOT pool a nil-owner progress with a for_user-scoped one" do
+      obj = User.create
+      user_a = User.create
+      method = :count
+      args = [17, 18]
+
+      p1 = Progress.schedule(obj, method, *args)
+      p2 = Progress.schedule(obj, method, *args, for_user: user_a)
+
+      expect(p1.id).not_to eq(p2.id)
+    end
+
+    it "stores for_user_global_id when a User object is passed" do
+      obj = User.create
+      user_a = User.create
+      method = :count
+
+      p1 = Progress.schedule(obj, method, for_user: user_a)
+      expect(p1.settings['for_user_global_id']).to eq(user_a.global_id)
+    end
+
+    it "stores for_user_global_id when a string global_id is passed" do
+      obj = User.create
+      method = :count
+
+      p1 = Progress.schedule(obj, method, for_user: '42_test')
+      expect(p1.settings['for_user_global_id']).to eq('42_test')
+    end
+  end
+
+  describe "view permission (audit-reports/security-review-2026-05-04 finding #2)" do
+    it "denies view to a user who is not the owner" do
+      user_a = User.create
+      user_b = User.create
+      progress = Progress.schedule(User.create, :count, 1, for_user: user_a)
+
+      expect(progress.allows?(user_b, 'view')).to eq(false)
+    end
+
+    it "allows view for the owner" do
+      user_a = User.create
+      progress = Progress.schedule(User.create, :count, 2, for_user: user_a)
+
+      expect(progress.allows?(user_a, 'view')).to eq(true)
+    end
+
+    it "allows view for any authenticated user when there is no owner (legacy)" do
+      user_a = User.create
+      progress = Progress.schedule(User.create, :count, 3)
+
+      expect(progress.allows?(user_a, 'view')).to eq(true)
+    end
+  end
 end

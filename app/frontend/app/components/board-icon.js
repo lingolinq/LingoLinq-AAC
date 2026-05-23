@@ -2,13 +2,20 @@ import { htmlSafe } from '@ember/template';
 import Component from '@ember/component';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
+import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { later as runLater } from '@ember/runloop';
 
 export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
+  /** Drives the full-screen "Loading Board Preview" overlay rendered
+   *  at the bottom of board-icon.hbs. Set to true on board_preview
+   *  and cleared after a short delay so the spinner shows while the
+   *  modal materializes. */
+  loadingPreview: false,
   triggerExternalAction: function(actionName) {
     var args = Array.prototype.slice.call(arguments, 1);
     var action = this.get(actionName);
@@ -136,9 +143,52 @@ export default Component.extend({
       return htmlSafe('cursor: default; opacity: 0.6; pointer-events: none;');
     }
   }),
+  /* Translated-language marker for the tile. Returns the readable
+     language name (e.g. "Spanish", "Polish") when the board has been
+     translated to a non-English locale OR has multiple locales
+     available; null otherwise. The board's `locale` field reflects
+     the CURRENT default locale (set when a translation is accepted
+     as default), so a Spanish-translated board has `locale = 'es'`
+     even if the board name itself is still the original English.
+     Multi-locale boards still mark with the current locale so the
+     user can tell at a glance which language they'd be picking. */
+  translated_language_label: computed('board_record.locale', 'board_record.locales.length', function() {
+    var board = this.get('board_record');
+    if (!board || !board.get) { return null; }
+    var locale = board.get('locale');
+    var locales = board.get('locales') || [];
+    var hasMultiple = locales && locales.length > 1;
+    var nonDefault = locale && locale !== 'en' && locale !== 'en-US';
+    if (!hasMultiple && !nonDefault) { return null; }
+    if (!locale) { return null; }
+    return i18n.readable_language(locale);
+  }),
   actions: {
+    /* Keyboard activation for the role="button" div that wraps the
+       card body — Enter and Space mirror the click handler so the
+       tile remains keyboard-operable now that it's not a native
+       <button> (a real button would block the parent's drag). */
+    pickKeydown: function(event) {
+      if (!event) { return; }
+      var key = event.key;
+      if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+        event.preventDefault();
+        this.send('pick_board', this.get('board_record'));
+      }
+    },
     board_preview: function(board) {
       var _this = this;
+      /* Flip the loading flag immediately so the overlay paints on
+         this same render tick — the modal opens synchronously below
+         but the data it needs (locale defaults, board record
+         hydration) can hold up the visual modal for a noticeable
+         beat. The overlay covers that gap. Cleared after 1.2s,
+         which is comfortably past the typical modal-open time. */
+      _this.set('loadingPreview', true);
+      runLater(_this, function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('loadingPreview', false);
+      }, 1200);
       board.preview_option = null;
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
@@ -173,7 +223,20 @@ export default Component.extend({
         var key = board_record.get ? board_record.get('key') : board_record.key;
         _this.triggerExternalAction('action_override', key);
       } else if(_this.onAction && typeof _this.onAction === 'function') {
-        _this.onAction(board_record);
+        // Copy-cluster folders are passed in as a { board, children }
+        // wrapper, and load_children needs that wrapper intact (board_list
+        // reads parent_object.board / parent_object.children when drilling
+        // in). set_board_record unwraps `board` down to the inner record
+        // for display, so when this icon represents a children cluster
+        // hand back the ORIGINAL wrapper; otherwise (e.g. find-a-board's
+        // selectFoundBoard, which has no children) keep the unwrapped
+        // record so that behavior is unchanged.
+        var orig = _this.get('board');
+        if(_this.get('children') && orig && orig.children) {
+          _this.onAction(orig);
+        } else {
+          _this.onAction(board_record);
+        }
       } else if(this.get('children')) {
         _this.triggerExternalAction('action', board_record);
       } else if(this.get('option') == 'select') {

@@ -25,6 +25,87 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
 
+// Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
+// own branded tile art under /images/. The board records still carry the
+// old ARASAAC library URL in image_url, so without this the find-a-board
+// list and the copies handed to new users on signup render the generic
+// ARASAAC icon. We override by the board-key SLUG (the segment after the
+// username) so it applies both to the originals
+// (sampleorganization_user_1/quick-core-112) and to the per-user copies
+// (some_user/quick-core-112) — verified to preserve the same slug. Only
+// slugs whose PNG we actually ship are listed, so we never trade a
+// working icon for a broken one. To add another: drop the PNG in
+// public/images/ and add its slug here.
+var VOCAB_ICON_OVERRIDES = {
+  'quick-core-24': '/images/quick-core-24.png',
+  'quick-core-40': '/images/quick-core-40.png',
+  'quick-core-60': '/images/quick-core-60.png',
+  'quick-core-84': '/images/quick-core-84.png',
+  'quick-core-112': '/images/quick-core-112.png',
+  'vocal-flair-24': '/images/vocal-flair-24.png',
+  'vocal-flair-40': '/images/vocal-flair-40.png',
+  'vocal-flair-60': '/images/vocal-flair-60.png',
+  'vocal-flair-84': '/images/vocal-flair-84.png',
+  'vocal-flair-112': '/images/vocal-flair-112.png',
+  'sequoia-15': '/images/sequoia-15.png'
+};
+// Sort vocab keys longest-first so that, e.g., "quick-core-112" wins
+// over any shorter prefix in a substring match.
+var VOCAB_ICON_KEYS_BY_LENGTH = Object.keys(VOCAB_ICON_OVERRIDES).sort(function(a, b) {
+  return b.length - a.length;
+});
+// Variant-root suffixes: alternate forms of a family root (NOT topical
+// sub-boards). A slug like `vocal-flair-84-w-keyboard` or
+// `district-quick-core-112-template` is a variant root and should
+// inherit the family tile. Topical sub-boards like
+// `vocal-flair-40-vehicles` or `sequoia-15-my-streets` must keep their
+// own icons, so we DO NOT do a generic "contains" match — only this
+// curated allowlist. The optional `_<digits>` tail covers the
+// "_1" / "_2" duplicate-slug pattern Ember-side keys use.
+var VARIANT_ROOT_SUFFIXES = ['keyboard', 'w-keyboard', 'template', 'minimal', 'lite', 'light', 'legacy'];
+function vocab_icon_for_key(key) {
+  if(!key || typeof key !== 'string') { return null; }
+  var slug = key.split('/').pop();
+  // 1. Pure root match (quick-core-112, vocal-flair-84, sequoia-15)
+  if(VOCAB_ICON_OVERRIDES[slug]) { return VOCAB_ICON_OVERRIDES[slug]; }
+  // 2. Variant-root match: family+size followed by an allowlisted
+  // variant suffix at the end of the slug, with an optional leading
+  // qualifier (e.g. "district-"). Keys/suffixes are static lowercase
+  // letters / digits / hyphens — no regex meta chars, so no escape needed.
+  for(var i = 0; i < VOCAB_ICON_KEYS_BY_LENGTH.length; i++) {
+    var vocabKey = VOCAB_ICON_KEYS_BY_LENGTH[i];
+    for(var j = 0; j < VARIANT_ROOT_SUFFIXES.length; j++) {
+      var suffix = VARIANT_ROOT_SUFFIXES[j];
+      var re = new RegExp('(^|-)' + vocabKey + '-' + suffix + '(_\\d+)?$');
+      if(re.test(slug)) { return VOCAB_ICON_OVERRIDES[vocabKey]; }
+    }
+  }
+  return null;
+}
+
+// Classic boards use `.button-label`; board-detail uses
+// `.md-board-detail-symbol-card__label`. Word-prediction buttons
+// update the DOM directly, so both selectors must be supported.
+function suggestion_label_element(button_elem) {
+  if(!button_elem || !button_elem.getElementsByClassName) { return null; }
+  return button_elem.getElementsByClassName('button-label')[0] ||
+    button_elem.getElementsByClassName('md-board-detail-symbol-card__label')[0];
+}
+
+function is_suggestion_label(elem) {
+  return elem && (elem.classList.contains('button-label') ||
+    elem.classList.contains('md-board-detail-symbol-card__label'));
+}
+
+function word_predictions_visible(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  if(appState.get('speak_mode')) { return true; }
+  if(typeof appState.board_detail_inflections_active === 'function') {
+    return appState.board_detail_inflections_active();
+  }
+  return false;
+}
+
 LingoLinq.Board = DS.Model.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
@@ -72,6 +153,7 @@ LingoLinq.Board = DS.Model.extend({
   image_urls: DS.attr('raw'),
   sound_urls: DS.attr('raw'),
   hc_image_ids: DS.attr('raw'),
+  cascade_invalidations: DS.attr('raw'),
   translations: DS.attr('raw'),
   intro: DS.attr('raw'),
   style: DS.attr('raw'),
@@ -104,7 +186,14 @@ LingoLinq.Board = DS.Model.extend({
     key = key.toLowerCase().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+$/, '').replace(/-+/g, '-');
     return key;
   }),
-  icon_url_with_fallback: computed('image_url', function() {
+  icon_url_with_fallback: computed('image_url', 'image_data_uri', 'key', function() {
+    // Curated vocab boards use our shipped branded tile art instead of the
+    // stale ARASAAC image_url. /images/ assets are bundled with the app, so
+    // this is safe online and offline and intentionally takes precedence
+    // over image_data_uri/image_url to keep the icon consistent everywhere
+    // (find-a-board list, dashboard previews, per-user copies at signup).
+    var vocab = vocab_icon_for_key(this && this.get && this.get('key'));
+    if(vocab) { return vocab; }
     // TODO: way to fall back to something other than a broken image when disconnected
     if(!this || !this.persistence || typeof this.persistence.get !== 'function') {
       return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
@@ -114,6 +203,14 @@ LingoLinq.Board = DS.Model.extend({
     } else {
       return this.get('image_data_uri') || this.fallback_image_url;
     }
+  }),
+  // True when this board uses one of our shipped vocab tile icons
+  // (Quick Core / Vocal Flair / Sequoia, including variant roots like
+  // -keyboard / -template). Surfaces the same detection used by
+  // icon_url_with_fallback so templates can opt in to vocab-only
+  // decorations (e.g. the "CC-By OpenAAC" credit under the tile).
+  has_vocab_icon: computed('key', function() {
+    return !!vocab_icon_for_key(this && this.get && this.get('key'));
   }),
   shareable: computed('public', 'permissions.edit', function() {
     return this.get('public') || this.get('permissions.edit');
@@ -566,7 +663,6 @@ LingoLinq.Board = DS.Model.extend({
         }
       }
       if(capitalize) {
-        debugger
         // TODO: support capitalization
       }
     }
@@ -760,6 +856,30 @@ LingoLinq.Board = DS.Model.extend({
   sharing_key: DS.attr('string'),
   starred: DS.attr('boolean'),
   stars: DS.attr('number'),
+  /* `starred` is only populated by the backend on responses that pass
+     `:permissions => @api_user` (see lib/json_api/board.rb#starred).
+     The boards-index endpoint (used by the dashboard preview, boards
+     page, and My Boards picker) does NOT pass permissions, so records
+     loaded via list queries have starred=undefined. This computed
+     fills the gap by checking the user's `stats.starred_board_refs`
+     list (loaded with the user record), so any surface that needs
+     "is this board liked by the current user" has a reliable answer.
+     Falls back to the server-provided `starred` if it IS set (i.e.
+     records loaded via the single-board endpoint), so we never lose
+     accuracy. */
+  starred_for_current_user: computed(
+    'starred',
+    'id',
+    'global_id',
+    'appState.referenced_user.stats.starred_board_refs.[]',
+    function() {
+      if(this.get('starred')) { return true; }
+      var id = this.get('id') || this.get('global_id');
+      if(!id) { return false; }
+      var refs = this.appState.get('referenced_user.stats.starred_board_refs') || [];
+      return !!refs.find(function(ref) { return ref && (ref.id == id || ref.id == this.get('global_id')); }.bind(this));
+    }
+  ),
   non_author_starred: DS.attr('boolean'),
   star_or_unstar: function(star) {
     var _this = this;
@@ -819,7 +939,7 @@ LingoLinq.Board = DS.Model.extend({
   }),
   create_copy: function(user, make_public, swap_library, new_owner, disconnect) {
     var board = LingoLinq.store.createRecord('board', {
-      parent_board_id: this.get('id'),
+      parent_board_id: this.get('global_id') || this.get('id'),
       key: this.get('key').split(/\//)[1],
       name: this.get('copy_name') || this.get('name'),
       prefix: this.get('copy_prefix') || this.get('prefix'),
@@ -1170,10 +1290,15 @@ LingoLinq.Board = DS.Model.extend({
       lbls.push(lbls_tmp[idx]);
     }
     lbls.forEach(function(lbl) {
-      if(lbl.classList.contains('button-label') && !lbl.closest('.clone')) {
+      if(is_suggestion_label(lbl) && !lbl.closest('.clone')) {
         lbl.innerText = lbl.getAttribute('original-text');
         lbl.classList.remove('tweaked_label');
-        var sym = lbl.closest('.button').querySelector('img.symbol.overridden');
+        var btn = lbl.closest('.button');
+        if(btn && btn.getAttribute('original-aria-label') != null) {
+          btn.setAttribute('aria-label', btn.getAttribute('original-aria-label'));
+          btn.removeAttribute('original-aria-label');
+        }
+        var sym = btn && btn.querySelector('img.symbol.overridden');
         if(sym) {
           sym.style.display = '';
           lbl.style.fontSize = '';
@@ -1282,42 +1407,76 @@ LingoLinq.Board = DS.Model.extend({
         _this.update_suggestion_button(infl, {word: res.label, temporary: true});
       }
     });
-    word_suggestions.lookup({
-      last_finished_word: last_word || "",
-      second_to_last_word: second_to_last_word,
-      word_in_progress: in_progress,
-      board_ids: board_ids,
-      max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)
-    }).then(function(result) {
-      var unique_result = (result || []).filter(function(sugg) { return sugg.word && !skip_labels[sugg.word.toLowerCase()]; });
-      result = unique_result.concat(result).uniq();
-      (result || []).forEach(function(sugg, idx) {
-        if(suggested_buttons[idx]) {
-          var suggestion_button = suggested_buttons[idx];
-          if(sugg.word && _this.appState.get('shift')) {
-            sugg = $.extend({}, sugg);
-            sugg.word = utterance.capitalize(sugg.word);
+    var lookup_ids = word_suggestions.lookup_board_ids(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id')));
+    word_suggestions.load_vocabulary_button_sets(_this.appState, _this.stashes, (board_ids || []).concat(_this.get('id'))).then(function(warmed_sets) {
+      word_suggestions.lookup({
+        last_finished_word: last_word || "",
+        second_to_last_word: second_to_last_word,
+        word_in_progress: in_progress,
+        board_ids: lookup_ids,
+        button_sets: warmed_sets,
+        max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)
+      }).then(function(result) {
+        var unique_result = (result || []).filter(function(sugg) { return sugg.word && !skip_labels[sugg.word.toLowerCase()]; });
+        result = unique_result.concat(result).uniq();
+        (result || []).forEach(function(sugg, idx) {
+          if(suggested_buttons[idx]) {
+            var suggestion_button = suggested_buttons[idx];
+            if(sugg.word && _this.appState.get('shift')) {
+              sugg = $.extend({}, sugg);
+              sugg.word = utterance.capitalize(sugg.word);
+            }
+            _this.update_suggestion_button(suggestion_button, sugg);
+            var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
+            sugg.image_update = function() {
+              if(!persistenceForSugg) { return; }
+              persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
+                sugg.data_image = data_uri;
+                _this.update_suggestion_button(suggestion_button, sugg);
+              }, function() {
+                _this.update_suggestion_button(suggestion_button, sugg);
+              });
+            };
           }
-          _this.update_suggestion_button(suggestion_button, sugg);
-          var persistenceForSugg = _this.persistence || (typeof window !== 'undefined' && window.persistence);
-          sugg.image_update = function() {
-            if(!persistenceForSugg) { return; }
-            persistenceForSugg.find_url(sugg.image, 'image').then(function(data_uri) {
-              sugg.data_image = data_uri;
-              _this.update_suggestion_button(suggestion_button, sugg);
-            }, function() {
-              _this.update_suggestion_button(suggestion_button, sugg);
-            });
-          };
-        }
-      });
+        });
+      }, function() { });
     }, function() { });
+  },
+  _sync_ordered_button_suggestion: function(button, suggestion) {
+    if(!suggestion || suggestion.temporary || !suggestion.word) { return; }
+    var ctrl = editManager.controller;
+    if(!ctrl || !ctrl.get || !ctrl.get('is_board_detail')) { return; }
+    var ordered = ctrl.get('ordered_buttons');
+    if(!ordered || !ordered.length) { return; }
+    var button_id = button.id.toString();
+    var url = word_suggestions.resolve_word_image(suggestion);
+    if(url && this.persistence && this.persistence.url_cache && this.persistence.url_cache[url]) {
+      url = this.persistence.url_cache[url];
+    }
+    var show_predictions = word_predictions_visible(this.appState);
+    var changed = false;
+    var newOb = ordered.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || btn.id == null || btn.id.toString() !== button_id) { return btn; }
+        if(!show_predictions) { return btn; }
+        var updates = {};
+        if(btn.label !== suggestion.word) { updates.label = suggestion.word; }
+        if(url && btn.image_url !== url) { updates.image_url = url; }
+        if(!Object.keys(updates).length) { return btn; }
+        changed = true;
+        return Object.assign({}, btn, updates);
+      });
+    });
+    if(changed) {
+      ctrl.set('ordered_buttons', newOb);
+    }
   },
   update_suggestion_button: function(button, suggestion) {
     var _this = this;
     var lookups = _this.get('suggestion_lookups') || {};
     var brds = document.getElementsByClassName('board');
     var font_family = Button.style(this.appState.get('currentUser.preferences.device.button_style')).font_family;
+    var show_predictions = word_predictions_visible(this.appState);
     for(var idx = 0; idx < brds.length; idx++) {
       var brd = brds[idx];
       if(brd && brd.getAttribute('data-id') == _this.get('id')) {
@@ -1329,19 +1488,26 @@ LingoLinq.Board = DS.Model.extend({
             var url = null;
             if(!suggestion.temporary) {
               lookups[button.id.toString()] = suggestion;
-              url = suggestion.data_image || suggestion.image;
-              if(this.persistence.url_cache[url]) {
+              url = word_suggestions.resolve_word_image(suggestion);
+              if(url && this.persistence && this.persistence.url_cache && this.persistence.url_cache[url]) {
                 url = this.persistence.url_cache[url];
               }
             }
-            var lbl = btn.getElementsByClassName('button-label')[0];
+            var lbl = suggestion_label_element(btn);
             var img = btn.getElementsByClassName('symbol')[0]
             if(lbl && lbl.tagName != 'INPUT') {
               if(!lbl.getAttribute('original-text')) {
                 lbl.setAttribute('original-text', button.original_label || lbl.innerText);
               }
               lbl.classList.add('tweaked_label');
-              lbl.innerText = this.appState.get('speak_mode') ? suggestion.word : button.label;
+              var display_word = show_predictions ? suggestion.word : button.label;
+              lbl.innerText = display_word;
+              if(btn.classList.contains('md-board-detail-symbol-card') && display_word) {
+                if(btn.getAttribute('original-aria-label') == null) {
+                  btn.setAttribute('original-aria-label', btn.getAttribute('aria-label') || '');
+                }
+                btn.setAttribute('aria-label', display_word);
+              }
               if(button.text_only) {
                 var width = parseInt(btn.style.width, 10);
                 var height = parseInt(btn.style.height, 10);
@@ -1356,17 +1522,26 @@ LingoLinq.Board = DS.Model.extend({
                 }
               }
             }
-            if(img && url) {
-              if(!img.getAttribute('original-src')) {
+            if(img) {
+              if(!img.getAttribute('original-src') && img.src) {
                 img.setAttribute('original-src', img.src);
               }
-              img.src = this.appState.get('speak_mode') ? url : (img.getAttribute('original-src') || url);
+              if(url) {
+                img.style.display = '';
+                img.src = show_predictions ? url : (img.getAttribute('original-src') || url);
+              } else if(show_predictions && !suggestion.temporary && img.getAttribute('original-src')) {
+                img.style.display = '';
+                img.src = img.getAttribute('original-src');
+              }
             }
           }
         }
       }
     }
     _this.set('suggestion_lookups', lookups);
+    if(!suggestion.temporary) {
+      _this._sync_ordered_button_suggestion(button, suggestion);
+    }
 
   },
   add_classes: function() {
@@ -1544,15 +1719,19 @@ LingoLinq.Board = DS.Model.extend({
             var mods = button.level_modifications;
             var level = size.display_level;
             // console.log("mods at", mods, level);
+            // Coerce string "true"/"false" rule values to real booleans
+            // (Button.coerce_level_value) — boundClasses.add_classes
+            // below checks `if(button.hidden)`, and the string "false"
+            // is truthy, which would hide buttons the level promotes.
             if(mods.override) {
               for(var key in mods.override) {
-                button[key] = mods.override[key];
+                button[key] = Button.coerce_level_value(key, mods.override[key]);
               }
             }
             if(mods.pre) {
               for(var key in mods.pre) {
                 if(!mods.override || mods.override[key] == null) {
-                  button[key] = mods.pre[key];
+                  button[key] = Button.coerce_level_value(key, mods.pre[key]);
                 }
               }
             }
@@ -1560,7 +1739,7 @@ LingoLinq.Board = DS.Model.extend({
               if(mods[idx]) {
                 for(var key in mods[idx]) {
                   if(!mods.override || mods.override[key] == null) {
-                    button[key] = mods[idx][key];
+                    button[key] = Button.coerce_level_value(key, mods[idx][key]);
                   }
                 }
               }
@@ -1755,6 +1934,17 @@ LingoLinq.Board.is_skinned_url = function(url) {
     return false;
   }
 };
+// True when URL already selects a concrete skin tone (not the varianted-skin base).
+LingoLinq.Board.is_skin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return false; }
+  if(url.match(/\.variant-(dark|light|medium|medium-dark|medium-light|unskinned)\.\w+$/i)) {
+    return true;
+  }
+  if(url.match(/\/libraries\/twemoji\//) && url.match(/-var[0-9a-f]+UNI/i)) {
+    return true;
+  }
+  return false;
+};
 LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
   var which_override = null;
   if(unskin) {
@@ -1791,6 +1981,22 @@ LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
 // opts.persistence — when provided, falls back to the original URL if the
 //   skinned variant isn't cached locally and the original is (prevents offline
 //    404s when only the base URL has been cached).
+// Only backend-verified skin bases (.varianted-skin or twemoji skin codes) are
+// rewritten by skin_image_map. Plain /libraries/.../file.png URLs are not
+// speculatively upgraded — many symbols have no variant files on OpenSymbols.
+LingoLinq.Board.upgrade_url_for_skin_variants = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  return url;
+};
+
+LingoLinq.Board.unskin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  if(url.match(/\.variant(?:ed-skin|-[^.]+)\.\w+$/)) {
+    return url.replace(/\.variant(?:ed-skin|-[^.]+)\.\w+$/, '');
+  }
+  return url;
+};
+
 LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   image_map = image_map || {};
   if(!skin || skin == 'default') { return image_map; }
@@ -1800,8 +2006,13 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   var which_skin = LingoLinq.Board.which_skinner(skin);
   var res = {};
   var resolve = function(base_url, unskin) {
-    var url = LingoLinq.Board.skinned_url(base_url, which_skin, unskin);
-    if(persistence && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
+    var url = LingoLinq.Board.skinned_url(
+      LingoLinq.Board.upgrade_url_for_skin_variants(base_url),
+      which_skin,
+      unskin
+    );
+    var online = persistence && (typeof persistence.get === 'function' ? persistence.get('online') : persistence.online);
+    if(persistence && !online && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
       url = base_url;
     }
     return url;

@@ -12,7 +12,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml'
+  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
 ]
 require 'resque/server'
 require 'admin_constraint'
@@ -52,6 +52,13 @@ LingoLinq::Application.routes.draw do
   delete 'oauth2/token' => 'session#oauth_logout'
   get 'oauth2/token/status' => 'session#oauth_local', :as => 'oauth_local'
   post 'auth/lookup' => 'session#auth_lookup'
+  get 'auth' => redirect('/login')
+  get 'auth/google/start' => 'session#google_start'
+  get 'auth/google/callback' => 'session#google_callback'
+  get 'auth/google/link' => 'session#google_link_candidates'
+  post 'auth/google/link' => 'session#google_link_complete'
+  get 'auth/google/signup' => 'session#google_signup_candidates'
+  post 'auth/google/signup' => 'session#google_signup_complete'
   get 'saml/init/:org_id' => 'session#saml_redirect'
   get 'saml/init' => 'session#saml_start'
   post 'saml/tmp_token' => 'session#saml_tmp_token'
@@ -139,11 +146,13 @@ LingoLinq::Application.routes.draw do
 
     resources :boards, :constraints => {:id => board_id_regex} do
       get 'stats' => 'boards#stats'
+      get 'tree' => 'boards#tree'
       get 'simple.obf' => 'boards#simple_obf'
       post 'imports' => 'boards#import', on: :collection
       post 'from_html' => 'boards#from_html', on: :collection
       post 'generate_labels' => 'boards#generate_labels', on: :collection
       post 'unlink' => 'boards#unlink', on: :collection
+      post 'bulk' => 'boards#bulk', on: :collection
       post 'stars' => 'boards#star'
       post 'slice_locales' => 'boards#slice_locales'
       delete 'stars' => 'boards#unstar'
@@ -251,6 +260,17 @@ LingoLinq::Application.routes.draw do
     resources :profiles do
       get 'latest', on: :collection
     end
+
+    resources :eval_protocols, only: [:index, :show], param: :id
+    # Per-user Quick Screen session actions live on a separate
+    # EvalSessionsController so EvalProtocols stays read-only catalog.
+    # The legacy `users/:user_id/eval_recommend` path is preserved as
+    # an alias so anything that was already calling it keeps working.
+    post 'users/:user_id/eval_sessions/recommend' => 'eval_sessions#recommend'
+    post 'users/:user_id/eval_recommend' => 'eval_sessions#recommend'
+    # Comprehensive Eval (Mode 3) AI narration. Gated by the
+    # comprehensive_eval_ai feature flag inside the controller.
+    post 'eval_sessions/narrate' => 'eval_sessions#narrate'
     
     resources :badges
     
@@ -278,6 +298,7 @@ LingoLinq::Application.routes.draw do
       get 'licenses'
       get 'logs'
       get 'stats'
+      get 'telemetry' => 'telemetry#organization'
       get 'admin_reports'
       get 'blocked_emails'
       get 'blocked_cells'
@@ -304,9 +325,12 @@ LingoLinq::Application.routes.draw do
     get "search/audio" => "search#audio"
     get "search/focus" => "search#focuses"
     get "progress/:id" => "progress#progress"
+    get "telemetry" => "telemetry#index"
+    resources :telemetry_events, only: [:create]
     
     resources :logs do
       get 'lam'
+      get 'eval_pdf'
       get 'obl', on: :collection
       post 'import' => 'logs#import', on: :collection
       post 'code_check' => 'logs#code_check', on: :collection

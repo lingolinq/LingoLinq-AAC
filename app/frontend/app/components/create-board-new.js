@@ -4,6 +4,7 @@ import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
 import { next, debounce } from '@ember/runloop';
+import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
@@ -12,6 +13,7 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
 import { pick_aac_color } from '../utils/parts_of_speech';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 
 /**
  * Create Board (New) Modal Component
@@ -78,11 +80,39 @@ export default Component.extend({
     this.set('status', null);
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
-    this.set('prefs_open', false);
+    this.set('labels_list_open', false);
     this.set('creating_for_someone_else', true);
     // Map of label.toLowerCase() -> { fill, border, type } populated as
     // labels are looked up via /api/v1/search/batch_parts_of_speech.
     this.set('_label_colors', {});
+    // Map of label.toLowerCase() -> { image_url, license, ... } populated
+    // as labels are searched via /api/v1/search/symbols. Lets the preview
+    // cells show real symbol images instead of the placeholder square,
+    // and lets `saveBoard` bake the same image_url into model.buttons[]
+    // so the saved board uses the symbol the user previewed (rather than
+    // re-searching server-side which can pick a different match).
+    this.set('_label_images', {});
+    // Paint feature — mirrors the board-detail edit toolbar's paint flow.
+    // `_painted_colors` is the user's manual overrides keyed by label so
+    // the color follows the label through drag-reorder; baked into
+    // `model.buttons` at save time. `paint_mode` is the currently-armed
+    // color (null when not painting); `show_paint_dropdown` /
+    // `show_paint_color_picker` / `custom_paint_color` mirror the
+    // board-detail dropdown's open state and custom-color input.
+    this.set('_painted_colors', {});
+    this.set('paint_mode', null);
+    this.set('show_paint_dropdown', false);
+    this.set('show_paint_color_picker', false);
+    this.set('custom_paint_color', '#4a90d9');
+    // Field-level validation tracking. `_field_touched` flips true after
+    // the user has interacted with a field and blurred it; `_submit_attempted`
+    // flips true after the first time the user clicks Create with required
+    // fields still empty. Errors only render when one of these is true so a
+    // fresh form never accuses the user before they've engaged. Keyed by
+    // field name so adding a new required field is a one-line change in
+    // `field_errors` below + an `onblur` wire-up in the template.
+    this.set('_field_touched', {});
+    this.set('_submit_attempted', false);
 
     // Initialize board categories
     var res = [];
@@ -114,6 +144,20 @@ export default Component.extend({
     var id = this.get('model.for_user_id');
     if(!id || id === 'self') { return null; }
     return id;
+  }),
+
+  /** Soft attention cue for the supervisee dropdown. The toggle defaults
+   *  to "Yes" (`creating_for_someone_else` initialized to true), which
+   *  reveals the dropdown — but until the user picks an actual person
+   *  the dropdown is empty. We illuminate it with a teal glow so it
+   *  visibly asks for input, without making it a hard validation error
+   *  (the for-user pick is still optional at submit time per the
+   *  current `createBoardDisabled` rules). Clears the moment the user
+   *  selects someone OR flips the toggle to "No". */
+  for_user_needs_attention: computed('creating_for_someone_else', 'for_user_id', 'show_user_options', function() {
+    if(!this.get('show_user_options')) { return false; }
+    if(!this.get('creating_for_someone_else')) { return false; }
+    return !this.get('for_user_id');
   }),
 
   /** Options for the "For" dropdown. All known supervisees — no "self"
@@ -161,26 +205,22 @@ export default Component.extend({
   }),
 
   /** Text-size in px — published as --bd-button-text-size on the grid so
-   *  symbol cards pick the user's preferred label size. Map mirrors the
-   *  live controller exactly. */
+   *  symbol cards pick the user's preferred label size. Reads from the
+   *  canonical map in utils/display_prefs.js. */
   button_text_size_px: computed('appState.sessionUser.preferences.device.button_text', function() {
-    var size = this.appState.get('sessionUser.preferences.device.button_text') || 'medium';
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[size] || 18;
+    return buttonTextPx(this.appState.get('sessionUser.preferences.device.button_text'));
   }),
 
-  /** Grid gap in px — published as --bd-button-gap. */
+  /** Grid gap in px — published as --bd-button-gap. Reads from
+   *  utils/display_prefs.js (canonical). */
   button_spacing_px: computed('appState.sessionUser.preferences.device.button_spacing', function() {
-    var spacing = this.appState.get('sessionUser.preferences.device.button_spacing') || 'medium';
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    return (map[spacing] != null) ? map[spacing] : 8;
+    return buttonSpacingPx(this.appState.get('sessionUser.preferences.device.button_spacing'));
   }),
 
-  /** Symbol-card outline width in px — published as --bd-button-border. */
+  /** Symbol-card outline width in px — published as --bd-button-border.
+   *  Reads from utils/display_prefs.js (canonical). */
   button_border_px: computed('appState.sessionUser.preferences.device.button_border', function() {
-    var border = this.appState.get('sessionUser.preferences.device.button_border') || 'medium';
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    return (map[border] != null) ? map[border] : 3;
+    return buttonBorderPx(this.appState.get('sessionUser.preferences.device.button_border'));
   }),
 
   /** Shape modifier class (square / tall / wide) for the symbol cards. */
@@ -191,30 +231,145 @@ export default Component.extend({
     return 'md-board-detail-grid--shape-square';
   }),
 
+  /** Background-mode class for the preview grid. Mirrors the live page's
+   *  `symbol_background_clear|white|black` + optional `high_contrast`
+   *  classes so the existing descendant SCSS rules paint the preview
+   *  cells correctly. */
+  preview_background_class: computed('appState.sessionUser.preferences.symbol_background', 'appState.sessionUser.preferences.high_contrast', function() {
+    var bg = this.appState.get('sessionUser.preferences.symbol_background') || 'clear';
+    var cls;
+    // Soft uses the same colored card chrome as plain Colored, plus a
+    // .fitzgerald-soft class that swaps the --fitzgerald-* CSS custom
+    // properties (defined in _variables.scss). Mirrors
+    // mixins/pref-classes.js#symbol_background_class so the preview
+    // behaves identically to the live board.
+    if(bg === 'clear_soft') { cls = 'symbol_background_clear fitzgerald-soft'; }
+    else                    { cls = 'symbol_background_' + bg; }
+    if(this.appState.get('sessionUser.preferences.high_contrast')) {
+      cls += ' high_contrast';
+    }
+    return cls;
+  }),
+
+  // ── AI board-generation mode ──────────────────────────────────────────
+  // When true the page is in "Generate with AI" mode (selected via the
+  // segmented mode switch) instead of regular creation. In AI mode the
+  // description is required and the Size & Labels section stays hidden
+  // behind a "Generate Labels with AI" button until that button has
+  // successfully produced labels (ai_labels_generated).
+  ai_mode: false,
+  ai_labels_generated: false,
+  ai_generating: false,
+  ai_generate_error: null,
+
   // ── Display Preferences toolbar (ported from board-detail) ────────────
   // Dropdown open-state flags
   display_prefs_font_dropdown_open: false,
   display_prefs_symbol_library_dropdown_open: false,
   display_prefs_symbol_background_dropdown_open: false,
+  display_prefs_voice_height_dropdown_open: false,
+  display_prefs_skin_dropdown_open: false,
+
+  skin_tone_options: computed(function() {
+    return [
+      { id: 'default',      label: i18n.t('board_detail_settings_skin_original',    "Original"),     swatch: 'original' },
+      { id: 'light',        label: i18n.t('board_detail_settings_skin_light',       "Light"),        swatch: 'light' },
+      { id: 'medium-light', label: i18n.t('board_detail_settings_skin_medium_light', "Medium Light"), swatch: 'medium-light' },
+      { id: 'medium',       label: i18n.t('board_detail_settings_skin_medium',      "Medium"),       swatch: 'medium' },
+      { id: 'medium-dark',  label: i18n.t('board_detail_settings_skin_medium_dark', "Medium Dark"),  swatch: 'medium-dark' },
+      { id: 'dark',         label: i18n.t('board_detail_settings_skin_dark',        "Dark"),         swatch: 'dark' },
+      { id: 'mix',          label: i18n.t('board_detail_settings_skin_mix',         "Mix of tones"), swatch: 'mix' },
+      { id: 'mix_only',     label: i18n.t('skin_dropdown_mix_only',                 "Mix only chosen tones"),  swatch: 'mix-only' },
+      { id: 'mix_prefer',   label: i18n.t('skin_dropdown_mix_prefer',               "Favor chosen tones"),     swatch: 'mix-prefer' }
+    ];
+  }),
+
+  display_prefs_current_skin_id: computed('appState.sessionUser.preferences.skin', function() {
+    var s = this.appState.get('sessionUser.preferences.skin') || 'default';
+    if(s.indexOf('mix_only') === 0)  { return 'mix_only'; }
+    if(s.indexOf('mix_prefer') === 0) { return 'mix_prefer'; }
+    if(s === 'mix' || s.indexOf('mix::') === 0) { return 'mix'; }
+    return s;
+  }),
+
+  display_prefs_current_skin_label: computed('display_prefs_current_skin_id', 'skin_tone_options', function() {
+    var id = this.get('display_prefs_current_skin_id');
+    var opts = this.get('skin_tone_options') || [];
+    var match = opts.find(function(o) { return o.id === id; });
+    return match ? match.label : i18n.t('board_detail_settings_skin_original', "Original");
+  }),
+
+  display_prefs_current_skin_swatch: computed('display_prefs_current_skin_id', 'skin_tone_options', function() {
+    var id = this.get('display_prefs_current_skin_id');
+    var opts = this.get('skin_tone_options') || [];
+    var match = opts.find(function(o) { return o.id === id; });
+    return match ? match.swatch : 'original';
+  }),
 
   // Option lists (mirror controllers/user/board-detail.js)
   button_style_options: [
-    { id: 'default', label: 'Default' },
-    { id: 'default_caps', label: 'Default (caps)' },
-    { id: 'default_small', label: 'Default (small)' },
-    { id: 'arial', label: 'Arial' },
-    { id: 'arial_caps', label: 'Arial (caps)' },
-    { id: 'arial_small', label: 'Arial (small)' },
-    { id: 'comic_sans', label: 'Comic Sans' },
-    { id: 'comic_sans_caps', label: 'Comic Sans (caps)' },
-    { id: 'comic_sans_small', label: 'Comic Sans (small)' },
-    { id: 'open_dyslexic', label: 'Open Dyslexic' },
-    { id: 'open_dyslexic_caps', label: 'Open Dyslexic (caps)' },
-    { id: 'open_dyslexic_small', label: 'Open Dyslexic (small)' },
-    { id: 'architects_daughter', label: "Architect's Daughter" },
-    { id: 'architects_daughter_caps', label: "Architect's Daughter (caps)" },
-    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" }
+    { id: 'architects_daughter',       label: "Architect's Daughter" },
+    { id: 'architects_daughter_caps',  label: "Architect's Daughter (caps)" },
+    { id: 'architects_daughter_small', label: "Architect's Daughter (small)" },
+    { id: 'arial',                     label: 'Arial' },
+    { id: 'arial_caps',                label: 'Arial (caps)' },
+    { id: 'arial_small',               label: 'Arial (small)' },
+    { id: 'comic_sans',                label: 'Comic Sans' },
+    { id: 'comic_sans_caps',           label: 'Comic Sans (caps)' },
+    { id: 'comic_sans_small',          label: 'Comic Sans (small)' },
+    { id: 'default',                   label: 'Default' },
+    { id: 'default_caps',              label: 'Default (caps)' },
+    { id: 'default_small',             label: 'Default (small)' },
+    { id: 'open_dyslexic',             label: 'Open Dyslexic' },
+    { id: 'open_dyslexic_caps',        label: 'Open Dyslexic (caps)' },
+    { id: 'open_dyslexic_small',       label: 'Open Dyslexic (small)' },
+    { divider: true },
+    { id: 'brush_script',    label: 'Brush Script MT' },
+    { id: 'calibri',         label: 'Calibri' },
+    { id: 'cambria',         label: 'Cambria' },
+    { id: 'chalkboard',      label: 'Chalkboard SE' },
+    { id: 'consolas',        label: 'Consolas' },
+    { id: 'courier_new',     label: 'Courier New' },
+    { id: 'garamond',        label: 'Garamond' },
+    { id: 'georgia',         label: 'Georgia' },
+    { id: 'helvetica',       label: 'Helvetica' },
+    { id: 'impact',          label: 'Impact' },
+    { id: 'lucida_sans',     label: 'Lucida Sans' },
+    { id: 'marker_felt',     label: 'Marker Felt' },
+    { id: 'monaco',          label: 'Monaco' },
+    { id: 'optima',          label: 'Optima' },
+    { id: 'palatino',        label: 'Palatino' },
+    { id: 'segoe_ui',        label: 'Segoe UI' },
+    { id: 'snell_roundhand', label: 'Snell Roundhand' },
+    { id: 'tahoma',          label: 'Tahoma' },
+    { id: 'times_new_roman', label: 'Times New Roman' },
+    { id: 'trebuchet',       label: 'Trebuchet MS' },
+    { id: 'verdana',         label: 'Verdana' }
   ],
+  // Which edit-rail section is expanded (single-open accordion). When
+  // a section is open the preview stage grows (see CSS) so the grid
+  // gets more room alongside the taller panel.
+  create_rail_open_section: null,
+
+  // Section labels for the (currently empty) create-board edit rail.
+  // Shell only — no controls wired yet; mirrors the board-detail edit
+  // panel's section list (subset that applies to board creation).
+  create_rail_sections: [
+    /* Reordered per design:
+       Background → Board Layout → Board Symbols → Paint at the
+       top; then Shape & Border, Skin Tones, Speak Bar; with
+       Text Settings sitting at the bottom of the rail. */
+    { id: 'background', label: i18n.t('board_detail_background', "Background") },
+    { id: 'layout',     label: i18n.t('board_detail_board_layout', "Board Layout") },
+    { id: 'symbols',    label: i18n.t('board_detail_board_symbols', "Board Symbols") },
+    { id: 'paint',      label: i18n.t('board_detail_paint', "Paint") },
+    { id: 'shape',      label: i18n.t('board_detail_shape_border', "Shape & Border") },
+    { id: 'skin',       label: i18n.t('board_detail_skin_tones', "Skin Tones") },
+    { id: 'speakbar',   label: i18n.t('board_detail_speak_bar', "Speak Bar") },
+    { id: 'text',       label: i18n.t('board_detail_text_settings', "Text Settings") }
+    /* Gap removed — Grid Gap lives in the Board Layout section. */
+  ],
+
   preferred_symbols_options: [
     { id: 'original', label: 'Original' },
     { id: 'opensymbols', label: 'OpenSymbols' },
@@ -227,10 +382,20 @@ export default Component.extend({
     { id: 'tawasol', label: 'Tawasol' }
   ],
   symbol_background_options: [
-    { id: 'clear', label: 'Colored' },
-    { id: 'white', label: 'White' },
-    { id: 'black', label: 'Black' },
+    { id: 'clear',         label: 'Colored' },
+    { id: 'clear_soft',    label: 'Colored Soft' },
+    { id: 'white',         label: 'White' },
+    { id: 'black',         label: 'Black' },
     { id: 'high_contrast', label: 'High Contrast' }
+  ],
+  // Mirror of user/preferences.js#vocalizationHeightList — drives the
+  // height of the speak-mode header (the sentence/vocalization bar) and
+  // the size of fonts + symbol images inside it.
+  voice_height_options: [
+    { id: 'small',  label: 'Small (90px)' },
+    { id: 'medium', label: 'Medium (100px)' },
+    { id: 'large',  label: 'Large (150px)' },
+    { id: 'huge',   label: 'Huge (200px)' }
   ],
 
   // Map of pref key → live user.preferences path
@@ -244,6 +409,7 @@ export default Component.extend({
     preferred_symbols:    'preferences.preferred_symbols',
     symbol_background:    'preferences.symbol_background',
     high_contrast:        'preferences.high_contrast',
+    vocalization_height:  'preferences.device.vocalization_height',
     skin:                 'preferences.skin'
   },
 
@@ -280,6 +446,21 @@ export default Component.extend({
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Default';
   }),
+
+  display_prefs_font_filter: '',
+
+  /** Filtered font list driven by the dropdown's search input. Empty filter
+   *  returns the full list (with divider). When filtering, drops the divider
+   *  since section grouping is no longer meaningful. */
+  filtered_button_style_options: computed('button_style_options', 'display_prefs_font_filter', function() {
+    var opts = this.get('button_style_options') || [];
+    var q = (this.get('display_prefs_font_filter') || '').trim().toLowerCase();
+    if(!q) { return opts; }
+    return opts.filter(function(o) {
+      if(o.divider) { return false; }
+      return (o.label || '').toLowerCase().indexOf(q) !== -1;
+    });
+  }),
   display_prefs_current_symbol_library_label: computed('appState.sessionUser.preferences.preferred_symbols', 'preferred_symbols_options', function() {
     var current = this.appState.get('sessionUser.preferences.preferred_symbols') || 'original';
     var opts = this.get('preferred_symbols_options') || [];
@@ -295,6 +476,28 @@ export default Component.extend({
     var opts = this.get('symbol_background_options') || [];
     var match = opts.find(function(o) { return o.id === current; });
     return match ? match.label : 'Clear';
+  }),
+  display_prefs_current_voice_height_label: computed('appState.sessionUser.preferences.device.vocalization_height', 'voice_height_options', function() {
+    var current = this.appState.get('sessionUser.preferences.device.vocalization_height') || 'medium';
+    var opts = this.get('voice_height_options') || [];
+    var match = opts.find(function(o) { return o.id === current; });
+    return match ? match.label : 'Medium (100px)';
+  }),
+
+  // Speak Bar — "Show on Speak Bar as…" (Symbol buttons vs Words only).
+  // Mirrors board-detail's `utterance_text_only_str`: exposes the
+  // boolean pref as a "true"/"false" string for the radio group's
+  // is-equal comparisons.
+  utterance_text_only_str: computed('appState.sessionUser.preferences.device.utterance_text_only', function() {
+    return this.appState.get('sessionUser.preferences.device.utterance_text_only') ? 'true' : 'false';
+  }),
+
+  // Preview hook: maps the chosen vocalization_height onto a class so
+  // the preview speak bar visibly grows/shrinks with the Sentence Bar
+  // dropdown (Tiny 50 / Small 70 / Medium 100 / Large 150 / Huge 200).
+  nb_preview_vocalization_class: computed('appState.sessionUser.preferences.device.vocalization_height', function() {
+    var current = this.appState.get('sessionUser.preferences.device.vocalization_height') || 'medium';
+    return 'nb-preview-sentence-bar--' + current;
   }),
 
   // Skin compound-state checks (read directly from live preferences)
@@ -372,21 +575,108 @@ export default Component.extend({
   license_options: LingoLinq.licenseOptions,
   public_options: LingoLinq.publicOptions,
 
-  createBoardDisabled: computed('model.name', 'model.image_url', 'model.description', 'status.saving', 'creating_for_someone_else', 'show_user_options', 'model.for_user_id', function() {
+  createBoardDisabled: computed('model.name', 'status.saving', 'show_user_options', 'creating_for_someone_else', 'model.for_user_id', 'ai_mode', 'model.description', 'ai_labels_generated', function() {
     var name = (this.get('model.name') || '').trim();
-    var icon = (this.get('model.image_url') || '').trim();
-    var description = (this.get('model.description') || '').trim();
-    if(this.get('status.saving') || name.length === 0 || icon.length === 0 || description.length === 0) {
+    if(this.get('status.saving') || name.length === 0) {
       return true;
     }
-    // If the user is creating for someone else, block until they've
-    // actually picked a supervisee — 'self' or empty isn't a valid pick
-    // when the toggle is set to Yes.
+    // AI mode: the description feeds the generation, so it's required,
+    // and the user must have run "Generate Labels with AI" (which
+    // reveals the full Size & Labels section) before they can create.
+    if(this.get('ai_mode')) {
+      if(!(this.get('model.description') || '').trim().length) { return true; }
+      if(!this.get('ai_labels_generated')) { return true; }
+    }
+    // Conditional: when the toggle is "Yes", the user must actually pick
+    // a supervisee. The teal glow on the dropdown (`for_user_needs_attention`)
+    // is the visual cue; this is the hard validation gate.
     if(this.get('show_user_options') && this.get('creating_for_someone_else')) {
       var picked = this.get('model.for_user_id');
       if(!picked || picked === 'self') { return true; }
     }
     return false;
+  }),
+
+  /** Regular creation always shows the full Size & Labels section. In
+   *  AI mode it stays hidden behind the "Generate Labels with AI"
+   *  button until that has produced labels. */
+  show_full_size_section: computed('ai_mode', 'ai_labels_generated', function() {
+    return !this.get('ai_mode') || this.get('ai_labels_generated');
+  }),
+
+  /** "Generate Labels with AI" stays disabled until the user has
+   *  entered a board description (the AI prompt) and isn't already
+   *  mid-generation. */
+  ai_generate_disabled: computed('ai_generating', 'model.description', function() {
+    if(this.get('ai_generating')) { return true; }
+    return !(this.get('model.description') || '').trim().length;
+  }),
+
+  /** Live "what's missing" list for the Create button hint. Mirrors the
+   *  validation in `createBoardDisabled` (see above) but returns the
+   *  human-readable field names so the template can render them in a
+   *  natural-language sentence ("Add a name to enable Create."). The
+   *  hint hides automatically once the list is empty (button enables).
+   *  Description and icon are optional (icon auto-assigns server-side
+   *  via `Board#check_image_url`). For-user is conditionally required
+   *  when the "Yes" toggle is on. */
+  missing_required_fields: computed('model.name', 'show_user_options', 'creating_for_someone_else', 'model.for_user_id', function() {
+    var missing = [];
+    if(!(this.get('model.name') || '').trim().length) {
+      missing.push(i18n.t('required_name', "a name"));
+    }
+    if(this.get('show_user_options') && this.get('creating_for_someone_else')) {
+      var picked = this.get('model.for_user_id');
+      if(!picked || picked === 'self') {
+        missing.push(i18n.t('required_for_user', "who this board is for"));
+      }
+    }
+    return missing;
+  }),
+
+  /** Per-field error messages. Each entry returns either a localized
+   *  string (the helper text + screen-reader announcement) or null. An
+   *  error is only "active" once the field has been touched-and-blurred
+   *  OR the user has attempted to submit — never on a fresh, untouched
+   *  form. Keyed by the same field names as `_field_touched` so the
+   *  template + `attemptSave` stay in sync.
+   *
+   *  To future-proof: when description/icon/for-user become required
+   *  again, add a parallel block here, an `onblur` wire-up in the
+   *  template, and the field's id to `_required_field_ids` below. */
+  field_errors: computed('model.name', '_field_touched.name', '_submit_attempted', function() {
+    var touched = this.get('_field_touched') || {};
+    var submitted = this.get('_submit_attempted');
+    var errors = {};
+    var name_empty = !(this.get('model.name') || '').trim().length;
+    if(name_empty && (touched.name || submitted)) {
+      errors.name = i18n.t('error_name_required', "Please enter a name for the board.");
+    }
+    return errors;
+  }),
+
+  /** DOM ids of required-field inputs in form order. Used by
+   *  `attemptSave` to focus the first empty one when the user clicks
+   *  Create with missing fields — same Material 3 / Stripe pattern. */
+  _required_field_ids: ['new_board_name'],
+
+  /** Joined sentence form of `missing_required_fields`. "Add a name." or
+   *  "Add a name and description." or "Add a name, description, and icon."
+   *  — Oxford-comma three-or-more, plain "and" for two, single item bare.
+   *  Returns null when nothing is missing so the template can `{{#if}}`
+   *  it cleanly. */
+  missing_required_summary: computed('missing_required_fields.[]', function() {
+    var list = this.get('missing_required_fields') || [];
+    if(list.length === 0) { return null; }
+    var phrase;
+    if(list.length === 1) {
+      phrase = list[0];
+    } else if(list.length === 2) {
+      phrase = list[0] + ' ' + i18n.t('and', "and") + ' ' + list[1];
+    } else {
+      phrase = list.slice(0, -1).join(', ') + ', ' + i18n.t('and', "and") + ' ' + list[list.length - 1];
+    }
+    return i18n.t('add_required_fields', "Add %{fields} to enable Create.", { fields: phrase });
   }),
 
   attributable_license_type: computed('model.license.type', function() {
@@ -413,7 +703,72 @@ export default Component.extend({
     return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', '_label_colors', function() {
+  /** Combined map of POS auto-colors + user-applied paint, keyed by
+   *  label.toLowerCase(). Painted overrides win — same precedence as
+   *  the preview grid's `bg_style` resolution above and the live
+   *  board-detail page (button.background_color > pick_aac_color).
+   *  Passed to <label-chips colors={{...}}> so chips in both the
+   *  inline list and the disclosure list reflect the same color the
+   *  user sees on the preview cell. */
+  chip_label_colors: computed('_label_colors', '_painted_colors', function() {
+    var pos = this.get('_label_colors') || {};
+    var painted = this.get('_painted_colors') || {};
+    if(Object.keys(painted).length === 0) { return pos; }
+    var merged = Object.assign({}, pos);
+    Object.keys(painted).forEach(function(key) {
+      var p = painted[key];
+      if(p && p.fill) {
+        merged[key] = { fill: p.fill, border: p.border, type: p.part_of_speech };
+      }
+    });
+    return merged;
+  }),
+
+  /** Paint-color swatches for the toolbar dropdown. Mirrors
+   *  `color_picker_swatches` on user/board-detail.js — same Fitzgerald
+   *  palette + POS labels, same `symbol_background` dep so the swatches
+   *  refresh to soft hues when the user has Colored Soft saved. Lives on
+   *  the component so the create-board flow has identical paint semantics
+   *  to the live board-detail edit toolbar. */
+  paint_swatches: computed('appState.currentUser.preferences.symbol_background', function() {
+    var darken = function(color) {
+      if(window.tinycolor) {
+        return window.tinycolor(color).darken(30).toHexString();
+      }
+      return color;
+    };
+    var pos_labels = {
+      pronoun:     i18n.t('swatch_pronoun', "Pronoun"),
+      verb:        i18n.t('swatch_verb', "Verb"),
+      adjective:   i18n.t('swatch_descriptor', "Descriptor"),
+      noun:        i18n.t('swatch_noun', "Noun"),
+      social:      i18n.t('swatch_social', "Social"),
+      negation:    i18n.t('swatch_negative', "Negative"),
+      question:    i18n.t('swatch_question', "Question"),
+      preposition: i18n.t('swatch_preposition', "Preposition"),
+      adverb:      i18n.t('swatch_adverb', "Adverb"),
+      determiner:  i18n.t('swatch_determiner', "Determiner"),
+      conjunction: i18n.t('swatch_conjunction', "Conjunction"),
+      other:       i18n.t('swatch_other', "Other"),
+      contrast:    i18n.t('swatch_contrast', "Contrast")
+    };
+    var palette = (window.LingoLinq && window.LingoLinq.board_detail_keyed_colors) || [];
+    var swatches = palette
+      .filter(function(c) { return c.pos_class && pos_labels[c.pos_class]; })
+      .map(function(c) {
+        var s = { label: pos_labels[c.pos_class], pos_class: c.pos_class, bg: c.fill };
+        if(c.border) { s.border = c.border; }
+        return s;
+      });
+    swatches.forEach(function(s) {
+      if(!s.border) {
+        s.border = (s.bg === '#fff' || s.bg === '#FFFFFF') ? '#eee' : darken(s.bg);
+      }
+    });
+    return swatches;
+  }),
+
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
@@ -422,33 +777,134 @@ export default Component.extend({
     var labels = this.get('parsed_labels') || [];
     var editIdx = this.get('_editIdx');
     var label_colors = this.get('_label_colors') || {};
+    var painted_colors = this.get('_painted_colors') || {};
+    var label_images = this.get('_label_images') || {};
+    var paint_active = !!this.get('paint_mode');
+    // Build a duplicate-label set so each cell can flag itself as a
+    // duplicate independently — drives the warning icon + glow on the
+    // preview card. Keyed lowercase to match label-chips' duplicate
+    // detection (so the chip pill and the preview card flag the same
+    // labels as duplicates).
+    var counts = {};
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key) { return; }
+      counts[key] = (counts[key] || 0) + 1;
+    });
     var grid = [];
     for(var r = 0; r < rows; r++) {
       var row = [];
       for(var c = 0; c < cols; c++) {
         var idx = (order === 'columns') ? (c * rows + r) : (r * cols + c);
         var label = labels[idx] || '';
-        var color = label ? label_colors[label.toLowerCase()] : null;
+        // Manual paint overrides POS auto-color — same precedence as the
+        // live board-detail page (button.background_color wins over the
+        // computed POS color from `pick_aac_color`).
+        var painted = label ? painted_colors[label.toLowerCase()] : null;
+        var color = painted || (label ? label_colors[label.toLowerCase()] : null);
         var bg_style = null;
-        if(color && color.fill) {
-          var style = 'background-color: ' + color.fill + ';';
-          if(color.border) { style += ' border-color: ' + color.border + ';'; }
+        // A cell counts as "clear" only when the resolved POS fill is
+        // pure white — the conjunction/number POS color in the
+        // Fitzgerald palette. Articles/determiners (#ccc, #dcdcdc)
+        // intentionally render gray; that's their POS. Painted overrides
+        // always render, even if the user picks white.
+        var is_clear_color = false;
+        if(color && color.fill && !painted) {
+          var f = ('' + color.fill).toLowerCase().replace(/\s+/g, '');
+          if(f === '#fff' || f === '#ffffff' || f === 'white' ||
+             f === 'rgb(255,255,255)' || f === 'rgba(255,255,255,1)') {
+            is_clear_color = true;
+          }
+        }
+        if(color && color.fill && !is_clear_color) {
+          var style = 'background-color: ' + color.fill + ';--btn-bg:' + color.fill + ';';
+          if(color.border) { style += ' outline-color: ' + color.border + ';'; }
           bg_style = htmlSafe(style);
         }
+        var editing = (editIdx !== null && editIdx !== undefined && editIdx === idx);
+        var is_duplicate = !!(label && counts[label.toLowerCase()] > 1);
+        // "No Fitzgerald category": the POS lookup has RESOLVED for this
+        // label (entry present in _label_colors) but produced no
+        // Fitzgerald key color (no fill — pick_aac_color found no
+        // matching part of speech) AND the user hasn't manually painted
+        // it. Only flags after the async lookup completes so a label the
+        // user is still typing doesn't false-positive. Clear/gray POS
+        // (conjunctions/articles) carry a real fill, so they are NOT
+        // flagged — they do have a category.
+        var lc_entry = label ? label_colors[label.toLowerCase()] : null;
+        var no_category = !!(label && !painted && lc_entry && !lc_entry.fill);
+        // Symbol image preview — the OpenSymbols search result for this
+        // label, looked up async via `_lookup_label_images`. Falls back
+        // to a placeholder square in the template when the URL is
+        // missing or hasn't resolved yet. Same image_url is written to
+        // model.buttons[] at save time so the saved board uses what the
+        // user previewed.
+        var image_entry = label ? label_images[label.toLowerCase()] : null;
+        var image_url = (image_entry && image_entry.image_url) || null;
         row.push({
           row: r,
           col: c,
           idx: idx,
           label: label,
           empty: !label,
-          editing: (editIdx !== null && editIdx !== undefined && editIdx === idx),
+          editing: editing,
+          // Drag is disabled while a cell is being edited (otherwise dragging
+          // the click+hold to position the caret could initiate a swap),
+          // while paint mode is active (clicks are paints, not drags), and
+          // for empty placeholder cells. Template binds `draggable={{...}}`.
+          draggable: !!(label && !editing && !paint_active),
+          painted: !!painted,
+          is_duplicate: is_duplicate,
+          no_category: no_category,
           bg_style: bg_style,
-          has_color: !!(color && color.fill)
+          image_url: image_url,
+          // A near-white POS fill (conjunction/article) counts as no
+          // color visually, so the template adds the `--no-color` class
+          // and the preview's flat-card rule kicks in. Painted cells
+          // always count as colored.
+          has_color: !!(color && color.fill && !is_clear_color)
         });
       }
       grid.push(row);
     }
     return grid;
+  }),
+
+  /** Unique labels whose POS lookup resolved with no Fitzgerald key
+   *  color (and the user hasn't painted them). Drives the preview
+   *  highlight + the warning banner. Mirrors the per-cell `no_category`
+   *  rule so the count matches what's highlighted. */
+  no_fitzgerald_labels: computed('parsed_labels.[]', '_label_colors', '_painted_colors', function() {
+    var labels = this.get('parsed_labels') || [];
+    var lc = this.get('_label_colors') || {};
+    var painted = this.get('_painted_colors') || {};
+    var seen = {};
+    var out = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key]) { return; }
+      seen[key] = true;
+      if(painted[key]) { return; }
+      var entry = lc[key];
+      if(entry && !entry.fill) { out.push(l); }
+    });
+    return out;
+  }),
+
+  no_fitzgerald_count: computed('no_fitzgerald_labels.[]', function() {
+    return (this.get('no_fitzgerald_labels') || []).length;
+  }),
+
+  /** Short, comma-joined preview of the uncolored labels for the
+   *  banner copy — capped so a big paste doesn't blow out the alert. */
+  no_fitzgerald_labels_display: computed('no_fitzgerald_labels.[]', function() {
+    var list = this.get('no_fitzgerald_labels') || [];
+    var shown = list.slice(0, 8);
+    var str = shown.join(', ');
+    if(list.length > shown.length) {
+      str += ', …';
+    }
+    return str;
   }),
 
   /** Whenever the parsed labels change, schedule a Fitzgerald color
@@ -504,20 +960,152 @@ export default Component.extend({
     });
   },
 
+  /** Whenever the parsed labels change, schedule a symbol-image lookup
+   *  for any unseen labels. Debounced longer than the color lookup
+   *  (700ms vs 450ms) since image search is more expensive on the
+   *  server side and the user typically pauses for at least that long
+   *  between adding labels. */
+  _request_label_images: observer('parsed_labels.[]', function() {
+    debounce(this, this._lookup_label_images, 700);
+  }),
+
+  /** Fetches a symbol image for each unseen label via the existing
+   *  `/api/v1/search/symbols` endpoint (same one the live board's
+   *  Find-a-Button modal hits). Takes the first non-protected result
+   *  for each label and caches the `image_url` in `_label_images`.
+   *  Cached results stay across re-renders so re-typing the same word
+   *  is instant; cache also caches no-match (image_url: null) so we
+   *  don't re-query labels that don't have a match. */
+  _lookup_label_images() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var labels = this.get('parsed_labels') || [];
+    var cached = this.get('_label_images') || {};
+    var seen = {};
+    var to_lookup = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      seen[key] = true;
+      to_lookup.push(key);
+    });
+    if(to_lookup.length === 0) { return; }
+    var _this = this;
+    var locale = (this.get('model.locale') || 'en').split(/_|-/)[0];
+    // Fire one request per label in parallel — the symbols endpoint is
+    // single-word so we can't batch. RSVP.allSettled lets a single
+    // 404/timeout not block the rest. Cap the parallel requests at a
+    // reasonable number (12 at a time) so we don't flood the server
+    // when the user pastes a giant label list.
+    var BATCH_SIZE = 12;
+    var run_batch = function(start) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var batch = to_lookup.slice(start, start + BATCH_SIZE);
+      if(batch.length === 0) { return; }
+      var promises = batch.map(function(word) {
+        return persistence.ajax(
+          '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
+          '&safe=0&locale=' + encodeURIComponent(locale),
+          { type: 'GET' }
+        ).then(function(results) {
+          var pick = (results && results.length) ? results[0] : null;
+          return { word: word, image_url: (pick && pick.image_url) || null };
+        }, function() {
+          // Network/permission errors → cache as null so we don't retry
+          // forever. Same pattern as `_lookup_label_colors`.
+          return { word: word, image_url: null };
+        });
+      });
+      RSVP.allSettled(promises).then(function(states) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var next_map = Object.assign({}, _this.get('_label_images') || {});
+        states.forEach(function(state) {
+          if(state.state === 'fulfilled' && state.value && state.value.word) {
+            next_map[state.value.word] = { image_url: state.value.image_url };
+          }
+        });
+        _this.set('_label_images', next_map);
+        // Notify so preview_grid (which deps on _label_images) re-runs.
+        _this.notifyPropertyChange('_label_images');
+        run_batch(start + BATCH_SIZE);
+      });
+    };
+    run_batch(0);
+  },
+
+  /** Resolves the user's button_style pref into a CSS font-family string
+   *  and an optional text-transform (caps/lowercase variants). Mirrors
+   *  controllers/user/board-detail.js:1262 so the preview honors the same
+   *  font choices as the live page. */
+  button_font_style: computed('appState.sessionUser.preferences.device.button_style', function() {
+    var style = this.appState.get('sessionUser.preferences.device.button_style') || 'default';
+    var fonts = {
+      // 'default' is treated as Arial — when the user has not set a font
+      // preference, the rendered font should be Arial (not the browser
+      // default serif).
+      'default':       'Arial, sans-serif',
+      'default_caps':  'Arial, sans-serif',
+      'default_small': 'Arial, sans-serif',
+      'arial': 'Arial, sans-serif',
+      'arial_caps': 'Arial, sans-serif',
+      'arial_small': 'Arial, sans-serif',
+      'comic_sans': '"Comic Sans MS", cursive',
+      'comic_sans_caps': '"Comic Sans MS", cursive',
+      'comic_sans_small': '"Comic Sans MS", cursive',
+      'open_dyslexic': 'OpenDyslexic, sans-serif',
+      'open_dyslexic_caps': 'OpenDyslexic, sans-serif',
+      'open_dyslexic_small': 'OpenDyslexic, sans-serif',
+      'architects_daughter': 'ArchitectsDaughter, cursive',
+      'architects_daughter_caps': 'ArchitectsDaughter, cursive',
+      'architects_daughter_small': 'ArchitectsDaughter, cursive',
+      'helvetica':       'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      'verdana':         'Verdana, Geneva, sans-serif',
+      'tahoma':          'Tahoma, Geneva, sans-serif',
+      'trebuchet':       '"Trebuchet MS", "Lucida Grande", sans-serif',
+      'calibri':         'Calibri, "Segoe UI", sans-serif',
+      'segoe_ui':        '"Segoe UI", Tahoma, sans-serif',
+      'lucida_sans':     '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+      'optima':          'Optima, Segoe, sans-serif',
+      'times_new_roman': '"Times New Roman", Times, serif',
+      'georgia':         'Georgia, "Times New Roman", serif',
+      'garamond':        'Garamond, "Times New Roman", serif',
+      'palatino':        '"Palatino Linotype", Palatino, serif',
+      'cambria':         'Cambria, Georgia, serif',
+      'courier_new':     '"Courier New", Courier, monospace',
+      'consolas':        'Consolas, "Courier New", monospace',
+      'monaco':          'Monaco, Menlo, monospace',
+      'impact':          'Impact, Charcoal, sans-serif',
+      'brush_script':    '"Brush Script MT", cursive',
+      'marker_felt':     '"Marker Felt", Casual, cursive',
+      'chalkboard':      '"Chalkboard SE", Chalkboard, sans-serif',
+      'snell_roundhand': '"Snell Roundhand", "Apple Chancery", cursive'
+    };
+    var transform = 'none';
+    if(style && style.match(/_caps$/))  { transform = 'uppercase'; }
+    if(style && style.match(/_small$/)) { transform = 'lowercase'; }
+    return {
+      family: fonts[style] || 'inherit',
+      transform: transform
+    };
+  }),
+
   preview_style: computed(
     'model.grid.columns', 'model.grid.rows',
     'button_text_size_px', 'button_spacing_px', 'button_border_px',
+    'button_font_style.family', 'button_font_style.transform',
     function() {
       var cols = parseInt(this.get('model.grid.columns'), 10) || 1;
       var rows = parseInt(this.get('model.grid.rows'), 10) || 1;
       cols = Math.max(1, Math.min(20, cols));
       rows = Math.max(1, Math.min(20, rows));
+      var font = this.get('button_font_style') || {};
       return htmlSafe(
         '--preview-cols: ' + cols + '; --preview-rows: ' + rows +
         '; --board-columns: ' + cols + '; --board-rows: ' + rows +
         '; --bd-button-text-size: ' + this.get('button_text_size_px') + 'px' +
         '; --bd-button-gap: ' + this.get('button_spacing_px') + 'px' +
-        '; --bd-button-border: ' + this.get('button_border_px') + 'px'
+        '; --bd-button-border: ' + this.get('button_border_px') + 'px' +
+        '; --bd-button-font: ' + (font.family || 'inherit') +
+        '; --bd-button-text-transform: ' + (font.transform || 'none')
       );
     }
   ),
@@ -547,6 +1135,52 @@ export default Component.extend({
   }),
 
   MAX_GRID_LABELS: 400,
+  MAX_CSV_BYTES: 1024 * 1024,
+  MAX_LABEL_LENGTH: 80,
+
+  _parse_csv: function(text) {
+    var rows = [];
+    var row = [];
+    var field = '';
+    var in_quotes = false;
+    for(var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if(in_quotes) {
+        if(c === '"') {
+          if(text.charAt(i + 1) === '"') { field += '"'; i++; }
+          else { in_quotes = false; }
+        } else {
+          field += c;
+        }
+      } else {
+        if(c === '"') { in_quotes = true; }
+        else if(c === ',') { row.push(field); field = ''; }
+        else if(c === '\r') { /* swallow — handled by \n */ }
+        else if(c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else { field += c; }
+      }
+    }
+    if(field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+    return rows;
+  },
+
+  _sanitize_label: function(raw) {
+    if(raw == null) { return ''; }
+    var s = ('' + raw);
+    var sanitized = '';
+    for(var i = 0; i < s.length; i++) {
+      var code = s.charCodeAt(i);
+      sanitized += ((code >= 0 && code <= 31) || code === 127) ? ' ' : s.charAt(i);
+    }
+    s = sanitized;
+    s = s.replace(/<[^>]*>/g, '');
+    s = s.replace(/^[=+\-@\t\r ]+/, '');
+    s = s.trim();
+    if(s.length > this.get('MAX_LABEL_LENGTH')) {
+      s = s.slice(0, this.get('MAX_LABEL_LENGTH'));
+    }
+    return s;
+  },
 
   too_many_total_labels: computed('label_count', function() {
     return (this.get('label_count') || 0) > this.get('MAX_GRID_LABELS');
@@ -642,7 +1276,14 @@ export default Component.extend({
         var onClose = this.get('onClose');
         if (onClose && typeof onClose === 'function') {
           onClose();
+        } else if (window.history && window.history.length > 1) {
+          // Return to whichever page the user was on when they opened
+          // create-board-new (board picker, dashboard, a board, etc.)
+          // rather than always landing them on user.home.
+          window.history.back();
         } else {
+          // Fallback for direct navigation (bookmark, fresh tab, deep
+          // link) where there's no history to walk back.
           var un = this.appState.get('currentUser.user_name');
           var r = this.get('router');
           var st = this.get('store');
@@ -666,11 +1307,71 @@ export default Component.extend({
       }
       modalUtil.open('import-from-html');
     },
+    // Legacy entry point — now just switches the page into AI mode
+    // instead of opening the old generate-board modal.
     generateWithAi: function() {
-      if(!this.get('standalone')) {
-        this.get('modal').close();
+      this.send('set_create_mode', 'ai');
+    },
+
+    /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
+     *  button. Leaving AI mode keeps any generated labels so toggling
+     *  back and forth doesn't lose work. */
+    set_create_mode: function(mode) {
+      this.set('ai_mode', mode === 'ai');
+      this.set('ai_generate_error', null);
+    },
+
+    /** AI label generation, in-page. Uses the (required) board
+     *  description as the prompt, calls the same endpoint the old
+     *  generate-board modal used, writes the result into the board's
+     *  labels, then reveals the full Size & Labels section. */
+    generate_labels_with_ai: function() {
+      var _this = this;
+      if(this.get('ai_generating')) { return; }
+      if(persistence && persistence.get && !persistence.get('online')) {
+        this.set('ai_generate_error', i18n.t('generate_requires_online', "AI board generation requires an Internet connection."));
+        return;
       }
-      modalUtil.open('generate-board');
+      var prompt = (this.get('model.description') || '').trim();
+      if(!prompt) {
+        this.set('ai_generate_error', i18n.t('ai_description_required', "Add a description above — it's what the AI uses to generate labels."));
+        return;
+      }
+      this.set('ai_generate_error', null);
+      this.set('ai_generating', true);
+      var payload = {
+        prompt: prompt,
+        rows: parseInt(this.get('model.grid.rows'), 10) || 2,
+        columns: parseInt(this.get('model.grid.columns'), 10) || 4,
+        include_core_words: true,
+        labels_order: this.get('model.grid.labels_order') || 'columns',
+        locale: (this.get('model.locale') || 'en')
+      };
+      persistence.ajax('/api/v1/boards/generate_labels', {
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify(payload)
+      }).then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var labels = (res && res.labels) || '';
+        _this.set('model.grid.labels', labels);
+        if(res && res.name && !(_this.get('model.name') || '').trim().length) {
+          _this.set('model.name', res.name);
+        }
+        _this.set('ai_generating', false);
+        _this.set('ai_labels_generated', true);
+      }, function(err) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var msg = i18n.t('generate_failed', "Generation failed");
+        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
+        if(resp && resp.error) {
+          msg = resp.error;
+          if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
+        }
+        _this.set('ai_generating', false);
+        _this.set('ai_generate_error', msg);
+      });
     },
     opening: function() {
       if (this.get('standalone')) { return; }
@@ -779,6 +1480,14 @@ export default Component.extend({
       if(event && event.stopPropagation) { event.stopPropagation(); }
       var labels = this.get('parsed_labels') || [];
       if(idx >= labels.length || !labels[idx]) { return; }
+      // Paint mode hijacks the cell click: instead of opening the inline
+      // edit, apply the currently-armed paint color to this label. Mirrors
+      // the board-detail edit flow where clicks-while-painting paint
+      // instead of selecting/editing the button.
+      if(this.get('paint_mode')) {
+        this.send('paint_button', labels[idx]);
+        return;
+      }
       this.set('_editIdx', idx);
       this.set('_editValue', labels[idx]);
       var _this = this;
@@ -811,6 +1520,36 @@ export default Component.extend({
       this.set('_editIdx', null);
       this.set('_editValue', '');
     },
+    /** Removes the label at `idx` from the labels list. Mirrors
+     *  label-chips' `removeChipAt` action so deleting a chip from the
+     *  list and clicking the X on the matching preview card both
+     *  splice from the same `parsed_labels` array via
+     *  `model.grid.labels`. `event.stopPropagation` prevents the
+     *  cell wrapper's drag handlers and the inner label button's
+     *  click-to-edit from firing on the same gesture. */
+    removeCellAt: function(idx, event) {
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      if(event && event.preventDefault) { event.preventDefault(); }
+      var labels = (this.get('parsed_labels') || []).slice();
+      if(idx < 0 || idx >= labels.length) { return; }
+      labels.splice(idx, 1);
+      this.set('model.grid.labels', labels.join('\n'));
+    },
+    /** Cell-wrapper click handler. Exists primarily so paint mode can
+     *  apply to the *whole card* (symbol image + padding + edges), not
+     *  just the label-text area covered by `__label-btn`. When paint
+     *  mode is off this is a no-op — clicks on the label-btn continue
+     *  to fire `startCellEdit` directly with `bubbles=false`, and clicks
+     *  on the X / warning icon don't bubble here either. So this only
+     *  catches the dead-zone clicks (image area, padding) that
+     *  previously did nothing. */
+    cellClicked: function(idx, event) {
+      if(!this.get('paint_mode')) { return; }
+      var labels = this.get('parsed_labels') || [];
+      if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      this.send('paint_button', labels[idx]);
+    },
     cellEditKeydown: function(event) {
       var key = event.key;
       if(key === 'Enter') {
@@ -823,6 +1562,82 @@ export default Component.extend({
         this.send('cancelCellEdit');
       }
     },
+
+    // ── Paint mode (mirrors board-detail) ──
+    // The paint feature lets the user manually override a button's
+    // background/border color. State lives in `_painted_colors` (label-
+    // lower → {fill, border, part_of_speech}) so the override follows the
+    // label through drag-reorder. The `saveBoard` action bakes these into
+    // `model.buttons[]` + `model.grid.order` so the server persists the
+    // colors without having to re-paint after creation.
+    /** The palette button is dual-purpose:
+     *   - When paint_mode is OFF, clicking opens the swatch dropdown.
+     *   - When paint_mode is ON, clicking exits paint mode (and closes
+     *     the dropdown / custom-color picker if either are open).
+     *  This collapses the previous "open dropdown" + separate exit-X
+     *  button into one affordance, mirroring how the palette pill
+     *  itself is the activation/deactivation control. */
+    toggle_paint_dropdown: function() {
+      if(this.get('paint_mode')) {
+        this.send('clear_paint_mode');
+        this.set('show_paint_dropdown', false);
+        return;
+      }
+      this.toggleProperty('show_paint_dropdown');
+      if(!this.get('show_paint_dropdown')) {
+        this.set('show_paint_color_picker', false);
+      }
+    },
+    set_paint_mode: function(fill, border, part_of_speech) {
+      this.set('show_paint_dropdown', false);
+      this.set('show_paint_color_picker', false);
+      if(!fill) { return; }
+      var fill_tc = window.tinycolor ? window.tinycolor(fill) : null;
+      var border_tc = border && window.tinycolor ? window.tinycolor(border) :
+                      (fill_tc ? window.tinycolor(fill_tc.toRgb()).darken(30) : null);
+      this.set('paint_mode', {
+        fill: fill_tc ? fill_tc.toRgbString() : fill,
+        border: border_tc ? border_tc.toRgbString() : (border || fill),
+        part_of_speech: part_of_speech
+      });
+    },
+    clear_paint_mode: function() {
+      this.set('paint_mode', null);
+      this.set('show_paint_color_picker', false);
+    },
+    /** Applies the currently-armed paint color to a label. Keyed by
+     *  label.toLowerCase() so duplicates share the color and reorder
+     *  preserves it. Clicking again with the same color toggles the
+     *  paint off (reverts to POS auto-color), matching the live board's
+     *  click-to-toggle behavior. Triggers a manual notify so the
+     *  `_painted_colors` dep on `preview_grid` re-runs. */
+    paint_button: function(label) {
+      if(!label) { return; }
+      var pm = this.get('paint_mode');
+      if(!pm || !pm.fill) { return; }
+      var key = (label || '').toLowerCase();
+      var painted = Object.assign({}, this.get('_painted_colors') || {});
+      var existing = painted[key];
+      if(existing && existing.fill === pm.fill) {
+        delete painted[key];
+      } else {
+        painted[key] = { fill: pm.fill, border: pm.border, part_of_speech: pm.part_of_speech };
+      }
+      this.set('_painted_colors', painted);
+      this.notifyPropertyChange('_painted_colors');
+    },
+    toggle_paint_color_picker: function() {
+      this.toggleProperty('show_paint_color_picker');
+    },
+    update_custom_paint_color: function(value) {
+      this.set('custom_paint_color', value);
+    },
+    apply_custom_paint_color: function() {
+      var color = (this.get('custom_paint_color') || '').trim();
+      if(!color) { return; }
+      this.send('set_paint_mode', color, null, null);
+    },
+
     previewDragOver: function(event) {
       // Keep dropEffect consistent across the entire preview (cells + gaps),
       // so the cursor doesn't flicker between "move" and "no-drop" as the
@@ -839,18 +1654,38 @@ export default Component.extend({
       this.set('_dragSourceIdx', null);
     },
     more_options: function() {
-      this.set('more_options', true);
+      this.toggleProperty('more_options');
+    },
+    toggleIconPicker: function() {
+      this.toggleProperty('icon_picker_open');
     },
     togglePreviewMode: function() {
       this.set('preview_mode', this.get('preview_mode') === 'dark' ? 'light' : 'dark');
     },
-    togglePrefs: function() {
-      this.toggleProperty('prefs_open');
+    // Edit-rail accordion: clicking a section opens it (and closes any
+    // other). Clicking the open one closes it. Drives the grid's
+    // max-height expansion via the .nb-preview-stage--expanded class.
+    toggle_create_rail_section: function(id) {
+      if(this.get('create_rail_open_section') === id) {
+        this.set('create_rail_open_section', null);
+      } else {
+        this.set('create_rail_open_section', id);
+      }
+    },
+    toggleLabelsList: function() {
+      this.toggleProperty('labels_list_open');
     },
     pick_core: function() {
       this.send('stop_recording');
-      this.set('core_lists', i18n.get('core_words'));
-      this.set('core_words', i18n.core_words_map());
+      // Toggle: if the core lists are already showing, hide them. Otherwise
+      // open them. Lets the same button collapse the panel it opened.
+      if(this.get('core_lists')) {
+        this.set('core_lists', null);
+        this.set('core_words', null);
+      } else {
+        this.set('core_lists', i18n.get('core_words'));
+        this.set('core_words', i18n.core_words_map());
+      }
     },
     clearGrid: function() {
       this.set('model.grid.labels', '');
@@ -861,6 +1696,69 @@ export default Component.extend({
       this.set('core_words', null);
       this.set('_editIdx', null);
       this.set('_editValue', '');
+    },
+    importCsv: function() {
+      var input = document.getElementById('new_board_csv_input');
+      if(input) { input.value = ''; input.click(); }
+    },
+    csvFileChosen: function(event) {
+      var _this = this;
+      var input = event && event.target;
+      var file = input && input.files && input.files[0];
+      if(!file) { return; }
+      var ext = (file.name || '').toLowerCase().split('.').pop();
+      if(ext !== 'csv') {
+        modalUtil.warning(i18n.t('csv_only_warning', "Only .csv files are supported."));
+        if(input) { input.value = ''; }
+        return;
+      }
+      if(file.size > this.get('MAX_CSV_BYTES')) {
+        modalUtil.warning(i18n.t('csv_too_big_warning', "That CSV is over 1MB. Please trim it down and try again."));
+        if(input) { input.value = ''; }
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var text = (e.target && e.target.result) || '';
+        if(typeof text !== 'string') { text = '' + text; }
+        var rows = _this._parse_csv(text);
+        var max_total = _this.get('MAX_GRID_LABELS');
+        var existing = (_this.get('parsed_labels') || []).slice();
+        var seen = {};
+        existing.forEach(function(l) { seen[(l || '').toLowerCase()] = true; });
+        var added = [];
+        var skipped_dupes = 0;
+        var skipped_empty = 0;
+        outer:
+        for(var r = 0; r < rows.length; r++) {
+          for(var c = 0; c < rows[r].length; c++) {
+            var clean = _this._sanitize_label(rows[r][c]);
+            if(!clean) { skipped_empty++; continue; }
+            var key = clean.toLowerCase();
+            if(seen[key]) { skipped_dupes++; continue; }
+            seen[key] = true;
+            added.push(clean);
+            if(existing.length + added.length >= max_total) { break outer; }
+          }
+        }
+        if(input) { input.value = ''; }
+        if(added.length === 0) {
+          modalUtil.warning(i18n.t('csv_no_labels_found', "No usable labels were found in that CSV."));
+          return;
+        }
+        var merged = existing.concat(added);
+        _this.set('model.grid.labels', merged.join('\n'));
+        var msg = i18n.t('csv_import_success', "Added %{n} label(s) from CSV.", {n: added.length});
+        if(skipped_dupes > 0 || skipped_empty > 0) {
+          msg += ' ' + i18n.t('csv_import_skipped', "(skipped %{d} duplicate, %{e} blank)", {d: skipped_dupes, e: skipped_empty});
+        }
+        modalUtil.notice(msg);
+      };
+      reader.onerror = function() {
+        modalUtil.warning(i18n.t('csv_read_failed', "Could not read that file."));
+        if(input) { input.value = ''; }
+      };
+      reader.readAsText(file);
     },
     speech_content: function(str) {
       this.send('add_recorded_word', str);
@@ -992,19 +1890,54 @@ export default Component.extend({
       }
       this.set('model.grid.labels', new_lines.join("\n"));
     },
+    /** Marks a required field as "touched" once the user has interacted
+     *  with it and blurred. Errors only render after this trigger (or
+     *  after a submit attempt), so a fresh form never accuses the user
+     *  before they've engaged. */
+    markFieldTouched: function(field) {
+      var touched = Object.assign({}, this.get('_field_touched') || {});
+      if(touched[field]) { return; }
+      touched[field] = true;
+      this.set('_field_touched', touched);
+      this.notifyPropertyChange('_field_touched');
+    },
+    /** Submit-attempt path. Click handler on the visually-disabled
+     *  Create button: marks all required fields as "submit-attempted"
+     *  so their errors render, focuses the first empty required field
+     *  (Stripe / Material 3 pattern), and forwards to saveBoard if
+     *  validation passes. The button is left functionally enabled
+     *  (`aria-disabled` instead of `disabled`) so this click can fire
+     *  even when fields are missing — that's how the user gets
+     *  feedback on touch devices where `:hover` doesn't exist. */
+    attemptSave: function() {
+      if(this.get('createBoardDisabled')) {
+        this.set('_submit_attempted', true);
+        var ids = this.get('_required_field_ids') || [];
+        for(var i = 0; i < ids.length; i++) {
+          var elt = document.getElementById(ids[i]);
+          if(elt && !(elt.value || '').trim().length) {
+            try { elt.focus(); } catch(e) { }
+            try { elt.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) { }
+            break;
+          }
+        }
+        return;
+      }
+      this.send('saveBoard');
+    },
     saveBoard: function(event) {
       var _this = this;
       var name = (this.get('model.name') || '').trim();
-      var icon = (this.get('model.image_url') || '').trim();
-      var description = (this.get('model.description') || '').trim();
-      if (!name.length || !icon.length || !description.length) {
+      // Required: name. Description / icon are optional (icon auto-
+      // assigns server-side via `Board#check_image_url`). For-user is
+      // conditionally required: when the "Yes" toggle is on, the user
+      // must pick an actual supervisee. saveBoard's guard mirrors
+      // `createBoardDisabled` so Enter-key submits can't bypass the
+      // disabled button.
+      if (!name.length) {
         this.set('status', {error: true});
         return;
       }
-      // Defensive guard: block submission when the user has selected
-      // "creating for someone else" but hasn't actually picked a
-      // supervisee. Mirrors createBoardDisabled — covers Enter-key
-      // submits and any path that bypasses the disabled button.
       if(this.get('show_user_options') && this.get('creating_for_someone_else')) {
         var picked = this.get('model.for_user_id');
         if(!picked || picked === 'self') {
@@ -1029,6 +1962,91 @@ export default Component.extend({
       var currentUserId = this.appState.get('currentUser.id') || this.appState.get('sessionUser.id');
       if(!this.get('model.for_user_id') && currentUserId) {
         this.set('model.for_user_id', 'self');
+      }
+      // Bake any manually-painted colors into a `buttons[]` array + a
+      // populated `grid.order`. Server-side `Board#process_buttons` only
+      // calls `populate_buttons_from_labels` when `buttons.length == 0`
+      // (see app/models/board.rb#L774), so providing buttons here means
+      // the painted `background_color`/`border_color` values persist on
+      // creation. We mirror the row/col math from `cellDragStart` so the
+      // user's labels_order choice is honored. Bakes BOTH user-applied
+      // paint AND POS auto-colors so what the user sees in the preview
+      // is what they get on the saved board (otherwise the preview's
+      // green-verb / yellow-pronoun coloring would vanish on save and
+      // every button would render with the default white background).
+      var painted = this.get('_painted_colors') || {};
+      var auto_colors = this.get('_label_colors') || {};
+      var label_images = this.get('_label_images') || {};
+      var has_painted = Object.keys(painted).length > 0;
+      var has_auto = Object.keys(auto_colors).some(function(k) {
+        var c = auto_colors[k];
+        return c && c.fill;
+      });
+      var has_images = Object.keys(label_images).some(function(k) {
+        var i = label_images[k];
+        return i && i.image_url;
+      });
+      if(has_painted || has_auto || has_images) {
+        var labels = this.get('parsed_labels') || [];
+        var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+        var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+        var labels_order = this.get('model.grid.labels_order') || 'rows';
+        var buttons = [];
+        var grid_order = [];
+        for(var rr = 0; rr < rows; rr++) {
+          var grid_row = [];
+          for(var cc = 0; cc < cols; cc++) { grid_row.push(null); }
+          grid_order.push(grid_row);
+        }
+        labels.forEach(function(label, idx) {
+          var btn = {
+            id: idx + 1,
+            label: label,
+            // suggest_symbol stays true only when we DON'T have a
+            // previewed image for this label — otherwise the server's
+            // post-create image-search would replace our chosen image.
+            // With a real image_url present, we lock it in.
+            suggest_symbol: true,
+            hidden: false,
+            hide_label: false
+          };
+          var key = (label || '').toLowerCase();
+          // Paint takes precedence over POS auto-color (mirrors the
+          // preview's `bg_style` resolution and the live board-detail
+          // page's button.background_color > pick_aac_color order).
+          var color = painted[key] || auto_colors[key];
+          if(color && color.fill) {
+            btn.background_color = color.fill;
+            if(color.border) { btn.border_color = color.border; }
+            var pos = color.part_of_speech || color.type;
+            if(pos) { btn.part_of_speech = pos; }
+          }
+          // Bake in the previewed symbol image so the saved board
+          // uses what the user actually saw — without this the server
+          // would re-search and might pick a different first result.
+          var img = label_images[key];
+          if(img && img.image_url) {
+            btn.image_url = img.image_url;
+            btn.suggest_symbol = false;
+          }
+          buttons.push(btn);
+          var row, col;
+          if(labels_order === 'columns') {
+            col = Math.floor(idx / rows);
+            row = idx % rows;
+          } else {
+            row = Math.floor(idx / cols);
+            col = idx % cols;
+          }
+          if(row < rows && col < cols) {
+            grid_order[row][col] = btn.id;
+          }
+        });
+        this.set('model.buttons', buttons);
+        // Pre-populated grid.order tells the server "buttons are placed,
+        // don't auto-place" — combined with `buttons.length > 0` it
+        // also bypasses the populate_from_labels path.
+        this.set('model.grid.order', grid_order);
       }
       this.get('model').save().then(function(board) {
         board.set('button_locale', board.get('locale'));
@@ -1078,6 +2096,7 @@ export default Component.extend({
       }
     },
 
+
     step_display_pref: function(key, direction) {
       var ladders = {
         button_text:     ['small', 'medium', 'large', 'huge'],
@@ -1102,13 +2121,35 @@ export default Component.extend({
 
     toggle_display_font_dropdown: function() {
       this.toggleProperty('display_prefs_font_dropdown_open');
+      if(this.get('display_prefs_font_dropdown_open')) {
+        this.set('display_prefs_font_filter', '');
+        next(function() {
+          var input = document.getElementById('nb-font-dropdown-search');
+          if(input) { input.focus(); }
+        });
+      }
     },
     close_display_font_dropdown: function() {
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
     },
     pick_display_font: function(font_id) {
       this.send('set_display_pref', 'button_style', font_id);
       this.set('display_prefs_font_dropdown_open', false);
+      this.set('display_prefs_font_filter', '');
+    },
+    filter_display_fonts: function(value) {
+      this.set('display_prefs_font_filter', value || '');
+    },
+    font_dropdown_keydown: function(event) {
+      if(event && event.key === 'Escape') {
+        event.preventDefault();
+        this.send('close_display_font_dropdown');
+      } else if(event && event.key === 'Enter') {
+        event.preventDefault();
+        var first = (this.get('filtered_button_style_options') || []).find(function(o) { return !o.divider; });
+        if(first) { this.send('pick_display_font', first.id); }
+      }
     },
 
     toggle_display_symbol_library_dropdown: function() {
@@ -1133,10 +2174,70 @@ export default Component.extend({
         this.send('set_display_pref', 'high_contrast', true);
         this.send('set_display_pref', 'symbol_background', 'black');
       } else {
+        // 'clear', 'clear_soft', 'clear_faded', 'white', 'black' all
+        // store directly as the symbol_background value. Soft/faded
+        // additionally trigger the .fitzgerald-soft / .fitzgerald-faded
+        // class via symbol_background_class in pref-classes.js, swapping
+        // the --fitzgerald-* CSS custom properties.
         this.send('set_display_pref', 'high_contrast', false);
         this.send('set_display_pref', 'symbol_background', id);
       }
       this.set('display_prefs_symbol_background_dropdown_open', false);
+      // Apply the Fitzgerald-soft / -faded class at <html> so :root has
+      // the override. The preview cells use inline background-colors
+      // populated from LingoLinq.board_detail_keyed_colors (which reads
+      // CSS custom properties via getComputedStyle on documentElement)
+      // — without this :root-level scope, those reads would always
+      // return the base palette regardless of the grid's class.
+      // set_fitzgerald_scope also invalidates the JS palette cache, so
+      // the next read returns the muted values.
+      if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+        window.LingoLinq.set_fitzgerald_scope(id);
+      }
+      // Re-trigger the label color lookup so existing labels get
+      // re-painted with the muted palette without waiting for the user
+      // to type/edit. Drop the cached colors first.
+      this.set('_label_colors', {});
+      this._lookup_label_colors();
+    },
+
+    toggle_display_voice_height_dropdown: function() {
+      this.toggleProperty('display_prefs_voice_height_dropdown_open');
+    },
+    close_display_voice_height_dropdown: function() {
+      this.set('display_prefs_voice_height_dropdown_open', false);
+    },
+    pick_display_voice_height: function(id) {
+      this.send('set_display_pref', 'vocalization_height', id);
+      this.set('display_prefs_voice_height_dropdown_open', false);
+    },
+    // Speak Bar — Symbol buttons vs Words only. Mirrors board-detail's
+    // `set_utterance_text_only`; persists the same way the other
+    // display prefs do here (set on sessionUser + save). Accepts the
+    // string "true"/"false" the radio group passes.
+    set_utterance_text_only: function(value) {
+      var bool = (value === 'true' || value === true);
+      var user = this.appState.get('sessionUser');
+      if(user && user.set) {
+        user.set('preferences.device.utterance_text_only', bool);
+        user.set('preferences.device.updated', true);
+        try { user.save(); } catch(e) { }
+      }
+    },
+
+    toggle_display_skin_dropdown: function() {
+      this.toggleProperty('display_prefs_skin_dropdown_open');
+    },
+    close_display_skin_dropdown: function() {
+      this.set('display_prefs_skin_dropdown_open', false);
+    },
+    pick_display_skin: function(id) {
+      if(id === 'mix' || id === 'mix_only' || id === 'mix_prefer') {
+        this._rebuild_compound_skin(id);
+      } else {
+        this.send('set_display_pref', 'skin', id);
+      }
+      this.set('display_prefs_skin_dropdown_open', false);
     },
 
     set_compound_skin: function(id) {

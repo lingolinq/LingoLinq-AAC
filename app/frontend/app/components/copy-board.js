@@ -76,8 +76,11 @@ export default Component.extend({
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;
   }),
 
-  linked: computed('model.board.buttons', function() {
-    return (this.get('model.board.linked_boards') || []).length > 0;
+  linked: computed('model.board.buttons', 'model.board.downstream_boards', 'model.board.downstream_board_ids', 'model.original_board', function() {
+    return (this.get('model.board.linked_boards') || []).length > 0 ||
+      (this.get('model.board.downstream_boards') || 0) > 0 ||
+      (this.get('model.board.downstream_board_ids.length') || 0) > 0 ||
+      !!this.get('model.original_board');
   }),
 
   locales: computed(function() {
@@ -234,6 +237,7 @@ export default Component.extend({
       const lib = this.get('symbol_library') || 'original';
       this.get('modal').close({
         action: decision,
+        copy_board_source: this.get('model.board'),
         user: this.get('current_user'),
         shares: shares,
         board_name: name,

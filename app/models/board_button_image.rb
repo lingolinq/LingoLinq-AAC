@@ -1,4 +1,4 @@
-class BoardButtonImage < ActiveRecord::Base
+class BoardButtonImage < ApplicationRecord
   belongs_to :board
   belongs_to :button_image
   include Replicate

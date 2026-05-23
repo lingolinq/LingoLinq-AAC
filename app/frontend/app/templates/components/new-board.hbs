@@ -9,7 +9,7 @@
           <button type="button" class="btn btn-default">
             {{t "Import Board(s)" key="import_boards"}}
           </button>
-          <input type="file" name="board_upload" id="board_upload">
+          <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
         <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
           {{t "Paste HTML" key="paste_html"}}
@@ -38,7 +38,7 @@
           <button type="button" class="la-btn la-btn--ghost">
             {{t "Import Board(s)" key="import_boards"}}
           </button>
-          <input type="file" name="board_upload" id="board_upload">
+          <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
         <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
           {{t "Paste HTML" key="paste_html"}}
@@ -190,7 +190,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder")}}
+                  {{label-chips value=this.model.grid.labels onChange=(action "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
                 </div>
               </div>
             </div>

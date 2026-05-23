@@ -188,6 +188,22 @@ $(document).on('mousedown touchstart', function(event) {
     focusedCard.click();
     return;
   }
+  // Speak Options modal: the menu's primary controls are <div
+  // class="md-speak-menu__btn"> elements (Share / Repeats / Repairs /
+  // Alerts / Phrases / punctuation / volume) that carry role="button"
+  // tabindex="0" so the modal-dialog focus trap can reach them. They are
+  // activated via the AAC .advanced_selection -> speak_menu region path,
+  // never natively, so Space/Enter must synthesize a click (same proven
+  // mechanism as the board-detail symbol card above). Native <button>
+  // speak-menu controls (Exit / close / bottom row) are skipped here so
+  // the browser activates them exactly once.
+  var focusedMenuBtn = (event.target && event.target.closest) ?
+    event.target.closest('.md-speak-menu__btn') : null;
+  if(focusedMenuBtn && focusedMenuBtn.tagName !== 'BUTTON' && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar' || event.keyCode === 32 || event.keyCode === 13)) {
+    event.preventDefault();
+    focusedMenuBtn.click();
+    return;
+  }
   if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open()) {
     // add letter to the sentence box
     var key = "+" + event.key;
@@ -1268,11 +1284,27 @@ var buttonTracker = EmberObject.extend({
             elem_wrap.dom.classList.contains('md-speak-menu__btn') ||
             elem_wrap.dom.classList.contains('md-speak-menu__bottom-btn')
           ) {
-            // Native CustomEvent so Ember's event dispatcher receives it (jquery-integration is off).
-            var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
-            speakMenuEvent.button_id = elem_wrap.dom.id;
-            speakMenuEvent.swipe_direction = swipe_direction;
-            elem_wrap.dom.dispatchEvent(speakMenuEvent);
+            if(elem_wrap.dom.tagName === 'BUTTON') {
+              // Native <button> speak-menu controls (Exit Speak Mode,
+              // Speak Mode, speak-as / model-for, locale chips, the
+              // bottom-row buttons) carry an Ember {{action}} and have NO
+              // #menu_* id, so the speakmenuselect path — which is keyed
+              // by elem.id and dispatched to speak-menu's button_event
+              // id-switch — has nothing to match and they silently no-op
+              // on touch. Fire a real passthrough click so the Ember
+              // action runs, the same way the generic non-button speak
+              // menu links are handled in the final else below.
+              event.preventDefault();
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            } else {
+              // #menu_* AAC tiles (<div class="md-speak-menu__btn">):
+              // route via the speakmenuselect CustomEvent so Ember's
+              // event dispatcher receives it (jquery-integration is off).
+              var speakMenuEvent = new CustomEvent('speakmenuselect', { bubbles: true, cancelable: true });
+              speakMenuEvent.button_id = elem_wrap.dom.id;
+              speakMenuEvent.swipe_direction = swipe_direction;
+              elem_wrap.dom.dispatchEvent(speakMenuEvent);
+            }
           } else if((elem_wrap.dom.className || "").match(/button/) || elem_wrap.virtual_button) {
             event.swipe_direction = swipe_direction;
             buttonTracker.button_release(elem_wrap, event, event_source);

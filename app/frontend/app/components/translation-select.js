@@ -1,7 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { later as runLater } from '@ember/runloop';
 import modal from '../utils/modal';
 import BoardHierarchy from '../utils/board_hierarchy';
 import i18n from '../utils/i18n';
@@ -62,27 +61,34 @@ export default Component.extend({
   done_translating(new_default) {
     const _this = this;
     return _this.get('model.board').reload(true).then(function() {
-      if (new_default && app_state.get('currentBoardState.id') === _this.get('model.board.id')) {
-        app_state.set('currentBoardState.default_locale', _this.get('model.board.locale'));
-        app_state.set('label_locale', _this.get('model.board.locale'));
-        app_state.set('vocalization_locale', _this.get('model.board.locale'));
+      if (new_default) {
+        const new_locale = _this.get('model.board.locale');
+        /* Update the session locale whenever the user explicitly set
+           this language as the board's default. The prior gate on
+           `currentBoardState.id === model.board.id` only matched in
+           speak mode, so the board-detail edit view kept showing
+           stale English labels after a translation completed until
+           you navigated away. Now updates in any mode. */
+        app_state.set('label_locale', new_locale);
+        app_state.set('vocalization_locale', new_locale);
+        if (app_state.get('currentBoardState.id') === _this.get('model.board.id')) {
+          app_state.set('currentBoardState.default_locale', new_locale);
+        }
       }
       app_state.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
     });
   },
 
-  _return_to_details: function() {
-    var board = this.get('model.board');
-    if(board) {
-      runLater(function() { modal.open('board-details', { board: board }); }, 200);
-    }
-  },
-
   actions: {
     nothing() {},
     close() {
+      /* Close to the page the user started on — don't reopen the
+         board-details info modal. The prior `_return_to_details()`
+         call assumed users always reached Translate from the
+         board-details modal, but the actual path is via Board
+         Actions modal from the board-detail edit page, so reopening
+         board-details landed them somewhere they never opened. */
       this.get('modal').close();
-      this._return_to_details();
     },
     opening() {},
     closing() {},
@@ -114,7 +120,9 @@ export default Component.extend({
             _this.set('switch_status', null);
             _this.done_translating(true);
             modal.close({ translated: true });
-            _this._return_to_details();
+            /* Intentionally no _return_to_details() reopen — the user
+               expects to land on the page they started from with no
+               modals stacked behind. */
           }
         });
       }, function() {
@@ -127,12 +135,22 @@ export default Component.extend({
       if (this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
         board_ids_to_include = this.get('hierarchy').selected_board_ids();
       }
+      /* `force_update_default` opt-in for the Re-Translate path —
+         the button only renders when `existing_default_language` is
+         true (target locale already in board.locales AND user wants
+         it as default), which is exactly when the server's same-
+         locale short-circuit would otherwise silently swallow the
+         translation. With this flag set, board.rb#translate_set
+         applies the new labels to the visible button text instead
+         of just caching them. */
+      const force_update = !!_this.get('existing_default_language');
       const translate_opts = {
         board: _this.get('model.board'),
         copy: _this.get('model.board'),
         button_set: _this.get('model.board.button_set'),
         locale: _this.get('translate_locale'),
         default_language: _this.get('default_language'),
+        force_update_default: force_update,
         old_board_ids_to_translate: board_ids_to_include,
         new_board_ids_to_translate: board_ids_to_include
       };

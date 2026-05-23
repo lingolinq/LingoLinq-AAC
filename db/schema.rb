@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_12_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -259,6 +259,21 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
     t.integer "developer_key_id"
     t.integer "user_integration_id"
     t.index ["user_id"], name: "index_devices_on_user_id"
+  end
+
+  create_table "eval_protocols", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "parent_id"
+    t.string "public_protocol_id"
+    t.string "protocol_version", default: "1.0"
+    t.string "population_profile"
+    t.text "settings"
+    t.boolean "communicator"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["population_profile"], name: "index_eval_protocols_on_population_profile"
+    t.index ["public_protocol_id"], name: "index_eval_protocols_on_public_protocol_id"
   end
 
   create_table "external_nonces", id: :serial, force: :cascade do |t|
@@ -523,8 +538,25 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_28_160000) do
     t.index ["communicator_user_id"], name: "index_supervisor_relationships_on_communicator_user_id"
     t.index ["consent_response_token"], name: "index_supervisor_rel_consent_token", unique: true, where: "(consent_response_token IS NOT NULL)"
     t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
-    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
+    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text]))"
     t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
+  end
+
+  create_table "telemetry_events", id: :serial, force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "organization_id"
+    t.integer "device_id"
+    t.string "event_type"
+    t.string "route"
+    t.string "feature_area"
+    t.datetime "occurred_at", precision: nil
+    t.text "data"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["event_type", "occurred_at"], name: "index_telemetry_events_on_event_type_and_occurred_at"
+    t.index ["organization_id", "occurred_at"], name: "index_telemetry_events_on_organization_id_and_occurred_at"
+    t.index ["route", "occurred_at"], name: "index_telemetry_events_on_route_and_occurred_at"
+    t.index ["user_id", "occurred_at"], name: "index_telemetry_events_on_user_id_and_occurred_at"
   end
 
   create_table "user_badges", id: :serial, force: :cascade do |t|

@@ -1,4 +1,4 @@
-class AuditEvent < ActiveRecord::Base
+class AuditEvent < ApplicationRecord
   include SecureSerialize
   before_save :generate_summary
   secure_serialize :data

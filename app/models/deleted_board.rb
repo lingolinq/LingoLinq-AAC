@@ -1,4 +1,4 @@
-class DeletedBoard < ActiveRecord::Base
+class DeletedBoard < ApplicationRecord
   include SecureSerialize
   include GlobalId
   secure_serialize :settings

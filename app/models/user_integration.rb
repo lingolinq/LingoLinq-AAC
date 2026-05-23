@@ -1,4 +1,4 @@
-class UserIntegration < ActiveRecord::Base
+class UserIntegration < ApplicationRecord
   include Processable
   include Permissions
   include Async

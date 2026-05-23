@@ -2,17 +2,64 @@
      The "info" preview button is a sibling rather than nested (HTML disallows
      buttons inside buttons). --}}
 <div class={{this.display_class}} style={{this.cursor_style}}>
+  {{!-- Translated-language marker — sits above the bottom-center
+       Preview pill. Informational only (aria-hidden + pointer-events
+       none in CSS), so it visually flags translated boards without
+       intercepting the tile's click. Rendered only when
+       translated_language_label resolves (board has multiple locales
+       OR a non-English default locale). --}}
+  {{#if this.translated_language_label}}
+    <span class="board-icon__lang-marker" aria-hidden="true" title={{t "Board language" key="board_language"}}>
+      <svg class="board-icon__lang-marker-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span class="board-icon__lang-marker-text">{{this.translated_language_label}}</span>
+    </span>
+  {{/if}}
   {{#unless this.noinfo}}
-    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="background: none; border: none; padding: 0; cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
+    <button type="button" {{action "board_preview" this.board_record bubbles=false}} class='info' style="cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
       {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
           {{this.override_count}}
         </span>
       {{else}}
-        <span class='glyphicon glyphicon-info-sign' aria-hidden="true"></span>
-        {{#if this.board_record.grid.rows}}
-          <span class='size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
+        {{!-- "PREVIEW" label + (when the board is a folder/container)
+             the child-board count, separated by a thin vertical
+             divider so the two pieces of info read as one combined
+             chip. The count only renders when the board actually has
+             children — leaf boards just show "PREVIEW". --}}
+        <span class='info__label'>{{t "Preview" key="preview"}}</span>
+        {{#if this.children.length}}
+          <span class='info__divider' aria-hidden="true"></span>
+          <span class='info__count'>{{t "board" key="n_boards" count=this.children.length}}</span>
         {{/if}}
+      {{/if}}
+    </button>
+  {{/unless}}
+  {{!-- Info + grid-size chip — top-right of every board tile. The
+       circled "i" glyph sits on the LEFT and the board's grid size
+       (e.g. "12 x 8") on the RIGHT. Whole chip is one button: click
+       opens the same Preview modal as the bottom-center Preview
+       button below. When the board has no grid metadata (rare), the
+       chip falls back to icon-only and the --with-size modifier is
+       not applied so it stays a circle. --}}
+  {{#unless this.noinfo}}
+    <button
+      type="button"
+      class='board-icon__info {{if this.board_record.grid.rows "board-icon__info--with-size"}}'
+      {{action "board_preview" this.board_record bubbles=false}}
+      aria-label={{t "Preview board" key="preview_board"}}
+      title={{t "Preview board" key="preview_board"}}
+    >
+      <svg class='board-icon__info-icon' width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      {{#if this.board_record.grid.rows}}
+        <span class='board-icon__info-size'>{{this.board_record.grid.rows}} x {{this.board_record.grid.columns}}</span>
       {{/if}}
     </button>
   {{/unless}}
@@ -21,22 +68,61 @@
       <div style='position: absolute; top: 0; left: 5px; color: #888;' aria-label={{t "Home board" key="home_board"}}><span class='glyphicon glyphicon-home' aria-hidden="true"></span></div>
     {{/if}}
   {{/if}}
-  <button type="button" {{action "pick_board" this.board_record}} class="board-icon__pick" style="background: none; border: none; padding: 0; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: inherit; font: inherit; color: inherit; cursor: inherit;" aria-label={{this.best_name}}>
+  {{!-- Clickable card body — uses role="button" + tabindex on a div
+       rather than a real <button> element. HTML5 drag-and-drop does
+       not reliably initiate when the user mousedowns on a child
+       <button> (form controls capture the gesture and the parent's
+       draggable="true" can't take over). Switching to a div with
+       role="button" preserves the WCAG screen-reader semantics +
+       keyboard activation (the on-keydown handler below maps
+       Enter/Space to the same pick_board action) while letting the
+       parent .ub-boards-page__board-item--draggable take the drag. --}}
+  <div
+    role="button"
+    tabindex="0"
+    {{action "pick_board" this.board_record}}
+    {{on "keydown" (action "pickKeydown")}}
+    class="board-icon__pick"
+    style="background: none; border: none; padding: 0; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: inherit; font: inherit; color: inherit; cursor: inherit;"
+    aria-label={{this.best_name}}
+  >
     {{#if this.override_count}}
       <img src={{this.board_record.style.image_url}} onerror="button_broken_image(this);" alt="">
     {{else}}
       <img src={{this.board_record.icon_url_with_fallback}} onerror="button_broken_image(this);" alt="">
     {{/if}}
+    {{#if this.board_record.has_vocab_icon}}
+      {{!-- Attribution under the shipped Quick Core / Vocal Flair /
+           Sequoia tile art. Rendered only when board.has_vocab_icon
+           (same detection as icon_url_with_fallback's override map).
+           License names and the OpenAAC brand aren't translated, but
+           routed through i18n to keep the no-raw-strings convention. --}}
+      <div class="board-icon__credit">{{t "CC-By OpenAAC" key="cc_by_openaac"}}</div>
+    {{/if}}
     <div class={{if this.noinfo "name compact" "name"}}>
     {{this.best_name}}
     </div>
-    <div class='author'>
-      {{#if this.children}}
-        {{t "board" key="n_boards" count=this.children.length}}
-      {{else}}
+    {{!-- Author/count line: for folder boards the count now lives
+         inside the Preview pill (PREVIEW · N boards), so the line
+         only renders for leaf boards (showing "by Username"). --}}
+    {{#unless this.children}}
+      <div class='author'>
         <span class="author__label">{{t "by" key="by"}}</span>
         <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
-      {{/if}}
-    </div>
-  </button>
+      </div>
+    {{/unless}}
+  </div>
 </div>
+{{!-- Loading overlay — fires when EITHER the corner "i" info button
+     OR the bottom-center Preview button is clicked. Matches the
+     global `.ll-loading-overlay` chrome used elsewhere (spinner +
+     card + message). position:fixed so the overlay covers the
+     viewport regardless of where this component is rendered. --}}
+{{#if this.loadingPreview}}
+  <div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-loading-overlay__card">
+      <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
+      <p class="ll-loading-overlay__message">{{t "Loading Board Preview..." key="loading_board_preview"}}</p>
+    </div>
+  </div>
+{{/if}}

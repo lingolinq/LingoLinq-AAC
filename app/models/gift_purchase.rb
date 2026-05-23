@@ -1,4 +1,4 @@
-class GiftPurchase < ActiveRecord::Base
+class GiftPurchase < ApplicationRecord
   include Permissions
   include GlobalId
   include SecureSerialize

@@ -91,9 +91,11 @@ Router.map(function() {
   this.route('start_codes', { path: '/start_codes/:id' });
   this.route('admin', { path: '/admin' });
   this.route('lesson', { path: '/lessons/:lesson_id/:lesson_code/:user_token'});
+  this.route('organizations', { path: '/organizations' });
   this.route('organization', { path: '/organizations/:id' }, function() {
     this.route('people');
     this.route('reports');
+    this.route('telemetry');
     this.route('subscription');
     this.route('extras');
     this.route('lessons');
@@ -118,6 +120,10 @@ Router.map(function() {
   this.route('troubleshooting', { path: '/troubleshooting' });
   this.route('offline_boards', { path: '/offline-boards' });
   this.route('profile', { path: '/profile/:user_id/:profile_id'});
+  // Eval namespace must come before user so /eval/* matches eval, not a user named "eval"
+  this.route('eval', { path: '/eval' }, function() {
+    this.route('quick', { path: '/quick/:user_id' });
+  });
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {

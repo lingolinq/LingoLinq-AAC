@@ -45,12 +45,20 @@
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Check out" key="extras_page_sub_check_out_pre"}} <em class="md-hero__gradient-text">{{t "our Extras..." key="extras_page_sub_check_out_em"}}</em></span></p>
       {{else}}
-        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting"}}{{/if}}</span></h1>
+        <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{#if this.appState.currentUser}}{{t "It's great to see you %{username}" key="md_hero_greeting" username=this.appState.currentUser.user_name}}{{else}}{{t "It's great to see you" key="md_hero_greeting_no_name"}}{{/if}}</span></h1>
         <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Let's continue" key="md_hero_sub_pre"}} <em class="md-hero__gradient-text">{{t "where you left off..." key="md_hero_sub_em"}}</em></span></p>
       {{/if}}
     </header>
 
 <section class="md-grid md-grid--dashboard {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if this.has_management_responsibility "md-grid--with-org-mgmt"}} {{if this.appState.currentUser.supporter_role "md-grid--with-caseload"}}" aria-label={{t "Dashboard" key="dashboard"}}>
+      {{!-- Getting Started onboarding card DISABLED — we're evaluating
+           whether to bring it back in a later iteration. The matching
+           showGettingStarted computed in dashboard/authenticated-view.js
+           also returns false, so the surrounding section won't get the
+           `md-grid--with-getting-started` modifier and the grid won't
+           reserve an empty slot. To re-enable: restore the computed AND
+           un-comment this block. --}}
+      {{!--
       {{#if (and (is-equal this.activeTab "home") this.showGettingStarted)}}
       <article class="md-card md-card--getting-started" aria-label={{t "Getting Started" key="getting_started"}}>
         <div class="md-card__head md-card__head--getting-started">
@@ -77,6 +85,7 @@
       </article>
       <div class="md-grid__divider" aria-hidden="true"></div>
       {{/if}}
+      --}}
       {{#if this.appState.currentUser.supporter_role}}
       <div class="md-card md-card--caseload">
         <div class="md-card__head">
@@ -91,27 +100,13 @@
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
       </div>
       {{/if}}
-      {{#if this.has_management_responsibility}}
-      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
-        <div class="md-card__head">
-          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
-          </div>
-          <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
-            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
-          </div>
-        </div>
-        {{#if this.all_orgs.length}}
-          <LinkTo @route="organization" @model={{this.all_orgs.firstObject.id}} class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
-        {{else}}
-          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
-            {{t "Add Organization" key="add_organization"}}
-          </button>
-        {{/if}}
-      </article>
-      {{/if}}
-
+      {{!-- Speak Mode card mirrors the My Caseload card's single-row
+           layout: head on the left, action button on the right, no
+           internal divider. The legacy `md-card__row` wrapper and the
+           "Last board" chip (already disabled) lived in their own
+           second row; with the button hoisted up as a direct sibling of
+           __head, the card is now one row driven by the flex rules on
+           `.md-grid .md-card.md-card--speak` in app.scss. --}}
       <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
@@ -122,22 +117,9 @@
             <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
           </div>
         </div>
-        <div class="md-card__row">
-          {{#if this.last_board_name}}
-            <button type="button" class="md-chip md-chip--soft md-chip--button" {{action "go" "last_board"}}>
-              <span class="md-chip__dot" aria-hidden="true"></span>
-              {{t "Last board: %{name}" key="md_last_board_name" name=this.last_board_name}}
-            </button>
-          {{else}}
-            <div class="md-chip md-chip--soft">
-              <span class="md-chip__dot" aria-hidden="true"></span>
-              {{t "Last board: None" key="md_last_board_none"}}
-            </div>
-          {{/if}}
-          <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
-            {{t "Continue Speaking" key="continue_speaking"}}
-          </button>
-        </div>
+        <button type="button" class="md-btn md-btn--primary" {{action "go" "speak"}}>
+          {{t "Continue Speaking" key="continue_speaking"}}
+        </button>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </article>
 
@@ -158,6 +140,27 @@
         </div>
         <div class="md-card__extras-wave" aria-hidden="true"></div>
       </article>
+
+      {{#if this.has_management_responsibility}}
+      <article class="md-card md-card--org-management" aria-label={{t "My Organizations" key="my_organizations"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--org" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" stroke="#4C86D8"/><line x1="9" y1="6" x2="9" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke="#46505F" stroke-width="2"/><line x1="9" y1="14" x2="9" y2="14.01" stroke="#46505F" stroke-width="2"/><line x1="15" y1="14" x2="15" y2="14.01" stroke="#46505F" stroke-width="2"/><path d="M10 22v-4h4v4" stroke="#4C86D8"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "My Organizations" key="my_organizations"}}</h3>
+            <div class="md-card__sub">{{t "Manage your organizations" key="manage_your_orgs"}}</div>
+          </div>
+        </div>
+        {{#if this.all_orgs.length}}
+          <LinkTo @route="organizations" class="md-btn md-btn--primary">{{t "View Organizations" key="view_organizations"}}</LinkTo>
+        {{else}}
+          <button type="button" class="md-btn md-btn--primary" {{action "addOrganization"}}>
+            {{t "Add Organization" key="add_organization"}}
+          </button>
+        {{/if}}
+      </article>
+      {{/if}}
 
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
@@ -187,9 +190,36 @@
         {{else if this.previewBoards.length}}
         <div class="md-strip" role="list" aria-label={{t "Board previews" key="board_previews"}}>
           {{#each this.previewBoards as |preview|}}
-            <button type="button" class="md-strip__item" role="listitem" {{action "goToBoard" preview.key}}>
+            <button type="button" class="md-strip__item {{if preview.isHome 'md-strip__item--home'}} {{if preview.board.starred_for_current_user 'md-strip__item--liked'}}" role="listitem" {{action "goToBoard" preview.key}}>
+              {{#if preview.isHome}}
+                {{!-- Home Board badge — pinned to the top of the tile
+                     (absolute, see .md-strip__home-badge in app.scss)
+                     so it visually crowns the tile without shifting
+                     the thumb/label layout that the other tiles use. --}}
+                <span class="md-strip__home-badge">{{t "Home Board" key="home_board"}}</span>
+              {{/if}}
+              {{#if preview.board.starred_for_current_user}}
+                {{!-- Filled-heart indicator in the top-right for liked
+                     boards (mirrors the My Boards picker + boards-page
+                     treatments). pointer-events:none so the tile's
+                     own click still navigates. --}}
+                <span class="md-strip__heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                    <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                  </svg>
+                </span>
+              {{/if}}
               <div class="md-thumb {{preview.thumbClass}}" aria-hidden="true">
-                <img src={{preview.imageUrl}} class="md-thumb__board-img" alt="">
+                {{!-- Bind directly to the board record's
+                     icon_url_with_fallback computed when we have the
+                     record, so the thumb auto-refreshes when the
+                     board's image attrs change after a visit (the
+                     observer that fires `checkForDataURL` mutates
+                     `image_data_uri` on the underlying record).
+                     `preview.imageUrl` is the captured fallback for
+                     the home-board case where peekRecord returned
+                     null — see add() in previewBoards computed. --}}
+                <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
               <div class="md-strip__label">{{preview.name}}</div>
             </button>

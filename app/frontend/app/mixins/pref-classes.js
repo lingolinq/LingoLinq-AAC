@@ -25,6 +25,11 @@ export default Mixin.create({
           bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
         }
       }
+      // The "Colored Soft" choice uses the same colored-card background
+      // as plain "Colored" (card chrome unchanged) but ALSO adds
+      // .fitzgerald-soft, which swaps the --fitzgerald-* CSS custom
+      // properties to the soft variants defined in _variables.scss.
+      if(bg === 'clear_soft') { return 'symbol_background_clear fitzgerald-soft'; }
       return 'symbol_background_' + bg;
     }
   ),

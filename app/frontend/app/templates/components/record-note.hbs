@@ -82,25 +82,17 @@
               </div>
             </div>
           {{/if}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify}} @type="checkbox" />
-                  {{t "Notify others of this message" key="notify_others"}}
-                </label>
-              </div>
-            </div>
+          <div class="md-modal-field">
+            <label class="md-modal-check {{if this.notify "is-selected"}}" for="notify_others">
+              <Input @checked={{this.notify}} @type="checkbox" id="notify_others" class="md-modal-check__input" />
+              <span class="md-modal-check__label">{{t "Notify others of this message" key="notify_others"}}</span>
+            </label>
           </div>
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify_user}} @type="checkbox" />
-                  {{t "Send an alert to the communicator about this message" key="alert_user"}}
-                </label>
-              </div>
-            </div>
+          <div class="md-modal-field">
+            <label class="md-modal-check {{if this.notify_user "is-selected"}}" for="alert_user">
+              <Input @checked={{this.notify_user}} @type="checkbox" id="alert_user" class="md-modal-check__input" />
+              <span class="md-modal-check__label">{{t "Send an alert to the communicator about this message" key="alert_user"}}</span>
+            </label>
           </div>
         {{else}}
           <div class="form-group">
@@ -125,25 +117,17 @@
               </div>
             </div>
           {{/if}}
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify}} @type="checkbox" />
-                  {{t "Notify others of this message" key="notify_others"}}
-                </label>
-              </div>
-            </div>
+          <div class="md-modal-field">
+            <label class="md-modal-check {{if this.notify "is-selected"}}" for="notify_others_video">
+              <Input @checked={{this.notify}} @type="checkbox" id="notify_others_video" class="md-modal-check__input" />
+              <span class="md-modal-check__label">{{t "Notify others of this message" key="notify_others"}}</span>
+            </label>
           </div>
-          <div class="form-group">
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox">
-                <label>
-                  <Input @checked={{this.notify_user}} @type="checkbox" />
-                  {{t "Send an alert to the communicator about this message" key="alert_user"}}
-                </label>
-              </div>
-            </div>
+          <div class="md-modal-field">
+            <label class="md-modal-check {{if this.notify_user "is-selected"}}" for="alert_user_video">
+              <Input @checked={{this.notify_user}} @type="checkbox" id="alert_user_video" class="md-modal-check__input" />
+              <span class="md-modal-check__label">{{t "Send an alert to the communicator about this message" key="alert_user"}}</span>
+            </label>
           </div>
         {{/if}}
       </form>

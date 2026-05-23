@@ -57,6 +57,8 @@ QUnit.on('runEnd', function(runEnd) {
 // version; importing them here guarantees they're pulled into the bundle and
 // their `module()`/`test()` calls fire before `start()` below.
 import 'frontend/tests/acceptance/board-detail-empty-state-test';
+import 'frontend/tests/unit/controllers/copying-board-test';
+import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
 
 // loadTests: false — we already pre-loaded all test modules above
 start({ loadTests: false });

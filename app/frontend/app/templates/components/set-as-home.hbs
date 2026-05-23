@@ -5,7 +5,7 @@
     </button>
     <h3 class="md-modal-title">{{t "Set Home Board" key="set_home_board"}}</h3>
   </div>
-  <div class="modal-body md-modal-body">
+  <div class="modal-body md-modal-body md-set-as-home">
     <div class="md-modal-icon-row">
       <div class="md-modal-icon-circle">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
@@ -42,7 +42,12 @@
       {{/if}}
     {{/if}}
   </div>
-  <div class="modal-footer md-modal-footer">
+  <div class="modal-footer md-modal-footer md-set-as-home-footer">
+    {{!-- Cancel rendered first so it sits on the LEFT in the
+         footer's flex row; the primary action(s) render after so
+         they sit on the right — matching the app's standard
+         destructive-on-left / confirm-on-right modal pattern. --}}
+    <button {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
     {{#if this.owned_by_user}}
       <button {{action "set_as_home"}} disabled={{this.pending}} class="btn md-modal-btn md-modal-btn--primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
@@ -51,6 +56,7 @@
         {{t "Set as Home Board" key="set_as_home_board"}}
       </button>
     {{else}}
+      <button {{action "set_as_home"}} disabled={{this.pending_or_copy_only}} class="btn md-modal-btn md-modal-btn--secondary">{{t "Use the Existing Board" key="dont_copy_just_set_as_home_board"}}</button>
       <button {{action "copy_as_home"}} disabled={{this.pending}} class="btn md-modal-btn md-modal-btn--primary">
         {{#if this.multiple_users}}
           {{t "Make a New Copy" key="make_a_new_copy"}}
@@ -58,9 +64,7 @@
           {{t "Make My Own Copy" key="make_my_own_copy"}}
         {{/if}}
       </button>
-      <button {{action "set_as_home"}} disabled={{this.pending_or_copy_only}} class="btn md-modal-btn md-modal-btn--secondary">{{t "Use the Existing Board" key="dont_copy_just_set_as_home_board"}}</button>
     {{/if}}
-    <button {{action "close"}} class="btn md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
     {{#if this.status.errored}}
       <p class="md-modal-status md-modal-status--error">{{t "Setting home board failed, please try again." key="setting_home_failed"}}</p>
     {{else if this.status.updating}}

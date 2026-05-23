@@ -1,4 +1,4 @@
-class BoardDownstreamButtonSet < ActiveRecord::Base
+class BoardDownstreamButtonSet < ApplicationRecord
   MAX_DEPTH = 10
   include Async
   include GlobalId

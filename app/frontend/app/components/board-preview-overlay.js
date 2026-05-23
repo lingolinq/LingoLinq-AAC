@@ -2,8 +2,17 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import EmberObject from '@ember/object';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import modal from '../utils/modal';
 import app_state from '../utils/app_state';
+
+/* Minimum time the loading overlay must stay visible after it first
+   appears, before set_preview_loading(false) is allowed to remove it.
+   The overlay itself has a 180ms fade-in (md-board-details-modal__overlay-fade
+   in app.scss), so a sub-180ms display would never reach full opacity
+   and would register to the user as "no loading message shown." 500ms
+   = fade-in + a perceivable beat at full opacity. */
+var PREVIEW_LOADING_MIN_DISPLAY_MS = 500;
 
 /**
  * Board Preview overlay - replaces deprecated route.render for board-preview.
@@ -19,6 +28,11 @@ export default Component.extend({
   model_style: null,
   style_needed: false,
   style_boards: null,
+  /* Combined loading state surfaced by the inner {{board-preview}}
+     component via onLoadingChange. Stays true until the board record
+     resolves AND every canvas button-image promise has settled. The
+     header pill and the full-body overlay both gate on this flag. */
+  preview_loading: true,
 
   init() {
     this._super(...arguments);
@@ -33,6 +47,20 @@ export default Component.extend({
     var board = preview.board;
     this.set('model_key', board.get ? board.get('key') : board.key);
     this.set('model_style', null);
+    /* Re-show the loading affordance whenever a new board is wired up
+       (e.g. switching between style variants in-modal) so the user
+       sees the spinner for the new fetch, not the previous board's
+       fully-loaded state. */
+    this.set('preview_loading', true);
+    /* Stamp the moment the overlay should consider itself "shown"
+       so set_preview_loading(false) can enforce the min-display
+       window against the right start time even if the modal is
+       reopened for a different board. */
+    this._loadingShownAt = performance.now();
+    if (this._pendingHide) {
+      runCancel(this._pendingHide);
+      this._pendingHide = null;
+    }
     var styleOpts = board.get ? board.get('style.options') : board.style && board.style.options;
     this.set('style_needed', !!(preview.allowStyle && styleOpts && styleOpts.length));
     this.set('style_boards', this._buildStyleBoards(preview, board));
@@ -80,7 +108,57 @@ export default Component.extend({
     return function() { _this.set('model_style', null); };
   }),
 
+  willDestroyElement: function() {
+    if (this._pendingHide) {
+      runCancel(this._pendingHide);
+      this._pendingHide = null;
+    }
+    this._super(...arguments);
+  },
+
   actions: {
+    /* Receives the combined loading flag (model + canvas images) from
+       the {{board-preview}} child. Same wiring as the controller-
+       rendered board-preview.hbs path. */
+    set_preview_loading(value) {
+      if(this.isDestroyed || this.isDestroying) { return; }
+      var _this = this;
+      var bool = !!value;
+      if (bool) {
+        /* Re-showing: cancel any pending min-display hide. Stamp the
+           shown-at clock only if we don't already have one (the modal's
+           _setupFromService normally sets it; this guards the case
+           where the inner board-preview emits true before the overlay
+           observer has run). */
+        if (_this._pendingHide) {
+          runCancel(_this._pendingHide);
+          _this._pendingHide = null;
+        }
+        if (!_this._loadingShownAt) { _this._loadingShownAt = performance.now(); }
+        _this.set('preview_loading', true);
+        return;
+      }
+      /* Hiding: enforce the min-display floor so the user has time to
+         perceive the affordance (it has a 180ms fade-in; any hide
+         before ~300ms after the show would barely flash). */
+      var shownAt = _this._loadingShownAt;
+      if (shownAt != null) {
+        var elapsed = performance.now() - shownAt;
+        if (elapsed < PREVIEW_LOADING_MIN_DISPLAY_MS) {
+          var remaining = PREVIEW_LOADING_MIN_DISPLAY_MS - elapsed;
+          if (_this._pendingHide) { runCancel(_this._pendingHide); }
+          _this._pendingHide = runLater(function() {
+            _this._pendingHide = null;
+            if (_this.isDestroyed || _this.isDestroying) { return; }
+            _this._loadingShownAt = null;
+            _this.set('preview_loading', false);
+          }, remaining);
+          return;
+        }
+      }
+      _this._loadingShownAt = null;
+      _this.set('preview_loading', false);
+    },
     close() {
       this.set('model_style', null);
       this.get('modal').close(null, 'board-preview');
@@ -88,6 +166,9 @@ export default Component.extend({
     preview(key) {
       this.set('model_style', true);
       this.set('model_key', key);
+      /* Switching to a different style variant — show the spinner
+         until the new board's images settle. */
+      this.set('preview_loading', true);
     },
     select() {
       var opt = this.get('model_key');

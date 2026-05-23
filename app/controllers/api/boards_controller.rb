@@ -286,7 +286,7 @@ class Api::BoardsController < ApplicationController
       if !params['q'].blank? && !params['public']
         limited_boards = boards
         if params['allow_job'] #&& boards.limit(26).select('id').length > 25
-          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []))
+          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []), for_user: @api_user)
           boards = []
         else
           # For private user searches this will limit to the user's first 25 boards
@@ -370,7 +370,96 @@ class Api::BoardsController < ApplicationController
     render json: json.to_json
     Rails.logger.warn('done with controller')
   end
-  
+
+  # One-shot tree fetch: returns the root board AND every reachable
+  # descendant in a single response. The frontend uses this for the
+  # initial board entry so the whole sub-tree lands in cache in one
+  # round-trip — every subsequent folder tap inside that tree is then
+  # served synchronously from cache, no network, no overlay flash.
+  #
+  # Leans on `Board#downstream_board_ids` (already precomputed and
+  # stored in settings by `upstream_downstream#track_downstream_boards!`)
+  # so we don't have to walk the tree at request time. One bulk
+  # `Board.find_all_by_global_id` resolves every descendant in one
+  # query. Each board's JSON is serialized via the same
+  # `JsonApi::Board.as_json` path the `show` action uses, so the
+  # client treats responses identically.
+  #
+  # Capped at MAX_TREE descendants for safety — a healthy AAC vocab
+  # tree is well under that ceiling; extremely large trees fall back
+  # to the depth-1 prefetch on the client.
+  MAX_TREE = 500
+  def tree
+    # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
+    # params['board_id'] (NOT params['id']). Reading 'id' here made every
+    # /tree request resolve to a nil board -> 404 "Record not found",
+    # silently disabling the instant-cache prefetch. Accept both.
+    board_path = params['board_id'] || params['id']
+    root = nil
+    ApplicationRecord.using(:master) do
+      root = Board.find_by_path(board_path)
+    end
+    return unless exists?(root)
+    return unless allowed?(root, 'view')
+
+    descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+    descendants = []
+    if descendant_ids.any?
+      ApplicationRecord.using(:master) do
+        descendants = Board.find_all_by_global_id(descendant_ids)
+      end
+      # Permission filter. Use the Permissable model method `allows?`
+      # directly — NOT the controller's `allowed?`, which renders an
+      # error response as a side effect (it's designed for single-
+      # resource gates, not list filtering). `scopes` mirrors what
+      # `allowed?` computes internally via `api_permission_scopes`.
+      scopes = api_permission_scopes
+      descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
+    end
+
+    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true)
+    descendants_json = descendants.map do |b|
+      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true)
+    end
+    render json: { root: root_json, descendants: descendants_json }
+  end
+
+  # Bulk-resolve a list of board keys/ids in one request. The frontend
+  # uses this to pre-warm the boardDetailCache for a board's reachable
+  # sub-tree on initial entry — one round-trip per BFS layer instead of
+  # one per board. Permission-filtered: a board the caller can't view
+  # is silently dropped from the response (the client just won't have a
+  # cache entry and will fall back to the per-board endpoint if they
+  # navigate to it later, where the standard auth error path applies).
+  #
+  # Capped at MAX_BULK to prevent abuse / runaway memory; typical AAC
+  # vocab trees fit comfortably under that ceiling.
+  MAX_BULK = 200
+  def bulk
+    raw_keys = params[:keys]
+    raw_keys = [raw_keys] unless raw_keys.is_a?(Array)
+    keys = raw_keys.map { |k| k.to_s.strip }.reject(&:blank?).uniq.first(MAX_BULK)
+    return render(json: { boards: [] }) if keys.empty?
+
+    boards = []
+    ApplicationRecord.using(:master) do
+      # find_by_path accepts both global IDs ("1_123") and key paths
+      # ("user_name/board"), matching the single-board endpoint.
+      boards = keys.map { |k| Board.find_by_path(k) }.compact
+    end
+
+    # Permission filter via the Permissable model method `allows?`
+    # (NOT the controller's `allowed?`, which renders an error
+    # response as a side effect). Denied boards are silently dropped.
+    scopes = api_permission_scopes
+    visible = boards.select { |b| b && b.allows?(@api_user, 'view', scopes) }
+
+    out = visible.map do |board|
+      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true)
+    end
+    render json: { boards: out }
+  end
+
   def from_html
     permitted = params.permit(:html, :name, :key, :locale)
     html = permitted[:html].to_s
@@ -650,7 +739,7 @@ class Api::BoardsController < ApplicationController
     board = Board.find_by_path(params['board_id'])
     return unless exists?(board, params['board_id'])
     return unless allowed?(board, 'edit')
-    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id))
+    progress = Progress.schedule(board, :slice_locales, params['locales'], params['ids_to_update'], (@api_user && @api_user.global_id), for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -726,13 +815,18 @@ class Api::BoardsController < ApplicationController
       'text_only' => params['text_only'] == '1',
       'text_case' => params['text_case'],
       'font' => params['font']
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
   
   def import
     if params['url']
-      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'])
+      extra = {}
+      raw = params['recipient_global_ids'] || params.dig('board', 'recipient_global_ids')
+      if raw.present?
+        extra['recipient_global_ids'] = raw.is_a?(Array) ? raw : raw.to_s.split(/,/).map(&:strip).reject(&:blank?)
+      end
+      progress = Progress.schedule(Board, :import, @api_user.global_id, params['url'], extra, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     else
       type = (params['type'] == 'obz' ? 'obz' : 'obf')
@@ -756,14 +850,23 @@ class Api::BoardsController < ApplicationController
     translations = translations.to_unsafe_h if translations.respond_to?(:to_unsafe_h)
     set_as_default = true
     set_as_default = false if params['set_as_default'] == false || params['set_as_default'] == 'false' || params['set_as_default'] == 0 || params['set_as_default'] == '0'
+    # When the client opts in via `force_update_default`, the server
+    # applies the new labels to the visible button text even when
+    # source_lang == destination_lang. The default behavior (off)
+    # leaves `set_as_default_here` falsy in same-locale re-translation
+    # so existing labels are preserved; the flag is set by the
+    # Re-Translate path in translation-select.js where the user has
+    # explicitly chosen to overwrite.
+    force_update_default = params['force_update_default'] == '1' || params['force_update_default'] == 'true' || params['force_update_default'] == true || params['force_update_default'] == 1
     progress = Progress.schedule(board, :translate_set, translations, {
       'source' => params['source_lang'],
       'dest' => params['destination_lang'],
       'allow_fallbacks' => params['fallbacks'] == '1' || params['fallbacks'] == 'true' || params['fallbacks'] == true || params['fallbacks'] == 1,
+      'force_update_default' => force_update_default,
       'board_ids' => ids,
       'default' => set_as_default,
       'user_key' => user_for_paper_trail
-    })
+    }, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -774,7 +877,7 @@ class Api::BoardsController < ApplicationController
     ids = params['board_ids_to_convert'] || []
     ids << board.global_id
     ids << "new:#{board.global_id}" if params['include_new']
-    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :swap_images, params['library'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
@@ -784,7 +887,7 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'edit')
     ids = params['board_ids_to_update'] || []
     ids << board.global_id
-    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids)
+    progress = Progress.schedule(board, :update_privacy, params['privacy'], @api_user.global_id, ids, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
   end
 
