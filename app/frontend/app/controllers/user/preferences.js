@@ -183,24 +183,46 @@ export default Controller.extend({
   cant_change_private_logging: computed('limited_logging', 'model.permissions.delete', function() {
     return !this.get('model.permissions.delete');
   }),
+  // Don't hate on me, Comic Sans is not my fave, but it's the only web safe font I could find
+  // that had the handwritten "a", which could be important for emergent readers.
   buttonStyleList: [
-    {name: i18n.t('default_font', "Default Font"), id: "default"},
-    {name: i18n.t('default_font_caps', "Default Font, All Uppercase"), id: "default_caps"},
-    {name: i18n.t('default_font_small', "Default Font, All Lowercase"), id: "default_small"},
-    // Don't hate on me, Comic Sans is not my fave, but it's the only web safe font I could find
-    // that had the handwritten "a", which could be important for emergent readers.
-    {name: i18n.t('arial', "Arial"), id: "arial"},
-    {name: i18n.t('arial_caps', "Arial, All Uppercase"), id: "arial_caps"},
-    {name: i18n.t('arial_small', "Arial, All Lowercase"), id: "arial_small"},
-    {name: i18n.t('comic_sans', "Comic Sans"), id: "comic_sans"},
-    {name: i18n.t('comic_sans_caps', "Comic Sans, All Uppercase"), id: "comic_sans_caps"},
-    {name: i18n.t('comic_sans_small', "Comic Sans, All Lowercase"), id: "comic_sans_small"},
-    {name: i18n.t('open_dyslexic', "OpenDyslexic"), id: "open_dyslexic"},
-    {name: i18n.t('open_dyslexic_caps', "OpenDyslexic, All Uppercase"), id: "open_dyslexic_caps"},
-    {name: i18n.t('open_dyslexic_small', "OpenDyslexic, All Lowercase"), id: "open_dyslexic_small"},
-    {name: i18n.t('architects_daughter', "Architect's Daughter"), id: "architects_daughter"},
-    {name: i18n.t('architects_daughter_caps', "Architect's Daughter, All Uppercase"), id: "architects_daughter_caps"},
-    {name: i18n.t('architects_daughter_small', "Architect's Daughter, All Lowercase"), id: "architects_daughter_small"},
+    {name: i18n.t('architects_daughter',       "Architect's Daughter"),                   id: "architects_daughter"},
+    {name: i18n.t('architects_daughter_small', "Architect's Daughter, All Lowercase"),    id: "architects_daughter_small"},
+    {name: i18n.t('architects_daughter_caps',  "Architect's Daughter, All Uppercase"),    id: "architects_daughter_caps"},
+    {name: i18n.t('arial',                     "Arial"),                                  id: "arial"},
+    {name: i18n.t('arial_small',               "Arial, All Lowercase"),                   id: "arial_small"},
+    {name: i18n.t('arial_caps',                "Arial, All Uppercase"),                   id: "arial_caps"},
+    {name: i18n.t('comic_sans',                "Comic Sans"),                             id: "comic_sans"},
+    {name: i18n.t('comic_sans_small',          "Comic Sans, All Lowercase"),              id: "comic_sans_small"},
+    {name: i18n.t('comic_sans_caps',           "Comic Sans, All Uppercase"),              id: "comic_sans_caps"},
+    {name: i18n.t('default_font',              "Default Font"),                           id: "default"},
+    {name: i18n.t('default_font_small',        "Default Font, All Lowercase"),            id: "default_small"},
+    {name: i18n.t('default_font_caps',         "Default Font, All Uppercase"),            id: "default_caps"},
+    {name: i18n.t('open_dyslexic',             "OpenDyslexic"),                           id: "open_dyslexic"},
+    {name: i18n.t('open_dyslexic_small',       "OpenDyslexic, All Lowercase"),            id: "open_dyslexic_small"},
+    {name: i18n.t('open_dyslexic_caps',        "OpenDyslexic, All Uppercase"),            id: "open_dyslexic_caps"},
+    {divider: true, label: i18n.t('system_fonts_group', "System Fonts")},
+    {name: i18n.t('font_brush_script',    "Brush Script MT"),    id: "brush_script"},
+    {name: i18n.t('font_calibri',         "Calibri"),            id: "calibri"},
+    {name: i18n.t('font_cambria',         "Cambria"),            id: "cambria"},
+    {name: i18n.t('font_chalkboard',      "Chalkboard SE"),      id: "chalkboard"},
+    {name: i18n.t('font_consolas',        "Consolas"),           id: "consolas"},
+    {name: i18n.t('font_courier_new',     "Courier New"),        id: "courier_new"},
+    {name: i18n.t('font_garamond',        "Garamond"),           id: "garamond"},
+    {name: i18n.t('font_georgia',         "Georgia"),            id: "georgia"},
+    {name: i18n.t('font_helvetica',       "Helvetica"),          id: "helvetica"},
+    {name: i18n.t('font_impact',          "Impact"),             id: "impact"},
+    {name: i18n.t('font_lucida_sans',     "Lucida Sans"),        id: "lucida_sans"},
+    {name: i18n.t('font_marker_felt',     "Marker Felt"),        id: "marker_felt"},
+    {name: i18n.t('font_monaco',          "Monaco"),             id: "monaco"},
+    {name: i18n.t('font_optima',          "Optima"),             id: "optima"},
+    {name: i18n.t('font_palatino',        "Palatino"),           id: "palatino"},
+    {name: i18n.t('font_segoe_ui',        "Segoe UI"),           id: "segoe_ui"},
+    {name: i18n.t('font_snell_roundhand', "Snell Roundhand"),    id: "snell_roundhand"},
+    {name: i18n.t('font_tahoma',          "Tahoma"),             id: "tahoma"},
+    {name: i18n.t('font_times_new_roman', "Times New Roman"),    id: "times_new_roman"},
+    {name: i18n.t('font_trebuchet',       "Trebuchet MS"),       id: "trebuchet"},
+    {name: i18n.t('font_verdana',         "Verdana"),            id: "verdana"}
   ],
   audioOutputList: [
     {name: i18n.t('default_audio', "Play on Default Audio"), id: "default"},
@@ -400,8 +422,7 @@ export default Controller.extend({
     {name: i18n.t('next', "Next"), id: "next"}
   ],
   vocalizationHeightList: [
-    {name: i18n.t('tiny_50', "Tiny (50px)"), id: "tiny"},
-    {name: i18n.t('small_70', "Small (70px)"), id: "small"},
+    {name: i18n.t('small_90', "Small (90px)"), id: "small"},
     {name: i18n.t('medium_100', "Medium (100px)"), id: "medium"},
     {name: i18n.t('large_150', "Large (150px)"), id: "large"},
     {name: i18n.t('huge_200', "Huge (200px)"), id: "huge"}

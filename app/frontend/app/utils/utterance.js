@@ -168,6 +168,9 @@ var utterance = EmberObject.extend({
           }
           // append to previous
           var altered = _this.modify_button(last, button);
+          if(altered.raw_index == null) {
+            altered.raw_index = last.raw_index != null ? last.raw_index : button.raw_index;
+          }
           added = true;
           last_append = plusses[plusses.length - 1];
           buttonList.push(altered);
@@ -185,6 +188,9 @@ var utterance = EmberObject.extend({
             var action = LingoLinq.find_special_action(text);
             if(action && (action.modifier || action.completion) && !added) {
               var altered = _this.modify_button(last || {}, button);
+              if(altered.raw_index == null) {
+                altered.raw_index = (last || {}).raw_index != null ? last.raw_index : button.raw_index;
+              }
               added = true;                           
               buttonList.push(altered);
             } else if(last) {
@@ -238,6 +244,9 @@ var utterance = EmberObject.extend({
         hint = EmberObject.create({label: utterance.get('hint_button.label'), image: utterance.get('hint_button.image_url'), ghost: true});
       }
       buttonList.forEach(function(button, idx) {
+        if(button.raw_index == null) {
+          button.raw_index = idx;
+        }
         var visualButton = EmberObject.create(button);
         visualButtonList.push(visualButton);
         // Use cached images/sounds if available
@@ -575,23 +584,13 @@ var utterance = EmberObject.extend({
         // if one is found
         var last_word = app_state.get('button_list')[app_state.get('button_list').length - 1];
         if(last_word && last_word.label) {
-          word_suggestions.lookup({
-            word_in_progress: last_word.label,
-            board_ids: [app_state.get('currentUser.preferences.home_board.id'), stashes.get('temporary_root_board_state.id')]
-          }).then(function(result) {
-            var word = result.find(function(w) { return w.word == last_word.label; });
-            if(word && word.image) { 
-              emberSet(b, 'suggestion_image', word.image); 
-              emberSet(b, 'suggestion_image_license', word.image_license);
-              word.image_update = function(url) {
-                emberSet(b, 'suggestion_image', url);
-                emberSet(b, 'suggestion_image_license', word.image_license);
-                runLater(function() {
-                  utterance.set_button_list();
-                })
-              };
-            }
-          });
+          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]);
+          word_suggestions.attach_image_for_label(last_word.label, lookup_ids, function(url) {
+            emberSet(b, 'suggestion_image', url);
+            runLater(function() {
+              utterance.set_button_list();
+            });
+          }, { appState: app_state, stashes: stashes });
         }
       }
     }
@@ -1016,7 +1015,6 @@ var utterance = EmberObject.extend({
         this.remember_utterance(prior_list);
       }
       runLater(function() {
-        debugger
         utterance.set('rawButtonList', new_list);
       });
     }

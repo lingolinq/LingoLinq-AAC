@@ -47,4 +47,36 @@ namespace :fix do
     with_urls = ButtonImage.where("url IS NOT NULL AND url != ''").count
     puts "ButtonImages with URLs: #{with_urls}"
   end
+
+  desc "Re-resolve plain S3 ButtonImages to OpenSymbols library URLs for skin tones (optional BOARD=key or id)"
+  task :enrich_skin_library_urls => :environment do
+    board_arg = ENV['BOARD']
+    force = ENV['FORCE'] == '1'
+
+    if board_arg.present?
+      puts "=== Enriching skin library URLs for board #{board_arg} ==="
+      changed = Board.enrich_button_images_for_skin(board_arg, force)
+      puts changed ? "Updated button images for #{board_arg}" : "No changes for #{board_arg}"
+      next
+    end
+
+    scope = ButtonImage.where("url ~* 'amazonaws|lingolinq.*uploads'")
+    unless force
+      scope = scope.where("settings->>'library_url_lookup_attempted' IS NULL OR settings->>'library_url_lookup_attempted' = 'false'")
+    end
+    total = scope.count
+    puts "=== Enriching skin library URLs (#{total} images#{force ? ', force' : ''}) ==="
+
+    enriched = 0
+    scope.find_each(batch_size: 50) do |bi|
+      label = bi.settings['button_label'] || bi.settings['search_term']
+      if bi.ensure_library_url_for_skin!(label: label, force: force)
+        enriched += 1
+        puts "  [#{enriched}/#{total}] #{bi.global_id}" if enriched % 25 == 0
+      end
+    end
+
+    puts "\n=== Complete ==="
+    puts "Enriched: #{enriched} / #{total}"
+  end
 end

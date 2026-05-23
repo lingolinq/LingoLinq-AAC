@@ -24,6 +24,12 @@ export default Component.extend({
   confirmingFolderDelete: false,
   deletingFolder: false,
   folderFilterString: '',
+  /* Expanded by default per design — the folders strip is the primary
+     organization affordance on the boards page, so showing it on first
+     paint makes the user's filter + drag-to-folder workflow visible
+     without an extra click. The user can collapse it via the chevron;
+     subsequent toggle clicks persist within the session. */
+  foldersExpanded: true,
 
   filteredFolderSummaries: computed(
     'boardsCtrl.mineTagFolderSummaries.[]',
@@ -75,6 +81,9 @@ export default Component.extend({
   dragSourceTag: null,
 
   actions: {
+    toggleFoldersExpanded() {
+      this.toggleProperty('foldersExpanded');
+    },
     folderDragOver(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       if (event && event.dataTransfer) {
@@ -172,10 +181,21 @@ export default Component.extend({
     },
     emptyFolderDragOver(event) {
       if (event && event.preventDefault) { event.preventDefault(); }
+      /* Stop bubbling — this handler is now wired on BOTH the
+         outer folders-section and the inner folder-strip. Without
+         stopPropagation, a dragover on the strip would re-fire on
+         the section, causing redundant work each frame of the
+         drag. The folder-tag-specific handlers already stop
+         propagation; this matches the same pattern. */
+      if (event && event.stopPropagation) { event.stopPropagation(); }
       if (event && event.dataTransfer) { event.dataTransfer.dropEffect = 'copy'; }
     },
     emptyFolderDrop(event) {
       if (event && event.preventDefault) { event.preventDefault(); }
+      /* Same reasoning as emptyFolderDragOver — without this, a
+         drop on the inner strip would bubble up to the section's
+         own handler and open the tag-board modal twice. */
+      if (event && event.stopPropagation) { event.stopPropagation(); }
       var raw = event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '';
       var parts = (raw || '').split('|');
       var boardId = parts[0];

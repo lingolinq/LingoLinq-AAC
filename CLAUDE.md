@@ -7,6 +7,31 @@ alwaysApply: true
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## RULE #0 — CHECK THIS FIRST, EVERY SINGLE TIME, BEFORE FIXING ANYTHING
+
+Before touching code for ANY fix request, this rule takes precedence over everything else in this document:
+
+1. **Diagnose before fixing — never guess.** Identify the actual root cause and **verify it with evidence** (read the real code paths end to end, inspect the real data, reproduce or trace the failing behavior). Do not propose or apply a fix based on a plausible-sounding theory. If you cannot verify the cause, say so and keep investigating — do not ship a guess.
+2. **Be thorough.** Trace the full path the bug actually travels, including shared code, both the working and broken variants, and the data the code operates on. A fix that addresses a symptom without explaining why the verified root cause produces it is not acceptable.
+3. **Never break existing, working functionality.** Preserve all current behavior. If a fix risks regressing anything that works today, stop and flag it rather than proceeding. Do not "fix" one thing by degrading another.
+4. **If diagnosis is incomplete, do not apply a change.** Report what was verified, what wasn't, and the next investigation step. An honest "not yet diagnosed" beats a confident wrong fix.
+5. **If an attempted correction does not fix the problem, suspect the attempt itself first.** Before trying again, thoroughly re-evaluate whether the change was made on the wrong element, component, route/page, or layer. If it was, **revert the incorrect change** before doing anything else -- do not leave wrong edits stacked in place. Only then re-diagnose (per rules 1-4) and fix the real problem. Never pile a second guess on top of an unreverted first guess.
+
+## Branching (mandatory before ANY code change)
+
+Before you make any edit in this repo, you MUST be on a properly-named branch.
+
+1. **Branch from `staging`, not `main`.** PRs target `staging` first; release PRs from `staging` to `main` are a separate operation.
+2. **Branch name format:** `<type>/scot-<kebab-case-description>`
+   - `<type>` is one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The type prefix is REQUIRED. A bare `scot-<description>` (no type) is wrong.
+   - `scot-` is REQUIRED so Scot's branches are visually distinct from Melissa, Traci, Dominic.
+   - Use kebab-case after `scot-` (lowercase, hyphens between words).
+   - Examples: `fix/scot-copy-modal-fast-fallback`, `chore/scot-staging-slow-queue-capacity`, `test/scot-feature-flag-stub`.
+3. **Never edit on `main` or `staging` directly.** If you find yourself on one of those branches, `git checkout staging && git pull && git checkout -b <type>/scot-<description>` first.
+4. Date suffixes like `-2026-05-08` are only for time-bound recovery/release branches, not regular feature work.
+
+If you produced a branch name without a type prefix (e.g. `scot-something`), rename it before opening a PR: `git branch -m <type>/scot-something`.
+
 ## Project Overview
 
 LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
@@ -16,7 +41,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
 
 ## Development considerations
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
@@ -49,8 +74,7 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-# or
-# heroku local (Deprecated)
+foreman start
 
 # Stop all running processes
 bin/kill_all
@@ -76,12 +100,14 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Local console (includes audit safeguards)
-bin/rails console
-
-# Production console (on Render)
-# Use 'render shell' or specific task runner bin if available
+# Audited console wrapper (currently legacy Heroku-backed)
+bin/audit_console
 ```
+
+> Note: this script was previously named `bin/heroku_console`. It was renamed
+> for clarity; the body still invokes the Heroku CLI and needs a follow-up
+> rewrite to target Render's shell. Until then, the wrapper records an
+> `AuditEvent` per session but only works against the legacy Heroku environment.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -288,7 +314,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/heroku_console`, not `rails console`)
+- Console access audited via `AuditEvent` model (use `bin/audit_console`, not `rails console`)
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup

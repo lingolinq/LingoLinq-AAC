@@ -69,6 +69,25 @@ module JsonApi::Log
       json['profile'] = log.data['profile']
     elsif log.data['journal']
       json['journal'] = log.data['journal'].slice('vocalization', 'sentence', 'timestamp', 'id')
+    elsif log.data['eval_mode']
+      # New tiered eval data shape (Quick Screen / Targeted /
+      # Comprehensive). Surfaces the SLP-facing payload —
+      # recommendation, intake, item-bank profile, SLP notes,
+      # SETT framework, AI narrative — so the saved-log view can
+      # render the same summary the live flow shows on its report
+      # card.
+      json['tiered_eval'] = {
+        'eval_mode'         => log.data['eval_mode'],
+        'protocol_version'  => log.data['protocol_version'],
+        'intake'            => log.data['intake'],
+        'item_bank_profile' => log.data['item_bank_profile'],
+        'recommendation'    => log.data['recommendation'],
+        'slp_notes'         => log.data['slp_notes'],
+        'sett'              => log.data['sett'],
+        'ai_narrative'      => log.data['ai_narrative'],
+        'event_count'       => (log.data['events'] || []).length
+      }
+      json['duration'] = log.data['duration_s']
     elsif log.data['eval']
       json['evaluation'] = log.data['eval']
       json['duration'] = log.data['duration']

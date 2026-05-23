@@ -69,13 +69,28 @@ export default Component.extend({
     }
   ),
   last_board_name: computed('stashes.root_board_state', 'appState.currentUser.user_name', function() {
+    // Helper: ignore synthetic OBF boards (keys like `obf/eval`,
+    // `obf/emergency`, etc.) — their names are throwaway timestamp ids.
+    var isObfKey = function(k) { return k && /^obf\//.test(k); };
+
+    var fromStashKey = this.stashes.get('root_board_state.key');
     var fromStash = this.stashes.get('root_board_state.name');
-    if(fromStash) { return fromStash; }
+    if(fromStash && !isObfKey(fromStashKey)) { return fromStash; }
+
     var userName = this.appState.get('currentUser.user_name');
     if(!userName) { return null; }
     try {
       var stored = localStorage['ll_last_board_' + userName];
-      if(stored) { return JSON.parse(stored).name || null; }
+      if(stored) {
+        var parsed = JSON.parse(stored);
+        if(isObfKey(parsed && parsed.key)) {
+          // Stale synthetic-board entry from a prior session — clean it
+          // out so it doesn't keep showing up on the dashboard.
+          try { delete localStorage['ll_last_board_' + userName]; } catch(e) { }
+          return null;
+        }
+        return (parsed && parsed.name) || null;
+      }
     } catch(e) { }
     return null;
   }),
@@ -579,8 +594,16 @@ export default Component.extend({
     return this.get('model') || this.get('appState.currentUser');
   }),
   showGettingStarted: computed('appState.currentUser.preferences.progress', function() {
-    var progress = this.appState.get('currentUser.preferences.progress');
-    return progress && !progress.setup_done;
+    // Getting Started onboarding flow is currently DISABLED — we're
+    // evaluating whether to bring it back in a later iteration. Returning
+    // false here also strips the `md-grid--with-getting-started` modifier
+    // from the dashboard grid (see authenticated-view.hbs), so the layout
+    // doesn't reserve a hole where the card used to live. To re-enable:
+    // restore the original return below AND un-comment the matching
+    // article block in templates/components/dashboard/authenticated-view.hbs.
+    // var progress = this.appState.get('currentUser.preferences.progress');
+    // return progress && !progress.setup_done;
+    return false;
   }),
   gettingStartedPercent: computed('appState.currentUser.preferences.progress', function() {
     var options = ['intro_watched', 'profile_edited', 'preferences_edited', 'home_board_set', 'app_added'];
@@ -607,25 +630,61 @@ export default Component.extend({
   }),
   previewBoards: computed(
     '_fetchedPreviewBoards.[]',
+    // Re-sort the preview when a board's starred flag flips or its
+    // display name changes, since the new ordering rule
+    // (home → liked-alpha → others-alpha) reads both per-board.
+    '_fetchedPreviewBoards.@each.starred',
+    '_fetchedPreviewBoards.@each.name',
+    // Re-snapshot when a board's image attrs change. The board model's
+    // checkForDataURLOnChange observer sets `image_data_uri` after a
+    // user visits a board (offline-caching), and `image_url` itself
+    // can refresh during a record reload. Without tracking these,
+    // the POJO's captured `imageUrl` stayed pointing at the original
+    // (sometimes now-invalid) URL, leaving the thumb broken on return.
+    '_fetchedPreviewBoards.@each.image_url',
+    '_fetchedPreviewBoards.@each.image_data_uri',
     'appState.currentUser.preferences.home_board.key',
     'appState.currentUser.preferences.home_board.id',
-    'stashes.root_board_state',
     function() {
       var _this = this;
       var fetched = this.get('_fetchedPreviewBoards') || [];
       var thumbClasses = ['md-thumb--a', 'md-thumb--b', 'md-thumb--c', 'md-thumb--d', 'md-thumb--e', 'md-thumb--f'];
       var seen = {};
       var ordered = [];
-      var add = function(board, fallbackName, key, fallbackImg) {
+      // When a board's display name falls back to its key (no `name`
+      // setting or no record loaded), the key has the shape
+      // "user_name/board-slug" and overflows the 150px tile width.
+      // Insert a zero-width space after each `/` so the browser's
+      // line-breaking algorithm prefers that as the wrap point
+      // (otherwise it picks the dash inside the slug and produces
+      // "vocal-" / "flair-84" instead of "user_name/" / "vocal-flair-84").
+      // ZWSP doesn't affect text width, copy-paste, or accessibility.
+      var add = function(board, fallbackName, key, fallbackImg, isHome) {
         if (!key || seen[key]) { return; }
         seen[key] = true;
+        var rawName = (board && board.get && board.get('name')) || fallbackName || key;
+        var displayName = (typeof rawName === 'string' && rawName.indexOf('/') !== -1)
+          ? rawName.replace(/\//g, '/​')
+          : rawName;
         ordered.push({
           board: board,
-          name: (board && board.get && board.get('name')) || fallbackName || key,
+          name: displayName,
           imageUrl: (board && board.get && board.get('icon_url_with_fallback')) || fallbackImg || '',
-          key: key
+          key: key,
+          // Flag the home-board tile so the template can apply the
+          // distinct outline + glow + "Home Board" badge styling
+          // defined in app.scss (.md-strip__item--home).
+          isHome: !!isHome
         });
       };
+
+      // Ordering rule (per request):
+      //   1. Home board first (always, when set)
+      //   2. Liked / starred boards next, alphabetical by name
+      //   3. Everything else, alphabetical by name
+      // The "Last used board" step that previously occupied slot #2 has
+      // been removed — it conflicted with the liked-first rule and the
+      // last_board_name computed below still exists for other surfaces.
 
       // 1. Home board
       var homeKey = this.appState.get('currentUser.preferences.home_board.key');
@@ -638,30 +697,25 @@ export default Component.extend({
         if (!homeRec) {
           homeRec = fetched.find(function(b) { return b.get('key') === homeKey; });
         }
-        add(homeRec, this.appState.get('currentUser.preferences.home_board.name'), homeKey, null);
+        add(homeRec, this.appState.get('currentUser.preferences.home_board.name'), homeKey, null, true);
       }
 
-      // 2. Last used board
-      var lastBoard = this.stashes.get('root_board_state');
-      if (!lastBoard || !lastBoard.key) {
-        var userName = this.appState.get('currentUser.user_name');
-        if (userName) {
-          try {
-            var stored = localStorage['ll_last_board_' + userName];
-            if (stored) { lastBoard = JSON.parse(stored); }
-          } catch(e) { }
-        }
-      }
-      if (lastBoard && lastBoard.key) {
-        var lastRec = fetched.find(function(b) { return b.get('key') === lastBoard.key; });
-        if (!lastRec) {
-          try { lastRec = _this.get('store').peekAll('board').find(function(b) { return b.get('key') === lastBoard.key; }); } catch(e) { }
-        }
-        add(lastRec, lastBoard.name, lastBoard.key, null);
-      }
-
-      // 3. Pad with remaining fetched boards (skipping any already added)
-      fetched.forEach(function(board) {
+      // 2 + 3. Partition the fetched pool into starred and non-starred,
+      // sort each alphabetically (case-insensitive, locale-aware), then
+      // emit starred first followed by the rest. seen[key] in `add`
+      // already keeps the home board from being re-added.
+      var alphaByName = function(a, b) {
+        var an = ((a && a.get && a.get('name')) || a.get('key') || '').toLowerCase();
+        var bn = ((b && b.get && b.get('name')) || b.get('key') || '').toLowerCase();
+        return an.localeCompare(bn);
+      };
+      var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred'); }).sort(alphaByName);
+      var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred'); }).sort(alphaByName);
+      starredAlpha.forEach(function(board) {
+        if (ordered.length >= 5) { return; }
+        add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
+      });
+      othersAlpha.forEach(function(board) {
         if (ordered.length >= 5) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));
       });
@@ -679,7 +733,13 @@ export default Component.extend({
     if (_this.get('_previewBoardsLoaded')) { return; }
     _this.set('_previewBoardsLoaded', true);
     // Fetch preview boards (5) and total count in parallel
-    _this.get('store').query('board', { user_id: user.get('id'), per_page: 5 }).then(function(boards) {
+    // Bumped from 5 to 20 so previewBoards has enough variety to apply
+    // its home → liked-alpha → others-alpha ordering rule. The preview
+    // still slices to 5; the extras only serve to give the client-side
+    // partition (starred vs not) something real to sort. Board count
+    // follow-up (_fetchRemainingForCount) is unaffected — it just sees
+    // a larger first page before paging the rest for the total count.
+    _this.get('store').query('board', { user_id: user.get('id'), per_page: 20 }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
       var results = boards.map(function(b) { return b; });
       _this.set('_fetchedPreviewBoards', results);
@@ -952,10 +1012,12 @@ export default Component.extend({
       if (ue) { this.get('router').transitionTo('user.extras', ue); }
     },
     openNewBoardOnBoards: function() {
+      var _this = this;
+      var go = function() { _this.get('router').transitionTo('create-board-new'); };
       if (this.appState.check_for_needing_purchase) {
-        this.appState.check_for_needing_purchase().then(function() { modal.open('new-board'); }, function() { modal.open('new-board'); });
+        this.appState.check_for_needing_purchase().then(go, go);
       } else {
-        modal.open('new-board');
+        go();
       }
     },
     openSupervisorsModal: function() {

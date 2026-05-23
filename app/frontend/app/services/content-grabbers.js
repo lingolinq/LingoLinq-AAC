@@ -169,17 +169,29 @@ var contentGrabbers = Service.extend({
     });
     return promise;
   },
-  upload_to_remote: function(params) {
+  upload_to_remote: function(params, extra) {
     var _this = this;
     var promise = new RSVP.Promise(function(resolve, reject) {
+      extra = extra || {};
       var fd = new FormData();
       for(var idx in params.upload_params) {
         fd.append(idx, params.upload_params[idx]);
       }
+      var blobForFile = null;
       if(params.blob) {
-        fd.append('file', params.blob);
+        blobForFile = params.blob;
       } else if(params.data_url) {
-        fd.append('file', _this.data_uri_to_blob(params.data_url));
+        blobForFile = _this.data_uri_to_blob(params.data_url);
+      }
+      if(blobForFile) {
+        // S3 POST policies bind the object Content-Type. Browsers often use
+        // application/octet-stream (or "") for .obf/.obz and other extensions;
+        // without matching the signed type the upload returns 403.
+        var signedType = params.upload_params['Content-Type'] || params.upload_params['content-type'];
+        if(signedType && blobForFile.type !== signedType) {
+          blobForFile = new Blob([blobForFile], {type: signedType});
+        }
+        fd.append('file', blobForFile);
       }
 
       persistenceService.ajax({
@@ -190,10 +202,14 @@ var contentGrabbers = Service.extend({
         contentType: false   // tell jQuery not to set contentType
       }).then(function(data) {
         var method = params.success_method || 'GET';
-        persistenceService.ajax({
-          url: params.success_url,
-          type: method
-        }).then(function(data) {
+        var ajaxOpts = {url: params.success_url, type: method};
+        if(extra.success_post_json && typeof extra.success_post_json === 'object' && Object.keys(extra.success_post_json).length > 0) {
+          ajaxOpts.contentType = 'application/json; charset=UTF-8';
+          ajaxOpts.dataType = 'json';
+          ajaxOpts.data = JSON.stringify(extra.success_post_json);
+          ajaxOpts.type = 'POST';
+        }
+        persistenceService.ajax(ajaxOpts).then(function(data) {
           resolve(data);
         }, function(err) {
           reject({error: "upload not completed"});
@@ -204,29 +220,47 @@ var contentGrabbers = Service.extend({
     });
     return promise;
   },
-  upload_for_processing: function(file, url, params, progressor) {
+  upload_for_processing: function(file, url, params, progressor, uploadOpts) {
+    uploadOpts = uploadOpts || {};
+    var blob = uploadOpts.blob;
+    var successPostJson = uploadOpts.success_post_json;
     var data_uri = null;
 
-    var generate_data_uri = window.cg.read_file(file);
+    var canUseNativeBlob = file && typeof Blob !== 'undefined' &&
+      (file instanceof Blob || (typeof File !== 'undefined' && file instanceof File));
+    var useBlob = !!(blob && canUseNativeBlob);
 
-    var prep = generate_data_uri.then(function(data) {
-      data_uri = data.target.result;
-      return persistenceService.ajax(url, {
+    var prep = null;
+    if(useBlob) {
+      prep = persistenceService.ajax(url, {
         type: 'POST',
         data: params
       });
-    });
+    } else {
+      var generate_data_uri = window.cg.read_file(file);
+      prep = generate_data_uri.then(function(data) {
+        data_uri = data.target.result;
+        return persistenceService.ajax(url, {
+          type: 'POST',
+          data: params
+        });
+      });
+    }
 
     var upload = prep.then(function(meta) {
-      meta.remote_upload.data_url = data_uri;
+      if(useBlob) {
+        meta.remote_upload.blob = blob;
+      } else {
+        meta.remote_upload.data_url = data_uri;
+      }
       meta.remote_upload.success_method = 'POST';
-      return window.cg.upload_to_remote(meta.remote_upload);
+      return window.cg.upload_to_remote(meta.remote_upload, {success_post_json: successPostJson});
     });
 
     var progress = upload.then(function(data) {
       if(data.progress) {
         return new RSVP.Promise(function(resolve, reject) {
-          progress_tracker.track(data.progress, function(event) {
+          var trackId = progress_tracker.track(data.progress, function(event) {
             progressor.set('progress', event);
             if(event.status == 'errored') {
               progressor.set('status', {errored: true});
@@ -236,6 +270,7 @@ var contentGrabbers = Service.extend({
               resolve(event.result);
             }
           });
+          progressor.set('track_id', trackId);
         });
       } else {
         return RSVP.reject({error: 'not confirmed'});
@@ -2613,57 +2648,107 @@ var boardGrabber = EmberObject.extend({
     }
   },
   file_selected: function(board) {
-    var data_uri = null;
-
     if(!board) {
       modal.close();
       modal.error(i18n.t('invalid_board_file', "Please select a valid board file (.obf or .obz)"));
       return;
     }
-    var generate_data_uri = window.cg.read_file(board);
 
-    var progressor = EmberObject.create();
-    var error = modal.error;
+    var startImport = function(recipientGlobalIds) {
+      var progressor = EmberObject.create();
+      var error = modal.error;
 
-    // TODO: add a confirmation step, including option for privacy level
-    modal.open('importing-boards', progressor);
+      modal.open('importing-boards', progressor);
 
-    var type = 'obf';
-    if(board.name && board.name.match(/\.obz$/)) {
-      type = 'obz';
-    }
+      var type = 'obf';
+      if(board.name && board.name.match(/\.obz$/)) {
+        type = 'obz';
+      }
 
-    var progress = window.cg.upload_for_processing(board, '/api/v1/boards/imports', {type: type}, progressor);
+      var successPost = null;
+      if(recipientGlobalIds && recipientGlobalIds.length > 0) {
+        successPost = {recipient_global_ids: recipientGlobalIds};
+      }
 
-    progress.then(function(boards) {
-      if(boards[0] && boards[0].key) {
-        if(modal.is_open('importing-boards')) {
-          var importKey = boards[0].key;
+      var progress = window.cg.upload_for_processing(board, '/api/v1/boards/imports', {type: type}, progressor, {
+        blob: board,
+        success_post_json: successPost
+      });
+
+      progress.then(function(boards) {
+        var dismissBg = progressor.get('import_dismissed_to_background');
+        var navigateToImport = function(importKey) {
           var importParts = importKey ? importKey.split('/') : [];
           if(importParts.length === 2) {
             boardGrabber.transitioner.transitionTo('user.board-detail', importParts[0], importParts[1]);
           } else {
             boardGrabber.transitioner.transitionTo('board', importKey);
           }
+        };
+        if(boards[0] && boards[0].key) {
+          var importKey = boards[0].key;
+          if(dismissBg) {
+            modal.flash(
+              i18n.t('board_import_finished_background', "Your board import finished."),
+              'success',
+              false,
+              true,
+              {
+                timeout: 12000,
+                action: {
+                  text: i18n.t('open_imported_board', "Open board"),
+                  callback: function() {
+                    navigateToImport(importKey);
+                  }
+                }
+              }
+            );
+          } else if(modal.is_open('importing-boards')) {
+            navigateToImport(importKey);
+          } else {
+            modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
+          }
         } else {
-          modal.notice(i18n.t('boards_imported', "Board(s) successfully imported!"));
+          if(modal.is_open('importing-boards')) {
+            modal.close();
+          }
+          if(dismissBg) {
+            if(boards.error && boards.error.protected) {
+              modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+            } else {
+              modal.error(i18n.t('board_import_failed', "Board Import failed"));
+            }
+          } else {
+            if(boards.error && boards.error.protected) {
+              modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+            } else {
+              modal.error(i18n.t('board_import_failed', "Board Import failed"));
+            }
+          }
         }
-      } else {
+      }, function() {
+        var dismissBg = progressor.get('import_dismissed_to_background');
         if(modal.is_open('importing-boards')) {
           modal.close();
         }
-        if(boards.error && boards.error.protected) {
-          modal.error(i18n.t('protected_import_failed', "Board Import Failed: Protected Materials cannot be imported"));
+        if(dismissBg) {
+          modal.error(i18n.t('upload_failed', "Upload failed"));
         } else {
-          modal.error(i18n.t('board_import_failed', "Board Import failed"));          
+          error(i18n.t('upload_failed', "Upload failed"));
         }
-      }
-    }, function() {
-      if(modal.is_open('importing-boards')) {
-        modal.close();
-      }
-      error(i18n.t('upload_failed', "Upload failed"));
-    });
+      });
+    };
+
+    if(appStateService.get('feature_flags.multi_user_board_import') && !isTesting()) {
+      modal.open('import-board-recipients', {file: board}).then(function(res) {
+        if(!res || res.dismissed) {
+          return;
+        }
+        startImport(res.recipient_global_ids || []);
+      });
+    } else {
+      startImport(null);
+    }
   }
 }).create();
 

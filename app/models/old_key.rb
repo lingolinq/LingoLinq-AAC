@@ -1,4 +1,4 @@
-class OldKey < ActiveRecord::Base
+class OldKey < ApplicationRecord
   self.inheritance_column = nil
   include Replicate
   

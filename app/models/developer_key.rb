@@ -1,4 +1,4 @@
-class DeveloperKey < ActiveRecord::Base
+class DeveloperKey < ApplicationRecord
   before_save :generate_defaults
   include Replicate
   

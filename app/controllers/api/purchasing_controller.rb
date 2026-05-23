@@ -23,7 +23,7 @@ class Api::PurchasingController < ApplicationController
     user_id = @api_user && @api_user.global_id
     extras = params['extras'] == true || params['extras'] == 'true'
     donate = params['donate'] == true || params['donate'] == 'true'
-    progress = Progress.schedule(GiftPurchase, :process_subscription_token, token.to_unsafe_h, {'type' => params['type'], 'code' => params['code'], 'email' => params['email'], 'user_id' => user_id, 'extras' => extras, 'supporters' => params['supporters'].to_i, 'donate' => donate})
+    progress = Progress.schedule(GiftPurchase, :process_subscription_token, token.to_unsafe_h, {'type' => params['type'], 'code' => params['code'], 'email' => params['email'], 'user_id' => user_id, 'extras' => extras, 'supporters' => params['supporters'].to_i, 'donate' => donate}, for_user: @api_user)
     render json: JsonApi::Progress.as_json(progress, :wrapper => true)
   end
 end

@@ -48,6 +48,34 @@ export default Controller.extend({
   // Explicit injection for app_state to avoid implicit injection deprecation warning
 
   // Explicit injection for persistence to avoid implicit injection deprecation warning
+
+  // Board Stats accordion (user.boards page) — collapsed by default
+  // so the stats-row only shows when the user explicitly expands it.
+  // Toggled by `toggle_board_stats` in the actions block below.
+  board_stats_expanded: false,
+
+  // Count of the user's owned boards that are flagged public — feeds
+  // the "N PUBLIC" chip on the Board Stats accordion header. Uses
+  // model.my_boards (loaded by the Mine-tab query in update_selected)
+  // and `.public` on each board record (always shipped, see
+  // lib/json_api/board.rb line 65 — not gated by permissions like
+  // `starred` is). Returns 0 until my_boards finishes loading.
+  // Dep uses `.[]` to match the existing my_boards computeds on this
+  // controller (line 172, 196, 237) — `@each.public` on a non-array
+  // value (e.g. Promise during initial render) can throw and break
+  // the whole boards page below.
+  public_boards_count: computed('model.my_boards.[]', function() {
+    var boards = this.get('model.my_boards');
+    if(!boards) { return 0; }
+    var arr = (typeof boards.toArray === 'function') ? boards.toArray()
+            : (typeof boards.forEach === 'function') ? boards
+            : null;
+    if(!arr) { return 0; }
+    var count = 0;
+    arr.forEach(function(b) { if(b && b.get && b.get('public')) { count++; } });
+    return count;
+  }),
+
   title: computed('model.user_name', function() {
     return "Profile for " + this.get('model.user_name');
   }),
@@ -73,9 +101,8 @@ export default Controller.extend({
     var session_id = this.get('appState.sessionUser.id');
     var is_self = session_id && this.get('model.id') === session_id;
     var is_admin_support = !!this.get('model.permissions.admin_support_actions');
-    var can_supervise = !!this.get('model.permissions.supervise');
-    // Match Api::UsersController#daily_use: own profile, site admin, or supervisor with +supervise+.
-    if(!is_self && !is_admin_support && !can_supervise) {
+    // Match Api::UsersController#daily_use: own profile or admin-support access only.
+    if(!is_self && !is_admin_support) {
       this.set('daily_use', null);
       return;
     }
@@ -386,9 +413,14 @@ export default Controller.extend({
 
       if(this.get('parent_object')) {
         list = [];
-        list.push({board: this.get('parent_object.board')});
+        var parentBoard = this.get('parent_object.board');
+        if (parentBoard) {
+          list.push({ board: parentBoard });
+        }
         (this.get('parent_object.children') || []).forEach(function(b) {
-          list.push({board: b.board});
+          if (b && b.board) {
+            list.push({ board: b.board });
+          }
         });
         list.done = true;
         res.sub_result = true;
@@ -400,7 +432,10 @@ export default Controller.extend({
       var _this = this;
       if(this.get('parent_object')) {
         list.forEach(function(ref) {
-          if(ref.board.id == _this.get('parent_object.board.id')) {
+          if (!ref || !ref.board) { return; }
+          var parentObjBoard = _this.get('parent_object.board');
+          var parentId = parentObjBoard && emberGet(parentObjBoard, 'id');
+          if (emberGet(ref.board, 'id') == parentId) {
             ref.str = "a " + ref.board.name;
           } else {
             ref.str = "b" + (parseInt(ref.board.name, 10) || 0).toString().padStart(6, '0') + ' ' + ref.board.name.toLowerCase();
@@ -412,20 +447,28 @@ export default Controller.extend({
         var roots = [];
         var shallow_roots = {};
         list.forEach(function(b) {
-          if(emberGet(b, 'id').match(/-/) && (!emberGet(b, 'copy_id') || emberGet(b, 'copy_id') == emberGet(b, 'id') || emberGet(b, 'copy_id') == emberGet(b, 'id').split(/-/)[0])) {
-            var user_id = emberGet(b, 'id').split(/-/)[1];
+          if (!b) { return; }
+          var bidRaw = emberGet(b, 'id');
+          if (bidRaw == null || bidRaw === '') { return; }
+          var bid = String(bidRaw);
+          if(bid.match(/-/) && (!emberGet(b, 'copy_id') || emberGet(b, 'copy_id') == bid || emberGet(b, 'copy_id') == bid.split(/-/)[0])) {
+            var user_id = bid.split(/-/)[1];
             if(user_id == _this.get('model.id')) {
-              shallow_roots[emberGet(b, 'copy_id') || emberGet(b, 'id').split(/-/)[0]] = b;
+              shallow_roots[emberGet(b, 'copy_id') || bid.split(/-/)[0]] = b;
             }
           }
         });
         list.forEach(function(b) {
-          if(emberGet(b, 'id').match(/-/) && emberGet(b, 'id').split(/-/)[1] == _this.get('model.id') && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) {
+          if (!b) { return; }
+          var bidRaw2 = emberGet(b, 'id');
+          if (bidRaw2 == null || bidRaw2 === '') { return; }
+          var bid = String(bidRaw2);
+          if(bid.match(/-/) && bid.split(/-/)[1] == _this.get('model.id') && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) {
             // Shallow clones are a little trickier to get added as sub-boards to their root
             var shallow = shallow_roots[emberGet(b, 'copy_id')];
             copies[emberGet(shallow, 'id')] = copies[emberGet(shallow, 'id')] || [];
             copies[emberGet(shallow, 'id')].push(b);
-          } else if(emberGet(b, 'copy_id') && emberGet(b, 'copy_id') != emberGet(b, 'id')) {
+          } else if(emberGet(b, 'copy_id') && emberGet(b, 'copy_id') != bid) {
             var copy_id = emberGet(b, 'copy_id');
             copies[copy_id] = copies[copy_id] || [];
             copies[copy_id].push(b);
@@ -434,6 +477,7 @@ export default Controller.extend({
           }
         });
         roots.forEach(function(b) {
+          if (!b) { return; }
           var obj = {board: b, children: []};
           var id = emberGet(b, 'id');
           if(copies[id]) {
@@ -531,10 +575,38 @@ export default Controller.extend({
           }
         }
       }
+      /* Mine-tab sort: Home Board first, then liked/favorite boards
+         alphabetically by name, then everything else alphabetically.
+         Mirrors the My Boards modal Mine-tab order. Scoped to the
+         Mine tab only — other tabs (Public, Liked, Root, Shared,
+         etc.) keep the server's `home_popularity`/`popularity` order. */
+      if(this.get('selected') == 'mine' || !this.get('selected')) {
+        var homeKey = this.get('model.preferences.home_board.key');
+        new_list = new_list.sort(function(a, b) {
+          var aBoard = a && a.board;
+          var bBoard = b && b.board;
+          if(!aBoard || !aBoard.get) { return 1; }
+          if(!bBoard || !bBoard.get) { return -1; }
+          var aIsHome = aBoard.get('key') === homeKey;
+          var bIsHome = bBoard.get('key') === homeKey;
+          if(aIsHome && !bIsHome) { return -1; }
+          if(bIsHome && !aIsHome) { return 1; }
+          /* `starred_for_current_user` falls back to the user's
+             stats.starred_board_refs since list-loaded boards don't
+             ship `starred` (see lib/json_api/board.rb). */
+          var aStar = aBoard.get('starred_for_current_user');
+          var bStar = bBoard.get('starred_for_current_user');
+          if(aStar && !bStar) { return -1; }
+          if(bStar && !aStar) { return 1; }
+          var aName = (aBoard.get('name') || '').toLowerCase();
+          var bName = (bBoard.get('name') || '').toLowerCase();
+          return aName.localeCompare(bName);
+        });
+      }
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');
-        new_list = new_list.filter(function(i) { 
-          return i.board.get('search_string').match(re) || i.children.find(function(c)  { return c.board.get('search_string').match(re); }); 
+        new_list = new_list.filter(function(i) {
+          return i.board.get('search_string').match(re) || i.children.find(function(c)  { return c.board.get('search_string').match(re); });
         });
         res.filtered_results = new_list.slice(0, 18);
       } else */ if(this.get('show_all_boards')) {
@@ -548,7 +620,13 @@ export default Controller.extend({
         res.filtered_results = new_list.slice(0, 18);
         res.has_more = new_list.length > 18;
       }
-      res.filtered_results_key = res.filtered_results.map(function(b) { return (b.id || b.board.id) + (b.children || []).length; }).join(',');
+      res.filtered_results_key = (res.filtered_results || []).map(function(row) {
+        var boardId = row && row.board && emberGet(row.board, 'id');
+        var rowId = row && row.id;
+        var keyId = rowId || boardId || '';
+        var kids = (row && row.children) || [];
+        return keyId + kids.length;
+      }).join(',');
       return res;
     }
   ),
@@ -562,7 +640,7 @@ export default Controller.extend({
   set_show_all_boards: function() {
     this.set('show_all_boards', true);
   },
-  reload_logs: observer('persistence.online', function() {
+  reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
@@ -573,7 +651,7 @@ export default Controller.extend({
       return;
     }
     var perms = this.get('model.permissions');
-    if(perms && !perms.supervise) {
+    if(!perms || !perms.supervise) {
       if(this.get('model')) {
         this.set('model.logs', []);
       }
@@ -640,6 +718,12 @@ export default Controller.extend({
   generate_or_append_to_list: function(args, list_name, list_id, append) {
     var _this = this;
     if(list_id != _this.get('list_id')) { return; }
+    /* Default to the server's MAX_PAGE (50, per lib/json_api/board.rb).
+       The server caps higher values to 50 anyway, so asking for 50 up
+       front halves request count vs the prior implicit default of 25
+       — a power user with ~250 boards goes from 10 paginated round-
+       trips to 5. Honor an explicit per_page if a caller sets one. */
+    if(!args.per_page) { args.per_page = 50; }
     var prior = _this.get(list_name) || [];
     if(prior.error || prior.loading) { prior = []; }
     if(!append && !prior.length) {
@@ -659,7 +743,19 @@ export default Controller.extend({
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          _this.generate_or_append_to_list(args, list_name, list_id, true);
+          /* Throttle subsequent pages so a 5-page sweep doesn't fire as
+             a single back-to-back burst (which read as a network
+             "flood" in the dev tools, and competed with foreground
+             traffic like board-preview image loads). 200ms is small
+             enough that the full list still finishes streaming in ~1s
+             for typical cases, and large enough that the requests
+             interleave cleanly with user-initiated work. The list_id
+             check at the top of the function still guards against tab
+             changes during the gap. */
+          runLater(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this.generate_or_append_to_list(args, list_name, list_id, true);
+          }, 200);
         } else {
           _this.set(list_name + '.done', true);
         }
@@ -699,6 +795,10 @@ export default Controller.extend({
           return i18n.t('prior_home', "Prior Home Boards");
         } else if(sel == 'private') {
           return i18n.t('private', "Private");
+        } else if(sel == 'root') {
+          return i18n.t('root', "Root");
+        } else if(sel == 'starred') {
+          return i18n.t('starred', "Liked");
         } else if(sel == 'tagged') {
           return this.get('current_tag');
         } else {
@@ -733,14 +833,18 @@ export default Controller.extend({
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
     }
-    this.set('other_selected', this.get('selected') && ['mine', 'public', 'root', 'liked', 'starred'].indexOf(this.get('selected')) == -1);
+    /* Visible top tabs are now only `mine` and `public` (Root + Liked
+       moved into the More... dropdown per design). Anything else
+       counts as `other_selected` so the More trigger highlights and
+       its `more_label` flips to the chosen sub-tab name. */
+    this.set('other_selected', this.get('selected') && ['mine', 'public'].indexOf(this.get('selected')) == -1);
     ['mine', 'public', 'private', 'starred', 'shared', 'prior_home', 'root', 'tagged'].forEach(function(key, idx) {
       if(_this.get('selected') == key || key == default_key) {
         _this.set(key + '_selected', true);
         if(key == 'mine') {
           _this.generate_or_append_to_list({user_id: model.get('id')}, 'model.my_boards', list_id);
         } else if(key == 'public') {
-          _this.generate_or_append_to_list({user_id: model.get('id'), public: true}, 'model.public_boards', list_id);
+          _this.generate_or_append_to_list({q: '', locale: 'en', sort: 'popularity'}, 'model.public_boards', list_id);
         } else if(key == 'private') {
           _this.generate_or_append_to_list({user_id: model.get('id'), private: true}, 'model.private_boards', list_id);
         } else if(key == 'root') {
@@ -770,7 +874,27 @@ export default Controller.extend({
   external_device_or_no_home: computed('model.external_device', 'model.preference.home_board', function() {
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
+  /* "Set / Change Home Board" selection mode — mirrors the My Boards
+     modal's `boardPickerSelectingHome` flow (see controllers/application.js).
+     When ON, clicking a board tile sets that board as the currentUser's
+     home board (see open_board_in_user_view) and jumps into speak mode
+     instead of opening the board. */
+  selectingHome: false,
+  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
+    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  }),
+  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
+    if(this.get('selectingHome')) {
+      return i18n.t('cancel_set_home_board', "Cancel");
+    }
+    return this.get('hasHomeBoard')
+      ? i18n.t('change_home_board', "Change Home Board")
+      : i18n.t('set_home_board', "Set Home Board");
+  }),
   actions: {
+    toggle_board_stats: function() {
+      this.toggleProperty('board_stats_expanded');
+    },
     sync: function() {
       console.debug('syncing because manually triggered');
       this.persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
@@ -906,12 +1030,75 @@ export default Controller.extend({
       this.set('show_all_boards', false);
       if(obj) {
         this.set('prior_filter_string', this.get('filterString') || '');
-        this.set('filterString', '');  
+        this.set('filterString', '');
       } else {
-        this.set('filterString', this.get('prior_filter_string') || '');  
+        this.set('filterString', this.get('prior_filter_string') || '');
         this.set('prior_filter_string', '');
       }
       this.set('parent_object', obj);
+    },
+    /* Boards-page tile click — open the board the user actually clicked,
+       respecting `currentUser.preferences.board_view_style`:
+         - 'classic'  → user.board-alt.index  (the modern speak grid)
+         - 'modern'   → user.board-detail.index  (the panelled view)
+       Default is 'modern' (per board/index.js#board_view_style).
+       Previously the template bound `onAction=(action "load_children" …)`
+       for boards with copies, so clicking a parent tile drilled into
+       its copy cluster instead of opening the parent. The copy-cluster
+       drill-in is still reachable via the Preview chip (which now
+       shows the children count). `obj` is either a {board, children}
+       wrapper or a raw board record — unwrap defensively. */
+    open_board_in_user_view: function(obj) {
+      var board = (obj && obj.board) || obj;
+      if(!board) { return; }
+      var key = board.get ? board.get('key') : board.key;
+      if(!key) { return; }
+      var _this = this;
+      /* Set-Home selection-mode branch — mirrors the modal's pickBoard
+         branch (see controllers/application.js#pickBoard). Clicking a
+         tile while selecting-home sets the picked board as currentUser's
+         home, saves the user, and home-in-speak-mode lands the user on
+         their new home. Falls through to the standard open flow if the
+         save chain can't proceed. */
+      if(this.get('selectingHome')) {
+        var user = this.appState.get('currentUser');
+        var board_id = board.get ? board.get('id') : board.id;
+        if(user && user.set && user.save) {
+          user.set('preferences.home_board', {
+            key: key,
+            id: board_id,
+            locale: this.appState.get('label_locale')
+          });
+          user.save().then(function() {
+            _this.set('selectingHome', false);
+            _this.appState.home_in_speak_mode({user: user});
+          }, function() {
+            /* Save failed — leave selection mode on so the user can retry. */
+          });
+          return;
+        }
+      }
+      var parts = key.split('/');
+      if(parts.length !== 2) { return; }
+      var pref = this.get('appState.currentUser.preferences.board_view_style');
+      var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
+      /* Show full-viewport loading overlay so the click registers
+         visually while the route resolves the board record + tree.
+         board-detail / board-alt setupController calls
+         hide_loading_overlay when ready. .catch handler clears the
+         overlay if the transition aborts (setupController would
+         never run in that case). */
+      var _appState = this.appState;
+      _appState.show_loading_overlay(i18n.t('loading_board', "Loading board..."));
+      var transition = this.get('router').transitionTo(route, parts[0], parts[1]);
+      if(transition && typeof transition.catch === 'function') {
+        transition.catch(function() { _appState.hide_loading_overlay(); });
+      }
+    },
+    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
+       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    toggleSetHomeMode: function() {
+      this.toggleProperty('selectingHome');
     },
     nothing: function() {
     },

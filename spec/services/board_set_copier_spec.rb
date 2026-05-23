@@ -1,6 +1,81 @@
 require 'spec_helper'
 
 describe BoardSetCopier, :type => :model do
+  it "copies explicitly selected linked boards even when downstream ids are stale" do
+    owner = User.create
+    recipient = User.create
+    root = Board.create(user: owner, public: true)
+    child = Board.create(user: owner, public: true)
+    grandchild = Board.create(user: owner, public: true)
+
+    root.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => child.global_id, 'key' => child.key } }
+    ]
+    root.instance_variable_set('@buttons_changed', true)
+    root.save!
+    child.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => grandchild.global_id, 'key' => grandchild.key } }
+    ]
+    child.instance_variable_set('@buttons_changed', true)
+    child.save!
+    root.reload
+    root.settings['downstream_board_ids'] = []
+    root.save_subtly
+
+    new_root = root.copy_for(recipient)
+    mapper = Board.copy_board_links_for(
+      recipient,
+      starting_old_board: root,
+      starting_new_board: new_root,
+      valid_ids: [root.global_id, child.key],
+      expand_selected_board_ids: true
+    )
+
+    expect(mapper[child.global_id]).not_to eq(nil)
+    child_copy = Board.find_by_global_id(mapper[child.global_id][:id])
+    expect(child_copy).not_to eq(nil)
+    expect(mapper[grandchild.global_id]).not_to eq(nil)
+    grandchild_copy = Board.find_by_global_id(mapper[grandchild.global_id][:id])
+    expect(grandchild_copy).not_to eq(nil)
+
+    new_root.reload
+    child_copy.reload
+    expect(new_root.buttons[0]['load_board']['id']).to eq(child_copy.global_id)
+    expect(new_root.buttons[0]['load_board']['key']).to eq(child_copy.key)
+    expect(child_copy.buttons[0]['load_board']['id']).to eq(grandchild_copy.global_id)
+    expect(child_copy.buttons[0]['load_board']['key']).to eq(grandchild_copy.key)
+  end
+
+  it "respects explicit selections when full hierarchy choices are available" do
+    owner = User.create
+    recipient = User.create
+    root = Board.create(user: owner, public: true)
+    child = Board.create(user: owner, public: true)
+    grandchild = Board.create(user: owner, public: true)
+
+    root.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => child.global_id, 'key' => child.key } }
+    ]
+    root.instance_variable_set('@buttons_changed', true)
+    root.save!
+    child.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => grandchild.global_id, 'key' => grandchild.key } }
+    ]
+    child.instance_variable_set('@buttons_changed', true)
+    child.save!
+
+    new_root = root.copy_for(recipient)
+    mapper = Board.copy_board_links_for(
+      recipient,
+      starting_old_board: root,
+      starting_new_board: new_root,
+      valid_ids: [root.global_id, child.global_id]
+    )
+
+    expect(mapper[child.global_id]).not_to eq(nil)
+    expect(mapper[grandchild.global_id]).to eq(nil)
+  end
+
   describe "large board set integration" do
     it "copies a 50+ board set and rewrites every load_board link to the new mapper" do
       owner = User.create

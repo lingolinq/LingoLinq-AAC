@@ -1,4 +1,4 @@
-class WeeklyStatsSummary < ActiveRecord::Base
+class WeeklyStatsSummary < ApplicationRecord
   include SecureSerialize
   include GlobalId
   include Async

@@ -309,6 +309,16 @@ LingoLinq.User = DS.Model.extend({
     }
     return url;
   }),
+  // True when the resolved avatar is the generic default placeholder
+  // (the `/avatars/avatar-*` images, local OR S3). Replaces the brittle
+  // CSS `:has(img.user[src*="/avatars/avatar-"])` selector — the
+  // template binds a `user_holder--default` class off this so the
+  // styled identity avatar renders deterministically regardless of
+  // build age or `:has()` support.
+  avatar_url_is_default: computed('avatar_url_with_fallback', function() {
+    var url = this.get('avatar_url_with_fallback') || '';
+    return url.indexOf('/avatars/avatar-') !== -1;
+  }),
   using_for_a_while: computed('joined', 'appState.refresh_stamp', function() {
     var a_while_ago = window.moment().add(-2, 'weeks');
     var joined = window.moment(this.get('joined'));
@@ -717,7 +727,7 @@ LingoLinq.User = DS.Model.extend({
     var localize_connections = function(sups) {
       (sups || []).forEach(function(sup) {
         if(LingoLinq.remote_url(sup.avatar_url)) {
-          this.persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
+          _this.persistence.find_url(sup.avatar_url, 'image').then(function(uri) {
             emberSet(sup, 'original_avatar_url', sup.avatar_url);
             emberSet(sup, 'avatar_url', uri);
           }, function() { });

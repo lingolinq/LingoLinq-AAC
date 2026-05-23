@@ -1,6 +1,6 @@
 require 'timeout'
 
-class Webhook < ActiveRecord::Base
+class Webhook < ApplicationRecord
   include Async
   include SecureSerialize
   include Processable

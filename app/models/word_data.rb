@@ -1,4 +1,4 @@
-class WordData < ActiveRecord::Base
+class WordData < ApplicationRecord
   include SecureSerialize
   include Async
   include GlobalId

@@ -7,6 +7,7 @@ import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
+import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 
 export default Route.extend({
@@ -14,6 +15,76 @@ export default Route.extend({
   stashes: service('stashes'),
   appState: service('app-state'),
   persistence: service('persistence'),
+
+  // One-shot promise so concurrent board-detail entries share a single prime.
+  _prime_caches_promise: null,
+
+  // Load offline url_cache from IndexedDB/filesystem before building buttons
+  // so _make_btn can resolve local image URLs (mirrors legacy fast_html).
+  _maybe_prime_caches: function() {
+    var persistenceSvc = this.persistence;
+    if(!persistenceSvc || persistenceSvc.get('primed')) {
+      return RSVP.resolve();
+    }
+    if(!this.stashes || !this.stashes.get('auth_settings')) {
+      return RSVP.resolve();
+    }
+    if(this._prime_caches_promise) {
+      return this._prime_caches_promise;
+    }
+    var ensure_local = RSVP.resolve();
+    var local = persistenceSvc.get('local_system');
+    if(!local || local.available === undefined) {
+      ensure_local = capabilities.storage.status().then(function(res) {
+        if(res.available && !res.requires_confirmation) {
+          res.allowed = true;
+        }
+        persistenceSvc.set('local_system', res);
+      }, function() {
+        return RSVP.resolve();
+      });
+    }
+    var route = this;
+    var clearPrimePromiseIfUnprimed = function() {
+      if(!persistenceSvc.get('primed')) {
+        route._prime_caches_promise = null;
+      }
+    };
+    this._prime_caches_promise = ensure_local.then(function() {
+      var localAfter = persistenceSvc.get('local_system');
+      if(!localAfter || !localAfter.available || !localAfter.allowed) {
+        return RSVP.resolve();
+      }
+      return persistenceSvc.prime_caches(true).then(null, function() {
+        return RSVP.resolve();
+      });
+    }).then(clearPrimePromiseIfUnprimed, clearPrimePromiseIfUnprimed);
+    return this._prime_caches_promise;
+  },
+
+  // Build the symbol grid, warm current-board images, prefetch linked boards.
+  _finalize_board_display: function(controller, raw) {
+    if(!raw || !controller || controller.isDestroyed || controller.isDestroying) { return; }
+    if(raw.images && raw.images.length) {
+      controller._board_detail_images = raw.images;
+    }
+    controller._build_from_raw(raw);
+    if(controller.get('edit_mode')) { return; }
+    var warm_opts = {
+      skin: controller.get('app_state.referenced_user.preferences.skin'),
+      preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
+    };
+    // Current board first, then batched image warm for every cached child
+    // (folder / load_board targets), then fetch JSON for any missing children.
+    runLater(function() {
+      if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
+      boardDetailCache.warm_images(raw, warm_opts);
+    }, 100);
+    runLater(function() {
+      if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
+      boardDetailCache.prefetch_linked(raw, warm_opts);
+    }, 500);
+  },
 
   model: function(params) {
     var _this = this;
@@ -54,32 +125,93 @@ export default Route.extend({
       return RSVP.resolve(cached_record);
     }
 
-    // Cache miss — existing AJAX path. Populate the cache on success so
-    // the next visit hits the fast path.
+    // Cache miss — fetch via /api/v1/boards/:id/tree (root + every
+    // reachable descendant in one response). NO loading overlay: the
+    // grid renders as soon as the root is ready; descendants are
+    // cached + pushed to the Ember Data store as background work so
+    // every subsequent folder tap is a synchronous cache HIT (instant,
+    // no overlay, no network). Images warm in the background too.
+    //
+    // Resolve the route the moment the ROOT board is ready — we do
+    // NOT block on descendant caching or image preloads. Descendant
+    // work continues after resolve(); by the time the user reads the
+    // board and taps a folder, it's done.
+    //
+    // Fallback: if /tree fails (older deploy, network) we retry with
+    // the single-board endpoint so the page still works.
     return new RSVP.Promise(function(resolve) {
-      persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          // Save raw data BEFORE normalize (normalize may mutate the input)
-          var raw_copy = JSON.parse(JSON.stringify(data.board));
-          _this.set('_raw_board_data', raw_copy);
-          // Cache for future navigations.
-          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-          // Push into store to get Ember Data record with correct ID
-          var store = _this.store;
-          var normalized = store.normalize('board', data.board);
-          var record = store.push(normalized);
-          resolve(record);
-        } else {
+      var handleRoot = function(boardData) {
+        var raw_copy = JSON.parse(JSON.stringify(boardData));
+        _this.set('_raw_board_data', raw_copy);
+        // force: network response is authoritative for this navigation.
+        boardDetailCache.set(raw_copy, { force: true });
+        var store = _this.store;
+        var normalized = store.normalize('board', boardData);
+        var record = store.push(normalized);
+        // Image warm runs in _finalize_board_display for the visible board.
+        // Resolve immediately — grid renders now, no overlay.
+        resolve(record);
+      };
+
+      var fallbackSingleBoard = function() {
+        persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+          var boardData = boardDetailCache.normalize_board_payload(data);
+          if(boardData) {
+            handleRoot(boardData);
+          } else {
+            resolve({ error: true, boardname: params.boardname });
+          }
+        }, function() {
           resolve({ error: true, boardname: params.boardname });
+        });
+      };
+
+      persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
+        if(!data || !data.root || !data.root.board) {
+          fallbackSingleBoard();
+          return;
         }
+        var rootBoardData = boardDetailCache.normalize_board_payload(data.root);
+        if (!rootBoardData) {
+          fallbackSingleBoard();
+          return;
+        }
+        // Resolve the route with the root FIRST so the user sees the
+        // board immediately — descendant caching happens after.
+        handleRoot(rootBoardData);
+
+        // Background: cache + Ember-Data-push every descendant so
+        // sub-board navigation is a true synchronous cache hit
+        // (boardDetailCache.get → raw AND store.peekAll → record).
+        // This is the work that makes folder taps instant.
+        var subStore = _this.store;
+        // JSON + Ember Data only — do not warm descendant images here.
+        // Warming every sub-board floods the browser queue (same rationale
+        // as prefetch_for_user). Images load when the user opens that board.
+        (data.descendants || []).forEach(function(wrapped) {
+          var sub_raw = boardDetailCache.normalize_board_payload(wrapped);
+          if (!sub_raw) { return; }
+          boardDetailCache.set(sub_raw);
+          try {
+            var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
+            subStore.push(sub_normalized);
+          } catch (e) { /* serializer edge cases shouldn't block prefetch */ }
+        });
       }, function() {
-        resolve({ error: true, boardname: params.boardname });
+        fallbackSingleBoard();
       });
     });
   },
 
   setupController: function(controller, model) {
     var _this = this;
+    /* Hide any pending board-loading overlay set by callers that
+       fired show_loading_overlay before this transition (the My
+       Boards picker, the boards-page tile click, etc.). The
+       overlay's LOADING_OVERLAY_MIN_MS still enforces a minimum
+       visible duration so a fast cache-hit transition doesn't
+       flash-and-disappear. */
+    this.appState.hide_loading_overlay();
     var user = this.modelFor('user');
 
     // Reset the exit-in-progress flag each time the route is set up, so that
@@ -101,9 +233,18 @@ export default Route.extend({
     // `board.model == null` while we are on the board-detail route and
     // silently no-op. Sharing the same model instance keeps every legacy
     // hook working unchanged.
+    // Only mirror a REAL Ember board record. model() resolves with a
+    // plain { error: true, boardname } object when the /tree (and
+    // single-board fallback) fetch fails — mirroring that POJO would
+    // poison application.board.model, and legacy paths that call
+    // `board.model.get(...)` directly (e.g. app-state refresh_suggestions)
+    // would throw "board.get is not a function" and hard-crash the view
+    // instead of showing the recoverable board-detail error state. Same
+    // guard the next line (`model.get ? ...`) and resolve_board_from_controller
+    // (`m.get && !m.get('error')`) already use.
     try {
       var boardIndexController = this.controllerFor('board.index');
-      if (boardIndexController) {
+      if (boardIndexController && model && model.get && !model.get('error') && (model.get('key') || model.get('id'))) {
         boardIndexController.set('model', model);
       }
     } catch (e) { /* board.index controller may not exist yet on first load */ }
@@ -124,8 +265,39 @@ export default Route.extend({
     controller.set('borders_matched', false);
     controller.set('_saved_border_colors', null);
     controller.set('folder_display_style', (user && user.get && user.get('preferences.folder_display_style')) || 'default');
-    controller.set('folder_colored_face', !!(user && user.get && user.get('preferences.folder_colored_face')));
+    // Folder colored face defaults to ON for every user. Only the
+    // explicit saved value of `false` turns it off; an undefined /
+    // unset preference (new users, existing users who never touched
+    // the toggle) inherits the colored look.
+    var folder_colored_face_saved = user && user.get && user.get('preferences.folder_colored_face');
+    controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
+    controller.set('shrink_labels_to_fit', !!(user && user.get && user.get('preferences.shrink_labels_to_fit')));
+    // Soft borders default to ON for every user. Only the explicit
+    // saved value of `false` turns them off; an undefined / unset
+    // preference (new users, existing users who never touched the
+    // toggle) inherits the soft style.
+    var soft_borders_saved = user && user.get && user.get('preferences.soft_borders');
+    controller.set('soft_borders', soft_borders_saved == null ? true : !!soft_borders_saved);
+    // Hide speak bar — default OFF. Only flips on if the user
+    // explicitly toggles it via the right-panel "Hide speak bar"
+    // control in the Speak Bar section.
+    controller.set('hide_speak_bar', !!(user && user.get && user.get('preferences.hide_speak_bar')));
+
+    // Re-apply the user's symbol_background scope on every board-detail
+    // entry. The app-state `sync_fitzgerald_scope` observer covers the
+    // case where the pref *changes*, but doesn't fire if sessionUser was
+    // already populated before the observer attached — leaving the JS
+    // palette cache filled with original Fitzgerald hues even when the
+    // user has Colored Soft saved. Calling `set_fitzgerald_scope` here
+    // toggles `.fitzgerald-soft` on <html> and invalidates the
+    // `_bd_cache` closure, so the paint swatches and any subsequent
+    // auto-coloring (`editManager.get_keyed_colors` → POS lookup) read
+    // the soft variants from the swapped `--fitzgerald-*` CSS vars.
+    if (window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+      var bg = (user && user.get && user.get('preferences.symbol_background')) || null;
+      window.LingoLinq.set_fitzgerald_scope(bg);
+    }
 
     // Default panels to collapsed (unexpanded), unless a one-shot flag was
     // set by an in-page navigation that wants to preserve the expanded state
@@ -202,17 +374,10 @@ export default Route.extend({
     // so nothing overwrites them
     var raw = _this.get('_raw_board_data');
     if(raw) {
-      controller._build_from_raw(raw);
-      // Background-prefetch immediate child boards + warm their image
-      // cache so folder navigation feels instant. Deferred 500ms so
-      // initial paint lands first; also gives the edit subroute time to
-      // flip edit_mode = true (we skip prefetch in edit mode to avoid
-      // any chance of stale reads while the user mutates buttons).
-      runLater(function() {
+      _this._maybe_prime_caches().then(function() {
         if(controller.isDestroyed || controller.isDestroying) { return; }
-        if(controller.get('edit_mode')) { return; }
-        boardDetailCache.prefetch_linked(raw);
-      }, 500);
+        _this._finalize_board_display(controller, raw);
+      });
     }
 
     // Store original name for rename detection

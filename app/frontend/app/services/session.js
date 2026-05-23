@@ -87,7 +87,16 @@ export default Service.extend({
     }
     this.stashes.persist('prior_login', 'true');
     this.stashes.persist_object('just_logged_in', true, false);
-    return RSVP.all_wait(promises).then(null, function() { return RSVP.resolve(); });
+    return RSVP.all_wait(promises).then(function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+    }, function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+      return RSVP.resolve();
+    });
   },
 
   hashed_password: function(password) {
@@ -421,13 +430,6 @@ export default Service.extend({
   restore: function(force_check_for_token) {
     if(!this.stashes.get('enabled')) { return {}; }
     var _vb = (window.LingoLinq || {}).verboseDebug;
-    try {
-      var prior = sessionStorage.getItem('lingolinq_login_debug');
-      if(prior && _vb) {
-        var arr = JSON.parse(prior);
-        console.log('[LOGIN-DEBUG] Prior page log:', arr);
-      }
-    } catch (e) {}
     console.debug('LINGOLINQ: restoring session data');
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";

@@ -50,6 +50,34 @@ english_plurals = {
   'stomach': 'stomachs',
   'epoch': 'epochs'
 }
+existing_english_strings = {}
+if File.file?('public/locales/en.json')
+  existing_english_strings = JSON.parse(File.read('public/locales/en.json'))
+end
+
+def priority_level_for(fn, strings, key, priority_presets)
+  preset = priority_presets.detect{|preset| fn.match(preset[:regex]) }
+  [(strings[key] || {})['level'] || 10, (preset || {})[:level] || 7].min
+end
+
+def record_string(strings, existing_english_strings, priority_presets, key, str, original, fn)
+  level = priority_level_for(fn, strings, key, priority_presets)
+  if strings[key] && strings[key]['string'] != str && strings[key]['original'] != str
+    existing = existing_english_strings[key]
+    if existing && [strings[key]['string'], strings[key]['original'], str, original].compact.index(existing)
+      strings[key] = {'string' => existing, 'original' => original || strings[key]['original'], 'level' => level}
+    else
+      puts "DUPLICATE #{key} #{fn}"
+      puts "  #{str}"
+      puts "  #{strings[key]['string']}"
+      return false
+    end
+  else
+    strings[key] = {'string' => str, 'original' => original, 'level' => level}
+  end
+  true
+end
+
 files.each do |fn|
   next unless File.file?(fn)
   # puts fn
@@ -97,15 +125,8 @@ files.each do |fn|
             idx += 1
           end
           if line[idx] && str.length > 0
-            if strings[key] && strings[key]['string'] != str
-              puts "DUPLICATE #{key} #{fn}"
-              puts "  #{str}"
-              puts "  #{strings[key]['string']}"
+            if !record_string(strings, existing_english_strings, priority_presets, key, str, nil, fn)
               dups += 1
-            else
-              preset = priority_presets.detect{|preset| fn.match(preset[:regex]) }
-              level = [(strings[key] || {})['level'] || 10, (preset || {})[:level] || 7].min
-              strings[key] = {'string' => str, 'level' => level}
             end
             # puts str
           else
@@ -124,18 +145,20 @@ files.each do |fn|
   File.readlines(fn).each do |line|
     position = 0
     while position != nil
-      idx = line.index(/\{\{t\s+/, position)
+      idx = line.index(/(\{\{|\()t\s+/, position)
       if !idx
         position = nil
         next
       end
+      close_regex = line[idx] == '(' ? /\)/ : /\}\}/
       idx = line.index(/\"|\'/, idx)
       end_bracket = nil
       count_idx = nil
       str = ""
       if idx
+        quote = line[idx]
         idx += 1
-        while line[idx] && line[idx] != "\""
+        while line[idx] && line[idx] != quote
           str += line[idx]
           idx += 1
           if line[idx] == "\\"
@@ -144,7 +167,7 @@ files.each do |fn|
             idx += 1
           end
         end
-        end_bracket = line.index(/\}\}/, idx)
+        end_bracket = line.index(close_regex, idx)
         count_idx = line.index(/count=/, idx)
         idx = line.index(/key=(\'|\")/, idx)
       end
@@ -160,41 +183,35 @@ files.each do |fn|
             key += line[idx]
             idx += 1
           end
-          idx = line.index(/\}\}/, idx)
+          idx = line.index(close_regex, idx)
           if str.length > 0 && key.length > 0
-            if strings[key] && strings[key]['string'] != str && strings[key]['original'] != str
-              puts "DUPLICATE #{key} #{fn}"
-              puts "  #{str}"
-              puts "  #{strings[key]['string']}"
-              dups += 1
-            else
-              if count_key
-                check = str.downcase
-                plural_form = str
-                original = str
-                if english_plurals[check]
-                  plural_form = english_plurals[check]
-                elsif check.length > 5 && check.match(/is$/)
-                  plural_form = str.substring[0, str.length - 2] + "es"
-                elsif check.match(/(s|ch|sh|x|z)$/)
-                  plural_form = str + "es"
-                elsif check.match(/[^aeiouy]y$/)
-                  plural_form = str[0, str.length - 1] + "ies"
-                elsif !check.match(/[aeiouy][aeiouy]f$/) && check.match(/[^f]fe?$/)
-                  plural_form = str.sub(/fe?$/i, "ves")
-                else
-                  plural_form = str + "s"
-                end
-                str = "0 #{plural_form} || 1 #{str} || %{n} #{plural_form}"
+            original = nil
+            if count_key
+              check = str.downcase
+              plural_form = str
+              original = str
+              if english_plurals[check]
+                plural_form = english_plurals[check]
+              elsif check.length > 5 && check.match(/is$/)
+                plural_form = str[0, str.length - 2] + "es"
+              elsif check.match(/(s|ch|sh|x|z)$/)
+                plural_form = str + "es"
+              elsif check.match(/[^aeiouy]y$/)
+                plural_form = str[0, str.length - 1] + "ies"
+              elsif !check.match(/[aeiouy][aeiouy]f$/) && check.match(/[^f]fe?$/)
+                plural_form = str.sub(/fe?$/i, "ves")
+              else
+                plural_form = str + "s"
               end
-              preset = priority_presets.detect{|preset| fn.match(preset[:regex]) }
-              level = [(strings[key] || {})['level'] || 10, (preset || {})[:level] || 7].min
-              strings[key] = {'string' => str, 'original' => original, 'level' => level}
+              str = "0 #{plural_form} || 1 #{str} || %{n} #{plural_form}"
+            end
+            if !record_string(strings, existing_english_strings, priority_presets, key, str, original, fn)
+              dups += 1
             end
           end
         end
       end
-      position = idx
+      position = idx || end_bracket
     end
     #   puts line
     #   puts line.match(/\{\{t\s+\"([^\}\"]+)\"[^\}]+key=\'([^\}\']+)\'.*}}/)
@@ -218,14 +235,7 @@ levels << ["private_license","cc_by_license","cc_by_sa_license","public_domain_l
   "yesterday_day","tomorrow_calendar_date","tomorrow_day","current_month","next_month","last_month","battery_level","set_volume","random_dice_number","pick_random_number","random_spinner_number","launch_native_keyboard","app_name_upper","go","dashboard","my_account","find_board","create_a_new_board","minimal_1","extra_small_2","small_5","medium_10","larg_20e","huge_45","none","small_1","medium_2","thick_5","huge_10","small_14","medium_18","large_22","huge_35","no_text","on_top","on_bottom","text_only","show_grid","show_dim","hide_complete","allow_external_buttons","confirm_custom_external_buttons","confirm_all_external_buttons","prevent_external_buttons","limit_logging_by_cutoff","dont_highlight","highlight_all","highlight_spoken","default_font","default_font_caps","default_font_small","arial","arial_caps","arial_small","comic_sans","comic_sans_caps","comic_sans_small","open_dyslexic","open_dyslexic_caps","open_dyslexic_small","architects_daughter","architects_daughter_caps","architects_daughter_small","default_audio","headset","speaker","headset_or_earpiece","earpiece","dont_stretch","prefer_tall","prefer_wide","clear","communicator_view","supporter_view","row_based","column_based","button_based","region_based","axis_based","moderate_3","quick_2","Speedy_1","slow_5","really_slow_8","moderate","slow","quick","Speedy","really_slow","dot","red_circle","arrow","medium_circle","large_circle","normal","more_sensitive","even_more_sensitive","less_sensitive","small_10","medium_30","large_50","spinning_pie","shrinking_dot","select","next","tiny_50","small_70","medium_100",
   "large_150","huge_200","preferences","messages","logout","sync_if_planning_offline","org_management","reload","actions","communicators","boards","updates","people_i_supervise","model_for","speak_as","usage","reports","modeling","ideas","extras","home_board","account","new_note","quick_assessment","run_evaluation","remote_modeling","no_goal_set","set_a_goal","app","about","pricing","support","general_info","sales","tech_support","contact","developers","jobs","privacy","terms","blog","twitter","facebook","more_resources","web_site","speak_mode","speak_as_which_user","switch_communicators","go_to_users_home_board","stay_on_this_board","cancel","me","logging_enabled","talk_lower","home","percent_battery","charging","speak_options","backspace_lower","clear_lower","exit_speak_mode","settings_etc","show_all_buttons","find_a_button","stay_on_board","pause_logging","copy_to_button_stash","view_word_data","sidebar","user_apostrophe","current_goal","share","repeats","repairs","alerts","phrases","hold_thought","say_colon","share_text","copy","button","link","share_via_facebook","share_via_twitter","quiet","back","loud","Button","flip_text","up","down","close","speak","wait","modify_and_repair_message","no_words_to_repair","insert_text","update","messages_and_alerts","no_messages_or_alerts_to_show","clear_all","loading_messages","saved_phrases","no_phrases","add_phrase","journal","done","with_boards","in_board_set","speak_as_me","model_for_ellipsis","speak_as_ellipsis","original","edit_board","star_this_board","star","more",
   "board_details","make_copy","set_as_home_board","add_to_sidebar","download_board","print_board","loading","not_signed_in","login","register","critical_access","did_you_know","lifetime_purpose","communication_is_for_everyone","empowers_hearing","what_is_app","every_voice_should_be_heard","app_lets_you","app_lets_you_2","learn_more","more_download_options","personalize","personalize_text","work_offline","offline_text","empower_the_team","insights_text","pricing_per_communicator","cloud_extras_credit","whats_it_cost","see_how","right_now","for_families","try_app","sign_up_for_free","allow_cookies","sign_up","already_registered","see_exmaples","popular_boards","by","critical_access_lower","forgot_password_lower","sign_up_lower","login_required","name","username","email","password","type","logging_in","success"]
-levels.each do |list|
-  list.each do |str|
-    if !strings[str]
-      missing += 1
-      puts "== MISSING == #{str}" 
-    end
-  end
-end
+# `levels` only controls ordering for strings that still exist in source.
 puts "TOTAL DUPS #{dups}"
 puts "TOTAL MISSING #{missing}"
 puts "TOTAL STRINGS #{strings.keys.length}"

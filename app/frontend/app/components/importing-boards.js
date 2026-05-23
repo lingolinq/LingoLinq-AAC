@@ -34,6 +34,13 @@ export default Component.extend({
   }),
 
   actions: {
+    continueInBackground() {
+      const m = this.get('model');
+      if(m && m.set) {
+        m.set('import_dismissed_to_background', true);
+      }
+      this.get('modal').close();
+    },
     close() {
       this.get('modal').close();
     },

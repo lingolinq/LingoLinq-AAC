@@ -7,9 +7,12 @@ import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { debounce } from '@ember/runloop';
+import { inject as service } from '@ember/service';
 import progress_tracker from '../utils/progress_tracker';
 
 export default Controller.extend({
+  router: service('router'),
+
   title: computed('searchString', function() {
     return "Search results for " + this.get('searchString');
   }),
@@ -22,6 +25,19 @@ export default Controller.extend({
     res.push({name: i18n.t('any_language', "Any Language"), id: 'any'});
     return res;
   }),
+  // Sort an array of board records alphabetically by display name.
+  // `board.name` may be undefined for very partial fixtures, so we
+  // coerce + lowercase the comparison.
+  sort_boards_by_name: function(boards) {
+    return (boards || []).slice().sort(function(a, b) {
+      var an = (a && (a.get ? a.get('name') : a.name) || '').toString().toLowerCase();
+      var bn = (b && (b.get ? b.get('name') : b.name) || '').toString().toLowerCase();
+      if (an < bn) { return -1; }
+      if (an > bn) { return 1; }
+      return 0;
+    });
+  },
+
   load_results: function(str) {
     var _this = this;
     this.set('online_results', {loading: true, results: []});
@@ -29,7 +45,7 @@ export default Controller.extend({
 
     if(session.get('isAuthenticated')) {
       persistence.find_boards(str).then(function(res) {
-        _this.set('local_results', {results: res});
+        _this.set('local_results', {results: _this.sort_boards_by_name(res)});
       }, function() { _this.set('local_results', {results: []}); });
     } else {
       _this.set('local_results', {impossible: true});
@@ -55,7 +71,7 @@ export default Controller.extend({
         }
         lookup.then(function(res) {
           _this.set('search_promise', null);
-          _this.set('online_results', {results: res.map(function(i) { return i; })});
+          _this.set('online_results', {results: _this.sort_boards_by_name(res.map(function(i) { return i; }))});
         }, function() {
           _this.set('search_promise', null);
           _this.set('online_results', {results: []});
@@ -75,11 +91,11 @@ export default Controller.extend({
                       attributes: board
                     }}));
                   });
-                  _this.set('personal_results', {results: result});
+                  _this.set('personal_results', {results: _this.sort_boards_by_name(result)});
                 }
               });
             } else {
-              _this.set('personal_results', {results: res.map(function(i) { return i; })});
+              _this.set('personal_results', {results: _this.sort_boards_by_name(res.map(function(i) { return i; }))});
             }
           }, function() {
             _this.set('personal_results', {results: []});
@@ -107,12 +123,12 @@ export default Controller.extend({
     if(this.isDestroyed || this.isDestroying) { return; }
     var str = this.get('searchString') || '';
     this.load_results(str);
-    this.transitionToRoute('search', this.get('locale'), encodeURIComponent(str || '_'));
+    this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   actions: {
     searchBoards: function() {
       this.load_results(this.get('searchString'));
-      this.transitionToRoute('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
+      this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
     }
   }
 });

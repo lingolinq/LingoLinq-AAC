@@ -11,7 +11,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
 
 ## Development Commands
 
@@ -36,8 +36,7 @@ bin/fresh_start
 
 # Or manually:
 # Development with all processes (recommended)
-# or
-# heroku local (Deprecated)
+foreman start
 
 # Stop all running processes
 bin/kill_all

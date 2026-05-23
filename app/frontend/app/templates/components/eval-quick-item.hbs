@@ -1,0 +1,127 @@
+{{!-- Item dispatcher — renders the right UI for the current item kind. --}}
+
+<div class="evq-item__prompt-row">
+  <p class="evq-item__prompt">{{this.item.prompt_default}}</p>
+  {{#if this.item.id}}
+    <span class="evq-item__id" aria-label={{t "Item id" key="evq_item_id_aria"}}>{{this.item.id}}</span>
+  {{/if}}
+</div>
+
+{{#if this.isCauseEffect}}
+  <div class="evq-item__cause-effect">
+    <button type="button" class="evq-item__big-button" {{action "triggerCauseEffect"}}>
+      <span class="evq-item__big-button-label">{{this.item.button_label}}</span>
+    </button>
+    {{#if this.item.reward_default}}
+      <p class="evq-item__hint">{{t "Reward shown after press" key="evq_cause_effect_hint"}}</p>
+    {{/if}}
+  </div>
+{{else if this.isAccessSnapshot}}
+  <div class="evq-item__access-grid" style={{safe-style this.gridStyle}} role="grid" aria-label={{t "Access target grid" key="evq_access_grid_aria"}}>
+    {{#each this.gridCells as |cell|}}
+      <button type="button" class="evq-item__access-cell {{if cell.isTarget 'evq-item__access-cell--target'}}" {{action "pickGridCell" cell}} aria-label={{if cell.isTarget (t "Target cell" key="evq_access_target_aria") (t "Cell" key="evq_access_cell_aria")}}>
+        {{#if cell.isTarget}}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>
+        {{/if}}
+      </button>
+    {{/each}}
+  </div>
+{{else if this.isLibraryCompare}}
+  <div class="evq-item__library-compare">
+    <p class="evq-item__library-word">{{this.item.word}}</p>
+    {{#if this.item.library_options}}
+      {{!-- New 3-way bake-off: tile per library, all images for the same word --}}
+      <div class="evq-item__library-row">
+        {{#each this.shuffledLibraryOptions as |opt|}}
+          <button type="button" class="evq-item__library-tile" {{action "libraryCompareTap" opt}}>
+            <img src={{opt.image}} class="evq-item__library-image" alt="" loading="lazy"/>
+          </button>
+        {{/each}}
+      </div>
+    {{else}}
+      {{!-- Legacy single-tile fallback for profiles whose library_compare items
+           haven't been upgraded to the 3-way shape yet (adult-motor,
+           peds-established). Renders the word's symbol so the SLP can still
+           score "is this symbol clear?" with a visual instead of text-only. --}}
+      <div class="evq-item__library-row evq-item__library-row--single">
+        <button type="button" class="evq-item__library-tile" {{action "libraryCompareTap"}}>
+          {{eval-symbol slug=this.item.word size=120}}
+        </button>
+      </div>
+    {{/if}}
+    <p class="evq-item__hint">{{t "Tap the picture that reads clearest for this word." key="evq_library_compare_hint_v2"}}</p>
+  </div>
+{{else if this.isSequence}}
+  <div class="evq-item__sequence-status">
+    <span class="evq-item__sequence-progress">
+      {{t "Step %{n} of %{total}" key="evq_sequence_step" n=this.sequenceProgress.picked total=this.sequenceProgress.total}}
+    </span>
+    {{#if this.pickedSequence.length}}
+      <span class="evq-item__sequence-buffer">
+        {{#each this.pickedSequence as |label|}}
+          <span class="evq-item__sequence-chip">{{label}}</span>
+        {{/each}}
+      </span>
+    {{/if}}
+  </div>
+  <div class="evq-item__choice-grid evq-item__choice-grid--sequence">
+    {{#each this.decoratedOptions as |opt|}}
+      <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{action "pickOption" opt}}>
+        {{#if opt.symbol_slug}}
+          {{eval-symbol slug=opt.symbol_slug size=80}}
+        {{/if}}
+        <span class="evq-item__choice-label">{{opt.label}}</span>
+      </button>
+    {{/each}}
+  </div>
+{{else if this.isObserve}}
+  <div class="evq-item__observe">
+    <p class="evq-item__observe-message">
+      {{t "Observation item — administer in person, then score below." key="evq_observe_hint"}}
+    </p>
+  </div>
+{{else if this.isChoiceLike}}
+  <div class="evq-item__choice-grid evq-item__choice-grid--cols-{{this.item.options.length}}">
+    {{#each this.decoratedOptions as |opt|}}
+      <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{action "pickOption" opt}}>
+        {{#if opt.symbol_slug}}
+          {{eval-symbol slug=opt.symbol_slug size=90}}
+        {{/if}}
+        <span class="evq-item__choice-label">{{opt.label}}</span>
+      </button>
+    {{/each}}
+  </div>
+{{else}}
+  <div class="evq-item__observe">
+    <p class="evq-item__observe-message">
+      {{t "No interactive renderer for this item kind. Score manually below." key="evq_unknown_kind"}}
+    </p>
+  </div>
+{{/if}}
+
+{{!-- Manual SLP override panel — always visible so the SLP can
+     intervene (silent communicator, ambiguous response, etc.) even
+     when the item supports auto-scoring. --}}
+<div class="evq-item__manual" role="group" aria-label={{t "Score manually" key="evq_manual_score_aria"}}>
+  <span class="evq-item__manual-label">
+    {{#if this.isAutoScorable}}
+      {{t "Override / manual score" key="evq_manual_override_label"}}
+    {{else}}
+      {{t "Score the response" key="evq_manual_score_label"}}
+    {{/if}}
+  </span>
+  <div class="evq-item__manual-buttons">
+    <button type="button" class="evq-item__manual-btn evq-item__manual-btn--correct" {{action "manualScore" "correct"}} aria-label={{t "Correct" key="correct"}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>
+      <span>{{t "Correct" key="correct"}}</span>
+    </button>
+    <button type="button" class="evq-item__manual-btn evq-item__manual-btn--skip" {{action "manualScore" "skip"}} aria-label={{t "Skip / no response" key="runner_skip_aria"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      <span>{{t "Skip" key="skip"}}</span>
+    </button>
+    <button type="button" class="evq-item__manual-btn evq-item__manual-btn--incorrect" {{action "manualScore" "incorrect"}} aria-label={{t "Incorrect" key="incorrect"}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      <span>{{t "Incorrect" key="incorrect"}}</span>
+    </button>
+  </div>
+</div>

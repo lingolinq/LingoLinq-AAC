@@ -11,6 +11,12 @@
           <span class='glyphicon glyphicon-hand-up'></span>
         </div>
       {{/if}}
+      {{! Label position follows the user's button_text_position
+          preference (same source the board grid uses), so the speak
+          bar chips match the board: text on top vs. bottom. }}
+      {{#if this.text_on_top}}
+        <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
+      {{/if}}
       {{#if button.image}}
         <img src={{button.image}} onerror="button_broken_image(this);"  draggable="false">
       {{else}}
@@ -19,7 +25,9 @@
       {{#if button.sound}}
         <!--audio style="display: none;" preload="auto" src={{button.sound}}></audio-->
       {{/if}}
-      <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
+      {{#unless this.text_on_top}}
+        <div class={{if button.modeling "text modeled" "text"}}>{{ button.label }} </div>
+      {{/unless}}
     </span>
   </div>
   {{#unless button.ghost}}

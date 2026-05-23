@@ -32,7 +32,16 @@
       {{/if}}
     </p>
   </div>
-  <div class="modal-footer md-modal-footer">
+  <div class="modal-footer md-modal-footer md-modal-footer--split">
+    {{#if this.model.progress}}
+      {{#unless this.model.status.errored}}
+        {{#unless this.model.status.finished}}
+          <button type="button" class="btn md-modal-btn md-modal-btn--secondary" {{action "continueInBackground"}}>
+            {{t "Continue in background" key="board_import_continue_background"}}
+          </button>
+        {{/unless}}
+      {{/unless}}
+    {{/if}}
     <a href="#" class="btn" {{action "close"}}>{{t "Close" key="close"}}</a>
   </div>
 {{/modal-dialog}}

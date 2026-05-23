@@ -51,7 +51,26 @@ class ApplicationController < ActionController::Base
   def set_sentry_user
     return unless defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
     Sentry.set_user(id: GoSecure.sha512(request.remote_ip, 'user_ip'))
-    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = @api_user if defined?(@api_user) && @api_user
+    stash_coppa_sentry_user(coppa_sentry_subject_user)
+  rescue StandardError
+    nil
+  end
+
+  # Stash the User whose data might appear on a Sentry event. Call again
+  # from actions that resolve the authenticated user after before_action.
+  def stash_coppa_sentry_user(user)
+    CoppaSentryScrub.stash_request_user(user)
+  end
+
+  def coppa_sentry_subject_user
+    return @api_user if defined?(@api_user) && @api_user
+
+    if controller_path == 'parental_consents'
+      user_id = params[:user_id].presence || params['user_id']
+      return User.find_by_path(user_id) if user_id.present?
+    end
+
+    nil
   rescue StandardError
     nil
   end
@@ -319,6 +338,17 @@ class ApplicationController < ActionController::Base
   def log_installed_client_signal(source)
     h = installed_app_header
     return if h.blank? && !params.key?('installed_app')
-    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} effective=#{installed_app_header_effective.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+    h_log = h[0, 64]
+    raw_p = params['installed_app']
+    p_log = if raw_p.nil? || (raw_p.is_a?(String) && raw_p.empty?)
+      nil
+    elsif raw_p.is_a?(String)
+      raw_p[0, 64]
+    elsif raw_p.is_a?(ActionController::Parameters) || raw_p.is_a?(Hash)
+      '#<Hash>'
+    else
+      "#<#{raw_p.class.name}>"
+    end
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h_log.inspect} effective=#{installed_app_header_effective.inspect} params=#{p_log.inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
   end
 end

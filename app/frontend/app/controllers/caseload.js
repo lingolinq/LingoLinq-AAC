@@ -17,9 +17,68 @@ function resolveSuperviseeHomeBoardKey(s) {
   );
 }
 
+// Palette for the 10 colored avatar PNGs in public/avatars/. The
+// caseload card renders its outer glass frame from the inline SVG
+// (kept constant across all communicators) but the inner silhouette
+// pulls its head/shadow colors from this palette so the card's
+// silhouette matches the avatar PNG used everywhere else for that
+// communicator.
+var CASELOAD_AVATAR_PALETTE = [
+  { head: '#5BAEA4', shadow: '#222A4F' }, // 0: teal
+  { head: '#5B9BE0', shadow: '#1F2D55' }, // 1: blue
+  { head: '#9B7BF7', shadow: '#2D1A4D' }, // 2: violet
+  { head: '#F0913E', shadow: '#5C3014' }, // 3: orange
+  { head: '#F2C26E', shadow: '#8A6B44' }, // 4: amber
+  { head: '#D8478A', shadow: '#4D1531' }, // 5: magenta
+  { head: '#34C99A', shadow: '#0E4D3B' }, // 6: emerald
+  { head: '#5BBEEF', shadow: '#0C4A6E' }, // 7: sky
+  { head: '#4E8E8E', shadow: '#0F2A2B' }, // 8: stormy teal
+  { head: '#B98DEC', shadow: '#3B1759' }  // 9: plum
+];
+
 function decorateSuperviseeForCaseload(s) {
   var copy = Object.assign({}, s);
   copy.resolved_home_board_key = resolveSuperviseeHomeBoardKey(s);
+  // Extract avatar slot 0-9 from the user's avatar_url path so the
+  // inline silhouette SVG on the caseload card matches the PNG
+  // assigned by the backend.
+  var slot = 0;
+  if (s && s.avatar_url) {
+    var match = String(s.avatar_url).match(/\/avatars\/avatar-(\d+)\.png/);
+    if (match) {
+      slot = parseInt(match[1], 10);
+      if (isNaN(slot) || slot < 0 || slot > 9) { slot = 0; }
+    }
+  }
+  var palette = CASELOAD_AVATAR_PALETTE[slot];
+  copy.avatar_head_color = palette.head;
+  copy.avatar_shadow_color = palette.shadow;
+  // Surface a count + multi-goal flag derived from whatever the
+  // payload provides. Prefer an explicit active_goals array if
+  // present; otherwise fall back to 1/0 based on the legacy
+  // primary_goal (`goal`) field. Templates can't use a `gt` helper
+  // (none registered in this project), so the flag is computed here.
+  var list = s && s.active_goals;
+  var hasList = !!(list && list.length != null);
+  var n = hasList ? list.length : (s && s.goal ? 1 : 0);
+  copy.goals_count = n;
+  copy.has_multiple_goals = n > 1;
+  // Resolve which goal text the chip should show in the collapsed
+  // summary state, and whether to render a PRIMARY tag next to it.
+  // Plain JS arrays from the API don't expose `firstObject`, so we
+  // index into [0] here rather than rely on Ember array helpers.
+  var displayed = (s && s.goal) || (hasList && list[0]) || null;
+  copy.displayed_goal_summary = displayed && displayed.summary;
+  copy.displayed_goal_is_primary = !!(
+    (s && s.goal) ||
+    (hasList && list[0] && list[0].primary)
+  );
+  // Status for the displayed goal — picks up the value the backend
+  // sends on active_goals[0]. Default 'active' when the legacy
+  // primary_goal slot fires (no per-goal status in user settings).
+  copy.displayed_goal_status =
+    (hasList && list[0] && list[0].status) ||
+    (s && s.goal ? 'active' : null);
   return copy;
 }
 
@@ -29,9 +88,86 @@ export default Controller.extend({
   router: service('router'),
   store: service(),
 
+  // Free-text filter for the supervisee grid — matches against
+  // user_name and goal summary (case-insensitive substring). Bound
+  // to the search input rendered above the grid.
+  superviseeFilter: '',
+
+  // Google Classroom-style flow: the caseload page renders a compact
+  // student list by default. The full supervisee card only renders
+  // when the supporter clicks a row in the list. selectedSupervisee
+  // holds the user_name of the currently expanded row (null = list
+  // only, no card showing).
+  selectedSupervisee: null,
+
+  selectedSuperviseeRecord: computed('supervisees.[]', 'selectedSupervisee', function() {
+    var name = this.get('selectedSupervisee');
+    if (!name) { return null; }
+    var list = this.get('supervisees') || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].user_name === name) { return list[i]; }
+    }
+    return null;
+  }),
+
+  // The list rows actually rendered. When a supervisee is selected,
+  // the list collapses to JUST that one row (with the full card
+  // expanded underneath). When nothing is selected, the list shows
+  // the standard filtered roster.
+  visibleSupervisees: computed('filteredSupervisees.[]', 'selectedSuperviseeRecord', function() {
+    var selected = this.get('selectedSuperviseeRecord');
+    if (selected) { return [selected]; }
+    return this.get('filteredSupervisees') || [];
+  }),
+
   supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
     var list = this.get('model.known_supervisees') || [];
     return list.map(decorateSuperviseeForCaseload);
+  }),
+
+  // Filtered view of supervisees driven by superviseeFilter. Falls
+  // back to the unfiltered list when the input is empty so an
+  // empty filter doesn't accidentally hide everyone. Matches the
+  // query against the user_name AND every goal-text source we
+  // surface for a supervisee: legacy primary_goal (s.goal.summary),
+  // the displayed-goal computed (s.displayed_goal_summary), and
+  // every entry in the active_goals array.
+  filteredSupervisees: computed('supervisees.[]', 'superviseeFilter', function() {
+    var list = this.get('supervisees') || [];
+    var q = (this.get('superviseeFilter') || '').trim().toLowerCase();
+    if (!q) {
+      return list;
+    }
+    return list.filter(function(s) {
+      if (!s) { return false; }
+      var name = (s.user_name ? String(s.user_name) : '').toLowerCase();
+      if (name.indexOf(q) !== -1) { return true; }
+      var legacy = (s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
+      if (legacy.indexOf(q) !== -1) { return true; }
+      var displayed = (s.displayed_goal_summary ? String(s.displayed_goal_summary) : '').toLowerCase();
+      if (displayed.indexOf(q) !== -1) { return true; }
+      var actives = s.active_goals;
+      if (actives && actives.length) {
+        for (var i = 0; i < actives.length; i++) {
+          var g = actives[i];
+          if (g && g.summary && String(g.summary).toLowerCase().indexOf(q) !== -1) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+  }),
+
+  // Show the filter when there's more than one supervisee, or the
+  // filter has text in it (so an active filter that just narrowed
+  // the list to one match doesn't hide the input the user is typing
+  // into). Computed in JS to avoid needing a `gt` truth-helper in
+  // Handlebars — this project doesn't register one.
+  showSuperviseeFilter: computed('supervisees.length', 'superviseeFilter', function() {
+    var count = (this.get('supervisees') || []).length;
+    var q = this.get('superviseeFilter') || '';
+    return count > 1 || q.length > 0;
   }),
 
   // When a communicator's home is the eval board (obf/eval…), opening "Model for" would
@@ -89,6 +225,45 @@ export default Controller.extend({
   },
 
   actions: {
+    // Toggle the selected supervisee. Clicking a row in the compact
+    // student list opens that supervisee's full card below; clicking
+    // the same row again (or another row) collapses or switches.
+    selectSupervisee: function(supervisee, event) {
+      // The action is bound to the entire <li> row so clicking
+      // anywhere on the row (including the chevron) toggles the
+      // selection. Skip if the click originated from a quick-action
+      // button or LinkTo inside .md-caseload__list-quick so those
+      // controls handle their own click without also toggling the
+      // card.
+      if (event && event.target && event.target.closest) {
+        if (event.target.closest('.md-caseload__list-quick button, .md-caseload__list-quick a')) {
+          return;
+        }
+      }
+      var name = supervisee && supervisee.user_name;
+      if (!name) { return; }
+      if (this.get('selectedSupervisee') === name) {
+        this.set('selectedSupervisee', null);
+      } else {
+        this.set('selectedSupervisee', name);
+      }
+    },
+
+    // Reset the selection AND clear the text filter so the full
+    // supervisee roster is visible again. Bound to the "Full List"
+    // button that renders above the collapsed single-row list.
+    clearSelectedSupervisee: function() {
+      this.set('selectedSupervisee', null);
+      this.set('superviseeFilter', '');
+    },
+
+    // Reset the supervisee text filter. Bound to the × inside the
+    // filter input and to the "Clear filter" CTA in the no-matches
+    // empty state.
+    clearSuperviseeFilter: function() {
+      this.set('superviseeFilter', '');
+    },
+
     // Same API as index route / dashboard: set_speak_mode_user(id, true, keep_as_self).
     // Modeling uses findRecord first so we can avoid opening obf/eval (eval tools) when
     // that is only the communicator's eval placeholder home — same symptom as Run evaluation.
@@ -154,8 +329,20 @@ export default Controller.extend({
       if (rawId == null) {
         return;
       }
+      var _this = this;
       this.get('store').findRecord('user', rawId).then(function(user_model) {
-        modal.open('new-goal', { user: user_model });
+        // modal.open resolves with the saved goal record when Add Goal
+        // succeeds, and rejects when the user cancels. Reload the
+        // current user on success so the goal we just saved appears
+        // in the supervisee card's goal slot without a manual page
+        // refresh.
+        modal.open('new-goal', { user: user_model }).then(function(res) {
+          if (!res) { return; }
+          var current = _this.get('appState.currentUser');
+          if (current && typeof current.reload === 'function') {
+            current.reload();
+          }
+        }, function() { });
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });
@@ -170,7 +357,11 @@ export default Controller.extend({
     },
 
     quick_assessment: function(supervisee) {
-      modal.open('quick-assessment', { user_name: supervisee.user_name });
+      if (!supervisee) {
+        return;
+      }
+      var uid = supervisee.id != null ? supervisee.id : supervisee.user_id;
+      modal.open('quick-assessment', { user: { user_name: supervisee.user_name, id: uid } });
     },
 
     run_eval: function(supervisee) {
