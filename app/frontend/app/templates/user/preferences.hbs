@@ -1061,6 +1061,11 @@
             {{t "Always show quick actions sidebar" key='always_show_quick_sidebar'}}
           </label>
         </div>
+        {{#if this.pending_preferences.quick_sidebar}}
+          <p class="form-control-static" style="margin-top: 8px; font-size: 1.05rem;">{{t "Keep the quick actions sidebar visible while you use boards. Shortcuts stay open after you tap them." key="sidebar_quick_actions_help_always_show"}}</p>
+        {{else}}
+          <p class="form-control-static" style="margin-top: 8px; font-size: 1.05rem;">{{t "Open the sidebar with the toggle; it closes after you tap a shortcut unless you choose Always show." key="sidebar_quick_actions_help_temporary"}}</p>
+        {{/if}}
         {{#unless this.pending_preferences.quick_sidebar}}
           <div class="checkbox big_checkbox">
             <label>
@@ -1068,6 +1073,7 @@
               {{t "Remove quick actions sidebar completely" key='never_show_quick_sidebar'}}
             </label>
           </div>
+          <p class="form-control-static" style="margin-top: 8px; font-size: 1.05rem;">{{t "Hide the quick actions sidebar and its toggle in speak mode." key="sidebar_quick_actions_help_disable"}}</p>
         {{else}}
           <div class="checkbox big_checkbox">
             <label>
@@ -1075,6 +1081,7 @@
               {{t "Don't allow hiding quick actions sidebar" key='never_hide_quick_sidebar'}}
             </label>
           </div>
+          <p class="form-control-static" style="margin-top: 8px; font-size: 1.05rem;">{{t "When always showing the sidebar, prevent closing it with the toggle." key="sidebar_quick_actions_help_lock"}}</p>
         {{/unless}}
       </div>
     </div>
@@ -1144,11 +1151,13 @@
             {{/if}}
             <div>
               <span style='display: inline-block; width: calc(100% - 65px);'>
-                <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder="add board key/action" />
+                <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} />
               </span>
               <span style='display: inline-block; width: 60px;'>
                 <button class='btn btn-default' {{action 'add_sidebar_board' this.new_sidebar_board}}>{{t "Add" key='add'}}</button>
               </span>
+              <p class="form-control-static" style="margin-top: 10px; font-size: 1.05rem;">{{t "Enter a board path (username/boardkey) or an action code starting with a colon." key="sidebar_manual_add_help"}}</p>
+              <p class="form-control-static" style="margin-top: 4px; font-size: 1.05rem;">{{t "Examples: lingolinq/yesno, :clear, :home, :back, :speak, :beep, :find" key="sidebar_action_examples"}}</p>
               {{#if this.add_sidebar_board_error}}
                 <p class='text-danger'>{{this.add_sidebar_board_error}}</p>
               {{/if}}

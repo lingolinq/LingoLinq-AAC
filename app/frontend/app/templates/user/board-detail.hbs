@@ -597,6 +597,7 @@
           </svg>
         </button>
         {{#unless this.model.integration}}
+        {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
         {{#unless this.edit_mode}}
           <button type="button" class="md-board-detail-sidebar-toggle md-board-detail-sidebar-toggle--stacked {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} aria-label={{t "Toggle sidebar" key="toggle_sidebar"}} aria-pressed={{if this.inlineSidebarOpen "true" "false"}} {{action "toggleInlineSidebar"}}>
             {{#if this.inlineSidebarOpen}}
@@ -611,6 +612,7 @@
               </svg>
             {{/if}}
           </button>
+        {{/unless}}
         {{/unless}}
         {{/unless}}
         {{#if this.show_options_menu}}
@@ -1591,12 +1593,18 @@
       {{/if}}{{!-- /active_view phrase-builder vs symbol-board --}}
 
       {{!-- Inline Sidebar Boards (speak mode navigation) --}}
+      {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       {{#unless this.edit_mode}}
         {{#if this.inlineSidebarOpen}}
           <div class="md-board-detail-inline-sidebar">
             {{#each this.app_state.sidebar_boards as |board|}}
               {{#if board.alert}}
                 <button type="button" {{action "sidebar_alert"}} class="md-board-detail-inline-sidebar__item">
+                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                </button>
+              {{else if board.special}}
+                <button type="button" class="md-board-detail-inline-sidebar__item" {{action "sidebar_special" board}}>
                   <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
                   <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
                 </button>
@@ -1609,6 +1617,7 @@
             {{/each}}
           </div>
         {{/if}}
+      {{/unless}}
       {{/unless}}
 
       </div>{{!-- /.md-board-detail-grid-sidebar-wrap --}}

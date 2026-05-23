@@ -101,8 +101,14 @@ export default Component.extend({
         return user.save();
       });
 
-      update_user.then(function() {
+      update_user.then(function(user) {
         _this.set('loading', false);
+        const appState = _this.get('appState');
+        const sessionUser = appState.get('sessionUser');
+        if (user_id === 'self' || (sessionUser && user.get('id') === sessionUser.get('id'))) {
+          appState.set('sessionUser', user);
+          appState.set('currentUser', user);
+        }
         if (_this.get('persistence').get('online')) {
           runLater(function() {
             if (_this.get('persistence').get('auto_sync')) {
