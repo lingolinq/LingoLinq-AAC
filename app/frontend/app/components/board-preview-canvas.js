@@ -3,7 +3,7 @@ import LingoLinq from '../app';
 import modal from '../utils/modal';
 import $ from 'jquery';
 import { htmlSafe } from '@ember/template';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -177,13 +177,67 @@ export default Component.extend({
         context.font = text_height + "px Arial";
         context.textAlign = 'center';
         var variant_urls = board.variant_image_urls(this.appState.get('currentUser.preferences.skin'));
+        /* Synchronously resolve a remote image URL through the locally
+           synced URL cache, with the same fallback ladder
+           board-detail-grid uses for its <img src=…> rendering
+           (board-detail.js#_resolve_cached_image_url). Returning the
+           raw remote URL when no cache hit is found is the key trick:
+           `new Image().src = remote_url` then does the HTTP fetch
+           directly, which works regardless of whether the persistence
+           subsystem has finished priming. */
+        var resolve_url_sync = function(remote_url) {
+          if (!remote_url) { return null; }
+          var url_cache = persistence.url_cache;
+          var url_uncache = persistence.url_uncache;
+          var try_url = function(u) {
+            if (!u) { return null; }
+            if (url_uncache && url_uncache[u]) { return null; }
+            var cached = url_cache && url_cache[u];
+            if (cached && cached !== false) { return cached; }
+            return null;
+          };
+          var cached = try_url(remote_url);
+          if (cached) { return cached; }
+          var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
+          if (unvarianted !== remote_url && !LingoLinq.Board.is_skin_tone_variant_url(remote_url)) {
+            cached = try_url(unvarianted);
+            if (cached) { return cached; }
+          }
+          var alt_url = null;
+          if (remote_url.match(/^https:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
+            alt_url = remote_url.replace(/^https:\/\/s3\.amazonaws\.com\/opensymbols\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+          } else if (remote_url.match(/^https:\/\/opensymbols\.s3\.amazonaws\.com\//)) {
+            alt_url = remote_url.replace(/^https:\/\/opensymbols\.s3\.amazonaws\.com\//, 'https://d18vdu4p71yql0.cloudfront.net/');
+          }
+          if (alt_url) {
+            cached = try_url(alt_url);
+            if (cached) { return cached; }
+          }
+          return remote_url;
+        };
         var handle_button = function(button_id) {
             var button = $.extend({}, buttons[button_id] || {});
             if(!button_id || !buttons[button_id]) {
               button.hidden = true;
             }
             if(button) {
-              if(button && button.level_modifications) {
+              /* Apply level_modifications ONLY when a sub-10 level is
+                 in effect. Mirrors board-detail.js#_make_btn (the
+                 `if(level && level < 10)` gate at line 921). At the
+                 default level=10 the level filter is off — the raw
+                 `hidden` flag from the button data stays intact, and
+                 buttons the author tagged with `level_modifications.1
+                 .hidden=true` (a common "hidden by default until
+                 promoted" pattern) still render normally.
+
+                 Without this gate the loop walks 1→10 cumulatively
+                 and any sub-level that sets hidden=true latches it on
+                 for the rest of the loop, which previously produced
+                 the bug where Vocal Flair 84 — Categorías Comida
+                 rendered every cell as empty in the preview while
+                 board-detail (with the same default level) showed the
+                 full populated grid. */
+              if(level && level < 10 && button.level_modifications) {
                 if(button.level_modifications.pre) {
                   for(var key in button.level_modifications.pre) {
                     button[key] = button.level_modifications.pre[key];
@@ -274,61 +328,58 @@ export default Component.extend({
                 if(show_links && !button.hidden && button.image_id && board.get('image_urls') && board.get('image_urls')[button.image_id]) {
                   var orig_url = variant_urls[button.image_id];
                   var url = variant_urls[button.image_id + "-" + preferred_symbols] || orig_url;
-                  /* Each cell with an image counts toward the overlay's
-                     "all images settled" check. `cell_finish` is called
-                     exactly once per cell — on onload, onerror, or any
-                     early-exit path — so the pending counter always
-                     reaches zero. */
+                  /* Synchronous URL resolution — mirrors board-detail's
+                     `_resolve_cached_image_url`. Tries `persistence.url_cache`
+                     for a locally-synced data URI (and a couple of
+                     known URL-variant fallbacks), then falls back to the
+                     raw remote URL and lets the browser HTTP-fetch it
+                     via `new Image().src`.
+
+                     Critical: we deliberately do NOT call
+                     `persistence.find_url(url)` here. That function
+                     reschedules itself every 500ms while
+                     `persistence.primed` is false, with no escape if
+                     priming never completes — leaving every image
+                     promise wedged indefinitely. board-detail-grid
+                     dodges this entirely with the same sync-cache +
+                     remote-URL-fallback strategy, and that path renders
+                     S3 symbol URLs reliably. */
+                  var resolved_url = resolve_url_sync(url) || url;
                   pending++;
-                  (function(button, x, y, url, persistenceService, component) {
+                  (function(button, x, y, resolved_url, component) {
                     var cell_done = false;
                     var cell_finish = function() {
                       if(cell_done) { return; }
                       cell_done = true;
                       mark_image_done();
                     };
-                    var draw = function(url) {
+                    if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
+                    var img = new Image();
+                    var button_ratio = image_width / image_height;
+                    img.onload = function() {
                       if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                      var img = new Image();
-                      var button_ratio = image_width / image_height;
-                      img.onload = function() {
-                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                        var image_ratio = img.width / img.height;
-                        var width = image_width;
-                        var height = image_height;
-                        var image_x = x + border_size + pad;
-                        var image_y = y + border_size + pad + text_height;
-                        if(image_ratio > button_ratio) {
-                          // wider than the space
-                          var diff = (1 - (button_ratio / image_ratio)) * height;
-                          image_y += diff / 2;
-                          height -= diff;
-                        } else if(image_ratio < button_ratio) {
-                          // taller than the space
-                          var diff = (1 - (image_ratio / button_ratio)) * width;
-                          image_x += diff / 2;
-                          width -= diff;
-                        }
-                        context.drawImage(img, image_x, image_y, width, height);
-                        cell_finish();
-                      };
-                      img.onerror = cell_finish;
-                      img.src = url;
+                      var image_ratio = img.width / img.height;
+                      var iw = image_width;
+                      var ih = image_height;
+                      var image_x = x + border_size + pad;
+                      var image_y = y + border_size + pad + text_height;
+                      if(image_ratio > button_ratio) {
+                        // wider than the space
+                        var diff = (1 - (button_ratio / image_ratio)) * ih;
+                        image_y += diff / 2;
+                        ih -= diff;
+                      } else if(image_ratio < button_ratio) {
+                        // taller than the space
+                        var diff = (1 - (image_ratio / button_ratio)) * iw;
+                        image_x += diff / 2;
+                        iw -= diff;
+                      }
+                      context.drawImage(img, image_x, image_y, iw, ih);
+                      cell_finish();
                     };
-                    persistenceService.find_url(url).then(function(uri) {
-                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                      draw(uri);
-                    }, function() {
-                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                      persistenceService.find_url(orig_url).then(function(found_url) {
-                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                        draw(found_url);
-                      }, function() {
-                        if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
-                        draw(url);
-                      });
-                    });
-                  })(button, x, y, url, persistence, _this);
+                    img.onerror = cell_finish;
+                    img.src = resolved_url;
+                  })(button, x, y, resolved_url, _this);
                 }
               }
             }
@@ -339,21 +390,28 @@ export default Component.extend({
             handle_button(button_id);
           }
         }
-        /* Loop finished synchronously — flip the gate and try to emit.
-           Only reached when we actually drew (board.id present). The
-           initial render (model loading, no id) skips this and waits
-           for the `update_board` observer to re-fire render_canvas
-           once the real board record is available. If no images were
-           queued (text-only board, persistence offline) we emit
-           immediately; otherwise the per-cell `cell_finish` calls
-           drive the counter down and emit on the last one. */
+        /* Loop finished — flip the gate. The actual emit is deferred
+           to the next runloop tick so that when `pending` is 0 at this
+           point (text-only board, level-hidden cached record) the
+           loading overlay still gets at least one paint cycle before
+           being hidden. Without this defer, the entire
+           emitLoading(true) → emitLoading(false) lifecycle could
+           collapse inside a single Ember run flush and the user would
+           never see the loading affordance. When pending > 0 the
+           initial deferred call is a no-op (maybe_emit_canvas_ready
+           guards on pending > 0); the per-cell `cell_finish` callbacks
+           then drive the emit when the last image actually settles. */
         loop_done = true;
-        maybe_emit_canvas_ready();
-        /* Safety net: if a `find_url` promise never settles (network
-           hang, persistence wedged), guarantee the overlay still
-           hides after a bounded wait. 8s is long enough for normal
-           cached loads to win and short enough that a stuck modal
-           isn't silently broken. */
+        runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          maybe_emit_canvas_ready();
+        }, 0);
+        /* Safety net: if any per-cell image load wedges (rare now that
+           we no longer route through persistence.find_url, but the
+           browser can still hang on a slow CDN), guarantee the overlay
+           still hides after a bounded wait. 4s is short enough that a
+           stuck preview isn't silently broken; cached/CDN-warm loads
+           land in well under 1s. */
         runLater(function() {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           if (!emitted) {
@@ -361,7 +419,7 @@ export default Component.extend({
             var cb = _this.get('onCanvasReady');
             if(cb && typeof cb === 'function') { cb(); }
           }
-        }, 8000);
+        }, 4000);
       }
     }
   },
@@ -373,12 +431,32 @@ export default Component.extend({
     'board.image_urls',
     'locale',
     function() {
+      /* Debounce: board.id, board.image_urls, locale and friends can
+         all flip within milliseconds when the parent finishes loading
+         a record. Each property change used to fire its own runLater
+         → render_canvas, each producing its own `pending` counter
+         closure. The last closure's image-load callbacks would race
+         against earlier-render image loads that decremented the
+         WRONG closure's counter, leaving the latest closure stuck at
+         pending > 0 until the 8s safety net fired. Coalescing into a
+         single trailing render avoids the duplicate work and lets
+         pending reach 0 normally. */
       var _this = this;
-      runLater(function() {
+      if (_this._renderDebounce) { runCancel(_this._renderDebounce); }
+      _this._renderDebounce = runLater(function() {
+        _this._renderDebounce = null;
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.render_canvas();
-      })
+      }, 50);
     }
   ),
+  willDestroyElement: function() {
+    if (this._renderDebounce) {
+      runCancel(this._renderDebounce);
+      this._renderDebounce = null;
+    }
+    this._super(...arguments);
+  },
   actions: {
   }
 });

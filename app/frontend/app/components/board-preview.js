@@ -53,18 +53,48 @@ export default Component.extend({
       if(typeof urls !== 'object') { return true; }
       return Object.keys(urls).length === 0;
     };
+    /* Catch a partial cache shape the older `imageUrlsMissing` gate
+       can't see: the record has `permissions` set AND `image_urls`
+       populated, but the two halves don't line up — every button's
+       `image_id` references entries that are NOT keys in the cached
+       `image_urls` map. Symptom (confirmed by repro logs against
+       marcus_williams_slp/vocal-flair-84-categories-food): canvas
+       draws every cell as a blank rounded rect, the per-cell
+       image-load block at board-preview-canvas.js:274 is gated off
+       (`board.get('image_urls')[button.image_id]` undefined for ALL
+       buttons), pending stays 0, onCanvasReady fires synchronously,
+       and the loading lifecycle collapses. Stale cache reassembled
+       from differently-versioned partial responses.
+
+       Treat as partial whenever buttons exist AND image_urls has
+       entries AND NOT A SINGLE button.image_id resolves to a key in
+       image_urls — that intersection-of-empty only happens with a
+       desynced cache, never with a fully-fetched record. */
+    var buttonsLookStripped = function(board) {
+      var btns = board.get('buttons') || [];
+      if(btns.length === 0) { return false; }
+      var urls = board.get('image_urls');
+      if(!urls || typeof urls !== 'object') { return false; }
+      if(Object.keys(urls).length === 0) { return false; }
+      for(var i = 0; i < btns.length; i++) {
+        var bid = btns[i] && btns[i].image_id;
+        if(bid && urls[bid]) { return false; }
+      }
+      return true;
+    };
     if(_this.get('key')) {
       LingoLinq.store.findRecord('board', _this.get('key')).then(function(board) {
         /* Mirror persistence.js#find_record's partial-load check: a
            cached board record can have `permissions` set (from an
            earlier list query that ships a summary row) but be missing
-           `image_urls` — and without image_urls the canvas has no
-           per-button URL map to render symbols from, so every cell
-           draws as a colored rectangle with a label and no image.
-           Reload when EITHER is missing OR image_urls is an empty
-           object so the preview always has the full record before we
-           paint. */
-        if(!board.get('permissions') || imageUrlsMissing(board)) {
+           `image_urls`, or have buttons whose `image_id` references
+           are entirely out of sync with the cached `image_urls` map.
+           Reload in any of those cases so the canvas always renders
+           against a fully-fetched record. */
+        var partial = !board.get('permissions') ||
+          imageUrlsMissing(board) ||
+          buttonsLookStripped(board);
+        if(partial) {
           board.reload().then(function(board) {
             _this.set('model', board);
             _this.set('_model_loaded', true);
@@ -75,7 +105,7 @@ export default Component.extend({
           _this.set('_model_loaded', true);
           _this._emitCombinedLoading();
         }
-      }, function(err) {
+      }, function() {
         _this.set('model', {error: true});
         emitLoading(false);
       });

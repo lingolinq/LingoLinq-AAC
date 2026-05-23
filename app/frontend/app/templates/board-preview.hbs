@@ -5,7 +5,7 @@
         <button type="button" class="la-modal-close md-board-details-modal__close" {{action "close"}} aria-label={{t "Close" key="close"}}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <h3>{{t "Board Details" key="board_details"}}</h3>
+        <h3>{{t "Board Preview - Details" key="board_preview_details"}}</h3>
         {{#if this.preview_loading}}
           {{!-- Loading indicator sits next to the title (centered in
                the header) while the board data + canvas preview are
@@ -38,11 +38,18 @@
                  the board model has finished loading AND the canvas
                  has finished settling every button-image promise.
                  The board-preview component emits onLoadingChange(false)
-                 only after both are true. --}}
-            <div class="md-board-details-modal__overlay" role="status" aria-live="polite">
-              <div class="md-board-details-modal__overlay-card">
-                <span class="md-board-details-modal__overlay-spinner" aria-hidden="true"></span>
-                <span class="md-board-details-modal__overlay-text">{{t "Loading board preview..." key="loading_board_preview"}}</span>
+                 only after both are true. Uses the shared
+                 .ll-loading-overlay chrome so the modal's loading
+                 visual matches the page-level "Loading boards..."
+                 and the board-icon's "Loading Board Preview..." that
+                 fires on click. The `--in-modal` modifier scopes
+                 the overlay to its modal container (position:
+                 absolute, not fixed) instead of covering the full
+                 viewport. --}}
+            <div class="ll-loading-overlay ll-loading-overlay--in-modal" role="status" aria-live="polite" aria-busy="true">
+              <div class="ll-loading-overlay__card">
+                <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
+                <p class="ll-loading-overlay__message">{{t "Loading Board Preview..." key="loading_board_preview_modal"}}</p>
               </div>
             </div>
           {{/if}}
