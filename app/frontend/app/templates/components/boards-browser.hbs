@@ -1,12 +1,16 @@
 <section class="ub-boards-page__boards-section" aria-labelledby="{{this.headingId}}">
   <div class="ub-boards-page__boards-header">
     <div class="ub-boards-page__boards-header-left">
+      {{!-- Synonymous-term treatment: AAC users come from different
+           systems where the same concept is called "Boards" (LingoLinq
+           / TouchChat), "Vocabularies" (PRC/Tobii), or "Page-Sets"
+           (NovaChat). Primary heading stays "Boards"; the equivalent
+           terms ride in a parenthetical aside — lighter weight, muted
+           color — so users coming from other systems recognize the
+           section without the aliases competing with the heading. --}}
       <h2 id="{{this.headingId}}" class="ub-boards-page__boards-title">
-        {{#if this.boardsCtrl.model.external_device}}
-          {{t "%app_name% Boards in this Account:" key="boards_in_this_account"}}
-        {{else}}
-          {{t "Available Boards" key="available_boards_colon"}}
-        {{/if}}
+        <span class="ub-boards-page__boards-title-primary">{{t "Boards" key="boards"}}</span>
+        <span class="ub-boards-page__boards-title-aliases" aria-label={{t "also called Vocabularies or Page-Sets" key="boards_aliases_aria"}}>{{t "(Vocabularies & Page-Sets)" key="boards_aliases_parenthetical"}}</span>
       </h2>
     </div>
     {{#if this.showNewBoard}}

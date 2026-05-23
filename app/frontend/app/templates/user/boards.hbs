@@ -30,12 +30,19 @@
            in the DOM. If we render them while the loading overlay is
            up, the animation plays unseen and the user misses it.
            Gating on `my_boards.done` defers the mount until the
-           overlay drops, so the user sees the animation play fresh. --}}
+           overlay drops, so the user sees the animation play fresh.
+           The {{else}} branch renders an invisible placeholder with
+           identical text + sizing so the wrap reserves the exact
+           same vertical space during the loading phase — without
+           it, the content below jumps up while loading and shifts
+           back down when the real title mounts. --}}
       {{#if this.model.my_boards.done}}
         <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
+      {{else}}
+        <h1 class="la-hero-title la-hero-title--placeholder" aria-hidden="true">{{t "Let's Communicate" key="lets_communicate_placeholder"}}</h1>
       {{/if}}
     </div>
-    <p class="la-pricing-hero-subtitle">{{t "Browse, manage, and open your boards — or create" key="ub_boards_subtitle_pre"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{action "newBoard"}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
+    <p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{action "newBoard"}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>
 
   <div class="ub-boards-page__content">
@@ -87,10 +94,11 @@
     </section>
   </div>
 
-  {{!-- Board Stats accordion. Collapsed by default; clicking the
-       header toggles `board_stats_expanded` on user/index controller
-       which conditionally renders the original stats-row underneath
-       the accordion header. --}}
+  {{!-- Board Stats accordion hidden per design (counts pill + expanded
+       stat cards). Wrapped in {{#if false}} so the controller bindings
+       (board_stats_expanded, public_boards_count, my_boards.done) stay
+       reachable for any other consumer and a one-line flip restores it. --}}
+  {{#if false}}
   {{#if this.model.permissions.view_detailed}}
     <div class="ub-boards-page__stats-accordion {{if this.board_stats_expanded 'ub-boards-page__stats-accordion--open'}}">
       <button type="button"
@@ -182,6 +190,7 @@
         </div>
       {{/if}}
     </div>
+  {{/if}}
   {{/if}}
 
   {{!-- Available Boards --}}

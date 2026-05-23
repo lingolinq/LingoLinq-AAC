@@ -795,6 +795,10 @@ export default Controller.extend({
           return i18n.t('prior_home', "Prior Home Boards");
         } else if(sel == 'private') {
           return i18n.t('private', "Private");
+        } else if(sel == 'root') {
+          return i18n.t('root', "Root");
+        } else if(sel == 'starred') {
+          return i18n.t('starred', "Liked");
         } else if(sel == 'tagged') {
           return this.get('current_tag');
         } else {
@@ -829,7 +833,11 @@ export default Controller.extend({
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
     }
-    this.set('other_selected', this.get('selected') && ['mine', 'public', 'root', 'liked', 'starred'].indexOf(this.get('selected')) == -1);
+    /* Visible top tabs are now only `mine` and `public` (Root + Liked
+       moved into the More... dropdown per design). Anything else
+       counts as `other_selected` so the More trigger highlights and
+       its `more_label` flips to the chosen sub-tab name. */
+    this.set('other_selected', this.get('selected') && ['mine', 'public'].indexOf(this.get('selected')) == -1);
     ['mine', 'public', 'private', 'starred', 'shared', 'prior_home', 'root', 'tagged'].forEach(function(key, idx) {
       if(_this.get('selected') == key || key == default_key) {
         _this.set(key + '_selected', true);

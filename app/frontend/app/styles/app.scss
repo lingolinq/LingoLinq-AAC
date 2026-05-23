@@ -8597,20 +8597,27 @@ body.pretty_loader #loading_box {
       font-weight: 700;
     }
   }
-  /* Grid-size badge — small "Nrows x Ncols" pill in the top-right of
-     every board tile. Constant fixture (was previously nested inside
-     the .info Preview button; lifted out so it can stack above the
-     favorites heart). Same brushed-silver glass chrome as the heart
-     (cool linear gradient + backdrop blur + dual inset highlights +
-     layered drop shadow) so the two stacked badges read as a family. */
-  .board-icon__size {
+  /* Info + grid-size chip — top-right of every board tile. The
+     circled "i" glyph sits on the left; the board's grid size
+     (e.g. "12 x 8") on the right. Whole chip is one Preview button.
+     Reuses the brushed-silver glass chrome the prior grid-size
+     badge used so the family vocabulary stays consistent.
+
+     Default state (no grid metadata, rare) is a 28px circle with
+     just the icon. The `--with-size` modifier (applied in the
+     template whenever `board_record.grid.rows` exists) widens the
+     chip to a pill that grows to fit the size text. */
+  .board-icon__info {
     position: absolute;
     top: 8px;
     right: 12px;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
+    justify-content: center;
+    gap: 6px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     border-radius: 999px;
     background:
       linear-gradient(
@@ -8623,26 +8630,55 @@ body.pretty_loader #loading_box {
     -webkit-backdrop-filter: blur(12px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.7);
     color: rgba(13, 36, 56, 0.7);
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
+    cursor: pointer;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.85),
       inset 0 -1px 0 rgba(13, 36, 56, 0.06),
       0 1px 2px rgba(13, 36, 56, 0.10),
       0 4px 10px rgba(13, 36, 56, 0.16);
-    pointer-events: none;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, color 0.12s ease, border-color 0.12s ease;
     z-index: 3;
+    /* Whole-card drag context: the outer .board-item is draggable,
+       and `user-drag: none` on inner buttons is set elsewhere to
+       let the parent capture drags. The info chip stays clickable
+       for its own Preview action. */
   }
-  .board-icon__size-icon {
-    color: rgba(13, 36, 56, 0.55);
+  .board-icon__info:hover,
+  .board-icon__info:focus-visible {
+    color: $brand-charcoal-blue;
+    border-color: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(13, 36, 56, 0.06),
+      0 2px 4px rgba(13, 36, 56, 0.14),
+      0 6px 14px rgba(13, 36, 56, 0.18);
+    outline: none;
+  }
+  .board-icon__info-icon {
     flex-shrink: 0;
   }
-  .board-icon__size-text {
-    display: inline-block;
+  /* Pill modifier — applied whenever the chip is rendering the grid
+     size text alongside the icon. Drops the fixed circular width
+     and uses asymmetric padding (tighter on the icon side, more
+     room on the text side) so the chip reads as one cohesive
+     i + size unit. */
+  .board-icon__info--with-size {
+    width: auto;
+    padding: 0 11px 0 7px;
+  }
+  /* Grid-size text inside the info chip — matches the type weight
+     and color hue of the chip's "i" glyph so the two read as one
+     unit. ~30% larger than the typical web default per AAC
+     accessibility convention. */
+  .board-icon__info-size {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 600;
     line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: inherit;
   }
 
   /* Translated-language marker — sits ABOVE the bottom-center PREVIEW
@@ -11754,6 +11790,66 @@ video.button_image {
 }
 .la-tag-board-input::placeholder {
   color: $brand-cool-steel;
+}
+/* Modernize the native <select> variant — Bootstrap was overriding
+   our base .la-tag-board-input with a thick navy border + the
+   browser's default chevron, which broke the modal's modern
+   dropdown family (matches .modern-select treatment used by the
+   New Board modal). Higher-specificity selector (`select.la-tag-
+   board-input` + `.la-tag-board-body select.la-tag-board-input`
+   for the modal scope) wins against Bootstrap's `select.form-
+   control` rules without resorting to !important. The dropdown
+   panel itself is the browser-native one (native <option>
+   rendering); only the closed-trigger appearance is modernized
+   so we keep keyboard / accessibility / scroll behaviors for
+   free. */
+select.la-tag-board-input,
+.la-tag-board-body select.la-tag-board-input {
+  /* Kill the native chevron so we can paint our own — matches the
+     SVG used by .modern-select__trigger in the new-board modal. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: rgba(255, 255, 255, 0.95);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%235a6a85' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 18px 18px;
+  /* Bigger touch target + bigger radius matching the new-board
+     modern-select trigger, so the two modal dropdowns read as one
+     family. Extra right padding reserves space for the chevron. */
+  min-height: 48px;
+  padding: 12px 44px 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba($brand-blue-black, 0.14);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--md-ink);
+  cursor: pointer;
+  /* Bootstrap's form-control comes in with its own line-height +
+     height; reset so the chevron centers and the trigger lines up
+     with the category text input beneath. */
+  line-height: 1.4;
+  height: auto;
+  box-shadow: none;
+}
+select.la-tag-board-input:hover,
+.la-tag-board-body select.la-tag-board-input:hover {
+  border-color: rgba($brand-blue-black, 0.22);
+}
+select.la-tag-board-input:focus,
+select.la-tag-board-input:focus-visible,
+.la-tag-board-body select.la-tag-board-input:focus,
+.la-tag-board-body select.la-tag-board-input:focus-visible {
+  border-color: var(--md-teal);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(44, 183, 176, 0.15);
+}
+/* IE / Edge legacy fallback — hide the native arrow that
+   `appearance: none` doesn't always suppress. */
+select.la-tag-board-input::-ms-expand,
+.la-tag-board-body select.la-tag-board-input::-ms-expand {
+  display: none;
 }
 /* Inline category chips — replaces the Bootstrap dropdown that
    was getting clipped by modal overflow contexts. Renders as a
@@ -38117,11 +38213,34 @@ a.md-pillnav__pill.active .md-pillnav__badge,
      land on top of line 2. */
   height: auto !important;
   min-height: 0 !important;
-  line-height: 1.3 !important;
+  /* Tightened line-height to match the boards-page hero (1.15) so
+     the dashboard, reports, and extras heroes all read as one
+     family. The earlier 1.3 created noticeable vertical air
+     between the title and the subtitle. */
+  line-height: 1.15 !important;
 }
 .md-hero--dashboard .md-hero__sub {
-  font-size: 24px !important;
-  margin-top: 16px !important;
+  /* Same compositional treatment as the boards-page subtitle:
+     19px (was 24px), 1.35 line-height for tight-but-readable
+     two-line wrapping, 0.6rem top breath from the title, 1rem
+     bottom so the hero transitions smoothly into the page
+     content below. Max-width keeps the subtitle from sprawling
+     across the full hero width on wide viewports.
+     margin-left/right: auto + text-align: center re-center the
+     subtitle under the title — the base `.md-hero__sub` rule sets
+     `margin: 0 0 2rem !important` (shorthand, all four sides) so
+     left/right collapse to 0 and the block left-aligns even with
+     a max-width. !important on the auto margins beats the base
+     shorthand cleanly; text-align centers the text within the
+     max-width box for short single-line subtitles. */
+  font-size: 19px !important;
+  line-height: 1.35 !important;
+  margin-top: 0.6rem !important;
+  margin-bottom: 1rem !important;
+  max-width: 620px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
 }
 .md-hero__sub {
   margin: 0 0 2rem !important;
@@ -49631,7 +49750,10 @@ a.md-goal-nav-action:hover,
 
   margin: 0 auto !important;
 
-  padding: 8px 16px 18px !important;
+  /* Top padding removed — the hero already gets adequate vertical
+     space from the page-level layout above it. The earlier 8px
+     pushed the title down past where the design wants it. */
+  padding: 0 16px 18px !important;
 
   overflow: visible !important;
 
@@ -52325,6 +52447,232 @@ a.md-goal-nav-action:hover,
   box-shadow: inset 0 1px 2px rgba($la-navy, 0.05);
   position: relative;
 }
+
+/* Underline-style tab variant — drops the pill chrome (background,
+   border, rounded shell, inset shadow) and treats each tab as a
+   flat label with a verdigris-aa underline on the active item.
+   Used by the boards page where the tabs sit BELOW the Boards
+   Filter row instead of above it. Sits flush against the bottom
+   edge of the filter row with a hairline separator above the
+   active underline. */
+.ub-boards-page__tabs.ub-boards-page__tabs--underline {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba($la-navy, 0.10);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 4px 0 16px;
+  width: 100%;
+  max-width: 100%;
+  justify-content: flex-start;
+  gap: 0;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li {
+  margin: 0;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li > a,
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li > .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 18px;
+  margin-bottom: -1px; /* overlap parent border so active underline replaces it */
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: $brand-slate-blue !important;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: none !important;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li > a:hover,
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li > .dropdown-toggle:hover {
+  color: $la-navy !important;
+  border-bottom-color: rgba($la-navy, 0.25) !important;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li.is-active > a,
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li.is-active > .dropdown-toggle {
+  color: $la-navy !important;
+  border-bottom-color: $brand-verdigris-aa !important;
+  font-weight: 700;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--underline > li.dropdown > .dropdown-menu {
+  margin-top: 6px;
+}
+
+/* Boards-page tab variant — segmented "chip" tabs that read as
+   clearly tappable controls (vs. the prior underline-only treatment
+   that AAC users mistook for plain text labels) WITHOUT borrowing
+   the full-radius pill chrome the main navbar uses for the
+   primary Home / Boards / Reports / Extras nav. Each tab is a
+   rounded rectangle (8px radius — distinctly NOT pill) with a
+   filled inactive surface so the affordance is visible from a
+   glance, and an active state lifted by a verdigris fill so the
+   selected view reads at a distance. Critically, the strip sits
+   flush against the boards grid below — no separator, no margin
+   gap, no border — so the tabs read as the "header" of the
+   content they switch between, not a disconnected control. */
+/* Row wrapper hosting the tab strip + the right-aligned "+ New
+   Board" button on the same baseline. Owns the layered gradient
+   divider beneath (moved off the tab <ul> so the seam spans the
+   full row, including the button column on the right). */
+.ub-boards-page__tabs-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  position: relative;
+  margin: 8px 0 18px;
+  width: 100%;
+  max-width: 100%;
+  padding-bottom: 0;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  /* Tabs no longer carry the row margin — the parent .tabs-row
+     does. Allow the tab strip to grow so it occupies all the width
+     left of the trailing button. */
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 6px;
+  position: relative;
+}
+/* Modern layered divider — sits flush with the tab bottoms. Three
+   stacked visual elements give it depth without resorting to a
+   plain 1px line:
+     1. Top hairline: a near-white highlight (1px) so the divider
+        catches light along its top edge — reads as a polished
+        seam, not a flat gray line.
+     2. Mid line: a multi-stop gradient (transparent → verdigris
+        bloom → navy → fade) — colored center, transparent ends so
+        the line never terminates in hard pixels.
+     3. Drop-shadow halos beneath: a tight 4px navy halo plus a
+        wider 16px verdigris-tinted bloom, both with negative
+        y-offsets so the depth fades into the body content.
+   The active tab overlaps this divider (white border-bottom +
+   z-index above) so the hairline "stops" behind the selected
+   tab — sells the "tabs riding on top of the panel" metaphor. */
+.ub-boards-page__tabs-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 14%,
+    rgba($la-navy, 0.32) 42%,
+    rgba($la-navy, 0.22) 70%,
+    rgba($brand-verdigris-aa, 0.25) 88%,
+    rgba($la-navy, 0) 100%
+  );
+  box-shadow:
+    /* Top edge highlight — single-pixel cool white above the line. */
+    0 -1px 0 rgba(255, 255, 255, 0.65),
+    /* Inner near-line halo. */
+    0 2px 4px -1px rgba($la-navy, 0.20),
+    /* Wider mid halo carrying verdigris tint. */
+    0 6px 14px -6px rgba($brand-verdigris-aa, 0.28),
+    /* Outer ambient bloom that fades the divider into the body. */
+    0 12px 28px -14px rgba($la-navy, 0.18);
+  pointer-events: none;
+  z-index: 1;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li {
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle {
+  /* File-folder shape — rounded top corners, squared bottom — so
+     tabs read as paper-folder tabs sitting on top of the content
+     area below. Distinct family from the navbar pills (999px) and
+     from rounded-rectangle chip controls. Larger touch targets
+     per AAC accessibility baseline. */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  border-radius: 10px 10px 0 0 !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba($la-navy, 0.12) !important;
+  /* Bottom border transparent — inactive tabs still get the
+     impression of an open bottom (file-folder look). The active
+     tab will set this to white to "erase" the divider behind it. */
+  border-bottom-color: transparent !important;
+  color: rgba($brand-charcoal-blue, 0.80) !important;
+  text-decoration: none;
+  cursor: pointer;
+  text-transform: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a:hover,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > a:focus-visible,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle:hover,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li > .dropdown-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba($la-navy, 0.22) !important;
+  border-bottom-color: transparent !important;
+  color: $brand-charcoal-blue !important;
+  outline: none;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > a,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > .dropdown-toggle {
+  /* Active tab — white interior with a verdigris "filler" on the
+     top edge (the brand accent banner that signals "selected"
+     without painting the entire tab). The active tab visually
+     overlaps the layered divider beneath: a 1px white bottom
+     border "erases" the hairline directly under this tab, and the
+     box-shadow paints a soft halo that fades into the body so the
+     active tab reads as connected to the content below. */
+  background: #fff !important;
+  border-color: rgba($la-navy, 0.18) !important;
+  border-top: 3px solid $brand-verdigris-aa !important;
+  border-bottom-color: #fff !important;
+  color: $la-navy !important;
+  font-weight: 700;
+  /* Pull text up 2px to compensate for the thicker (3px) top
+     accent so the label visually centers like the inactive tabs. */
+  padding-top: 8px;
+  /* Lifted shadow on the sides + lighter top — gives the active
+     tab a sense of elevation over its neighbors without using a
+     bottom shadow (which would conflict with the divider below). */
+  box-shadow:
+    0 -2px 4px rgba($la-navy, 0.06),
+    -2px 0 6px rgba($la-navy, 0.05),
+    2px 0 6px rgba($la-navy, 0.05) !important;
+  /* z-index above the divider so the white bottom border can
+     "punch through" the layered hairline beneath the row. */
+  z-index: 2;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > a:hover,
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li.is-active > .dropdown-toggle:hover {
+  background: #fff !important;
+  border-color: rgba($la-navy, 0.18) !important;
+  border-top-color: $brand-verdigris !important;
+  border-bottom-color: #fff !important;
+  color: $la-navy !important;
+}
+.ub-boards-page__tabs.ub-boards-page__tabs--boards > li.dropdown > .dropdown-menu {
+  margin-top: 6px;
+}
 /* Divider removed — the {{board-folders-section}} component now
    sits between the filter row and the tabs (Mine tab only) and
    provides its own visual section break. */
@@ -53157,6 +53505,533 @@ a.md-goal-nav-action:hover,
   box-sizing: border-box;
   animation: md-reports-fade-in 0.25s ease-out both;
 
+  /* ── Folders accordion (boards-page inline variant, restored from
+     pre-c8ffbc58c styling). Distinct from the My Boards modal's
+     reusable `{{board-folders-section}}` component — kept inline here
+     so the boards-page treatment can stay bespoke (sunken-in
+     nb-section chrome, larger header, gradient strip).
+     The picker keeps `.board-folders-section`; this is `.ub-boards-page__folders-section`. */
+  &__folders-section {
+    /* Sunken-in surface mirroring create-board-new `.nb-section`
+       chrome (cool-blue gradient + inset top shadow + subtle
+       highlights). Resting state; body padding grows when expanded. */
+    margin: 0 0 16px;
+    padding: 0;
+    border-radius: 22px;
+    border: 1px solid rgba(13, 36, 56, 0.07);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 246, 250, 0.94) 0%,
+        rgba(252, 253, 254, 0.95) 45%,
+        rgba(255, 255, 255, 0.96) 100%
+      );
+    box-shadow:
+      inset 0 1px 8px rgba(13, 36, 56, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.5);
+    overflow: hidden;
+  }
+  &__folders-toggle {
+    appearance: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    transition: background 0.12s ease;
+    &:hover { background: rgba(13, 36, 56, 0.04); }
+    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
+  }
+  &__folders-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $brand-charcoal-blue;
+  }
+  &__folders-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 8px;
+    margin-left: 6px;
+    border-radius: 999px;
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  &__folders-subtitle {
+    font-weight: 400;
+    font-size: 14.3px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #6b7a8e;
+    /* Divider moved to the LEFT of the count chip (see
+       &__folders-count::before above) — subtitle just gets a
+       padding-left for clean adjacent spacing now. */
+    padding-left: 8px;
+    margin-left: 4px;
+    margin-right: 12px;
+  }
+  &__folders-chevron {
+    margin-left: auto;
+    color: rgba(13, 36, 56, 0.45);
+    transition: transform 0.18s ease;
+    flex-shrink: 0;
+  }
+  &__folders-section--open &__folders-chevron {
+    transform: rotate(180deg);
+  }
+  &__folders-body {
+    /* Padding + gap + display live on the duplicate folders-body
+       rule lower in this file (under the second &__folders-section
+       cluster) — that rule wins the cascade. Keep this rule scoped
+       to the visual additions (divider, glow gradient, layered
+       shadow) so devtools shows a single padding source. */
+    border-top: 1px solid rgba(13, 36, 56, 0.12);
+    background:
+      radial-gradient(
+        ellipse 80% 70% at 30% 10%,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.35) 45%,
+        rgba(255, 255, 255, 0) 75%
+      ),
+      radial-gradient(
+        ellipse 60% 60% at 80% 90%,
+        rgba(44, 183, 176, 0.10) 0%,
+        rgba(44, 183, 176, 0.04) 50%,
+        rgba(44, 183, 176, 0) 80%
+      );
+    box-shadow:
+      /* Highlight catching light just under the hairline. */
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      /* Tight inner shadow immediately below the divider line. */
+      inset 0 2px 4px -1px rgba($la-navy, 0.16),
+      /* Wider falloff carrying depth into the upper third of the
+         body so the divider's shadow fades naturally into the glow. */
+      inset 0 8px 14px -8px rgba($la-navy, 0.12);
+  }
+  /* Shared glassy chip used to host the small section-header icons
+     (folder icon in the Folders accordion, grid icon in the Boards
+     summary header). Squarish — rounded square, not pill — with a
+     translucent white background + backdrop blur + soft inset
+     highlight + subtle outer shadow so the icon sits in a frosted
+     glass tile on top of the sunken nb-section gradient behind it. */
+  &__section-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.78),
+      rgba(255, 255, 255, 0.45)
+    );
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 1px 2px rgba($la-navy, 0.08),
+      0 4px 12px rgba($la-navy, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba($la-navy, 0.04);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    color: $brand-charcoal-blue;
+    flex: 0 0 auto;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    > svg { display: block; }
+  }
+  /* ── Boards Summary section (sibling of __folders-section, below it).
+     Same sunken-in nb-section chrome — cool-blue gradient + inset
+     shadow — so the two surfaces read as the same control family.
+     Distinct from folders by being static (no toggle, no chevron) and
+     by surfacing the BOARDS / FAVORITES counts + New Board CTA in
+     the header. Body is always-open and wraps the filter row, tabs,
+     drill-in context, and the board grid. */
+  &__boards-summary-section {
+    margin: 0 0 16px;
+    padding: 0;
+    border-radius: 22px;
+    border: 1px solid rgba(13, 36, 56, 0.07);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 246, 250, 0.94) 0%,
+        rgba(252, 253, 254, 0.95) 45%,
+        rgba(255, 255, 255, 0.96) 100%
+      );
+    box-shadow:
+      inset 0 1px 8px rgba(13, 36, 56, 0.18),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.5);
+    /* overflow: hidden removed — Chromium and WebKit can clip the
+       HTML5 drag preview to an ancestor's overflow:hidden box,
+       which made board-card dragstart appear to "do nothing"
+       (the user couldn't see the drag ghost leave the section).
+       The body element below applies matching bottom-corner radii
+       to its own background so we don't lose the rounded clipping
+       on the inner gradient. */
+  }
+  &__boards-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+  &__boards-summary-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $brand-charcoal-blue;
+    flex: 0 0 auto;
+  }
+  &__boards-summary-count {
+    /* Same hairline-divider-before-count treatment as the Folders
+       header (see &__folders-count::before). Visually separates
+       "BOARDS" label from the count chip. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 8px;
+    margin-left: 18px;
+    border-radius: 999px;
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    position: relative;
+  }
+  &__boards-summary-count::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 2px;
+    bottom: 2px;
+    width: 1px;
+    background: rgba($brand-blue-black, 0.22);
+    pointer-events: none;
+  }
+  /* New Board CTA — pinned right via margin-left:auto. Pill chrome
+     matches the boards-page New Board button family (rounded, light
+     tactile shadow, hover lift). */
+  &__boards-summary-new-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba($brand-blue-black, 0.12);
+    background: #fff;
+    color: $brand-charcoal-blue;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow:
+      0 1px 2px rgba($la-navy, 0.06),
+      0 2px 8px rgba($la-navy, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    &:hover,
+    &:focus-visible {
+      background: rgba($brand-blue-black, 0.05);
+      border-color: rgba($brand-blue-black, 0.2);
+      color: $indigo;
+      box-shadow:
+        0 2px 4px rgba($la-navy, 0.08),
+        0 6px 16px rgba($la-navy, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+  /* In-tabs-row positional modifier — lifts the button 1rem off the
+     layered divider beneath the tabs so it doesn't sit directly on
+     the gradient hairline. The parent .tabs-row uses
+     align-items: flex-end so without this nudge the button's
+     bottom edge would touch the divider. */
+  &__boards-summary-new-btn--in-tabs-row {
+    margin-bottom: 1rem;
+  }
+  &__boards-summary-body {
+    /* Matches the folders body's top padding + layered divider so
+       both sections read as members of the same chrome family.
+       Bottom-corner radii match the parent section — replaces the
+       parent's overflow:hidden so the body's gradient still hugs
+       the rounded shell without clipping any drag previews that
+       leave the section. */
+    padding: 26px 22px 18px;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid rgba(13, 36, 56, 0.12);
+    /* Soft inner glow — same two-layer radial bloom as the folders
+       body. Primary near-white bloom top-left + cooler verdigris
+       bloom lower-right keeps the glow asymmetric and modern. */
+    background:
+      radial-gradient(
+        ellipse 80% 70% at 30% 10%,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.35) 45%,
+        rgba(255, 255, 255, 0) 75%
+      ),
+      radial-gradient(
+        ellipse 60% 60% at 80% 90%,
+        rgba(44, 183, 176, 0.10) 0%,
+        rgba(44, 183, 176, 0.04) 50%,
+        rgba(44, 183, 176, 0) 80%
+      );
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 2px 4px -1px rgba($la-navy, 0.16),
+      inset 0 8px 14px -8px rgba($la-navy, 0.12);
+  }
+  /* Section heading aliases ("(Vocabularies & Page-Sets)") — modern
+     parenthetical treatment. Lighter weight than the primary "Boards"
+     heading, muted color, slightly smaller. The aliases sit inline
+     after the primary term so the three names read as synonyms of
+     one concept, not three separate things. */
+  &__boards-title-primary {
+    font-weight: inherit;
+    color: inherit;
+  }
+  &__boards-title-aliases {
+    margin-left: 0.5em;
+    font-weight: 400;
+    /* Slightly smaller than the .ub-boards-page__boards-title
+       primary heading (1.97rem). Using calc keeps the size offset
+       stable even if the rem root changes — same visual relationship
+       at any zoom level. 2px feels just-smaller-than-heading so the
+       aliases read as part of the same title line, not a subtitle. */
+    font-size: calc(1.97rem - 2px);
+    letter-spacing: 0.015em;
+    /* Brand verdigris-AA — the same accent the folders count chip
+       uses, so the alias parenthetical reads as a teal "aka" hint
+       that ties back to the section accent palette. */
+    color: $brand-verdigris-aa;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  &__folders-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  /* Toolbar row: Folders Filter on the left, action buttons on the
+     right. Sits at the top of the expanded folders body, between the
+     divider beneath the title row and the folder strip below. */
+  &__folders-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  &__folders-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba($brand-blue-black, 0.12);
+    background: #fff;
+    color: $brand-charcoal-blue;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    /* Subtle layered shadow lifts the pills off the inset folders
+       surface — soft outer drop + 1px highlight at the top so the
+       white pill reads as a tactile control rather than sinking into
+       the cool-blue gradient behind it. Hover deepens the lift for
+       press feedback. */
+    box-shadow:
+      0 1px 2px rgba($la-navy, 0.06),
+      0 2px 8px rgba($la-navy, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    &:hover {
+      background: rgba($brand-blue-black, 0.05);
+      border-color: rgba($brand-blue-black, 0.2);
+      color: $indigo;
+      box-shadow:
+        0 2px 4px rgba($la-navy, 0.08),
+        0 6px 16px rgba($la-navy, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
+    }
+  }
+  &__folder-filter-form {
+    display: flex;
+    /* Left-aligned now that the filter shares a row with the New
+       folder / Tag a board action buttons (see __folders-toolbar). */
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  &__folder-filter-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $brand-charcoal-blue;
+    cursor: pointer;
+    margin: 0;
+    white-space: nowrap;
+  }
+  &__folder-filter-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 8px 14px;
+    border: 1.5px solid rgba($brand-blue-black, 0.10);
+    border-radius: 10px;
+    font-size: 14px;
+    background: rgba(248, 250, 252, 0.9);
+    &:focus-visible {
+      outline: none;
+      border-color: $brand-teal;
+      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+    }
+  }
+  &__folder-filter-clear {
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: $brand-slate-blue;
+    background: rgba(246, 247, 250, 0.9);
+    border: 1.5px solid rgba($brand-blue-black, 0.12);
+    cursor: pointer;
+    white-space: nowrap;
+    &:hover {
+      color: $brand-teal;
+      border-color: rgba($brand-teal, 0.35);
+      background: rgba($brand-teal, 0.06);
+    }
+    &:focus-visible {
+      outline: none;
+      border-color: $brand-teal;
+      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+    }
+  }
+  &__folder-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 150px);
+    justify-content: center;
+    grid-auto-rows: 1fr;
+    gap: 14px;
+    padding: 20px;
+    list-style: none;
+    /* Glossier inner surface — brighter mid-stop, thicker white
+       top-highlight stripe, soft glow halo. The outer folders panel
+       still uses the cool-blue sunken gradient; this inner strip
+       lifts toward near-pure white so it reads as glossy/elevated
+       against the panel rather than another sunken layer. */
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(248, 251, 255, 0.97) 35%,
+        rgba(255, 255, 255, 0.99) 100%
+      );
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 22px;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.95),
+      inset 0 1px 12px rgba(91, 141, 239, 0.05),
+      0 1px 2px rgba($la-navy, 0.04),
+      0 6px 18px rgba($la-navy, 0.08);
+  }
+  &__folder-strip-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  &__folder-strip-empty-text {
+    font-size: $aac-font-size-base;
+    color: #8a96a8;
+    font-style: italic;
+  }
+
+  /* Whole-card drag — when a board tile is `--draggable`, the parent
+     wrapper carries `draggable="true"` and a `dragstart` handler.
+     By default, the `<button>` Pick and `<img>` cover inside the
+     tile get their own native browser drag (the image drag-ghost,
+     the button focus), which suppresses the parent's dragstart on
+     anything but the empty edges. Disabling `user-drag` on the
+     inner interactive elements lets the parent take the drag from
+     a click anywhere on the card, while normal click (mouse down +
+     up without movement) still fires the inner button's action.
+     The grab cursor gives visual confirmation that the tile is
+     pickable — without it users couldn't tell which tiles support
+     drag-to-folder. */
+  .ub-boards-page__board-item--draggable {
+    cursor: grab;
+    &:active {
+      cursor: grabbing;
+    }
+    button,
+    a,
+    img {
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+    /* Children that capture clicks (the Pick button, the heart
+       indicator, the size chip) shouldn't override the grab cursor
+       on the card — the user should see "this is draggable" no
+       matter where they hover within the tile. */
+    .board-icon__pick {
+      cursor: inherit;
+    }
+  }
+
+  /* Card chrome to match the home-page boards card (.md-grid .md-card).
+     Same surface + border + subtle vertical gradient + grounded bottom
+     so the boards page reads as a single card surface like the home
+     page's Boards block. Scoped to the boards page (.ub-boards-page) so
+     other surfaces using the same class (search page, dashboard embed)
+     keep their existing treatments. */
+  .ub-boards-page__boards-section {
+    border-radius: var(--md-r-lg);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95));
+    border: 1px solid var(--md-line);
+    border-bottom: 2px solid rgba($la-navy, 0.08);
+    padding: 24px 24px 32px;
+  }
+
   /* Primary nav is user.hbs md-pillnav--dashboard above outlet */
   &--below-dashboard-pills {
     padding-top: $aac-spacing-24;
@@ -53168,7 +54043,11 @@ a.md-goal-nav-action:hover,
   // ── Page header (about-style) ──────────────────────────────
   // Matches .la-section padding + .la-section-header centering from the about page
   &__page-header {
-    padding: 0 $aac-spacing-32 $aac-spacing-20;
+    /* Tighter bottom padding pulls the subtitle closer to the
+       board-management UI below — the hero used to feel like a
+       free-floating headline with too much air beneath it before
+       the content began. */
+    padding: 0 $aac-spacing-32 8px;
     max-width: 748px;
     width: 100%;
     box-sizing: border-box;
@@ -53186,6 +54065,18 @@ a.md-goal-nav-action:hover,
       padding-bottom: 0;
     }
 
+    /* Loading-state placeholder for the "Let's Communicate" title.
+       During my_boards loading, the real animated title is gated
+       behind {{#if my_boards.done}} so its per-letter animation
+       only plays once on real mount. We swap in this placeholder
+       so the wrap reserves the title's vertical space — without
+       it, the hero collapses by ~50px during loading and the rest
+       of the page shifts up, then shifts back down on data load. */
+    .la-hero-title--placeholder {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
     .la-hero-title {
       font-family: 'Maitree', serif;
       font-size: 35px;
@@ -53194,8 +54085,12 @@ a.md-goal-nav-action:hover,
       letter-spacing: -0.025em;
       text-align: center;
       margin: 0;
-      margin-top: $aac-spacing-24;
-      line-height: 1.2;
+      /* Smaller top margin — earlier 24px left a noticeable
+         "headline floating high" feel. 12px keeps the title
+         comfortably clear of whatever sits above without
+         exaggerating the vertical air. */
+      margin-top: 12px;
+      line-height: 1.15;
       display: block;
       @media (max-width: 1366px) { font-size: 32px; }
       @media (max-width: 1200px) { font-size: 30px; }
@@ -53239,11 +54134,25 @@ a.md-goal-nav-action:hover,
     }
 
     .la-pricing-hero-subtitle {
-      max-width: 748px;
+      max-width: 620px;
       margin-left: auto;
       margin-right: auto;
-      margin-top: 0;
-      margin-bottom: 2rem;
+      /* Slightly smaller subtitle than the marketing pages — the
+         boards-page hero needs to feel like a section intro, not a
+         hero pitch, so the type drops to 19px from the global 24px. */
+      font-size: 19px;
+      /* Tight line-height — global is 1.75 which created a giant
+         gap between the two subtitle lines after the <br>. 1.35
+         keeps lines clearly separated for readability while
+         halving the vertical air. */
+      line-height: 1.35;
+      /* Small breath between title and subtitle (~10px). Earlier
+         margin-top:0 read as too tight; 0.6rem gives the two
+         elements a relationship without becoming a stack. */
+      margin-top: 0.6rem;
+      /* Pulled in so the hero composes as a unit and transitions
+         smoothly into the content section beneath. */
+      margin-bottom: 1rem;
       padding-left: 1rem;
       padding-right: 1rem;
 
@@ -53270,6 +54179,11 @@ a.md-goal-nav-action:hover,
   // ── Content area (everything below the page header) ────────
   &__content {
     padding: 0 $aac-spacing-24 $aac-spacing-48;
+    /* Rounded bottom corners — matches the curved bottom edge of
+       the page card the content sits inside. Top stays squared so
+       it meets the hero / page header flush. */
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
   }
 
   /* Page-loading: handled by the global `.ll-loading-overlay`
@@ -53619,7 +54533,39 @@ a.md-goal-nav-action:hover,
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
+    /* Anchor for the gradient divider beneath. */
+    position: relative;
+    padding-bottom: 14px;
+  }
+  /* Modern gradient divider under the section title — a three-stop
+     hairline that fades transparent → verdigris-AA → navy → fades
+     transparent, paired with a soft drop-shadow halo for layered
+     depth. Verdigris bloom in the center-left ties the divider to
+     the brand accent used in the title's alias parenthetical
+     ("(Vocabularies & Page-Sets)"); the navy shoulder on the right
+     keeps the line from feeling overly tinted. Reads as a designed
+     seam between the section heading and the controls below. */
+  &__boards-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba($la-navy, 0) 0%,
+      rgba($brand-verdigris-aa, 0.55) 18%,
+      rgba($la-navy, 0.35) 50%,
+      rgba($la-navy, 0.18) 80%,
+      rgba($la-navy, 0) 100%
+    );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6),
+      0 4px 10px -4px rgba($la-navy, 0.16),
+      0 10px 22px -12px rgba($brand-verdigris-aa, 0.18);
+    pointer-events: none;
   }
   &__boards-title {
     font-size: 1.97rem;
@@ -53664,15 +54610,98 @@ a.md-goal-nav-action:hover,
   // control's outer pill chrome showed but the active state didn't.
 
   // ── Filter & grid ─────────────────────────────────────────
-  &__filter-form {
-    /* 1rem top margin so the filter row sits below the tab strip
-       (which now lives right above it) with breathing room. */
+  /* Boards Filter row: filter form on the left (aligned with the
+     grid below), Set/Change Home Board button on the right. The
+     wrapper flexes them onto one line with space-between, and the
+     form itself drops its centering so it left-aligns. */
+  &__boards-filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
     margin-top: 1rem;
     margin-bottom: 20px;
+  }
+  &__filter-form {
+    /* Sits inside __boards-filter-row now — drop the centering and
+       the outer margins (the row provides them). Flex-grow so the
+       input stretches across the available width up to its own
+       max-width cap. */
+    margin: 0;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* Set / Change Home Board button — boards-page mount. Styled to
+     match `.board-picker__new-board-btn` (same translucent
+     dusty-denim gradient pill) so the two surfaces' primary
+     entrypoints read as siblings. The verdigris ring on the original
+     `.board-picker__set-home-btn` in the modal is intentionally not
+     applied here. */
+  &__set-home-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    /* Pill radius matches the "+ New Board" CTA so the two boards-page
+       entrypoints read as the same button family. */
+    border-radius: 999px;
+    color: var(--md-ink);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 1px 2px rgba($la-navy, 0.12),
+      0 6px 14px rgba($la-navy, 0.22);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  &__set-home-btn:hover {
+    background: linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15));
+    border-color: rgba(255, 255, 255, 0.6);
+    color: var(--md-ink);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 2px 4px rgba($la-navy, 0.14),
+      0 10px 22px rgba($la-navy, 0.28);
+  }
+  /* Selection-mode active state — verdigris fill so users see the
+     "you're picking a home board now" signal at a glance. */
+  &__set-home-btn--active {
+    background: $brand-verdigris-aa;
+    border-color: $brand-verdigris-aa;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
+  }
+  &__set-home-btn--active:hover {
+    background: $brand-verdigris;
+    border-color: $brand-verdigris;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
+  }
+  /* Positional modifier — only applies when the Set/Change Home
+     Board button lives in the boards-summary section header (vs.
+     the filter row, where flex-grow on the filter form already
+     pushes it right). margin-left:auto pins it to the far right
+     of the header so it sits opposite the BOARDS title. */
+  &__set-home-btn--in-header {
+    margin-left: auto;
+  }
+  &__set-home-btn-icon {
+    flex-shrink: 0;
+    color: $brand-verdigris-aa;
+  }
+  &__set-home-btn--active &__set-home-btn-icon {
+    color: #fff;
   }
   &__filter-label {
     font-size: 14px;
@@ -53792,7 +54821,12 @@ a.md-goal-nav-action:hover,
     transform: rotate(180deg);
   }
   /* Compact "N" count pill shown next to the FOLDERS label so users
-     see how many folders exist without expanding. */
+     see how many folders exist without expanding. A 1px navy
+     hairline now sits in the margin-gap BEFORE the count — painted
+     via ::before so it lives outside the rounded chip background.
+     Replaces the former border-left on __folders-subtitle so the
+     divider visually separates the label from the count first
+     (and the subtitle from the count second by adjacency). */
   &__folders-count {
     display: inline-flex;
     align-items: center;
@@ -53800,22 +54834,34 @@ a.md-goal-nav-action:hover,
     min-width: 22px;
     height: 22px;
     padding: 0 8px;
-    margin-left: 6px;
+    margin-left: 18px;
     border-radius: 999px;
     background: rgba($brand-verdigris-aa, 0.14);
     color: $brand-verdigris-aa;
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
+    position: relative;
+  }
+  &__folders-count::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 2px;
+    bottom: 2px;
+    width: 1px;
+    background: rgba($brand-blue-black, 0.22);
+    pointer-events: none;
   }
   /* Inner body — only renders when the accordion is expanded. Inherits
-     the panel's gradient + inset shadow. Padding mirrors the nb-section
-     spacing for visual continuity. */
+     the panel's gradient + inset shadow. Top padding is generous so
+     the FOLDERS FILTER row breathes well clear of the layered divider
+     above; bottom padding mirrors the nb-section spacing. */
   &__folders-body {
-    padding: 4px 22px 18px;
+    padding: 30px 22px 22px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
   &__folders-header {
     display: flex;
@@ -53842,14 +54888,22 @@ a.md-goal-nav-action:hover,
     text-transform: none;
     letter-spacing: 0;
     color: #6b7a8e;
+    /* Divider moved to the LEFT of the count chip (see
+       &__folders-count::before above) — subtitle just gets a
+       padding-left for clean adjacent spacing now. */
     padding-left: 8px;
     margin-left: 4px;
     margin-right: 12px;
-    border-left: 1px solid rgba($brand-blue-black, 0.22);
   }
   &__folders-actions {
     display: flex;
     gap: 8px;
+    /* Always pinned to the right edge of the toolbar — works
+       whether the filter form sits to the left (folders exist) or
+       the toolbar is button-only (empty state). margin-left:auto
+       overrides the toolbar's default flex justification and keeps
+       the button cluster right-aligned in both cases. */
+    margin-left: auto;
   }
   &__folders-action-btn {
     display: inline-flex;
@@ -53863,11 +54917,25 @@ a.md-goal-nav-action:hover,
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    /* Subtle layered shadow lifts the pills off the inset folders
+       surface — soft outer drop + 1px highlight at the top so the
+       white pill reads as a tactile control rather than sinking into
+       the cool-blue gradient behind it. Hover deepens the lift for
+       press feedback. */
+    box-shadow:
+      0 1px 2px rgba($la-navy, 0.06),
+      0 2px 8px rgba($la-navy, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     &:hover {
       background: rgba($brand-blue-black, 0.05);
       border-color: rgba($brand-blue-black, 0.2);
       color: $indigo;
+      box-shadow:
+        0 2px 4px rgba($la-navy, 0.08),
+        0 6px 16px rgba($la-navy, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transform: translateY(-1px);
     }
   }
   &__folders-hint {
@@ -53885,23 +54953,32 @@ a.md-goal-nav-action:hover,
     gap: 14px;
     padding: 20px;
     list-style: none;
-    /* Sunken-in chrome matching the create-board-new `.nb-section`
-       treatment — cool-blue gradient + stronger inset top shadow +
-       subtle highlights — so the folder strip reads as an inset
-       surface within the already-sunken folders accordion. */
+    /* Bright, glossy inner surface — pure-opaque white core so the
+       body's cool-blue/verdigris glow behind doesn't tint through,
+       layered with a near-white tint at the bottom for subtle
+       polish. Bright top highlight + cool inner halo + soft outer
+       lift make it read as a clearly elevated, "lit" inner card. */
     background:
       linear-gradient(
         180deg,
-        rgba(242, 246, 250, 0.94) 0%,
-        rgba(252, 253, 254, 0.95) 45%,
-        rgba(255, 255, 255, 0.96) 100%
+        #ffffff 0%,
+        #fcfdff 50%,
+        #ffffff 100%
       );
-    border: 1px solid rgba(13, 36, 56, 0.07);
+    border: 1px solid rgba(255, 255, 255, 1);
     border-radius: 22px;
     box-shadow:
-      inset 0 1px 8px rgba(13, 36, 56, 0.18),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.6),
-      0 1px 0 rgba(255, 255, 255, 0.5);
+      /* Pronounced top-edge highlight — pure white, gives the strip
+         a clear "lit from above" feel. */
+      inset 0 2px 0 rgba(255, 255, 255, 1),
+      /* Cool inner glow ringing the inside edge — keeps the card
+         feeling polished without darkening it. */
+      inset 0 1px 14px rgba(91, 141, 239, 0.06),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+      /* Outer lift — slightly more pronounced than before so the
+         brighter interior reads as elevated, not flat. */
+      0 1px 2px rgba($la-navy, 0.05),
+      0 8px 22px rgba($la-navy, 0.10);
     &--no-hover .ub-boards-page__tag-folder,
     &--no-hover .ub-boards-page__tag-folder:hover,
     &--no-hover .ub-boards-page__tag-folder:focus-visible {
@@ -53941,10 +55018,14 @@ a.md-goal-nav-action:hover,
   }
   &__folder-filter-form {
     display: flex;
-    justify-content: center;
+    /* Left-aligned now that the filter shares a row with the New
+       folder / Tag a board action buttons (see __folders-toolbar). */
+    justify-content: flex-start;
     align-items: center;
     gap: 10px;
-    margin: 10px 0 6px;
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
   }
   &__folder-filter-label {
     display: flex;
@@ -74740,6 +75821,19 @@ a.md-caseload__action {
 @media (prefers-reduced-motion: reduce) {
   .ll-loading-overlay { animation: none; }
   .ll-loading-overlay__spinner { animation-duration: 2.5s; }
+}
+/* Modal-scoped variant — sits absolutely inside its modal-body
+   container instead of covering the viewport. Same card chrome
+   so the visual reads as the same loading state, just confined
+   to the modal's bounds. Used by the board-preview modal while
+   the preview canvas finishes settling every button-image
+   promise. */
+.ll-loading-overlay--in-modal {
+  position: absolute;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 /* ── Modern Toast Notification ─────────────────────────
