@@ -4927,10 +4927,20 @@ export default Controller.extend(prefClasses, {
       modal.open('modals/board-actions', { board: this.get('model') });
     },
 
+    /* "My Boards" entry in the speak-mode options menu. Previously
+       opened the in-page modal picker (openBoardPicker on the
+       application controller); the modal was deleted 2026-05-23
+       when the My Boards UX moved to a route transition. Now
+       delegates to `openMyBoards` on the application controller,
+       which stashes the current board (so the boards page can
+       render a "Back to <board>" chip) and transitions to
+       /u/:user_name/boards. Close the options menu first so it
+       isn't lingering open during the transition. */
     open_board_picker: function() {
+      this.set('show_options_menu', false);
       var appController = getOwner(this).lookup('controller:application');
       if(appController) {
-        appController.send('openBoardPicker');
+        appController.send('openMyBoards');
       }
     },
 

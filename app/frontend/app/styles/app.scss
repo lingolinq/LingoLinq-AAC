@@ -53371,17 +53371,18 @@ a.md-goal-nav-action:hover,
 }
 
 #board_picker_inner {
-  /* Min column width bumped from 140px to 180px so the shared
-     .btn.simple_board_icon (rendered by {{board-icon}}) has room
-     for its 100px-tall image + name + author + bottom-center
-     PREVIEW pill without crushing the layout. The cards are
-     fluid-width inside the column up to the natural max. */
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(160px, 22%, 200px), 1fr));
-  gap: 18px 14px;
+  /* Modal body now renders the shared {{available-boards-section}}
+     component (same one the boards page uses). The component owns
+     its own grid layout (`.ub-boards-page__board-grid`), filter
+     row, tabs row, and folders strip — this wrapper is just a
+     block container that sets the modal's inner padding + max
+     width. The earlier CSS grid declarations were dropped because
+     they conflicted with the component's internal flex/grid
+     layouts (each of the component's top-level elements would
+     have been treated as a grid cell here). */
   width: 92%;
   margin: 0 auto;
-  padding: 24px 0 32px;
+  padding: 16px 0 32px;
 }
 
 .board-picker__loading {
