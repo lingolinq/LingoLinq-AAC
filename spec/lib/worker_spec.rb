@@ -148,6 +148,24 @@ describe Worker do
       expect(Thread.current[:bulk_copy_in_progress]).to be_nil
       expect(PiiScrubber.blocklist).to eq([])
     end
+
+    it "should clear caches after a slow-queue job runs through the full enqueue + process path" do
+      # End-to-end coverage: schedule onto the slow queue and let
+      # Worker.process_queues pop it (which invokes SlowWorker.perform with the
+      # chain-tracking arg suffix appended by boy_band). This exercises the
+      # actual production code path that an OOM-causing leak would travel,
+      # rather than the direct SlowWorker.perform invocation above. Catches
+      # regressions where the ensure block is moved or the enqueue/pop path
+      # adds a new layer that bypasses the cleared sites.
+      Worker.schedule_for('slow', User, :bacon)
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'real-enqueue' => 1}
+        PiiScrubber.configure_blocklist(['Eve'])
+      }
+      Worker.process_queues
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+    end
   end
 
   describe "scheduled_actions" do
