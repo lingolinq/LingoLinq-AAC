@@ -1081,6 +1081,18 @@ export default Controller.extend({
       var go = function() { _this.get('router').transitionTo('create-board-new'); };
       this.appState.check_for_needing_purchase().then(go, go);
     },
+    /* Wrapper used by the My Boards modal when each tile renders
+       through the shared `{{board-icon}}` component. The component
+       calls `onAction(board_record)` (a full Ember Data record),
+       but the legacy pickBoard handler takes a key string. Pull
+       the key out and delegate so all of pickBoard's Home-board
+       selection / same-board refresh / route transition logic still
+       runs unchanged. */
+    pickBoardRecord: function(board) {
+      if(!board) { return; }
+      var key = board.get ? board.get('key') : board.key;
+      this.send('pickBoard', key);
+    },
     pickBoard: function(key) {
       var _this = this;
       // Selection-mode branch: clicking a tile sets the picked board

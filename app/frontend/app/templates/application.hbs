@@ -955,39 +955,22 @@
             {{/if}}
           {{/if}}
           {{#if this.app_state.currentUser}}
-            {{!-- Both img and SVG render. CSS :has() in
-                 .user_holder hides whichever doesn't apply: when
-                 the img src points at a /avatars/avatar-N.png
-                 default placeholder, the img is hidden and the
-                 SVG (Apple-style person.crop.circle.fill silhouette)
-                 shows. When the img src is a real uploaded avatar,
-                 the SVG is hidden and the img shows. --}}
+            {{!-- Default-avatar swap is now driven entirely by the
+                 `.user_holder--default` class (set when
+                 currentUser.avatar_url_is_default is true). The
+                 silhouette is painted as a `background-image` data
+                 URI on `.user_holder--default` (see app.scss), and
+                 the `<img>` is hidden via the
+                 `.user_holder--default img.user` rule. The inline
+                 `<svg>` previously rendered here was stripped: in
+                 production builds the asset fingerprinter mangled
+                 its `url(#gradient-id)` fragment references, so
+                 every shape that used a gradient fill painted
+                 transparent and only the one solid-color circle
+                 survived (the small lavender dot inside an empty
+                 ring). The data-URI background-image encodes `#`
+                 as `%23` and is never seen by the rewriter. --}}
             <span class='user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}'>
-              {{!-- LingoLinq communicator avatar — same concentric
-                   design used on the caseload card so the identity
-                   chip matches the rest of the system. --}}
-              <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
-                <defs>
-                  <linearGradient id="ll-identity-bg" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#F4F4FB"/>
-                    <stop offset="0.55" stop-color="#EAEBF6"/>
-                    <stop offset="1" stop-color="#EEEEFF"/>
-                  </linearGradient>
-                  <linearGradient id="ll-identity-inner" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#F7F8FF"/>
-                    <stop offset="1" stop-color="#E5E7F4"/>
-                  </linearGradient>
-                  <linearGradient id="ll-identity-mark" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#A8AEE6"/>
-                    <stop offset="1" stop-color="#1B1F4A"/>
-                  </linearGradient>
-                </defs>
-                <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg)"/>
-                <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
-                <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
-                <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
-                <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark)"/>
-              </svg>
               <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if this.app_state.modeling_for_user}}
@@ -1320,29 +1303,15 @@
     <span style="display: inline-block;" class="dropdown">
       {{#if this.app_state.currentUser}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
+        {{!-- See application.hbs:957 for why the inline <svg> was
+             removed — production asset fingerprinting mangles the
+             `url(#gradient-id)` fragment refs, leaving only the one
+             solid-color shape visible. The default silhouette is
+             now painted via the `.user_holder--default` background-
+             image data URI in app.scss; the `<img>` is hidden by
+             the companion `.user_holder--default img.user` rule
+             when the user has no uploaded avatar. --}}
         <span class="user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}">
-          <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
-            <defs>
-              <linearGradient id="ll-identity-bg-2" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#F4F4FB"/>
-                <stop offset="0.55" stop-color="#EAEBF6"/>
-                <stop offset="1" stop-color="#EEEEFF"/>
-              </linearGradient>
-              <linearGradient id="ll-identity-inner-2" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#F7F8FF"/>
-                <stop offset="1" stop-color="#E5E7F4"/>
-              </linearGradient>
-              <linearGradient id="ll-identity-mark-2" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#A8AEE6"/>
-                <stop offset="1" stop-color="#1B1F4A"/>
-              </linearGradient>
-            </defs>
-            <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg-2)"/>
-            <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
-            <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner-2)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
-            <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
-            <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark-2)"/>
-          </svg>
           <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.session.invalid_token}}
@@ -1702,22 +1671,21 @@
         </div>
       {{else}}
         {{#each this.filteredBoardPickerBoards as |board|}}
-          {{!-- <button> rather than <a href="#"> — eliminates any
-               implicit "#" navigation that competes with the action
-               handler in some Ember/browser combos. Mirrors the
-               board-icon component pattern on the boards page,
-               which uses <button type="button"> for its tile click
-               (confirmed working there).
-
-               bubbles=false — without it the click event propagates
-               up to #board_picker_backdrop (`{{action "closeBoardPicker"}}`
-               which fires a parallel state-clear that races
-               pickBoard's transition. The backdrop sits behind the
-               dialog (z-index 900 vs 901) but the dialog's clicks
-               still bubble up to it through the document tree. Stop
-               propagation here so the picker's tile-click path
-               doesn't trigger the close-modal handler too. --}}
-          <button type="button" {{action "pickBoard" board.key bubbles=false}} class="board-picker__item {{if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key) 'board-picker__item--home'}} {{if (is-equal board.key this.app_state.currentBoardState.key) 'board-picker__item--current'}} {{if board.starred_for_current_user 'board-picker__item--liked'}}">
+          {{!-- My Boards tile — wraps the shared {{board-icon}}
+               component (same one rendered on the boards page) so
+               this surface stays in sync with the boards-page card
+               chrome: "i"+grid-size pill, language marker, bottom
+               PREVIEW pill, image with fallback, title + author
+               line, etc. The wrapper provides position-relative for
+               the picker-specific floating badges (HOME BOARD,
+               CURRENTLY VIEWING) and the heart, plus the
+               `--home` / `--current` / `--liked` outline halos.
+               Clicks come from {{board-icon}}'s outer role="button"
+               div — it calls onAction(board_record), which we
+               delegate to pickBoardRecord → pickBoard so the
+               existing Home-selection / refresh / transition flow
+               runs unchanged. --}}
+          <div class="board-picker__item {{if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key) 'board-picker__item--home'}} {{if (is-equal board.key this.app_state.currentBoardState.key) 'board-picker__item--current'}} {{if board.starred_for_current_user 'board-picker__item--liked'}}">
             {{#if (is-equal board.key this.app_state.referenced_user.preferences.home_board.key)}}
               <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
             {{/if}}
@@ -1732,20 +1700,18 @@
               <span class="board-picker__current-badge">{{t "Currently Viewing" key="currently_viewing"}}</span>
             {{/if}}
             {{#if board.starred_for_current_user}}
-              {{!-- Filled-heart indicator in the top-right corner so
+              {{!-- Filled-heart indicator in the top-left corner so
                    liked boards are scannable at a glance, matching the
-                   "starred" treatment used elsewhere in the app. --}}
+                   boards-page placement (a follow-up rule in app.scss
+                   anchors `.board-picker__heart` top-left). --}}
               <span class="board-picker__heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
                   <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
                 </svg>
               </span>
             {{/if}}
-            <span class="board-picker__thumb">
-              <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
-            </span>
-            <span class="board-picker__name">{{board.name}}</span>
-          </button>
+            {{board-icon board=board onAction=(action "pickBoardRecord")}}
+          </div>
         {{else}}
           {{#if this.boardPickerFilter}}
             <p class="board-picker__empty">{{t "No boards match your filter" key="no_boards_match_filter"}}</p>

@@ -283,6 +283,12 @@ export default Route.extend({
     // explicitly toggles it via the right-panel "Hide speak bar"
     // control in the Speak Bar section.
     controller.set('hide_speak_bar', !!(user && user.get && user.get('preferences.hide_speak_bar')));
+    // Customize Menu — array of speak-mode options-menu item ids
+    // the user has hidden. Default empty (everything visible).
+    // Saved on user.preferences.speak_mode_hidden_menu_items via
+    // the `toggle_speak_menu_item` action in the right panel.
+    var saved_hidden_menu = user && user.get && user.get('preferences.speak_mode_hidden_menu_items');
+    controller.set('speak_menu_hidden_items', Array.isArray(saved_hidden_menu) ? saved_hidden_menu.slice() : []);
 
     // Re-apply the user's symbol_background scope on every board-detail
     // entry. The app-state `sync_fitzgerald_scope` observer covers the

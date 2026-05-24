@@ -28,6 +28,48 @@ import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 
+// Catalog of speak-mode options-menu entries the user can show/hide
+// via the "Customize Menu" preference (right panel → Board Settings).
+// `id` is what gets stored in user.preferences.speak_mode_hidden_menu_items;
+// `label_key` / `default_label` mirror the i18n call on the actual menu
+// row so the customize list reads identically to what the user sees in
+// the speak-mode menu. `section` groups rows under a section header in
+// the customize panel — null means top-level (no group label).
+// NOTE: "Edit Board" is intentionally NOT in this catalog — its
+// visibility is gated by the PIN-assignment preference (see the
+// Preferences page), so exposing it here would split the control
+// across two places. Every other row on the speak-mode options
+// menu is listed below and can be toggled from the right panel's
+// Customize Menu section.
+const SPEAK_MENU_ITEMS = [
+  { id: 'my_boards',            section: 'board',     label_key: 'my_boards', default_label: 'My Boards' },
+  { id: 'find_boards',          section: 'board',     label_key: 'find_boards', default_label: 'Find Boards' },
+  { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
+  { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
+  { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
+  { id: 'classic_view',         section: 'display',   label_key: 'board_detail_revert_old_style', default_label: 'Classic View' },
+  { id: 'copy',                 section: 'share',     label_key: 'copy', default_label: 'Copy' },
+  { id: 'download',             section: 'share',     label_key: 'download', default_label: 'Download' },
+  { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
+  { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
+  { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
+  { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
+  { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
+  { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
+  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' },
+  { id: 'translate',            section: 'language',  label_key: 'translate', default_label: 'Translate' },
+  { id: 'switch_language',      section: 'language',  label_key: 'switch_language', default_label: 'Switch Language' }
+];
+
+const SPEAK_MENU_SECTIONS = [
+  { id: 'board',    label_key: 'board', default_label: 'Board' },
+  { id: 'buttons',  label_key: 'buttons', default_label: 'Buttons' },
+  { id: 'display',  label_key: 'display', default_label: 'Display' },
+  { id: 'share',    label_key: 'share_and_print', default_label: 'Share & Print' },
+  { id: 'session',  label_key: 'session', default_label: 'Session' },
+  { id: 'language', label_key: 'language', default_label: 'Language' }
+];
+
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
@@ -74,6 +116,11 @@ export default Controller.extend(prefClasses, {
   // contents collapse to just the options chevron. Default off.
   // Persisted on user.preferences.hide_speak_bar.
   hide_speak_bar: false,
+  // "Customize Menu" preference — array of item ids the user has
+  // hidden from the speak-mode options dropdown. Default empty
+  // (everything visible). Persisted on
+  // user.preferences.speak_mode_hidden_menu_items.
+  speak_menu_hidden_items: null,
   boardname: null,
   active_category: 'all',
 
@@ -2086,6 +2133,86 @@ export default Controller.extend(prefClasses, {
 
   folder_colored_corner: computed('folder_display_style', function() {
     return this.get('folder_display_style') === 'colored_corner';
+  }),
+
+  // Map of speak-menu item id → true for items the user has hidden.
+  // Built from the `speak_menu_hidden_items` array (kept in sync with
+  // user.preferences.speak_mode_hidden_menu_items). Templates use
+  // `(get this.speak_menu_hidden_set "my_boards")` etc. as the gate
+  // around each menu row — undefined / missing key means visible.
+  speak_menu_hidden_set: computed('speak_menu_hidden_items.[]', function() {
+    var arr = this.get('speak_menu_hidden_items') || [];
+    var set = {};
+    for(var i = 0; i < arr.length; i++) { set[arr[i]] = true; }
+    return set;
+  }),
+
+  // Pre-shaped list for the right-panel "Customize Menu" template.
+  // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
+  //   [ { section: { id, label_key, default_label }, items: [...] }, ... ]
+  // plus a leading null-section block for the standalone "Edit Board"
+  // hero row. `hidden` on each item reflects the current preference.
+  speak_menu_sections_list: computed('speak_menu_hidden_set', function() {
+    var set = this.get('speak_menu_hidden_set') || {};
+    var top = [];
+    var by_section = {};
+    var section_order = [];
+    for(var i = 0; i < SPEAK_MENU_ITEMS.length; i++) {
+      var item = SPEAK_MENU_ITEMS[i];
+      var row = {
+        id: item.id,
+        label_key: item.label_key,
+        default_label: item.default_label,
+        hidden: !!set[item.id]
+      };
+      if(!item.section) {
+        top.push(row);
+      } else {
+        if(!by_section[item.section]) {
+          by_section[item.section] = [];
+          section_order.push(item.section);
+        }
+        by_section[item.section].push(row);
+      }
+    }
+    var groups = [{ section: null, items: top }];
+    for(var s = 0; s < SPEAK_MENU_SECTIONS.length; s++) {
+      var sec = SPEAK_MENU_SECTIONS[s];
+      if(by_section[sec.id]) {
+        groups.push({ section: sec, items: by_section[sec.id] });
+      }
+    }
+    return groups;
+  }),
+
+  // Section-visibility gates for the speak-mode menu — true when at
+  // least one child row of that section is still visible. When false,
+  // the entire section header collapses too so the menu doesn't show
+  // an empty group. Each computed depends on speak_menu_hidden_set so
+  // it re-evaluates whenever the user toggles any row.
+  speak_section_visible_board: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.my_boards || !s.find_boards;
+  }),
+  speak_section_visible_buttons: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.find_button || !s.focus_words || !s.show_hidden_buttons;
+  }),
+  speak_section_visible_display: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.classic_view;
+  }),
+  speak_section_visible_share: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.copy || !s.download || !s.print || !s.share;
+  }),
+  speak_section_visible_session: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  speak_section_visible_language: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.translate || !s.switch_language;
   }),
 
   // True while the user is editing a board they don't own — i.e. the
@@ -6034,6 +6161,30 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.hide_speak_bar', next);
+        user.save();
+      }
+    },
+
+    // Sets whether a single speak-mode options-menu item is hidden
+    // for this user. `id` is one of the SPEAK_MENU_ITEMS ids defined
+    // at the top of this file (e.g. 'my_boards', 'translate',
+    // 'sticky_board'). `hidden` is the explicit target state — the
+    // segmented Hide/Show pill calls this directly with `true` /
+    // `false` rather than relying on a toggle, so tapping the
+    // already-active side is a no-op instead of flipping the
+    // state. Stored as an array of hidden ids on
+    // user.preferences.speak_mode_hidden_menu_items.
+    set_speak_menu_item_hidden: function(id, hidden) {
+      var arr = (this.get('speak_menu_hidden_items') || []).slice();
+      var ix = arr.indexOf(id);
+      var want_hidden = !!hidden;
+      if(want_hidden && ix < 0) { arr.push(id); }
+      else if(!want_hidden && ix >= 0) { arr.splice(ix, 1); }
+      else { return; }
+      this.set('speak_menu_hidden_items', arr);
+      var user = this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.speak_mode_hidden_menu_items', arr);
         user.save();
       }
     },
