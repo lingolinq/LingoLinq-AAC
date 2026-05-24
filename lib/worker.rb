@@ -8,6 +8,16 @@ module Worker
   def self.perform(*args)
     super
   ensure
+    clear_request_thread_caches
+  end
+
+  # Single source of truth for the request/job-scoped Thread.current caches
+  # populated during execution (see app/models/board_content.rb and
+  # app/models/word_data.rb). Called from Worker.perform, SlowWorker.perform,
+  # and ApplicationController so the slow queue and the web path stay in sync.
+  # Add any new request-scoped cache key here only, so the clear sites cannot
+  # drift apart again.
+  def self.clear_request_thread_caches
     Thread.current[:board_content_cache] = nil
     Thread.current[:word_inflection_cache] = nil
     Thread.current[:bulk_copy_in_progress] = nil

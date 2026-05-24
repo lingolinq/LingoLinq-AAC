@@ -94,7 +94,48 @@ describe Worker do
       Worker.perform_at(:slow, 'User', 'count')
     end
   end
-  
+
+  describe "clear_request_thread_caches" do
+    after(:each) do
+      Thread.current[:board_content_cache] = nil
+      Thread.current[:word_inflection_cache] = nil
+      Thread.current[:bulk_copy_in_progress] = nil
+    end
+
+    it "should clear all request-scoped thread caches" do
+      Thread.current[:board_content_cache] = {'a' => 1}
+      Thread.current[:word_inflection_cache] = {'b' => 2}
+      Thread.current[:bulk_copy_in_progress] = true
+      Worker.clear_request_thread_caches
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:word_inflection_cache]).to be_nil
+      expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+    end
+
+    it "should clear caches after a normal job runs via Worker.perform" do
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'x' => 1}
+      }
+      Thread.current[:word_inflection_cache] = {'y' => 2}
+      Worker.perform('User', 'bacon')
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:word_inflection_cache]).to be_nil
+    end
+
+    it "should clear caches after a slow-queue job runs via SlowWorker.perform" do
+      # Regression: slow jobs execute through SlowWorker.perform -> Worker.perform_at,
+      # bypassing Worker.perform, so the caches must be cleared on the slow path too
+      # or they leak across jobs in a long-lived worker process.
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'x' => 1}
+        Thread.current[:bulk_copy_in_progress] = true
+      }
+      SlowWorker.perform('User', 'bacon')
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+    end
+  end
+
   describe "scheduled_actions" do
     it "should have list actions" do
       Worker.schedule(User, :something)

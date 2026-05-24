@@ -16,8 +16,7 @@ class ApplicationController < ActionController::Base
   def with_request_caching
     yield
   ensure
-    Thread.current[:board_content_cache] = nil
-    Thread.current[:word_inflection_cache] = nil
+    Worker.clear_request_thread_caches
   end
 
   def set_host
