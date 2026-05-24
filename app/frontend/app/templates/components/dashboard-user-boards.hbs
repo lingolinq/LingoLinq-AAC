@@ -62,7 +62,7 @@
         <div class="ub-boards-page__stat-label">{{t "My Boards" key="my_boards"}}</div>
         <div class="ub-boards-page__stat-value">
           {{#if this.boardsCtrl.model.my_boards.done}}
-            {{t "board" key="n_boards" count=this.boardsCtrl.model.my_boards.length}}
+            {{t "board" key="n_boards" count=this.boardsCtrl.myBoardsTileCount}}
           {{else}}
             <span class="ub-boards-page__stat-loading">—</span>
           {{/if}}

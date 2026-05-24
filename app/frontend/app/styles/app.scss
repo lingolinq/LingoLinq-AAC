@@ -53880,34 +53880,164 @@ a.md-goal-nav-action:hover,
     color: $brand-charcoal-blue;
     flex: 0 0 auto;
   }
-  &__boards-summary-count {
-    /* Same hairline-divider-before-count treatment as the Folders
-       header (see &__folders-count::before). Visually separates
-       "BOARDS" label from the count chip. */
+  /* Dual-stat split — replaces the prior single "boards count" chip.
+     One pill for "in folders" (slate-navy, matches the Folders section
+     family above), one for "in this section" (verdigris, matches the
+     BOARDS section's own accent). Same hairline-divider-before-stats
+     treatment as the Folders header (see &__folders-count::before),
+     so the BOARDS label is visually separated from the stats group. */
+  &__boards-summary-stats {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 8px;
+    gap: 8px;
     margin-left: 18px;
-    border-radius: 999px;
-    background: rgba($brand-verdigris-aa, 0.14);
-    color: $brand-verdigris-aa;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
     position: relative;
   }
-  &__boards-summary-count::before {
+  &__boards-summary-stats::before {
     content: '';
     position: absolute;
     left: -10px;
-    top: 2px;
-    bottom: 2px;
+    top: 4px;
+    bottom: 4px;
     width: 1px;
     background: rgba($brand-blue-black, 0.22);
     pointer-events: none;
+  }
+  &__boards-summary-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px 4px 9px;
+    border-radius: 999px;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: 0.005em;
+    white-space: nowrap;
+  }
+  /* Folder-tagged subset — slate tone so the eye reads it as "lives
+     up in the folders strip", not as the BOARDS section's own count. */
+  &__boards-summary-stat--in-folders {
+    background: rgba($la-navy, 0.08);
+    color: rgba($la-navy, 0.78);
+  }
+  /* Unfiled subset — verdigris tint matches the BOARDS section's
+     primary accent (same family as the old count chip color). */
+  &__boards-summary-stat--unfiled {
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+  }
+  &__boards-summary-stat-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
+  }
+  &__boards-summary-stat-num {
+    font-weight: 800;
+    font-size: 13px;
+    line-height: 1;
+  }
+  &__boards-summary-stat-label {
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+  /* Tiny middle-dot between the two stat pills. Same hairline color
+     as the divider before the group so the dot reads as a peer mark. */
+  &__boards-summary-stats-sep {
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba($brand-blue-black, 0.22);
+    flex-shrink: 0;
+  }
+  /* Info affordance to the right of the "in this section" pill —
+     only renders when the user's home board is tagged into a folder
+     (myBoardsUnfiledCount adds +1 for the duplicate-visible-tile rule
+     in that case). Clicking the icon opens a small popover that
+     explains the +1 to the user. */
+  &__boards-summary-info-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 2px;
+  }
+  &__boards-summary-info-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: rgba($la-navy, 0.55);
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background 0.12s ease, color 0.12s ease;
+    &:hover,
+    &:focus-visible {
+      background: rgba($la-navy, 0.06);
+      color: $brand-verdigris-aa;
+      outline: none;
+    }
+  }
+  &__boards-summary-info-btn--open {
+    background: rgba($brand-verdigris-aa, 0.14);
+    color: $brand-verdigris-aa;
+  }
+  /* Popover panel — anchored under the icon, modern glass chrome
+     matching the page's other floating chips (the .info / .board-icon__info
+     family). Capped width so long copy wraps cleanly; z-index sits
+     below the topbar per the $aac-z-* contract. */
+  &__boards-summary-info-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 150;
+    min-width: 260px;
+    max-width: 320px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid rgba($la-navy, 0.12);
+    box-shadow:
+      0 2px 6px rgba($la-navy, 0.08),
+      0 12px 28px rgba($la-navy, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: $brand-charcoal-blue;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.45;
+    /* Triangular caret pointing up at the trigger icon. */
+    &::before {
+      content: '';
+      position: absolute;
+      top: -7px;
+      right: 7px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-top: 1px solid rgba($la-navy, 0.12);
+      border-left: 1px solid rgba($la-navy, 0.12);
+      transform: rotate(45deg);
+      box-shadow: -1px -1px 1px rgba($la-navy, 0.02);
+    }
+  }
+  &__boards-summary-info-popover-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $brand-verdigris-aa;
+    margin-bottom: 4px;
+  }
+  &__boards-summary-info-popover-body {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba($la-navy, 0.82);
   }
   /* New Board CTA — pinned right via margin-left:auto. Pill chrome
      matches the boards-page New Board button family (rounded, light
@@ -55595,7 +55725,11 @@ a.md-goal-nav-action:hover,
      folder card reads as a sibling card in the same composition. */
   &__folder-context {
     display: grid;
-    grid-template-columns: 1fr auto;
+    /* 3-column grid (left identity, center boards-dropdown, right
+       actions). The middle column is `1fr` so the dropdown can claim
+       the slack and self-center horizontally; the side columns shrink
+       to their content. The breadcrumb row above spans 1 / -1. */
+    grid-template-columns: auto 1fr auto;
     grid-template-rows: auto auto;
     gap: 8px 20px;
     padding: 18px 22px 20px;
@@ -55778,6 +55912,45 @@ a.md-goal-nav-action:hover,
     letter-spacing: -0.01em;
     line-height: 1.15;
     word-break: break-word;
+    /* Flex row so the inline rename pencil sits right after the name
+       on the baseline rather than wrapping under it. */
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  &__folder-context-name-text {
+    min-width: 0;
+  }
+  /* Verdigris inline pencil — replaces the old standalone "Edit" pill
+     in the actions row. Ghost-y default (no border/bg) so the icon
+     reads as a quiet inline affordance, not a heavy action chip.
+     Hover firms up the brand teal + a soft halo for the touch target.
+     Same `startFolderRename` action wired to it. */
+  &__folder-context-name-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: $brand-verdigris;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    &:hover,
+    &:focus-visible {
+      background: rgba($brand-verdigris, 0.10);
+      color: color.adjust($brand-verdigris, $lightness: -10%);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    &:active {
+      transform: translateY(0);
+    }
+    svg { flex-shrink: 0; }
   }
   &__folder-context-description {
     margin: 0;
@@ -55785,6 +55958,253 @@ a.md-goal-nav-action:hover,
     font-weight: 400;
     color: rgba($la-navy, 0.58);
     line-height: 1.35;
+  }
+  /* Centered "Boards in this folder" dropdown — lives in the middle
+     column of the folder-context grid. Trigger uses the same glassy
+     pill chrome as the action buttons on the right so the three header
+     elements (identity, dropdown, actions) read as a coherent family.
+     Panel is absolute-positioned so it floats below the trigger
+     without disturbing the grid row height. */
+  &__folder-context-boards-menu {
+    position: relative;
+    grid-column: 2;
+    align-self: end;
+    justify-self: center;
+    padding-bottom: 2px;
+  }
+  &__folder-context-boards-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(248, 250, 253, 0.85) 100%
+      );
+    border: 1px solid rgba($la-navy, 0.10);
+    color: $brand-charcoal-blue;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    cursor: pointer;
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -1px 0 rgba($la-navy, 0.04),
+      0 1px 2px rgba($la-navy, 0.08),
+      0 4px 12px rgba($la-navy, 0.10);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    svg { flex-shrink: 0; color: $brand-verdigris; }
+    &:hover {
+      border-color: rgba($la-navy, 0.18);
+      color: $indigo;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba($la-navy, 0.05),
+        0 2px 4px rgba($la-navy, 0.10),
+        0 8px 18px rgba($la-navy, 0.16);
+      transform: translateY(-1px);
+    }
+  }
+  &__folder-context-boards-menu-trigger--open {
+    border-color: rgba($brand-verdigris, 0.40);
+    color: $indigo;
+    .ub-boards-page__folder-context-boards-menu-chevron {
+      transform: rotate(180deg);
+    }
+  }
+  &__folder-context-boards-menu-label {
+    white-space: nowrap;
+  }
+  &__folder-context-boards-menu-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: rgba($brand-verdigris, 0.14);
+    color: color.adjust($brand-verdigris, $lightness: -8%);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  &__folder-context-boards-menu-chevron {
+    transition: transform 0.18s ease;
+  }
+  &__folder-context-boards-menu-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid rgba($la-navy, 0.10);
+    box-shadow:
+      0 4px 12px rgba($la-navy, 0.10),
+      0 14px 36px rgba($la-navy, 0.16);
+    z-index: 5;
+  }
+  /* In-panel search row — pinned at the top of the dropdown so the
+     user can filter long folder lists. Uses a quiet outlined input
+     (not the glassy pill chrome) since it's inside an already-glassy
+     panel; a heavy second glass surface would look stacked-glass. */
+  &__folder-context-boards-menu-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 2px 4px 6px;
+    padding: 0;
+  }
+  &__folder-context-boards-menu-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    color: rgba($la-navy, 0.45);
+    pointer-events: none;
+  }
+  &__folder-context-boards-menu-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    padding: 8px 32px 8px 32px;
+    border: 1px solid rgba($la-navy, 0.12);
+    border-radius: 999px;
+    background: rgba($la-navy, 0.03);
+    color: $la-navy;
+    font-size: 13px;
+    line-height: 1.2;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    &::placeholder {
+      color: rgba($la-navy, 0.45);
+    }
+    &:focus,
+    &:focus-visible {
+      outline: none;
+      border-color: rgba($brand-verdigris, 0.45);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+    }
+  }
+  &__folder-context-boards-menu-search-clear {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: rgba($la-navy, 0.55);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    &:hover,
+    &:focus-visible {
+      background: rgba($la-navy, 0.08);
+      color: $la-navy;
+      outline: none;
+    }
+  }
+  &__folder-context-boards-menu-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 8px;
+    border-radius: 10px;
+    transition: background 0.12s ease;
+    &:hover {
+      background: rgba($brand-verdigris, 0.06);
+    }
+  }
+  /* Row name button — clickable to open the board in speak mode.
+     Reset native button chrome so the text reads like a plain row
+     entry; hover/focus tints the text verdigris to advertise that
+     it's interactive without competing with the × button next to it. */
+  &__folder-context-boards-menu-row-open {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 6px;
+    border: none;
+    background: transparent;
+    color: $la-navy;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.12s ease;
+    &:hover,
+    &:focus-visible {
+      color: color.adjust($brand-verdigris, $lightness: -10%);
+      outline: none;
+    }
+  }
+  /* Flat-glass circle — same brushed-silver gradient + hairline border
+     as the rest of the modern chip family, but without the layered
+     drop-shadow so the × sits IN the dropdown row instead of floating
+     above it. Inline list items shouldn't compete with the bottom-
+     center PREVIEW pill / top-right info chip for elevation; the
+     dropdown panel itself already provides the lift. Hover firms up
+     into a subtle red-tinted wash so the destructive intent reads
+     without re-introducing heavy elevation. */
+  &__folder-context-boards-menu-row-remove {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba($la-navy, 0.10);
+    border-radius: 50%;
+    background:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(232, 237, 243, 0.65) 55%,
+        rgba(206, 213, 224, 0.55) 100%
+      );
+    color: rgba($la-navy, 0.60);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    &:hover,
+    &:focus-visible {
+      background:
+        linear-gradient(
+          155deg,
+          rgba(255, 252, 252, 0.95) 0%,
+          rgba($brand-danger, 0.10) 100%
+        );
+      border-color: rgba($brand-danger, 0.32);
+      color: $brand-danger;
+      outline: none;
+    }
+    svg { flex-shrink: 0; }
+  }
+  &__folder-context-boards-menu-empty {
+    margin: 0;
+    padding: 14px 12px;
+    font-size: 13px;
+    color: rgba($la-navy, 0.55);
+    text-align: center;
   }
   /* Action row — pill-styled Edit + Delete buttons. Sits to the right
      of the identity block on wide viewports; wraps below on narrow
@@ -56082,11 +56502,36 @@ a.md-goal-nav-action:hover,
     border: none;
     border-top: 1px solid rgba($brand-blue-black, 0.08);
   }
+  /* Boards-in-folder wrapper — spans both columns of the folder-context
+     grid so the embedded board grid sits below the breadcrumb +
+     identity + actions rows. Hairline divider above visually separates
+     the boards list from the folder header chrome without re-introducing
+     a nested-card look (the parent folder-context already provides the
+     surrounding chrome). */
+  &__folder-context-boards {
+    grid-column: 1 / -1;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba($la-navy, 0.08);
+  }
+  &__folder-context-empty {
+    margin: 8px 0 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: rgba($la-navy, 0.03);
+    border: 1px dashed rgba($la-navy, 0.18);
+    color: rgba($la-navy, 0.65);
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+    width: 100%;
+  }
+  /* Legacy `--in-folder` modifier — no longer applied by the template
+     after the folder-context-boards refactor moved the grid inside the
+     folder card (which already provides the container chrome). Rule
+     kept as a no-op so any external/legacy reference stays inert. */
   &__board-grid--in-folder {
-    padding: 24px;
-    background: rgba(248, 250, 252, 0.8);
-    border: 1px solid rgba($brand-blue-black, 0.07);
-    border-radius: 16px;
+    /* intentionally empty */
   }
   &__folder-hint {
     margin: 0 0 14px;
@@ -56189,6 +56634,13 @@ a.md-goal-nav-action:hover,
         display: flex;
         flex-direction: column;
         align-items: stretch;
+        /* Stretch each in-flow child vertically so the visible card
+           fills the holder's height when the grid's `align-items:
+           stretch` has expanded this holder to match the tallest
+           sibling on the same flex line. Absolute-positioned children
+           (home badge, heart, board_action trash) ignore flex sizing,
+           so this is safe for them. */
+        flex: 1 1 auto;
       }
     }
 
@@ -56202,12 +56654,16 @@ a.md-goal-nav-action:hover,
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      height: auto;
+      /* Fill the wrapping ember-view (which itself flexes to fill the
+         stretched holder) so every visible card in the same row reads
+         the same height — the tallest title's tile defines the row
+         height and all siblings match. The min-height keeps the floor
+         when content is short and there's nothing to stretch against. */
+      height: 100%;
+      flex: 1 1 auto;
       /* Consistent min-height so every tile in the grid takes up the
          same vertical footprint by default (gives the boards page a
-         clean uniform-grid feel). Tiles auto-grow past this when
-         their content needs more room (long titles, longer author
-         lines, etc.) thanks to `height: auto`. */
+         clean uniform-grid feel). */
       min-height: 300px;
       /* Top padding bumped 1rem (2.4rem → 3.4rem) so the icon,
          title, and PREVIEW pill stack sit 1rem lower from the top
@@ -56258,7 +56714,12 @@ a.md-goal-nav-action:hover,
     .simple_board_holder .btn.simple_board_icon .author {
       font-size: 17px;
       color: var(--md-muted);
-      margin: 0;
+      /* Bottom margin guarantees a visible gap between the author
+         line and the bottom-anchored PREVIEW pill. The pill uses
+         `margin-top: auto` to ride the bottom of the tile, which
+         collapses to ~0 when the title is long — without this margin
+         the pill ends up sitting right under the username. */
+      margin: 0 0 16px;
       padding: 0 2px;
       display: flex;
       flex-direction: column;
