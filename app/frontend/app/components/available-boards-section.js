@@ -275,13 +275,14 @@ export default Component.extend({
         _this.set('editingFolderName', false);
       });
     },
-    startDeleteFolder(event) {
-      var btn = event && event.target;
-      if (btn) {
-        var rect = btn.getBoundingClientRect();
-        var top = rect.bottom + 8;
-        document.documentElement.style.setProperty('--delete-folder-top', top + 'px');
-      }
+    startDeleteFolder() {
+      /* No per-button positioning — the modal centers on the viewport
+         via CSS (top: 50%; left: 50%; transform: translate(-50%, -50%)).
+         The previous logic anchored the modal under the clicked Delete
+         button (rect.bottom + 8px), but now that the button lives
+         far-right inside the destination card, that anchor produced
+         a visibly off-center modal. Viewport-centered reads cleaner
+         and matches standard confirmation-modal conventions. */
       this.set('confirmingFolderDelete', true);
     },
     cancelDeleteFolder() {

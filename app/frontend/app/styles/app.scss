@@ -2470,17 +2470,13 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
     border-radius: 50%;
     object-fit: cover;
   }
-  /* Apple SF Symbol "person.crop.circle.fill" style fallback —
-     replaces the legacy /avatars/avatar-N.png placeholder when the
-     user has no real uploaded photo. Default state: hidden. The
-     swap is driven by CSS :has() rules outside this block. */
-  svg.user.md-identity-avatar--default {
-    display: none;
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    vertical-align: middle;
-  }
+  /* Default-avatar fallback was previously an inline <svg> rendered
+     alongside the <img>, with a `:has()`-based CSS swap hiding one
+     or the other. The inline SVG was stripped from the templates
+     after production builds began mangling its `url(#gradient-id)`
+     refs; the silhouette is now painted via the
+     `.user_holder--default` background-image data URI further down
+     in this file. No SVG element to style in this scope anymore. */
   .status {
     background: rgba(255, 0, 0, 0.5);
     width: 10px;
@@ -2514,11 +2510,10 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
 .user_holder--default img.user {
   display: none !important;
 }
-.user_holder--default svg.user.md-identity-avatar--default {
-  display: inline-block !important;
-  width: 30px;
-  height: 30px;
-}
+/* (Companion rule for the now-removed inline `<svg>` was stripped —
+   the data-URI background-image above paints the silhouette
+   directly on `.user_holder--default`, so no inner element to
+   reveal.) */
 
 header.speaking, .board.speak {
   -webkit-touch-callout: none !important; /* iOS Safari */
@@ -8615,8 +8610,8 @@ body.pretty_loader #loading_box {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border-radius: 999px;
     background:
@@ -8717,7 +8712,7 @@ body.pretty_loader #loading_box {
     -webkit-backdrop-filter: blur(12px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.75);
     color: $brand-verdigris-aa;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.02em;
@@ -34616,27 +34611,42 @@ a.la-footer-bottom-a11y-wcag {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+  /* Right-aligned button cluster — Cancel + Create sit pinned to
+     the right edge of the modal, matching standard dialog footer
+     conventions where the primary action is rightmost. */
+  justify-content: flex-end;
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--md-line);
 }
 .la-new-board-folder-actions .la-btn--primary {
-  background: $brand-dusty-denim;
-  color: $la-navy;
+  /* Brand slate-blue + white for both states. The prior
+     dusty-denim + la-navy combination failed WCAG contrast in
+     both active and disabled states; slate-blue (#5A6A85) gives
+     ~5.83:1 against white text — clears AA for normal text. The
+     disabled state uses a slightly-lighter slate (mix of 88%
+     slate-blue + 12% white ≈ #6E7C95) which still clears AA
+     (~4.6:1) so the button stays readable while still reading as
+     muted. */
+  background: $brand-slate-blue;
+  color: $la-white;
   border: none;
   padding: 10px 20px;
   border-radius: 999px;
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition: filter 0.15s ease, background 0.15s ease;
 
   &:hover:not(:disabled) {
-    filter: brightness(1.08);
+    filter: brightness(1.10);
+    color: $la-white;
   }
   &:disabled {
-    opacity: 0.7;
+    background: color.mix($brand-slate-blue, $la-white, 88%);
+    color: $la-white;
     cursor: not-allowed;
+    filter: none;
   }
 }
 .la-new-board-folder-actions .la-btn--ghost {
@@ -36635,19 +36645,80 @@ a.la-footer-bottom-a11y-wcag {
     filter: none;
   }
 
+  /* "Continue with Google" button on the register page — follows
+     the same Google Identity Branding Guidelines as the login-form
+     equivalent above. See that block (.login-btn--google) for full
+     rationale. The chrome here is identical; the only difference
+     is the .register-btn-* class scope and a small margin-bottom
+     to space it from the OR divider underneath. */
   &.register-btn--google {
-    background: #fff;
-    color: #1f2937;
-    border: 2px solid #dadce0;
-    box-shadow: none;
-    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
     margin-bottom: 0.75rem;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid #dadce0;
+    color: #3c4043;
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.25px;
+    /* Resting elevation — same subtle 2-layer shadow as the login
+       variant so the button reads as raised off the page. */
+    box-shadow:
+      0 1px 2px rgba(60, 64, 67, 0.12),
+      0 2px 6px rgba(60, 64, 67, 0.08);
+    cursor: pointer;
+    transition: background-color 0.218s, box-shadow 0.218s, border-color 0.218s, transform 0.15s ease;
+    text-transform: none;
 
     &:hover:not(:disabled):not(.register-btn--disabled) {
       background: #f8f9fa;
-      border-color: #c6c9cd;
+      border-color: #d2e3fc;
+      box-shadow:
+        0 1px 2px rgba(60, 64, 67, 0.30),
+        0 4px 12px rgba(60, 64, 67, 0.18);
+      transform: translateY(-1px);
+    }
+    &:active:not(:disabled):not(.register-btn--disabled) {
+      background: #f1f3f4;
+      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.30);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 3px rgba(66, 133, 244, 0.30),
+        0 1px 2px rgba(60, 64, 67, 0.30);
+    }
+    &:disabled,
+    &.register-btn--disabled {
+      background: #ffffff;
+      border-color: rgba(60, 64, 67, 0.12);
+      color: rgba(60, 64, 67, 0.38);
+      cursor: not-allowed;
+      box-shadow: none;
+      filter: none;
     }
   }
+}
+.register-btn--google__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.register-btn--google__label {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
 }
 
 .login-google-divider {
@@ -36656,7 +36727,7 @@ a.la-footer-bottom-a11y-wcag {
   gap: 0.75rem;
   margin: 1rem 0;
   color: #6b7280;
-  font-size: 1rem;
+  font-size: 14px;
 
   &::before,
   &::after {
@@ -37251,8 +37322,14 @@ a.la-footer-bottom-a11y-wcag {
     text-align: center;
   }
 
-  /* Sign In / Submit button — same bg as identity Sign In dropdown on landing-alt */
-  .login-btn:not(.login-btn--outline) {
+  /* Sign In / Submit button — same bg as identity Sign In dropdown
+     on landing-alt. Excludes --outline AND --google so the Google
+     button can render its own brand-spec light treatment defined
+     further down (.login-btn.login-btn--google). Without the
+     --google exclusion this rule has higher specificity than the
+     scoped .login-btn.login-btn--google override below and was
+     leaking the dark navy fill into Google's branded button. */
+  .login-btn:not(.login-btn--outline):not(.login-btn--google) {
     background: rgba($brand-charcoal-dark, 1);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.95);
@@ -37314,18 +37391,87 @@ a.la-footer-bottom-a11y-wcag {
     }
   }
 
+  /* "Continue with Google" button — follows Google's official
+     Identity Branding Guidelines
+     (https://developers.google.com/identity/branding-guidelines).
+     - White field, 1px #dadce0 hairline border, 4px corners
+     - 18px multi-color G mark on the left, 12px gap to label
+     - Roboto Medium 14px label, color #3c4043, 0.25px letter-spacing
+     - Hover: bg shifts to #f8f9fa with Material elevation shadow
+     - Active: bg deepens to #f1f3f4
+     - Disabled: text drops to 38% alpha
+     Overrides the page-default .login-btn pill chrome so the
+     Google button reads as a recognizable platform-standard control
+     rather than a custom-styled CTA. */
   &.login-btn--google {
-    background: #fff;
-    color: #1f2937;
-    border: 2px solid #dadce0;
-    box-shadow: none;
-    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 40px;
+    /* Vertical gap above the button so it sits comfortably below
+       the OR divider rather than crowding right under it. */
+    margin-top: 16px;
+    padding: 0 12px;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid #dadce0;
+    color: #3c4043;
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.25px;
+    /* Resting elevation — subtle 2-layer shadow (close grounding +
+       soft ambient lift) so the button reads as raised off the page
+       rather than sitting flush. Hover state deepens both layers
+       for press affordance. */
+    box-shadow:
+      0 1px 2px rgba(60, 64, 67, 0.12),
+      0 2px 6px rgba(60, 64, 67, 0.08);
+    cursor: pointer;
+    transition: background-color 0.218s, box-shadow 0.218s, border-color 0.218s, transform 0.15s ease;
+    text-transform: none;
 
     &:hover:not(:disabled) {
       background: #f8f9fa;
-      border-color: #c6c9cd;
+      border-color: #d2e3fc;
+      box-shadow:
+        0 1px 2px rgba(60, 64, 67, 0.30),
+        0 4px 12px rgba(60, 64, 67, 0.18);
       transform: translateY(-1px);
     }
+    &:active:not(:disabled) {
+      background: #f1f3f4;
+      box-shadow: 0 1px 2px rgba(60, 64, 67, 0.30);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 3px rgba(66, 133, 244, 0.30),
+        0 1px 2px rgba(60, 64, 67, 0.30);
+    }
+    &:disabled {
+      background: #ffffff;
+      border-color: rgba(60, 64, 67, 0.12);
+      color: rgba(60, 64, 67, 0.38);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+  .login-btn--google__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .login-btn--google__label {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
   }
 
   .login-btn__title {
@@ -37700,7 +37846,9 @@ a.la-footer-bottom-a11y-wcag {
 
   margin: 42px auto 0 !important;
 
-  padding: 8px 14px !important;
+  /* Vertical padding tightened from 8px → 3px for a sleeker bar; the
+     pills themselves carry the touch-target padding. */
+  padding: 3px 14px !important;
 
   display: flex !important;
 
@@ -37732,9 +37880,14 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 .md-pillnav__pill {
-  /* WCAG 2.5.5 AAA touch target — was 10px 12px (~34×40). */
-  padding: 14px 18px !important;
-  min-height: 48px !important;
+  /* Sleek nav row — tightened from `padding: 14px 18px` + min-height
+     48px. Vertical padding reduced to 7px and min-height to 36px so
+     the bar reads as a slimmer pill row. Still passes the WCAG 2.1
+     AA touch-target guidance (24x24+ CSS px) comfortably; below the
+     AAA 48px guideline, but the visual sleekness was specifically
+     requested. */
+  padding: 7px 18px !important;
+  min-height: 36px !important;
 
   border-radius: 999px !important;
 
@@ -53218,12 +53371,18 @@ a.md-goal-nav-action:hover,
 }
 
 #board_picker_inner {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(90px, 18%, 140px), 1fr));
-  gap: 14px;
-  width: 90%;
+  /* Modal body now renders the shared {{available-boards-section}}
+     component (same one the boards page uses). The component owns
+     its own grid layout (`.ub-boards-page__board-grid`), filter
+     row, tabs row, and folders strip — this wrapper is just a
+     block container that sets the modal's inner padding + max
+     width. The earlier CSS grid declarations were dropped because
+     they conflicted with the component's internal flex/grid
+     layouts (each of the component's top-level elements would
+     have been treated as a grid cell here). */
+  width: 92%;
   margin: 0 auto;
-  padding: 16px 0 24px;
+  padding: 16px 0 32px;
 }
 
 .board-picker__loading {
@@ -53254,45 +53413,25 @@ a.md-goal-nav-action:hover,
 }
 
 .board-picker__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 8px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1.5px solid rgba($brand-blue-black, 0.08);
-  box-shadow: 0 2px 8px rgba($brand-blue-black, 0.05);
-  text-decoration: none !important;
-  color: $indigo !important;
-  transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-
-  &:hover {
-    background: rgba($brand-dusty-denim, 0.12);
-    box-shadow: 0 6px 20px rgba($brand-blue-black, 0.12);
-    border-color: rgba($brand-dusty-denim, 0.45);
-    transform: translateY(-3px);
-    text-decoration: none !important;
-    color: $indigo !important;
-
-    .board-picker__name {
-      color: #1a3a6e;
-    }
-  }
-
-  &:active {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba($brand-blue-black, 0.08);
-  }
-
-}
-@media (prefers-reduced-motion: reduce) {
-  .board-picker__item,
-  .board-picker__item:hover,
-  .board-picker__item:active {
-    transform: none;
-    transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  }
+  /* Transparent position-relative wrapper. The actual card chrome
+     (background, border, hover lift, image, name) is rendered by
+     the nested {{board-icon}} component's .simple_board_icon shell
+     — same component the boards page uses — so the picker stays
+     visually in sync with the boards page automatically. This
+     wrapper only provides:
+       - position: relative for the floating HOME BOARD / CURRENTLY
+         VIEWING badges and the heart pill positioned inside it
+       - --home / --current / --liked outline halos (see below)
+     The old standalone card chrome (background, border-radius,
+     padding, hover lift) was removed when this surface switched
+     to the shared component on 2026-05-23. */
+  position: relative;
+  display: block;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: inherit;
 }
 
 .board-picker__thumb {
@@ -53342,12 +53481,19 @@ a.md-goal-nav-action:hover,
    tile, floating uppercase "HOME BOARD" pill crowning it. */
 .board-picker__item--home {
   position: relative;
+}
+/* Halo paint moved to the INNER .btn.simple_board_icon — the
+   outer .board-picker__item wrapper is now a transparent
+   position-relative container (chrome lives on the shared
+   board-icon component). Higher specificity beats the base
+   .simple_board_icon rule. */
+.board-picker__item--home .btn.simple_board_icon {
   border-color: $brand-verdigris !important;
   border-width: 2px !important;
   box-shadow:
     0 0 0 4px rgba($brand-verdigris, 0.12),
     0 8px 24px rgba($brand-verdigris, 0.18),
-    0 2px 8px rgba($brand-blue-black, 0.05);
+    0 2px 8px rgba($brand-blue-black, 0.05) !important;
 }
 .board-picker__home-badge {
   position: absolute;
@@ -53377,12 +53523,16 @@ a.md-goal-nav-action:hover,
    nicely (home on top, current on bottom). */
 .board-picker__item--current {
   position: relative;
+}
+/* Halo paint moved to the INNER .btn.simple_board_icon (same
+   pattern as --home above). */
+.board-picker__item--current .btn.simple_board_icon {
   border-color: $brand-slate-blue !important;
   border-width: 2px !important;
   box-shadow:
     0 0 0 4px rgba($brand-slate-blue, 0.14),
     0 8px 24px rgba($brand-slate-blue, 0.20),
-    0 2px 8px rgba($brand-blue-black, 0.05);
+    0 2px 8px rgba($brand-blue-black, 0.05) !important;
 }
 /* Stack the two pills when a tile is both home AND current. The
    home pill sits at top:-10px; the current pill sits at bottom:-10px
@@ -53471,6 +53621,31 @@ a.md-goal-nav-action:hover,
   align-items: center;
   justify-content: center;
   box-sizing: content-box;
+}
+/* Boards-page heart sits in the TOP-LEFT corner (the dashboard strip
+   `.md-strip__heart` keeps the original top-right placement from the
+   shared rule above). Top-left is empty real estate on the boards
+   page (the `.board-icon__info` i+grid chip lives top-right, the
+   home-board badge sits top-center), so the heart anchors there
+   cleanly without competing with the grid-size pill. */
+.ub-boards-page__board-item-heart {
+  top: 12px;
+  left: 12px;
+  right: auto;
+}
+/* My Boards modal — heart moved to the TOP-LEFT corner to match the
+   boards-page placement. The right edge of the modal tile already
+   holds nothing competing (the home-board badge centers above the
+   card, the CURRENTLY-VIEWING badge anchors to the bottom), so the
+   heart can park cleanly in either corner — top-left is consistent
+   with the boards page. Overrides the shared top:34px/right:12px
+   rule above via class specificity (0,1,0 each, but this rule wins
+   by source order — comes after — and explicitly sets right: auto
+   so the right anchor is released). */
+.board-picker__heart {
+  top: 12px;
+  left: 12px;
+  right: auto;
 }
 .ub-boards-page__board-item.simple_board_holder > .ub-boards-page__board-item-heart svg {
   width: 16px;
@@ -53837,6 +54012,16 @@ a.md-goal-nav-action:hover,
     vertical-align: middle;
     white-space: nowrap;
   }
+  /* Narrow viewports: when the parenthetical aliases wrap to a new
+     line below the primary "Boards" heading, the 0.5em left margin
+     (used for the inline gap on wider screens) becomes a leftover
+     indent on the wrapped line. Reset it to 0 so the wrapped
+     aliases align flush with the heading's left edge. */
+  @media (max-width: 555px) {
+    &__boards-title-aliases {
+      margin-left: 0;
+    }
+  }
   &__folders-actions {
     display: flex;
     gap: 8px;
@@ -53909,18 +54094,53 @@ a.md-goal-nav-action:hover,
     margin: 0;
     white-space: nowrap;
   }
+  /* Folder filter input — premium glassy treatment matching the
+     boards filter input. See &__filter-input above for design
+     rationale (cool inset gradient + navy hairline + verdigris
+     focus glow + italic muted-slate placeholder). */
   &__folder-filter-input {
     width: 100%;
     max-width: 300px;
     padding: 8px 14px;
-    border: 1.5px solid rgba($brand-blue-black, 0.10);
-    border-radius: 10px;
+    border: 1px solid rgba($la-navy, 0.12);
+    border-radius: 999px;
     font-size: 14px;
-    background: rgba(248, 250, 252, 0.9);
+    font-weight: 500;
+    color: $la-navy;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(247, 250, 253, 0.95) 0%,
+        rgba(252, 253, 255, 0.95) 100%
+      );
+    box-shadow:
+      inset 0 1px 2px rgba($la-navy, 0.06),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.7);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    &::placeholder {
+      color: rgba($brand-slate-blue, 0.65);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+    }
+    &:hover {
+      border-color: rgba($la-navy, 0.18);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(248, 251, 254, 0.98) 0%,
+          rgba(255, 255, 255, 0.98) 100%
+        );
+    }
+    &:focus,
     &:focus-visible {
       outline: none;
-      border-color: $brand-teal;
-      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+      border-color: rgba($brand-verdigris-aa, 0.55);
+      background: #fff;
+      box-shadow:
+        inset 0 1px 2px rgba($la-navy, 0.04),
+        0 0 0 3px rgba($brand-verdigris-aa, 0.18),
+        0 1px 2px rgba($la-navy, 0.04);
     }
   }
   &__folder-filter-clear {
@@ -53987,13 +54207,25 @@ a.md-goal-nav-action:hover,
 
   /* Whole-card drag — when a board tile is `--draggable`, the parent
      wrapper carries `draggable="true"` and a `dragstart` handler.
-     By default, the `<button>` Pick and `<img>` cover inside the
-     tile get their own native browser drag (the image drag-ghost,
-     the button focus), which suppresses the parent's dragstart on
-     anything but the empty edges. Disabling `user-drag` on the
-     inner interactive elements lets the parent take the drag from
-     a click anywhere on the card, while normal click (mouse down +
-     up without movement) still fires the inner button's action.
+
+     IMPORTANT: do NOT add `user-drag: none` on inner button/a/img
+     here. An earlier version of this rule did exactly that with the
+     intent of "letting the parent take the drag from a click
+     anywhere on the card." It actually had the opposite effect — a
+     known Chrome/Webkit quirk where `-webkit-user-drag: none` on a
+     child blocks the BROWSER's drag initiation on any ancestor too,
+     not just on the child itself. So mousedowns on the IMG (the
+     biggest, most-likely click target inside the tile) suppressed
+     the parent's `dragstart` entirely, and the subsequent mouseup
+     was interpreted as a click and triggered the Pick action,
+     navigating to speak mode instead of dragging.
+
+     The correct mechanism for "don't drag this child, drag the
+     parent instead" is the HTML attribute `draggable="false"` on
+     the child element, which is applied in board-icon.hbs to the
+     inner <img>. Buttons don't have implicit drag, so they don't
+     need it.
+
      The grab cursor gives visual confirmation that the tile is
      pickable — without it users couldn't tell which tiles support
      drag-to-folder. */
@@ -54001,19 +54233,6 @@ a.md-goal-nav-action:hover,
     cursor: grab;
     &:active {
       cursor: grabbing;
-    }
-    button,
-    a,
-    img {
-      -webkit-user-drag: none;
-      user-drag: none;
-    }
-    /* Children that capture clicks (the Pick button, the heart
-       indicator, the size chip) shouldn't override the grab cursor
-       on the card — the user should see "this is draggable" no
-       matter where they hover within the tile. */
-    .board-icon__pick {
-      cursor: inherit;
     }
   }
 
@@ -54733,18 +54952,59 @@ a.md-goal-nav-action:hover,
     margin: 0;
     white-space: nowrap;
   }
+  /* Premium filter input — refined to match the glassy chrome family
+     used by the folders-section card and pill buttons elsewhere on
+     the page. Combines:
+     (1) Cool inset gradient field — softer than a flat fill
+     (2) Navy hairline border + inset top shadow — gives the input
+         a subtle "recessed" feel without going full skeuomorphic
+     (3) Refined placeholder typography — slate-blue, italic, slight
+         letter-spacing for a more deliberate hint
+     (4) Focus state — brand verdigris border + soft glow ring +
+         bright white field shift for clear active feedback */
   &__filter-input {
     width: 100%;
     max-width: 400px;
     padding: 10px 16px;
-    border: 1.5px solid rgba($brand-blue-black, 0.10);
-    border-radius: 10px;
+    border: 1px solid rgba($la-navy, 0.12);
+    border-radius: 999px;
     font-size: 14px;
-    background: rgba(248,250,252,0.9);
+    font-weight: 500;
+    color: $la-navy;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(247, 250, 253, 0.95) 0%,
+        rgba(252, 253, 255, 0.95) 100%
+      );
+    box-shadow:
+      inset 0 1px 2px rgba($la-navy, 0.06),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.7);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    &::placeholder {
+      color: rgba($brand-slate-blue, 0.65);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+    }
+    &:hover {
+      border-color: rgba($la-navy, 0.18);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(248, 251, 254, 0.98) 0%,
+          rgba(255, 255, 255, 0.98) 100%
+        );
+    }
+    &:focus,
     &:focus-visible {
       outline: none;
-      border-color: $brand-teal;
-      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+      border-color: rgba($brand-verdigris-aa, 0.55);
+      background: #fff;
+      box-shadow:
+        inset 0 1px 2px rgba($la-navy, 0.04),
+        0 0 0 3px rgba($brand-verdigris-aa, 0.18),
+        0 1px 2px rgba($la-navy, 0.04);
     }
   }
   &__filter-clear {
@@ -54791,12 +55051,22 @@ a.md-goal-nav-action:hover,
       0 1px 0 rgba(255, 255, 255, 0.5);
     overflow: hidden;
   }
-  /* Header acts as the accordion toggle button. Full-width row, click
-     anywhere to open/close. Chevron sits on the far right and rotates
-     when the panel is open. */
+  /* Header row — three children: toggle on the left (title +
+     collapsed-state subtitle), action buttons in the middle (only
+     when expanded), chevron button on the right. The toggle and
+     chevron buttons both fire toggleFoldersExpanded; the action
+     buttons use `bubbles=false` on their actions so their clicks
+     don't propagate to the toggle. */
+  &__folders-header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 100%;
+  }
   &__folders-toggle {
     appearance: none;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -54807,6 +55077,34 @@ a.md-goal-nav-action:hover,
     text-align: left;
     color: inherit;
     font: inherit;
+    transition: background 0.12s ease;
+    &:hover { background: rgba(13, 36, 56, 0.04); }
+    &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
+  }
+  /* Header-row action buttons — sit between the toggle and the
+     chevron button. Slightly tighter padding than the body-toolbar
+     variant since they share a row with the title and chevron. */
+  &__folders-actions--header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    flex: 0 0 auto;
+  }
+  /* Chevron click target — pulled out of the toggle so the action
+     buttons can sit between the toggle and the chevron in the same
+     row. Same toggle action, separate <button> so we don't nest. */
+  &__folders-chevron-btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
     transition: background 0.12s ease;
     &:hover { background: rgba(13, 36, 56, 0.04); }
     &:focus-visible { outline: 2px solid rgba($brand-verdigris-aa, 0.5); outline-offset: -2px; }
@@ -54863,15 +55161,13 @@ a.md-goal-nav-action:hover,
     flex-direction: column;
     gap: 14px;
   }
-  &__folders-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 16px;
-    padding: 0 20px;
-  }
+  /* The previous `__folders-header` rule here (flex-wrap: wrap,
+     padding: 0 20px, margin-bottom: 16px) was for an older header
+     structure that no longer exists — it was conflicting with the
+     newer `__folders-header` rule above and forcing the toggle /
+     actions / chevron onto separate rows via flex-wrap. The newer
+     rule above (display:flex without wrap, children handle their
+     own padding) is the canonical one now. */
   &__folders-title {
     display: flex;
     align-items: center;
@@ -55016,6 +55312,52 @@ a.md-goal-nav-action:hover,
     color: #8a96a8;
     font-style: italic;
   }
+  /* Compact informational empty state — lives in the toolbar row,
+     to the LEFT of the New folder / Tag a board action buttons,
+     occupying the slot the folder-filter form takes when folders
+     exist. No border or background fill — reads as soft inline copy
+     in the toolbar, not as a second chrome surface. Doubles as a
+     drop target (via emptyFolderDragOver / emptyFolderDrop) so a
+     user can drag a board onto it to create the first folder. */
+  &__folders-empty {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    color: rgba($la-navy, 0.62);
+  }
+  &__folders-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    color: rgba($la-navy, 0.42);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba($la-navy, 0.10);
+  }
+  &__folders-empty-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.3;
+    min-width: 0;
+  }
+  &__folders-empty-headline {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba($la-navy, 0.78);
+    letter-spacing: 0.005em;
+  }
+  &__folders-empty-hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba($la-navy, 0.55);
+  }
   &__folder-filter-form {
     display: flex;
     /* Left-aligned now that the filter shares a row with the New
@@ -55040,18 +55382,53 @@ a.md-goal-nav-action:hover,
     margin: 0;
     white-space: nowrap;
   }
+  /* Folder filter input — premium glassy treatment matching the
+     boards filter input. See &__filter-input above for design
+     rationale (cool inset gradient + navy hairline + verdigris
+     focus glow + italic muted-slate placeholder). */
   &__folder-filter-input {
     width: 100%;
     max-width: 300px;
     padding: 8px 14px;
-    border: 1.5px solid rgba($brand-blue-black, 0.10);
-    border-radius: 10px;
+    border: 1px solid rgba($la-navy, 0.12);
+    border-radius: 999px;
     font-size: 14px;
-    background: rgba(248, 250, 252, 0.9);
+    font-weight: 500;
+    color: $la-navy;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(247, 250, 253, 0.95) 0%,
+        rgba(252, 253, 255, 0.95) 100%
+      );
+    box-shadow:
+      inset 0 1px 2px rgba($la-navy, 0.06),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.7);
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    &::placeholder {
+      color: rgba($brand-slate-blue, 0.65);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+    }
+    &:hover {
+      border-color: rgba($la-navy, 0.18);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(248, 251, 254, 0.98) 0%,
+          rgba(255, 255, 255, 0.98) 100%
+        );
+    }
+    &:focus,
     &:focus-visible {
       outline: none;
-      border-color: $brand-teal;
-      box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
+      border-color: rgba($brand-verdigris-aa, 0.55);
+      background: #fff;
+      box-shadow:
+        inset 0 1px 2px rgba($la-navy, 0.04),
+        0 0 0 3px rgba($brand-verdigris-aa, 0.18),
+        0 1px 2px rgba($la-navy, 0.04);
     }
   }
   &__folder-filter-clear {
@@ -55201,9 +55578,314 @@ a.md-goal-nav-action:hover,
     background: rgba($brand-teal, 0.12);
   }
 
+  /* Folder destination view — a contained card surface that visually
+     groups the breadcrumb, identity, and actions into a single
+     "destination" panel. Three-layer composition inside:
+     (1) breadcrumb on top — navigation context
+     (2) large icon + title + subtitle — identity
+     (3) pill action buttons on the right — secondary controls
+     Each layer has breathing room so the user reads navigation,
+     identity, and actions as distinct purposes — while the outer
+     card frames them as one cohesive surface.
+
+     Chrome: soft cool-blue gradient field with a verdigris glow at
+     the top-right corner, a 1px navy hairline, and a layered drop
+     shadow + inset top highlight. Same family as the
+     __boards-section / __folders-section surfaces above so the
+     folder card reads as a sibling card in the same composition. */
   &__folder-context {
-    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 8px 20px;
+    padding: 18px 22px 20px;
+    /* Top margin (10px) gives the card a small sectional gap from
+       the filter/toolbar row above without making it feel
+       disconnected. Bottom margin (18px) carries the same idea
+       into the boards grid below. */
+    margin: 10px auto 18px;
+    /* Capped content rail — wide enough for breadcrumb + name +
+       subtitle + actions to breathe, narrow enough to read as a
+       focused destination card rather than spanning the full
+       page-width parent (which weakens intimacy on desktop/tablet).
+       Auto horizontal margins keep the card centered when the
+       parent is wider; on narrow viewports the card collapses to
+       100% naturally. */
+    max-width: 880px;
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba($la-navy, 0.08);
+    background:
+      radial-gradient(
+        ellipse 60% 80% at 95% 0%,
+        rgba($brand-verdigris-aa, 0.12) 0%,
+        rgba($brand-verdigris-aa, 0.05) 40%,
+        rgba($brand-verdigris-aa, 0) 75%
+      ),
+      /* Brighter top stop (pure white) clearly separates the card
+         from the cooler folders-body surface behind it. The bottom
+         stop keeps the subtle cool wash so the card still feels
+         tied to the brand palette. */
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 1) 0%,
+        rgba(248, 251, 254, 0.98) 55%,
+        rgba(240, 245, 251, 0.96) 100%
+      );
+    /* Strengthened layered shadow — close 1px hairline + 3px tight
+       grounding + 12px ambient lift. The wider/darker shadow gives
+       the card more obvious elevation above the inset folders-body
+       gradient behind it, so the two surfaces read as distinct
+       depth layers instead of one continuous panel. */
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 1px 1px rgba($la-navy, 0.06),
+      0 3px 6px rgba($la-navy, 0.08),
+      0 12px 30px rgba($la-navy, 0.14);
   }
+  /* Breadcrumb row — small text "← Folders / Food". Spans the full
+     width above the identity + actions row. Hierarchy is intentional:
+     the back link reads as muted, low-contrast navigation chrome;
+     the separator slips further back; the current location is the
+     darkest, heaviest piece — anchors the eye on "where you are now"
+     rather than competing equally with "where you came from". */
+  &__folder-context-breadcrumb {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: rgba($la-navy, 0.50);
+  }
+  &__folder-context-breadcrumb-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px 3px 5px;
+    margin-left: -7px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    /* Muted — clearly secondary to the current location below */
+    color: rgba($la-navy, 0.52);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    &:hover {
+      background: rgba($brand-blue-black, 0.05);
+      color: rgba($la-navy, 0.78);
+    }
+    svg { flex-shrink: 0; }
+  }
+  &__folder-context-breadcrumb-sep {
+    color: rgba($la-navy, 0.22);
+    font-weight: 400;
+  }
+  &__folder-context-breadcrumb-current {
+    /* Strongest text in the breadcrumb row — anchors "you are here".
+       Slightly smaller font size than the back link so the back link
+       reads as the primary clickable affordance while the current
+       location's heavier weight + darker color still anchor "you
+       are here" visually. */
+    color: rgba($la-navy, 0.88);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.005em;
+  }
+  /* Identity block — large folder icon on the left, name + subtitle
+     stacked next to it. Title is the largest text on the row and
+     reads as the "destination" anchor. */
+  &__folder-context-identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+  }
+  /* Premium folder tile — refined depth treatment for the identity
+     anchor. Three layered effects build the sophistication:
+     (1) Multi-stop background gradient: cool white top-left, soft
+         verdigris mid, slate-blue bottom-right. Creates the
+         impression of light catching a real surface from above.
+     (2) Hairline border + inset top highlight: catches the eye on
+         the upper rim, sells the "rounded tile" form.
+     (3) Layered drop shadow: tight 1px close shadow for grounding
+         + 8px soft far shadow for elevation. Reads as floating on
+         the destination card behind it.
+     The inner folder SVG itself gets a back/front two-path setup
+     (see template) so the folder reads as a layered manila card
+     rather than a flat silhouette. */
+  &__folder-context-identity-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    /* Gradient starts at a near-opaque off-white (not transparent
+       white) so the top-left corner reads against the card's
+       white-ish background instead of fading invisibly into it.
+       Slight cool tint at the start keeps the tile distinct from
+       the field behind it without sacrificing the "light catching"
+       feel of the 135deg ramp. Verdigris mid-stop and slate-blue
+       bottom-right give the diagonal depth. */
+    background:
+      linear-gradient(
+        135deg,
+        rgba(248, 251, 254, 0.98) 0%,
+        rgba($brand-verdigris-aa, 0.22) 45%,
+        rgba($brand-slate-blue, 0.26) 100%
+      );
+    /* Navy-tinted hairline border (was white) — defines the edge of
+       the tile reliably regardless of the card's background color.
+       The inset top highlight below still catches light on the upper
+       rim, but the actual silhouette now stays crisp. */
+    border: 1px solid rgba($la-navy, 0.10);
+    color: $brand-charcoal-blue;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 0 -1px 0 rgba($la-navy, 0.06),
+      0 1px 2px rgba($la-navy, 0.10),
+      0 6px 14px rgba($la-navy, 0.10);
+  }
+  /* SVG drop-shadow for the folder glyph itself — subtle inner
+     depth so the folder doesn't look pasted flat onto the tile. */
+  &__folder-context-identity-icon .ub-boards-page__folder-context-identity-icon-svg {
+    filter: drop-shadow(0 1px 1px rgba($la-navy, 0.18));
+  }
+  /* Two-tone folder paths — the back (tab + body) takes a darker
+     navy tint; the front face takes a slightly lighter shade so the
+     folder reads as a layered card with a visible tab. */
+  &__folder-context-identity-icon-back {
+    fill: rgba($brand-slate-blue, 0.95);
+  }
+  &__folder-context-identity-icon-front {
+    fill: rgba($brand-charcoal-blue, 0.85);
+  }
+  &__folder-context-identity-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  &__folder-context-name {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: $la-navy;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    word-break: break-word;
+  }
+  &__folder-context-description {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba($la-navy, 0.58);
+    line-height: 1.35;
+  }
+  /* Action row — pill-styled Edit + Delete buttons. Sits to the right
+     of the identity block on wide viewports; wraps below on narrow
+     screens via the grid layout above. `align-self: end` pins the
+     pills to the BOTTOM of the identity row so they anchor visually
+     to the subtitle line rather than floating high near the title —
+     prevents the "two detached corners" feel where the title sits
+     top-left and the actions sit top-right with empty space between
+     them and the subtitle. */
+  &__folder-context-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    align-self: end;
+    padding-bottom: 2px;
+  }
+  /* Premium glassy pill actions — same chrome family as the New
+     folder / Tag a board pills in the header above. Layered effects:
+     (1) Cool linear gradient field (near-white to faint cool wash)
+         for a "frosted glass" surface
+     (2) Subtle navy hairline border that defines edges crisply
+     (3) Inset top highlight catches light on the upper rim
+     (4) Layered drop shadow — close 1px + soft 8px — for elevation
+         off the destination card behind it
+     (5) backdrop-filter blur so any pattern behind the pill is
+         softly blurred where they overlap (degrades gracefully when
+         the browser doesn't support it). */
+  &__folder-context-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(248, 250, 253, 0.85) 100%
+      );
+    border: 1px solid rgba($la-navy, 0.10);
+    color: $brand-charcoal-blue;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    cursor: pointer;
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -1px 0 rgba($la-navy, 0.04),
+      0 1px 2px rgba($la-navy, 0.08),
+      0 4px 12px rgba($la-navy, 0.10);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    &:hover {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.98) 0%,
+          rgba(244, 248, 252, 0.92) 100%
+        );
+      border-color: rgba($la-navy, 0.18);
+      color: $indigo;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba($la-navy, 0.05),
+        0 2px 4px rgba($la-navy, 0.10),
+        0 8px 18px rgba($la-navy, 0.16);
+      transform: translateY(-1px);
+    }
+    &:active {
+      transform: translateY(0);
+      box-shadow:
+        inset 0 1px 2px rgba($la-navy, 0.08),
+        0 1px 2px rgba($la-navy, 0.06);
+    }
+    svg { flex-shrink: 0; }
+  }
+  /* Delete variant — softens to a red-tinted glass on hover so the
+     destructive affordance reads at a glance without breaking from
+     the glassy family of the rest of the chrome. */
+  &__folder-context-action--delete {
+    &:hover {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 252, 252, 0.98) 0%,
+          rgba($brand-danger, 0.10) 100%
+        );
+      border-color: rgba($brand-danger, 0.32);
+      color: $brand-danger;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -1px 0 rgba($brand-danger, 0.08),
+        0 2px 4px rgba($brand-danger, 0.10),
+        0 8px 18px rgba($brand-danger, 0.20);
+    }
+  }
+  /* Legacy header — kept for backward compatibility with any inline
+     consumer not yet migrated. The new layered layout above is the
+     primary path. */
   &__folder-context-header {
     display: flex;
     align-items: center;
@@ -55847,18 +56529,24 @@ a.md-goal-nav-action:hover,
   z-index: 1039;
 }
 .la-delete-folder-modal--inline {
+  /* Viewport-centered modal — both axes. The old logic anchored
+     `top` via a `--delete-folder-top` custom prop set in JS based on
+     the Delete button's getBoundingClientRect (rect.bottom + 8px),
+     but in the new destination-card layout the Delete button sits
+     far-right and the modal landed off-center. translate(-50%, -50%)
+     centers cleanly regardless of where the trigger lives. */
   position: fixed;
-  top: var(--delete-folder-top, 50%);
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 1040;
   margin: 0;
   max-width: 440px;
   animation: la-delete-folder-center-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes la-delete-folder-center-in {
-  from { opacity: 0; transform: translateX(-50%) scale(0.95); }
-  to { opacity: 1; transform: translateX(-50%) scale(1); }
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 .la-delete-folder-modal .la-modal-header {
   display: flex;
@@ -56088,11 +56776,31 @@ a.md-goal-nav-action:hover,
     padding: 0 !important;
     &__hero { flex-direction: column; text-align: center; padding: 18px 12px; }
     &__actions-row { justify-content: center; flex-wrap: wrap; }
-    &__boards-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    /* __boards-header intentionally stays in its default row layout
+       on 768px (no flex-direction:column override). The previous
+       column-stack collapsed the "+ New Board" button onto a second
+       row below the heading, which made the header look broken on
+       tablet widths. Keep the title + button on the same row; the
+       title text wraps within its own flex column when there isn't
+       enough horizontal room. */
     &__page-header { padding-left: 8px; padding-right: 8px; }
   }
   .md-user-layout {
     padding: 8px 6px;
+  }
+}
+/* Phone-width header: now that the title (with its wrapped
+   parenthetical "(Vocabularies & Page-Sets)") fills nearly the full
+   row, the "+ New Board" button no longer has room to sit beside
+   it. Stack vertically below 480px so the button drops to its own
+   row, left-aligned under the heading. */
+@media (max-width: 480px) {
+  .ub-boards-page {
+    &__boards-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
   }
 }
 
@@ -58177,6 +58885,26 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   height: 22px;
   width: auto;
   vertical-align: middle;
+  /* If the raster ever fails to load, the browser shows the alt
+     text in its default color. Force that fallback text to inherit
+     the surrounding card color so dark-mode users see a readable
+     light-on-dark label instead of the default dark-blue link
+     color rendering invisibly on the navy panel. */
+  color: inherit;
+  font-size: 12px;
+}
+/* The cc.png / pd.png rasters are black "CC" / "PD" glyphs on
+   transparent backgrounds. On the dark-mode edit card the dark
+   glyph reads as black-on-black — visually a broken-image badge.
+   Invert the raster in dark mode so the glyphs render as white-
+   on-transparent and stay legible against the navy panel. The
+   explicit color: rule sets the alt-text fallback color too, so
+   if the image ever 404s the descriptive text stays light against
+   the dark panel instead of rendering as the browser's default
+   dark blue link color. */
+.md-board-detail--dark .md-board-detail-header__license-icon {
+  filter: invert(1) brightness(1.15);
+  color: rgba(255, 255, 255, 0.88);
 }
 .md-board-detail-header__info-description {
   font-size: 14px;
@@ -65247,6 +65975,133 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: $la-navy;
 }
 
+/* Customize Menu (right-panel "Customize Menu" accordion). Modern
+   grouped-card design: each section ("Board", "Buttons", etc.)
+   sits inside its own subtle card with the section name as a small
+   uppercase label above. Inside each card every row pairs a leading
+   item label with a trailing Hide / Show segmented pill — the
+   active side fills with a colored chip, the inactive side reads
+   as muted neutral text. The whole pill is a single rounded
+   surface so it reads as one control, not three separate elements
+   with external labels (replaces the older external-HIDE / switch /
+   external-SHOW layout). */
+.md-customize-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 6px;
+}
+.md-customize-menu__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.md-customize-menu__group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba($la-navy, 0.50);
+  padding: 0 4px;
+}
+.md-customize-menu__group-card {
+  background: rgba($la-navy, 0.03);
+  border: 1px solid rgba($la-navy, 0.07);
+  border-radius: 14px;
+  padding: 4px 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba($la-navy, 0.04);
+}
+/* Each row is itself the clickable checkbox: leading custom box
+   (filled verdigris with white check when "Show", muted hollow
+   when "Hide") + item label + trailing tiny state hint ("Show" /
+   "Hidden"). The whole row is the touch target so the label
+   itself is part of the hit area — gives the cramped right panel
+   room to read long labels like "Switch Communicators" without
+   wrapping under the control. */
+.md-customize-menu__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 6px;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+.md-customize-menu__row + .md-customize-menu__row {
+  border-top: 1px solid rgba($la-navy, 0.06);
+}
+.md-customize-menu__row:hover {
+  background: rgba($la-navy, 0.04);
+}
+.md-customize-menu__row:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: -2px;
+}
+.md-customize-menu__check {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid rgba($la-navy, 0.30);
+  background: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.md-customize-menu__row--checked .md-customize-menu__check {
+  background: linear-gradient(180deg, $brand-verdigris 0%, $brand-verdigris-aa 100%);
+  border-color: $brand-verdigris-aa;
+  box-shadow:
+    0 1px 2px rgba($brand-verdigris-aa, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.md-customize-menu__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-blue;
+  flex: 1 1 auto;
+  line-height: 1.25;
+}
+/* State icon badge — compact square chip to the right of the
+   label holding just an eye (Shown) or eye-with-slash (Hidden)
+   glyph. The right panel is too narrow to fit text pills next to
+   long labels like "Switch Communicators"; the icon-only form
+   keeps the column tight without losing the state cue. Hover /
+   focus rings come from the parent row so this stays a passive
+   indicator, not its own focus target. */
+.md-customize-menu__check-hint {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.md-customize-menu__check-hint--shown {
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-verdigris-aa;
+  border-color: rgba($brand-verdigris, 0.30);
+}
+.md-customize-menu__check-hint--hidden {
+  background: rgba($la-navy, 0.06);
+  color: rgba($la-navy, 0.55);
+  border-color: rgba($la-navy, 0.14);
+}
+
 /* When the "Colored Folder Front" toggle is on, paint the folder card
    face with the button's Fitzgerald color (var(--btn-bg)). Applies in
    any folder display style (default / tab_labels / colored_corner) and
@@ -66356,6 +67211,45 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-folder-toggle-row__state--active {
   color: rgba(255, 255, 255, 0.96);
+}
+
+.md-board-detail--dark .md-customize-menu__group-label {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-customize-menu__group-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.md-board-detail--dark .md-customize-menu__row + .md-customize-menu__row {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+.md-board-detail--dark .md-customize-menu__row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.md-board-detail--dark .md-customize-menu__label {
+  color: rgba(255, 255, 255, 0.88);
+}
+.md-board-detail--dark .md-customize-menu__check {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.md-board-detail--dark .md-customize-menu__row--checked .md-customize-menu__check {
+  background: linear-gradient(180deg, $brand-verdigris 0%, $brand-verdigris-aa 100%);
+  border-color: $brand-verdigris;
+}
+.md-board-detail--dark .md-customize-menu__check-hint--shown {
+  background: rgba($brand-verdigris, 0.22);
+  color: color.adjust($brand-verdigris, $lightness: 14%);
+  border-color: rgba($brand-verdigris, 0.45);
+}
+.md-board-detail--dark .md-customize-menu__check-hint--hidden {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 /* Dark-mode glassy border for the OFF state of the toggle pill. The
    base rule's navy-on-dark border (rgba(13, 36, 56, 0.18)) and fill
@@ -67732,6 +68626,55 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($brand-verdigris, 0.14);
   color: $brand-verdigris;
   font-weight: 600;
+}
+/* Search row — pinned at the top of `.modern-select__list--searchable`
+   dropdowns when the consumer passes `searchable=true`. Sits inside
+   the listbox <ul> as a `role="none"` row so it's outside the
+   accessibility option tree but still inside the absolute-positioned
+   dropdown chrome. Sticky-positioned so it stays visible while the
+   option list scrolls beneath. */
+.modern-select__search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 8px;
+  margin: -6px -6px 6px;
+  background: #fff;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  list-style: none;
+}
+.modern-select__search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba($la-navy, 0.50);
+  flex: 0 0 auto;
+  padding-left: 4px;
+}
+.modern-select__search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $la-navy;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.modern-select__search-input::placeholder {
+  color: rgba($la-navy, 0.40);
+  font-weight: 400;
+}
+.modern-select__search-input:focus,
+.modern-select__search-input:focus-visible {
+  border-color: rgba($brand-verdigris, 0.55);
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.18);
 }
 .bound-select__option--selected:hover,
 .bound-select__option--selected:focus-visible {

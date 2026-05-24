@@ -1005,7 +1005,18 @@ export default Controller.extend({
       this.set('current_tag', tag);
     },
     enterMineFolderTag: function(tag) {
-      if(this.get('selected') !== 'mine') {
+      /* Use the derived `mine_selected` flag, NOT the raw `selected`
+         field. On initial page load `selected` starts as undefined
+         even though the UI shows the Mine tab as active via the
+         `default_key` fallback in update_selected. Comparing
+         `selected !== 'mine'` against an undefined value was true,
+         so set_selected('mine') fired on the first folder click,
+         which re-triggered update_selected → re-queried my_boards →
+         the array was rebuilt and its `.done` property lost → the
+         "Loading boards..." overlay flashed for the duration of the
+         refetch. mine_selected reflects the actual visible tab
+         state, so this guard skips the no-op switch correctly. */
+      if(!this.get('mine_selected')) {
         this.send('set_selected', 'mine');
       }
       this.set('mineTagFolderDrillIn', tag);
