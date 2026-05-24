@@ -100,26 +100,33 @@ describe Worker do
       Thread.current[:board_content_cache] = nil
       Thread.current[:word_inflection_cache] = nil
       Thread.current[:bulk_copy_in_progress] = nil
+      PiiScrubber.reset_blocklist!
     end
 
     it "should clear all request-scoped thread caches" do
       Thread.current[:board_content_cache] = {'a' => 1}
       Thread.current[:word_inflection_cache] = {'b' => 2}
       Thread.current[:bulk_copy_in_progress] = true
+      PiiScrubber.configure_blocklist(['Alice', 'Bob'])
+      expect(PiiScrubber.blocklist).to eq(['Alice', 'Bob'])
       Worker.clear_request_thread_caches
       expect(Thread.current[:board_content_cache]).to be_nil
       expect(Thread.current[:word_inflection_cache]).to be_nil
       expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+      expect(Thread.current[:pii_scrubber_blocklist_pattern]).to be_nil
     end
 
     it "should clear caches after a normal job runs via Worker.perform" do
       expect(User).to receive(:bacon) {
         Thread.current[:board_content_cache] = {'x' => 1}
+        PiiScrubber.configure_blocklist(['Charlie'])
       }
       Thread.current[:word_inflection_cache] = {'y' => 2}
       Worker.perform('User', 'bacon')
       expect(Thread.current[:board_content_cache]).to be_nil
       expect(Thread.current[:word_inflection_cache]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
     end
 
     it "should clear caches after a slow-queue job runs via SlowWorker.perform" do
@@ -129,10 +136,17 @@ describe Worker do
       expect(User).to receive(:bacon) {
         Thread.current[:board_content_cache] = {'x' => 1}
         Thread.current[:bulk_copy_in_progress] = true
+        # Mirrors AiBoardGenerator / AiWordPredictor which configure the
+        # blocklist per-user before invoking the AI vendor. Without the slow-path
+        # clear, this blocklist would leak into the next job on the same worker
+        # and be silently applied to a different user's AiApiLog scrub via the
+        # before_validation hook in app/models/ai_api_log.rb:20-24.
+        PiiScrubber.configure_blocklist(['Dana'])
       }
       SlowWorker.perform('User', 'bacon')
       expect(Thread.current[:board_content_cache]).to be_nil
       expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
     end
   end
 

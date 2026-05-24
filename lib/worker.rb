@@ -12,15 +12,23 @@ module Worker
   end
 
   # Single source of truth for the request/job-scoped Thread.current caches
-  # populated during execution (see app/models/board_content.rb and
-  # app/models/word_data.rb). Called from Worker.perform, SlowWorker.perform,
-  # and ApplicationController so the slow queue and the web path stay in sync.
-  # Add any new request-scoped cache key here only, so the clear sites cannot
-  # drift apart again.
+  # populated during execution (see app/models/board_content.rb,
+  # app/models/word_data.rb, lib/pii_scrubber.rb). Called from Worker.perform,
+  # SlowWorker.perform, and ApplicationController so the slow queue and the web
+  # path stay in sync. Add any new request-scoped cache key here only, so the
+  # clear sites cannot drift apart again. Teardown-only; do not call mid-job
+  # because nested callers may still need the state.
   def self.clear_request_thread_caches
     Thread.current[:board_content_cache] = nil
     Thread.current[:word_inflection_cache] = nil
     Thread.current[:bulk_copy_in_progress] = nil
+    # PiiScrubber blocklist is per-user (configured by AiBoardGenerator,
+    # AiWordPredictor) and lives in Thread.current; clearing it here prevents
+    # User A's blocklist from being applied to User B's AiApiLog scrub on the
+    # same Resque/Puma thread. AiApiLog#scrub_summary_columns invokes
+    # PiiScrubber.redact_for_ai without re-configuring, so a stale blocklist
+    # silently persists into another user's records. FERPA/HIPAA-relevant.
+    PiiScrubber.reset_blocklist! if defined?(PiiScrubber)
   end
 
   def self.method_stats(queue='default')
