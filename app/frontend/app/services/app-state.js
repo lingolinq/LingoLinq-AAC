@@ -1192,6 +1192,34 @@ export default Service.extend({
       // TODO: option to jump between communicators? Nah.
     }
   },
+  speak_mode_exit_pin_required: function() {
+    if(!this.get('currentUser.preferences.require_speak_mode_pin') || !this.get('currentUser.preferences.speak_mode_pin')) {
+      return false;
+    }
+    if(this.get('speak_mode') || this.stashes.get('current_mode') == 'speak') {
+      return true;
+    }
+    // board-detail always presents as speak mode unless the edit subroute
+    // is active; `speak_mode` can be false after a partial exit left
+    // `current_mode` on 'default' while the user is still on the board.
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    return routeName.indexOf('board-detail') !== -1 && routeName.indexOf('.edit') === -1;
+  },
+  open_speak_mode_exit_pin: function(action) {
+    if(!this.speak_mode_exit_pin_required()) {
+      return RSVP.resolve({correct_pin: true});
+    }
+    return modal.open('speak-mode-pin', {
+      actual_pin: this.get('currentUser.preferences.speak_mode_pin'),
+      action: action || 'none',
+      hide_hint: this.get('currentUser.preferences.hide_pin_hint')
+    });
+  },
+  finish_speak_mode_exit: function() {
+    if(this.stashes.get('current_mode') == 'speak') {
+      this.toggle_mode('speak');
+    }
+  },
   toggle_speak_mode: function(decision) {
     // If we're currently in speak mode and the user is triggering any exit
     // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
@@ -1231,7 +1259,7 @@ export default Service.extend({
     } else if(this.stashes.get('current_mode') == 'speak') {
       if(this.get('embedded')) {
         modal.open('about-lingolinq', {no_exit: true});
-      } else if(this.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && this.get('currentUser.preferences.speak_mode_pin')) {
+      } else if(this.speak_mode_exit_pin_required() && decision != 'off') {
         modal.open('speak-mode-pin', {actual_pin: this.get('currentUser.preferences.speak_mode_pin'), hide_hint: this.get('currentUser.preferences.hide_pin_hint')});
       } else {
         this.toggle_mode('speak');

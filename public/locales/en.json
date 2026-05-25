@@ -5302,6 +5302,7 @@
   "pin_hide_digits": "Hide digits",
   "pin_show_digits": "Show digits",
   "pin_submit_button": "Submit",
+  "pin_reveal_pin": "Reveal PIN",
   "invalid_pin_try_again": "Invalid PIN. Try again!",
   "stop_listening": "Stop Listening",
   "manage_start_codes": "Manage Start Codes",

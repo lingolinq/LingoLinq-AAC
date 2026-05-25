@@ -1,6 +1,5 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import modal from '../utils/modal';
 
 export default Component.extend({
   modal: service('modal'),

@@ -1276,7 +1276,7 @@ var buttonTracker = EmberObject.extend({
               $elem.removeClass('focus');
             }, 500);
             $elem.trigger('select');
-          } else if(elem_wrap.dom.tagName == 'A' && $(elem_wrap.dom).closest('#pin').length > 0) {
+          } else if($(elem_wrap.dom).closest('#pin').length > 0 && (elem_wrap.dom.tagName == 'A' || elem_wrap.dom.tagName == 'BUTTON')) {
             event.preventDefault();
             dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
           } else if(
@@ -2155,7 +2155,7 @@ var buttonTracker = EmberObject.extend({
         return null;
       }
       if(region.id == 'pin') {
-        return buttonTracker.element_wrap($target.closest("a")[0]);
+        return buttonTracker.element_wrap($target.closest("a,button")[0]);
       } else if(region.id == 'word_suggestions') {
         return buttonTracker.element_wrap($target.closest("a")[0]);
       } else if(region.id == 'identity') {

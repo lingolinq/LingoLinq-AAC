@@ -1,4 +1,4 @@
-{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing")}}
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") dialogClass="beta-onboarding-modal-dialog" contentClass="beta-onboarding-modal-content"}}
   <div class="beta-onboarding-modal-wrap">
     {{#if (is-equal this.currentStep 1)}}
       <header class="beta-onboarding-modal__header">
