@@ -7,15 +7,18 @@ alwaysApply: true
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## RULE #0 — CHECK THIS FIRST, EVERY SINGLE TIME, BEFORE FIXING ANYTHING
+## RULE #0 — CHECK THIS FIRST, EVERY SINGLE TIME, BEFORE TOUCHING CODE
 
-Before touching code for ANY fix request, this rule takes precedence over everything else in this document:
+**Scope:** this rule applies to **every** code change — additions, modifications, refactors, fixes, deletions, and styling/markup edits alike. "Fix" below is shorthand for any change. The rule takes precedence over everything else in this document.
 
 1. **Diagnose before fixing — never guess.** Identify the actual root cause and **verify it with evidence** (read the real code paths end to end, inspect the real data, reproduce or trace the failing behavior). Do not propose or apply a fix based on a plausible-sounding theory. If you cannot verify the cause, say so and keep investigating — do not ship a guess.
 2. **Be thorough.** Trace the full path the bug actually travels, including shared code, both the working and broken variants, and the data the code operates on. A fix that addresses a symptom without explaining why the verified root cause produces it is not acceptable.
 3. **Never break existing, working functionality.** Preserve all current behavior. If a fix risks regressing anything that works today, stop and flag it rather than proceeding. Do not "fix" one thing by degrading another.
 4. **If diagnosis is incomplete, do not apply a change.** Report what was verified, what wasn't, and the next investigation step. An honest "not yet diagnosed" beats a confident wrong fix.
 5. **If an attempted correction does not fix the problem, suspect the attempt itself first.** Before trying again, thoroughly re-evaluate whether the change was made on the wrong element, component, route/page, or layer. If it was, **revert the incorrect change** before doing anything else -- do not leave wrong edits stacked in place. Only then re-diagnose (per rules 1-4) and fix the real problem. Never pile a second guess on top of an unreverted first guess.
+6. **Keep the code modular and organized — never write spaghetti.** Each change should live in the smallest sensible unit (component, helper, service, partial, mixin) with a single, clear responsibility. Reuse existing primitives instead of duplicating logic; extract a shared unit when the same idea appears in two places. Name things for what they are, group related code together, and don't bolt new behavior onto an already-overloaded file or function just because it's convenient. If a change would tangle responsibilities, stop and propose the split first.
+7. **When changing a styling rule, edit the original — do not stack a new one on top.** Locate the existing selector that governs the element (in `app.scss` or the relevant partial) and modify it in place so each component has one authoritative rule. Do not introduce a new selector with higher specificity, an override block at the bottom of the file, or an `!important` patch just to win the cascade. Only add a new rule when the element genuinely has no existing style; if uncertain whether a rule already exists, search first.
+8. **Track every researched task in a markdown log; distill durable lessons to a shared learnings doc.** As soon as a task requires research (diagnosis, multi-file exploration, multiple iterations), create `docs/task-management/YYYY-MM-DD-<kebab-task-name>.md` and use it as a live working log: goal, hypotheses, attempts, what worked, what failed, evidence (file:line), decisions. Update it as you go, not at the end. **Before** starting a task, skim `docs/task-management/LEARNINGS.md` for prior findings that apply. **On** successful completion, distill any durable patterns — root-cause patterns, reusable techniques, codebase gotchas — into that same `LEARNINGS.md` so future tasks benefit. Skip the per-task file only for truly trivial edits (one-line/typo) that need no investigation.
 
 ## Branching (mandatory before ANY code change)
 
