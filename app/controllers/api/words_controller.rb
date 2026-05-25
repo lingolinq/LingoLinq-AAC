@@ -1,5 +1,5 @@
 class Api::WordsController < ApplicationController
-  before_action :require_api_token, :except => [:reachable_core, :lang, :predict]
+  before_action :require_api_token, :except => [:reachable_core, :lang]
   
   def index
     return unless allowed?(@api_user, 'admin_support_actions')

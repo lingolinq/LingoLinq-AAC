@@ -94,6 +94,7 @@ export default Controller.extend(prefClasses, {
         word_suggestions.lookup({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
+          topic_context: (_this.get('model') && _this.get('model.name')) || '',
           board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
@@ -1452,6 +1453,9 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       try {
         var _this = this;
+        if(word && word.word && typeof word_suggestions.record_selection === 'function') {
+          word_suggestions.record_selection(word.word);
+        }
         var text = word.word;
         var button = editManager.fake_button();
         button.set('label', text);

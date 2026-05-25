@@ -133,6 +133,56 @@ describe('word_suggestions', function() {
         expect(res[2].image).toEqual('data:stuff');
       });
     });
+
+    it('should rerank suggestions by time of day (morning vs night)', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      // Provide deterministic baseline suggestions via ngrams.
+      word_suggestions.ngrams = {
+        "": [['sleep', -1.0], ['breakfast', -1.1], ['play', -1.2]]
+      };
+
+      var resMorning = null;
+      var resNight = null;
+
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'morning' }).then(function(r) { resMorning = r; });
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'night' }).then(function(r) { resNight = r; });
+
+      waitsFor(function() { return resMorning && resNight; });
+      runs(function() {
+        expect(resMorning[0].word.toLowerCase()).toEqual('breakfast');
+        expect(resNight[0].word.toLowerCase()).toEqual('sleep');
+      });
+    });
+
+    it('should boost a word after it is selected (localStorage frequency)', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = {
+        "": [['we', -1.0], ['you', -1.1], ['i', -1.2]]
+      };
+
+      // Fake localStorage for test isolation
+      var store = {};
+      var oldLS = window.localStorage;
+      window.localStorage = {
+        getItem: function(k) { return store[k] || null; },
+        setItem: function(k, v) { store[k] = v; },
+        removeItem: function(k) { delete store[k]; }
+      };
+
+      // Record selecting "you" a few times
+      var now = Date.now();
+      word_suggestions.record_selection('you', now);
+      word_suggestions.record_selection('you', now + 1000);
+      word_suggestions.record_selection('you', now + 2000);
+
+      var res = null;
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'afternoon', now_ms: now + 3000 }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res[0].word.toLowerCase()).toEqual('you');
+        window.localStorage = oldLS;
+      });
+    });
   });
 
   describe('fallback_url', function() {

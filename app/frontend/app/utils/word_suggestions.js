@@ -12,6 +12,122 @@ import i18n from './i18n';
 import LingoLinq from '../app';
 import config from '../config/environment';
 
+var FREQ_STORAGE_KEY = 'lingolinq_word_freq';
+var FREQ_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
+
+var normalize_prediction_key = function(phrase) {
+  return (phrase || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+};
+
+var time_of_day_bucket_for_date = function(d) {
+  var date = d instanceof Date ? d : new Date(d);
+  var h = date.getHours();
+  if(h >= 5 && h < 12) { return 'morning'; }
+  if(h >= 12 && h < 17) { return 'afternoon'; }
+  if(h >= 17 && h < 21) { return 'evening'; }
+  return 'night';
+};
+
+var time_of_day_bucket_for_hour = function(h) {
+  var hour = Number(h);
+  if(hour !== hour) { return 'night'; }
+  if(hour >= 5 && hour < 12) { return 'morning'; }
+  if(hour >= 12 && hour < 17) { return 'afternoon'; }
+  if(hour >= 17 && hour < 21) { return 'evening'; }
+  return 'night';
+};
+
+var decayed_freq_score = function(entry, now_ms) {
+  if(!entry || typeof entry.s !== 'number') { return 0; }
+  var t = entry.t || now_ms;
+  var age = Math.max(0, now_ms - t);
+  return entry.s * Math.pow(0.5, age / FREQ_HALF_LIFE_MS);
+};
+
+var load_freq_state = function(raw_json, now_ms) {
+  var parsed = null;
+  try {
+    parsed = raw_json ? JSON.parse(raw_json) : null;
+  } catch(e) {
+    parsed = null;
+  }
+  var entries = (parsed && parsed.entries && typeof parsed.entries === 'object') ? parsed.entries : {};
+  var next = {};
+  for(var k in entries) {
+    if(!Object.prototype.hasOwnProperty.call(entries, k)) { continue; }
+    var e = entries[k];
+    if(!e || typeof e !== 'object') { continue; }
+    var s = decayed_freq_score({ s: e.s, t: e.t }, now_ms);
+    if(s > 0.0005) {
+      next[k] = { s: s, t: now_ms };
+    }
+  }
+  return { v: 1, entries: next };
+};
+
+var serialize_freq_state = function(state) {
+  return JSON.stringify(state || { v: 1, entries: {} });
+};
+
+var smart_phrases = {
+  // Question starters (AAC-friendly, frequent)
+  'when': ['do you', 'can I', 'will you', 'is it', 'are we', 'did you'],
+  'what': ['do you', 'is it', 'can I', 'are we', 'should we', 'happened'],
+  'where': ['is it', 'are we', 'do we', 'can I', 'should we', 'did you'],
+  'why': ['did you', 'are we', 'is it', 'do we', 'can I', 'should we'],
+  'how': ['do you', 'can I', 'are we', 'is it', 'should we'],
+
+  // Common AAC phrase pivots
+  'can': ['I', 'you', 'we', 'we do', 'I have', 'I go'],
+  'could': ['I', 'you', 'we', 'we go'],
+  'will': ['you', 'we', 'it', 'I', 'you help', 'you do'],
+  'do': ['you', 'we', 'I', 'it'],
+  'did': ['you', 'we', 'I', 'it'],
+  'is': ['it', 'this', 'that', 'there'],
+  'are': ['you', 'we', 'they', 'there'],
+
+  // Needs/wants
+  'i need': ['help', 'a break', 'water', 'to go', 'to rest', 'to eat'],
+  'i want': ['to', 'more', 'help', 'that', 'this', 'a'],
+  'i': ['want', 'need', 'like', 'feel', 'can', 'will'],
+  'you': ['can', 'want', 'need', 'are', 'will'],
+  'we': ['can', 'need', 'should', 'will', 'are'],
+
+  // Time/day patterns
+  'good': ['morning', 'night', 'job', 'idea'],
+  'good morning': ['i', 'we', 'how', 'what'],
+  'good night': ['i', 'love you', 'see you', 'sleep well']
+};
+
+// Time-of-day rerank weights (lightweight, local)
+var time_of_day_weights = {
+  morning: {
+    'breakfast': 1.5,
+    'school': 1.2,
+    'good morning': 1.3,
+    'wake up': 1.2,
+    'coffee': 1.1
+  },
+  afternoon: {
+    'lunch': 1.2,
+    'outside': 1.1,
+    'play': 1.1,
+    'help': 1.0
+  },
+  evening: {
+    'dinner': 1.3,
+    'home': 1.1,
+    'bath': 1.1,
+    'tv': 1.0
+  },
+  night: {
+    'sleep': 1.6,
+    'bed': 1.4,
+    'good night': 1.5,
+    'tired': 1.2
+  }
+};
+
 var helpers = {
   "I": ['really', 'have', 'did'],
   "will be": ['ready', 'your'],
@@ -285,6 +401,9 @@ var word_suggestions = EmberObject.extend({
       if(second_to_last_word) { second_to_last_word = second_to_last_word.replace(/\s+$/, '').toLowerCase(); }
       var word_in_progress = options.word_in_progress;
       if(word_in_progress) { word_in_progress = word_in_progress.replace(/\s+$/, '').toLowerCase(); }
+      var topic_context = options.topic_context || options.topic || '';
+      var now_ms = options.now_ms || Date.now();
+      var time_bucket = options.time_of_day || time_of_day_bucket_for_date(new Date(now_ms));
 
       var pre_string = "";
       if(!word_in_progress) {
@@ -298,6 +417,22 @@ var word_suggestions = EmberObject.extend({
       var result = [];
       if(pre_string) {
         pre_string = pre_string.toLocaleLowerCase();
+
+        // Smart phrase suggestions first (AAC patterns), then legacy helpers.
+        var add_phrase_list = function(list) {
+          if(!list) { return; }
+          list.forEach(function(wrd) {
+            result.push({ word: wrd });
+          });
+        };
+
+        // Exact + suffix match support (e.g. "i want" and "want")
+        for(var sp_key in smart_phrases) {
+          var ref2 = pre_string.slice(-1 * sp_key.length);
+          if(ref2 == sp_key) {
+            add_phrase_list(smart_phrases[sp_key]);
+          }
+        }
         for(var key in helpers) {
           var ref = pre_string.slice(-1 * key.length);
           if(ref == key) {
@@ -315,6 +450,20 @@ var word_suggestions = EmberObject.extend({
         _this.second_to_last_word = second_to_last_word;
         // TODO: is there an easy way to include two prior words?
         _this.word_in_progress = word_in_progress;
+
+        var _safe_cap = function(str) {
+          if(!do_cap) { return str; }
+          // Capitalize the first character of the first token only.
+          return utterance.capitalize(str);
+        };
+
+        var _passes_filter = function(str, wip) {
+          if(!_this.filtered_words[str.toLowerCase()]) { }
+          if(_this.filtered_words[str.toLowerCase()]) { return false; }
+          if(!wip) { return str[0] != "<"; }
+          return str.substring(0, wip.length) == wip;
+        };
+
         // searches the next-words list, looking for best matches based
         // on the current partial spelling if there is one
         var find_lookups = function(list) {
@@ -322,19 +471,26 @@ var word_suggestions = EmberObject.extend({
           for(var idx = 0; idx < list.length && result.length < max_results; idx++) {
             var str = list[idx];
             if(typeof(str) != 'string') { str = str[0]; }
-            if(!_this.filtered_words[str.toLowerCase()]) {
-              var word_string = do_cap ? utterance.capitalize(list[idx][0]) : list[idx][0];
-              if(word_in_progress) {
-                if(str.substring(0, word_in_progress.length) == word_in_progress) {
-                  result.push({word: word_string});
-                }
-              } else if(str[0] != "<") {
-                result.push({word: word_string});
-              }
+            var base = (typeof(list[idx]) != 'string') ? list[idx][0] : list[idx];
+            if(base && _passes_filter(base, word_in_progress)) {
+              result.push({word: _safe_cap(base)});
             }
           }
           return result;
         };
+
+        // Apply capitalization + filter to phrase entries from smart helpers
+        if(result && result.length) {
+          result = result.filter(function(item) {
+            var w = (item || {}).word;
+            if(!w) { return false; }
+            return _passes_filter(w.toLowerCase(), word_in_progress);
+          }).map(function(item) {
+            var w = item.word;
+            return { word: _safe_cap(w) };
+          });
+        }
+
         // find the most common next-words
         find_lookups(_this.ngrams[last_finished_word]);
         // if not enough found, add in the most common starting words
@@ -365,8 +521,9 @@ var word_suggestions = EmberObject.extend({
           }).slice(0, max_results);
           edits.forEach(function(e) {
             if(result.length < max_results) {
-              var word_string = do_cap ? utterance.capitalize(e[0]) : e[0];
-              result.push({word: word_string});
+              if(_passes_filter(e[0], word_in_progress)) {
+                result.push({word: _safe_cap(e[0])});
+              }
             }
           });
         }
@@ -379,6 +536,54 @@ var word_suggestions = EmberObject.extend({
           });
         }
         result = Utils.uniq(result, 'word');
+
+        // Context-aware reranking (local): usage frequency + time-of-day + topic context
+        (function() {
+          var now = now_ms;
+          var topic = normalize_prediction_key(topic_context);
+          var topic_tokens = topic ? topic.split(/\s+/).filter(Boolean) : [];
+          var topic_set = {};
+          topic_tokens.forEach(function(t) { topic_set[t] = true; });
+          var bucket = time_bucket || 'night';
+          var weights = time_of_day_weights[bucket] || {};
+
+          var raw = null;
+          try { raw = localStorage.getItem(FREQ_STORAGE_KEY); } catch(e) { raw = null; }
+          var freq_state = load_freq_state(raw, now);
+          var entries = freq_state.entries || {};
+
+          var original_order = {};
+          result.forEach(function(item, idx) {
+            original_order[normalize_prediction_key(item.word)] = idx;
+          });
+
+          var score_for = function(word) {
+            var key = normalize_prediction_key(word);
+            var base = 0;
+            var freq = decayed_freq_score(entries[key] || { s: 0, t: now }, now);
+            base += Math.min(freq, 20) * 2.0; // cap influence
+            if(weights[key]) {
+              base += weights[key] * 2.5;
+            }
+            if(topic_set && Object.keys(topic_set).length) {
+              // token match boost
+              key.split(/\s+/).forEach(function(tok) {
+                if(topic_set[tok]) { base += 1.25; }
+              });
+            }
+            return base;
+          };
+
+          result.sort(function(a, b) {
+            var sa = score_for(a.word);
+            var sb = score_for(b.word);
+            if(sb !== sa) { return sb - sa; }
+            var ka = normalize_prediction_key(a.word);
+            var kb = normalize_prediction_key(b.word);
+            return (original_order[ka] || 0) - (original_order[kb] || 0);
+          });
+        })();
+
         _this.last_result = result;
         _this.fallback_url().then(function(url) {
           result.forEach(function(word) {
@@ -488,6 +693,24 @@ var word_suggestions = EmberObject.extend({
         return RSVP.resolve(_this.last_result);
       }
     });
+  },
+  record_selection: function(phrase, now_ms) {
+    var key = normalize_prediction_key(phrase);
+    if(!key) { return; }
+    var now = now_ms || Date.now();
+    var raw = null;
+    try {
+      raw = localStorage.getItem(FREQ_STORAGE_KEY);
+    } catch(e) {
+      return;
+    }
+    var state = load_freq_state(raw, now);
+    var prev = state.entries[key] || { s: 0, t: now };
+    var decayed = decayed_freq_score(prev, now);
+    state.entries[key] = { s: decayed + 1, t: now };
+    try {
+      localStorage.setItem(FREQ_STORAGE_KEY, serialize_freq_state(state));
+    } catch(e2) { }
   },
   fallback_url: function() {
     if(this.fallback_url_result) {
@@ -725,6 +948,14 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
       return match;
     });
   });
+};
+
+// Expose helpers for unit tests
+word_suggestions._test = {
+  time_of_day_bucket_for_hour: time_of_day_bucket_for_hour,
+  load_freq_state: load_freq_state,
+  serialize_freq_state: serialize_freq_state,
+  normalize_prediction_key: normalize_prediction_key
 };
 
 export default word_suggestions;

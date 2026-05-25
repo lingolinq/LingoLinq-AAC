@@ -1477,6 +1477,7 @@ export default Controller.extend(prefClasses, {
           word_suggestions.lookup({
             last_finished_word: last_finished_word,
             word_in_progress: word_in_progress,
+            topic_context: (_this.get('model') && _this.get('model.name')) || '',
             board_ids: lookup_ids,
             button_sets: warmed_sets
           }).then(function(result) {
@@ -5237,6 +5238,13 @@ export default Controller.extend(prefClasses, {
         button.set('image.url', word_image);
       }
       button.set('empty', false);
+
+      try {
+        var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
+        if(word_suggestions && typeof word_suggestions.record_selection === 'function') {
+          word_suggestions.record_selection(text);
+        }
+      } catch(e) { }
 
       var board = this.get('model');
       var app = this.get('app_state.controller');
