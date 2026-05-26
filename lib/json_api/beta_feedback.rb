@@ -44,7 +44,7 @@ module JsonApi::BetaFeedback
       'screenshot_filename' => s['screenshot_filename'],
       'has_recording' => msg.beta_feedback_recording.present?,
       'recording_saved_locally' => !!s['recording_saved_locally'],
-      'request_virtual_meeting' => s['request_virtual_meeting']
+      'request_virtual_meeting' => ActiveModel::Type::Boolean.new.cast(s['request_virtual_meeting'])
     }
 
     if detail

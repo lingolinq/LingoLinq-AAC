@@ -14,6 +14,7 @@ file (see [README.md](README.md)).
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
 - [Pattern: `organizations.admin` is a singleton boolean, not a normal flag](#pattern-organizationsadmin-is-a-singleton-boolean-not-a-normal-flag)
+- [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: RESERVED_ROUTES blocks intended system usernames in seeds](#pattern-reserved_routes-blocks-intended-system-usernames-in-seeds)
 
 ---
@@ -118,6 +119,27 @@ symlinks; see styling-recurring-problems.md #12.
 **Evidence:** `db/schema.rb` unique index on `organizations.admin`, `db/seeds.rb` reuse pattern for `admin: false`, and `scripts/create_users.rb` fix on 2026-05-26.
 
 **First seen in:** [2026-05-26-create-users-demo-org-reuse.md](./2026-05-26-create-users-demo-org-reuse.md)
+
+---
+
+## Pattern: settings-backed API flags should be cast before Ember consumes them
+
+**Surface:** Rails JSON serializers that expose values from `settings` or other
+schemaless payloads and Ember templates that branch on them with `{{#if ...}}`.
+
+**Symptom:** The UI shows a truthy state such as "Requested" even when the
+stored value is the string `'false'`.
+
+**Root cause:** Ruby will happily pass through string values from schemaless
+storage, and Ember treats any non-empty string as truthy in template
+conditionals. A write path may normalize new records correctly, but legacy or
+manually inserted records can still surface string booleans.
+
+**Fix:** In the serializer, cast the flag with
+`ActiveModel::Type::Boolean.new.cast(...)` before returning JSON to the
+frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
+
+**First seen in:** [2026-05-26-beta-feedback-request-virtual-meeting-boolean](./2026-05-26-beta-feedback-request-virtual-meeting-boolean.md)
 
 ---
 
