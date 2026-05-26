@@ -75694,13 +75694,6 @@ a.md-caseload__action {
   }
 }
 
-/* Beta feedback admin (inbox + detail) */
-.la-beta-feedback-admin__body {
-  font-size: 14px;
-  color: var(--md-ink, $brand-blue-black);
-  width: 160px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
 .md-org-report-input:focus-visible {
   outline: none;
   border-color: rgba($brand-dusty-denim, 0.5);
@@ -76710,6 +76703,15 @@ a.md-caseload__action {
 .la-beta-feedback-admin__summary-cell {
   max-width: 28rem;
   word-break: break-word;
+}
+.la-beta-feedback-admin__meeting-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba($brand-teal, 0.15);
+  color: #0d5c5f;
 }
 .la-beta-feedback-admin__actions {
   white-space: nowrap;
@@ -78343,6 +78345,27 @@ blockquote small {
   &:where(p, span, label, button, a, li, small, em, strong) {
     font-size: max(14px, 1em);
   }
+}
+.la-beta-feedback__meeting-row {
+  display: flex;
+  align-items: flex-start;
+}
+.la-beta-feedback__meeting-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 15px;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.la-beta-feedback__meeting-checkbox {
+  margin-top: 3px;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: $brand-teal;
+  cursor: pointer;
 }
 .la-beta-feedback__consent {
   display: flex;
