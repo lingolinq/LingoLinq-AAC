@@ -883,7 +883,7 @@
   "eyebrows": "Lever les deux sourcils [[ Raising Both Eyebrows",
   "cannot_calibrate": "Le regard ne peut pas être calibré pour le moment [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Aucune carte trouvée avec cette clé [[ No board found with that key",
-  "bad_sidebar_board_key": "Valeur non reconnue, veuillez saisir une clé de carte ou un code d'action [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Valeur non reconnue, veuillez saisir une clé de carte ou un code d'action [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Succès! Vous avez désormais accès aux symboles premium dans %app_name% ! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "L'annulation de l'abonnement a échoué. Veuillez réessayer ou contacter l'assistance pour obtenir de l'aide. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Votre abonnement a été annulé. [[ Your subscription has been canceled.",

@@ -991,7 +991,7 @@
   "eyebrows": "Raising Both Eyebrows",
   "cannot_calibrate": "Eye gaze cannot be calibrated at this time",
   "board_not_found": "No board found with that key",
-  "bad_sidebar_board_key": "Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Unrecognized value, please enter a board key or action code",
   "snapshot_created": "Snapshot successfully created! Now you can filter reports using your new snapshot.",
   "extras_purchased": "Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Subscription cancellation failed. Please try again or contact support for help.",

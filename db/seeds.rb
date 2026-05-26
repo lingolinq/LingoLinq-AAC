@@ -1155,6 +1155,16 @@ end
 puts "\n===== Ensure system sidebar boards ====="
 lingolinq_password = seed_password('SEED_LINGOLINQ_PASSWORD', 'password')
 lingolinq_user = User.find_by(user_name: 'lingolinq')
+lingolinq_user ||= User.find_by(email: 'content@lingolinq.com')
+if lingolinq_user && lingolinq_user.user_name != 'lingolinq'
+  old_user_name = lingolinq_user.user_name
+  if lingolinq_user.rename_to('lingolinq')
+    puts "  Renamed #{old_user_name} to lingolinq"
+    lingolinq_user.reload
+  else
+    puts "  WARNING: could not rename #{old_user_name} to lingolinq (collision or invalid name)"
+  end
+end
 unless lingolinq_user
   lingolinq_user = User.process_new({
     name: 'LingoLinq',

@@ -1155,13 +1155,17 @@ export default Controller.extend({
         var action = key.match(/^[^\(]+/)[0];
         var arg = null;
         if(key.indexOf('(') !== -1) {
+          if(key.charAt(action.length) !== '(' || key.charAt(key.length - 1) !== ')') {
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
+            return;
+          }
           arg = key.slice(action.length + 1, key.length - 1);
         }
         var image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/touch_437_g.svg";
         var special = LingoLinq.find_special_action(key);
         if(action == ':app') {
           if(!arg) {
-            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecogonized value, please enter a board key or action code"));
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
             return;
           }
           var app_name = 'app';
@@ -1184,10 +1188,10 @@ export default Controller.extend({
             action: key
           });
         } else {
-          _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecogonized value, please enter a board key or action code"));
+          _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
         }
       } else {
-        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecogonized value, please enter a board key or action code"));
+        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
       }
 
     }

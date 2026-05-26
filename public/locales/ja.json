@@ -883,7 +883,7 @@
   "eyebrows": "両眉を上げる [[ Raising Both Eyebrows",
   "cannot_calibrate": "現時点では視線を調整できません [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "そのキーを持つボードは見つかりませんでした [[ No board found with that key",
-  "bad_sidebar_board_key": "認識できない値です。ボード キーまたはアクション コードを入力してください [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "認識できない値です。ボード キーまたはアクション コードを入力してください [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "成功！ %app_name% でプレミアム シンボルにアクセスできるようになりました。 [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "サブスクリプションのキャンセルに失敗しました。もう一度試すか、サポートにお問い合わせください。 [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "サブスクリプションはキャンセルされました。 [[ Your subscription has been canceled.",
