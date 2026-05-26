@@ -43,7 +43,8 @@ module JsonApi::BetaFeedback
       'has_screenshot' => s['screenshot_base64'].present?,
       'screenshot_filename' => s['screenshot_filename'],
       'has_recording' => msg.beta_feedback_recording.present?,
-      'recording_saved_locally' => !!s['recording_saved_locally']
+      'recording_saved_locally' => !!s['recording_saved_locally'],
+      'request_virtual_meeting' => s['request_virtual_meeting']
     }
 
     if detail

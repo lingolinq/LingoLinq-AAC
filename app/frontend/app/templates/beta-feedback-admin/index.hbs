@@ -93,6 +93,7 @@
                                 {{#if (is-equal this.sortColumn "beta_subject")}}<span class="la-beta-feedback-admin__sort-ind" aria-hidden="true">{{this.sortOrder}}</span>{{/if}}
                               </button>
                             </th>
+                            <th scope="col">{{t "Virtual Meeting" key="beta_feedback_admin_col_virtual_meeting"}}</th>
                             <th scope="col">{{t "Actions" key="beta_feedback_admin_col_actions"}}</th>
                           </tr>
                         </thead>
@@ -111,6 +112,13 @@
                                 {{/if}}
                               </td>
                               <td class="la-beta-feedback-admin__summary-cell">{{row.subject}}</td>
+                              <td>
+                                {{#if row.request_virtual_meeting}}
+                                  <span class="la-beta-feedback-admin__meeting-badge">{{t "Requested" key="beta_feedback_admin_meeting_requested"}}</span>
+                                {{else}}
+                                  <span class="text-muted">—</span>
+                                {{/if}}
+                              </td>
                               <td class="la-beta-feedback-admin__actions">
                                 <LinkTo @route="beta-feedback-admin.entry" @model={{row.id}} class="btn btn-default btn-sm">{{t "Details" key="beta_feedback_admin_details_link"}}</LinkTo>
                                 {{#if (is-equal this.filterType "hidden")}}

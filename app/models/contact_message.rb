@@ -124,6 +124,7 @@ class ContactMessage < ApplicationRecord
       self.beta_subject = self.settings['subject']
       self.beta_submitter_name = self.settings['name'].presence
       self.beta_feedback_type = self.settings['feedback_type']
+      self.settings['request_virtual_meeting'] = params['request_virtual_meeting'] == true || params['request_virtual_meeting'] == 'true'
       self.beta_severity = self.settings['severity']
       self.recipient = 'beta_feedback'
     end
