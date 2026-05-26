@@ -75694,13 +75694,6 @@ a.md-caseload__action {
   }
 }
 
-/* Beta feedback admin (inbox + detail) */
-.la-beta-feedback-admin__body {
-  font-size: 14px;
-  color: var(--md-ink, $brand-blue-black);
-  width: 160px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
 .md-org-report-input:focus-visible {
   outline: none;
   border-color: rgba($brand-dusty-denim, 0.5);
