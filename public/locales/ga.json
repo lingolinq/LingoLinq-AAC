@@ -874,7 +874,7 @@
   "eyebrows": "Ardú an dá Eyebrows [[ Raising Both Eyebrows",
   "cannot_calibrate": "Ní féidir amharc súl a chalabrú ag an am seo [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Níor aimsíodh aon chlár leis an eochair sin [[ No board found with that key",
-  "bad_sidebar_board_key": "Luach neamhaitheanta, cuir isteach eochair cláir nó cód gníomhaíochta [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Luach neamhaitheanta, cuir isteach eochair cláir nó cód gníomhaíochta [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Rath! Tá rochtain agat anois ar shiombailí préimhe in %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Theip ar chealú an tsíntiúis. Bain triail eile as nó déan teagmháil leis an bhfoireann tacaíochta chun cabhair a fháil. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Cuireadh do shíntiús ar ceal. [[ Your subscription has been canceled.",

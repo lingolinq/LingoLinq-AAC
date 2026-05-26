@@ -1416,7 +1416,7 @@
   "eyebrows": "揚起雙眉 [[ Raising Both Eyebrows",
   "cannot_calibrate": "此時無法校準眼睛注視 [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "沒有找到帶有該鍵的板 [[ No board found with that key",
-  "bad_sidebar_board_key": "無法識別的值，請輸入板鍵或操作碼 [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "無法識別的值，請輸入板鍵或操作碼 [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "成功！您現在可以訪問 %app_name% 中的高級符號！ [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "訂閱取消失敗。請重試或聯繫支持人員尋求幫助。 [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "您的訂閱已被取消。 [[ Your subscription has been canceled.",

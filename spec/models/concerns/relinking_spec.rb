@@ -1235,8 +1235,9 @@ describe Relinking, :type => :model do
 
     it "should replace a default sidebar board and set the user's sidebar at the same time" do
       u = User.create
-      u2 = User.create(user_name: 'example')
-      old = Board.create(:user => u2, :key => 'example/yesno', :public => true, :settings => {'name' => 'old'})
+      yesno_key = User.default_sidebar_boards.first['key']
+      u2 = User.create(user_name: 'lingolinq')
+      old = Board.create(:user => u2, :key => yesno_key, :public => true, :settings => {'name' => 'old'})
       ref = Board.create(:user => u, :public => true, :settings => {'name' => 'ref'})
       leave_alone = Board.create(:user => u, :public => true, :settings => {'name' => 'leave alone'})
       change_inline = Board.create(:user => u, :settings => {'name' => 'change inline'})
@@ -1263,7 +1264,7 @@ describe Relinking, :type => :model do
       expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
       expect(u.reload.sidebar_boards.length).to be > 1
       count = u.sidebar_boards.length
-      expect(u.sidebar_boards[0]['key']).to eq('example/yesno')
+      expect(u.sidebar_boards[0]['key']).to eq(yesno_key)
       
       Board.replace_board_for(u.reload, {:starting_old_board => old.reload, :starting_new_board => new.reload})
       expect(u.settings['preferences']['sidebar_boards'][0]['key']).to eq(new.key)
@@ -1272,8 +1273,9 @@ describe Relinking, :type => :model do
 
     it "should replace a sidebar board when a sub-board of the sidebar board has changed" do
       u = User.create
-      u2 = User.create(user_name: 'example')
-      old = Board.create(:user => u2, :key => 'example/yesno', :public => true, :settings => {'name' => 'old'})
+      yesno_key = User.default_sidebar_boards.first['key']
+      u2 = User.create(user_name: 'lingolinq')
+      old = Board.create(:user => u2, :key => yesno_key, :public => true, :settings => {'name' => 'old'})
       ref = Board.create(:user => u2, :public => true, :settings => {'name' => 'ref'})
       leave_alone = Board.create(:user => u2, :public => true, :settings => {'name' => 'leave alone'})
       change_inline = Board.create(:user => u2, :public => true, :settings => {'name' => 'change inline'})
@@ -1300,7 +1302,7 @@ describe Relinking, :type => :model do
       expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
       expect(u.reload.sidebar_boards.length).to be > 1
       count = u.sidebar_boards.length
-      expect(u.sidebar_boards[0]['key']).to eq('example/yesno')
+      expect(u.sidebar_boards[0]['key']).to eq(yesno_key)
       
       Board.replace_board_for(u.reload, {:starting_old_board => change_inline.reload, :starting_new_board => new.reload})
       u.reload
@@ -1312,8 +1314,9 @@ describe Relinking, :type => :model do
 
     it "should replace a home board and a sidebar board with the same update if both were related" do
       u = User.create
-      u2 = User.create(user_name: 'example')
-      old = Board.create(:user => u2, :key => 'example/yesno', :public => true, :settings => {'name' => 'old'})
+      yesno_key = User.default_sidebar_boards.first['key']
+      u2 = User.create(user_name: 'lingolinq')
+      old = Board.create(:user => u2, :key => yesno_key, :public => true, :settings => {'name' => 'old'})
       ref = Board.create(:user => u2, :public => true, :settings => {'name' => 'ref'})
       leave_alone = Board.create(:user => u2, :public => true, :settings => {'name' => 'leave alone'})
       change_inline = Board.create(:user => u2, :public => true, :settings => {'name' => 'change inline'})
@@ -1342,7 +1345,7 @@ describe Relinking, :type => :model do
       expect(ref.reload.settings['downstream_board_ids']).to eq([old.global_id, leave_alone.global_id, change_inline.global_id])
       expect(u.reload.sidebar_boards.length).to be > 1
       count = u.sidebar_boards.length
-      expect(u.sidebar_boards[0]['key']).to eq('example/yesno')
+      expect(u.sidebar_boards[0]['key']).to eq(yesno_key)
       
       Board.replace_board_for(u.reload, {:starting_old_board => change_inline.reload, :starting_new_board => new.reload})
       u.reload

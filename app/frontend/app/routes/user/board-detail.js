@@ -414,6 +414,10 @@ export default Route.extend({
       _this.stashes.persist('current_mode', 'speak');
     }
 
+    if(typeof controller._syncInlineSidebarFromPrefs === 'function') {
+      controller._syncInlineSidebarFromPrefs();
+    }
+
     // Trigger scanning check after speak mode is set and buttons are rendered
     runLater(function() {
       if(_this.appState && typeof _this.appState.check_scanning === 'function') {

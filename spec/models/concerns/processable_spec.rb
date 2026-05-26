@@ -129,6 +129,11 @@ describe Processable, :type => :model do
       expect(u.generate_user_name("pages")).to eq("pages_1")
       
     end
+
+    it "allows the official lingolinq system username" do
+      u = User.new
+      expect(u.generate_user_name("lingolinq")).to eq("lingolinq")
+    end
   end  
 
   describe "generate_board_key" do

@@ -874,7 +874,7 @@
   "eyebrows": "Levantando as duas sobrancelhas [[ Raising Both Eyebrows",
   "cannot_calibrate": "O olhar não pode ser calibrado neste momento [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Nenhuma placa encontrada com essa chave [[ No board found with that key",
-  "bad_sidebar_board_key": "Valor não reconhecido, insira uma chave de placa ou código de ação [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Valor não reconhecido, insira uma chave de placa ou código de ação [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Sucesso! Agora você tem acesso a símbolos premium em %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Falha no cancelamento da assinatura. Tente novamente ou entre em contato com o suporte para obter ajuda. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Sua assinatura foi cancelada. [[ Your subscription has been canceled.",
