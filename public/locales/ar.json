@@ -883,7 +883,7 @@
   "eyebrows": "رفع كلا الحاجبين [[ Raising Both Eyebrows",
   "cannot_calibrate": "لا يمكن معايرة نظرة العين في هذا الوقت [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "لم يتم العثور على لوحة مع هذا المفتاح [[ No board found with that key",
-  "bad_sidebar_board_key": "قيمة غير معروفة، يرجى إدخال مفتاح اللوحة أو رمز الإجراء [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "قيمة غير معروفة، يرجى إدخال مفتاح اللوحة أو رمز الإجراء [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "نجاح! يمكنك الآن الوصول إلى الرموز المميزة في %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "فشل إلغاء الاشتراك. يرجى المحاولة مرة أخرى أو الاتصال بالدعم للحصول على المساعدة. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "لقد تم إلغاء اشتراكك. [[ Your subscription has been canceled.",

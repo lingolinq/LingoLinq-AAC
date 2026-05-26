@@ -874,7 +874,7 @@
   "eyebrows": "Підняття обох брів [[ Raising Both Eyebrows",
   "cannot_calibrate": "Наразі не можна відкалібрувати погляд [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Не знайдено жодної плати з цим ключем [[ No board found with that key",
-  "bad_sidebar_board_key": "Нерозпізнане значення, будь ласка, введіть ключ дошки або код дії [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Нерозпізнане значення, будь ласка, введіть ключ дошки або код дії [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Успіху! Тепер у вас є доступ до преміальних символів у %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Не вдалося скасувати підписку. Будь ласка, спробуйте ще раз або зверніться до служби підтримки, щоб отримати допомогу. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Вашу підписку скасовано. [[ Your subscription has been canceled.",

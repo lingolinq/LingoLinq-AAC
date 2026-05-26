@@ -874,7 +874,7 @@
   "eyebrows": "Anheben beider Augenbrauen [[ Raising Both Eyebrows",
   "cannot_calibrate": "Der Blick kann derzeit nicht kalibriert werden [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Kein Board mit diesem Schlüssel gefunden [[ No board found with that key",
-  "bad_sidebar_board_key": "Nicht erkannter Wert, bitte geben Sie einen Board-Schlüssel oder Aktionscode ein [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Nicht erkannter Wert, bitte geben Sie einen Board-Schlüssel oder Aktionscode ein [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Erfolg! Sie haben jetzt Zugriff auf Premium-Symbole in %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Kündigung des Abonnements fehlgeschlagen. Bitte versuchen Sie es erneut oder wenden Sie sich an den Support, um Hilfe zu erhalten. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Ihr Abonnement wurde gekündigt. [[ Your subscription has been canceled.",

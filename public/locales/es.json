@@ -1410,7 +1410,7 @@
   "eyebrows": "Levantando ambas cejas [[ Raising Both Eyebrows",
   "cannot_calibrate": "La mirada del ojo no se puede calibrar en este momento [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "No se encontró ningún tablero con esa llave [[ No board found with that key",
-  "bad_sidebar_board_key": "Valor no recuperado, ingrese una clave de tablero o un código de acción [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Valor no recuperado, ingrese una clave de tablero o un código de acción [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "¡Éxito! ¡Ahora tiene acceso a símbolos premium en %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Falló la cancelación de la suscripción. Vuelva a intentarlo o póngase en contacto con el servicio de asistencia para obtener ayuda. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Tu suscripción ha sido cancelada. [[ Your subscription has been canceled.",

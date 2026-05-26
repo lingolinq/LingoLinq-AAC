@@ -999,19 +999,36 @@ export default Controller.extend({
       this.send('hide_temporary_sidebar');
     },
     special: function(opts) {
-      // sidebar actions
-      if(opts.action == ':app') {
+      // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)
+      var action = emberGet(opts, 'action');
+      var arg = emberGet(opts, 'arg');
+      var name = emberGet(opts, 'name');
+      if(!action) { return; }
+      if(action == ':app' || action.indexOf(':app(') === 0) {
+        var launchArg = arg;
+        if(!launchArg) {
+          var appMatch = action.match(/^:app\((.+)\)$/);
+          launchArg = appMatch && appMatch[1];
+        }
         if(capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android')) {
-          capabilities.apps.launch(opts.arg).then(null, function(err) {
+          if(!launchArg) {
+            modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
+            return;
+          }
+          capabilities.apps.launch(launchArg).then(null, function(err) {
             modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
           });
         } else {
           modal.error(i18n.t('no_app_launches', "App launches not available in this view"), true);
         }
       } else {
+        var vocalization = action;
+        if(arg != null && arg !== '' && vocalization.indexOf('(') === -1) {
+          vocalization = vocalization + '(' + arg + ')';
+        }
         var obj = {
-          label: opts.name,
-          vocalization: opts.action,
+          label: name,
+          vocalization: vocalization,
           prevent_return: true,
           button_id: null,
           source: 'click',
