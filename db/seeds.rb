@@ -6,8 +6,9 @@
 #
 # Sensitive credentials: Use environment variables. In production/staging, SEED_*_PASSWORD
 # must be set; in development/test, defaults are used if not set.
-#   SEED_EXAMPLE_PASSWORD - example user (default in dev: 'password')
-#   SEED_ADMIN_PASSWORD   - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_EXAMPLE_PASSWORD   - example user (default in dev: 'password')
+#   SEED_ADMIN_PASSWORD     - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_DEMO_PASSWORD      - demo user(s) (default in dev: 'password')
 #   SEED_LINGOLINQ_PASSWORD - lingolinq system boards user (default in dev: 'password')
 
 def seed_password(env_key, dev_default)
