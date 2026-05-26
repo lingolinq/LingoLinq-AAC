@@ -3527,6 +3527,44 @@ export default Controller.extend(prefClasses, {
     return max_id + 1;
   },
 
+  _sidebarAppController: function() {
+    var appController = this.get('app_state.controller');
+    if(!appController || typeof appController.send !== 'function') {
+      appController = getOwner(this).lookup('controller:application');
+    }
+    return appController;
+  },
+
+  _maybeCloseInlineSidebarAfterAction: function() {
+    var prefs = this.get('app_state.currentUser.preferences') || {};
+    if(prefs.disable_quick_sidebar) { return; }
+    if(prefs.quick_sidebar || prefs.lock_quick_sidebar) { return; }
+    this.set('inlineSidebarOpen', false);
+  },
+
+  _syncInlineSidebarFromPrefs: function() {
+    var user = this.get('app_state.currentUser');
+    if(!user) { return; }
+    var prefs = user.get('preferences') || {};
+    if(prefs.disable_quick_sidebar) {
+      this.set('inlineSidebarOpen', false);
+      return;
+    }
+    if(prefs.quick_sidebar && !this.get('edit_mode')) {
+      this.set('inlineSidebarOpen', true);
+    }
+  },
+
+  syncInlineSidebarOnPrefChange: observer(
+    'app_state.currentUser.preferences.quick_sidebar',
+    'app_state.currentUser.preferences.disable_quick_sidebar',
+    'app_state.currentUser.preferences.lock_quick_sidebar',
+    'edit_mode',
+    function() {
+      this._syncInlineSidebarFromPrefs();
+    }
+  ),
+
   // Push current board state to navigation history
   _push_nav_history: function() {
     var user = this.get('user');
@@ -5484,19 +5522,31 @@ export default Controller.extend(prefClasses, {
     },
 
     toggleInlineSidebar: function() {
+      var prefs = this.get('app_state.currentUser.preferences') || {};
+      if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
+        return;
+      }
       this.toggleProperty('inlineSidebarOpen');
     },
     sidebar_jump: function(key, board) {
-      var user = this.get('user');
-      if (!user || !key) { return; }
-      var un = user.get('user_name');
-      var boardname = key.split('/').slice(1).join('/');
-      if (boardname) {
-        this.get('router').transitionTo('user.board-detail', un, boardname);
+      if(!key) { return; }
+      this._push_nav_history();
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('jump', key, 'sidebar', board);
       }
+      this._maybeCloseInlineSidebarAfterAction();
+    },
+    sidebar_special: function(board) {
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('special', board);
+      }
+      this._maybeCloseInlineSidebarAfterAction();
     },
     sidebar_alert: function() {
-      // placeholder for sidebar alert action
+      utterance.alert({button_triggered: true});
+      this._maybeCloseInlineSidebarAfterAction();
     },
 
     // ── Edit Toolbar Actions ──

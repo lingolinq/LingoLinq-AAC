@@ -553,6 +553,11 @@ describe('app_state', function() {
     it("should call toggle_mode", function() {
       var found_mode = null;
       var found_options = null;
+      app_state.set('sessionUser', Ember.Object.create({
+        preferences: {
+          home_board: {key: 'lingolinq/yesno'}
+        }
+      }));
       stub(app_state, 'toggle_mode', function(mode, options) {
         found_mode = mode;
         found_options = options;
@@ -560,10 +565,15 @@ describe('app_state', function() {
       stub(app_state.controller, 'transitionToRoute', function() { });
       app_state.home_in_speak_mode();
       expect(found_mode).toEqual('speak');
-      expect(found_options).toEqual({force: true, override_state: {key: 'example/yesno'}});
+      expect(found_options).toEqual({force: true, override_state: {key: 'lingolinq/yesno'}});
     });
     
     it("should transition to the right route", function() {
+      app_state.set('sessionUser', Ember.Object.create({
+        preferences: {
+          home_board: {key: 'lingolinq/yesno'}
+        }
+      }));
       stub(app_state, 'toggle_mode', function(mode, options) {
       });
       var route = null;
@@ -574,7 +584,7 @@ describe('app_state', function() {
       });
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/yesno');
+      expect(key).toEqual('lingolinq/yesno');
     });
     
     it("should use the current user's home board", function() {
@@ -596,21 +606,27 @@ describe('app_state', function() {
       expect(key).toEqual('example/inflections');
     });
     
-    it("should fall back to a stashed board, or a hard-coded board", function() {
+    it("should fall back to a stashed board when no home board is set", function() {
       stub(app_state, 'toggle_mode', function(mode, options) {
       });
       var route = null;
       var key = null;
+      var warned = false;
+      stub(modal, 'warning', function() {
+        warned = true;
+      });
       stub(app_state.controller, 'transitionToRoute', function(r, k) {
         route = r;
         key = k;
       });
       stashes.set('root_board_state', null);
       app_state.set('sessionUser', null);
+      app_state.set('currentUser', null);
 
       app_state.home_in_speak_mode();
-      expect(route).toEqual('board');
-      expect(key).toEqual('example/yesno');
+      expect(warned).toEqual(true);
+      expect(route).toEqual(null);
+      expect(key).toEqual(null);
       
       stashes.set('root_board_state', {key: 'example/keyboard'});
       app_state.home_in_speak_mode();

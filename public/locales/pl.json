@@ -1416,7 +1416,7 @@
   "eyebrows": "Uniesienie obu brwi [[ Raising Both Eyebrows",
   "cannot_calibrate": "W tej chwili nie można skalibrować wzroku [[ Eye gaze cannot be calibrated at this time",
   "board_not_found": "Nie znaleziono tablicy z tym kluczem [[ No board found with that key",
-  "bad_sidebar_board_key": "Niezidentyfikowana wartość, wprowadź klucz tablicy lub kod akcji [[ Unrecogonized value, please enter a board key or action code",
+  "bad_sidebar_board_key": "Niezidentyfikowana wartość, wprowadź klucz tablicy lub kod akcji [[ Unrecognized value, please enter a board key or action code",
   "extras_purchased": "Sukces! Masz teraz dostęp do symboli premium w %app_name%! [[ Success! You now have access to premium symbols in %app_name%!",
   "user_subscription_cancel_failed": "Anulowanie subskrypcji nie powiodło się. Spróbuj ponownie lub skontaktuj się z pomocą techniczną, aby uzyskać pomoc. [[ Subscription cancellation failed. Please try again or contact support for help.",
   "user_subscription_canceled": "Twoja subskrypcja została anulowana. [[ Your subscription has been canceled.",

@@ -828,7 +828,8 @@ export default Service.extend({
    * current screen is already board-alt. Legacy glob `board` is used for obf/, integrations/,
    * and single-segment keys where the user/boardname split doesn't apply.
    */
-  transitionToBoardForCurrentUiStyle: function(router, boardKey) {
+  transitionToBoardForCurrentUiStyle: function(router, boardKey, opts) {
+    opts = opts || {};
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
     var routeName = '';
     try {
@@ -857,13 +858,15 @@ export default Service.extend({
     //   1. If we're ALREADY on board-alt, stay on board-alt — keeps
     //      in-session folder navigation continuous (don't bounce a
     //      user mid-session into the other shell on every folder tap).
+    //      Sidebar jumps pass honorViewPreference so quick links always
+    //      land in the communicator's preferred shell instead.
     //   2. Otherwise honor the communicator's saved
     //      `board_view_style` preference: 'classic' → board-alt,
     //      anything else (default 'modern') → board-detail. This is
     //      what makes post-login landing drop the user into their
     //      chosen view. Read referenced_user first (the person
     //      actually communicating in speak mode), then currentUser.
-    if(routeName.indexOf('board-alt') !== -1) {
+    if(!opts.honorViewPreference && routeName.indexOf('board-alt') !== -1) {
       router.transitionTo('user.board-alt', userName, boardSlug);
       return;
     }
@@ -931,7 +934,9 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          _this.transitionToBoardForCurrentUiStyle(router, new_state.key);
+          _this.transitionToBoardForCurrentUiStyle(router, new_state.key, {
+            honorViewPreference: !!(new_state && new_state.source === 'sidebar')
+          });
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -3823,7 +3828,7 @@ export default Service.extend({
       }
     } else if(specialty_button) {
       this.track_depth('clear');
-      var res = this.specialty_actions(button.vocalization);
+      var res = this.specialty_actions(obj.vocalization || button.vocalization);
       var auto_return_possible = !!specialty_button.default_speak || res.auto_return_possible;
       if(auto_return_possible && !res.already_navigating && !skip_auto_return) {
         this.possible_auto_home(obj);
