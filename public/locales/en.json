@@ -1329,6 +1329,8 @@
   "board_detail_settings_image_background_color_all": "Background Color for All Board Buttons",
   "board_layout": "Board Layout",
   "grid_gap_with_hint": "Grid Gap (Space between buttons)",
+  "grid_gap": "Grid Gap",
+  "space_between_buttons_hint": "(Space between buttons)",
   "board_detail_rows": "Rows",
   "board_detail_remove_row": "Remove Row",
   "board_detail_add_row": "Add Row",

@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import $ from 'jquery';
 import editManager from '../utils/edit_manager';
+import labelFit from '../utils/label_fit';
 import { observer } from '@ember/object';
 
 export default Component.extend({
@@ -58,5 +59,17 @@ export default Component.extend({
   focusOut: function() {
     var id = this._getButtonId();
     editManager.lucky_symbol(id);
+    // Re-fit this one label if it's a board-detail symbol-card label
+    // input AND the grid has shrink-to-fit enabled. Guards against
+    // refitting label-fields used elsewhere (button stash, classic
+    // board, folder-tab inputs) which aren't part of the grid's
+    // managed label set.
+    var el = this.get('element');
+    if(el && el.classList && el.classList.contains('md-board-detail-symbol-card__label-input')) {
+      var gridEl = el.closest && el.closest('.md-board-detail-grid');
+      if(gridEl && gridEl.classList.contains('md-board-detail-grid--shrink-labels')) {
+        labelFit.fit_one(el, gridEl);
+      }
+    }
   }
 });

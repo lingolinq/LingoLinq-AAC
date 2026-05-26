@@ -9,14 +9,31 @@
       <div class="create-board-actions">
         {{#if this.ai_mode}}
           {{!-- AI mode: other creation options are hidden; an
-               editing-style status pill plus a way back to the rest. --}}
+               editing-style status pill plus a way back to the rest.
+               The badge title + caption swap based on `ai_labels_generated`:
+               BEFORE Generate Labels with AI fires, the badge prompts
+               the user to describe the board ("Describe the board
+               below, then generate"); AFTER labels come back, the
+               badge guides them to the final Create Board step
+               ("Click Create Board to complete generation"). The user
+               is still mid-flow at that point — labels exist but the
+               board hasn't been persisted yet — so "Generating with
+               AI" stays current-tense. --}}
           <div class="nb-ai-mode-wrap">
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
-                <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}" aria-hidden="true"></span>
-                {{t "Generate with AI" key="ai_mode_badge"}}
+                <span class="nb-ai-sparkle-badge" aria-hidden="true">
+                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                </span>
+                <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
-              <span class="nb-ai-mode-badge__caption">{{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}</span>
+              <span class="nb-ai-mode-badge__caption">
+                {{#if this.ai_labels_generated}}
+                  {{t "Click Create Board to complete generation" key="ai_mode_badge_caption_after_labels"}}
+                {{else}}
+                  {{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}
+                {{/if}}
+              </span>
             </span>
             <button type="button" class="nb-ai-mode-other" {{action "set_create_mode" "regular"}}>
               {{t "Other Create Board Methods" key="other_create_methods"}}
@@ -33,8 +50,24 @@
             {{t "Paste HTML" key="paste_html"}}
           </button>
           {{#if this.ai_board_generation_enabled}}
+            {{!-- Generate with AI sits on the same row as Import /
+                 Paste, but absolute-positioned to be centered on the
+                 page (rather than packed inline next to Paste). See
+                 .nb-generate-ai-btn positioning rules in app.scss —
+                 same left:50% / transform centering the AI-mode badge
+                 uses, so click → in-place transition. --}}
             <button type="button" class="btn btn-default nb-generate-ai-btn" {{action "set_create_mode" "ai"}}>
-              {{t "Generate with AI" key="generate_with_ai"}}
+              <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
+                <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
+              </span>
+              {{!-- Per-letter spans for the cascading bounce-in (matches
+                   the "Communicate" hero on the boards page). aria-label
+                   on the wrapper preserves the i18n key for screen
+                   readers; the visible letters are aria-hidden so they
+                   are not read individually. --}}
+              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>
+                <span class="ub-letter" style="animation-delay:0s" aria-hidden="true">G</span><span class="ub-letter" style="animation-delay:0.05s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.10s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.15s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.20s" aria-hidden="true">r</span><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.30s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.35s" aria-hidden="true">e</span><span class="ub-letter ub-letter--space" style="animation-delay:0.40s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.45s" aria-hidden="true">w</span><span class="ub-letter" style="animation-delay:0.50s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.60s" aria-hidden="true">h</span><span class="ub-letter ub-letter--space" style="animation-delay:0.65s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.70s" aria-hidden="true">A</span><span class="ub-letter" style="animation-delay:0.75s" aria-hidden="true">I</span>
+              </span>
             </button>
           {{/if}}
         {{/if}}
@@ -73,10 +106,18 @@
           <div class="nb-ai-mode-wrap">
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
-                <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}" aria-hidden="true"></span>
-                {{t "Generate with AI" key="ai_mode_badge"}}
+                <span class="nb-ai-sparkle-badge" aria-hidden="true">
+                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                </span>
+                <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
-              <span class="nb-ai-mode-badge__caption">{{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}</span>
+              <span class="nb-ai-mode-badge__caption">
+                {{#if this.ai_labels_generated}}
+                  {{t "Click Create Board to complete generation" key="ai_mode_badge_caption_after_labels"}}
+                {{else}}
+                  {{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}
+                {{/if}}
+              </span>
             </span>
             <button type="button" class="nb-ai-mode-other" {{action "set_create_mode" "regular"}}>
               {{t "Other Create Board Methods" key="other_create_methods"}}
@@ -93,8 +134,15 @@
             {{t "Paste HTML" key="paste_html"}}
           </button>
           {{#if this.ai_board_generation_enabled}}
+            {{!-- Same-row, page-centered Generate with AI button. See
+                 .nb-generate-ai-btn positioning rules in app.scss. --}}
             <button type="button" class="la-btn la-btn--ghost nb-generate-ai-btn" {{action "set_create_mode" "ai"}}>
-              {{t "Generate with AI" key="generate_with_ai"}}
+              <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
+                <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
+              </span>
+              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>
+                <span class="ub-letter" style="animation-delay:0s" aria-hidden="true">G</span><span class="ub-letter" style="animation-delay:0.05s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.10s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.15s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.20s" aria-hidden="true">r</span><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.30s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.35s" aria-hidden="true">e</span><span class="ub-letter ub-letter--space" style="animation-delay:0.40s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.45s" aria-hidden="true">w</span><span class="ub-letter" style="animation-delay:0.50s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.60s" aria-hidden="true">h</span><span class="ub-letter ub-letter--space" style="animation-delay:0.65s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.70s" aria-hidden="true">A</span><span class="ub-letter" style="animation-delay:0.75s" aria-hidden="true">I</span>
+              </span>
             </button>
           {{/if}}
         {{/if}}
@@ -160,12 +208,22 @@
         <section class="nb-section">
           <div class="nb-section__head">
             <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
+            {{!-- Checklist hints are about typing / pasting / CSV-uploading
+                 labels, which only happens in NON-AI mode (or after the
+                 AI has populated the labels). Stay gated on
+                 `show_full_size_section`. --}}
             {{#if this.show_full_size_section}}
             <ul class="nb-checklist nb-checklist--inset nb-section__head-checklist">
               <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
               <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_label"}}</li>
               <li class="nb-checklist__item">{{t "Type, paste, or upload CSV" key="new_board_size_hint_input"}}</li>
             </ul>
+            {{/if}}
+            {{!-- Rows / columns steppers are visible in ALL modes,
+                 including AI pre-generation. The AI label generator
+                 passes the current rows/columns to the backend (see
+                 generate_labels_with_ai), so the user MUST be able to
+                 set the target grid size BEFORE clicking Generate. --}}
             <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
               <div class="nb-stepper-mini">
                 <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
@@ -188,7 +246,6 @@
                 </button>
               </div>
             </div>
-            {{/if}}
           </div>
           <div class="nb-section__body">
             {{#if this.show_full_size_section}}
@@ -523,7 +580,7 @@
             {{!-- Empty edit rail (shell only) — same chrome/styles as
                  the board-detail edit panel. No functionality wired
                  yet; labels present so the layout can be reviewed. --}}
-            <aside class="md-board-edit-right-panel nb-create-rail" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
+            <aside class="md-board-edit-right-panel nb-create-rail {{if (is_equal this.preview_mode "dark") "md-board-detail--dark"}}" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
               <div class="md-board-edit-right-panel__header">
                 <h3 class="md-board-edit-right-panel__title">{{t "Edit Tools" key="board_edit_tools_title"}}</h3>
                 {{!-- Light/Dark toggle relocated here from the grid; it
@@ -848,7 +905,7 @@
                                  in the Size & Labels section are left in
                                  place; this is an additional editor. --}}
                             <div class="md-board-edit-right-panel__row-pair">
-                              <span class="md-board-edit-right-panel__row-pair-label md-board-edit-right-panel__row-pair-label--center">{{t "Grid Gap (Space between buttons)" key="grid_gap_with_hint"}}</span>
+                              <span class="md-board-edit-right-panel__row-pair-label md-board-edit-right-panel__row-pair-label--center">{{t "Grid Gap" key="grid_gap"}} <span class="md-board-edit-right-panel__row-pair-label-hint">{{t "(Space between buttons)" key="space_between_buttons_hint"}}</span></span>
                               <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
                                 <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_spacing_at_min}} data-tooltip={{t "Tighter" key="board_detail_settings_tighter"}} aria-label={{t "Tighter" key="board_detail_settings_tighter"}} {{action "step_display_pref" "button_spacing" -1}}>
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
@@ -998,6 +1055,27 @@
                    show_full_size_section so the full section renders. --}}
               <div class="nb-ai-generate">
                 <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
+                {{!-- Over-limit warning: shows when the user dials the
+                     rows/cols steppers past the recommended 112-button
+                     ceiling. Also blocks the Generate button (via
+                     ai_generate_disabled) until the user dials back
+                     below 112. Larger boards become hard to scan, AI
+                     label quality drops, and the per-button symbol
+                     lookup rate-limits aggressively. --}}
+                {{#if this.ai_button_count_over_limit}}
+                  <div class="nb-alert nb-alert--warning" role="alert">
+                    <span class="nb-alert__icon" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <div class="nb-alert__body">
+                      <p class="nb-alert__text">{{t "Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation." n=this.ai_button_count key="ai_board_size_over_limit"}}</p>
+                    </div>
+                  </div>
+                {{/if}}
                 {{#if this.ai_generate_error}}
                   <div class="nb-alert nb-alert--warning" role="alert">
                     <span class="nb-alert__icon" aria-hidden="true">

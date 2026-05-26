@@ -81,7 +81,25 @@ export default Component.extend({
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
     this.set('labels_list_open', false);
-    this.set('creating_for_someone_else', true);
+    /* Default "Are you creating this board for someone else?" by role.
+       Supporters (parents, therapists, teachers, SLPs, etc.) almost
+       always build boards FOR a communicator, so the toggle defaults
+       to Yes for them. Communicators themselves (the AAC users) almost
+       always build for self, so the toggle defaults to No. The user
+       can flip it either way; this is just the initial state.
+       `supporter_role` is the canonical role check on the User model
+       (preferences.role == 'supporter'); communicators and users who
+       haven't picked a role (null / 'unspecified') both fall into the
+       !supporter_role branch, which matches how the backend treats
+       unspecified-as-communicator (see User#supporter_registration?). */
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+    /* Tracks whether the user has manually flipped the toggle this session.
+       The observer below re-applies the role default once `sessionUser`
+       finishes hydrating (the post-hard-reload race), but it must NEVER
+       clobber an explicit user choice — even one made before hydration
+       completes. Flipped true by `toggleCreatingForSomeoneElse`. */
+    this._user_toggled_for_else = false;
     // Map of label.toLowerCase() -> { fill, border, type } populated as
     // labels are looked up via /api/v1/search/batch_parts_of_speech.
     this.set('_label_colors', {});
@@ -136,6 +154,21 @@ export default Component.extend({
     this.updateShowGrid();
   },
 
+  /* Re-apply the "for someone else" default once `sessionUser` finishes
+     hydrating. On a hard browser reload, the component's `init()` runs
+     before `app-state.find_user()` resolves, so `sessionUser.supporter_role`
+     is still `undefined` and the supporter-defaults-to-Yes branch in `init`
+     silently picks No. This observer fires when `sessionUser` (or its
+     `supporter_role` flag) finally arrives and corrects the default — but
+     only when the user has not manually flipped the toggle, so an explicit
+     choice is never clobbered by a late-arriving session. */
+  _apply_supporter_default: observer('appState.sessionUser', 'appState.sessionUser.supporter_role', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this._user_toggled_for_else) { return; }
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+  }),
+
   for_user_id: computed('model.for_user_id', function() {
     // Return null when the model points at 'self' so the dropdown shows
     // its placeholder ("Select who this board is for") instead of acting
@@ -146,14 +179,16 @@ export default Component.extend({
     return id;
   }),
 
-  /** Soft attention cue for the supervisee dropdown. The toggle defaults
-   *  to "Yes" (`creating_for_someone_else` initialized to true), which
-   *  reveals the dropdown — but until the user picks an actual person
-   *  the dropdown is empty. We illuminate it with a teal glow so it
-   *  visibly asks for input, without making it a hard validation error
-   *  (the for-user pick is still optional at submit time per the
-   *  current `createBoardDisabled` rules). Clears the moment the user
-   *  selects someone OR flips the toggle to "No". */
+  /** Soft attention cue for the supervisee dropdown. When the toggle is
+   *  set to "Yes" (the default for supporter-role users; communicators
+   *  default to "No"), the dropdown is revealed — but until the user
+   *  picks an actual person the dropdown is empty. We illuminate it
+   *  with a teal glow so it visibly asks for input, without making it
+   *  a hard validation error (the for-user pick is still optional at
+   *  submit time per the current `createBoardDisabled` rules). Clears
+   *  the moment the user selects someone OR flips the toggle to "No"
+   *  (which is the initial state for communicators, so they see no
+   *  glow until they explicitly flip to Yes). */
   for_user_needs_attention: computed('creating_for_someone_else', 'for_user_id', 'show_user_options', function() {
     if(!this.get('show_user_options')) { return false; }
     if(!this.get('creating_for_someone_else')) { return false; }
@@ -605,11 +640,40 @@ export default Component.extend({
   }),
 
   /** "Generate Labels with AI" stays disabled until the user has
-   *  entered a board description (the AI prompt) and isn't already
-   *  mid-generation. */
-  ai_generate_disabled: computed('ai_generating', 'model.description', function() {
+   *  entered a board description (the AI prompt), isn't already
+   *  mid-generation, and the rows × columns total is at or below the
+   *  recommended 112-button ceiling. Going over the ceiling shows
+   *  the warning banner in the template and blocks generation until
+   *  the user dials the steppers back down. */
+  ai_generate_disabled: computed('ai_generating', 'model.description', 'ai_button_count_over_limit', function() {
     if(this.get('ai_generating')) { return true; }
+    if(this.get('ai_button_count_over_limit')) { return true; }
     return !(this.get('model.description') || '').trim().length;
+  }),
+
+  /** Recommended max for an AI-generated board. AAC boards much larger
+   *  than this become hard to scan visually, the AI's per-button
+   *  label quality drops off as the grid grows, and the symbols
+   *  endpoint we call for each label rate-limits aggressively. Set
+   *  as an instance constant so future tweaks land in one place. */
+  MAX_AI_BUTTONS: 112,
+
+  /** True when the user's chosen rows × columns exceeds the
+   *  recommended 112-button ceiling. Drives the warning banner in
+   *  the AI generation panel and blocks the Generate button via
+   *  `ai_generate_disabled`. */
+  ai_button_count_over_limit: computed('model.grid.rows', 'model.grid.columns', function() {
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    return (rows * cols) > this.get('MAX_AI_BUTTONS');
+  }),
+
+  /** Live button-count for the warning banner copy ("142 buttons —
+   *  please reduce to 112 or fewer"). */
+  ai_button_count: computed('model.grid.rows', 'model.grid.columns', function() {
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    return rows * cols;
   }),
 
   /** Live "what's missing" list for the Create button hint. Mirrors the
@@ -703,6 +767,20 @@ export default Component.extend({
     return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
   }),
 
+  /** Position-preserving labels array. Same source as `parsed_labels`
+   *  but WITHOUT the empty-string filter, so the array index matches
+   *  the grid cell position 1:1. Used by the preview grid + drag-drop
+   *  handlers so blank tiles in the MIDDLE of the grid can be
+   *  drag-targets and drag-sources. `parsed_labels` stays filtered for
+   *  the consumers that scan labels for lookups/colors/images — empty
+   *  strings there would cause useless API requests and false
+   *  duplicate/POS warnings. */
+  positional_labels: computed('model.grid.labels', function() {
+    var str = this.get('model.grid.labels') || '';
+    if(typeof str !== 'string') { str = '' + str; }
+    return str.split(/\n|,/).map(function(s) { return s.trim(); });
+  }),
+
   /** Combined map of POS auto-colors + user-applied paint, keyed by
    *  label.toLowerCase(). Painted overrides win — same precedence as
    *  the preview grid's `bg_style` resolution above and the live
@@ -768,18 +846,37 @@ export default Component.extend({
     return swatches;
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', function() {
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
     cols = Math.max(0, Math.min(20, cols));
     var order = this.get('model.grid.labels_order') || 'rows';
-    var labels = this.get('parsed_labels') || [];
+    // Use positional_labels so blanks in the MIDDLE of the grid
+    // (created by drag-dropping a labeled tile onto a blank, or by
+    // dragging a blank onto a labeled tile) keep their position
+    // rather than getting compacted out.
+    var labels = this.get('positional_labels') || [];
     var editIdx = this.get('_editIdx');
     var label_colors = this.get('_label_colors') || {};
     var painted_colors = this.get('_painted_colors') || {};
     var label_images = this.get('_label_images') || {};
     var paint_active = !!this.get('paint_mode');
+    // Skin-tone variant transformation — mirrors board-detail's
+    // _build_from_raw which calls LingoLinq.Board.skin_image_map
+    // (see board-detail.js:825) on the freshly fetched image map.
+    // Each label's cached image_url is the raw symbol URL from
+    // /api/v1/search/symbols; here we wrap it through
+    // LingoLinq.Board.skinned_url so the preview honors the user's
+    // chosen skin tone. `which_skinner` translates the preference
+    // value ('light', 'medium', 'mix', etc.) into the variant
+    // identifier the URL builder expects; `upgrade_url_for_skin_variants`
+    // promotes legacy URLs into the variant-capable form. Computed
+    // once per render (deps include preferences.skin) so the swap
+    // happens reactively when the user changes the skin dropdown.
+    var skin = this.get('appState.sessionUser.preferences.skin');
+    var skin_active = !!(skin && skin !== 'default' && LingoLinq && LingoLinq.Board && LingoLinq.Board.skinned_url);
+    var which_skin = skin_active ? LingoLinq.Board.which_skinner(skin) : null;
     // Build a duplicate-label set so each cell can flag itself as a
     // duplicate independently — drives the warning icon + glow on the
     // preview card. Keyed lowercase to match label-chips' duplicate
@@ -841,6 +938,13 @@ export default Component.extend({
         // user previewed.
         var image_entry = label ? label_images[label.toLowerCase()] : null;
         var image_url = (image_entry && image_entry.image_url) || null;
+        if(image_url && skin_active && which_skin) {
+          image_url = LingoLinq.Board.skinned_url(
+            LingoLinq.Board.upgrade_url_for_skin_variants(image_url),
+            which_skin,
+            false
+          );
+        }
         row.push({
           row: r,
           col: c,
@@ -849,10 +953,13 @@ export default Component.extend({
           empty: !label,
           editing: editing,
           // Drag is disabled while a cell is being edited (otherwise dragging
-          // the click+hold to position the caret could initiate a swap),
-          // while paint mode is active (clicks are paints, not drags), and
-          // for empty placeholder cells. Template binds `draggable={{...}}`.
-          draggable: !!(label && !editing && !paint_active),
+          // the click+hold to position the caret could initiate a swap) or
+          // while paint mode is active (clicks are paints, not drags).
+          // Blank cells ARE draggable so the user can rearrange empty
+          // positions (e.g. drag a blank slot ONTO a labeled tile to push
+          // the label into the slot and leave the source blank). Template
+          // binds `draggable={{...}}`.
+          draggable: !!(!editing && !paint_active),
           painted: !!painted,
           is_duplicate: is_duplicate,
           no_category: no_category,
@@ -1400,6 +1507,10 @@ export default Component.extend({
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');
       this.set('creating_for_someone_else', newValue);
+      // Mark the toggle as user-driven so `_apply_supporter_default`
+      // (above) does not re-stamp the role default if `sessionUser`
+      // happens to hydrate after this click.
+      this._user_toggled_for_else = true;
       if(!newValue) {
         // Switching to "No" — board belongs to current user.
         this.set('model.for_user_id', 'self');
@@ -1425,11 +1536,10 @@ export default Component.extend({
       var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
       var order = this.get('model.grid.labels_order') || 'rows';
       var idx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
-      var labels = this.get('parsed_labels') || [];
-      if(idx >= labels.length || !labels[idx]) {
-        if(event && event.preventDefault) { event.preventDefault(); }
-        return;
-      }
+      // Blank cells can also be drag sources — dragging a blank slot
+      // onto a labeled tile pushes the label into the source slot
+      // and leaves the target blank. No payload check needed; the
+      // source index alone tells cellDrop how to swap.
       if(event && event.dataTransfer) {
         event.dataTransfer.effectAllowed = 'move';
         try { event.dataTransfer.setData('text/plain', String(idx)); } catch(e) { }
@@ -1455,11 +1565,25 @@ export default Component.extend({
       if(sourceIdx === targetIdx) { return; }
       var editIdx = this.get('_editIdx');
       if(editIdx === sourceIdx || editIdx === targetIdx) { return; }
-      var labels = (this.get('parsed_labels') || []).slice();
-      if(targetIdx >= labels.length || !labels[targetIdx]) { return; }
+      // Operate on positional_labels so blanks in the middle of the
+      // grid keep their position. Pad the array to the larger of
+      // (source, target) so a swap involving an out-of-bounds blank
+      // position writes an explicit empty string there. After the
+      // swap, trim ONLY trailing empties (preserving middle blanks)
+      // so the persisted labels string doesn't accumulate trailing
+      // blank lines on every drag.
+      var labels = (this.get('positional_labels') || []).slice();
+      var maxIdx = Math.max(sourceIdx, targetIdx);
+      while(labels.length <= maxIdx) { labels.push(''); }
+      // Source and target can both be blank; the swap is a no-op only
+      // when both are equal strings (which the index check above already
+      // rules out for the same-cell case).
+      if((labels[sourceIdx] || '') === (labels[targetIdx] || '')) { return; }
       var tmp = labels[sourceIdx];
       labels[sourceIdx] = labels[targetIdx];
       labels[targetIdx] = tmp;
+      // Trim trailing empties only — middle blanks stay in place.
+      while(labels.length > 0 && labels[labels.length - 1] === '') { labels.pop(); }
       this.set('_dragSourceIdx', null);
       var _this = this;
       var newValue = labels.join('\n');
@@ -1545,6 +1669,19 @@ export default Component.extend({
      *  previously did nothing. */
     cellClicked: function(idx, event) {
       if(!this.get('paint_mode')) { return; }
+      // Defer to the X (remove) button when the user clicked it or
+      // any of its descendants (e.g. the SVG inside). The X uses
+      // {{action "removeCellAt" ... bubbles=false}} which Ember
+      // dispatches via a root-delegated listener — that listener
+      // fires AFTER this bubble-phase onclick handler runs, so the
+      // X's bubbles=false alone can't suppress this handler. Calling
+      // event.stopPropagation() below would cancel the event before
+      // it reaches Ember's root and removeCellAt would never fire.
+      // Opt out explicitly so the X still removes the label while
+      // paint mode is armed.
+      if(event && event.target && event.target.closest && event.target.closest('.md-board-detail-symbol-card__remove')) {
+        return;
+      }
       var labels = this.get('parsed_labels') || [];
       if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
       if(event && event.stopPropagation) { event.stopPropagation(); }
