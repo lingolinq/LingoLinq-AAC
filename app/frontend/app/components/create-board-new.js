@@ -81,7 +81,25 @@ export default Component.extend({
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
     this.set('labels_list_open', false);
-    this.set('creating_for_someone_else', true);
+    /* Default "Are you creating this board for someone else?" by role.
+       Supporters (parents, therapists, teachers, SLPs, etc.) almost
+       always build boards FOR a communicator, so the toggle defaults
+       to Yes for them. Communicators themselves (the AAC users) almost
+       always build for self, so the toggle defaults to No. The user
+       can flip it either way; this is just the initial state.
+       `supporter_role` is the canonical role check on the User model
+       (preferences.role == 'supporter'); communicators and users who
+       haven't picked a role (null / 'unspecified') both fall into the
+       !supporter_role branch, which matches how the backend treats
+       unspecified-as-communicator (see User#supporter_registration?). */
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+    /* Tracks whether the user has manually flipped the toggle this session.
+       The observer below re-applies the role default once `sessionUser`
+       finishes hydrating (the post-hard-reload race), but it must NEVER
+       clobber an explicit user choice — even one made before hydration
+       completes. Flipped true by `toggleCreatingForSomeoneElse`. */
+    this._user_toggled_for_else = false;
     // Map of label.toLowerCase() -> { fill, border, type } populated as
     // labels are looked up via /api/v1/search/batch_parts_of_speech.
     this.set('_label_colors', {});
@@ -136,6 +154,21 @@ export default Component.extend({
     this.updateShowGrid();
   },
 
+  /* Re-apply the "for someone else" default once `sessionUser` finishes
+     hydrating. On a hard browser reload, the component's `init()` runs
+     before `app-state.find_user()` resolves, so `sessionUser.supporter_role`
+     is still `undefined` and the supporter-defaults-to-Yes branch in `init`
+     silently picks No. This observer fires when `sessionUser` (or its
+     `supporter_role` flag) finally arrives and corrects the default — but
+     only when the user has not manually flipped the toggle, so an explicit
+     choice is never clobbered by a late-arriving session. */
+  _apply_supporter_default: observer('appState.sessionUser', 'appState.sessionUser.supporter_role', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this._user_toggled_for_else) { return; }
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+  }),
+
   for_user_id: computed('model.for_user_id', function() {
     // Return null when the model points at 'self' so the dropdown shows
     // its placeholder ("Select who this board is for") instead of acting
@@ -146,14 +179,16 @@ export default Component.extend({
     return id;
   }),
 
-  /** Soft attention cue for the supervisee dropdown. The toggle defaults
-   *  to "Yes" (`creating_for_someone_else` initialized to true), which
-   *  reveals the dropdown — but until the user picks an actual person
-   *  the dropdown is empty. We illuminate it with a teal glow so it
-   *  visibly asks for input, without making it a hard validation error
-   *  (the for-user pick is still optional at submit time per the
-   *  current `createBoardDisabled` rules). Clears the moment the user
-   *  selects someone OR flips the toggle to "No". */
+  /** Soft attention cue for the supervisee dropdown. When the toggle is
+   *  set to "Yes" (the default for supporter-role users; communicators
+   *  default to "No"), the dropdown is revealed — but until the user
+   *  picks an actual person the dropdown is empty. We illuminate it
+   *  with a teal glow so it visibly asks for input, without making it
+   *  a hard validation error (the for-user pick is still optional at
+   *  submit time per the current `createBoardDisabled` rules). Clears
+   *  the moment the user selects someone OR flips the toggle to "No"
+   *  (which is the initial state for communicators, so they see no
+   *  glow until they explicitly flip to Yes). */
   for_user_needs_attention: computed('creating_for_someone_else', 'for_user_id', 'show_user_options', function() {
     if(!this.get('show_user_options')) { return false; }
     if(!this.get('creating_for_someone_else')) { return false; }
@@ -1400,6 +1435,10 @@ export default Component.extend({
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');
       this.set('creating_for_someone_else', newValue);
+      // Mark the toggle as user-driven so `_apply_supporter_default`
+      // (above) does not re-stamp the role default if `sessionUser`
+      // happens to hydrate after this click.
+      this._user_toggled_for_else = true;
       if(!newValue) {
         // Switching to "No" — board belongs to current user.
         this.set('model.for_user_id', 'self');
