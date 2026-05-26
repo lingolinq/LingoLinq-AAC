@@ -2125,12 +2125,9 @@ Button.load_actions = function() {
         return i18n.t('say', "Say: ") + phrase;
       },
       trigger: function(match) {
-        if(app_state.get('speak_mode') && match) {
-          var phrase = match[1];
-          speecher.speak_text(phrase);
-          // TODO: this will be easier for people to find as a 
-          // button setting, yo
-        }    
+        if(match && match[1]) {
+          speecher.speak_text(match[1]);
+        }
       }
     },
   ];

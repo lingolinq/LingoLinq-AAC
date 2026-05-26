@@ -3828,7 +3828,7 @@ export default Service.extend({
       }
     } else if(specialty_button) {
       this.track_depth('clear');
-      var res = this.specialty_actions(button.vocalization);
+      var res = this.specialty_actions(obj.vocalization || button.vocalization);
       var auto_return_possible = !!specialty_button.default_speak || res.auto_return_possible;
       if(auto_return_possible && !res.already_navigating && !skip_auto_return) {
         this.possible_auto_home(obj);
