@@ -25,15 +25,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Before you make any edit in this repo, you MUST be on a properly-named branch.
 
 1. **Branch from `staging`, not `main`.** PRs target `staging` first; release PRs from `staging` to `main` are a separate operation.
-2. **Branch name format:** `<type>/scot-<kebab-case-description>`
-   - `<type>` is one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The type prefix is REQUIRED. A bare `scot-<description>` (no type) is wrong.
-   - `scot-` is REQUIRED so Scot's branches are visually distinct from Melissa, Traci, Dominic.
-   - Use kebab-case after `scot-` (lowercase, hyphens between words).
-   - Examples: `fix/scot-copy-modal-fast-fallback`, `chore/scot-staging-slow-queue-capacity`, `test/scot-feature-flag-stub`.
-3. **Never edit on `main` or `staging` directly.** If you find yourself on one of those branches, `git checkout staging && git pull && git checkout -b <type>/scot-<description>` first.
+2. **Branch name format:** use the **developer** doing the work, not a fixed name. Two conventions both work:
+   - `<type>/<developer>-<kebab-case-description>` — e.g. `fix/melissa-persistence-bg-parse-json`, `fix/scot-copy-modal-fast-fallback`
+   - `<developer>/<type>/<kebab-case-description>` — e.g. `melissa/fix/sidebar-actions`, `traci/styling/styling-updates`
+   - `<type>` is one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The type prefix is REQUIRED in the `<type>/…` form.
+   - `<developer>` is a short lowercase handle: `melissa`, `scot`, `traci`, `dominic`, etc.
+   - Use kebab-case for the description (lowercase, hyphens between words).
+3. **Never edit on `main` or `staging` directly.** If you find yourself on one of those branches, `git checkout staging && git pull && git checkout -b <type>/<developer>-<description>` (or `<developer>/<type>/<description>`) first.
 4. Date suffixes like `-2026-05-08` are only for time-bound recovery/release branches, not regular feature work.
 
-If you produced a branch name without a type prefix (e.g. `scot-something`), rename it before opening a PR: `git branch -m <type>/scot-something`.
+If you produced a branch name without a type prefix (e.g. `melissa-sidebar`), rename it before opening a PR: `git branch -m fix/melissa-sidebar`.
 
 ## Project Overview
 
