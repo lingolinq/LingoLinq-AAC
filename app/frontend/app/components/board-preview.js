@@ -11,19 +11,109 @@ export default Component.extend({
     this.set('include_canvas', window.outerWidth > 800);
     this.set('app_state', this.appState);
     this.set('model', {loading: true});
+    /* Two-phase loading: the modal overlay only hides once both the
+       board model has resolved AND the canvas component has reported
+       every button-image promise has settled. We track each phase
+       independently and emit the combined state to the parent. */
+    this.set('_model_loaded', false);
+    /* When the canvas isn't rendered (narrow viewports), there are no
+       button-image promises to wait for; the canvas phase is trivially
+       complete from the start. Otherwise we wait for board-preview-canvas
+       to emit `onCanvasReady`. */
+    this.set('_canvas_ready', !this.get('include_canvas'));
     var _this = this;
+    var emitLoading = function(value) {
+      var cb = _this.get('onLoadingChange');
+      if(cb && typeof cb === 'function') { cb(value); }
+    };
+    /* Re-emit the combined loading state to the parent — false only
+       once both phases are complete OR the model errored. */
+    this._emitCombinedLoading = function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var model = _this.get('model');
+      if(model && model.error) {
+        emitLoading(false);
+        return;
+      }
+      if(_this.get('_model_loaded') && _this.get('_canvas_ready')) {
+        emitLoading(false);
+      } else {
+        emitLoading(true);
+      }
+    };
+    emitLoading(true);
+    /* Helper: a cached board can ship with image_urls set to an empty
+       object `{}` (from a list query that filled the field but not
+       its entries). `!board.get('image_urls')` returns false on `{}`,
+       so an empty map slips through the partial-load check. Use
+       Object.keys.length to detect both missing AND empty. */
+    var imageUrlsMissing = function(board) {
+      var urls = board.get('image_urls');
+      if(!urls) { return true; }
+      if(typeof urls !== 'object') { return true; }
+      return Object.keys(urls).length === 0;
+    };
+    /* Catch a partial cache shape the older `imageUrlsMissing` gate
+       can't see: the record has `permissions` set AND `image_urls`
+       populated, but the two halves don't line up — every button's
+       `image_id` references entries that are NOT keys in the cached
+       `image_urls` map. Symptom (confirmed by repro logs against
+       marcus_williams_slp/vocal-flair-84-categories-food): canvas
+       draws every cell as a blank rounded rect, the per-cell
+       image-load block at board-preview-canvas.js:274 is gated off
+       (`board.get('image_urls')[button.image_id]` undefined for ALL
+       buttons), pending stays 0, onCanvasReady fires synchronously,
+       and the loading lifecycle collapses. Stale cache reassembled
+       from differently-versioned partial responses.
+
+       Treat as partial whenever buttons exist AND image_urls has
+       entries AND NOT A SINGLE button.image_id resolves to a key in
+       image_urls — that intersection-of-empty only happens with a
+       desynced cache, never with a fully-fetched record. */
+    var buttonsLookStripped = function(board) {
+      var btns = board.get('buttons') || [];
+      if(btns.length === 0) { return false; }
+      var urls = board.get('image_urls');
+      if(!urls || typeof urls !== 'object') { return false; }
+      if(Object.keys(urls).length === 0) { return false; }
+      for(var i = 0; i < btns.length; i++) {
+        var bid = btns[i] && btns[i].image_id;
+        if(bid && urls[bid]) { return false; }
+      }
+      return true;
+    };
     if(_this.get('key')) {
       LingoLinq.store.findRecord('board', _this.get('key')).then(function(board) {
-        if(!board.get('permissions')) {
-          board.reload(false).then(function(board) {
+        /* Mirror persistence.js#find_record's partial-load check: a
+           cached board record can have `permissions` set (from an
+           earlier list query that ships a summary row) but be missing
+           `image_urls`, or have buttons whose `image_id` references
+           are entirely out of sync with the cached `image_urls` map.
+           Reload in any of those cases so the canvas always renders
+           against a fully-fetched record. */
+        var partial = !board.get('permissions') ||
+          imageUrlsMissing(board) ||
+          buttonsLookStripped(board);
+        if(partial) {
+          board.reload().then(function(board) {
             _this.set('model', board);
+            _this.set('_model_loaded', true);
+            _this._emitCombinedLoading();
           });
         } else {
           _this.set('model', board);
+          _this.set('_model_loaded', true);
+          _this._emitCombinedLoading();
         }
-      }, function(err) {
+      }, function() {
         _this.set('model', {error: true});
+        emitLoading(false);
       });
+    } else {
+      /* No key → nothing to load. Both phases trivially complete. */
+      _this.set('_model_loaded', true);
+      _this.set('_canvas_ready', true);
+      emitLoading(false);
     }
   },
   multiple_locales: computed('model.locales', function() {
@@ -39,6 +129,14 @@ export default Component.extend({
     return this.get('option') == 'select';
   }),
   actions: {
+    /* Fired by board-preview-canvas once every button-image promise
+       has settled (or there were no images to load). Flips the
+       second loading-phase flag and re-emits the combined state. */
+    canvas_ready: function() {
+      if(this.isDestroyed || this.isDestroying) { return; }
+      this.set('_canvas_ready', true);
+      if(this._emitCombinedLoading) { this._emitCombinedLoading(); }
+    },
     select: function() {
       if (this.onSelect && typeof this.onSelect === 'function') {
         this.onSelect();

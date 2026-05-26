@@ -850,10 +850,19 @@ class Api::BoardsController < ApplicationController
     translations = translations.to_unsafe_h if translations.respond_to?(:to_unsafe_h)
     set_as_default = true
     set_as_default = false if params['set_as_default'] == false || params['set_as_default'] == 'false' || params['set_as_default'] == 0 || params['set_as_default'] == '0'
+    # When the client opts in via `force_update_default`, the server
+    # applies the new labels to the visible button text even when
+    # source_lang == destination_lang. The default behavior (off)
+    # leaves `set_as_default_here` falsy in same-locale re-translation
+    # so existing labels are preserved; the flag is set by the
+    # Re-Translate path in translation-select.js where the user has
+    # explicitly chosen to overwrite.
+    force_update_default = params['force_update_default'] == '1' || params['force_update_default'] == 'true' || params['force_update_default'] == true || params['force_update_default'] == 1
     progress = Progress.schedule(board, :translate_set, translations, {
       'source' => params['source_lang'],
       'dest' => params['destination_lang'],
       'allow_fallbacks' => params['fallbacks'] == '1' || params['fallbacks'] == 'true' || params['fallbacks'] == true || params['fallbacks'] == 1,
+      'force_update_default' => force_update_default,
       'board_ids' => ids,
       'default' => set_as_default,
       'user_key' => user_for_paper_trail

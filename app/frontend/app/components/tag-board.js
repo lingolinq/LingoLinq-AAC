@@ -29,10 +29,22 @@ export default Component.extend({
     this.set('pickedBoardId', null);
   },
 
+  /* Plain {id, name} objects for the modern-select dropdown — the
+     component reads `.id` and `.name` directly (not via Ember-Data
+     getters), so we materialize a flat list from the underlying
+     board records here. */
   boardChoicesList: computed('model.boardChoices', function() {
     var c = this.get('model.boardChoices');
     if (!c || !c.forEach) { return []; }
-    return c;
+    var out = [];
+    c.forEach(function(brd) {
+      if (!brd) { return; }
+      var id = brd.get ? brd.get('id') : brd.id;
+      var name = brd.get ? brd.get('name') : brd.name;
+      if (id == null) { return; }
+      out.push({ id: id, name: name || id });
+    });
+    return out;
   }),
 
   boardForTag: computed('model.board', 'pickedBoardId', 'model.boardChoices', function() {
@@ -104,8 +116,11 @@ export default Component.extend({
     choose(tagName) {
       this.set('tag', tagName);
     },
-    pickBoard(event) {
-      this.set('pickedBoardId', event && event.target ? event.target.value : null);
+    /* Modern-select hands the chosen item's id directly (no event
+       object), so we accept the raw id. Keeps the same downstream
+       behavior — boardForTag computed depends on pickedBoardId. */
+    pickBoard(boardId) {
+      this.set('pickedBoardId', boardId || null);
     },
     update() {
       const downstream = !!this.get('downstream');

@@ -15,8 +15,18 @@ export default Component.extend({
   selectId: '',
   ariaLabel: '',
   placeholder: '- Select -',
+  /** When true, render a filter input above the option list and
+   *  match options by case-insensitive substring against `name`.
+   *  Defaults to false so existing consumers are unaffected. */
+  searchable: false,
+  /** Placeholder shown in the search input when searchable. */
+  searchPlaceholder: 'Search...',
 
   isOpen: false,
+
+  /** Live filter string typed into the search input. Cleared
+   *  whenever the dropdown closes so reopening starts fresh. */
+  searchString: '',
 
   /** Explicit label set when user chooses an option; ensures trigger updates even if parent re-render overwrites selection */
   _chosenLabel: null,
@@ -26,6 +36,23 @@ export default Component.extend({
     const sel = this.get('selection');
     if (sel == null || sel === '') { return null; }
     return content.find(function(c) { return c.id === sel || c.id === String(sel); }) || null;
+  }),
+
+  /** Content filtered by `searchString` when searchable; otherwise
+   *  returns content unchanged. Filter matches case-insensitive
+   *  substring against the option `name` (with `id` as fallback for
+   *  edge cases where name is missing). */
+  filteredContent: computed('content', 'searchable', 'searchString', function() {
+    const content = this.get('content') || [];
+    if (!this.get('searchable')) { return content; }
+    const q = (this.get('searchString') || '').trim().toLowerCase();
+    if (!q) { return content; }
+    return content.filter(function(item) {
+      if (!item) { return false; }
+      const name = item.name != null ? String(item.name) : '';
+      const id = item.id != null ? String(item.id) : '';
+      return name.toLowerCase().indexOf(q) !== -1 || id.toLowerCase().indexOf(q) !== -1;
+    });
   }),
 
   displayLabel: computed('selectedItem', function() {
@@ -42,6 +69,10 @@ export default Component.extend({
 
   close() {
     this.set('isOpen', false);
+    /* Reset filter input on close so the next open starts with the
+       full list. Only meaningful when searchable, but cheap to do
+       unconditionally. */
+    if (this.get('searchString')) { this.set('searchString', ''); }
   },
 
   _clickOutside: null,
@@ -83,6 +114,15 @@ export default Component.extend({
     const trigger = id ? document.getElementById(id) : null;
     const root = trigger ? trigger.closest('.modern-select') : null;
     if (!root) { return; }
+    /* When searchable, the user expects to start typing immediately;
+       focus the filter input rather than an option. */
+    if (this.get('searchable')) {
+      const search = root.querySelector('.modern-select__search-input');
+      if (search && typeof search.focus === 'function') {
+        search.focus();
+        return;
+      }
+    }
     const list = root.querySelector('.modern-select__list');
     if (!list) { return; }
     const selected = list.querySelector('.modern-select__option--selected');
@@ -160,6 +200,38 @@ export default Component.extend({
         this.close();
         const id3 = this.get('selectId');
         const trigger = id3 ? document.getElementById(id3) : null;
+        if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
+      }
+    },
+    /** Live update of the filter string as the user types in the
+     *  search input. Only used when `searchable=true`. */
+    updateSearch(value) {
+      const v = value == null ? '' : String(value);
+      this.set('searchString', v);
+    },
+    /** Keyboard handling on the search input: ArrowDown jumps focus
+     *  to the first visible option; Enter selects the first match;
+     *  Escape closes the dropdown. Typing characters falls through
+     *  to the input's normal handling. */
+    search_keydown(ev) {
+      if (!ev || !ev.key) { return; }
+      const key = ev.key;
+      const id = this.get('selectId');
+      const trigger = id ? document.getElementById(id) : null;
+      const root = trigger ? trigger.closest('.modern-select') : null;
+      if (key === 'ArrowDown') {
+        ev.preventDefault();
+        if (!root) { return; }
+        const first = root.querySelector('.modern-select__option');
+        if (first && typeof first.focus === 'function') { first.focus(); }
+      } else if (key === 'Enter') {
+        ev.preventDefault();
+        if (!root) { return; }
+        const first = root.querySelector('.modern-select__option');
+        if (first) { first.click(); }
+      } else if (key === 'Escape') {
+        ev.preventDefault();
+        this.close();
         if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
       }
     },

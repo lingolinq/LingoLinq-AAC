@@ -37,10 +37,21 @@ export default modal.ModalController.extend({
   done_translating: function(new_default) {
     var _this = this;
     return _this.get('model.board').reload(true).then(function() {
-      if(new_default && app_state.get('currentBoardState.id') == _this.get('model.board.id')) {
-        app_state.set('currentBoardState.default_locale', _this.get('model.board.locale'));
-        app_state.set('label_locale', _this.get('model.board.locale'));
-        app_state.set('vocalization_locale', _this.get('model.board.locale'));
+      if(new_default) {
+        var new_locale = _this.get('model.board.locale');
+        /* Update the session locale whenever the user explicitly set
+           this language as the board's default — works in speak mode
+           AND in board-detail edit. The prior implementation gated
+           the locale switch on `currentBoardState.id == board.id`,
+           which only holds in speak mode (currentBoardState is null
+           or different in edit), so editing the board after a
+           translation showed stale English labels until you
+           navigated away. */
+        app_state.set('label_locale', new_locale);
+        app_state.set('vocalization_locale', new_locale);
+        if(app_state.get('currentBoardState.id') == _this.get('model.board.id')) {
+          app_state.set('currentBoardState.default_locale', new_locale);
+        }
       }
       app_state.set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
     });
@@ -85,12 +96,23 @@ export default modal.ModalController.extend({
         board_ids_to_include = this.get('hierarchy').selected_board_ids();
       }
 
+      /* When the user is RE-translating (target locale is already the
+         board's current locale), the server's translate_set normally
+         forces `set_as_default_here = false` because source == dest
+         — which silently stores the new translations in the cache
+         without ever applying them to the visible button labels. The
+         Re-Translate button only renders when `existing_default_language`
+         is true, so use that flag as the signal to ask the server to
+         honor `set_as_default` regardless of locale match. */
+      var force_update = !!_this.get('existing_default_language');
+
       var translate_opts = {
         board: _this.get('model.board'),
         copy: _this.get('model.board'),
         button_set: _this.get('model.board.button_set'),
         locale: _this.get('translate_locale'),
         default_language: _this.get('default_language'),
+        force_update_default: force_update,
         old_board_ids_to_translate: board_ids_to_include,
         new_board_ids_to_translate: board_ids_to_include,
       };

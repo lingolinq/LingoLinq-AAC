@@ -11,8 +11,33 @@
     <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="modern-select__list" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
-      {{#each this.content as |item|}}
+    <ul class="modern-select__list {{if this.searchable "modern-select__list--searchable"}}" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
+      {{#if this.searchable}}
+        {{!-- Filter row pinned at the top of the open dropdown. The
+             outer <li role="none"> takes the row out of the listbox
+             accessibility tree (so screen readers still announce
+             only `option` children), while letting the row sit
+             inside the absolute-positioned dropdown chrome without
+             restructuring the wrapper. ArrowDown / Enter / Escape in
+             the input are handled by search_keydown. --}}
+        <li class="modern-select__search-row" role="none">
+          <span class="modern-select__search-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </span>
+          <Input
+            class="modern-select__search-input"
+            @type="text"
+            @value={{this.searchString}}
+            placeholder={{this.searchPlaceholder}}
+            aria-label={{this.searchPlaceholder}}
+            {{action "search_keydown" on="keydown"}}
+          />
+        </li>
+      {{/if}}
+      {{#each this.filteredContent as |item|}}
         <li
           class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"
           role="option"
@@ -33,7 +58,13 @@
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </span>
-          <span class="modern-select__empty-text">{{t "No options available" key="bound_select_no_options"}}</span>
+          <span class="modern-select__empty-text">
+            {{#if this.searchString}}
+              {{t "No matches for your search" key="modern_select_no_matches"}}
+            {{else}}
+              {{t "No options available" key="bound_select_no_options"}}
+            {{/if}}
+          </span>
         </li>
       {{/each}}
     </ul>

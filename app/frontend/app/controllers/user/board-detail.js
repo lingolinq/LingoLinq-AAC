@@ -22,10 +22,53 @@ import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
 import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
+
+// Catalog of speak-mode options-menu entries the user can show/hide
+// via the "Customize Menu" preference (right panel → Board Settings).
+// `id` is what gets stored in user.preferences.speak_mode_hidden_menu_items;
+// `label_key` / `default_label` mirror the i18n call on the actual menu
+// row so the customize list reads identically to what the user sees in
+// the speak-mode menu. `section` groups rows under a section header in
+// the customize panel — null means top-level (no group label).
+// NOTE: "Edit Board" is intentionally NOT in this catalog — its
+// visibility is gated by the PIN-assignment preference (see the
+// Preferences page), so exposing it here would split the control
+// across two places. Every other row on the speak-mode options
+// menu is listed below and can be toggled from the right panel's
+// Customize Menu section.
+const SPEAK_MENU_ITEMS = [
+  { id: 'my_boards',            section: 'board',     label_key: 'my_boards', default_label: 'My Boards' },
+  { id: 'find_boards',          section: 'board',     label_key: 'find_boards', default_label: 'Find Boards' },
+  { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
+  { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
+  { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
+  { id: 'classic_view',         section: 'display',   label_key: 'board_detail_revert_old_style', default_label: 'Classic View' },
+  { id: 'copy',                 section: 'share',     label_key: 'copy', default_label: 'Copy' },
+  { id: 'download',             section: 'share',     label_key: 'download', default_label: 'Download' },
+  { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
+  { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
+  { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
+  { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
+  { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
+  { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
+  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' },
+  { id: 'translate',            section: 'language',  label_key: 'translate', default_label: 'Translate' },
+  { id: 'switch_language',      section: 'language',  label_key: 'switch_language', default_label: 'Switch Language' }
+];
+
+const SPEAK_MENU_SECTIONS = [
+  { id: 'board',    label_key: 'board', default_label: 'Board' },
+  { id: 'buttons',  label_key: 'buttons', default_label: 'Buttons' },
+  { id: 'display',  label_key: 'display', default_label: 'Display' },
+  { id: 'share',    label_key: 'share_and_print', default_label: 'Share & Print' },
+  { id: 'session',  label_key: 'session', default_label: 'Session' },
+  { id: 'language', label_key: 'language', default_label: 'Language' }
+];
 
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
@@ -39,14 +82,45 @@ export default Controller.extend(prefClasses, {
   // color (var(--btn-bg)) regardless of which folder display style is
   // selected. Toggled via the checkmark item at the bottom of the folder
   // dropdown; persisted on user.preferences.folder_colored_face.
-  folder_colored_face: false,
+  // Default is `true` — colored folder fronts are now the canonical look.
+  // Users who explicitly turn it off get `false` saved; anyone else
+  // (new users + existing users who never touched the toggle) inherits
+  // the colored style. The route's setupController re-applies this
+  // default when the saved preference is absent.
+  folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, button labels render on a single line and shrink to
-  // fit the button width (down to a 7px floor). When false (the
-  // default — matches modern AAC industry standard), labels keep
-  // the user's chosen font size and wrap to up to 3 lines at word
-  // boundaries. Persisted on user.preferences.shrink_labels_to_fit.
+  // When true, button labels shrink to fit the button width (down to
+  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
+  // boundaries. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and wrap to up
+  // to 3 lines at word boundaries with no shrinking. The two-line
+  // shrink mode replaces the older one-line-only shrink behavior so
+  // longer labels stay legible without dropping all the way to the
+  // 7px floor on a single line. Persisted on
+  // user.preferences.shrink_labels_to_fit.
   shrink_labels_to_fit: false,
+  // When true, applies a softer / more tonal style to button borders
+  // ON TOP of whatever the user's selected border thickness is —
+  // single subtle outer shadow + soft inset highlight + a light halo
+  // inside the colored outline edge that mutes its visual contrast.
+  // The category color stays as the cue; just reads as a softer
+  // accent rather than a heavy dark rim. Default is `true` — soft
+  // borders are now the canonical look. Users who explicitly turn
+  // them off get `false` saved on user.preferences.soft_borders;
+  // anyone else (including new users + existing users who never
+  // touched the toggle) inherits the soft style. The route's
+  // setupController re-applies this default when the saved
+  // preference is absent.
+  soft_borders: true,
+  // "Hide speak bar" preference — when true the speak row's
+  // contents collapse to just the options chevron. Default off.
+  // Persisted on user.preferences.hide_speak_bar.
+  hide_speak_bar: false,
+  // "Customize Menu" preference — array of item ids the user has
+  // hidden from the speak-mode options dropdown. Default empty
+  // (everything visible). Persisted on
+  // user.preferences.speak_mode_hidden_menu_items.
+  speak_menu_hidden_items: null,
   boardname: null,
   active_category: 'all',
 
@@ -54,11 +128,18 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.board_detail_nav_history') || [];
   }),
 
-  /** Speak bar + header back control: session folder trail and/or DB parent board. */
-  show_board_back_nav: computed('board_detail_history.[]', 'model.parent_board_key', function() {
-    if((this.get('board_detail_history') || []).length > 0) { return true; }
-    var pk = this.get('model.parent_board_key');
-    return !!(pk && String(pk).indexOf('/') !== -1);
+  /** Speak bar + header back control — only shows when the user has
+   *  an actual in-session nav trail to go back through. Previously
+   *  it ALSO showed when the board's DB `parent_board_key` was set,
+   *  which produced a phantom back button on direct-loaded boards
+   *  (the user hadn't navigated FROM the parent; the board just
+   *  happened to have parent metadata in the DB). Now strictly:
+   *  history present → back available; otherwise hide. go_back
+   *  still falls back to parent_board_key as a safety net if it
+   *  ever gets fired without history, but the button itself won't
+   *  render in that case. */
+  show_board_back_nav: computed('board_detail_history.[]', function() {
+    return (this.get('board_detail_history') || []).length > 0;
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -80,6 +161,16 @@ export default Controller.extend(prefClasses, {
   right_panel_collapsed: false,
   left_panel_collapsed: false,
   right_panel_open_section: null,
+  /* True when the currently-open right-panel section was opened
+     while the panel was in COLLAPSED rail mode — i.e. the user
+     was looking at the icon rail, clicked a section icon, the
+     panel expanded INTO that section. In that flow, the Back
+     button should collapse the panel back to the rail (not show
+     the full expanded section list, which the user hadn't
+     navigated through). Cleared when the user opens a section
+     from the already-expanded panel, manually toggles the panel
+     open/closed, or after Back has fired. */
+  _section_opened_from_rail: false,
   panels_collapsed: false,
   board_search_string: '',
 
@@ -149,6 +240,14 @@ export default Controller.extend(prefClasses, {
   // Nested expand-state inside the Session submenu in the actions
   // menu (Button Levels row). Starts collapsed.
   levels_submenu_open: false,
+  // Top-level expandable section state inside the options dropdown.
+  // Each section starts collapsed; toggled by the matching
+  // `toggle_<x>_submenu` action.
+  board_submenu_open: false,
+  buttons_submenu_open: false,
+  display_submenu_open: false,
+  share_print_submenu_open: false,
+  language_submenu_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -227,12 +326,74 @@ export default Controller.extend(prefClasses, {
       }
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
+
+    // Auto-collapse both side panels at ≤1024px. matchMedia fires
+    // when the breakpoint is CROSSED (resize transition); the
+    // companion edit_mode observer below covers the other entry
+    // points (direct page load in edit mode at narrow viewport,
+    // refresh while in edit mode at narrow viewport) — without it,
+    // a user who LOADS edit mode at ≤1024px would never see the
+    // auto-collapse because the viewport never crossed the threshold
+    // while observable. The resize handler ONLY auto-collapses on
+    // wide→narrow transitions (e.matches === true), so manually
+    // expanding while already narrow isn't fought.
+    if(typeof window !== 'undefined' && window.matchMedia) {
+      this._narrowViewportMql = window.matchMedia('(max-width: 1024px)');
+      this._narrowViewportHandler = function(e) {
+        if(e.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      };
+      // addEventListener is the modern API; older Safari needs the
+      // legacy addListener fallback.
+      if(this._narrowViewportMql.addEventListener) {
+        this._narrowViewportMql.addEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.addListener) {
+        this._narrowViewportMql.addListener(this._narrowViewportHandler);
+      }
+      // Initial check — if the page is already in edit mode at a
+      // narrow viewport (refresh, direct load, deep link), collapse
+      // immediately. Use schedule('afterRender') so edit_mode is
+      // resolved before we check.
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this._narrowViewportMql.matches && _this.get('edit_mode')) {
+          _this.set('left_panel_collapsed', true);
+          _this.set('right_panel_collapsed', true);
+        }
+      }, 0);
+    }
   },
+
+  // Auto-collapse panels whenever edit_mode flips on at a narrow
+  // viewport (e.g. user clicks "Edit Board" while viewport is
+  // already ≤1024px — matchMedia doesn't fire since the viewport
+  // didn't change). The enterEditNow action handles this for the
+  // in-app click path, but this observer is the catch-all for any
+  // other path that sets edit_mode true. Gated on the narrow
+  // viewport check so wider screens are unaffected.
+  _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
+    if(!this.get('edit_mode')) { return; }
+    if(typeof window === 'undefined' || !window.matchMedia) { return; }
+    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1024px)');
+    if(mql.matches) {
+      this.set('left_panel_collapsed', true);
+      this.set('right_panel_collapsed', true);
+    }
+  }),
 
   willDestroy: function() {
     this._super(...arguments);
     if(this._closeDropdownsHandler) {
       document.removeEventListener('click', this._closeDropdownsHandler, true);
+    }
+    if(this._narrowViewportMql && this._narrowViewportHandler) {
+      if(this._narrowViewportMql.removeEventListener) {
+        this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
+      } else if(this._narrowViewportMql.removeListener) {
+        this._narrowViewportMql.removeListener(this._narrowViewportHandler);
+      }
     }
   },
 
@@ -593,12 +754,72 @@ export default Controller.extend(prefClasses, {
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
     var _this = this;
+    if(!(raw.images && raw.images.length)) {
+      if(_this._board_detail_images && _this._board_detail_images.length) {
+        raw.images = _this._board_detail_images;
+      } else {
+        var cached_raw = boardDetailCache.get(raw.key || raw.id);
+        if(cached_raw && cached_raw.images && cached_raw.images.length) {
+          raw.images = cached_raw.images;
+        }
+      }
+    }
+    if(raw.images && raw.images.length) {
+      _this._board_detail_images = raw.images;
+    }
+    var skin = _this.get('app_state.referenced_user.preferences.skin');
+    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
+    if(preferred_symbols && preferred_symbols !== 'original') {
+      _this._preferred_symbols = preferred_symbols;
+    } else {
+      _this._preferred_symbols = null;
+    }
+    var use_ember = _this.get('edit_mode');
+    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
+    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+    var board_has_levels = (raw.buttons || []).some(function(b) {
+      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
+    });
+    var cache_token = (raw.key || raw.id);
+    var cache_ctx = {
+      preferred_symbols: _this._preferred_symbols,
+      skin: skin || null,
+      edit_mode: !!use_ember,
+      label_locale: _this.get('app_state.label_locale') || null,
+      url_cache_primed: !!persistence.primed,
+      board_level: current_level,
+      board_has_levels: board_has_levels
+    };
+    // Cache hit — skip skin_image_map and the full grid rebuild loop.
+    if(!use_ember && cache_token) {
+      var cached_ob_early = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
+      if(cached_ob_early) {
+        var prev_early = _this._last_raw;
+        var is_same_board_early = prev_early && raw && ((prev_early.id && raw.id && prev_early.id === raw.id) || (prev_early.key && raw.key && prev_early.key === raw.key));
+        if(!is_same_board_early) {
+          _this.set('_hidden_row_stack', []);
+          _this.set('_hidden_col_stack', []);
+        }
+        _this._last_raw = raw;
+        if(_this._board_detail_images && _this._board_detail_images.length) {
+          _this._last_raw.images = _this._board_detail_images;
+        }
+        _this.set('ordered_buttons', cached_ob_early);
+        _this._apply_focus_dim_to_ordered_buttons();
+        _this._preload_grid_images(cached_ob_early);
+        return;
+      }
+    }
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
-      if(img && img.id && img.url) { image_map[img.id] = img.url; }
+      if(img && img.id) {
+        var url = img.skin_url || img.url;
+        if(url) {
+          image_map[String(img.id)] = url;
+        }
+      }
     });
-    var skin = _this.get('app_state.referenced_user.preferences.skin');
-    image_map = LingoLinq.Board.skin_image_map(image_map, skin);
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
     // Cache raw data for preference-triggered rebuilds
     // Reset the row/column hide stacks when the user actually navigates to a
     // DIFFERENT board. Same-board refetches (post-save reload, pref changes,
@@ -611,76 +832,13 @@ export default Controller.extend(prefClasses, {
       _this.set('_hidden_col_stack', []);
     }
     _this._last_raw = raw;
-    // Apply preferred_symbols variant URLs
-    var preferred_symbols = _this.get('app_state.referenced_user.preferences.preferred_symbols');
-    if(preferred_symbols && preferred_symbols !== 'original') {
-      _this._preferred_symbols = preferred_symbols;
-    } else {
-      _this._preferred_symbols = null;
+    if(_this._board_detail_images && _this._board_detail_images.length) {
+      _this._last_raw.images = _this._board_detail_images;
     }
     _this._image_map = image_map;
 
     var board = _this.get('model');
     var grid = raw.grid;
-    var use_ember = _this.get('edit_mode');
-
-    // Current speak-mode level: the level the supervisor last selected
-    // (persisted in stashes.board_level). If none was ever selected,
-    // default to 10 (full vocab — untagged boards "show everything").
-    // This MUST match current_speak_level exactly (saved 1–10 else 10)
-    // so the highlighted pill and the actually-filtered grid always
-    // agree, including for boards that ship an author default_level.
-    // This is the level baked into each button's `hidden` via
-    // apply_button_level in _make_btn, and the level that keys the cache
-    // below — otherwise switching from L1 to L10 would return the stale
-    // L1 grid.
-    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
-    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
-
-    // Does THIS board actually use Button Levels? (Any button carries a
-    // non-empty level_modifications.) The level filter must be a no-op on
-    // boards that don't use levels — otherwise a stale stashes.board_level
-    // (e.g. 3, carried over from a different leveled board) makes the
-    // untagged `else` branch in _make_btn flag EVERY button
-    // display_as_hidden, which the communicator speak-hide CSS then
-    // renders as a blank board. This is NOT the (reverted) blank-button
-    // rule — it only gates the pre-existing untagged-hide.
-    var board_has_levels = (raw.buttons || []).some(function(b) {
-      return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
-    });
-
-    // Cache key for the pre-built ordered_buttons. Only used in non-edit
-    // mode: edit-mode buttons are Ember objects with mutable state we
-    // can't safely reuse across navigations.
-    var cache_token = (raw.key || raw.id);
-    var cache_ctx = {
-      preferred_symbols: _this._preferred_symbols,
-      skin: skin || null,
-      edit_mode: !!use_ember,
-      label_locale: _this.get('app_state.label_locale') || null,
-      // Invalidate grid reuse when offline url_cache becomes available so
-      // image_url picks up local paths after prime_caches().
-      url_cache_primed: !!persistence.primed,
-      // Level filter is baked into the cached grid by _make_btn
-      // (display_as_hidden). The cached ordered_buttons MUST therefore key
-      // on the active level / whether the board uses levels — otherwise
-      // changing the level reuses the stale grid and the speak-mode level
-      // filter never re-applies.
-      board_level: current_level,
-      board_has_levels: board_has_levels
-    };
-    if(!use_ember && cache_token) {
-      var cached_ob = boardDetailCache.get_ordered_buttons(cache_token, cache_ctx);
-      if(cached_ob) {
-        // Cache hit — re-use the pre-built grid. Glimmer skips re-render
-        // for cells whose object identity is unchanged, so this nav
-        // costs ~0 CPU on the controller side.
-        _this.set('ordered_buttons', cached_ob);
-        _this._apply_focus_dim_to_ordered_buttons();
-        _this._preload_grid_images(cached_ob);
-        return;
-      }
-    }
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
@@ -760,8 +918,12 @@ export default Controller.extend(prefClasses, {
     if(cached) { return cached; }
     var unvarianted = remote_url.replace(/\.variant-.+\.(png|svg)$/, '');
     if(unvarianted !== remote_url) {
-      cached = try_url(unvarianted);
-      if(cached) { return cached; }
+      if(LingoLinq.Board.is_skin_tone_variant_url(remote_url)) {
+        try_url(unvarianted);
+      } else {
+        cached = try_url(unvarianted);
+        if(cached) { return cached; }
+      }
     }
     var alt_url = null;
     if(remote_url.match(/^https\:\/\/s3\.amazonaws\.com\/opensymbols\//)) {
@@ -785,8 +947,13 @@ export default Controller.extend(prefClasses, {
         img_url = image_map[btn.image_id];
       }
     }
+    var image_fallback_url = null;
     if(img_url) {
       img_url = this._resolve_cached_image_url(img_url);
+      if(LingoLinq.Board.is_skin_tone_variant_url(img_url)) {
+        image_fallback_url = LingoLinq.Board.unskin_tone_variant_url(img_url);
+        if(image_fallback_url === img_url) { image_fallback_url = null; }
+      }
     }
     // Speak-mode level filter: decide whether the level filter should
     // visually hide this button at the current level. We compute it
@@ -834,6 +1001,7 @@ export default Controller.extend(prefClasses, {
       label: btn.label || '',
       vocalization: btn.vocalization || '',
       image_url: img_url,
+      image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
@@ -1134,21 +1302,34 @@ export default Controller.extend(prefClasses, {
   _rebuild_on_pref_change: observer(
     'app_state.referenced_user.preferences.preferred_symbols',
     'app_state.referenced_user.preferences.skin',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
     'app_state.referenced_user.preferences.device.button_text_position',
+    'app_state.currentUser.preferences.preferred_symbols',
+    'app_state.currentUser.preferences.skin',
+    'app_state.currentUser.preferences.symbol_background',
+    'app_state.currentUser.preferences.high_contrast',
     function() {
       if(!this._last_raw) { return; }
-      var preferred_symbols = this.get('app_state.referenced_user.preferences.preferred_symbols') || null;
-      var skin = this.get('app_state.referenced_user.preferences.skin') || null;
-      var text_pos = this.get('app_state.referenced_user.preferences.device.button_text_position') || null;
+      var pref_user = this._pref_user_for_display();
+      var preferred_symbols = (pref_user && pref_user.get('preferences.preferred_symbols')) || null;
+      var skin = (pref_user && pref_user.get('preferences.skin')) || null;
+      var symbol_background = (pref_user && pref_user.get('preferences.symbol_background')) || null;
+      var high_contrast = !!(pref_user && pref_user.get('preferences.high_contrast'));
+      var text_pos = (pref_user && pref_user.get('preferences.device.button_text_position')) || null;
       if(
         this._last_pref_preferred_symbols === preferred_symbols &&
         this._last_pref_skin === skin &&
+        this._last_pref_symbol_background === symbol_background &&
+        this._last_pref_high_contrast === high_contrast &&
         this._last_pref_text_pos === text_pos
       ) {
         return;
       }
       this._last_pref_preferred_symbols = preferred_symbols;
       this._last_pref_skin = skin;
+      this._last_pref_symbol_background = symbol_background;
+      this._last_pref_high_contrast = high_contrast;
       this._last_pref_text_pos = text_pos;
       this._build_from_raw(this._last_raw);
     }
@@ -1171,6 +1352,40 @@ export default Controller.extend(prefClasses, {
     'model.locales',
     function() { runBoardStateSync(this, this.app_state); }
   ),
+
+  /* Re-fetch and rebuild this board's grid whenever a board-set mutation
+     finishes (translate, swap_images, slice-locales, privacy change…).
+     `app_state.board_reload_key` is the project-wide signal those flows
+     bump after their server-side progress completes. The model record
+     itself gets reloaded by the originating modal, but the rendered
+     buttons here come from `_last_raw` — a cached plain-object payload
+     built from `persistence.ajax('/api/v1/boards/:key')`, not directly
+     from model attributes. Without this observer the labels stay stale
+     until the user manually reloads or transitions away. Mirrors the
+     same fetch/normalize/cache/build sequence used after Save. */
+  _refresh_on_board_reload_key: observer('app_state.board_reload_key', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('_exiting')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    var key = board.get('key');
+    if(!key) { return; }
+    var _this = this;
+    persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(!merged) { return; }
+      if(merged.images && merged.images.length) {
+        _this._board_detail_images = merged.images;
+      }
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+      _this._build_from_raw(merged);
+    }, function() {
+      /* Network or auth failure — leave the stale render in place
+         rather than blanking the grid. Next route activation will
+         retry naturally. */
+    });
+  }),
 
   reload_on_connect: observer('persistence.online', function() {
     runReloadOnConnect(this, this.persistence);
@@ -1415,8 +1630,7 @@ export default Controller.extend(prefClasses, {
   // height of the speak-mode header (the sentence/vocalization bar) and
   // the size of fonts + symbol images inside it.
   voice_height_options: [
-    { id: 'tiny',   label: 'Tiny (50px)' },
-    { id: 'small',  label: 'Small (70px)' },
+    { id: 'small',  label: 'Small (90px)' },
     { id: 'medium', label: 'Medium (100px)' },
     { id: 'large',  label: 'Large (150px)' },
     { id: 'huge',   label: 'Huge (200px)' }
@@ -1709,11 +1923,17 @@ export default Controller.extend(prefClasses, {
     'app_state.currentUser.preferences.hidden_buttons',
     'app_state.currentUser.preferences.stretch_buttons',
     'app_state.currentUser.preferences.skin',
+    'app_state.referenced_user.preferences.preferred_symbols',
+    'app_state.referenced_user.preferences.symbol_background',
+    'app_state.referenced_user.preferences.high_contrast',
+    'app_state.referenced_user.preferences.skin',
     function() {
       var pending = this.get('pending_display_prefs');
       if(pending) { return pending; }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
-      var device = prefs.device || {};
+      var pref_user = this._pref_user_for_display();
+      var current_prefs = this.get('app_state.currentUser.preferences') || {};
+      var sym_prefs = (pref_user && pref_user.get('preferences')) || current_prefs;
+      var device = current_prefs.device || {};
       return {
         button_spacing:       device.button_spacing       || 'medium',
         button_border:        device.button_border        || 'medium',
@@ -1721,13 +1941,13 @@ export default Controller.extend(prefClasses, {
         button_text_position: device.button_text_position || 'bottom',
         button_style:         device.button_style         || 'default',
         vocalization_height:  device.vocalization_height  || 'medium',
-        hidden_buttons:       prefs.hidden_buttons        || 'grid',
-        stretch_buttons:      prefs.stretch_buttons       || 'none',
-        preferred_symbols:    prefs.preferred_symbols     || 'original',
-        symbol_background:    prefs.symbol_background     || 'clear',
-        high_contrast:        !!prefs.high_contrast,
+        hidden_buttons:       current_prefs.hidden_buttons        || 'grid',
+        stretch_buttons:      current_prefs.stretch_buttons       || 'none',
+        preferred_symbols:    sym_prefs.preferred_symbols     || 'original',
+        symbol_background:    sym_prefs.symbol_background     || 'clear',
+        high_contrast:        !!sym_prefs.high_contrast,
         utterance_text_only:  !!device.utterance_text_only,
-        skin:                 prefs.skin                  || 'default'
+        skin:                 sym_prefs.skin                  || 'default'
       };
     }
   ),
@@ -1875,6 +2095,21 @@ export default Controller.extend(prefClasses, {
     return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
   }),
 
+  // Prefs that change symbol URLs or grid CSS — apply to referenced_user (communicator).
+  _display_pref_render_keys: ['skin', 'preferred_symbols', 'symbol_background', 'high_contrast'],
+
+  _pref_user_for_display: function() {
+    return this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+  },
+
+  _user_for_display_pref: function(key) {
+    var renderKeys = this._display_pref_render_keys;
+    if(renderKeys.indexOf(key) >= 0) {
+      return this._pref_user_for_display();
+    }
+    return this.get('app_state.currentUser');
+  },
+
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
     button_spacing:       'preferences.device.button_spacing',
@@ -1898,6 +2133,86 @@ export default Controller.extend(prefClasses, {
 
   folder_colored_corner: computed('folder_display_style', function() {
     return this.get('folder_display_style') === 'colored_corner';
+  }),
+
+  // Map of speak-menu item id → true for items the user has hidden.
+  // Built from the `speak_menu_hidden_items` array (kept in sync with
+  // user.preferences.speak_mode_hidden_menu_items). Templates use
+  // `(get this.speak_menu_hidden_set "my_boards")` etc. as the gate
+  // around each menu row — undefined / missing key means visible.
+  speak_menu_hidden_set: computed('speak_menu_hidden_items.[]', function() {
+    var arr = this.get('speak_menu_hidden_items') || [];
+    var set = {};
+    for(var i = 0; i < arr.length; i++) { set[arr[i]] = true; }
+    return set;
+  }),
+
+  // Pre-shaped list for the right-panel "Customize Menu" template.
+  // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
+  //   [ { section: { id, label_key, default_label }, items: [...] }, ... ]
+  // plus a leading null-section block for the standalone "Edit Board"
+  // hero row. `hidden` on each item reflects the current preference.
+  speak_menu_sections_list: computed('speak_menu_hidden_set', function() {
+    var set = this.get('speak_menu_hidden_set') || {};
+    var top = [];
+    var by_section = {};
+    var section_order = [];
+    for(var i = 0; i < SPEAK_MENU_ITEMS.length; i++) {
+      var item = SPEAK_MENU_ITEMS[i];
+      var row = {
+        id: item.id,
+        label_key: item.label_key,
+        default_label: item.default_label,
+        hidden: !!set[item.id]
+      };
+      if(!item.section) {
+        top.push(row);
+      } else {
+        if(!by_section[item.section]) {
+          by_section[item.section] = [];
+          section_order.push(item.section);
+        }
+        by_section[item.section].push(row);
+      }
+    }
+    var groups = [{ section: null, items: top }];
+    for(var s = 0; s < SPEAK_MENU_SECTIONS.length; s++) {
+      var sec = SPEAK_MENU_SECTIONS[s];
+      if(by_section[sec.id]) {
+        groups.push({ section: sec, items: by_section[sec.id] });
+      }
+    }
+    return groups;
+  }),
+
+  // Section-visibility gates for the speak-mode menu — true when at
+  // least one child row of that section is still visible. When false,
+  // the entire section header collapses too so the menu doesn't show
+  // an empty group. Each computed depends on speak_menu_hidden_set so
+  // it re-evaluates whenever the user toggles any row.
+  speak_section_visible_board: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.my_boards || !s.find_boards;
+  }),
+  speak_section_visible_buttons: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.find_button || !s.focus_words || !s.show_hidden_buttons;
+  }),
+  speak_section_visible_display: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.classic_view;
+  }),
+  speak_section_visible_share: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.copy || !s.download || !s.print || !s.share;
+  }),
+  speak_section_visible_session: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  speak_section_visible_language: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.translate || !s.switch_language;
   }),
 
   // True while the user is editing a board they don't own — i.e. the
@@ -1953,26 +2268,22 @@ export default Controller.extend(prefClasses, {
   }),
 
   button_text_size_px: computed('app_state.referenced_user.preferences.device.button_text', function() {
-    var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[size] || 18;
+    return buttonTextPx(this.get('app_state.referenced_user.preferences.device.button_text'));
   }),
 
   // Pixel values for button spacing (grid gap) and border (symbol-card outline width) — drive the
   // live preview on board-detail when the user nudges the -/+ steppers in the settings toolbar.
-  // Keeping both computeds dependent on the live user-preferences path means set_display_pref
-  // (which applies pending changes to user.preferences.device.*) updates the rendered grid
-  // immediately, and the eventual user.save() persists the values to the single source of truth.
+  // Both read from the canonical map in utils/display_prefs.js so the same preference produces
+  // identical visual results on board-detail, create-board-new, board-alt, demo-speak, and the
+  // preferences-page canvas. set_display_pref (which applies pending changes to
+  // user.preferences.device.*) updates the rendered grid immediately; the eventual user.save()
+  // persists the values to the single source of truth.
   button_spacing_px: computed('app_state.referenced_user.preferences.device.button_spacing', function() {
-    var spacing = this.get('app_state.referenced_user.preferences.device.button_spacing') || 'medium';
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    return (map[spacing] != null) ? map[spacing] : 8;
+    return buttonSpacingPx(this.get('app_state.referenced_user.preferences.device.button_spacing'));
   }),
 
   button_border_px: computed('app_state.referenced_user.preferences.device.button_border', function() {
-    var border = this.get('app_state.referenced_user.preferences.device.button_border') || 'medium';
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    return (map[border] != null) ? map[border] : 3;
+    return buttonBorderPx(this.get('app_state.referenced_user.preferences.device.button_border'));
   }),
 
   // Shape modifier class — "Square / Tall / Wide" icon picker maps to the
@@ -2589,9 +2900,10 @@ export default Controller.extend(prefClasses, {
         persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
           pending--;
           if(_this.isDestroyed || _this.isDestroying) { return; }
-          if(data && data.board) {
-            boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-            walk(data.board, depth - 1);
+          var merged = boardDetailCache.normalize_board_payload(data);
+          if(merged) {
+            boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+            walk(merged, depth - 1);
           }
           if(pending === 0) { commit_list(); }
         }, function(err) {
@@ -3113,13 +3425,13 @@ export default Controller.extend(prefClasses, {
         }, 0);
       };
       persistence.ajax('/api/v1/boards/' + board.get('key'), { type: 'GET' }).then(function(data) {
-        if(data && data.board) {
-          // Refresh the raw cache with the post-save server state so the
-          // next navigation back to this board (or the cache-first model
-          // hook firing on transition out of edit mode) sees fresh data
-          // instead of pre-save stale data.
-          boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-          _this._build_from_raw(data.board);
+        var merged = boardDetailCache.normalize_board_payload(data);
+        if(merged) {
+          if(merged.images && merged.images.length) {
+            _this._board_detail_images = merged.images;
+          }
+          boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+          _this._build_from_raw(merged);
         }
         finish();
 
@@ -3575,8 +3887,24 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('session_submenu_open');
     },
 
-    toggle_styles_submenu: function() {
-      this.toggleProperty('styles_submenu_open');
+    toggle_display_submenu: function() {
+      this.toggleProperty('display_submenu_open');
+    },
+
+    toggle_board_submenu: function() {
+      this.toggleProperty('board_submenu_open');
+    },
+
+    toggle_buttons_submenu: function() {
+      this.toggleProperty('buttons_submenu_open');
+    },
+
+    toggle_share_print_submenu: function() {
+      this.toggleProperty('share_print_submenu_open');
+    },
+
+    toggle_language_submenu: function() {
+      this.toggleProperty('language_submenu_open');
     },
 
     // Close the options menu on Escape from anywhere within the menu.
@@ -3691,6 +4019,14 @@ export default Controller.extend(prefClasses, {
         _this.set('show_color_legend', false);
         _this.set('board_collapsed', false);
         _this.set('panels_collapsed', true);
+        // On smaller screens (<=1024px) start the edit page with BOTH
+        // side panels collapsed to their rail — the board grid needs
+        // the room there. Set on entry only (matches how the rest of
+        // the collapse state is purely user-toggled; no resize hook).
+        var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
+        var collapse_sides = vw > 0 && vw <= 1024;
+        _this.set('left_panel_collapsed', collapse_sides);
+        _this.set('right_panel_collapsed', collapse_sides);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
       };
       ready.then(function(res) {
@@ -4304,7 +4640,8 @@ export default Controller.extend(prefClasses, {
         this.set('display_prefs_open', true);
         return;
       }
-      var prefs = this.get('app_state.currentUser.preferences') || {};
+      var pref_user = this._pref_user_for_display();
+      var prefs = (pref_user && pref_user.get('preferences')) || this.get('app_state.currentUser.preferences') || {};
       var device = prefs.device || {};
       // Seed pending + original (deep copy) with current values
       var snapshot = {
@@ -4328,7 +4665,7 @@ export default Controller.extend(prefClasses, {
 
     close_display_preferences: function() {
       // Restore original values to the live user model so any unsaved changes revert
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var orig = this.get('original_display_prefs');
       var paths = this._display_prefs_paths;
       if(user && orig) {
@@ -4344,11 +4681,17 @@ export default Controller.extend(prefClasses, {
 
     set_display_pref: function(key, value) {
       var pending = this.get('pending_display_prefs');
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
-      // Apply live to user preferences for instant preview on the board.
+      // Apply live to communicator prefs (referenced_user) for symbol rendering keys.
       if(user && path) {
         user.set(path, value);
+      }
+      // Device/layout prefs still target currentUser; mirror to currentUser when distinct
+      // so supervisor session state stays consistent for non-symbol settings.
+      var currentUser = this.get('app_state.currentUser');
+      if(currentUser && user && currentUser !== user && this._display_pref_render_keys.indexOf(key) < 0 && path) {
+        currentUser.set(path, value);
       }
       if(pending) {
         // More Settings panel is open: stash in pending so the panel's
@@ -4384,6 +4727,13 @@ export default Controller.extend(prefClasses, {
         user.set('preferences.device.updated', true);
         user.save();
       }
+      if(this._display_pref_render_keys.indexOf(key) >= 0 && this._last_raw) {
+        var rebuild_token = this._last_raw.key || this._last_raw.id;
+        if(rebuild_token) {
+          boardDetailCache.clear_ordered_buttons(rebuild_token);
+        }
+        this._build_from_raw(this._last_raw);
+      }
     },
 
     toggle_display_pref: function(key) {
@@ -4392,7 +4742,7 @@ export default Controller.extend(prefClasses, {
       var next = !pending[key];
       this.set('pending_display_prefs.' + key, next);
       // Apply live to user preferences for instant preview
-      var user = this.get('app_state.currentUser');
+      var user = this._user_for_display_pref(key);
       var path = this._display_prefs_paths[key];
       if(user && path) {
         user.set(path, next);
@@ -4480,7 +4830,7 @@ export default Controller.extend(prefClasses, {
     },
 
     save_display_preferences: function() {
-      var user = this.get('app_state.currentUser');
+      var user = this._pref_user_for_display() || this.get('app_state.currentUser');
       var pending = this.get('pending_display_prefs');
       var orig = this.get('original_display_prefs');
       if(!user || !pending || !orig) { return; }
@@ -4615,10 +4965,20 @@ export default Controller.extend(prefClasses, {
       modal.open('modals/board-actions', { board: this.get('model') });
     },
 
+    /* "My Boards" entry in the speak-mode options menu. Previously
+       opened the in-page modal picker (openBoardPicker on the
+       application controller); the modal was deleted 2026-05-23
+       when the My Boards UX moved to a route transition. Now
+       delegates to `openMyBoards` on the application controller,
+       which stashes the current board (so the boards page can
+       render a "Back to <board>" chip) and transitions to
+       /u/:user_name/boards. Close the options menu first so it
+       isn't lingering open during the transition. */
     open_board_picker: function() {
+      this.set('show_options_menu', false);
       var appController = getOwner(this).lookup('controller:application');
       if(appController) {
-        appController.send('openBoardPicker');
+        appController.send('openMyBoards');
       }
     },
 
@@ -4714,9 +5074,10 @@ export default Controller.extend(prefClasses, {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + lookup, function() {
             _this._push_nav_history();
             return persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
-              if(data && data.board && data.board.key) {
-                boardDetailCache.set(JSON.parse(JSON.stringify(data.board)));
-                return _this._preferred_board_detail_key(data.board.key).then(function(preferred_key) {
+              var merged = boardDetailCache.normalize_board_payload(data);
+              if(merged && merged.key) {
+                boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+                return _this._preferred_board_detail_key(merged.key).then(function(preferred_key) {
                   var parts = preferred_key.split('/');
                   return _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
                 });
@@ -4946,14 +5307,33 @@ export default Controller.extend(prefClasses, {
     /* Right panel: collapse/expand the entire Live Preview Edit
        container (independent of any open accordion section). */
     toggle_right_panel: function() {
+      /* Manual user toggle resets the "opened from rail"
+         provenance — Back should behave normally on the next
+         section open since the user has explicitly taken control
+         of the panel state. */
+      this.set('_section_opened_from_rail', false);
       this.toggleProperty('right_panel_collapsed');
     },
 
-    // Fully expand the right panel: clear BOTH the rail-collapsed
-    // state and any open section, so the user lands back on the
-    // complete section list (used by the Back chevron — it expands
-    // the whole panel, not just the previously-open section).
+    // Back button on the section header. Two flows:
+    //   1. User was in expanded panel → opened a section → clicked
+    //      Back. Original behavior: clear the section, panel stays
+    //      expanded showing the full section list.
+    //   2. User was in COLLAPSED rail → clicked a section icon
+    //      (panel expanded INTO that section) → clicked Back.
+    //      New behavior: collapse the panel back to the icon rail
+    //      where they came from — they didn't navigate through
+    //      the expanded section list, so returning to it would
+    //      not match their mental "back" destination.
+    // The `_section_opened_from_rail` flag tracks which flow the
+    // current section open belongs to.
     expand_right_panel: function() {
+      if(this.get('_section_opened_from_rail')) {
+        this.set('right_panel_open_section', null);
+        this.set('right_panel_collapsed', true);
+        this.set('_section_opened_from_rail', false);
+        return;
+      }
       this.set('right_panel_collapsed', false);
       this.set('right_panel_open_section', null);
     },
@@ -4975,15 +5355,22 @@ export default Controller.extend(prefClasses, {
        the same section closes it). Keeps the panel uncluttered.
        If the panel is collapsed (icon-rail mode), clicking a
        section icon re-expands the panel AND opens that section
-       — VS Code / Notion-style "click rail icon to jump back in". */
+       — VS Code / Notion-style "click rail icon to jump back in".
+       The `_section_opened_from_rail` flag is set in that flow so
+       the Back button knows to collapse the panel back to the rail
+       (rather than show the full expanded section list the user
+       never navigated through). Opening a section from the
+       already-expanded panel clears the flag. */
     toggle_right_panel_section: function(section_id) {
       if(this.get('right_panel_collapsed')) {
         this.set('right_panel_collapsed', false);
         this.set('right_panel_open_section', section_id);
+        this.set('_section_opened_from_rail', true);
         return;
       }
       var current = this.get('right_panel_open_section');
       this.set('right_panel_open_section', current === section_id ? null : section_id);
+      this.set('_section_opened_from_rail', false);
     },
 
     nav_select: function(item_id) {
@@ -5200,29 +5587,11 @@ export default Controller.extend(prefClasses, {
           // exactly where we want to land, so no flag/redirect
           // override is needed.
           _this.send('save_board');
-        } else if(result === 'discard') {
-          if(_this.get('display_prefs_open')) {
-            _this.send('close_display_preferences');
-          }
-          _this.set('edit_mode', false);
-          _this.set('paint_mode', null);
-          _this.set('color_picker_button', null);
-          _this.set('board_recolored', false);
-          _this.set('_saved_recolor', null);
-          _this.set('borders_matched', false);
-          _this.set('_saved_border_colors', null);
-          _this.get('stashes').persist('current_mode', 'default');
-          _this.get('stashes').persist('copy_on_save', null);
-          _this.get('model').rollbackAttributes();
-          _this.set('ordered_buttons', null);
-          _this.set('panels_collapsed', true);
-          _this.set('board_collapsed', true);
-          // Speak-mode board-detail page (the non-edit view), NOT
-          // the boards list — Traci's spec: discard reverts and
-          // returns to the same board in view mode.
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
         }
-        // result undefined → modal closed via X; stay put.
+        // Discard was removed from this modal — discarding lives in ONE
+        // place only, the "Discard Edits" tile (cancel_edit ->
+        // confirm-discard-changes). result undefined → modal closed via
+        // X (keep editing); stay put.
       });
     },
 
@@ -5251,9 +5620,13 @@ export default Controller.extend(prefClasses, {
           _this.set('board_loading', true);
           var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
           persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-            if(data && data.board) {
-              _this.set('_raw_board_data', data.board);
-              _this._build_from_raw(data.board);
+            var merged = boardDetailCache.normalize_board_payload(data);
+            if(merged) {
+              if(merged.images && merged.images.length) {
+                _this._board_detail_images = merged.images;
+              }
+              _this.set('_raw_board_data', merged);
+              _this._build_from_raw(merged);
             }
             _this.set('board_loading', false);
           }, function() {
@@ -5623,6 +5996,36 @@ export default Controller.extend(prefClasses, {
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
     },
 
+    // Language → opens the Translate Boards modal. Called from the
+    // speak-mode options menu's Session submenu. Does NOT chain
+    // through board-details on close (unlike the
+    // board-details-page version), so when the user dismisses the
+    // translation modal they're back on the speak-mode board, not
+    // bounced into a board-details modal first.
+    translate_board: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('translation-select', { board: board, button_set: board.get('button_set') });
+    },
+
+    // Opens the Switch Languages modal so the user can change the
+    // active text + speech language for the current board (only
+    // surfaces languages the board has translations for). Mirrors
+    // the application controller's existing `switch_languages`
+    // action so users can reach the same modal from the speak-mode
+    // options menu without leaving board-detail.
+    switch_languages: function() {
+      this.set('show_options_menu', false);
+      var board = this.get('model');
+      if(!board) { return; }
+      modal.open('switch-languages', { board: board }).then(function(res) {
+        if(res && res.switched) {
+          editManager.process_for_displaying();
+        }
+      });
+    },
+
     edit_board_details: function() {
       var board = this.get('model');
       if(!board) { return; }
@@ -5769,11 +6172,12 @@ export default Controller.extend(prefClasses, {
     },
 
     // Toggles the "Shrink labels to fit" preference — when true,
-    // button labels stay on a single line and shrink down to a 7px
-    // floor to fit the button width. When false (default — modern
-    // AAC industry standard), labels keep the user's chosen font
-    // size and wrap to up to 3 lines at word boundaries. Persists
-    // to user.preferences.shrink_labels_to_fit.
+    // button labels shrink down to a 7px floor AND wrap to up to two
+    // lines at word boundaries inside the button. When false
+    // (default — modern AAC industry standard), labels keep the
+    // user's chosen font size and wrap to up to 3 lines at word
+    // boundaries with no shrinking. Persists to
+    // user.preferences.shrink_labels_to_fit.
     toggle_shrink_labels_to_fit: function() {
       var _this = this;
       var next = !_this.get('shrink_labels_to_fit');
@@ -5781,6 +6185,66 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.shrink_labels_to_fit', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Soft borders" preference — when true, the grid
+    // gets the .md-board-detail-grid--soft-borders class which
+    // lightens the per-button outer shadow, adds a subtle inset
+    // highlight, and mutes the colored outline edge so it reads
+    // more tonally without losing the category color cue. Layers ON
+    // TOP of the user's existing border thickness pref — does NOT
+    // change border-width. Persisted on user.preferences.soft_borders.
+    toggle_soft_borders: function() {
+      var _this = this;
+      var next = !_this.get('soft_borders');
+      _this.set('soft_borders', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.soft_borders', next);
+        user.save();
+      }
+    },
+
+    // Toggles the "Hide speak bar" preference — when true the speak
+    // row's home button, sentence-bar text/chips, mic, backspace, and
+    // trash buttons are visually hidden via the
+    // .md-board-detail-sentence-row--hide-bar class on the row;
+    // only the options-chevron stays visible so the user can still
+    // open the speak menu to flip the toggle back. Persisted on
+    // user.preferences.hide_speak_bar.
+    toggle_hide_speak_bar: function() {
+      var _this = this;
+      var next = !_this.get('hide_speak_bar');
+      _this.set('hide_speak_bar', next);
+      var user = _this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.hide_speak_bar', next);
+        user.save();
+      }
+    },
+
+    // Sets whether a single speak-mode options-menu item is hidden
+    // for this user. `id` is one of the SPEAK_MENU_ITEMS ids defined
+    // at the top of this file (e.g. 'my_boards', 'translate',
+    // 'sticky_board'). `hidden` is the explicit target state — the
+    // segmented Hide/Show pill calls this directly with `true` /
+    // `false` rather than relying on a toggle, so tapping the
+    // already-active side is a no-op instead of flipping the
+    // state. Stored as an array of hidden ids on
+    // user.preferences.speak_mode_hidden_menu_items.
+    set_speak_menu_item_hidden: function(id, hidden) {
+      var arr = (this.get('speak_menu_hidden_items') || []).slice();
+      var ix = arr.indexOf(id);
+      var want_hidden = !!hidden;
+      if(want_hidden && ix < 0) { arr.push(id); }
+      else if(!want_hidden && ix >= 0) { arr.splice(ix, 1); }
+      else { return; }
+      this.set('speak_menu_hidden_items', arr);
+      var user = this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.speak_mode_hidden_menu_items', arr);
         user.save();
       }
     },

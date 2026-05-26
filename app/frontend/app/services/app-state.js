@@ -30,6 +30,7 @@ import boardDetailCache from '../utils/board_detail_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
+import { vocalizationHeightPx } from '../utils/display_prefs';
 
 import speecher from '../utils/speecher';
 import geolocation from '../utils/geo';
@@ -2460,9 +2461,12 @@ export default Service.extend({
         // Silently ignore if controller.get fails
         console.warn('header_size: error accessing controller.get:', e);
       }
-      if(window.innerHeight < 400) {
-        size = 'tiny';
-      } else if(window.innerHeight < 600 && size != 'tiny') {
+      // Viewport-height floor: keep the speak bar visually compact
+      // on short viewports. `tiny` (50px) was removed from the
+      // user-facing options — it forced the stacked toggles below
+      // WCAG 2.5.5 AAA. Force `small` (90px) instead so even very
+      // short viewports get the smallest currently-supported bar.
+      if(window.innerHeight < 600 && size != 'tiny') {
         size = 'small';
       }
       return size;
@@ -2470,19 +2474,13 @@ export default Service.extend({
   ),
   extra_header_height: 0,
   header_height: computed('header_size', 'speak_mode', function() {
+    // Reads from the canonical vocalization-height map in
+    // utils/display_prefs.js (50/70/100/150/200 for
+    // tiny/small/medium/large/huge). 70 is the default for non-
+    // speak-mode (just matches the "small" size — the non-speak
+    // header is fixed at this single value across all sizes).
     if(this.get('speak_mode')) {
-      var size = this.get('header_size');
-      if(size == 'tiny') {
-        return 50;
-      } else if(size == 'small') {
-        return 70;
-      } else if(size == 'medium') {
-        return 100;
-      } else if(size == 'large') {
-        return 150;
-      } else if(size == 'huge') {
-        return 200;
-      }
+      return vocalizationHeightPx(this.get('header_size'));
     } else {
       return 70;
     }

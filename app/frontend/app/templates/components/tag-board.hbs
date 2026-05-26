@@ -10,12 +10,23 @@
       {{#unless this.model.board}}
         <div class="la-tag-board-section">
           <label class="la-tag-board-label" for="tag-board-board">{{t "Board" key="board"}}</label>
-          <select id="tag-board-board" class="la-tag-board-input" {{on "change" (action "pickBoard")}}>
-            <option value="">{{t "Choose a board" key="tag_board_pick_board"}}</option>
-            {{#each this.boardChoicesList as |brd|}}
-              <option value={{brd.id}}>{{brd.name}}</option>
-            {{/each}}
-          </select>
+          {{!-- Modern custom dropdown — replaces the native <select>
+               so the open list panel (options) inherits the same
+               styling family as the New Board modal's modern-select.
+               The trigger picks up `.la-tag-board-modern-select`
+               scoped overrides below; the list panel uses the
+               shared .modern-select__list / __option styles. --}}
+          {{modern-select
+            class="la-tag-board-modern-select"
+            content=this.boardChoicesList
+            selection=this.pickedBoardId
+            action=(action "pickBoard")
+            selectId="tag-board-board"
+            ariaLabel=(t "Choose a board" key="tag_board_pick_board")
+            placeholder=(t "Choose a board" key="tag_board_pick_board")
+            searchable=true
+            searchPlaceholder=(t "Search boards..." key="tag_board_search_placeholder")
+          }}
         </div>
       {{/unless}}
 
@@ -47,7 +58,7 @@
       {{#if this.boardForTag.downstream_boards}}
         <div class="la-tag-board-section">
           <label class="la-tag-board-checkbox">
-            <Input type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
+            <Input @type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
             <span>{{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}</span>
           </label>
         </div>

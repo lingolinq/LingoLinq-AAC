@@ -158,37 +158,32 @@
                   <div class="md-caseload__identity-row">
                   <div class="md-caseload__card-main">
                     <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__avatar-link" aria-label={{t "Avatar for %{name}" key="avatar_for_name" name=supervisee.user_name}}>
-                      {{!-- Apple "person.crop.circle.fill" style fallback
-                           (matches the identity dropdown). Both the SVG
-                           and the <img> render; CSS :has() in
-                           .md-caseload__avatar-link hides whichever
-                           doesn't apply: SVG shows when src is a legacy
-                           /avatars/avatar-N.png placeholder; the real
-                           uploaded photo shows otherwise. --}}
+                      {{!-- Default-avatar fallback for caseload cards.
+                           Previously rendered as an inline `<svg>` with
+                           `<defs>` linearGradients + an feDropShadow
+                           filter, referenced via `url(#gradient-id)`
+                           and `url(#filter-id)`. Production asset
+                           fingerprinting mangled those fragment refs,
+                           so every gradient-filled shape painted
+                           transparent and only the one solid-color
+                           head circle stayed visible — leaving a
+                           bare lavender dot on a faint ring. The
+                           refs are now solid colors only: per-user
+                           tint comes through via direct
+                           `fill="{{supervisee.avatar_head_color}}"`
+                           interpolation, no `<defs>` block, no
+                           `url(#...)` to break. The drop-shadow
+                           previously painted by the SVG filter is
+                           replaced by the parent
+                           `.md-caseload__avatar-link` box-shadow
+                           (already present in the stack for hover
+                           halo, see app.scss). --}}
                       <svg class="md-caseload__avatar md-caseload__avatar--svg" viewBox="0 0 96 96" role="img" aria-label={{t "LingoLinq communicator avatar" key="lingolinq_communicator_avatar"}}>
-                        <defs>
-                          <linearGradient id="ll-avatar-bg-{{supervisee.user_name}}" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stop-color="#F8FCFF"/>
-                            <stop offset="0.55" stop-color="#EAF5F4"/>
-                            <stop offset="1" stop-color="#EEF1FF"/>
-                          </linearGradient>
-                          <linearGradient id="ll-avatar-inner-{{supervisee.user_name}}" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stop-color="#F7FBFF"/>
-                            <stop offset="1" stop-color="#E5ECF4"/>
-                          </linearGradient>
-                          <linearGradient id="ll-avatar-mark-{{supervisee.user_name}}" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stop-color="{{supervisee.avatar_head_color}}"/>
-                            <stop offset="1" stop-color="{{supervisee.avatar_shadow_color}}"/>
-                          </linearGradient>
-                          <filter id="ll-avatar-shadow-{{supervisee.user_name}}" x="-20%" y="-20%" width="140%" height="140%">
-                            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#1F2A4D" flood-opacity="0.14"/>
-                          </filter>
-                        </defs>
-                        <circle cx="48" cy="48" r="42" fill="url(#ll-avatar-bg-{{supervisee.user_name}})" filter="url(#ll-avatar-shadow-{{supervisee.user_name}})"/>
+                        <circle cx="48" cy="48" r="42" fill="#EAF1F8"/>
                         <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
-                        <circle cx="48" cy="48" r="25" fill="url(#ll-avatar-inner-{{supervisee.user_name}})" stroke="#E8EEF4" stroke-width="1" stroke-opacity="0.7"/>
+                        <circle cx="48" cy="48" r="25" fill="#F0F4FA" stroke="#E8EEF4" stroke-width="1" stroke-opacity="0.7"/>
                         <circle cx="48" cy="38.5" r="8.5" fill="{{supervisee.avatar_head_color}}"/>
-                        <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-avatar-mark-{{supervisee.user_name}})"/>
+                        <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="{{supervisee.avatar_shadow_color}}"/>
                       </svg>
                       <img src={{supervisee.avatar_url}} alt="" class="md-caseload__avatar">
                       {{#if supervisee.online}}

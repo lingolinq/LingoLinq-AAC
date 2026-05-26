@@ -3,88 +3,101 @@
     <button type="button" class="la-modal-close" {{action "close"}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <h3>{{t "Button List for %{board_name}" key="button_list_for" board_name=this.model.board.name}}</h3>
+    <h3 class="md-modal-title">{{t "Button List for %{board_name}" key="button_list_for" board_name=this.model.board.name}}</h3>
   </div>
   <div class="modal-body md-modal-body">
     {{#if this.translating}}
-      <h4>{{t "Translating from %{lang1} to %{lang2}" lang1=this.source_language lang2=this.destination_language key="translating_to_lang"}}</h4>
-      <div>
-      {{#if this.translating.loading}}
-        {{t "Loading translations..." key="loading_translations"}}
-      {{else if this.translating.error}}
-        {{t "Error loading translations, you can enter the translations by hand." key="error_loading_translations"}}
-      {{else}}
-        {{t "The translations below are auto-generated. Please review them to make sure they are correct for your communicator's language." key="please_review_translations"}}
-      {{/if}}
+      <div class="md-translate-hero">
+        <h4 class="md-translate-hero__title">{{t "Translating from %{lang1} to %{lang2}" lang1=this.source_language lang2=this.destination_language key="translating_to_lang"}}</h4>
+        {{#if this.translating.loading}}
+          <p class="md-translate-hero__caption">{{t "Loading translations..." key="loading_translations"}}</p>
+        {{else if this.translating.error}}
+          <p class="md-translate-hero__caption md-translate-status--error">{{t "Error loading translations, you can enter the translations by hand." key="error_loading_translations"}}</p>
+        {{else}}
+          <p class="md-translate-hero__caption">
+            {{t "The translations below are auto-generated. Please review them to make sure they are correct for your communicator's language." key="please_review_translations"}}
+          </p>
+        {{/if}}
       </div>
     {{else}}
-      <div style='float: right;'>
-        <a href="#" {{action "download_list"}}>{{t "Download this list" key="download_this_list"}}</a>
-      </div>
-      <div class="filters">
-        <a href="#" {{action "filter" "all"}} class={{if this.show_all "active"}}>{{t "Show All" key="show_all"}}</a> |
-        <a href="#" {{action "filter" "repeats"}} class={{if this.show_repeats "active"}}>{{t "Show Repeats" key="show_repeats"}}</a>
+      <div class="md-translate-actions-row">
+        <div class="md-translate-filters" role="group" aria-label={{t "Button list filter" key="button_list_filter_aria"}}>
+          <a href="#" {{action "filter" "all"}} class="md-translate-filter {{if this.show_all 'md-translate-filter--active'}}">{{t "Show All" key="show_all"}}</a>
+          <a href="#" {{action "filter" "repeats"}} class="md-translate-filter {{if this.show_repeats 'md-translate-filter--active'}}">{{t "Show Repeats" key="show_repeats"}}</a>
+        </div>
+        <a href="#" {{action "download_list"}} class="md-translate-download">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>{{t "Download this list" key="download_this_list"}}</span>
+        </a>
       </div>
     {{/if}}
-    <div style='clear: right;'></div>
-    <div class="list-group">
+
+    <div class="md-translate-list">
       {{#if this.translating}}
-        <div class="list-group-item" style="font-size: 20px;">
-          <div style='float: left; width: 45%;'>
-            {{this.model.board.name}}
+        <div class="md-translate-row md-translate-row--board">
+          <div class="md-translate-row__source">{{this.model.board.name}}</div>
+          <div class="md-translate-row__target">
+            <Input type="text" @value={{this.model.board.translated_name}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
           </div>
-          <div style='float: left; width: 45%;'>
-            <Input type="text" @value={{this.model.board.translated_name}} class="form-control" placeholder="translation" />
-          </div>
-          <div style='clear: left;'></div>
         </div>
       {{/if}}
       {{#each this.sorted_filtered_buttons as |button|}}
-        <div class={{if button.repeat "list-group-item repeat" "list-group-item"}} style="font-size: 20px;">
+        <div class="md-translate-row {{if button.repeat 'md-translate-row--repeat'}}">
           {{#if this.translating}}
-            <div style='float: left; width: 45%;'>
-              {{button.label}}
+            <div class="md-translate-row__source">
+              <span>{{button.label}}</span>
               {{#if button.linked_board_id}}
-                <img src={{path "images/folder.png"}} alt={{t "linked button" key="linked_button"}} style="height: 20px; margin-top: -3px;">
+                <svg class="md-translate-row__source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
               {{/if}}
             </div>
-            <div style='float: left; width: 45%;'>
-              <Input type="text" @value={{button.translation}} class="form-control" placeholder="translation" />
+            <div class="md-translate-row__target">
+              <Input type="text" @value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
             </div>
             {{#if button.secondary_translation}}
-              <div style='float: left; width: 45%;'>
-                {{button.vocalization}}
+              <div class="md-translate-row__source">
+                <span>{{button.vocalization}}</span>
                 {{#if button.linked_board_id}}
-                  <img src={{path "images/folder.png"}} alt={{t "linked button" key="linked_button"}} style="height: 20px; margin-top: -3px;">
+                  <svg class="md-translate-row__source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
                 {{/if}}
               </div>
-              <div style='float: left; width: 45%;'>
-                <Input type="text" @value={{button.secondary_translation}} class="form-control" placeholder="translation" />
+              <div class="md-translate-row__target">
+                <Input type="text" @value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
               </div>
             {{/if}}
-            <div style='clear: left;'></div>
           {{else}}
-            {{button.label}}
-            {{#if this.show_all}}
-              {{#if button.repeat}}
-                <span style='font-size: 16px;' class='text-muted'>{{t "(repeat)" key="repeat_paren"}}</span>
+            <div class="md-translate-row__source">
+              <span>{{button.label}}</span>
+              {{#if this.show_all}}
+                {{#if button.repeat}}
+                  <span class="md-translate-row__source-tag">{{t "(repeat)" key="repeat_paren"}}</span>
+                {{/if}}
               {{/if}}
-            {{/if}}
-            {{#if button.linked_board_id}}
-              <img src={{path "images/folder.png"}} alt={{t "linked button" key="linked_button"}} style="height: 20px; margin-top: -3px;">
-            {{/if}}
+              {{#if button.linked_board_id}}
+                <svg class="md-translate-row__source-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+              {{/if}}
+            </div>
           {{/if}}
-          <div class="text-muted" style="font-size: 14px;">
-            <LinkTo @route="board" @model={{button.board_key}} class="text-muted">{{button.board_key}}</LinkTo>
+          <div class="md-translate-row__path">
+            <LinkTo @route="board" @model={{button.board_key}}>{{button.board_key}}</LinkTo>
           </div>
         </div>
       {{/each}}
     </div>
   </div>
-  <div class='modal-footer'>
+  <div class="modal-footer md-modal-footer">
     {{#if this.translating}}
-      <button class='btn btn-default' {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
-      <button class='btn btn-primary' {{action "save_translations"}} disabled={{this.saving_translations}}>
+      <button class="md-modal-btn md-modal-btn--cancel" {{action "close"}}>{{t "Cancel" key="cancel"}}</button>
+      <button class="md-modal-btn md-modal-btn--save" {{action "save_translations"}} disabled={{this.saving_translations}}>
         {{#if this.saving_translations}}
           {{t "Accepting Translations..." key="accepting_translations"}}
         {{else if this.error_saving_translations}}
@@ -94,7 +107,7 @@
         {{/if}}
       </button>
     {{else}}
-      <button class='btn btn-primary' {{action "close"}}>{{t "Close" key="close"}}</button>
+      <button class="md-modal-btn md-modal-btn--primary" {{action "close"}}>{{t "Close" key="close"}}</button>
     {{/if}}
   </div>
 {{/modal-dialog}}

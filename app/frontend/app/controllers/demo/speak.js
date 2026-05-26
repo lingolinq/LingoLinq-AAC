@@ -4,6 +4,7 @@ import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import demoBoardLoader from '../../utils/demo_board_loader';
 import speecher from '../../utils/speecher';
 import i18n from '../../utils/i18n';
+import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 
 function default_prefs() {
   return {
@@ -119,21 +120,19 @@ export default Controller.extend({
     return 'md-board-detail-grid--text-' + (this.get('demo_prefs.button_text') || 'medium');
   }),
 
+  // Demo page reads from the canonical display-prefs map in
+  // utils/display_prefs.js so the demo grid stays in lockstep with
+  // every other rendering surface.
   button_text_size_px: computed('demo_prefs.button_text', function() {
-    var map = { 'small': 14, 'medium': 18, 'large': 22, 'huge': 35 };
-    return map[this.get('demo_prefs.button_text')] || 18;
+    return buttonTextPx(this.get('demo_prefs.button_text'));
   }),
 
   button_spacing_px: computed('demo_prefs.button_spacing', function() {
-    var map = { 'none': 0, 'minimal': 2, 'extra-small': 4, 'small': 6, 'medium': 8, 'large': 14, 'huge': 20 };
-    var spacing = this.get('demo_prefs.button_spacing') || 'medium';
-    return map[spacing] != null ? map[spacing] : 8;
+    return buttonSpacingPx(this.get('demo_prefs.button_spacing'));
   }),
 
   button_border_px: computed('demo_prefs.button_border', function() {
-    var map = { 'none': 0, 'small': 1, 'medium': 3, 'large': 5, 'huge': 7 };
-    var border = this.get('demo_prefs.button_border') || 'medium';
-    return map[border] != null ? map[border] : 3;
+    return buttonBorderPx(this.get('demo_prefs.button_border'));
   }),
 
   button_shape_class: computed('demo_prefs.stretch_buttons', function() {

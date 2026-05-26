@@ -22,6 +22,7 @@ import { inject } from '@ember/controller';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from '../utils/sync';
+import mineGrouping from '../utils/mine_board_grouping';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
@@ -144,26 +145,7 @@ export default Controller.extend({
     return ev.intro_header_visibility().showSkip;
   }),
 
-  boardPickerVisible: false,
   boardMenuOpen: false,
-  boardPickerLoading: false,
-  boardPickerBoards: null,
-  boardPickerFilter: '',
-  boardPickerListId: null,
-  filteredBoardPickerBoards: computed('boardPickerBoards.[]', 'boardPickerFilter', function() {
-    var boards = this.get('boardPickerBoards');
-    if(!boards) { return []; }
-    var filter = (this.get('boardPickerFilter') || '').toLowerCase().trim();
-    if(!filter) { return boards; }
-    return boards.filter(function(b) {
-      var name = (b.get('name') || '').toLowerCase();
-      var key = (b.get('key') || '').toLowerCase();
-      return name.indexOf(filter) !== -1 || key.indexOf(filter) !== -1;
-    });
-  }),
-  boardPickerHasHomeBoard: computed('boardPickerVisible', 'appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
-  }),
 
   init() {
     this._super(...arguments);
@@ -738,88 +720,43 @@ export default Controller.extend({
         model.prompt();
       }, 100);
     },
-    updateBoardPickerFilter: function(val) {
-      this.set('boardPickerFilter', val);
-    },
-    openBoardPicker: function() {
-      var _this = this;
-      var listId = Math.random().toString();
-      _this.set('boardPickerVisible', true);
-      _this.set('boardPickerLoading', true);
-      _this.set('boardPickerBoards', null);
-      _this.set('boardPickerFilter', '');
-      _this.set('boardPickerListId', listId);
-      var userId = _this.appState.get('referenced_user.id');
-      var args = {user_id: userId || 'self', include_shared: 1, sort: 'home_popularity', per_page: 100};
-      var loadedBoards = [];
-      var loadBoards = function() {
-        return LingoLinq.store.query('board', args).then(function(boards) {
-          if(_this.get('boardPickerListId') != listId) { return RSVP.resolve(); }
-          loadedBoards.pushObjects(boards.map(function(i) { return i; }));
-          var seen = {};
-          loadedBoards = loadedBoards.filter(function(board) {
-            var id = board.get('global_id') || board.get('id') || board.get('key');
-            if(seen[id]) { return false; }
-            seen[id] = true;
-            return true;
-          });
-          var meta = _this.persistence.meta('board', boards);
-          if(meta && meta.more) {
-            args.per_page = meta.per_page;
-            args.offset = meta.next_offset;
-            return loadBoards();
-          }
-          return RSVP.resolve();
-        });
-      };
-      loadBoards().then(function() {
-        if(_this.get('boardPickerListId') != listId) { return; }
-        var homeKey = _this.appState.get('referenced_user.preferences.home_board.key');
-        var arr = loadedBoards.sort(function(a, b) {
-          if(a.get('key') === homeKey) { return -1; }
-          if(b.get('key') === homeKey) { return 1; }
-          if(a.get('starred') && !b.get('starred')) { return -1; }
-          if(b.get('starred') && !a.get('starred')) { return 1; }
-          return (a.get('name') || '').localeCompare(b.get('name') || '');
-        });
-        _this.set('boardPickerBoards', arr);
-        _this.set('boardPickerLoading', false);
-      }, function() {
-        if(_this.get('boardPickerListId') != listId) { return; }
-        _this.set('boardPickerLoading', false);
-      });
-    },
-    closeBoardPicker: function() {
-      this.set('boardPickerVisible', false);
-      this.set('boardPickerListId', null);
-    },
-    pickBoard: function(key) {
-      this.set('boardPickerVisible', false);
-      // If on board-detail page, navigate to the new board-detail instead of the board page
-      if(this.get('on_board_detail') && key) {
-        var parts = key.split('/');
-        if(parts.length === 2) {
-          this.router.transitionTo('user.board-detail', parts[0], parts[1]);
-          return;
-        }
-      }
-      this.jumpToBoard({ key: key });
-    },
-    pickHomeBoard: function() {
-      var homeKey = this.appState.get('referenced_user.preferences.home_board.key');
-      if(homeKey) {
-        this.send('pickBoard', homeKey);
-      } else {
-        // No home board set — close the picker and route to the user's My Boards
-        // page so they can pick or create one and set it as home. The inline
-        // message in the picker explains this state.
-        this.set('boardPickerVisible', false);
-        var userName = this.appState.get('referenced_user.user_name') || this.appState.get('currentUser.user_name');
-        if(userName) {
-          this.router.transitionTo('user.boards', userName);
-        }
+
+    /* My Boards button (navbar) — replaces the old modal-based
+       picker. Transitions the user to the boards page
+       (`/u/:user_name/boards`) so they get the SAME UI the
+       boards page renders directly: no parallel modal markup,
+       no parallel state machine. If the user lands here and
+       didn't actually want to be on the boards page, they can
+       use the browser back button to return to the board they
+       were viewing — Ember pushes a history entry on transition
+       so the back stack handles this without app-level state.
+       Implemented 2026-05-23 as the replacement for the
+       openBoardPicker / boardPickerVisible modal flow. */
+    openMyBoards: function() {
+      var userName = this.appState.get('referenced_user.user_name')
+                  || this.appState.get('currentUser.user_name');
+      if(userName) {
+        this.router.transitionTo('user.boards', userName);
       }
     },
+
+    /* ────────────────────────────────────────────────────────────
+       The old My Boards modal lived here as ~700 lines of state
+       (boardPickerVisible, boardPickerTab, boardPickerBoards,
+       _loadBoardPickerForTab, the adapter aliases for
+       available-boards-section, pickBoard, pickHomeBoard,
+       openBoardPicker, closeBoardPicker, toggleSetHomeMode,
+       newBoardFromBoardPicker, set_selected, set_tag,
+       enterMineFolderTag, exitMineFolderTag, etc.). The whole
+       block was removed when the modal was replaced by a
+       route transition to `user.boards`. The boards-page
+       controller (`controller:user/index`) now owns the only
+       implementation of every action that used to be duplicated
+       here — single source of truth, no adapter, no parallel
+       state. See `openMyBoards` above for the transition
+       entry-point and user/index.js for the rest.
+       ──────────────────────────────────────────────────────── */
+
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
       opts = opts || {};

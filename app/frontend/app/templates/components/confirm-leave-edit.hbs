@@ -23,18 +23,10 @@
     </p>
   </div>
   <div class="md-modal-footer md-leave-edit-footer">
-    {{!-- Two glass-pill buttons mirroring the toolbar's Cancel/Save
-         look. Discard sits left, Save right (confirm-on-right
-         pattern). The X (close) button in the header is the
-         "back-out" affordance — there's no third Keep-Editing
-         button per Traci's spec. --}}
-    <button type="button" class="md-leave-edit-btn md-leave-edit-btn--discard" {{action "discard"}}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-      <span>{{t "Discard" key="discard"}}</span>
-    </button>
+    {{!-- Save-only. Discard was removed here so discarding lives in
+         ONE place: the "Discard Edits" tile (-> confirm-discard-changes).
+         The X (close) button in the header is the keep-editing /
+         back-out affordance. --}}
     <button type="button" class="md-leave-edit-btn md-leave-edit-btn--save" {{action "save"}}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>

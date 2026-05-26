@@ -157,14 +157,31 @@ module JsonApi::Board
       json['board']['image_urls'] = board.settings['image_urls'] || {}
       json['board']['hc_image_ids'] = {}
       json['board']['sound_urls'] = board.settings['sound_urls'] || {}
-      hash['images'].each{|i| 
-        json['board']['image_urls'][i['id']] = i['url'] 
+      schedule_skin_enrichment = false
+      hash['images'].each{|i|
+        if i['id']
+          bi = ButtonImage.find_by_global_id(i['id']) rescue nil
+          if bi
+            skin_url = bi.skin_capable_url
+            if skin_url && skin_url != i['url']
+              i['skin_url'] = skin_url
+            end
+            schedule_skin_enrichment = true if bi.needs_library_url_enrichment?
+          end
+        end
+        # For simple_refs (tree/bulk) the images[] wrapper is omitted for
+        # payload size — expose skin-capable library URLs via image_urls so
+        # the client skin_image_map can rewrite .varianted-skin → .variant-{tone}.
+        json['board']['image_urls'][i['id']] = i['skin_url'].presence || i['url']
         (i['alternates'] || []).each do |alternate|
           json['board']['image_urls']["#{i['id']}-#{alternate['library']}"] = alternate['url'] unless alternate['library'] == 'unknown'
         end
         json['board']['hc_image_ids'][i['id']] = true if i['hc']
         json['board']['has_fallbacks'] = true if i['fallback']
       }
+      if schedule_skin_enrichment
+        board.schedule_skin_enrichment!
+      end
       hash['sounds'].each{|i| 
         json['board']['sound_urls'][i['id']] = i['url'] 
         json['board']['has_fallbacks'] = true if i['fallback']

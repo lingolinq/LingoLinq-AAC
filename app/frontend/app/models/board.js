@@ -25,6 +25,64 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
 
+// Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
+// own branded tile art under /images/. The board records still carry the
+// old ARASAAC library URL in image_url, so without this the find-a-board
+// list and the copies handed to new users on signup render the generic
+// ARASAAC icon. We override by the board-key SLUG (the segment after the
+// username) so it applies both to the originals
+// (sampleorganization_user_1/quick-core-112) and to the per-user copies
+// (some_user/quick-core-112) — verified to preserve the same slug. Only
+// slugs whose PNG we actually ship are listed, so we never trade a
+// working icon for a broken one. To add another: drop the PNG in
+// public/images/ and add its slug here.
+var VOCAB_ICON_OVERRIDES = {
+  'quick-core-24': '/images/quick-core-24.png',
+  'quick-core-40': '/images/quick-core-40.png',
+  'quick-core-60': '/images/quick-core-60.png',
+  'quick-core-84': '/images/quick-core-84.png',
+  'quick-core-112': '/images/quick-core-112.png',
+  'vocal-flair-24': '/images/vocal-flair-24.png',
+  'vocal-flair-40': '/images/vocal-flair-40.png',
+  'vocal-flair-60': '/images/vocal-flair-60.png',
+  'vocal-flair-84': '/images/vocal-flair-84.png',
+  'vocal-flair-112': '/images/vocal-flair-112.png',
+  'sequoia-15': '/images/sequoia-15.png'
+};
+// Sort vocab keys longest-first so that, e.g., "quick-core-112" wins
+// over any shorter prefix in a substring match.
+var VOCAB_ICON_KEYS_BY_LENGTH = Object.keys(VOCAB_ICON_OVERRIDES).sort(function(a, b) {
+  return b.length - a.length;
+});
+// Variant-root suffixes: alternate forms of a family root (NOT topical
+// sub-boards). A slug like `vocal-flair-84-w-keyboard` or
+// `district-quick-core-112-template` is a variant root and should
+// inherit the family tile. Topical sub-boards like
+// `vocal-flair-40-vehicles` or `sequoia-15-my-streets` must keep their
+// own icons, so we DO NOT do a generic "contains" match — only this
+// curated allowlist. The optional `_<digits>` tail covers the
+// "_1" / "_2" duplicate-slug pattern Ember-side keys use.
+var VARIANT_ROOT_SUFFIXES = ['keyboard', 'w-keyboard', 'template', 'minimal', 'lite', 'light', 'legacy'];
+function vocab_icon_for_key(key) {
+  if(!key || typeof key !== 'string') { return null; }
+  var slug = key.split('/').pop();
+  // 1. Pure root match (quick-core-112, vocal-flair-84, sequoia-15)
+  if(VOCAB_ICON_OVERRIDES[slug]) { return VOCAB_ICON_OVERRIDES[slug]; }
+  // 2. Variant-root match: family+size followed by an allowlisted
+  // variant suffix at the end of the slug, with an optional leading
+  // qualifier (e.g. "district-"). Keys/suffixes are static lowercase
+  // letters / digits / hyphens — no regex meta chars, so no escape needed.
+  for(var i = 0; i < VOCAB_ICON_KEYS_BY_LENGTH.length; i++) {
+    var vocabKey = VOCAB_ICON_KEYS_BY_LENGTH[i];
+    for(var j = 0; j < VARIANT_ROOT_SUFFIXES.length; j++) {
+      var suffix = VARIANT_ROOT_SUFFIXES[j];
+      var re = new RegExp('(^|-)' + vocabKey + '-' + suffix + '(_\\d+)?$');
+      if(re.test(slug)) { return VOCAB_ICON_OVERRIDES[vocabKey]; }
+    }
+  }
+  return null;
+}
+
 // Classic boards use `.button-label`; board-detail uses
 // `.md-board-detail-symbol-card__label`. Word-prediction buttons
 // update the DOM directly, so both selectors must be supported.
@@ -128,7 +186,14 @@ LingoLinq.Board = DS.Model.extend({
     key = key.toLowerCase().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+$/, '').replace(/-+/g, '-');
     return key;
   }),
-  icon_url_with_fallback: computed('image_url', function() {
+  icon_url_with_fallback: computed('image_url', 'image_data_uri', 'key', function() {
+    // Curated vocab boards use our shipped branded tile art instead of the
+    // stale ARASAAC image_url. /images/ assets are bundled with the app, so
+    // this is safe online and offline and intentionally takes precedence
+    // over image_data_uri/image_url to keep the icon consistent everywhere
+    // (find-a-board list, dashboard previews, per-user copies at signup).
+    var vocab = vocab_icon_for_key(this && this.get && this.get('key'));
+    if(vocab) { return vocab; }
     // TODO: way to fall back to something other than a broken image when disconnected
     if(!this || !this.persistence || typeof this.persistence.get !== 'function') {
       return this && (this.get('image_data_uri') || this.fallback_image_url) || '';
@@ -138,6 +203,14 @@ LingoLinq.Board = DS.Model.extend({
     } else {
       return this.get('image_data_uri') || this.fallback_image_url;
     }
+  }),
+  // True when this board uses one of our shipped vocab tile icons
+  // (Quick Core / Vocal Flair / Sequoia, including variant roots like
+  // -keyboard / -template). Surfaces the same detection used by
+  // icon_url_with_fallback so templates can opt in to vocab-only
+  // decorations (e.g. the "CC-By OpenAAC" credit under the tile).
+  has_vocab_icon: computed('key', function() {
+    return !!vocab_icon_for_key(this && this.get && this.get('key'));
   }),
   shareable: computed('public', 'permissions.edit', function() {
     return this.get('public') || this.get('permissions.edit');
@@ -783,6 +856,30 @@ LingoLinq.Board = DS.Model.extend({
   sharing_key: DS.attr('string'),
   starred: DS.attr('boolean'),
   stars: DS.attr('number'),
+  /* `starred` is only populated by the backend on responses that pass
+     `:permissions => @api_user` (see lib/json_api/board.rb#starred).
+     The boards-index endpoint (used by the dashboard preview, boards
+     page, and My Boards picker) does NOT pass permissions, so records
+     loaded via list queries have starred=undefined. This computed
+     fills the gap by checking the user's `stats.starred_board_refs`
+     list (loaded with the user record), so any surface that needs
+     "is this board liked by the current user" has a reliable answer.
+     Falls back to the server-provided `starred` if it IS set (i.e.
+     records loaded via the single-board endpoint), so we never lose
+     accuracy. */
+  starred_for_current_user: computed(
+    'starred',
+    'id',
+    'global_id',
+    'appState.referenced_user.stats.starred_board_refs.[]',
+    function() {
+      if(this.get('starred')) { return true; }
+      var id = this.get('id') || this.get('global_id');
+      if(!id) { return false; }
+      var refs = this.appState.get('referenced_user.stats.starred_board_refs') || [];
+      return !!refs.find(function(ref) { return ref && (ref.id == id || ref.id == this.get('global_id')); }.bind(this));
+    }
+  ),
   non_author_starred: DS.attr('boolean'),
   star_or_unstar: function(star) {
     var _this = this;
@@ -1837,6 +1934,17 @@ LingoLinq.Board.is_skinned_url = function(url) {
     return false;
   }
 };
+// True when URL already selects a concrete skin tone (not the varianted-skin base).
+LingoLinq.Board.is_skin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return false; }
+  if(url.match(/\.variant-(dark|light|medium|medium-dark|medium-light|unskinned)\.\w+$/i)) {
+    return true;
+  }
+  if(url.match(/\/libraries\/twemoji\//) && url.match(/-var[0-9a-f]+UNI/i)) {
+    return true;
+  }
+  return false;
+};
 LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
   var which_override = null;
   if(unskin) {
@@ -1873,6 +1981,22 @@ LingoLinq.Board.skinned_url = function(url, which_skin, unskin) {
 // opts.persistence — when provided, falls back to the original URL if the
 //   skinned variant isn't cached locally and the original is (prevents offline
 //    404s when only the base URL has been cached).
+// Only backend-verified skin bases (.varianted-skin or twemoji skin codes) are
+// rewritten by skin_image_map. Plain /libraries/.../file.png URLs are not
+// speculatively upgraded — many symbols have no variant files on OpenSymbols.
+LingoLinq.Board.upgrade_url_for_skin_variants = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  return url;
+};
+
+LingoLinq.Board.unskin_tone_variant_url = function(url) {
+  if(!url || typeof url !== 'string') { return url; }
+  if(url.match(/\.variant(?:ed-skin|-[^.]+)\.\w+$/)) {
+    return url.replace(/\.variant(?:ed-skin|-[^.]+)\.\w+$/, '');
+  }
+  return url;
+};
+
 LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   image_map = image_map || {};
   if(!skin || skin == 'default') { return image_map; }
@@ -1882,8 +2006,13 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
   var which_skin = LingoLinq.Board.which_skinner(skin);
   var res = {};
   var resolve = function(base_url, unskin) {
-    var url = LingoLinq.Board.skinned_url(base_url, which_skin, unskin);
-    if(persistence && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
+    var url = LingoLinq.Board.skinned_url(
+      LingoLinq.Board.upgrade_url_for_skin_variants(base_url),
+      which_skin,
+      unskin
+    );
+    var online = persistence && (typeof persistence.get === 'function' ? persistence.get('online') : persistence.online);
+    if(persistence && !online && !persistence.url_cache[url] && persistence.url_cache[base_url] && (!persistence.url_uncache || !persistence.url_uncache[base_url])) {
       url = base_url;
     }
     return url;

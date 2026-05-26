@@ -24,16 +24,18 @@
               </svg>
             </button>
           {{else if this.on_board_or_alt}}
-            <button class='btn btn-default access {{if this.boardPickerVisible "board-picker-btn--open"}}' id="home_button" {{action (if this.boardPickerVisible "closeBoardPicker" "openBoardPicker")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}} aria-expanded={{if this.boardPickerVisible "true" "false"}}>
-              {{#if this.boardPickerVisible}}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="20" height="20" aria-hidden="true" style="pointer-events: none; display: block;">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              {{else}}
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
-                  <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
-                </svg>
-              {{/if}}
+            {{!-- My Boards button — used to open the modal-based
+                 picker (replaced 2026-05-23). Now invokes
+                 `openMyBoards` which stashes the current board so the
+                 boards page can offer a "Back to <board>" chip, then
+                 transitions to /u/:user_name/boards. Single source of
+                 truth: the boards-page route handles the entire UX
+                 (folders, tabs, filter, grid) — no parallel modal
+                 markup or state machine. --}}
+            <button class='btn btn-default access' id="home_button" {{action "openMyBoards"}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
+                <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+              </svg>
             </button>
           {{else}}
             <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" {{action "home"}} style='position: relative;'>
@@ -541,7 +543,12 @@
             {{/if}}
           {{/if}}
 
-          {{!-- Hamburger menu for small screens --}}
+          {{!-- Hamburger menu for small screens. The button + dropdown
+               share a positioning wrapper so the menu anchors directly
+               below the hamburger instead of inheriting #normal_mode's
+               wider positioning context (which dropped the menu out
+               to the right of the button). --}}
+          <span class="la-board-hamburger-wrap">
           <button class="la-board-hamburger" type="button" {{action "toggleBoardMenu"}} aria-label={{t "Menu" key="menu"}}>
             <span class="la-board-hamburger__bar"></span>
             <span class="la-board-hamburger__bar"></span>
@@ -586,6 +593,27 @@
                     <span class="glyphicon glyphicon-duplicate"></span>
                     {{t "Make a Copy" key="make_copy"}}
                   </button>
+                  {{!-- Set as Home Board: same gate as the full-size
+                       "Set as Home" link in the dropdown menu (board
+                       isn't already the user's current home AND the
+                       user is signed in) so the action is only offered
+                       when it would actually do something. Wires to
+                       the existing `setAsHome` action used at full
+                       size. --}}
+                  {{#if this.app_state.current_board_not_home_or_supervising}}
+                    <button type="button" class="la-board-mobile-menu__item" {{action "setAsHome"}}>
+                      <span class="glyphicon glyphicon-home"></span>
+                      {{t "Set as Home Board" key="set_as_home_board"}}
+                    </button>
+                  {{/if}}
+                  {{!-- Add to Sidebar: same action as the full-size
+                       More-menu item; only offered to signed-in users
+                       (mirrors the same condition wrapping the
+                       full-size entry at application.hbs ~492). --}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "add_to_sidebar"}}>
+                    <span class="glyphicon glyphicon-list"></span>
+                    {{t "Add to Sidebar" key="add_to_sidebar"}}
+                  </button>
                 {{/if}}
                 <button type="button" class="la-board-mobile-menu__item" {{action "downloadBoard"}}>
                   <span class="glyphicon glyphicon-cloud-download"></span>
@@ -595,6 +623,16 @@
                   <span class="glyphicon glyphicon-print"></span>
                   {{t "Print Board" key="print_board"}}
                 </button>
+                {{!-- Other Actions: wires to the same `board_actions`
+                     action used at full size (opens modals/board-actions
+                     via application.js#board_actions), gated on the
+                     feature flag that controls the full-size link. --}}
+                {{#if this.app_state.feature_flags.other_menu}}
+                  <button type="button" class="la-board-mobile-menu__item" {{action "board_actions"}}>
+                    <span class="glyphicon glyphicon-cog"></span>
+                    {{t "Other Actions" key="other_actions"}}
+                  </button>
+                {{/if}}
               {{/unless}}
               <div class="la-board-mobile-menu__divider"></div>
               <button type="button" class="la-board-mobile-menu__item la-board-mobile-menu__item--exit" {{action "exitBoards"}}>
@@ -603,6 +641,7 @@
               </button>
             </div>
           {{/if}}
+          </span>
         </span>
         <span id="board_id">
           {{#if this.app_state.current_board_is_home}}
@@ -918,39 +957,22 @@
             {{/if}}
           {{/if}}
           {{#if this.app_state.currentUser}}
-            {{!-- Both img and SVG render. CSS :has() in
-                 .user_holder hides whichever doesn't apply: when
-                 the img src points at a /avatars/avatar-N.png
-                 default placeholder, the img is hidden and the
-                 SVG (Apple-style person.crop.circle.fill silhouette)
-                 shows. When the img src is a real uploaded avatar,
-                 the SVG is hidden and the img shows. --}}
-            <span class='user_holder'>
-              {{!-- LingoLinq communicator avatar — same concentric
-                   design used on the caseload card so the identity
-                   chip matches the rest of the system. --}}
-              <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
-                <defs>
-                  <linearGradient id="ll-identity-bg" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#F4F4FB"/>
-                    <stop offset="0.55" stop-color="#EAEBF6"/>
-                    <stop offset="1" stop-color="#EEEEFF"/>
-                  </linearGradient>
-                  <linearGradient id="ll-identity-inner" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#F7F8FF"/>
-                    <stop offset="1" stop-color="#E5E7F4"/>
-                  </linearGradient>
-                  <linearGradient id="ll-identity-mark" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stop-color="#A8AEE6"/>
-                    <stop offset="1" stop-color="#1B1F4A"/>
-                  </linearGradient>
-                </defs>
-                <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg)"/>
-                <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
-                <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
-                <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
-                <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark)"/>
-              </svg>
+            {{!-- Default-avatar swap is now driven entirely by the
+                 `.user_holder--default` class (set when
+                 currentUser.avatar_url_is_default is true). The
+                 silhouette is painted as a `background-image` data
+                 URI on `.user_holder--default` (see app.scss), and
+                 the `<img>` is hidden via the
+                 `.user_holder--default img.user` rule. The inline
+                 `<svg>` previously rendered here was stripped: in
+                 production builds the asset fingerprinter mangled
+                 its `url(#gradient-id)` fragment references, so
+                 every shape that used a gradient fill painted
+                 transparent and only the one solid-color circle
+                 survived (the small lavender dot inside an empty
+                 ring). The data-URI background-image encodes `#`
+                 as `%23` and is never seen by the rewriter. --}}
+            <span class='user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}'>
               <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class='user' onerror='button_broken_image(this);' >
             </span>
             {{#if this.app_state.modeling_for_user}}
@@ -1283,29 +1305,15 @@
     <span style="display: inline-block;" class="dropdown">
       {{#if this.app_state.currentUser}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown">
-        <span class="user_holder">
-          <svg class='user md-identity-avatar--default' viewBox="0 0 96 96" aria-hidden="true">
-            <defs>
-              <linearGradient id="ll-identity-bg-2" x1="16" y1="10" x2="80" y2="88" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#F4F4FB"/>
-                <stop offset="0.55" stop-color="#EAEBF6"/>
-                <stop offset="1" stop-color="#EEEEFF"/>
-              </linearGradient>
-              <linearGradient id="ll-identity-inner-2" x1="28" y1="24" x2="70" y2="74" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#F7F8FF"/>
-                <stop offset="1" stop-color="#E5E7F4"/>
-              </linearGradient>
-              <linearGradient id="ll-identity-mark-2" x1="35" y1="30" x2="64" y2="69" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#A8AEE6"/>
-                <stop offset="1" stop-color="#1B1F4A"/>
-              </linearGradient>
-            </defs>
-            <circle cx="48" cy="48" r="42" fill="url(#ll-identity-bg-2)"/>
-            <circle cx="48" cy="48" r="40.75" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="2"/>
-            <circle cx="48" cy="48" r="25" fill="url(#ll-identity-inner-2)" stroke="#E0E2F0" stroke-width="1" stroke-opacity="0.7"/>
-            <circle cx="48" cy="38.5" r="8.5" fill="#A8AEE6"/>
-            <path d="M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z" fill="url(#ll-identity-mark-2)"/>
-          </svg>
+        {{!-- See application.hbs:957 for why the inline <svg> was
+             removed — production asset fingerprinting mangles the
+             `url(#gradient-id)` fragment refs, leaving only the one
+             solid-color shape visible. The default silhouette is
+             now painted via the `.user_holder--default` background-
+             image data URI in app.scss; the `<img>` is hidden by
+             the companion `.user_holder--default img.user` rule
+             when the user has no uploaded avatar. --}}
+        <span class="user_holder {{if this.app_state.currentUser.avatar_url_is_default 'user_holder--default'}}">
           <img src={{this.app_state.currentUser.avatar_url_with_fallback}} class="user" onerror="button_broken_image(this);">
         </span>
         {{#if this.session.invalid_token}}
@@ -1326,6 +1334,22 @@
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
+             the user a way out when they're on board-alt normal mode and
+             the dropdown is the only menu surface visible. Class
+             `dropdown-menu__exit-boards-item` is hidden by default and
+             revealed at ≤1024px on board-alt-view via SCSS. Wires to
+             the same `exitBoards` action used by the hamburger menu and
+             the full-size header so behavior is consistent. --}}
+        {{#if this.app_state.currentBoardState.id}}
+          <li role="presentation" class="dropdown-menu__exit-boards-item">
+            <a href="#" {{action "exitBoards" preventDefault=true}}>
+              <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>
+              {{t "Exit Boards" key="exit_boards"}}
+            </a>
+          </li>
+          <li role="presentation" class="dropdown-menu__exit-boards-divider divider" aria-hidden="true"></li>
+        {{/if}}
         <li role="presentation">
           <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
@@ -1506,64 +1530,13 @@
   {{page-footer support=(action "support") language=(action "language")}}
 {{/if}}
 
-{{#if this.boardPickerVisible}}
-  <div id="board_picker_backdrop" {{action "closeBoardPicker"}} role="button" tabindex="0" aria-label={{t "Close" key="close"}} style="position: fixed; inset: 0; background: rgba(0,0,0,0.32); z-index: 900;"></div>
-  <div id="board_picker" role="dialog" aria-label={{t "My Boards" key="my_boards"}}>
-    <div id="board_picker_header">
-      <span class="la-section-eyebrow-badge">{{t "My Boards" key="my_boards"}}</span>
-      <button type="button" class="board-picker__close" {{action "closeBoardPicker"}} aria-label={{t "Close" key="close"}}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="20" height="20" aria-hidden="true">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-    </div>
-    {{#unless this.boardPickerHasHomeBoard}}
-      <p class="board-picker__no-home-msg" role="status">
-        {{t "You haven't selected a home board yet. Click \"Home Board\" to create one." key="no_home_board_picker_hint"}}
-      </p>
-    {{/unless}}
-    <div class="board-picker__filter-row">
-      <button type="button" class="board-picker__home-btn {{unless this.boardPickerHasHomeBoard 'board-picker__home-btn--unset'}}" {{action "pickHomeBoard"}} aria-label={{if this.boardPickerHasHomeBoard (t "Home Board" key="board_detail_home_board") (t "No home board set, click to create one" key="no_home_board_picker_aria")}}>
-        <svg class="board-picker__home-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="18" height="18" aria-hidden="true">
-          <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
-        </svg>
-        <span class="board-picker__home-btn-label">{{t "Home Board" key="board_detail_home_board"}}</span>
-      </button>
-      <div class="board-picker__filter">
-        <svg class="board-picker__filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" class="board-picker__filter-input" placeholder={{t "Filter boards..." key="filter_boards_placeholder"}} value={{this.boardPickerFilter}} oninput={{action "updateBoardPickerFilter" value="target.value"}} autocomplete="off">
-        {{#if this.boardPickerFilter}}
-          <button type="button" class="board-picker__filter-clear" {{action "updateBoardPickerFilter" ""}} aria-label={{t "Clear filter" key="clear_filter"}}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        {{/if}}
-      </div>
-    </div>
-    <div id="board_picker_inner">
-      {{#if this.boardPickerLoading}}
-        <div class="board-picker__loading" role="status" aria-live="polite" aria-busy="true">
-          <span class="board-picker__loading-spinner" aria-hidden="true"></span>
-          <span class="board-picker__loading-text">{{t "Loading boards..." key="loading_boards"}}</span>
-        </div>
-      {{else}}
-        {{#each this.filteredBoardPickerBoards as |board|}}
-          <a href="#" {{action "pickBoard" board.key}} class="board-picker__item">
-            <span class="board-picker__thumb">
-              <img src={{board.icon_url_with_fallback}} alt="" onerror="this.style.visibility='hidden';">
-            </span>
-            <span class="board-picker__name">{{board.name}}</span>
-          </a>
-        {{else}}
-          <p class="board-picker__empty">{{t "No boards match your filter" key="no_boards_match_filter"}}</p>
-        {{/each}}
-      {{/if}}
-    </div>
-  </div>
-{{/if}}
+{{!-- The My Boards modal lived here as a `{#if boardPickerVisible}`
+     block (backdrop + dialog + folders strip + tab strip + filter +
+     grid). Removed 2026-05-23: clicking My Boards now transitions
+     to /u/:user_name/boards instead so the boards page IS the
+     picker. The boards page renders a "Back to <board>" chip when
+     the user arrived via the navbar button so they can return to
+     their previous board if they didn't actually want to leave. --}}
 
 </div>
 {{button-tracker}}

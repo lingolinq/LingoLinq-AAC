@@ -34,12 +34,21 @@
           <span class="md-hero--user__meta">{{this.model.location}}</span>
         </div>
       {{/if}}
+      {{!-- Bottom divider + "Launch the Getting Started Wizard Again"
+           button DISABLED: the onboarding flow is being evaluated for
+           later add-back (see also showGettingStarted in
+           dashboard/authenticated-view.js). With the only thing under
+           the divider gone, the divider itself is orphan styling, so
+           the whole __divider + __below-divider block is commented out
+           rather than left as an empty rule. Restore by un-commenting. --}}
+      {{!--
       <hr class="md-hero--user__divider" aria-hidden="true">
       <div class="md-hero--user__below-divider">
         {{#if this.model.permissions.edit}}
           <a href="#" {{action "setup"}} class="md-hero--user__wizard-btn">{{t "Launch the Getting Started Wizard Again" key="launch_setup"}}</a>
         {{/if}}
       </div>
+      --}}
       {{#if this.model.details_url}}
         <p class="md-hero--user__url"><a href={{this.model.details_url}} target="_blank" rel="noopener">{{this.model.details_url}}</a></p>
       {{/if}}

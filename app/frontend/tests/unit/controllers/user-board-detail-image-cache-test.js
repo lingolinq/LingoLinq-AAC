@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import BoardDetailController from 'frontend/controllers/user/board-detail';
+import LingoLinq from 'frontend/app';
 
 module('Unit | Controller | user/board-detail image cache', function(hooks) {
   var controller;
@@ -47,11 +48,33 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     assert.equal(controller._resolve_cached_image_url(remote), remote);
   });
 
+  test('_resolve_cached_image_url keeps skin-tone variant when only base is cached', function(assert) {
+    var base = 'https://cdn.example.com/lib/sym.png';
+    var skinned = base + '.variant-dark.png';
+    persistenceSvc.url_cache[base] = 'file:///local/sym.png';
+    assert.equal(controller._resolve_cached_image_url(skinned), skinned);
+  });
+
   test('_make_btn uses cached image URL when available', function(assert) {
     var remote = 'https://cdn.example.com/bi1.png';
     var local = 'file:///local/bi1.png';
     persistenceSvc.url_cache[remote] = local;
     var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, { bi1: remote });
     assert.equal(btn.image_url, local);
+  });
+
+  test('upgrade_url_for_skin_variants does not speculate .varianted-skin for plain library URLs', function(assert) {
+    var plain = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/different.png';
+    assert.equal(LingoLinq.Board.upgrade_url_for_skin_variants(plain), plain);
+    var skinBase = plain.replace('.png', '.png.varianted-skin.png');
+    assert.equal(LingoLinq.Board.upgrade_url_for_skin_variants(skinBase), skinBase);
+  });
+
+  test('_make_btn applies skin tone via skin_image_map for varianted-skin URLs', function(assert) {
+    controller._preferred_symbols = null;
+    var base = 'https://cdn.example.com/lib/sym.png.varianted-skin.png';
+    var map = LingoLinq.Board.skin_image_map({ bi1: base }, 'medium');
+    var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, map);
+    assert.ok(btn.image_url.indexOf('.variant-medium.png') > -1, 'expected medium skin variant URL');
   });
 });
