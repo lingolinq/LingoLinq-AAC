@@ -208,12 +208,22 @@
         <section class="nb-section">
           <div class="nb-section__head">
             <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
+            {{!-- Checklist hints are about typing / pasting / CSV-uploading
+                 labels, which only happens in NON-AI mode (or after the
+                 AI has populated the labels). Stay gated on
+                 `show_full_size_section`. --}}
             {{#if this.show_full_size_section}}
             <ul class="nb-checklist nb-checklist--inset nb-section__head-checklist">
               <li class="nb-checklist__item">{{t "Auto-sizes as you add labels" key="new_board_size_hint_grid"}}</li>
               <li class="nb-checklist__item">{{t "Press Enter to add label" key="new_board_size_hint_label"}}</li>
               <li class="nb-checklist__item">{{t "Type, paste, or upload CSV" key="new_board_size_hint_input"}}</li>
             </ul>
+            {{/if}}
+            {{!-- Rows / columns steppers are visible in ALL modes,
+                 including AI pre-generation. The AI label generator
+                 passes the current rows/columns to the backend (see
+                 generate_labels_with_ai), so the user MUST be able to
+                 set the target grid size BEFORE clicking Generate. --}}
             <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
               <div class="nb-stepper-mini">
                 <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
@@ -236,7 +246,6 @@
                 </button>
               </div>
             </div>
-            {{/if}}
           </div>
           <div class="nb-section__body">
             {{#if this.show_full_size_section}}
@@ -571,7 +580,7 @@
             {{!-- Empty edit rail (shell only) — same chrome/styles as
                  the board-detail edit panel. No functionality wired
                  yet; labels present so the layout can be reviewed. --}}
-            <aside class="md-board-edit-right-panel nb-create-rail" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
+            <aside class="md-board-edit-right-panel nb-create-rail {{if (is_equal this.preview_mode "dark") "md-board-detail--dark"}}" aria-label={{t "Board edit tools" key="board_edit_panel_label"}}>
               <div class="md-board-edit-right-panel__header">
                 <h3 class="md-board-edit-right-panel__title">{{t "Edit Tools" key="board_edit_tools_title"}}</h3>
                 {{!-- Light/Dark toggle relocated here from the grid; it
@@ -1046,6 +1055,27 @@
                    show_full_size_section so the full section renders. --}}
               <div class="nb-ai-generate">
                 <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
+                {{!-- Over-limit warning: shows when the user dials the
+                     rows/cols steppers past the recommended 112-button
+                     ceiling. Also blocks the Generate button (via
+                     ai_generate_disabled) until the user dials back
+                     below 112. Larger boards become hard to scan, AI
+                     label quality drops, and the per-button symbol
+                     lookup rate-limits aggressively. --}}
+                {{#if this.ai_button_count_over_limit}}
+                  <div class="nb-alert nb-alert--warning" role="alert">
+                    <span class="nb-alert__icon" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <div class="nb-alert__body">
+                      <p class="nb-alert__text">{{t "Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation." n=this.ai_button_count key="ai_board_size_over_limit"}}</p>
+                    </div>
+                  </div>
+                {{/if}}
                 {{#if this.ai_generate_error}}
                   <div class="nb-alert nb-alert--warning" role="alert">
                     <span class="nb-alert__icon" aria-hidden="true">

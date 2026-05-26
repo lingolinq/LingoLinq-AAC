@@ -18,6 +18,8 @@ file (see [README.md](README.md)).
 - [Pattern: Speak-mode vs edit-mode right-panel selectors look near-identical](#pattern-speak-mode-vs-edit-mode-right-panel-selectors-look-near-identical)
 - [Pattern: Atmospheric depth surface formula — replace hard 1px borders with layered shadows + glass veil](#pattern-atmospheric-depth-surface-formula--replace-hard-1px-borders-with-layered-shadows--glass-veil)
 - [Pattern: `__label-collapsed` is a multi-role class — scope by parent before styling](#pattern-__label-collapsed-is-a-multi-role-class--scope-by-parent-before-styling)
+- [Pattern: "Shrink to fit" is a per-label content-aware problem, not container-scaling — reach for capabilities.fit_text](#pattern-shrink-to-fit-is-a-per-label-content-aware-problem-not-container-scaling--reach-for-capabilitiesfit_text)
+- [Pattern: board-detail label surface has TWO elements — `__label` (span) and `__label-input` (input)](#pattern-board-detail-label-surface-has-two-elements--__label-span-and-__label-input-input)
 
 ---
 
@@ -333,3 +335,79 @@ vs `__section-label-collapsed`), but those classes are already
 distinct so the parent-scoping trick isn't needed there.
 
 **First seen in:** [2026-05-25-board-detail-edit-collapsed-left-panel-spacing.md](./2026-05-25-board-detail-edit-collapsed-left-panel-spacing.md)
+
+## Pattern: "Shrink to fit" is a per-label content-aware problem, not container-scaling — reach for capabilities.fit_text
+
+**Surface:** any label-fit feature on board buttons (the "Shrink labels
+to fit" preference on the board-detail page; the same intent might
+surface later on create-board-new or the classic board).
+
+**Symptom:** Reaching for `clamp()` / `min(cqw, pref)` / container
+queries to "shrink labels" produces uniform card-width-driven scaling
+— every label on a card shrinks together, including 2-character words
+that already fit. The toggle either has no visible effect (when the
+clamp's preferred value exceeds the user-pref upper bound on typical
+card sizes) or shrinks short labels needlessly.
+
+**Root cause:** CSS sees container size, not text length. "Shrink
+labels to fit" is a **per-label** problem: only labels whose text
+would overflow at the chosen size need to shrink, and each one needs
+its OWN measurement. CSS alone can't see how long a given label is.
+
+**Resolution:** The codebase has `capabilities.fit_text(str, font, w,
+h, min)` at
+[`app/frontend/app/utils/capabilities.js:1815`](../../app/frontend/app/utils/capabilities.js#L1815) —
+an offscreen-canvas measurer that walks the font down from a starting
+upper bound to a floor and returns the first size where the rendered
+text fits within `width * 0.9` (with a height ratio check). Already
+used by the legacy classic board at
+[`utils/button.js:459`](../../app/frontend/app/utils/button.js#L459)
+and the find-a-button suggestions at
+[`models/board.js:1519`](../../app/frontend/app/models/board.js#L1519).
+For wrapped labels (multi-line spans) DOM measurement is needed
+instead — see
+[`app/frontend/app/utils/label_fit.js`](../../app/frontend/app/utils/label_fit.js)
+for the wrap-aware implementation.
+
+**Transition gotcha:** when label_fit drives inline `font-size` and
+the label also has a CSS `transition: font-size`, the iterative
+measure loop will visibly flicker through every intermediate size
+unless the transition is disabled for the duration of the measure
+(see `fitWrapped` for the pattern: set `style.transition = 'none'`
+before the measure loop, restore after — the final caller-applied
+size still animates).
+
+**First seen in:**
+[2026-05-26-shrink-labels-to-fit.md](./2026-05-26-shrink-labels-to-fit.md)
+
+## Pattern: board-detail label surface has TWO elements — `__label` (span) and `__label-input` (input)
+
+**Surface:** the board-detail grid (and any new label feature added to
+it).
+
+**Symptom:** A new CSS rule scoped to `.md-board-detail-symbol-card__label`
+works in speak/view mode but is silently a no-op in edit mode (or
+vice versa). The "live preview" on the edit page doesn't reflect the
+new treatment even though the toggle is wired correctly.
+
+**Root cause:** The grid renders the label as TWO different elements
+depending on `editMode`:
+
+- `editMode === false` (speak/view): the label is a `<span class="md-board-detail-symbol-card__label">`
+  rendered at
+  [`templates/components/board-detail-grid.hbs:201`](../../app/frontend/app/templates/components/board-detail-grid.hbs#L201).
+- `editMode === true` (edit live-preview): the label is a `label-field`
+  component (rendered as `<input class="md-board-detail-symbol-card__label-input">`)
+  at
+  [`templates/components/board-detail-grid.hbs:195`](../../app/frontend/app/templates/components/board-detail-grid.hbs#L195).
+
+Any styling treatment that affects the label MUST cover both selectors
+(or split them — span gets `-webkit-line-clamp`-style multi-line
+behaviour, input is intrinsically single-line). The generic
+`.md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input`
+font-family + font-size rules at
+[`app.scss:63468`-ish](../../app/frontend/app/styles/app.scss) are the
+canonical example of this pairing.
+
+**First seen in:**
+[2026-05-26-shrink-labels-to-fit.md](./2026-05-26-shrink-labels-to-fit.md)

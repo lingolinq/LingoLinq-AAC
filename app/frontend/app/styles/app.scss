@@ -6419,15 +6419,58 @@ body > .popover.bottom {
     width: 18px;
     border: none !important;
     border-radius: 0 6px 0 6px;
-    background: var(--btn-bg, rgba(0, 0, 0, 0.12));
-    filter: brightness(0.75);
-    opacity: 1.0;
+    /* Glass-modern surface treatment — mirrors the board-detail
+       --folder-colored-corner ::after rule. The categorical button
+       color is the base layer; a bright top-right radial highlight
+       + opacity:0.92 give the tinted-glass / semi-transparent
+       reading. Depth at the inner-bottom-left corner is now an
+       INSET box-shadow rather than a wide dark radial gradient —
+       a radial overlay reads as a muddy interior blob on light
+       bases (yellow/mint) because the dark color is hue-blind,
+       while a small directional inset shadow with crisp falloff
+       reads as an edge shadow on every hue. The inset depth's
+       direction matches the top-right highlight, giving a single
+       coherent lit-from-upper-right reading. Reads the same
+       vocabulary as the soft-borders glass effect at
+       app.scss:62979 so the classic / board-alt grids visually
+       match the modernized board-detail page. */
+    background-color: var(--btn-bg, rgba(0, 0, 0, 0.18));
+    background-image:
+      radial-gradient(
+        circle at 100% 0%,
+        rgba(255, 255, 255, 0.50) 0%,
+        rgba(255, 255, 255, 0.18) 35%,
+        rgba(255, 255, 255, 0) 65%
+      );
+    /* Shadow stack mirrors the board-detail rule's 2026-05-26 v3
+       fix: dropped the outer drop shadow (was projecting a black
+       blur onto the colored button face that read as a smudge on
+       light categorical colors), tightened the inset depth blur
+       (4px→2px, alpha .18→.14) so the inner-curve shadow stays
+       crisp on every hue. The rim highlight + 0.92 opacity carry
+       the glass cue without needing elevation. */
+    box-shadow:
+      inset -1px 1px 0 rgba(255, 255, 255, 0.35),
+      inset 1px -1px 2px rgba(0, 0, 0, 0.14);
+    opacity: 0.92;
+    /* 10% chroma reduction so the colored corner reads as a
+       support cue rather than competing with the category label
+       for primary attention. The .home variant below inherits
+       this filter (it only overrides box-shadow + opacity). */
+    filter: saturate(0.90);
     z-index: 2;
     transform: scale(1.5);
     transform-origin: top right;
     &.home {
-      opacity: 1.0;
-      filter: brightness(0.68);
+      /* Home folders previously read darker via a stronger
+         brightness filter. Carry that differentiation with a
+         slightly deeper inset depth alpha (.14 → .22) on top of
+         the inherited stack so the home folder still reads as
+         visually heavier — same crisp 2px blur, just deeper. */
+      box-shadow:
+        inset -1px 1px 0 rgba(255, 255, 255, 0.35),
+        inset 1px -1px 2px rgba(0, 0, 0, 0.22);
+      opacity: 0.95;
     }
     .action {
       visibility: hidden;
@@ -6462,9 +6505,10 @@ body > .popover.bottom {
       height: 10px;
       width: 14px;
       border-radius: 0 0 0 4px;
-      &.home {
-        filter: brightness(0.68);
-      }
+      /* .home variant intentionally inherits the parent rule's
+         gradient-based darkening + 0.95 opacity. The previous
+         brightness-filter override has been dropped because it
+         would wash out the glass gradient stack the parent applies. */
     }
     .button .action_container.webhook {
       border-radius: 8px;
@@ -6484,10 +6528,11 @@ body > .popover.bottom {
       height: 12px;
       width: 16px;
       border-radius: 0 0 0 5px;
-      &.home {
-        opacity: 1.0;
-        filter: brightness(0.68);
-      }
+      /* .home variant intentionally inherits the parent rule's
+         gradient-based darkening + 0.95 opacity. The previous
+         brightness-filter + opacity overrides have been dropped
+         because they would fight the glass gradient stack the
+         parent applies. */
     }
     .button .action_container.webhook {
       border-radius: 10px;
@@ -6500,6 +6545,18 @@ body > .popover.bottom {
     }
     .button .action_container.webhook.errored {
       border-radius: 0;
+    }
+  }
+  /* On narrow screens (≤640px — phone-portrait threshold), make
+     the corner tabs ~50% more transparent (0.92 → 0.46) so the
+     categorical-color wedge stays a quiet folder cue rather than
+     dominating the small tile. Mirrors the parallel board-detail
+     rule. */
+  @media (max-width: 640px) {
+    .button .action_container.folder,
+    .button .action_container.integration,
+    .button .action_container.webhook {
+      opacity: 0.46;
     }
   }
 }
@@ -45713,6 +45770,42 @@ a.md-goal-nav-action:hover,
   margin-left: auto;
   flex-shrink: 0;
 }
+/* create-board-new rail: sub-category labels render in proper casing
+   rather than the UPPERCASE + tracked treatment used on the
+   board-detail edit panel. The base rules at lines ~82322
+   (__subheader), ~82663 (__row-pair-label) and ~83074
+   (__palette-label) all set `text-transform: uppercase` +
+   letter-spacing for the edit-page treatment; this override neutralises
+   both for the create-board-new rail only. Same casing/tracking
+   neutralisation applied to the section toggles so "Color" / "Shape" /
+   etc. read in proper case alongside the surrounding labels. */
+.nb-create-rail .md-board-edit-right-panel__subheader,
+.nb-create-rail .md-board-edit-right-panel__row-pair-label,
+.nb-create-rail .md-board-edit-right-panel__palette-label,
+.nb-create-rail .md-board-edit-right-panel__section-label {
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* create-board-new rail: color paint-grid pills overflow on the longer
+   POS labels ("Preposition", "Determiner"). Grid items default to
+   `min-width: auto` which forces grid columns to expand to the natural
+   width of their content; without `min-width: 0` on the pill, the
+   pill-label's `text-overflow: ellipsis` (set on the label at line
+   ~83150) can't kick in. The base edit-page rail is wider so this
+   only surfaces in create-board-new's narrower rail. */
+.nb-create-rail .md-board-edit-right-panel__paint-pill {
+  min-width: 0;
+}
+/* create-board-new rail: font dropdown extends past the rail's left
+   edge. The base rule at ~66191 sets `max-width: 240px` and the
+   right-panel override at ~86319 anchors the menu to `right: 0` (the
+   menu opens leftward toward the page interior — appropriate for the
+   wider board-detail edit rail). In create-board-new the rail is
+   narrower so the 240px max-width extends past the rail's left edge.
+   Cap the menu width so it fits within the rail's inner space. */
+.nb-create-rail .md-settings-dropdown-menu {
+  max-width: 220px;
+}
 /* The grid now sizes to its own content (rows × ≥110px) and the
    stage grows with it, so the old fixed `min-height: 760px` on the
    expanded state is obsolete — it only added dead space at the
@@ -54148,12 +54241,14 @@ a.md-goal-nav-action:hover,
   justify-content: center;
   box-sizing: content-box;
 }
-/* Boards-page heart sits in the TOP-LEFT corner (the dashboard strip
-   `.md-strip__heart` keeps the original top-right placement from the
-   shared rule above). Top-left is empty real estate on the boards
-   page (the `.board-icon__info` i+grid chip lives top-right, the
-   home-board badge sits top-center), so the heart anchors there
-   cleanly without competing with the grid-size pill. */
+/* Heart icon TOP-LEFT placement — consistent across the boards
+   page, the My Boards picker modal, AND the dashboard home strip.
+   Top-left is empty real estate on every surface (the
+   `.board-icon__info` i+grid chip lives top-right, the home-board
+   badge sits top-center), so the heart anchors there cleanly
+   without competing with the grid-size pill. The dashboard-specific
+   `.md-strip__heart` override further down adjusts size + offsets
+   for the smaller strip tile but keeps the same top-left anchor. */
 .ub-boards-page__board-item-heart {
   top: 12px;
   left: 12px;
@@ -54179,12 +54274,15 @@ a.md-goal-nav-action:hover,
   flex-shrink: 0;
 }
 /* Dashboard strip tile is smaller than the picker/boards-page tiles,
-   so dial the heart down a notch. */
+   so dial the heart down a notch. Anchored top-LEFT to match the
+   boards-page + picker placement; the shared base rule sets the
+   right anchor so we release it here. */
 .md-strip__heart {
   width: 18px;
   height: 18px;
   top: 4px;
-  right: 4px;
+  left: 4px;
+  right: auto;
 }
 
 // Grid icon on home button for board/board-alt: override the CSS ::after home icon
@@ -58502,6 +58600,20 @@ a.md-goal-nav-action:hover,
     inset 0 -1px 0 rgba(255, 255, 255, 0.45),
     0 1px 0 rgba(255, 255, 255, 0.50);
 }
+/* "Hide speak bar" — when the preview-row strip above the wrap
+   is removed (display:none via .md-board-detail-sentence-row--hide-bar),
+   the wrap is left at the top of the panel with the bottom-only
+   rounding + missing top border the rule above assumed would butt
+   against the strip. Round all four corners + restore the top
+   border so the wrap reads as a complete self-contained panel.
+   Scoped via :has() on the closest common ancestor since the
+   strip and the wrap are siblings of .md-board-detail-main, not
+   nested. */
+.md-shell--board-detail-edit .md-board-detail-main:has(.md-board-detail-sentence-row--hide-bar) .md-board-detail-grid-sidebar-wrap {
+  border-top: 1px solid rgba($la-navy, 0.04);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
 /* Dark-mode top stack: was using rgba(0,0,0,.28) fill + rgba(0,0,0,.45)
    stroke, which read as a hard near-black cut-out against the lifted
    #1d293d center stage — exactly the harsh-border / panel-edge look
@@ -58548,6 +58660,14 @@ a.md-goal-nav-action:hover,
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 0 -1px 0 rgba(0, 0, 0, 0.06),
     0 8px 24px rgba(0, 0, 0, 0.10);
+}
+/* "Hide speak bar" — dark-mode parallel of the light rule above.
+   The wrap's hide-bar rule sets a fresh top border with the
+   light-mode color; in dark mode the rest of the wrap's border
+   reads as `rgba(255, 255, 255, 0.08)`, so the top border needs
+   the same translucent-white tint instead of the navy. */
+.md-shell--board-detail-edit.md-board-detail--dark .md-board-detail-main:has(.md-board-detail-sentence-row--hide-bar) .md-board-detail-grid-sidebar-wrap {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Header-level edit actions — the relocated Discard / Save tiles in
@@ -58893,35 +59013,92 @@ a.md-goal-nav-action:hover,
   min-width: var(--nb-sb-minw, 44px);
 }
 /* "Hide speak bar" preference — toggle in the right panel's Speak
-   Bar section. When the user enables it, the speak row collapses
-   to a single compact strip showing ONLY the options chevron
-   (the third __tool-btn that opens the speak menu). Everything
-   else on the row — home button, sentence-bar text/chips/mic/
-   backspace/trash, modeling badge, the stacked actions-wrap on
-   the right — is hidden via display: none. The chevron stays so
-   the user can still open the speak menu (where they'll flip the
-   toggle back when they want the bar visible again). Applies to
-   both the live speak row (#speak) and the edit-mode preview row
-   so the preference is visible live in the right panel. */
-.md-board-detail-sentence-row--hide-bar .md-board-detail-home-btn,
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__back-btn,
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__modeling-badge,
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__text,
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__btn,
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__tools .md-board-detail-sentence-bar__tool-btn:not(:last-child),
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__actions-wrap {
+   Bar section.
+
+   The two surfaces behave differently when the toggle is ON:
+
+   1. EDIT MODE preview row (`.md-board-detail-sentence-row--preview`):
+      removed entirely (display:none). It's a non-interactive mock of
+      the speak bar — nothing useful to keep visible.
+
+   2. SPEAK MODE live row (`#speak`): the bulky middle sentence-bar
+      (chips / text / back / modeling badge / sentence-bar tools) is
+      hidden, the row's full-width chrome strip is stripped, and the
+      row is repositioned as a compact floating cluster anchored to
+      the top-right of the speak-mode main area. The cluster keeps
+      the home button + options-menu trigger + sidebar toggle
+      side-by-side so the user retains navigation, speak menu, and
+      sidebar access without the vertical space cost of a full bar.
+      The wrap below picks up rounded top corners + restored top
+      border via the rule near app.scss:58541. */
+
+/* Edit-mode preview row: hidden entirely (chained class selector
+   beats single-class --hide-bar by specificity). */
+.md-board-detail-sentence-row--preview.md-board-detail-sentence-row--hide-bar {
   display: none !important;
 }
-.md-board-detail-sentence-row--hide-bar {
-  /* Override the per-size sentence-bar height (50/70/100/150/200)
-     when hidden — the row no longer needs to fit chips, so collapse
-     to a single touch-target strip. */
-  min-height: 44px !important;
+
+/* Speak-mode live row: floating top-right cluster. Scoped to non-edit
+   shell so the edit-mode hide above isn't accidentally re-shown by
+   this rule's specificity. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  left: auto;
+  width: auto;
+  min-height: 0 !important;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  /* Compact horizontal row of icon buttons — home + options + sidebar. */
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  z-index: 50;
 }
-.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar {
-  min-height: 44px !important;
-  justify-content: flex-end;
-  padding: 4px 8px;
+/* Hide the middle sentence-bar block (chips / text / back-btn /
+   modeling badge / sentence-bar tools). The home button and the
+   __actions-wrap (options toggle + sidebar toggle) remain visible
+   because they're SIBLINGS of the sentence-bar inside #speak. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar {
+  display: none !important;
+}
+/* The actions-wrap is `--stacked` (vertical) by default for the
+   side-of-the-bar layout. In the floating cluster we want options +
+   sidebar laid out side-by-side alongside home, so override to
+   horizontal and let each button keep its intrinsic size. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__actions-wrap--stacked {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-actions-toggle,
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-sidebar-toggle {
+  flex: none;
+  align-self: center;
+}
+/* Resize the home button to match the other two cluster buttons
+   (options-toggle + sidebar-toggle are 44×44 with 12px radius;
+   the bar-mode home was 56×50 with 18px radius and 10px padding
+   to sit comfortably alongside the sentence-bar's larger chrome).
+   In the floating cluster the three buttons should read as one
+   set of equal-weight icon controls, so match the 44×44 / 12px
+   vocabulary. padding:0 because the home SVG (33×33) fits inside
+   44×44 with built-in slack. Drop the compensating right-margin
+   (was -8px to close a gap to the sentence-bar's pseudo-divider) —
+   in the cluster the gap is owned by the parent's `gap: 6px`. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) #speak.md-board-detail-sentence-row--hide-bar .md-board-detail-home-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  margin-right: 0;
 }
 .md-board-detail-sentence-row .md-board-detail-sentence-bar__chip-img {
   width: var(--nb-sb-img, 50px);
@@ -59397,14 +59574,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding: 0;
   border-radius: 12px;
   /* Floating-chip elevation matching the sentence bar + home
-     button. Border softened .12 → .06 hairline; backdrop-filter
-     blur lets the bar's translucent atmosphere bleed through;
-     layered top-edge highlight + outer drop instead of a flat
-     fill. */
+     button. Border softened .12 → .06 hairline; layered top-edge
+     highlight + outer drop give the floating-chip look without
+     needing a backdrop-filter blur layer.
+     `backdrop-filter` was dropped after intermittent halo /
+     edge-fringe artifacts appeared at the boundary between this
+     button (blurred compositor layer) and adjacent non-blurred
+     elements like the mic button on its left. Chrome / Safari
+     re-paint the compositor edge in ways that can leave a faint
+     halo, especially when nearby elements transition or paint.
+     The 8% white fill + 12% inset top highlight + 8% navy outer
+     drop carry the chip elevation by themselves; no blur needed. */
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px) saturate(1.3);
-  -webkit-backdrop-filter: blur(10px) saturate(1.3);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 2px 6px rgba($la-navy, 0.08);
@@ -59425,6 +59607,23 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail-sentence-bar__tool-btn:active {
   transform: scale(var(--md-tap, 0.97));
+}
+/* Suppress the verdigris focus halo when focus arrives via mouse
+   click (not keyboard). The grouped :focus-visible rule at
+   ~app.scss:65672 applies a 3px verdigris ring + 5px feathered halo
+   for keyboard-visible focus; Chrome/Safari's :focus-visible
+   heuristic occasionally matches mouse clicks too (after recent
+   keyboard input, programmatic focus shifts, or backspace's rapid
+   re-click pattern), leaving the ring lingering until focus moves
+   elsewhere. Mirrors the actions-toggle pattern at ~app.scss:62292
+   but RESTORES the floating-chip base shadow instead of clearing
+   shadows entirely so the focused-but-not-visible state still reads
+   as the chip it normally is. */
+.md-board-detail-sentence-bar__tool-btn:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 6px rgba($la-navy, 0.08);
 }
 
 .md-board-detail-sentence-bar__btn--speak {
@@ -61320,6 +61519,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding-top: 0;
   scroll-padding-top: 0;
 }
+/* "Hide speak bar" in speak mode — the live #speak row is repositioned
+   as a floating top-right cluster (home + options + sidebar) anchored
+   to .md-board-detail-main (see the hide-bar rule near app.scss:58931).
+   That cluster floats above the grid wrap at top:8px right:8px and
+   would overlap the top-right buttons without compensation. Push the
+   grid content down by the cluster's footprint: 8px top offset +
+   44px home-btn height (all three cluster buttons share the same
+   44×44 footprint) + 8px breathing room = 60px. Scoped to speak
+   (non-edit) shell since edit mode hides the preview row entirely
+   (no overlap to compensate for). */
+.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main:has(.md-board-detail-sentence-row--hide-bar) .md-board-detail-grid-sidebar-wrap {
+  padding-top: 60px;
+  scroll-padding-top: 60px;
+}
 .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid,
 .md-board-detail-grid-sidebar-wrap > div:has(.md-board-detail-grid) {
   flex: 1;
@@ -62787,6 +63000,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   grid-template-columns: repeat(var(--board-columns), minmax(0, 1fr));
   grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr));
   gap: var(--bd-button-gap, 8px) !important;
+  /* Smooth the grid-gap transition when the user adjusts the Grid
+     Gap stepper in the create-board-new / board-detail Edit Tools
+     rail. Without this, each +/- click snaps the layout abruptly,
+     reading as "jumpy" preview behavior; a 180ms ease eases the
+     value change so the buttons glide to their new spacing. Scoped
+     to `gap` only so other property changes (row/column resize,
+     etc.) aren't accidentally animated. */
+  transition: gap 0.18s ease;
   margin-bottom: 0;
   flex: 1 1 0;
   min-height: 0;
@@ -62927,6 +63148,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      user's button_border preference. Falls back to 3px for non-edit views. */
   outline: var(--bd-button-border, 3px) solid transparent;
   outline-offset: calc(-1 * var(--bd-button-border, 3px));
+  /* Smooth the outline-width / outline-offset change when the user
+     adjusts the Border stepper in the create-board-new / board-detail
+     Edit Tools rail. Without these, each +/- click snaps the border
+     thickness abruptly, reading as "jumpy" preview behavior. Both
+     outline-width and outline-offset have to animate together since
+     the offset is calc(-1 * width) — animating only one of them
+     causes the border to briefly drift inward / outward during the
+     change. */
+  transition: outline-width 0.18s ease, outline-offset 0.18s ease;
   cursor: pointer;
   overflow: hidden;
   box-shadow:
@@ -63085,8 +63315,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      breakpoints. */
   border-radius: clamp(6px, 1.2vw, 16px);
 }
-/* White/black symbol background: match classic board — white/black behind
-   the symbol image only; Fitzgerald card colors stay on the card. */
+/* White symbol background — fills the ENTIRE card white (matching the
+   symmetric treatment that `symbol_background_black` already applies
+   with #000). The previous behavior only painted the area behind the
+   image white and left the Fitzgerald POS color on the card; that
+   read as "image floats on a coloured card" rather than the expected
+   "this is a white-background board." The card-level rule below uses
+   !important to beat inline `background-color: <pos color>` styles
+   set on individual cells (e.g. create-board-new's per-cell
+   POS-coloured `cell.bg_style`). The label/img rules following keep
+   the label transparent so the label text reads against the new
+   white card surface, and keep the explicit white behind the symbol
+   image so transparent-PNG symbols still render correctly. */
+.symbol_background_white .md-board-detail-symbol-card {
+  background-color: #fff !important;
+}
 .symbol_background_white .md-board-detail-symbol-card__image img.symbol {
   background: #fff;
 }
@@ -63262,6 +63505,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   // 3-line cap + ellipsis is a last-ditch fallback for unusually
   // long phrases.
   font-size: var(--bd-button-text-size, 15px);
+  /* Smooth the font-size change when the user adjusts the Text Size
+     stepper in the Edit Tools rail. Without this, each +/- click
+     snaps the label size abruptly; with shrink-labels ON the
+     label_fit.js inline override layered on top makes the change
+     read as "pops back and forth between the new and old setting"
+     because the inline-style restore inside fitWrapped briefly puts
+     the OLD size back before the caller sets the NEW. label_fit
+     also disables the transition while measuring (see fitWrapped)
+     so the measurement loop doesn't visibly flicker through every
+     intermediate size — only the final base→chosen transition is
+     animated. */
+  transition: font-size 0.18s ease;
   font-weight: 600;
   color: $la-navy;
   text-align: center;
@@ -63331,28 +63586,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     transform: scale(2.1);
   }
 }
-// Shrink-to-fit opt-in (Text Settings → Shrink labels to fit).
-// Two-line word-boundary shrinking inside the container: same
-// clamp(7px, 12cqw, font) size shrinking LingoLinq historically used,
-// but instead of forcing a single line we now allow wrapping to up to
-// TWO lines at word boundaries (keep-all inherited from the base
-// __label rule prevents mid-word breaks — the visual shape of a word
-// is a recognition cue for AAC users). Useful for boards where the
-// SLP wants every button face to look uniform but is OK with
-// slightly smaller text + a second line for longer labels. The third
-// line allowed by the default (unconstrained) mode is the difference.
-.md-board-detail-grid--shrink-labels .md-board-detail-symbol-card__label {
-  font-size: clamp(8px, 12cqw, var(--bd-button-text-size, 15px));
-  // -webkit-box + line-clamp 2 = up to two lines with ellipsis past
-  // that, mirroring the 3-line default but capped one shorter.
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  white-space: normal;
-  // 1.15 line-height × 2 = 2.3em (matches the base rule's per-line
-  // math: 1.15 × 3 = 3.45em for the default 3-line cap).
-  max-height: 2.3em;
-}
+// Shrink-to-fit opt-in (Text Settings → Shrink labels to fit) is
+// implemented per-label in JS — see app/frontend/app/utils/label_fit.js
+// and the board-detail-grid component. The toggle adds
+// .md-board-detail-grid--shrink-labels to the grid root as a hook
+// JS uses to decide whether to apply or clear inline font-sizes,
+// but the visual behavior comes entirely from those inline styles
+// (which beat the base CSS rule on cascade). There is intentionally
+// no CSS rule scoped to that class — the previous CSS-driven version
+// scaled labels uniformly by card width, which scaled short labels
+// alongside long ones and missed the per-label content-aware intent.
 .md-board-detail-symbol-card__label-input {
   font-size: var(--bd-button-text-size, 19px);
   font-weight: 600;
@@ -63377,7 +63620,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.6);
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  /* font-size transition matches the speak-mode `__label` rule so the
+     editable input animates the Text Size stepper the same way. */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, font-size 0.18s ease;
 }
 .md-board-detail-symbol-card__label-input:focus-visible {
   border-color: $brand-verdigris;
@@ -67156,6 +67401,46 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder {
   position: relative;
   overflow: hidden;
+  /* Raised-glass-button appearance for folders in colored-corner
+     mode — the small corner indicator alone didn't carry enough
+     "this is a folder" visual weight, so the folder card itself
+     now reads as a tinted-glass tile elevated off the board
+     canvas. Layered translucent white gradients (top sheen +
+     center pearl) overlay the inline categorical background-color
+     so the card stays color-identified while reading as glass.
+     Multi-layer outer drop shadows give the raised elevation;
+     inset top highlight + inset rim soften the edge into a
+     gradient transition rather than a hard color slab. !important
+     on background-image and box-shadow so this stack wins over
+     the soft-borders rule (at app.scss:62979) when both modes are
+     active — soft-borders' !important would otherwise clobber a
+     non-important background-image declaration here. */
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.20) 40%,
+      rgba(255, 255, 255, 0.05) 100%
+    ),
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.20) 45%,
+      rgba(255, 255, 255, 0.05) 80%,
+      rgba(255, 255, 255, 0) 100%
+    ) !important;
+  box-shadow:
+    /* Multi-layer outer drop — close grounding + mid lift +
+       broad ambient haze for the raised-glass-button elevation. */
+    0 2px 6px rgba($la-navy, 0.12),
+    0 6px 18px rgba($la-navy, 0.10),
+    0 14px 32px rgba($la-navy, 0.06),
+    /* Inset rim — softens the categorical fill at the edges
+       so the card transitions gradient → fill rather than
+       reading as a hard slab. */
+    inset 0 0 18px rgba($la-navy, 0.10),
+    /* Inset top highlight — "lit from above" glass sheen. */
+    inset 0 2px 6px rgba(255, 255, 255, 0.70) !important;
 }
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
   content: "";
@@ -67163,24 +67448,82 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   top: 0;
   right: 0;
   /* Fan-shaped corner: a symmetric quarter-circle wedge whose curved
-     edge fans inward toward the button center (was a small rounded
-     rectangle). Square footprint + full bottom-left radius = a clean
-     quarter-disc "fan" in the top-right corner. Smaller footprint so it
-     spans less of the folder. */
+     edge fans inward toward the button center. Square footprint +
+     full bottom-left radius = a clean quarter-disc "fan" in the
+     top-right corner. */
   width: 20px;
   height: 20px;
-  /* Uses --btn-border (the button's outline color — the darker
-     Fitzgerald-derived border the rest of the grid uses for its
-     button outlines), with --btn-bg as a fallback when the button
-     doesn't have a border color set. This makes the folder's
-     colored corner match the categorical OUTLINE color of regular
-     buttons, not the lighter fill — so a green-verb folder corner
-     reads at the same depth as the green outline ring on the
-     siblings around it. No brightness filter — full saturation. */
-  background: var(--btn-border, var(--btn-bg, currentColor));
+  /* Glass-modern surface treatment — replaces the previous flat
+     solid quarter-disc. The categorical color (--btn-border with
+     --btn-bg fallback, matching the rest of the grid) is now the
+     base layer; a single bright top-right radial highlight gives
+     the wedge a tinted-glass reading. opacity:0.92 lets a hint of
+     the button face show through so the corner reads as
+     semi-transparent — same vocabulary as the soft-borders glass
+     effect at app.scss:62979. Depth at the inner curve is now
+     produced by an INSET box-shadow rather than a dark radial
+     gradient; a wide radial overlay reads as a muddy interior
+     blob on light bases (yellow/mint) because the dark color is
+     hue-blind, while a small directional inset shadow with crisp
+     falloff reads as an edge shadow on every hue.
+
+     Shadow stack (2026-05-26 v3): the previous version layered an
+     OUTER drop (`-1px 2px 4px rgba(0,0,0,0.10)`) for elevation
+     plus an inset 4px-blur depth for inner-curve shadow. Both
+     blurs read clean on dark categorical colors (purple, deep
+     orange) because black-over-dark = small luminance delta;
+     same blurs on light categorical colors (yellow, mint) =
+     high-contrast dark smudge bleeding ~4px into the button face,
+     reading as "blurry." Replaced with: NO outer drop (the corner
+     sits flush against the button face — the rim highlight +
+     0.92 opacity carry the glass cue without needing elevation)
+     and a tighter inset depth (2px blur, .14 alpha) so the
+     inner-curve shadow stays a crisp line on every hue. */
+  background-color: var(--btn-border, var(--btn-bg, currentColor));
+  background-image:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(255, 255, 255, 0.50) 0%,
+      rgba(255, 255, 255, 0.18) 35%,
+      rgba(255, 255, 255, 0) 65%
+    );
   border-radius: 0 0 0 100%;
+  box-shadow:
+    inset -1px 1px 0 rgba(255, 255, 255, 0.40),
+    inset 1px -1px 2px rgba(0, 0, 0, 0.14);
+  opacity: 0.92;
+  /* 10% chroma reduction so the colored corner reads as a
+     support cue rather than competing with the category label
+     for primary attention. Edge geometry unchanged — only the
+     in-color intensity is muted. */
+  filter: saturate(0.90);
   z-index: 3;
   pointer-events: none;
+}
+/* On larger screens (tablet-landscape / desktop and up) bump the
+   corner-tab footprint by 20% (20px → 24px). At narrower widths the
+   card itself is smaller and 20px reads as a proportional corner;
+   at 1024px+ the card grows but the fixed 20px corner became visually
+   underweight relative to the rest of the button face. 1024px is the
+   project's canonical tablet-landscape / desktop threshold (matches
+   other board-detail responsive rules nearby). */
+@media (min-width: 1024px) {
+  .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
+    width: 24px;
+    height: 24px;
+  }
+}
+/* On narrow screens (≤640px — phone-portrait threshold), make the
+   corner tabs ~50% more transparent (opacity 0.92 → 0.46). At small
+   viewport widths the cards are denser and the categorical-color
+   wedge starts to compete visually with the symbol image; halving
+   the opacity keeps it as a quiet folder cue without dominating the
+   tile. Larger viewports retain the standard 0.92 from the base
+   rule. */
+@media (max-width: 640px) {
+  .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
+    opacity: 0.46;
+  }
 }
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
   display: none;
@@ -82513,8 +82856,14 @@ blockquote small {
   font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.70);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* Inner section labels (e.g. "Text Size", "Font Type") render in
+     proper case rather than the previous UPPERCASE + tracked
+     treatment. The area-heading __subheader stays uppercase for
+     section identity, but the inner content labels that appear
+     after the user opens a section read better in proper case
+     against the surrounding controls. */
+  text-transform: none;
+  letter-spacing: normal;
 }
 .md-board-detail--dark .md-board-edit-right-panel__row-pair-label {
   color: rgba(255, 255, 255, 0.70);
@@ -82924,8 +83273,13 @@ blockquote small {
   flex: 1 1 auto;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  /* Palette label ("Select Paint Color") renders in proper case to
+     match the rest of the inner section labels. Previously
+     UPPERCASE + 0.08em tracked to read as a quiet eyebrow above
+     the swatch grid; that vocabulary now reserved for area
+     headings only. */
+  text-transform: none;
+  letter-spacing: normal;
   color: rgba($la-navy, 0.65);
   text-align: center;
 }
@@ -86285,8 +86639,14 @@ blockquote small {
   font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.70);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* Inner section labels (e.g. "Text Size", "Font Type") render in
+     proper case rather than the previous UPPERCASE + tracked
+     treatment. The area-heading __subheader stays uppercase for
+     section identity, but the inner content labels that appear
+     after the user opens a section read better in proper case
+     against the surrounding controls. */
+  text-transform: none;
+  letter-spacing: normal;
 }
 .md-board-detail--dark .md-board-edit-right-panel__row-pair-label {
   color: rgba(255, 255, 255, 0.70);
@@ -86696,8 +87056,13 @@ blockquote small {
   flex: 1 1 auto;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  /* Palette label ("Select Paint Color") renders in proper case to
+     match the rest of the inner section labels. Previously
+     UPPERCASE + 0.08em tracked to read as a quiet eyebrow above
+     the swatch grid; that vocabulary now reserved for area
+     headings only. */
+  text-transform: none;
+  letter-spacing: normal;
   color: rgba($la-navy, 0.65);
   text-align: center;
 }
