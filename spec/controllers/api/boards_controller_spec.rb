@@ -6,6 +6,46 @@ describe Api::BoardsController, :type => :controller do
       get :index
       expect(response).to be_successful
     end
+
+    # Regression test for Scot #6 pre-merge finding (Med-High):
+    # `lib/json_api/board.rb:91` calls `board.parent_board` unconditionally
+    # in `build_json`. Without `boards.includes(:parent_board)` in the
+    # controller's query, each board in a paginated index response fires
+    # one extra SELECT. At default per_page=25 that's ~25 extra queries.
+    # This spec counts board-table SELECTs against a 4-query budget so
+    # the regression cannot silently re-land.
+    # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    it "should eager-load parent_board to avoid N+1 on index" do
+      u = User.create(:settings => {'public' => true})
+      parent = Board.create(:user => u, :public => true)
+      # 5 child boards each referencing parent_board — without the
+      # eager-load this would fire 5 extra SELECTs (one per child).
+      5.times do
+        Board.create(:user => u, :public => true, :parent_board_id => parent.id)
+      end
+
+      board_select_count = 0
+      callback = lambda do |*args|
+        payload = args.last
+        sql = (payload && payload[:sql]) || ''
+        name = (payload && payload[:name]) || ''
+        # Skip schema introspection + ActiveRecord's prepared-statement cache;
+        # they're noise. Count only real SELECTs against the boards table.
+        next if name =~ /SCHEMA|CACHE/
+        board_select_count += 1 if sql =~ /SELECT.*FROM\s+"boards"/i
+      end
+
+      ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+        get :index, :params => {:user_id => u.global_id, :public => true}
+      end
+
+      expect(response).to be_successful
+      # With the eager-load: 1 main query + 1 parent_board preload + ~1
+      # for the user/auth lookup = ~3. Threshold of 4 catches the regression
+      # (which would push the count to 6+) with one query of headroom for
+      # incidental variations across Rails versions.
+      expect(board_select_count).to be <= 4
+    end
     
     it "should filter by user_id" do
       u = User.create(:settings => {:public => true})

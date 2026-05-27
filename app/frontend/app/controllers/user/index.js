@@ -1058,8 +1058,9 @@ export default Controller.extend({
   external_device_or_no_home: computed('model.external_device', 'model.preference.home_board', function() {
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
-  /* "Set / Change Home Board" selection mode — mirrors the My Boards
-     modal's `boardPickerSelectingHome` flow (see controllers/application.js).
+  /* "Set / Change Home Board" selection mode — mirrors the home-board-
+     selection flow that previously lived on the My Boards modal (now
+     removed; that modal was replaced by a route transition in 2026-05-23).
      When ON, clicking a board tile sets that board as the currentUser's
      home board (see open_board_in_user_view) and jumps into speak mode
      instead of opening the board. */

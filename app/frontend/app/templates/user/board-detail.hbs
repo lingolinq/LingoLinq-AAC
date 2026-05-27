@@ -2908,7 +2908,13 @@
                  rendered as small uppercase labels grouping their
                  child rows (matches the pattern used by the
                  speak-mode menu itself). Persists to
-                 user.preferences.speak_mode_hidden_menu_items. --}}
+                 user.preferences.speak_mode_hidden_menu_items.
+                 Gated behind `customize_menu` feature flag (Scot #1
+                 pre-merge review). Currently flag is ON for everyone
+                 during testing; will move to per-user beta opt-in
+                 once testing completes — see lib/feature_flags.rb
+                 comment above AVAILABLE_FRONTEND_FEATURES. --}}
+            {{#if this.app_state.feature_flags.customize_menu}}
             <div class="md-board-edit-right-panel__section {{if (is-equal this.right_panel_open_section 'customize-menu') 'md-board-edit-right-panel__section--open'}}">
               <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded={{if (is-equal this.right_panel_open_section 'customize-menu') "true" "false"}} {{action "toggle_right_panel_section" "customize-menu"}}>
                 <span class="md-board-edit-right-panel__section-icon" data-section="customize-menu" aria-hidden="true">
@@ -2975,6 +2981,7 @@
                 </div>
               {{/if}}
             </div>
+            {{/if}}{{!-- /customize_menu feature flag --}}
 
             {{!-- Folders --}}
             <div class="md-board-edit-right-panel__section {{if (is-equal this.right_panel_open_section 'folders') 'md-board-edit-right-panel__section--open'}}">

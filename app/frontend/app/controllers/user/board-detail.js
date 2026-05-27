@@ -70,6 +70,46 @@ const SPEAK_MENU_SECTIONS = [
   { id: 'language', label_key: 'language', default_label: 'Language' }
 ];
 
+// Static i18n declarations for SPEAK_MENU_ITEMS / SPEAK_MENU_SECTIONS.
+// The Customize Menu template renders via dynamic
+// `{{t default_label key=label_key}}` helpers, which i18n_generator.rb's
+// static parser cannot extract (it looks for literal quoted strings,
+// not bound properties — see i18n_generator.rb:148-180). This no-op
+// function exists ONLY to make every key visible to the extractor;
+// it is never called at runtime. When you add a row to SPEAK_MENU_ITEMS
+// or SPEAK_MENU_SECTIONS, add a matching i18n.t(...) line here OR the
+// new key will silently fail to ship to non-English locales.
+// (Scot #4 pre-merge review, distilled to LEARNINGS as a recurring
+// codebase pattern — see docs/task-management/LEARNINGS.md.)
+// eslint-disable-next-line no-unused-vars
+function _customize_menu_i18n_extractor_no_op() {
+  // Sections (SPEAK_MENU_SECTIONS)
+  i18n.t('board', "Board");
+  i18n.t('buttons', "Buttons");
+  i18n.t('display', "Display");
+  i18n.t('share_and_print', "Share & Print");
+  i18n.t('session', "Session");
+  i18n.t('language', "Language");
+  // Items (SPEAK_MENU_ITEMS)
+  i18n.t('my_boards', "My Boards");
+  i18n.t('find_boards', "Find Boards");
+  i18n.t('find_a_button', "Find a Button");
+  i18n.t('focus_words', "Focus Words");
+  i18n.t('show_all_buttons', "Show Hidden Buttons");
+  i18n.t('board_detail_revert_old_style', "Classic View");
+  i18n.t('copy', "Copy");
+  i18n.t('download', "Download");
+  i18n.t('print', "Print");
+  i18n.t('share', "Share");
+  i18n.t('button_levels', "Button Levels");
+  i18n.t('stay_on_board', "Stay on this Board");
+  i18n.t('pause_logging', "Pause Logging");
+  i18n.t('board_detail_model_for_communicator', "Model for Communicator");
+  i18n.t('switch_communicators', "Switch Communicators");
+  i18n.t('translate', "Translate");
+  i18n.t('switch_language', "Switch Language");
+}
+
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
@@ -4969,14 +5009,13 @@ export default Controller.extend(prefClasses, {
     },
 
     /* "My Boards" entry in the speak-mode options menu. Previously
-       opened the in-page modal picker (openBoardPicker on the
-       application controller); the modal was deleted 2026-05-23
-       when the My Boards UX moved to a route transition. Now
-       delegates to `openMyBoards` on the application controller,
-       which stashes the current board (so the boards page can
-       render a "Back to <board>" chip) and transitions to
-       /u/:user_name/boards. Close the options menu first so it
-       isn't lingering open during the transition. */
+       opened an in-page modal picker on the application controller;
+       the modal was deleted 2026-05-23 when the My Boards UX moved
+       to a route transition. Now delegates to `openMyBoards` on the
+       application controller, which stashes the current board (so
+       the boards page can render a "Back to <board>" chip) and
+       transitions to /u/:user_name/boards. Close the options menu
+       first so it isn't lingering open during the transition. */
     open_board_picker: function() {
       this.set('show_options_menu', false);
       var appController = getOwner(this).lookup('controller:application');
@@ -6239,6 +6278,12 @@ export default Controller.extend(prefClasses, {
     // state. Stored as an array of hidden ids on
     // user.preferences.speak_mode_hidden_menu_items.
     set_speak_menu_item_hidden: function(id, hidden) {
+      // Defense-in-depth alongside the template gate at
+      // templates/user/board-detail.hbs ({{#if app_state.feature_flags.customize_menu}}).
+      // Template gate hides UI but doesn't make the action unreachable
+      // (debug console, custom client, action chaining). Both gates needed.
+      // Per pre-merge audit §3.5 (Trust boundary analysis).
+      if(!this.get('app_state.feature_flags.customize_menu')) { return; }
       var arr = (this.get('speak_menu_hidden_items') || []).slice();
       var ix = arr.indexOf(id);
       var want_hidden = !!hidden;

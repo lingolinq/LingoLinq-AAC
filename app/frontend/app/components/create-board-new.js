@@ -607,7 +607,6 @@ export default Component.extend({
     return res;
   }),
 
-  license_options: LingoLinq.licenseOptions,
   public_options: LingoLinq.publicOptions,
 
   createBoardDisabled: computed('model.name', 'status.saving', 'show_user_options', 'creating_for_someone_else', 'model.for_user_id', 'ai_mode', 'model.description', 'ai_labels_generated', function() {
@@ -742,18 +741,6 @@ export default Component.extend({
     }
     return i18n.t('add_required_fields', "Add %{fields} to enable Create.", { fields: phrase });
   }),
-
-  attributable_license_type: computed('model.license.type', function() {
-    if(this.get('model.license') && this.get('model.license.type') != 'private') {
-      this.update_license();
-    }
-    return this.get('model.license.type') != 'private';
-  }),
-
-  update_license() {
-    this.set('model.license.author_name', this.appState.get('currentUser.name'));
-    this.set('model.license.author_url', this.appState.get('currentUser.profile_url'));
-  },
 
   label_count: computed('model.grid', 'model.grid.labels', function() {
     var str = this.get('model.grid.labels') || "";
@@ -1518,9 +1505,6 @@ export default Component.extend({
     },
     setVisibility: function(value) {
       this.set('model.visibility', value);
-    },
-    setLicenseType: function(value) {
-      this.set('model.license.type', value);
     },
     setLocale: function(value) {
       this.set('model.locale', value);

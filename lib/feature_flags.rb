@@ -1,12 +1,21 @@
 module FeatureFlags
   # TODO: remove unused feature flags after like December 2019
-  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 
-              'canvas_render', 'snapshots', 'enable_all_buttons', 
+  # NOTE: 'customize_menu' is currently registered in BOTH lists below —
+  # it ships ON for everyone temporarily during the current testing
+  # window (per Scot #1 review + Traci's direction 2026-05-27). When
+  # testing is complete and we move to the canonical "off by default,
+  # beta opt-in per user" pattern, REMOVE 'customize_menu' from
+  # ENABLED_FRONTEND_FEATURES (keeping it in AVAILABLE_FRONTEND_FEATURES)
+  # so it switches to a per-user-flag. See:
+  # app/frontend/app/templates/user/board-detail.hbs ({{#if … customize_menu}})
+  # app/frontend/app/controllers/user/board-detail.js set_speak_menu_item_hidden
+  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar',
+              'canvas_render', 'snapshots', 'enable_all_buttons',
               'video_recording', 'goals', 'app_connections', 'translation', 'geo_sidebar',
               'modeling', 'edit_before_copying', 'core_reports', 'lessonpix',
               'audio_recordings', 'fast_render', 'badge_progress', 'board_levels', 'premium_symbols',
               'find_multiple_buttons', 'new_speak_menu', 'native_keyboard', 'inflections_overlay',
-              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages', 
+              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages',
               'app_store_monthly_purchases', 'ios_head_tracking', 'vertical_ios_head_tracking',
               'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation',
@@ -14,7 +23,7 @@ module FeatureFlags
               'ai_compliance_logging', 'supervisor_consent_flow', 'product_telemetry',
               'telemetry_admin_panel',
               'tarheel_reader', 'auth_spa_transition', 'google_sso', 'quick_screen_eval',
-              'comprehensive_eval_ai', 'multi_user_board_import']
+              'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -24,7 +33,8 @@ module FeatureFlags
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
               'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
-              'google_sso', 'quick_screen_eval', 'multi_user_board_import']
+              'google_sso', 'quick_screen_eval', 'multi_user_board_import',
+              'customize_menu'] # TEMPORARY: ON for everyone during testing — remove from this list when moving to beta-opt-in (see comment above AVAILABLE_FRONTEND_FEATURES)
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

@@ -68038,8 +68038,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* ── Board-Detail: Drag & Drop feedback ─────────────── */
+/* touch-action:none keeps touch contexts (real devices + DevTools
+   touch emulation) from claiming a tile-drag as a scroll-pan before
+   the custom pointer-tracking drag pipeline in raw_events.js can
+   take over. Without this, jQuery's document-level touchmove
+   handler is registered as passive by modern Chrome, so its
+   preventDefault() is silently ignored and the browser pans the
+   page instead of letting the drag clone follow the finger. Scoped
+   to [draggable="true"] so speak-mode (draggable="false") long-press
+   gestures (inflections overlay, dwell, etc.) are untouched. */
 .md-board-detail-grid__cell[draggable="true"] {
   cursor: grab;
+  touch-action: none;
 }
 .md-board-detail-grid__cell[draggable="true"]:active {
   cursor: grabbing;

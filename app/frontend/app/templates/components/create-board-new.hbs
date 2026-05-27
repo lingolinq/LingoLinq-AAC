@@ -179,7 +179,16 @@
                   <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" @rows="1" />
                 </div>
               </div>
-              {{#if this.show_user_options}}
+              {{!-- supporter_role gate added per Phase D #19 review:
+                   hide the "for someone else?" prompt + supervisee
+                   picker from communicator accounts (including
+                   unspecified-role users, which fall into the
+                   !supporter_role branch by codebase convention —
+                   see create-board-new.js:88-94). Multi-role accounts
+                   that are both communicator and supervisor still
+                   had show_user_options=true under the old gate; this
+                   compound (and …) closes that case. --}}
+              {{#if (and this.show_user_options this.appState.sessionUser.supporter_role)}}
                 <div class="nb-basics-grid__col nb-basics-grid__col--right">
                   <div class="nb-field nb-toggle-row">
                     <span class="nb-toggle-row__question" id="new_board_for_someone_else_label">{{t "Are you creating this board for someone else?" key="creating_for_someone_else"}}</span>
@@ -1140,7 +1149,6 @@
               <ul class="nb-section__hint nb-advanced-toggle__hint" role="list" aria-label={{t "Includes" key="advanced_options_includes_aria"}}>
                 <li class="nb-advanced-toggle__hint-item">{{t "Fill order" key="advanced_hint_fill_order"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Board key" key="advanced_hint_board_key"}}</li>
-                <li class="nb-advanced-toggle__hint-item">{{t "License" key="advanced_hint_license"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Language" key="advanced_hint_language"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Home-board categories" key="advanced_hint_home_categories"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Word suggestions" key="advanced_hint_word_suggestions"}}</li>
@@ -1180,26 +1188,10 @@
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
                 <Input @value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} />
               </div>
-              <div class="nb-field new-board-field--license">
-                <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(action "setLicenseType") ariaLabel=(t "License" key="license")}}
-              </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
                 {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(action "setLocale") ariaLabel=(t "Language" key="locale")}}
               </div>
-              {{#if this.attributable_license_type}}
-                <div class="nb-field nb-field--row">
-                  <div class="nb-field__col">
-                    <label for="author" class="nb-field__label">{{t "Author" key="author"}}</label>
-                    <Input @value={{this.model.license.author_name}} class="form-control nb-field__input" id="author" placeholder="Name" />
-                  </div>
-                  <div class="nb-field__col">
-                    <label for="author_url" class="nb-field__label">{{t "Author URL" key="author_url"}}</label>
-                    <Input @value={{this.model.license.author_url}} class="form-control nb-field__input" id="author_url" title="Author URL" placeholder="Author URL" />
-                  </div>
-                </div>
-              {{/if}}
               <div class="nb-field nb-field--checkbox new-board-checkbox-row">
                 <label for="home_board" class="nb-checkbox">
                   <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
