@@ -1221,6 +1221,7 @@ describe Board, :type => :model do
   describe "process_client_supplied_images" do
     it "assigns image_id from client-supplied image_url (manual or AI create-board-new)" do
       u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({})
       image_url = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/dog.png'
       board = Board.process_new({
         'name' => 'Preview symbols',
