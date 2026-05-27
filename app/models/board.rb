@@ -1278,13 +1278,15 @@ class Board < ApplicationRecord
   def process_suggested_symbols
     # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols.
     # Primary path: labels-only create (populate_buttons_from_labels).
-    # Fallback: new board with client-baked buttons that still lack image_id
-    # after process_client_supplied_images (e.g. colors loaded before previews).
+    # Fallback: only for brand-new boards whose changed buttons still have no
+    # assigned images at all. If some client-supplied images were already
+    # processed, skip the fallback to avoid partial OpenSymbols lookups.
+    buttons = self.settings['buttons'] || []
     from_labels = @buttons_changed == 'populated_from_labels'
-    from_new_baked = @brand_new && !!@buttons_changed && !from_labels
+    has_existing_button_images = buttons.any? { |b| b['image_id'] }
+    from_new_baked = @brand_new && !!@buttons_changed && !from_labels && !has_existing_button_images
     return unless from_labels || from_new_baked
 
-    buttons = self.settings['buttons'] || []
     suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
     return if suggested_buttons.empty?
 
