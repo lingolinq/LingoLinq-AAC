@@ -2955,14 +2955,27 @@ describe Api::BoardsController, :type => :controller do
     ActiveSupport::Notifications.unsubscribe(sub) if sub
   end
 
-  # Builds a root with +count+ owned, empty-grid descendants and wires
+  # An owned board carrying one real image button. Image-bearing fixtures
+  # matter for the query-count specs: the kept-by-lite images_and_sounds_for
+  # call only touches the DB when a board actually has images, so empty grids
+  # would hide the surviving per-board cost and make a regression test
+  # meaningless.
+  def board_with_image(owner)
+    board = Board.create(user: owner)
+    img = ButtonImage.create(url: "http://example.com/#{SecureRandom.hex(4)}.png")
+    board.settings['buttons'] = [{ 'id' => 1, 'label' => 'x', 'image_id' => img.global_id }]
+    board.settings['grid'] = { 'rows' => 1, 'columns' => 1, 'order' => [[1]] }
+    board.instance_variable_set('@buttons_changed', true)
+    board.save
+    board.reload
+  end
+
+  # Builds a root with +count+ owned, image-bearing descendants and wires
   # downstream_board_ids directly (the controller reads it straight from
-  # settings; no linking machinery needed). Empty grids keep the kept-by-lite
-  # images_and_sounds_for call at zero queries so the count reflects only the
-  # serialization path under test.
+  # settings; no linking machinery needed).
   def build_owned_tree(owner, count)
     root = Board.create(user: owner)
-    children = Array.new(count) { Board.create(user: owner) }
+    children = Array.new(count) { board_with_image(owner) }
     root.settings['downstream_board_ids'] = children.map(&:global_id)
     root.save
     root.reload
@@ -3033,12 +3046,33 @@ describe Api::BoardsController, :type => :controller do
       expect(board).to have_key('permissions')
     end
 
-    it "serializes the tree with O(1) queries in descendant count" do
+    it "does not run the per-board enrichment that caused the timeout" do
+      # Behavioral guard for remediation #1: lite must skip the unindexed
+      # per-board lookups (parent_board, find_copies_by, shared_users) and the
+      # per-image ButtonImage.find_by_global_id skin lookup. This is the real
+      # regression guard and does not depend on absolute query counts.
+      token_user
+      root, _children = build_owned_tree(@user, 3)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      get :tree, params: { board_id: root.global_id }
+      assert_success_json
+    end
+
+    # NOTE: lite is NOT O(1). It removes the ~4-queries-per-board fan-out
+    # (parent_board x2 + find_copies_by + the delete/admin using_user_names
+    # block) but keeps images_and_sounds_for, which still issues ~1 query per
+    # image-bearing board (known_button_images). That residual is remediation
+    # #3 (request-scoped image cache), tracked separately in issue #286. This
+    # spec therefore asserts the per-descendant marginal cost is a small bounded
+    # constant, well under the pre-fix path, rather than claiming O(1).
+    it "keeps the per-descendant query cost to a small bounded constant" do
       token_user
       small_root, _small = build_owned_tree(@user, 3)
       large_root, _large = build_owned_tree(@user, 18)
 
-      # Warm permission and any per-board caches first so the measurement
+      # Warm permission caches (Redis, not counted here) so the measurement
       # reflects steady-state serialization, not cold-cache permission reads.
       get :tree, params: { board_id: small_root.global_id }
       get :tree, params: { board_id: large_root.global_id }
@@ -3046,15 +3080,15 @@ describe Api::BoardsController, :type => :controller do
       small_q = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
       large_q = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
 
-      # 15 extra descendants must not add a proportional number of queries.
-      # A regression to the full as_json path adds roughly parent_board x2 +
-      # find_copies_by per descendant (~45+ queries here), so a small fixed
-      # ceiling cleanly separates O(1) from O(N).
+      # 15 extra image-bearing descendants. Lite measures ~1 query/board, so
+      # a ceiling of 2/board (<= 30) passes lite while the pre-fix ~5/board
+      # fan-out (>= 75) blows past it. The previous empty-grid version masked
+      # the surviving images_and_sounds_for cost (adversary review, 2026-05-26).
       delta = large_q.length - small_q.length
-      expect(delta).to(be <= 5, lambda {
+      expect(delta).to(be <= 30, lambda {
         "tree query count grew by #{delta} for 15 extra descendants " \
-        "(small=#{small_q.length}, large=#{large_q.length}); expected O(1).\n" \
-        "large-tree SQL:\n#{large_q.join("\n")}"
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 30 " \
+        "(~2/board ceiling).\nlarge-tree SQL:\n#{large_q.join("\n")}"
       })
     end
   end
@@ -3100,10 +3134,27 @@ describe Api::BoardsController, :type => :controller do
       expect(b['id']).to eq(board.global_id)
     end
 
-    it "resolves bulk keys with O(1) queries in board count" do
+    it "does not run the per-board enrichment that caused the timeout" do
       token_user
-      small = Array.new(3) { Board.create(user: @user) }
-      large = Array.new(18) { Board.create(user: @user) }
+      board = board_with_image(@user)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      post :bulk, params: { keys: [board.global_id] }
+      assert_success_json
+    end
+
+    # NOTE: #bulk is inherently O(n) in keys: it resolves each key with its own
+    # Board.find_by_path, and lite still pays ~1 image query per image-bearing
+    # board (images_and_sounds_for, remediation #3). The guarantee under test is
+    # that as_json adds no heavy per-board fan-out on top of the unavoidable
+    # per-key lookup. The behavioral guard above is the precise check; this one
+    # bounds the marginal cost (~2/board) so a regression to the full path
+    # (~5/board on top of lookups) fails.
+    it "keeps the per-key query cost to a small bounded constant" do
+      token_user
+      small = Array.new(3) { board_with_image(@user) }
+      large = Array.new(18) { board_with_image(@user) }
 
       post :bulk, params: { keys: small.map(&:global_id) }
       post :bulk, params: { keys: large.map(&:global_id) }
@@ -3111,15 +3162,11 @@ describe Api::BoardsController, :type => :controller do
       small_q = count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } }
       large_q = count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } }
 
-      # NOTE: #bulk resolves each key with its own Board.find_by_path, so the
-      # lookup itself is O(n) in key count. The lite serialization guarantee
-      # is that as_json adds no further per-board fan-out on top of that. Allow
-      # ~1 lookup query per extra key (15 here) plus a small constant; the full
-      # as_json path would add several more per board on top.
       delta = large_q.length - small_q.length
-      expect(delta).to(be <= 20, lambda {
+      expect(delta).to(be <= 45, lambda {
         "bulk query count grew by #{delta} for 15 extra keys " \
-        "(small=#{small_q.length}, large=#{large_q.length}).\n" \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 45 " \
+        "(~3/key: one find_by_path + one image query + slack).\n" \
         "large SQL:\n#{large_q.join("\n")}"
       })
     end
