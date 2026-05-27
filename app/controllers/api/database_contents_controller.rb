@@ -5,11 +5,50 @@ class Api::DatabaseContentsController < ApplicationController
   DEFAULT_LIMIT = 50
   MAX_LIMIT = 500
 
+  # Deny-by-default allowlist for the admin schema explorer. Only the tables
+  # listed here may be browsed; every other table returns 404. Each entry maps a
+  # table to its ActiveRecord model so rows are read through the model layer
+  # (never via raw `SELECT *`), and the model's secure_serialize column is
+  # stripped from the response automatically (see #exposable_columns).
+  #
+  # Tables that hold regulated PII/PHI in non-encrypted columns (users,
+  # log_sessions, contact_messages, devices, ...) or plaintext credentials
+  # (developer_keys) are deliberately omitted. board_locales is also omitted:
+  # it is a search/tsvector table whose search_string and tsv_search_string are
+  # a plaintext, denormalized copy of board content (button labels), so it
+  # carries the same FERPA/HIPAA data that secure_serialize protects with no
+  # admin-browse value. Widen this map only after a privacy review of every
+  # non-encrypted column the candidate table would surface.
+  ALLOWED_MODELS = {
+    'organizations'          => 'Organization',
+    'boards'                 => 'Board',
+    'licenses'               => 'License',
+    'library_caches'         => 'LibraryCache',
+    'word_data'              => 'WordData',
+    'weekly_stats_summaries' => 'WeeklyStatsSummary'
+  }.freeze
+
+  # Plaintext columns stripped in addition to each model's secure_serialize
+  # column. These hold credentials or identifying data that is not encrypted at
+  # rest, so the model layer would otherwise surface them:
+  # - organizations.external_auth_key/shortcut: SAML SSO auth hashes.
+  # - boards.search_string: denormalized board content (button labels), which is
+  #   AAC user vocabulary (FERPA/HIPAA), even though boards.settings is encrypted.
+  # - licenses.metadata/external_reference: License has no secure_serialize;
+  #   metadata is an untyped catch-all and external_reference is a PO/Stripe id.
+  SENSITIVE_COLUMNS = {
+    'organizations' => ['external_auth_key', 'external_auth_shortcut'],
+    'boards'        => ['search_string'],
+    'licenses'      => ['metadata', 'external_reference']
+  }.freeze
+
   # GET /api/v1/database_contents?table=NAME&limit=50&offset=0
-  # Read-only paginated dump of a public table's rows. Admin / admin_support_actions only.
+  # Read-only paginated dump of an allowlisted table's rows. Admin /
+  # admin_support_actions only. Reads route through the model so encrypted
+  # (secure_serialize) and other sensitive columns are never exposed.
   def index
-    table = params[:table].to_s
-    unless allowed_table?(table)
+    model = allowed_model(params[:table].to_s)
+    unless model
       return api_error(404, {error: 'Table not found'})
     end
 
@@ -17,20 +56,21 @@ class Api::DatabaseContentsController < ApplicationController
     limit = [[raw_limit, 1].max, MAX_LIMIT].min
     offset = [params[:offset].to_i, 0].max
 
-    conn = ActiveRecord::Base.connection
-    quoted = conn.quote_table_name(table)
-    columns = conn.columns(table).map(&:name)
+    columns = exposable_columns(model)
 
-    rows_result = conn.exec_query("SELECT * FROM #{quoted} ORDER BY 1 LIMIT #{limit.to_i} OFFSET #{offset.to_i}")
-    total, total_exact = approximate_count(conn, table)
-
-    serialized = rows_result.map do |row|
-      columns.map { |c| serialize_value(row[c]) }
+    records = model.order(model.primary_key).limit(limit).offset(offset)
+    serialized = records.map do |record|
+      attrs = record.attributes
+      columns.map { |c| serialize_value(attrs[c]) }
     end
+
+    total, total_exact = approximate_count(model)
+
+    log_access(model.table_name, limit, offset, serialized.length)
 
     render json: {
       database_contents: {
-        table: table,
+        table: model.table_name,
         columns: columns,
         rows: serialized,
         total: total,
@@ -43,32 +83,45 @@ class Api::DatabaseContentsController < ApplicationController
 
   private
 
-  def allowed_tables
-    @allowed_tables ||= ActiveRecord::Base.connection.exec_query(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-    ).map { |r| r['table_name'] }
+  def allowed_model(table)
+    return nil if table.blank?
+    class_name = ALLOWED_MODELS[table]
+    return nil unless class_name
+    # A misconfigured allowlist entry should 404, never raise a 500.
+    class_name.safe_constantize
   end
 
-  def allowed_table?(name)
-    return false if name.blank?
-    return false unless name =~ /\A[a-zA-Z0-9_]+\z/
-    allowed_tables.include?(name)
+  # Columns safe to surface: every DB column minus the model's secure_serialize
+  # column (the encrypted blob) and any explicitly denied plaintext columns.
+  # This is what guarantees encrypted/sensitive data never reaches the response,
+  # even if a new secure column is later added to an allowlisted model.
+  def exposable_columns(model)
+    stripped = []
+    if model.respond_to?(:secure_column) && model.secure_column
+      stripped << model.secure_column.to_s
+    end
+    stripped += (SENSITIVE_COLUMNS[model.table_name] || [])
+    model.column_names - stripped
   end
 
   # Cheap approximate count via pg_class.reltuples for big tables; falls back
-  # to exact COUNT(*) under the threshold so small tables still show truth.
+  # to an exact count under the threshold so small tables still show truth.
   # Returns [count, exact_bool].
   APPROX_COUNT_THRESHOLD = 10_000
-  def approximate_count(conn, table)
+  def approximate_count(model)
+    conn = model.connection
     row = conn.exec_query(
-      "SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = #{conn.quote(table)} LIMIT 1"
+      "SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = #{conn.quote(model.table_name)} LIMIT 1"
     ).first
     estimate = row ? row['estimate'].to_i : 0
-    if estimate < APPROX_COUNT_THRESHOLD
-      exact = conn.exec_query("SELECT COUNT(*) AS c FROM #{conn.quote_table_name(table)}").first['c'].to_i
-      [exact, true]
+    # pg_class.reltuples is -1 (or 0) for a table that has never been analyzed,
+    # which can be a huge table with stale stats. Only run the exact COUNT(*)
+    # when the estimate is a real, small, non-negative value; otherwise fall
+    # back to the (possibly unknown) estimate rather than scanning a big table.
+    if estimate >= 0 && estimate < APPROX_COUNT_THRESHOLD
+      [model.count, true]
     else
-      [estimate, false]
+      [[estimate, 0].max, false]
     end
   end
 
@@ -83,6 +136,22 @@ class Api::DatabaseContentsController < ApplicationController
     else
       v.to_s
     end
+  end
+
+  # Record who read which table, for FERPA/HIPAA accounting-of-disclosures.
+  # Only successful, authorized reads of real data reach here (404/403 paths
+  # disclose nothing). Auditing is best-effort: an audit-write failure must
+  # never break a read that the requester is already authorized to perform.
+  def log_access(table, limit, offset, returned)
+    AuditEvent.log_command(@api_user&.global_id || 'unknown', {
+      'type' => 'database_contents',
+      'command' => table,
+      'limit' => limit,
+      'offset' => offset,
+      'returned' => returned
+    })
+  rescue => e
+    Rails.logger.error("database_contents audit log failed: #{e.class}: #{e.message}")
   end
 
   def require_schema_explorer_access
