@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next, debounce } from '@ember/runloop';
+import { next, debounce, cancel } from '@ember/runloop';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
@@ -110,6 +110,8 @@ export default Component.extend({
     // so the saved board uses the symbol the user previewed (rather than
     // re-searching server-side which can pick a different match).
     this.set('_label_images', {});
+    this._label_images_debounce = null;
+    this.set('_label_images_lookup_promise', null);
     // Paint feature — mirrors the board-detail edit toolbar's paint flow.
     // `_painted_colors` is the user's manual overrides keyed by label so
     // the color follows the label through drag-reorder; baked into
@@ -1073,7 +1075,10 @@ export default Component.extend({
    *  server side and the user typically pauses for at least that long
    *  between adding labels. */
   _request_label_images: observer('parsed_labels.[]', function() {
-    debounce(this, this._lookup_label_images, 700);
+    if(this._label_images_debounce) {
+      cancel(this._label_images_debounce);
+    }
+    this._label_images_debounce = debounce(this, this._lookup_label_images, 700);
   }),
 
   /** Fetches a symbol image for each unseen label via the existing
@@ -1084,7 +1089,10 @@ export default Component.extend({
    *  is instant; cache also caches no-match (image_url: null) so we
    *  don't re-query labels that don't have a match. */
   _lookup_label_images() {
-    if(this.isDestroyed || this.isDestroying) { return; }
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
     var labels = this.get('parsed_labels') || [];
     var cached = this.get('_label_images') || {};
     var seen = {};
@@ -1095,48 +1103,196 @@ export default Component.extend({
       seen[key] = true;
       to_lookup.push(key);
     });
-    if(to_lookup.length === 0) { return; }
-    var _this = this;
+    if(to_lookup.length === 0) {
+      return RSVP.resolve();
+    }
     var locale = (this.get('model.locale') || 'en').split(/_|-/)[0];
     // Fire one request per label in parallel — the symbols endpoint is
     // single-word so we can't batch. RSVP.allSettled lets a single
     // 404/timeout not block the rest. Cap the parallel requests at a
     // reasonable number (12 at a time) so we don't flood the server
     // when the user pastes a giant label list.
-    var BATCH_SIZE = 12;
-    var run_batch = function(start) {
-      if(_this.isDestroyed || _this.isDestroying) { return; }
-      var batch = to_lookup.slice(start, start + BATCH_SIZE);
-      if(batch.length === 0) { return; }
-      var promises = batch.map(function(word) {
-        return persistence.ajax(
-          '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
-          '&safe=0&locale=' + encodeURIComponent(locale),
-          { type: 'GET' }
-        ).then(function(results) {
-          var pick = (results && results.length) ? results[0] : null;
-          return { word: word, image_url: (pick && pick.image_url) || null };
-        }, function() {
-          // Network/permission errors → cache as null so we don't retry
-          // forever. Same pattern as `_lookup_label_colors`.
-          return { word: word, image_url: null };
+    var lookup_promise = new RSVP.Promise(function(resolve) {
+      var BATCH_SIZE = 12;
+      var run_batch = function(start) {
+        if(_this.isDestroyed || _this.isDestroying) {
+          resolve();
+          return;
+        }
+        var batch = to_lookup.slice(start, start + BATCH_SIZE);
+        if(batch.length === 0) {
+          resolve();
+          return;
+        }
+        var promises = batch.map(function(word) {
+          return persistence.ajax(
+            '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
+            '&safe=0&locale=' + encodeURIComponent(locale),
+            { type: 'GET' }
+          ).then(function(results) {
+            var pick = (results && results.length) ? results[0] : null;
+            return { word: word, image_url: (pick && pick.image_url) || null };
+          }, function() {
+            // Network/permission errors → cache as null so we don't retry
+            // forever. Same pattern as `_lookup_label_colors`.
+            return { word: word, image_url: null };
+          });
         });
-      });
-      RSVP.allSettled(promises).then(function(states) {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        var next_map = Object.assign({}, _this.get('_label_images') || {});
-        states.forEach(function(state) {
-          if(state.state === 'fulfilled' && state.value && state.value.word) {
-            next_map[state.value.word] = { image_url: state.value.image_url };
+        RSVP.allSettled(promises).then(function(states) {
+          if(_this.isDestroyed || _this.isDestroying) {
+            resolve();
+            return;
           }
+          var next_map = Object.assign({}, _this.get('_label_images') || {});
+          states.forEach(function(state) {
+            if(state.state === 'fulfilled' && state.value && state.value.word) {
+              next_map[state.value.word] = { image_url: state.value.image_url };
+            }
+          });
+          _this.set('_label_images', next_map);
+          // Notify so preview_grid (which deps on _label_images) re-runs.
+          _this.notifyPropertyChange('_label_images');
+          run_batch(start + BATCH_SIZE);
         });
-        _this.set('_label_images', next_map);
-        // Notify so preview_grid (which deps on _label_images) re-runs.
-        _this.notifyPropertyChange('_label_images');
-        run_batch(start + BATCH_SIZE);
+      };
+      run_batch(0);
+    });
+    this.set('_label_images_lookup_promise', lookup_promise);
+    lookup_promise.finally(function() {
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('_label_images_lookup_promise') === lookup_promise) {
+        _this.set('_label_images_lookup_promise', null);
+      }
+    });
+    return lookup_promise;
+  },
+
+  /** Waits for any in-flight or debounced symbol lookups before save.
+   *  Applies to manual (non-AI) and AI board create — same preview path.
+   *  Waits for an in-flight lookup to finish before flushing so save
+   *  does not fire duplicate /api/v1/search/symbols requests. */
+  _ensure_label_images_before_save() {
+    var _this = this;
+    if(this._label_images_debounce) {
+      cancel(this._label_images_debounce);
+      this._label_images_debounce = null;
+    }
+    var pending = this.get('_label_images_lookup_promise');
+    var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
+    return wait.then(function() {
+      return _this._lookup_label_images();
+    }, function() {
+      return _this._lookup_label_images();
+    });
+  },
+
+  /** Bakes preview state into model.buttons and persists the board.
+   *  Must be a component method (not an action) — saveBoard calls it
+   *  from an RSVP callback after symbol lookups finish. */
+  _completeSaveBoard() {
+    var _this = this;
+    // Bake any manually-painted colors into a `buttons[]` array + a
+    // populated `grid.order`. Server-side `Board#process_buttons` only
+    // calls `populate_buttons_from_labels` when `buttons.length == 0`
+    // (see app/models/board.rb#L774), so providing buttons here means
+    // the painted `background_color`/`border_color` values persist on
+    // creation. We mirror the row/col math from `cellDragStart` so the
+    // user's labels_order choice is honored. Bakes BOTH user-applied
+    // paint AND POS auto-colors so what the user sees in the preview
+    // is what they get on the saved board (otherwise the preview's
+    // green-verb / yellow-pronoun coloring would vanish on save and
+    // every button would render with the default white background).
+    var painted = this.get('_painted_colors') || {};
+    var auto_colors = this.get('_label_colors') || {};
+    var label_images = this.get('_label_images') || {};
+    var has_painted = Object.keys(painted).length > 0;
+    var has_auto = Object.keys(auto_colors).some(function(k) {
+      var c = auto_colors[k];
+      return c && c.fill;
+    });
+    var has_images = Object.keys(label_images).some(function(k) {
+      var i = label_images[k];
+      return i && i.image_url;
+    });
+    if(has_painted || has_auto || has_images) {
+      var labels = this.get('parsed_labels') || [];
+      var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+      var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+      var labels_order = this.get('model.grid.labels_order') || 'rows';
+      var buttons = [];
+      var grid_order = [];
+      for(var rr = 0; rr < rows; rr++) {
+        var grid_row = [];
+        for(var cc = 0; cc < cols; cc++) { grid_row.push(null); }
+        grid_order.push(grid_row);
+      }
+      labels.forEach(function(label, idx) {
+        var btn = {
+          id: idx + 1,
+          label: label,
+          // suggest_symbol stays true only when we DON'T have a
+          // previewed image for this label — otherwise the server's
+          // post-create image-search would replace our chosen image.
+          // With a real image_url present, we lock it in.
+          suggest_symbol: true,
+          hidden: false,
+          hide_label: false
+        };
+        var key = (label || '').toLowerCase();
+        // Paint takes precedence over POS auto-color (mirrors the
+        // preview's `bg_style` resolution and the live board-detail
+        // page's button.background_color > pick_aac_color order).
+        var color = painted[key] || auto_colors[key];
+        if(color && color.fill) {
+          btn.background_color = color.fill;
+          if(color.border) { btn.border_color = color.border; }
+          var pos = color.part_of_speech || color.type;
+          if(pos) { btn.part_of_speech = pos; }
+        }
+        // Bake in the previewed symbol image so the saved board
+        // uses what the user actually saw — without this the server
+        // would re-search and might pick a different first result.
+        var img = label_images[key];
+        if(img && img.image_url) {
+          btn.image_url = img.image_url;
+          btn.suggest_symbol = false;
+        }
+        buttons.push(btn);
+        var row, col;
+        if(labels_order === 'columns') {
+          col = Math.floor(idx / rows);
+          row = idx % rows;
+        } else {
+          row = Math.floor(idx / cols);
+          col = idx % cols;
+        }
+        if(row < rows && col < cols) {
+          grid_order[row][col] = btn.id;
+        }
       });
-    };
-    run_batch(0);
+      this.set('model.buttons', buttons);
+      // Pre-populated grid.order tells the server "buttons are placed,
+      // don't auto-place" — combined with `buttons.length > 0` it
+      // also bypasses the populate_from_labels path.
+      this.set('model.grid.order', grid_order);
+    }
+    this.get('model').save().then(function(board) {
+      board.set('button_locale', board.get('locale'));
+      _this.appState.set('label_locale', board.get('locale'));
+      _this.appState.set('vocalization_locale', board.get('locale'));
+      _this.set('status', null);
+      modalUtil.close(true);
+      editManager.auto_edit(board.get('id'));
+      _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
+      var key = board.get('key') || '';
+      var parts = key.split('/');
+      if (parts.length >= 2) {
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      } else {
+        _this.get('router').transitionTo('board', key);
+      }
+    }, function() {
+      _this.set('status', {error: true});
+    });
   },
 
   /** Resolves the user's button_style pref into a CSS font-family string
@@ -2100,107 +2256,12 @@ export default Component.extend({
       if(!this.get('model.for_user_id') && currentUserId) {
         this.set('model.for_user_id', 'self');
       }
-      // Bake any manually-painted colors into a `buttons[]` array + a
-      // populated `grid.order`. Server-side `Board#process_buttons` only
-      // calls `populate_buttons_from_labels` when `buttons.length == 0`
-      // (see app/models/board.rb#L774), so providing buttons here means
-      // the painted `background_color`/`border_color` values persist on
-      // creation. We mirror the row/col math from `cellDragStart` so the
-      // user's labels_order choice is honored. Bakes BOTH user-applied
-      // paint AND POS auto-colors so what the user sees in the preview
-      // is what they get on the saved board (otherwise the preview's
-      // green-verb / yellow-pronoun coloring would vanish on save and
-      // every button would render with the default white background).
-      var painted = this.get('_painted_colors') || {};
-      var auto_colors = this.get('_label_colors') || {};
-      var label_images = this.get('_label_images') || {};
-      var has_painted = Object.keys(painted).length > 0;
-      var has_auto = Object.keys(auto_colors).some(function(k) {
-        var c = auto_colors[k];
-        return c && c.fill;
-      });
-      var has_images = Object.keys(label_images).some(function(k) {
-        var i = label_images[k];
-        return i && i.image_url;
-      });
-      if(has_painted || has_auto || has_images) {
-        var labels = this.get('parsed_labels') || [];
-        var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
-        var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
-        var labels_order = this.get('model.grid.labels_order') || 'rows';
-        var buttons = [];
-        var grid_order = [];
-        for(var rr = 0; rr < rows; rr++) {
-          var grid_row = [];
-          for(var cc = 0; cc < cols; cc++) { grid_row.push(null); }
-          grid_order.push(grid_row);
-        }
-        labels.forEach(function(label, idx) {
-          var btn = {
-            id: idx + 1,
-            label: label,
-            // suggest_symbol stays true only when we DON'T have a
-            // previewed image for this label — otherwise the server's
-            // post-create image-search would replace our chosen image.
-            // With a real image_url present, we lock it in.
-            suggest_symbol: true,
-            hidden: false,
-            hide_label: false
-          };
-          var key = (label || '').toLowerCase();
-          // Paint takes precedence over POS auto-color (mirrors the
-          // preview's `bg_style` resolution and the live board-detail
-          // page's button.background_color > pick_aac_color order).
-          var color = painted[key] || auto_colors[key];
-          if(color && color.fill) {
-            btn.background_color = color.fill;
-            if(color.border) { btn.border_color = color.border; }
-            var pos = color.part_of_speech || color.type;
-            if(pos) { btn.part_of_speech = pos; }
-          }
-          // Bake in the previewed symbol image so the saved board
-          // uses what the user actually saw — without this the server
-          // would re-search and might pick a different first result.
-          var img = label_images[key];
-          if(img && img.image_url) {
-            btn.image_url = img.image_url;
-            btn.suggest_symbol = false;
-          }
-          buttons.push(btn);
-          var row, col;
-          if(labels_order === 'columns') {
-            col = Math.floor(idx / rows);
-            row = idx % rows;
-          } else {
-            row = Math.floor(idx / cols);
-            col = idx % cols;
-          }
-          if(row < rows && col < cols) {
-            grid_order[row][col] = btn.id;
-          }
-        });
-        this.set('model.buttons', buttons);
-        // Pre-populated grid.order tells the server "buttons are placed,
-        // don't auto-place" — combined with `buttons.length > 0` it
-        // also bypasses the populate_from_labels path.
-        this.set('model.grid.order', grid_order);
-      }
-      this.get('model').save().then(function(board) {
-        board.set('button_locale', board.get('locale'));
-        _this.appState.set('label_locale', board.get('locale'));
-        _this.appState.set('vocalization_locale', board.get('locale'));
-        _this.set('status', null);
-        modalUtil.close(true);
-        editManager.auto_edit(board.get('id'));
-        _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
-        var key = board.get('key') || '';
-        var parts = key.split('/');
-        if (parts.length >= 2) {
-          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
-        } else {
-          _this.get('router').transitionTo('board', key);
-        }
+      // Wait for symbol previews (manual or AI labels) before baking buttons.
+      this._ensure_label_images_before_save().then(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._completeSaveBoard();
       }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('status', {error: true});
       });
     },
