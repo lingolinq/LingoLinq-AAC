@@ -382,7 +382,14 @@
                                 </svg>
                               </span>
                             {{/if}}
-                            {{board-icon board=board onAction=(action "open_board_in_user_view" target=this.boardsCtrl)}}
+                            {{board-icon
+                              board=board
+                              onAction=(action "open_board_in_user_view" target=this.boardsCtrl)
+                              removeType=this.boardsCtrl.board_list.remove_type
+                              removeLabel=this.boardsCtrl.board_list.remove_label
+                              removeIcon=this.boardsCtrl.board_list.remove_icon
+                              removeCallback=(if this.boardsCtrl.model.permissions.edit (action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl))
+                            }}
                             {{#if this.boardsCtrl.model.permissions.edit}}
                               {{#if board.board.id}}
                                 <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
@@ -669,7 +676,14 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                {{board-icon board=board onAction=(action "open_board_in_user_view" target=this.boardsCtrl)}}
+                {{board-icon
+                  board=board
+                  onAction=(action "open_board_in_user_view" target=this.boardsCtrl)
+                  removeType=this.boardsCtrl.board_list.remove_type
+                  removeLabel=this.boardsCtrl.board_list.remove_label
+                  removeIcon=this.boardsCtrl.board_list.remove_icon
+                  removeCallback=(if this.boardsCtrl.model.permissions.edit (action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl))
+                }}
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>

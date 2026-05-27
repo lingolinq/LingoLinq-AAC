@@ -134,9 +134,17 @@ export default Component.extend({
       if(action) { action(); }
     },
 
-    button_event(button, event) {
+    button_event() {
+      /* Forward ALL args from button-listener — not just the first two.
+         button-listener fires `rearrangeButtons` with (action, dragId,
+         dropId) and `buttonSelect` with (action, id, event). The
+         previous 2-arg signature truncated the 3rd arg, so dropId
+         (and the event) were silently dropped. With dropId undefined,
+         editManager.switch_buttons logged "couldn't find a button!"
+         and returned without committing — the drag visual reverted on
+         release. See docs/task-management/2026-05-26-board-detail-drag-drop-revert.md. */
       var action = this.get('buttonEvent');
-      if(action) { action(button, event); }
+      if(action) { action.apply(null, arguments); }
     }
   }
 });
