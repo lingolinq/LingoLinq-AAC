@@ -1283,11 +1283,11 @@ class Board < ApplicationRecord
     # processed, skip the fallback to avoid partial OpenSymbols lookups.
     buttons = self.settings['buttons'] || []
     from_labels = @buttons_changed == 'populated_from_labels'
-    has_existing_button_images = buttons.any? { |b| b['image_id'] }
+    has_existing_button_images = buttons.any? { |b| b['image_id'].present? }
     from_new_baked = @brand_new && !!@buttons_changed && !from_labels && !has_existing_button_images
     return unless from_labels || from_new_baked
 
-    suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
+    suggested_buttons = buttons.select { |b| b['label'].present? && b['image_id'].blank? }
     return if suggested_buttons.empty?
 
     # Get user's preferred library. 'original' means "keep the board's
