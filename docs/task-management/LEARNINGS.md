@@ -515,7 +515,7 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 
 **Fix recipe:** `normalize_preview_license(preview)` handles nested vs flat shapes; copy `width`/`height` onto `image_preview` in `pick_preview`; in `save_image_preview`, use provided dimensions when present and timeout the Image probe. Guard `Button#load_image` async callbacks with `requestedId` so modal `load_image('remote')` cannot overwrite a newly assigned image.
 
-**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)
+**Evidence:** `app/frontend/app/services/content-grabbers.js`, `app/frontend/tests/utils/picture_grabber-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
 
 ---
 
@@ -529,7 +529,7 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 
 **Fix recipe:** In `change_button`, when setting `local_image_url` from `image.best_url`, also `emberSet(button, 'image_url', best)`. Template fallback: `(or btn.local_image_url btn.image_url)` for defense in depth.
 
-**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)
+**Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
 
 ---
 
@@ -543,4 +543,4 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 
 **Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
 
-**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)
+**Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/utils/button.js`, `app/frontend/tests/utils/edit_manager-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
