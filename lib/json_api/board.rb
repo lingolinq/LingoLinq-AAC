@@ -82,16 +82,23 @@ module JsonApi::Board
     json['immediately_upstream_boards'] = (board.settings['immediately_upstream_board_ids'] || []).length
     json['current_library'] = board.current_library(false)
     json['user_name'] = board.cached_user_name
-    self.trace_execution_scoped(['json/board/parent_board']) do
-      parent_board = nil
-      if defined?(Octopus)
-        conn = (Octopus.config[Rails.env] || {}).keys.sample
-        parent_board = board.using(conn).parent_board if conn
-      else
-        parent_board = board.parent_board
+    # Lite serialization (:as_lite, used by #tree and #bulk prefetch) skips
+    # the parent_board association load. It's an unindexed per-board lookup
+    # that becomes an N+1 across a MAX_TREE-node tree (RCA 2026-05-24, issue
+    # #286). Prefetch is only a cache warm; the full per-board endpoint
+    # refills parent linkage when the user actually navigates into a board.
+    unless args[:as_lite]
+      self.trace_execution_scoped(['json/board/parent_board']) do
+        parent_board = nil
+        if defined?(Octopus)
+          conn = (Octopus.config[Rails.env] || {}).keys.sample
+          parent_board = board.using(conn).parent_board if conn
+        else
+          parent_board = board.parent_board
+        end
+        json['parent_board_id'] = parent_board && parent_board.global_id
+        json['parent_board_key'] = parent_board && parent_board.key
       end
-      json['parent_board_id'] = parent_board && parent_board.global_id
-      json['parent_board_key'] = parent_board && parent_board.key
     end
     json['link'] = "#{JsonApi::Json.current_host}/#{board.key}"
     
@@ -102,7 +109,11 @@ module JsonApi::Board
       end      
     end
     
-    if json['permissions'] && json['permissions']['edit']
+    # Lite skips the edit-scoped enrichment: copy_key (a find_by_path
+    # query), non_author_starred?, and shared_users. None are needed to
+    # warm a prefetch cache entry, and shared_users in particular is a
+    # per-board fan-out (RCA 2026-05-24, issue #286).
+    if !args[:as_lite] && json['permissions'] && json['permissions']['edit']
       if board.settings['copy_id']
         copy = Board.find_by_path(board.settings['copy_id'])
         if copy
@@ -117,7 +128,10 @@ module JsonApi::Board
         end
       end
     end
-    if (json['permissions'] && json['permissions']['delete']) || (args[:permissions] && args[:permissions].allows?(args[:permissions], 'admin_support_actions'))
+    # Lite skips the delete/admin-scoped using_user_names block: it issues
+    # a UserBoardConnection + User query per board (another N+1 over a tree)
+    # and surfaces support-only metadata the prefetch never reads.
+    if !args[:as_lite] && ((json['permissions'] && json['permissions']['delete']) || (args[:permissions] && args[:permissions].allows?(args[:permissions], 'admin_support_actions')))
       json['downstream_board_ids'] = board.downstream_board_ids
       if args[:permissions] && args[:permissions].respond_to?(:settings)
         # TODO: sharding
@@ -159,7 +173,13 @@ module JsonApi::Board
       json['board']['sound_urls'] = board.settings['sound_urls'] || {}
       schedule_skin_enrichment = false
       hash['images'].each{|i|
-        if i['id']
+        # Lite skips the per-image ButtonImage.find_by_global_id skin lookup
+        # (the dominant N+1: one query per image per board across the tree,
+        # RCA 2026-05-24, issue #286). image_urls is still populated below
+        # from the already-resolved hash url, so prefetched thumbnails render;
+        # they just fall back to the base url instead of a skin-capable one
+        # until the full per-board fetch enriches them.
+        if i['id'] && !args[:as_lite]
           bi = ButtonImage.find_by_global_id(i['id']) rescue nil
           if bi
             skin_url = bi.skin_capable_url
@@ -196,7 +216,11 @@ module JsonApi::Board
         #   'id' => board.global_id(true),
         #   'key' => board.key(true),
         # }
-      else
+      # Lite skips find_copies_by (board.rb:620, a per-board query with a
+      # board_content join and a limit-15 sort) and copies.count. This is
+      # one of the heaviest per-descendant calls in the tree fan-out
+      # (RCA 2026-05-24, issue #286).
+      elsif !args[:as_lite]
         self.trace_execution_scoped(['json/board/copy_check']) do
           # TODO: if the user has access to a shallow clone, include that as the first result
           copies = board.find_copies_by(args[:permissions])
@@ -211,13 +235,17 @@ module JsonApi::Board
           json['board']['copies'] = copies.count
         end
       end
-      self.trace_execution_scoped(['json/board/parent_board_check']) do
-        parent = board.parent_board
-        if parent
-          json['board']['original'] = {
-            'id' => parent.global_id,
-            'key' => parent.key
-          }
+      # Lite skips the second parent_board association load (build_json
+      # already skips the first). Both are unindexed per-board lookups.
+      unless args[:as_lite]
+        self.trace_execution_scoped(['json/board/parent_board_check']) do
+          parent = board.parent_board
+          if parent
+            json['board']['original'] = {
+              'id' => parent.global_id,
+              'key' => parent.key
+            }
+          end
         end
       end
     end

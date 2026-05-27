@@ -417,9 +417,12 @@ class Api::BoardsController < ApplicationController
       descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
     end
 
-    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true)
+    # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,
+    # shared_users, per-image ButtonImage lookups) that made this endpoint
+    # Rack::Timeout under MAX_TREE fan-out. See RCA 2026-05-24, issue #286.
+    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: true)
     descendants_json = descendants.map do |b|
-      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true)
+      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: true)
     end
     render json: { root: root_json, descendants: descendants_json }
   end
@@ -454,8 +457,11 @@ class Api::BoardsController < ApplicationController
     scopes = api_permission_scopes
     visible = boards.select { |b| b && b.allows?(@api_user, 'view', scopes) }
 
+    # Same lite serialization as #tree: this is a prefetch warm, not a
+    # navigation, so skip the per-board N+1 enrichment (RCA 2026-05-24,
+    # issue #286).
     out = visible.map do |board|
-      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true)
+      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: true)
     end
     render json: { boards: out }
   end

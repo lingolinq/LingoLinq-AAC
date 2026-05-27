@@ -2928,4 +2928,200 @@ describe Api::BoardsController, :type => :controller do
       expect(p.settings['arguments']).to eq([nil, ['a', 'b'], @user.global_id])
     end
   end
+
+  # Lite serialization for #tree and #bulk (RCA 2026-05-24, issue #286).
+  # These endpoints fan out as_json across up to MAX_TREE / MAX_BULK boards
+  # to warm the client prefetch cache. The full as_json path issues several
+  # unindexed per-board lookups (parent_board x2, find_copies_by, shared_users,
+  # per-image ButtonImage), which turned #tree into a Rack::Timeout source once
+  # PR #281 started firing it at every login. The :as_lite arg drops that
+  # enrichment so query count is O(1) in descendant count.
+
+  # Counts non-schema, non-transaction SQL queries fired while the block runs.
+  # Returned as an array so failures can print the offending statements.
+  def count_board_sql
+    queries = []
+    sub = ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, _start, _finish, _id, payload|
+      sql = payload[:sql].to_s
+      label = payload[:name].to_s
+      next if label == 'SCHEMA' || label == 'TRANSACTION'
+      next if payload[:cached]
+      next if sql =~ /\A\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i
+      queries << sql
+    end
+    yield
+    queries
+  ensure
+    ActiveSupport::Notifications.unsubscribe(sub) if sub
+  end
+
+  # Builds a root with +count+ owned, empty-grid descendants and wires
+  # downstream_board_ids directly (the controller reads it straight from
+  # settings; no linking machinery needed). Empty grids keep the kept-by-lite
+  # images_and_sounds_for call at zero queries so the count reflects only the
+  # serialization path under test.
+  def build_owned_tree(owner, count)
+    root = Board.create(user: owner)
+    children = Array.new(count) { Board.create(user: owner) }
+    root.settings['downstream_board_ids'] = children.map(&:global_id)
+    root.save
+    root.reload
+    expect(root.settings['downstream_board_ids'].length).to eq(count) # guard: persisted
+    [root, children]
+  end
+
+  describe "#tree" do
+    it "returns the root plus permission-filtered descendants" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['root']['board']['id']).to eq(root.global_id)
+      expect(json['descendants'].map { |d| d['board']['id'] }.sort).to eq(children.map(&:global_id).sort)
+    end
+
+    it "404s when the board is missing" do
+      token_user
+      get :tree, params: { board_id: 'no/such-board' }
+      assert_error("Record not found", 404)
+    end
+
+    it "drops descendants the caller is not allowed to view" do
+      token_user
+      other = User.create
+      root = Board.create(user: @user)
+      mine = Board.create(user: @user)
+      theirs = Board.create(user: other) # private, not shared with @user
+      root.settings['downstream_board_ids'] = [mine.global_id, theirs.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      ids = json['descendants'].map { |d| d['board']['id'] }
+      expect(ids).to include(mine.global_id)
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "caps the descendant list at MAX_TREE" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      stub_const("Api::BoardsController::MAX_TREE", 2)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(2)
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq(children.first(2).map(&:global_id))
+    end
+
+    it "omits the heavy per-board enrichment keys (lite serialization)" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Skipped by :as_lite: parent linkage, copy info, share info.
+      expect(board).to_not have_key('parent_board_id')
+      expect(board).to_not have_key('parent_board_key')
+      expect(board).to_not have_key('copy')
+      expect(board).to_not have_key('copies')
+      expect(board).to_not have_key('original')
+      expect(board).to_not have_key('shared_users')
+      # Still present: the core identity the client cache needs.
+      expect(board['id']).to eq(child.global_id)
+      expect(board['key']).to eq(child.key)
+      expect(board).to have_key('permissions')
+    end
+
+    it "serializes the tree with O(1) queries in descendant count" do
+      token_user
+      small_root, _small = build_owned_tree(@user, 3)
+      large_root, _large = build_owned_tree(@user, 18)
+
+      # Warm permission and any per-board caches first so the measurement
+      # reflects steady-state serialization, not cold-cache permission reads.
+      get :tree, params: { board_id: small_root.global_id }
+      get :tree, params: { board_id: large_root.global_id }
+
+      small_q = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
+      large_q = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
+
+      # 15 extra descendants must not add a proportional number of queries.
+      # A regression to the full as_json path adds roughly parent_board x2 +
+      # find_copies_by per descendant (~45+ queries here), so a small fixed
+      # ceiling cleanly separates O(1) from O(N).
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 5, lambda {
+        "tree query count grew by #{delta} for 15 extra descendants " \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected O(1).\n" \
+        "large-tree SQL:\n#{large_q.join("\n")}"
+      })
+    end
+  end
+
+  describe "#bulk" do
+    it "returns the requested boards, permission-filtered" do
+      token_user
+      other = User.create
+      mine_a = Board.create(user: @user)
+      mine_b = Board.create(user: @user)
+      theirs = Board.create(user: other)
+      post :bulk, params: { keys: [mine_a.global_id, theirs.global_id, mine_b.global_id] }
+      json = assert_success_json
+      ids = json['boards'].map { |b| b['board']['id'] }
+      expect(ids).to match_array([mine_a.global_id, mine_b.global_id])
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "returns an empty list when no keys are given" do
+      token_user
+      post :bulk, params: { keys: [] }
+      json = assert_success_json
+      expect(json['boards']).to eq([])
+    end
+
+    it "caps the request at MAX_BULK keys" do
+      token_user
+      boards = Array.new(3) { Board.create(user: @user) }
+      stub_const("Api::BoardsController::MAX_BULK", 2)
+      post :bulk, params: { keys: boards.map(&:global_id) }
+      json = assert_success_json
+      expect(json['boards'].length).to eq(2)
+    end
+
+    it "uses the same lite serialization (no per-board copy/share enrichment)" do
+      token_user
+      board = Board.create(user: @user)
+      post :bulk, params: { keys: [board.global_id] }
+      json = assert_success_json
+      b = json['boards'][0]['board']
+      expect(b).to_not have_key('copies')
+      expect(b).to_not have_key('shared_users')
+      expect(b['id']).to eq(board.global_id)
+    end
+
+    it "resolves bulk keys with O(1) queries in board count" do
+      token_user
+      small = Array.new(3) { Board.create(user: @user) }
+      large = Array.new(18) { Board.create(user: @user) }
+
+      post :bulk, params: { keys: small.map(&:global_id) }
+      post :bulk, params: { keys: large.map(&:global_id) }
+
+      small_q = count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } }
+      large_q = count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } }
+
+      # NOTE: #bulk resolves each key with its own Board.find_by_path, so the
+      # lookup itself is O(n) in key count. The lite serialization guarantee
+      # is that as_json adds no further per-board fan-out on top of that. Allow
+      # ~1 lookup query per extra key (15 here) plus a small constant; the full
+      # as_json path would add several more per board on top.
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 20, lambda {
+        "bulk query count grew by #{delta} for 15 extra keys " \
+        "(small=#{small_q.length}, large=#{large_q.length}).\n" \
+        "large SQL:\n#{large_q.join("\n")}"
+      })
+    end
+  end
 end
