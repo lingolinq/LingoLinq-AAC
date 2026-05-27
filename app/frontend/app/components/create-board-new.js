@@ -1167,7 +1167,9 @@ export default Component.extend({
   },
 
   /** Waits for any in-flight or debounced symbol lookups before save.
-   *  Applies to manual (non-AI) and AI board create — same preview path. */
+   *  Applies to manual (non-AI) and AI board create — same preview path.
+   *  Waits for an in-flight lookup to finish before flushing so save
+   *  does not fire duplicate /api/v1/search/symbols requests. */
   _ensure_label_images_before_save() {
     var _this = this;
     if(this._label_images_debounce) {
@@ -1175,11 +1177,11 @@ export default Component.extend({
       this._label_images_debounce = null;
     }
     var pending = this.get('_label_images_lookup_promise');
-    var flush = this._lookup_label_images();
-    return RSVP.all([RSVP.resolve(pending), RSVP.resolve(flush)]).then(function() {
-      return null;
+    var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
+    return wait.then(function() {
+      return _this._lookup_label_images();
     }, function() {
-      return null;
+      return _this._lookup_label_images();
     });
   },
 
