@@ -1231,19 +1231,27 @@ class Board < ApplicationRecord
   def process_client_supplied_images
     # When the client pre-builds buttons (e.g. create-board-new bakes in
     # the symbol it previewed) it sends an `image_url` but no `image_id`.
+    # process_buttons strips image_url from the persisted hash (whitelist
+    # slice), so URLs are stashed in @client_supplied_image_urls first.
     # process_suggested_symbols only runs for the populate-from-labels
     # path, so those buttons would otherwise be saved with a bare URL
     # and no ButtonImage — and the board renders no symbol (it resolves
     # images via image_id). Turn each provided URL into a real
     # ButtonImage here so the saved board shows what the user previewed.
     buttons = self.settings['buttons'] || []
-    pending = buttons.select { |b| b['image_url'].present? && b['image_id'].blank? }
+    stashed_urls = @client_supplied_image_urls || {}
+    pending = buttons.select do |b|
+      b['image_id'].blank? && (b['image_url'].present? || stashed_urls[b['id'].to_s].present?)
+    end
     return if pending.empty?
 
     begin
       pending.each do |button|
+        url = button['image_url'].presence || stashed_urls[button['id'].to_s]
+        next if url.blank?
+
         bi = ButtonImage.process_new({
-          'url' => button['image_url'],
+          'url' => url,
           'content_type' => 'image/png',
           'public' => true,
           'protected' => false
@@ -1262,12 +1270,19 @@ class Board < ApplicationRecord
       Rails.logger.error "Failed to process client-supplied button images: #{e.message}"
       # Don't raise - board creation should continue even if image
       # processing fails.
+    ensure
+      @client_supplied_image_urls = nil
     end
   end
 
   def process_suggested_symbols
-    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols
-    return unless @buttons_changed == 'populated_from_labels'
+    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols.
+    # Primary path: labels-only create (populate_buttons_from_labels).
+    # Fallback: new board with client-baked buttons that still lack image_id
+    # after process_client_supplied_images (e.g. colors loaded before previews).
+    from_labels = @buttons_changed == 'populated_from_labels'
+    from_new_baked = @brand_new && !!@buttons_changed && !from_labels
+    return unless from_labels || from_new_baked
 
     buttons = self.settings['buttons'] || []
     suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
@@ -2046,6 +2061,14 @@ class Board < ApplicationRecord
           'root_board_key' => button['load_board']['key'],
           'level_modifications' => button['level_modifications']
         }
+      end
+      # Stash preview URLs before the whitelist slice — create-board-new
+      # (AI or manual labels) sends image_url on buttons;
+      # process_client_supplied_images reads this map on before_save to
+      # create ButtonImage records.
+      if button['image_url'].present? && button['image_id'].blank?
+        @client_supplied_image_urls ||= {}
+        @client_supplied_image_urls[button['id'].to_s] = button['image_url']
       end
       trans = button['translations'] || translations[button['id']] || translations[button['id'].to_s] || (BoardContent.load_content(self, 'translations') || {})[button['id'].to_s]
       button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization',

@@ -1217,6 +1217,91 @@ describe Board, :type => :model do
       expect(b.settings['grid']['order']).to eq([[5, 7, 9, 11], [6, 8, 10, 12]])
     end
   end
+
+  describe "process_client_supplied_images" do
+    it "assigns image_id from client-supplied image_url (manual or AI create-board-new)" do
+      u = User.create
+      image_url = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/dog.png'
+      board = Board.process_new({
+        'name' => 'Preview symbols',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 2,
+          'order' => [[1, 2]]
+        },
+        'buttons' => [
+          {'id' => 1, 'label' => 'dog', 'image_url' => image_url, 'hidden' => false, 'hide_label' => false},
+          {'id' => 2, 'label' => 'cat', 'hidden' => false, 'hide_label' => false}
+        ]
+      }, {:user => u})
+      expect(board).to be_persisted
+      dog = board.settings['buttons'].find { |b| b['label'] == 'dog' }
+      cat = board.settings['buttons'].find { |b| b['label'] == 'cat' }
+      expect(dog['image_id']).to be_present
+      expect(dog['image_url']).to be_blank
+      expect(cat['image_id']).to be_blank
+      bi = ButtonImage.find_by_global_id(dog['image_id'])
+      expect(bi.url).to eq(image_url)
+    end
+
+    it "assigns image_id from labels-only grid (legacy new-board / manual labels path)" do
+      u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({
+        'hello' => {
+          'image_url' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/hello.png',
+          'id' => 'hello-1',
+          'license' => 'CC BY-NC-SA',
+          'license_url' => 'http://example.com/license',
+          'source_url' => 'http://example.com/source',
+          'author' => 'ARASAAC',
+          'author_url' => 'http://example.com/author'
+        }
+      })
+      board = Board.process_new({
+        'name' => 'Manual labels board',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 1,
+          'labels' => 'hello',
+          'labels_order' => 'rows'
+        }
+      }, {:user => u})
+      expect(board).to be_persisted
+      hello = board.settings['buttons'].find { |b| b['label'] == 'hello' }
+      expect(hello['image_id']).to be_present
+    end
+  end
+
+  describe "process_suggested_symbols fallback for new baked boards" do
+    it "assigns symbols when new board has labels but no client image_url" do
+      u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({
+        'apple' => {
+          'image_url' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/apple.png',
+          'id' => 'apple-1',
+          'license' => 'CC BY-NC-SA',
+          'license_url' => 'http://example.com/license',
+          'source_url' => 'http://example.com/source',
+          'author' => 'ARASAAC',
+          'author_url' => 'http://example.com/author'
+        }
+      })
+      board = Board.process_new({
+        'name' => 'POS colors only',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 1,
+          'order' => [[1]]
+        },
+        'buttons' => [
+          {'id' => 1, 'label' => 'apple', 'background_color' => 'rgb(255, 204, 170)', 'hidden' => false, 'hide_label' => false}
+        ]
+      }, {:user => u})
+      expect(board).to be_persisted
+      apple = board.settings['buttons'].find { |b| b['label'] == 'apple' }
+      expect(apple['image_id']).to be_present
+    end
+  end
   
   describe "private boards" do
     it "should allow making a private board public without a premium user account" do
