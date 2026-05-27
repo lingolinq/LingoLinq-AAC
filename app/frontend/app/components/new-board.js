@@ -107,6 +107,10 @@ export default Component.extend({
     return !!this.appState.get('feature_flags.ai_board_generation');
   }),
 
+  paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
+    return !!this.appState.get('feature_flags.paste_html_import');
+  }),
+
   willDestroy() {
     // Stop recording before teardown (don't use send() - component is being destroyed)
     var speech = this.get('speech');
