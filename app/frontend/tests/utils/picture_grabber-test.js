@@ -361,9 +361,14 @@ describe('pictureGrabber', function() {
           return RSVP.reject("");
         }
       });
-      pictureGrabber.select_image_preview();
-      waitsFor(function() { return alerted; });
-      runs();
+      var saveFailed = false;
+      pictureGrabber.select_image_preview().then(function() {}, function() {
+        saveFailed = true;
+      });
+      waitsFor(function() { return alerted && saveFailed; });
+      runs(function() {
+        expect(button_set).toEqual(false);
+      });
     });
     it('should fail creating an image if the confirmation step fails', function() {
       var alerted = false;

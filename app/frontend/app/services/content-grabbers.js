@@ -62,7 +62,7 @@ var contentGrabbers = Service.extend({
     }
     if(err.message) { return err.message; }
     if(typeof err === 'string') { return err; }
-    return 'unexpected error';
+    return i18n.t('unexpected_error', "unexpected error");
   },
 
   setup: function(button, controller) {
@@ -1245,7 +1245,7 @@ var pictureGrabber = EmberObject.extend({
           fn(arg);
         };
         var timer = runLater(function() {
-          finish(reject, {error: 'image calculation failed'});
+          finish(reject, {error: i18n.t('image_calculation_failed', "image calculation failed")});
         }, 10000);
         var i = new window.Image();
         i.onload = function() {
@@ -1257,7 +1257,7 @@ var pictureGrabber = EmberObject.extend({
         };
         i.onerror = function() {
           cancel(timer);
-          finish(reject, {error: 'image calculation failed'});
+          finish(reject, {error: i18n.t('image_calculation_failed', "image calculation failed")});
         };
 
         i.src = preview.save_url || preview.url;
@@ -1461,7 +1461,7 @@ var pictureGrabber = EmberObject.extend({
       var pickedDisplayUrl = preview.save_url || preview.url || null;
       image = _this.resolveSavedImageRecord(image, pickedDisplayUrl);
       if(!image) {
-        return RSVP.reject({error: 'image record unavailable after save'});
+        return RSVP.reject({error: i18n.t('image_unavailable_after_save', "image record unavailable after save")});
       }
       if(image.invalidateCachedDisplayUrls) {
         image.invalidateCachedDisplayUrls();
@@ -1517,6 +1517,7 @@ var pictureGrabber = EmberObject.extend({
       if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
         _this.controller.set('model.pending_image', false);
       }
+      return RSVP.reject(err);
     }).then(function() {
       _this._activeImageSavePromise = null;
     }, function() {
