@@ -225,6 +225,10 @@ export default Component.extend({
     return !!this.appState.get('feature_flags.ai_board_generation');
   }),
 
+  paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
+    return !!this.appState.get('feature_flags.paste_html_import');
+  }),
+
   /** Mirror the live board-detail page's text-position class on the
    *  preview grid so the mockup honors the user's saved preference
    *  (top / bottom / text_only). Defaults to 'top' when unset, matching
