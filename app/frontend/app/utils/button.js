@@ -543,12 +543,12 @@ var Button = EmberObject.extend({
   load_image: function(preference) {
     var _this = this;
     if(!_this.image_id) { return RSVP.resolve(); }
-    var image = LingoLinq.store.peekRecord('image', _this.image_id);
-    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
-    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
-    _this.set('image', image);
-    if(image && image.get('hc')) { _this.set('hc_image', true); }
+    var requestedId = _this.image_id;
+    var stillCurrent = function() {
+      return String(_this.image_id) === String(requestedId);
+    };
     var check_image = function(image) {
+      if(!stillCurrent()) { return RSVP.resolve(image); }
       var best = image.get('best_url');
       if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
         _this.set('local_image_url', best);
@@ -556,6 +556,7 @@ var Button = EmberObject.extend({
       _this.set('original_image_url', image.get('url'));
       if(image.get('hc')) { _this.set('hc_image', true); }
       return image.checkForDataURL().then(function() {
+        if(!stillCurrent()) { return image; }
         var url = image.get('best_url');
         if(url && (url.match(/^https?:\/\//) || url.match(/^data:/) || url.match(/^blob:/))) {
           _this.set('local_image_url', url);
@@ -563,24 +564,49 @@ var Button = EmberObject.extend({
         return image;
       }, function() { return RSVP.resolve(image); });
     };
+    var image = LingoLinq.store.peekRecord('image', requestedId);
+    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
+    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
+    var assigned = stillCurrent() ? _this.get('image') : null;
+    if(!image && assigned && assigned.get && String(assigned.get('id')) === String(requestedId)) {
+      var assignedUrl = assigned.get('url');
+      if(!assignedUrl) {
+        var boardUrls = _this.get('board.image_urls');
+        assignedUrl = (boardUrls && boardUrls[requestedId]) || _this.image_url;
+      }
+      if(assignedUrl) {
+        return check_image(assigned);
+      }
+    }
+    if(stillCurrent()) {
+      _this.set('image', image);
+      if(image && image.get('hc')) { _this.set('hc_image', true); }
+    }
     if(!image) {
       var image_urls = this.get('board.image_urls');
-      var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
-      if(hc) { _this.set('hc_image', true); }
-      var url_val = (image_urls && image_urls[_this.image_id]) ? image_urls[_this.image_id] : _this.image_url;
+      var hc = (_this.get('board.hc_image_ids') || {})[requestedId];
+      if(hc && stillCurrent()) { _this.set('hc_image', true); }
+      var url_val = (image_urls && image_urls[requestedId]) ? image_urls[requestedId] : null;
+      if(!url_val && _this.image_url && preference != 'remote') {
+        // button.image_url can lag behind image_id after a symbol swap; only reuse it
+        // when the board has no image_urls map (legacy) or still maps this id to it.
+        if(!image_urls || !Object.keys(image_urls).length) {
+          url_val = _this.image_url;
+        }
+      }
       if(url_val && preference != 'remote') {
         var looks_like_url = (typeof url_val === 'string') && (url_val.match(/^https?:\/\//) || url_val.match(/^data:/));
         if(looks_like_url) {
-          var img = LingoLinq.store.peekRecord('image', _this.image_id);
+          var img = LingoLinq.store.peekRecord('image', requestedId);
           if(!img) {
             img = LingoLinq.store.createRecord('image', {
               url: url_val
             });
-            img.set('id', _this.image_id);
+            img.set('id', requestedId);
             img.set('incomplete', true);
             var alts = null;
             for(var key in image_urls) {
-              if(key.match(_this.image_id + '-')) {
+              if(key.match(requestedId + '-')) {
                 var lib = key.split(/-/).pop();
                 alts = alts || [];
                 alts.push({library: lib, url: image_urls[key]});
@@ -588,21 +614,26 @@ var Button = EmberObject.extend({
             }
             if(alts) { img.set('alternates', alts); }
           }
-          _this.set('image', img);
+          if(stillCurrent()) {
+            _this.set('image', img);
+          }
           return check_image(img);
         }
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
       } else {
-        if(!(_this.image_id || '').match(/^tmp/) && preference != 'remote') {
+        if(!(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
-        var find = LingoLinq.store.findRecord('image', _this.image_id).then(function(image) {
+        var find = LingoLinq.store.findRecord('image', requestedId).then(function(image) {
+          if(!stillCurrent()) { return image; }
           _this.set('image', image);
           if(image.get('incomplete')) {
             image.reload().then(function() {
-              check_image(image);
+              if(stillCurrent()) {
+                check_image(image);
+              }
             }, function(err) { });
           }
           return check_image(image);
