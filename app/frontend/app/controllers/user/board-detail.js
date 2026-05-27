@@ -89,14 +89,17 @@ export default Controller.extend(prefClasses, {
   // default when the saved preference is absent.
   folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, button labels shrink to fit the button width (down to
-  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
-  // boundaries. When false (the default — matches modern AAC industry
-  // standard), labels keep the user's chosen font size and wrap to up
-  // to 3 lines at word boundaries with no shrinking. The two-line
-  // shrink mode replaces the older one-line-only shrink behavior so
-  // longer labels stay legible without dropping all the way to the
-  // 7px floor on a single line. Persisted on
+  // When true, each button's label is independently measured: if its
+  // text would overflow the 3-line label box at the user's chosen
+  // font size, only that one label's font is reduced (down to an 8px
+  // floor) until the full text fits without truncation. Labels that
+  // already fit at the chosen size are left alone — the toggle never
+  // rescales every label on the board uniformly, it only shrinks the
+  // specific labels that would otherwise be clipped. Implemented in
+  // app/frontend/app/utils/label_fit.js, wired via the board-detail-grid
+  // component. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and overflow
+  // past 3 lines is clipped with ellipsis. Persisted on
   // user.preferences.shrink_labels_to_fit.
   shrink_labels_to_fit: false,
   // When true, applies a softer / more tonal style to button borders
@@ -6172,11 +6175,12 @@ export default Controller.extend(prefClasses, {
     },
 
     // Toggles the "Shrink labels to fit" preference — when true,
-    // button labels shrink down to a 7px floor AND wrap to up to two
-    // lines at word boundaries inside the button. When false
-    // (default — modern AAC industry standard), labels keep the
-    // user's chosen font size and wrap to up to 3 lines at word
-    // boundaries with no shrinking. Persists to
+    // each label is independently measured and shrunk only if its
+    // text would overflow the 3-line box at the chosen font size
+    // (down to an 8px floor). Labels that already fit stay at the
+    // chosen size. When false (default — modern AAC industry
+    // standard), labels keep the chosen size and overflow past 3
+    // lines clips with ellipsis. Persists to
     // user.preferences.shrink_labels_to_fit.
     toggle_shrink_labels_to_fit: function() {
       var _this = this;
