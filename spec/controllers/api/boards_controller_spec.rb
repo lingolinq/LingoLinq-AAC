@@ -3046,6 +3046,24 @@ describe Api::BoardsController, :type => :controller do
       expect(board).to have_key('permissions')
     end
 
+    it "honors the deploy-free kill-switch to fall back to full serialization" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      # Stub the Setting rather than writing it: avoids leaking a Redis cache
+      # entry into sibling examples (Redis is not rolled back between specs).
+      allow(Setting).to receive(:get_cached).and_call_original
+      allow(Setting).to receive(:get_cached).with('tree_lite_serialization').and_return('false')
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Full as_json path restored: the copy enrichment (skipped by lite) is
+      # present again, even when its count is zero.
+      expect(board).to have_key('copies')
+    end
+
     it "does not run the per-board enrichment that caused the timeout" do
       # Behavioral guard for remediation #1: lite must skip the unindexed
       # per-board lookups (parent_board, find_copies_by, shared_users) and the
