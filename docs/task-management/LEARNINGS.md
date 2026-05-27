@@ -25,6 +25,7 @@ file (see [README.md](README.md)).
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
 - [Pattern: RESERVED_ROUTES blocks intended system usernames in seeds](#pattern-reserved_routes-blocks-intended-system-usernames-in-seeds)
 - [Pattern: create-board-new preview URLs stripped by process_buttons whitelist](#pattern-create-board-new-preview-urls-stripped-by-process_buttons-whitelist)
+- [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
 
 ---
 
@@ -501,3 +502,45 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 **Fix:** Stash `image_url` by button id in `process_buttons` before slice; consume in `process_client_supplied_images`. Fallback `process_suggested_symbols` for `@brand_new` boards still missing `image_id`.
 
 **First seen in:** [2026-05-26-ai-board-preview-images-phase1.md](./2026-05-26-ai-board-preview-images-phase1.md)
+
+---
+
+## Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize
+
+**Surface:** Button-settings Picture tab → search symbols → pick thumbnail → "Use This".
+
+**Symptoms:** License row shows `[object Object]`; "Use This" appears to do nothing (preview stays) because `save_image_preview` hangs probing remote SVG dimensions via `new Image()` with no timeout.
+
+**Root cause:** `/api/v1/search/symbols` (via `OpenSymbols.find_images`) returns `license: { type: 'CC BY-SA', author_name: ..., uneditable: true }`, but `pictureGrabber.pick_preview` treated `preview.license` as a flat string and assigned it to `license.type`. Width/height from search hits were not copied to `image_preview`, forcing a browser Image probe that can hang on CloudFront SVGs.
+
+**Fix recipe:** `normalize_preview_license(preview)` handles nested vs flat shapes; copy `width`/`height` onto `image_preview` in `pick_preview`; in `save_image_preview`, use provided dimensions when present and timeout the Image probe. Guard `Button#load_image` async callbacks with `requestedId` so modal `load_image('remote')` cannot overwrite a newly assigned image.
+
+**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)
+
+---
+
+## Pattern: board-detail edit grid uses image_url — change_button must update it
+
+**Surface:** Board-detail edit mode → Button Settings → Picture → pick symbol → "Use This".
+
+**Symptom:** Modal "Current picture" shows the new symbol, but the board tile still shows the old image.
+
+**Root cause:** `board-detail-grid.hbs` renders `<img src={{btn.image_url}}>`. Edit-mode buttons are built via `_make_ember_btn`, which sets `image_url` once from `raw.image_urls`. `editManager.change_button` updated `local_image_url` (used by legacy fast_html / speak paths) but not `image_url`, so the grid stayed stale after save.
+
+**Fix recipe:** In `change_button`, when setting `local_image_url` from `image.best_url`, also `emberSet(button, 'image_url', best)`. Template fallback: `(or btn.local_image_url btn.image_url)` for defense in depth.
+
+**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)
+
+---
+
+## Pattern: defer image_id in change_button — stale image_url rebinds wrong symbol
+
+**Surface:** Button-settings Picture → pick search hit → "Use This".
+
+**Symptom:** Preview shows the chosen symbol, but after "Use This" the modal "Current picture" (and board tile) revert to the **previous** symbol.
+
+**Root cause:** `change_button` set `image_id` before updating `image_url`. That synchronously triggers `Button#findContentLocally`, which calls `load_image('local')`. `load_image` falls back to the stale `button.image_url` (still pointing at the old symbol) when `board.image_urls[newId]` is not populated yet, creates an incomplete image record with the **old URL** and **new id**, and overwrites `button.image`.
+
+**Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
+
+**Evidence:** [2026-05-27-button-image-use-this.md](./2026-05-27-button-image-use-this.md)

@@ -124,7 +124,7 @@
         {{/unless}}
         <div style="margin-top: 10px;">
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
-            {{#if this.button.pending}}
+            {{#if this.model.pending_image}}
               {{t "Saving..." key="saving"}}
             {{else}}
               {{t "Use This" key="use_this"}}
@@ -205,7 +205,7 @@
           {{#unless this.webcam}}
             {{#if this.model.image.url}}
               <div style="text-align: center; margin-bottom: 10px; margin-top: 10px;">
-                <img src={{this.model.image.best_url_without_preferred_symbols}} class="button_image">
+                <img src={{or this.fresh_picture_url this.model.image.url this.model.image.best_url_without_preferred_symbols}} class="button_image">
               </div>
               {{pick-license license=this.model.image.license}}
               {{#if this.model.image.skinned}}

@@ -355,6 +355,26 @@ describe('editManager', function() {
       expect(button.get('horse')).toEqual('radish');
       expect(editManager.lastChange).toEqual({button_id: 123, changes: ['label', 'horse']});
     });
+    it("should mirror image.best_url to image_url and local_image_url", function() {
+      editManager.setup(board);
+      board.set('ordered_buttons', [[]]);
+      var button = Button.create({
+        id: 123, label: 'wipe',
+        image_url: 'https://example.com/old.png',
+        image_id: 1
+      });
+      board.set('ordered_buttons', [[button]]);
+      var image = EmberObject.create({
+        url: 'https://example.com/new.png',
+        best_url: 'https://example.com/new.png'
+      });
+      image.get = function(key) { return this[key]; };
+      editManager.change_button(123, { image: image, image_id: 456 });
+      expect(button.get('local_image_url')).toEqual('https://example.com/new.png');
+      expect(button.get('image_url')).toEqual('https://example.com/new.png');
+      expect(button.get('image_id')).toEqual(456);
+      expect(button.get('image')).toEqual(image);
+    });
     it("should add the prior state to the edit history", function() {
       editManager.setup(board);
       board.set('ordered_buttons', [[]]);
