@@ -527,6 +527,20 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 
 **Root cause:** `board-detail-grid.hbs` renders `<img src={{btn.image_url}}>`. Edit-mode buttons are built via `_make_ember_btn`, which sets `image_url` once from `raw.image_urls`. `editManager.change_button` updated `local_image_url` (used by legacy fast_html / speak paths) but not `image_url`, so the grid stayed stale after save.
 
+---
+
+## Pattern: large background prefetches must keep descendant images lazy
+
+**Surface:** session-start board prefetch in `app/frontend/app/utils/board_detail_cache.js` for home and catalog trees.
+
+**Symptom:** prefetch appears to speed up navigation but can flood browser requests and delay interactive UI when every descendant image is warmed up front.
+
+**Root cause:** `/tree` returns root plus many descendants. Warming every descendant image immediately multiplies requests by depth and board size; this can saturate the browser queue and starve foreground actions.
+
+**Fix:** ingest all descendant JSON into `board_detail_cache`, but warm images for root boards only during background prefetch; let descendant images load lazily on actual navigation.
+
+**First seen in:** [2026-05-27-lingolinq-catalog-prefetch](./2026-05-27-lingolinq-catalog-prefetch.md)
+
 **Fix recipe:** In `change_button`, when setting `local_image_url` from `image.best_url`, also `emberSet(button, 'image_url', best)`. Template fallback: `(or btn.local_image_url btn.image_url)` for defense in depth.
 
 **Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
