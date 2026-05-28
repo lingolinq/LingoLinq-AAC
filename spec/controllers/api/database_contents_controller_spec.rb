@@ -31,6 +31,53 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(payload['total']).to be_a(Integer)
     end
 
+    it 'redacts secure_serialize columns so raw secured values never leak' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+      @user.settings['secret_marker'] = 'TOP-SECRET-PII-MARKER-12345'
+      @user.save!
+
+      raw_settings = ActiveRecord::Base.connection.exec_query(
+        "SELECT settings FROM users WHERE id = #{@user.id.to_i}"
+      ).first['settings']
+
+      get :index, params: {table: 'users', limit: 50}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      payload = json['database_contents']
+
+      settings_idx = payload['columns'].index('settings')
+      expect(settings_idx).to be_present
+      expect(payload['redacted_columns']).to include('settings')
+
+      # Every secured cell is redacted, and the encrypted blob never appears.
+      payload['rows'].each do |row|
+        expect(row[settings_idx]).to eq(Api::DatabaseContentsController::REDACTED_PLACEHOLDER)
+      end
+      expect(response.body).not_to include(raw_settings)
+      expect(response.body).not_to include('TOP-SECRET-PII-MARKER-12345')
+
+      # Non-secured columns are untouched: the explorer still works.
+      id_idx = payload['columns'].index('id')
+      uname_idx = payload['columns'].index('user_name')
+      row = payload['rows'].find { |r| r[id_idx].to_s == @user.id.to_s }
+      expect(row).to be_present
+      expect(row[uname_idx]).to eq(@user.user_name)
+    end
+
+    it 'reports no redacted columns for a table with no secure_serialize column' do
+      token_user
+      @user.settings['admin'] = true
+      @user.save
+
+      # versions has no secure_serialize column; redacted_columns should be empty.
+      get :index, params: {table: 'versions', limit: 5}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['database_contents']['redacted_columns']).to eq([])
+    end
+
     it 'should return 404 for an unknown table' do
       token_user
       @user.settings['admin'] = true

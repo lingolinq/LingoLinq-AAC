@@ -5,6 +5,10 @@ class Api::DatabaseContentsController < ApplicationController
   DEFAULT_LIMIT = 50
   MAX_LIMIT = 500
 
+  # Emitted in place of any secure_serialize column so the encrypted-at-rest blob
+  # never leaves the model layer through this raw SELECT * dump.
+  REDACTED_PLACEHOLDER = '[redacted: secured]'
+
   # GET /api/v1/database_contents?table=NAME&limit=50&offset=0
   # Read-only paginated dump of a public table's rows. Admin / admin_support_actions only.
   def index
@@ -20,18 +24,20 @@ class Api::DatabaseContentsController < ApplicationController
     conn = ActiveRecord::Base.connection
     quoted = conn.quote_table_name(table)
     columns = conn.columns(table).map(&:name)
+    redacted = self.class.secured_columns_by_table[table] || []
 
     rows_result = conn.exec_query("SELECT * FROM #{quoted} ORDER BY 1 LIMIT #{limit.to_i} OFFSET #{offset.to_i}")
     total, total_exact = approximate_count(conn, table)
 
     serialized = rows_result.map do |row|
-      columns.map { |c| serialize_value(row[c]) }
+      columns.map { |c| redacted.include?(c) ? REDACTED_PLACEHOLDER : serialize_value(row[c]) }
     end
 
     render json: {
       database_contents: {
         table: table,
         columns: columns,
+        redacted_columns: redacted,
         rows: serialized,
         total: total,
         total_exact: total_exact,
@@ -39,6 +45,23 @@ class Api::DatabaseContentsController < ApplicationController
         offset: offset
       }
     }
+  end
+
+  # table_name => [secure_serialize column names], by introspecting every model
+  # that declares a secure column (go_secure sets the class-level secure_column
+  # accessor). Memoized per process. Drives redaction so the secure_serialize
+  # decryption layer is never bypassed in the clear by the raw SELECT * dump.
+  def self.secured_columns_by_table
+    @secured_columns_by_table ||= begin
+      Rails.application.eager_load! unless Rails.application.config.eager_load
+      map = Hash.new { |h, k| h[k] = [] }
+      ActiveRecord::Base.descendants.each do |model|
+        next unless model.respond_to?(:secure_column) && model.secure_column
+        next unless (model.table_exists? rescue false)
+        map[model.table_name] << model.secure_column.to_s
+      end
+      map.transform_values(&:uniq)
+    end
   end
 
   private
