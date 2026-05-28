@@ -20,6 +20,8 @@ export default Controller.extend({
   googleSignupUserName: '',
   googleSignupRegistrationType: 'individual',
   googleSignupTerms: false,
+  googleSignupTelemetryOptIn: false,
+  googleSignupCommsLogOptIn: false,
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
   }),
@@ -157,7 +159,9 @@ export default Controller.extend({
           nonce: _this.get('google_signup'),
           user_name: (_this.get('googleSignupUserName') || '').trim(),
           registration_type: _this.get('googleSignupRegistrationType') || 'individual',
-          terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false'
+          terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false',
+          telemetry_opt_in: _this.get('googleSignupTelemetryOptIn') ? 'true' : 'false',
+          comms_log_opt_in: _this.get('googleSignupCommsLogOptIn') ? 'true' : 'false'
         }
       }).then(function(res) {
         if(_this.isDestroyed || _this.isDestroying) { return; }

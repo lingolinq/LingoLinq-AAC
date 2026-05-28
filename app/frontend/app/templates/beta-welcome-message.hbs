@@ -1,0 +1,43 @@
+<div class="beta-welcome-page">
+  <div class="register-card">
+    <div class="la-section-header">
+      <div class="la-hero-title-wrap">
+        <h2 class="la-hero-title">{{t "Welcome" key="beta_welcome_title"}}</h2>
+      </div>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+    </div>
+
+    <div class="beta-agreement-body">
+      <p>Hi <strong>{{this.model.name}}</strong>,</p>
+      <p>We are so glad you're here to help us!</p>
+      <p>You are not just a tester to us; you are our partner. We want LingoLinq to be more than a tool — we want it to become your voice.</p>
+      <p>Whether you're an everyday user, an SLP, teacher, or assistant — your feedback is exactly what we need to make LingoLinq support your needs.</p>
+
+      <h3>Two Ways We Can Explore Together</h3>
+      <ul>
+        <li><strong>Speak, Play &amp; Discover:</strong> You have an official license to roam! Feel free to explore and try things out. Find out how you can use it to talk, share, and communicate the way you like.</li>
+        <li><strong>Weekly Missions:</strong> Every week, we will share a short activity for you to try so we can practice using different things together.</li>
+      </ul>
+
+      <h3>Getting Started</h3>
+      <ol>
+        <li><strong>Watch the Quick Tour:</strong> We put together a short video to show how everything works and make you feel at ease.</li>
+        <li><strong>Pop-Ups:</strong> Throughout the app, you will see pop-up messages that will explain things and help you along. Consider it your cheat sheet to help explore the app like a pro right from day one.</li>
+        <li><strong>A Quick Bit of Housekeeping:</strong> The first time you log in, you'll see a short agreement written in plain English. Please take a moment to look it over and make sure you're happy with it. If it looks good, click accept to get started! If you have any questions or concerns, just let us know and we will address your concerns.</li>
+        <li><strong>Log In:</strong> Click this link to get started — <a href="#" target="_blank" rel="noopener">[insert link]</a></li>
+      </ol>
+
+      <h3>How to Share Your Thoughts</h3>
+      <p>If you find a problem, catch a bug, or have an idea, just use the <strong>Beta Feedback button</strong> right inside the app. No detail is too small!</p>
+
+      <p>Thank you for helping us shape this new voice and being a vital part of our crew!</p>
+      <p><strong>The LingoLinq Team</strong></p>
+    </div>
+
+    <div class="register-btn-wrap">
+      <button type="button" class="register-btn" {{action "goToAgreement"}}>
+        {{t "Next" key="next"}}
+      </button>
+    </div>
+  </div>
+</div>

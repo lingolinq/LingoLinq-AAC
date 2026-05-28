@@ -1,0 +1,55 @@
+<div class="beta-welcome-page">
+  <div class="register-card">
+    <div class="la-section-header">
+      <div class="la-hero-title-wrap">
+        <h2 class="la-hero-title">{{t "LingoLinq Beta Test Agreement" key="beta_agreement_title"}}</h2>
+      </div>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+    </div>
+
+    <div class="beta-agreement-body">
+      <p>Welcome to the team! Before we start testing LingoLinq together, please look over this short agreement. We've written it in plain English so it's clear and easy to read. Our goal is to build a strong community together before our official open-source launch. By logging in, you agree to these terms:</p>
+
+      <h3>Open Source &amp; Sharing</h3>
+      <ul>
+        <li><strong>Share Your Journey:</strong> LingoLinq is an open-source project. We actively encourage you to share your experiences online! Feel free to post screenshots, videos, and reviews to help us build excitement.</li>
+        <li><strong>Ideas:</strong> If you give us suggestions or report bugs, you agree that we can use that information to make LingoLinq better for everyone, without any extra obligations.</li>
+      </ul>
+
+      <h3>Privacy &amp; Keeping Data Safe</h3>
+      <p>To build your voice in the best way possible, we need to understand how it works in real-world situations. Our engineers may use communication and background data (telemetry) to fix bugs and improve speed. We promise to fiercely protect this data in accordance with our Privacy Notice.</p>
+      <p>Any communication logs reviewed for troubleshooting are completely stripped of names and personal profiles before our engineers ever see them.</p>
+      <ul>
+        <li><strong>Parents &amp; Guardians:</strong> If you are a parent of a tester under 13, please complete our separate Verifiable Parental Consent process during registration. <a href="#" target="_blank" rel="noopener">[COPPA consent link]</a></li>
+        <li><strong>Teachers &amp; Schools:</strong> If you are using this in an educational setting, please ensure you have proper school district approval or independent parental consent forms to satisfy FERPA compliance. <a href="#" target="_blank" rel="noopener">[FERPA templates link]</a></li>
+        <li><strong>Clinicians &amp; SLPs:</strong> If you plan to share Protected Health Information (PHI) or require a Business Associate Agreement (BAA), please do not input real patient data until a BAA is signed. Contact us at <a href="mailto:beta@lingolinq.com">beta@lingolinq.com</a> first.</li>
+      </ul>
+
+      <h3>Your Right to Be Forgotten</h3>
+      <p>You're always in control of your personal information. Email us at <a href="mailto:beta@lingolinq.com">beta@lingolinq.com</a> to delete your account. We will permanently delete all of your Personally Identifiable Information (PII) from our servers within 48 hours. We only keep completely anonymous data that can never be linked back to you.</p>
+
+      <h3>Important Safety Note for AAC Users</h3>
+      <p><strong>Keep Your Main Voice Handy:</strong> This is pre-release software — it will still have bugs and might occasionally crash. Because an AAC app becomes your voice, your communication is sacred and too important to lose. <strong>Please keep your primary communication device with you at all times</strong> as a backup while we test. LingoLinq should not be relied upon as your only way to talk during this beta phase.</p>
+
+      <h3>The Legal Stuff</h3>
+      <p>Because this is a test version, you use this software at your own risk. We provide LingoLinq "as is" without warranties, and we are not liable for any issues, data loss, or communication disruptions. This agreement stays in place until our official launch or until the beta program ends.</p>
+
+      <p>Thank you for partnering with us to build LingoLinq!</p>
+    </div>
+
+    <div class="register-checkboxes" style="margin-top: 1.5rem;">
+      <div class="checkbox big_checkbox">
+        <label>
+          <Input @type="checkbox" @checked={{this.agreementAccepted}} />
+          {{t "I have read and accept the Beta Test Agreement." key="beta_agreement_accept"}}
+        </label>
+      </div>
+    </div>
+
+    <div class="register-btn-wrap">
+      <button type="button" disabled={{not this.agreementAccepted}} class="register-btn" {{action "acceptAgreement"}}>
+        {{t "Get Started" key="get_started"}}
+      </button>
+    </div>
+  </div>
+</div>

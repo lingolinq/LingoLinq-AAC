@@ -56,6 +56,8 @@ export default Route.extend({
         user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
+      user.set('preferences.telemetry_opt_in', controller.get('model.preferences.telemetry_opt_in') || false);
+      user.set('preferences.comms_log_opt_in', controller.get('model.preferences.comms_log_opt_in') || false);
       user.save().then(function(user) {
         controller.set('start_code', null);
         user.set('password', null);
@@ -69,10 +71,10 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
-          _this.appState.return_to_index();
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
           }
+          _this.transitionTo('beta-welcome-message');
         };
         if(user.get('start_progress')) {
           controller.set('registering', {saving: true, initializing: true})

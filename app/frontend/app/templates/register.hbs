@@ -57,6 +57,18 @@
         <div class="register-checkboxes">
           <div class="checkbox big_checkbox">
             <label>
+              <Input @type="checkbox" @checked={{this.googleSignupTelemetryOptIn}} />
+              {{t "I agree to allow anonymous usage and performance data (telemetry) to be collected to help improve LingoLinq." key="telemetry_opt_in"}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.googleSignupCommsLogOptIn}} />
+              {{t "I agree to allow anonymized communication logs to be reviewed for troubleshooting and app improvement. Logs are fully stripped of names and personal profiles before any engineer reviews them." key="comms_log_opt_in"}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
               <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
               By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
             </label>
@@ -202,6 +214,18 @@
           <label>
             <Input @type="checkbox" @checked={{this.user.preferences.cookies}} />
             {{t "Send usage data to %app_name% for analytics, error tracking and feature improvements" key="allow_cookies"}}
+          </label>
+        </div>
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.model.preferences.telemetry_opt_in}} />
+            {{t "I agree to allow anonymous usage and performance data (telemetry) to be collected to help improve LingoLinq." key="telemetry_opt_in"}}
+          </label>
+        </div>
+        <div class="checkbox big_checkbox">
+          <label>
+            <Input @type="checkbox" @checked={{this.model.preferences.comms_log_opt_in}} />
+            {{t "I agree to allow anonymized communication logs to be reviewed for troubleshooting and app improvement. Logs are fully stripped of names and personal profiles before any engineer reviews them." key="comms_log_opt_in"}}
           </label>
         </div>
         <div class="checkbox big_checkbox">
