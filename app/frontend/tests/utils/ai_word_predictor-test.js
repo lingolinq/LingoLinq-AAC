@@ -2,7 +2,9 @@ import {
   describe,
   it,
   expect,
-  beforeEach
+  beforeEach,
+  waitsFor,
+  runs
 } from 'frontend/tests/helpers/jasmine';
 import RSVP from 'rsvp';
 import ai_word_predictor from '../../utils/ai_word_predictor';
