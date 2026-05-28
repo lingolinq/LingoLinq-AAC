@@ -66,13 +66,68 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(row[uname_idx]).to eq(@user.user_name)
     end
 
-    it 'reports no redacted columns for a table with no secure_serialize column' do
+    it 'redacts PaperTrail snapshot columns so secured blobs never leak via versions' do
       token_user
       @user.settings['admin'] = true
       @user.save
 
-      # versions has no secure_serialize column; redacted_columns should be empty.
-      get :index, params: {table: 'versions', limit: 5}
+      raw_settings = ActiveRecord::Base.connection.exec_query(
+        "SELECT settings FROM users WHERE id = #{@user.id.to_i}"
+      ).first['settings']
+
+      # A version row embeds the secured ciphertext in its snapshot, the way
+      # paper_trail records User/Board :settings changes.
+      PaperTrail::Version.create!(
+        item_type: 'User', item_id: @user.id, event: 'update',
+        object: {'settings' => raw_settings, 'marker' => 'VERSIONS-LEAK-MARKER-99'}.to_yaml
+      )
+
+      get :index, params: {table: 'versions', limit: 100}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      payload = json['database_contents']
+
+      expect(payload['redacted_columns']).to include('object')
+      obj_idx = payload['columns'].index('object')
+      payload['rows'].each do |row|
+        expect(row[obj_idx]).to eq(Api::DatabaseContentsController::REDACTED_PLACEHOLDER)
+      end
+      expect(response.body).not_to include(raw_settings)
+      expect(response.body).not_to include('VERSIONS-LEAK-MARKER-99')
+    end
+
+    it 'redacts sensitive plaintext credential columns that are not secure_serialize' do
+      token_user
+      @user.settings['admin'] = true
+      @user.save
+
+      ActiveRecord::Base.connection.exec_query(
+        "INSERT INTO developer_keys (secret, key, created_at, updated_at) " \
+        "VALUES ('LIVE-OAUTH-SECRET-XYZ', 'CLIENT-KEY-ABC', now(), now())"
+      )
+
+      get :index, params: {table: 'developer_keys', limit: 50}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      payload = json['database_contents']
+
+      expect(payload['redacted_columns']).to include('secret')
+      expect(payload['redacted_columns']).to include('key')
+      secret_idx = payload['columns'].index('secret')
+      payload['rows'].each do |row|
+        expect(row[secret_idx]).to eq(Api::DatabaseContentsController::REDACTED_PLACEHOLDER)
+      end
+      expect(response.body).not_to include('LIVE-OAUTH-SECRET-XYZ')
+      expect(response.body).not_to include('CLIENT-KEY-ABC')
+    end
+
+    it 'reports no redacted columns for a table with no secured or snapshot column' do
+      token_user
+      @user.settings['admin'] = true
+      @user.save
+
+      # schema_migrations has no secure_serialize and no snapshot column.
+      get :index, params: {table: 'schema_migrations', limit: 5}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
       expect(json['database_contents']['redacted_columns']).to eq([])

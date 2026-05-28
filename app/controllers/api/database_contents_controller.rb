@@ -9,6 +9,25 @@ class Api::DatabaseContentsController < ApplicationController
   # never leaves the model layer through this raw SELECT * dump.
   REDACTED_PLACEHOLDER = '[redacted: secured]'
 
+  # PaperTrail snapshot columns embed the raw ciphertext of a secured column for
+  # any paper-trailed secured model (e.g. User/Board settings), so the versions
+  # audit table re-exposes the same encrypted blobs even though it has no
+  # secure_serialize of its own. Redact those snapshot columns by table name.
+  SNAPSHOT_REDACTED_COLUMNS = { 'versions' => %w[object object_changes] }.freeze
+
+  # Plaintext columns holding live credentials or impersonation tokens that are
+  # NOT secure_serialize'd, so model introspection cannot find them. Redacted by
+  # table name. A broader sensitive-plaintext-column audit is tracked as a
+  # follow-up to #286.
+  SENSITIVE_PLAINTEXT_COLUMNS = {
+    'developer_keys' => %w[secret key],
+    'purchase_tokens' => %w[token],
+    'organizations' => %w[external_auth_key],
+    'supervisor_relationships' => %w[consent_response_token],
+    'beta_feedback_recordings' => %w[token],
+    'external_nonces' => %w[nonce]
+  }.freeze
+
   # GET /api/v1/database_contents?table=NAME&limit=50&offset=0
   # Read-only paginated dump of a public table's rows. Admin / admin_support_actions only.
   def index
@@ -24,7 +43,9 @@ class Api::DatabaseContentsController < ApplicationController
     conn = ActiveRecord::Base.connection
     quoted = conn.quote_table_name(table)
     columns = conn.columns(table).map(&:name)
-    redacted = self.class.secured_columns_by_table[table] || []
+    redacted = ((self.class.secured_columns_by_table[table] || []) +
+                SNAPSHOT_REDACTED_COLUMNS.fetch(table, []) +
+                SENSITIVE_PLAINTEXT_COLUMNS.fetch(table, [])) & columns
 
     rows_result = conn.exec_query("SELECT * FROM #{quoted} ORDER BY 1 LIMIT #{limit.to_i} OFFSET #{offset.to_i}")
     total, total_exact = approximate_count(conn, table)
