@@ -2309,6 +2309,58 @@ describe Board, :type => :model do
   end
   
   describe "post_process" do
+    context "buttonset creation for new copied boards" do
+      it "defers buttonset creation to the :slow queue for a brand-new copied board instead of rebuilding it inline" do
+        u = User.create
+        parent = Board.create(:user => u)
+        Worker.process_queues
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => []}
+        # The crux of the fix: a new copy must NOT rebuild the downstream button set
+        # inline in the request (that inline traversal is what exceeded the 15s
+        # Rack::Timeout and failed the copy with a 500). It must defer to :slow.
+        expect(BoardDownstreamButtonSet).not_to receive(:update_for)
+        expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, kind_of(String), true).at_least(:once)
+        b.save
+      end
+
+      it "still builds the buttonset inline for a brand-new board with no downstream hierarchy" do
+        u = User.create
+        b = Board.new(:user => u)
+        b.settings = {'name' => "standalone board", 'buttons' => []}
+        # A from-scratch board with no links is cheap; keep the immediate inline build.
+        expect(BoardDownstreamButtonSet).to receive(:update_for).with(kind_of(String), true)
+        expect(BoardDownstreamButtonSet).not_to receive(:schedule_for).with(:slow, :update_for, anything, true)
+        b.save
+      end
+
+      it "builds the buttonset inline for a copy when ASYNC_BUTTONSET_ON_COPY is disabled (kill switch)" do
+        ENV['ASYNC_BUTTONSET_ON_COPY'] = 'false'
+        u = User.create
+        parent = Board.create(:user => u)
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => []}
+        expect(BoardDownstreamButtonSet).to receive(:update_for).with(kind_of(String), true)
+        b.save
+      ensure
+        ENV.delete('ASYNC_BUTTONSET_ON_COPY')
+      end
+
+      it "defers when a brand-new board already references a downstream hierarchy even without a parent_board_id" do
+        u = User.create
+        b = Board.new(:user => u)
+        b.settings = {'name' => "links out", 'buttons' => []}
+        # Exercise the downstream_board_ids branch of the guard (not the parent_board_id one).
+        allow(b).to receive(:downstream_board_ids).and_return(['1_999'])
+        expect(b.parent_board_id).to be_nil
+        expect(BoardDownstreamButtonSet).not_to receive(:update_for)
+        expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, kind_of(String), true).at_least(:once)
+        b.save
+      end
+    end
+
     it "should search for a better default icon if the default icon is being used" do
       u = User.create
       b = Board.create(:user => u)
