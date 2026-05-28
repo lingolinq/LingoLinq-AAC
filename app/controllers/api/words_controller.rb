@@ -58,7 +58,6 @@ class Api::WordsController < ApplicationController
     locale = params['locale'] || 'en'
     count = [(params['count'] || 4).to_i, 8].min
 
-    require_relative '../../lib/ai_word_predictor' unless defined?(AiWordPredictor)
     words = AiWordPredictor.predict(sentence: sentence, locale: locale, count: count, user: @api_user)
 
     render json: { words: words }
