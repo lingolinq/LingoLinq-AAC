@@ -196,7 +196,13 @@ describe JsonApi::Board do
       
       hash = JsonApi::Board.as_json(b.reload, :permissions => u, :wrapper => true)
       expect(hash['images'].length).to eq(5)
-      images = hash['images'].sort_by{|i| i['id'] }
+      # Sort by the ButtonImage's numeric id, not the global_id string. A
+      # lexicographic string sort misorders once the id sequence crosses a
+      # digit boundary (e.g. "1_100_..." sorts before "1_97_..."), so this
+      # assertion used to flip depending on how many ButtonImages earlier
+      # specs had created. Mapping back to the records keeps it creation-order.
+      by_global_id = [bbi1, bbi2, bbi3, bbi4, bbi5].index_by(&:global_id)
+      images = hash['images'].sort_by{|i| by_global_id[i['id']].id }
       expect(images[0]['id']).to eq(bbi1.global_id)
       expect(images[0]['url']).to eq('http://www.example.com/bacon/cache/1')
       expect(images[1]['id']).to eq(bbi2.global_id)
@@ -254,7 +260,13 @@ describe JsonApi::Board do
       
       hash = JsonApi::Board.as_json(b.reload, :permissions => u, :wrapper => true)
       expect(hash['images'].length).to eq(5)
-      images = hash['images'].sort_by{|i| i['id'] }
+      # Sort by the ButtonImage's numeric id, not the global_id string. A
+      # lexicographic string sort misorders once the id sequence crosses a
+      # digit boundary (e.g. "1_100_..." sorts before "1_97_..."), so this
+      # assertion used to flip depending on how many ButtonImages earlier
+      # specs had created. Mapping back to the records keeps it creation-order.
+      by_global_id = [bbi1, bbi2, bbi3, bbi4, bbi5].index_by(&:global_id)
+      images = hash['images'].sort_by{|i| by_global_id[i['id']].id }
       expect(images[0]['id']).to eq(bbi1.global_id)
       expect(images[0]['url']).to eq('http://www.example.com/bacon/cache/1')
       expect(images[1]['id']).to eq(bbi2.global_id)

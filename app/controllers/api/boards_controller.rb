@@ -417,12 +417,30 @@ class Api::BoardsController < ApplicationController
       descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
     end
 
-    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true)
+    # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,
+    # shared_users, per-image ButtonImage lookups) that made this endpoint
+    # Rack::Timeout under MAX_TREE fan-out. See RCA 2026-05-24, issue #286.
+    # Gated by a deploy-free kill-switch (see lite_board_serialization?).
+    lite = lite_board_serialization?
+    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
     descendants_json = descendants.map do |b|
-      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true)
+      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
     end
     render json: { root: root_json, descendants: descendants_json }
   end
+
+  # Kill-switch for the #tree / #bulk lite serialization (RCA 2026-05-24,
+  # issue #286). Lite is ON by default. Ops can revert to the full as_json
+  # path WITHOUT a deploy by writing the Setting from a console:
+  #   Setting.set('tree_lite_serialization', 'false')
+  # and re-enable with any other value (or by deleting the Setting). The
+  # Setting.set call busts the Redis cache, so the flip takes effect on the
+  # next request. The unset (default-on) path is one cached lookup, O(1) per
+  # request, negligible next to the per-board fan-out this removes.
+  def lite_board_serialization?
+    Setting.get_cached('tree_lite_serialization') != 'false'
+  end
+  private :lite_board_serialization?
 
   # Bulk-resolve a list of board keys/ids in one request. The frontend
   # uses this to pre-warm the boardDetailCache for a board's reachable
@@ -454,8 +472,12 @@ class Api::BoardsController < ApplicationController
     scopes = api_permission_scopes
     visible = boards.select { |b| b && b.allows?(@api_user, 'view', scopes) }
 
+    # Same lite serialization as #tree: this is a prefetch warm, not a
+    # navigation, so skip the per-board N+1 enrichment (RCA 2026-05-24,
+    # issue #286). Same deploy-free kill-switch as #tree.
+    lite = lite_board_serialization?
     out = visible.map do |board|
-      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true)
+      JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
     end
     render json: { boards: out }
   end
