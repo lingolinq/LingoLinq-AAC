@@ -17,11 +17,12 @@ module AiWordPredictor
     # sentence: the words the user has built so far, e.g. "I want to"
     # locale: language code, default "en"
     # count: how many predictions to return (default 4)
+    # context: optional hash with :time_of_day, :topic keys
     # user: User object. Required for production calls so we can apply
     #   the org AI opt-out, the COPPA Final Rule consent gate, and audit
     #   logging. Pass nil only from offline scripts that supply no user
     #   data (e.g., the n-gram seed generator).
-    def predict(sentence:, locale: 'en', count: 4, user: nil)
+    def predict(sentence:, locale: 'en', count: 4, user: nil, context: nil)
       return [] if sentence.blank?
 
       api_config = resolve_api_config
@@ -33,7 +34,8 @@ module AiWordPredictor
       # COPPA Final Rule hard-gate: block under-13 users awaiting parental consent.
       return [] if FeatureFlags.coppa_blocks_ai_for?(user)
 
-      cache_key = "#{locale}:#{sentence.strip.downcase}"
+      ctx = normalize_context(context)
+      cache_key = "#{locale}:#{sentence.strip.downcase}:#{ctx[:time_of_day]}:#{ctx[:topic]}"
       cached = CACHE[cache_key]
       if cached && (Time.now - cached[:ts]) < CACHE_TTL
         return cached[:words]
@@ -67,14 +69,14 @@ module AiWordPredictor
       words = begin
         case provider
         when :claude
-          response = call_anthropic(api_config, scrubbed_sentence, locale, count)
+          response = call_anthropic(api_config, scrubbed_sentence, locale, count, ctx)
           raw_response = extract_content_anthropic(response)
           tokens_sent = response.usage&.input_tokens if response.respond_to?(:usage)
           tokens_received = response.usage&.output_tokens if response.respond_to?(:usage)
           success = true
           parse_words(raw_response, count)
         when :gemini
-          response = call_gemini(api_config, scrubbed_sentence, locale, count)
+          response = call_gemini(api_config, scrubbed_sentence, locale, count, ctx)
           raw_response = response.dig('choices', 0, 'message', 'content') || ''
           tokens_sent = response.dig('usage', 'prompt_tokens')
           tokens_received = response.dig('usage', 'completion_tokens')
@@ -115,7 +117,29 @@ module AiWordPredictor
       words
     end
 
+    # Token-based entry point used by WordSuggestionsController.
+    def predict_from_tokens(words:, locale: 'en', count: 5, user: nil, context: nil)
+      token_words = Array.wrap(words).map(&:to_s).map(&:strip).reject(&:blank?).first(12)
+      return [] if token_words.empty?
+
+      predict(
+        sentence: token_words.join(' '),
+        locale: locale,
+        count: count,
+        user: user,
+        context: context
+      )
+    end
+
     private
+
+    def normalize_context(context)
+      ctx = (context || {}).with_indifferent_access
+      {
+        time_of_day: ctx[:time_of_day].to_s.presence || 'unspecified',
+        topic: ctx[:topic].to_s.strip
+      }
+    end
 
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
@@ -137,18 +161,18 @@ module AiWordPredictor
       nil
     end
 
-    def call_anthropic(config, sentence, locale, count)
+    def call_anthropic(config, sentence, locale, count, context)
       require 'anthropic'
       client = Anthropic::Client.new(api_key: config[:api_key])
       client.messages.create(
         model: config[:model],
         max_tokens: 60,
-        system: system_prompt(locale, count),
+        system: system_prompt(locale, count, context),
         messages: [{ role: 'user', content: sentence }]
       )
     end
 
-    def call_gemini(config, sentence, locale, count)
+    def call_gemini(config, sentence, locale, count, context)
       require 'openai'
       client = OpenAI::Client.new(
         access_token: config[:api_key],
@@ -158,7 +182,7 @@ module AiWordPredictor
         parameters: {
           model: config[:model],
           messages: [
-            { role: 'system', content: system_prompt(locale, count) },
+            { role: 'system', content: system_prompt(locale, count, context) },
             { role: 'user', content: sentence }
           ],
           max_tokens: 60,
@@ -167,12 +191,18 @@ module AiWordPredictor
       )
     end
 
-    def system_prompt(locale, count)
+    def system_prompt(locale, count, context)
+      ctx = normalize_context(context)
+      context_lines = []
+      context_lines << "Time of day: #{ctx[:time_of_day]}" if ctx[:time_of_day] != 'unspecified'
+      context_lines << "Topic context: #{ctx[:topic]}" if ctx[:topic].present?
+      context_block = context_lines.any? ? "\nContext:\n#{context_lines.join("\n")}\n" : ''
+
       <<~PROMPT
         You are a word-prediction engine for an AAC (Augmentative and Alternative Communication) app. The user is building a sentence word by word.
 
         Given the sentence so far, predict the #{count} most likely next words.
-
+        #{context_block}
         Rules:
         - Return ONLY #{count} words separated by commas, nothing else
         - Words should be simple, common, everyday vocabulary
@@ -194,7 +224,7 @@ module AiWordPredictor
     def parse_words(raw, count)
       raw.to_s.strip
          .split(/[\s,]+/)
-         .map { |w| w.gsub(/[^a-zA-Z'\-]/, '').strip }
+         .map { |w| w.gsub(/[^a-zA-Z'\- ]/, '').strip }
          .reject(&:blank?)
          .uniq
          .first(count)

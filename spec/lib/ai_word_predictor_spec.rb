@@ -59,7 +59,7 @@ describe AiWordPredictor do
 
     it "scrubs PII from the sentence before sending it to the provider" do
       received_sentence = nil
-      allow(described_class).to receive(:call_anthropic) do |_config, sentence, _locale, _count|
+      allow(described_class).to receive(:call_anthropic) do |_config, sentence, _locale, _count, _context|
         received_sentence = sentence
         anthropic_response('today, and, but, because')
       end
@@ -108,6 +108,28 @@ describe AiWordPredictor do
         success: false,
         error_message: a_string_including('boom')
       ))
+    end
+  end
+
+  describe ".predict_from_tokens" do
+    it "delegates to predict with joined tokens" do
+      expect(described_class).to receive(:predict).with(hash_including(
+        sentence: 'when do you',
+        count: 5,
+        context: { time_of_day: 'morning', topic: 'school' }
+      )).and_return(%w[go eat])
+
+      result = described_class.predict_from_tokens(
+        words: %w[when do you],
+        count: 5,
+        context: { time_of_day: 'morning', topic: 'school' }
+      )
+
+      expect(result).to eq(%w[go eat])
+    end
+
+    it "returns empty when words are blank" do
+      expect(described_class.predict_from_tokens(words: [])).to eq([])
     end
   end
 end
