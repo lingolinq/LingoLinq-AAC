@@ -634,6 +634,11 @@
                   <span class="md-board-detail-sentence-bar__prediction-group" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}}>
                     {{#each this.suggestions.list as |suggestion|}}
                       <button type="button" class="md-board-detail-sentence-bar__prediction" {{action "complete_word" suggestion}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                        {{#if this.utterance_show_symbols}}
+                          {{#if suggestion.image}}
+                            <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                          {{/if}}
+                        {{/if}}
                         <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
                       </button>
                     {{/each}}

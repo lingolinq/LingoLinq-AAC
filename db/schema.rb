@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_12_150000) do
+ActiveRecord::Schema[7.2].define(version: 2026_05_27_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -447,6 +447,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_12_150000) do
     t.index ["parent_organization_id"], name: "index_organizations_on_parent_organization_id"
   end
 
+  create_table "prediction_entries", id: :serial, force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "locale", default: "en", null: false
+    t.string "prefix", default: "", null: false
+    t.string "next_word", null: false
+    t.float "score", default: 1.0, null: false
+    t.string "source", default: "selection", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["user_id", "locale", "prefix", "next_word"], name: "idx_prediction_entries_unique", unique: true
+    t.index ["user_id", "locale", "prefix"], name: "idx_prediction_entries_prefix"
+  end
+
   create_table "profile_templates", id: :serial, force: :cascade do |t|
     t.integer "user_id"
     t.integer "organization_id"
@@ -538,7 +551,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_12_150000) do
     t.index ["communicator_user_id"], name: "index_supervisor_relationships_on_communicator_user_id"
     t.index ["consent_response_token"], name: "index_supervisor_rel_consent_token", unique: true, where: "(consent_response_token IS NOT NULL)"
     t.index ["consent_token_expires_at"], name: "index_supervisor_rel_pending_expiry", where: "((status)::text = 'pending'::text)"
-    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text]))"
+    t.index ["supervisor_user_id", "communicator_user_id"], name: "index_supervisor_rel_active_pair", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying])::text[]))"
     t.index ["supervisor_user_id"], name: "index_supervisor_relationships_on_supervisor_user_id"
   end
 

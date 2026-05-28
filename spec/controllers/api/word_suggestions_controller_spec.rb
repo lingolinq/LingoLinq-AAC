@@ -26,30 +26,29 @@ describe Api::WordSuggestionsController, type: :controller do
       expect(response.status).to eq(403)
     end
 
-    it 'returns 503 when ANTHROPIC_API_KEY is missing' do
+    it 'returns empty words when no API key is configured' do
       token_user
       allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
       allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with('ANTHROPIC_API_KEY').and_return('')
+      allow(ENV).to receive(:[]).with('GEMINI_API_KEY').and_return('')
       post :create, params: { words: ['when'], context: { time_of_day: 'morning', topic: '' } }
-      expect(response.status).to eq(503)
+      expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['words']).to eq([])
     end
 
-    it 'returns words from Claude on success' do
+    it 'returns words from AiWordPredictor on success' do
       token_user
       allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
       allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with('ANTHROPIC_API_KEY').and_return('test-key')
-      expect_any_instance_of(Api::WordSuggestionsController).to receive(:call_anthropic!).and_return(%w[do you can I will is it])
+      expect(AiWordPredictor).to receive(:predict_from_tokens).and_return(%w[do you can I will is it])
 
       post :create, params: { words: ['when'], context: { time_of_day: 'morning', topic: '' } }
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['words']).to eq(%w[do you can I will is it])
+      expect(json['words']).to eq(%w[do you can I will])
     end
   end
 end
