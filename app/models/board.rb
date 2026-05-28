@@ -1158,10 +1158,22 @@ class Board < ApplicationRecord
       async_during_bulk_copy = Thread.current[:bulk_copy_in_progress] &&
         ENV['ASYNC_BUTTONSET_DURING_BULK_COPY'].to_s.downcase != 'false'
 
+      # A brand-new board that is a copy of another board (or already references a
+      # downstream hierarchy) rebuilds the entire linked-board graph inline via the
+      # update_for below. The single-board copy path (POST /api/v1/boards ->
+      # Board.process_new) never sets Thread.current[:bulk_copy_in_progress] (only
+      # BoardSetCopier sets it), so without this the rebuild runs inline in the web
+      # request and can exceed the 15s Rack::Timeout, failing the copy with a 500.
+      # Route those to the :slow queue too. Toggle off via ASYNC_BUTTONSET_ON_COPY=false.
+      async_new_copy = is_new_board &&
+        (self.parent_board_id.present? || self.downstream_board_ids.any?) &&
+        ENV['ASYNC_BUTTONSET_ON_COPY'].to_s.downcase != 'false'
+
       # Always check if buttonset exists - create it if missing, update it if content changed
       if !existing_buttonset
-        if async_during_bulk_copy
-          Rails.logger.info("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (bulk copy in progress)")
+        if async_during_bulk_copy || async_new_copy
+          defer_reason = async_during_bulk_copy ? 'bulk copy in progress' : 'new copied board (avoiding inline rebuild timeout)'
+          Rails.logger.info("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (#{defer_reason})")
           BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
         else
           # No buttonset exists - create it immediately (whether new board or not)
