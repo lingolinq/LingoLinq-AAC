@@ -54,6 +54,16 @@ $brand-danger:             #C0392B;
 
 $brand-blue-black:         #111A2E;
 
+// LingoLinq logo right speech-bubble — the lighter periwinkle in the
+// two-tone identity glyph. Used in the identity-dropdown avatar SVG
+// (see `.user_holder--default` background-image in app.scss).
+// The `-encoded` companion holds the same value with `#` URL-encoded
+// as `%23` so it can be interpolated into a `data:image/svg+xml,`
+// URI without breaking the encoding. Keep both in sync if you change
+// the brand color.
+$brand-right-logo:         #8585E6;
+$brand-right-logo-encoded: '%238585E6';
+
 // AA-compliant darker variants for accent colors when used as text on
 // light backgrounds (WCAG 1.4.3 fix — added 2026-04-11 per WCAG audit).
 // Use these instead of $brand-verdigris / $brand-dusty-denim for body

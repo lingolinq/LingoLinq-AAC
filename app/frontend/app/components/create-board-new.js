@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next, debounce } from '@ember/runloop';
+import { next, debounce, cancel } from '@ember/runloop';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
@@ -81,7 +81,25 @@ export default Component.extend({
     this.set('more_options', false);
     this.set('preview_mode', 'dark');
     this.set('labels_list_open', false);
-    this.set('creating_for_someone_else', true);
+    /* Default "Are you creating this board for someone else?" by role.
+       Supporters (parents, therapists, teachers, SLPs, etc.) almost
+       always build boards FOR a communicator, so the toggle defaults
+       to Yes for them. Communicators themselves (the AAC users) almost
+       always build for self, so the toggle defaults to No. The user
+       can flip it either way; this is just the initial state.
+       `supporter_role` is the canonical role check on the User model
+       (preferences.role == 'supporter'); communicators and users who
+       haven't picked a role (null / 'unspecified') both fall into the
+       !supporter_role branch, which matches how the backend treats
+       unspecified-as-communicator (see User#supporter_registration?). */
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+    /* Tracks whether the user has manually flipped the toggle this session.
+       The observer below re-applies the role default once `sessionUser`
+       finishes hydrating (the post-hard-reload race), but it must NEVER
+       clobber an explicit user choice — even one made before hydration
+       completes. Flipped true by `toggleCreatingForSomeoneElse`. */
+    this._user_toggled_for_else = false;
     // Map of label.toLowerCase() -> { fill, border, type } populated as
     // labels are looked up via /api/v1/search/batch_parts_of_speech.
     this.set('_label_colors', {});
@@ -92,6 +110,8 @@ export default Component.extend({
     // so the saved board uses the symbol the user previewed (rather than
     // re-searching server-side which can pick a different match).
     this.set('_label_images', {});
+    this._label_images_debounce = null;
+    this.set('_label_images_lookup_promise', null);
     // Paint feature — mirrors the board-detail edit toolbar's paint flow.
     // `_painted_colors` is the user's manual overrides keyed by label so
     // the color follows the label through drag-reorder; baked into
@@ -136,6 +156,21 @@ export default Component.extend({
     this.updateShowGrid();
   },
 
+  /* Re-apply the "for someone else" default once `sessionUser` finishes
+     hydrating. On a hard browser reload, the component's `init()` runs
+     before `app-state.find_user()` resolves, so `sessionUser.supporter_role`
+     is still `undefined` and the supporter-defaults-to-Yes branch in `init`
+     silently picks No. This observer fires when `sessionUser` (or its
+     `supporter_role` flag) finally arrives and corrects the default — but
+     only when the user has not manually flipped the toggle, so an explicit
+     choice is never clobbered by a late-arriving session. */
+  _apply_supporter_default: observer('appState.sessionUser', 'appState.sessionUser.supporter_role', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this._user_toggled_for_else) { return; }
+    var isSupporter = this.appState.get('sessionUser.supporter_role');
+    this.set('creating_for_someone_else', !!isSupporter);
+  }),
+
   for_user_id: computed('model.for_user_id', function() {
     // Return null when the model points at 'self' so the dropdown shows
     // its placeholder ("Select who this board is for") instead of acting
@@ -146,14 +181,16 @@ export default Component.extend({
     return id;
   }),
 
-  /** Soft attention cue for the supervisee dropdown. The toggle defaults
-   *  to "Yes" (`creating_for_someone_else` initialized to true), which
-   *  reveals the dropdown — but until the user picks an actual person
-   *  the dropdown is empty. We illuminate it with a teal glow so it
-   *  visibly asks for input, without making it a hard validation error
-   *  (the for-user pick is still optional at submit time per the
-   *  current `createBoardDisabled` rules). Clears the moment the user
-   *  selects someone OR flips the toggle to "No". */
+  /** Soft attention cue for the supervisee dropdown. When the toggle is
+   *  set to "Yes" (the default for supporter-role users; communicators
+   *  default to "No"), the dropdown is revealed — but until the user
+   *  picks an actual person the dropdown is empty. We illuminate it
+   *  with a teal glow so it visibly asks for input, without making it
+   *  a hard validation error (the for-user pick is still optional at
+   *  submit time per the current `createBoardDisabled` rules). Clears
+   *  the moment the user selects someone OR flips the toggle to "No"
+   *  (which is the initial state for communicators, so they see no
+   *  glow until they explicitly flip to Yes). */
   for_user_needs_attention: computed('creating_for_someone_else', 'for_user_id', 'show_user_options', function() {
     if(!this.get('show_user_options')) { return false; }
     if(!this.get('creating_for_someone_else')) { return false; }
@@ -186,6 +223,10 @@ export default Component.extend({
 
   ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
     return !!this.appState.get('feature_flags.ai_board_generation');
+  }),
+
+  paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
+    return !!this.appState.get('feature_flags.paste_html_import');
   }),
 
   /** Mirror the live board-detail page's text-position class on the
@@ -605,11 +646,40 @@ export default Component.extend({
   }),
 
   /** "Generate Labels with AI" stays disabled until the user has
-   *  entered a board description (the AI prompt) and isn't already
-   *  mid-generation. */
-  ai_generate_disabled: computed('ai_generating', 'model.description', function() {
+   *  entered a board description (the AI prompt), isn't already
+   *  mid-generation, and the rows × columns total is at or below the
+   *  recommended 112-button ceiling. Going over the ceiling shows
+   *  the warning banner in the template and blocks generation until
+   *  the user dials the steppers back down. */
+  ai_generate_disabled: computed('ai_generating', 'model.description', 'ai_button_count_over_limit', function() {
     if(this.get('ai_generating')) { return true; }
+    if(this.get('ai_button_count_over_limit')) { return true; }
     return !(this.get('model.description') || '').trim().length;
+  }),
+
+  /** Recommended max for an AI-generated board. AAC boards much larger
+   *  than this become hard to scan visually, the AI's per-button
+   *  label quality drops off as the grid grows, and the symbols
+   *  endpoint we call for each label rate-limits aggressively. Set
+   *  as an instance constant so future tweaks land in one place. */
+  MAX_AI_BUTTONS: 112,
+
+  /** True when the user's chosen rows × columns exceeds the
+   *  recommended 112-button ceiling. Drives the warning banner in
+   *  the AI generation panel and blocks the Generate button via
+   *  `ai_generate_disabled`. */
+  ai_button_count_over_limit: computed('model.grid.rows', 'model.grid.columns', function() {
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    return (rows * cols) > this.get('MAX_AI_BUTTONS');
+  }),
+
+  /** Live button-count for the warning banner copy ("142 buttons —
+   *  please reduce to 112 or fewer"). */
+  ai_button_count: computed('model.grid.rows', 'model.grid.columns', function() {
+    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+    return rows * cols;
   }),
 
   /** Live "what's missing" list for the Create button hint. Mirrors the
@@ -703,6 +773,20 @@ export default Component.extend({
     return str.split(/\n|,/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
   }),
 
+  /** Position-preserving labels array. Same source as `parsed_labels`
+   *  but WITHOUT the empty-string filter, so the array index matches
+   *  the grid cell position 1:1. Used by the preview grid + drag-drop
+   *  handlers so blank tiles in the MIDDLE of the grid can be
+   *  drag-targets and drag-sources. `parsed_labels` stays filtered for
+   *  the consumers that scan labels for lookups/colors/images — empty
+   *  strings there would cause useless API requests and false
+   *  duplicate/POS warnings. */
+  positional_labels: computed('model.grid.labels', function() {
+    var str = this.get('model.grid.labels') || '';
+    if(typeof str !== 'string') { str = '' + str; }
+    return str.split(/\n|,/).map(function(s) { return s.trim(); });
+  }),
+
   /** Combined map of POS auto-colors + user-applied paint, keyed by
    *  label.toLowerCase(). Painted overrides win — same precedence as
    *  the preview grid's `bg_style` resolution above and the live
@@ -768,18 +852,37 @@ export default Component.extend({
     return swatches;
   }),
 
-  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'parsed_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', function() {
+  preview_grid: computed('model.grid.rows', 'model.grid.columns', 'model.grid.labels_order', 'positional_labels.[]', '_editIdx', '_label_colors', '_painted_colors', '_label_images', 'paint_mode', 'appState.sessionUser.preferences.skin', function() {
     var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
     var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
     rows = Math.max(0, Math.min(20, rows));
     cols = Math.max(0, Math.min(20, cols));
     var order = this.get('model.grid.labels_order') || 'rows';
-    var labels = this.get('parsed_labels') || [];
+    // Use positional_labels so blanks in the MIDDLE of the grid
+    // (created by drag-dropping a labeled tile onto a blank, or by
+    // dragging a blank onto a labeled tile) keep their position
+    // rather than getting compacted out.
+    var labels = this.get('positional_labels') || [];
     var editIdx = this.get('_editIdx');
     var label_colors = this.get('_label_colors') || {};
     var painted_colors = this.get('_painted_colors') || {};
     var label_images = this.get('_label_images') || {};
     var paint_active = !!this.get('paint_mode');
+    // Skin-tone variant transformation — mirrors board-detail's
+    // _build_from_raw which calls LingoLinq.Board.skin_image_map
+    // (see board-detail.js:825) on the freshly fetched image map.
+    // Each label's cached image_url is the raw symbol URL from
+    // /api/v1/search/symbols; here we wrap it through
+    // LingoLinq.Board.skinned_url so the preview honors the user's
+    // chosen skin tone. `which_skinner` translates the preference
+    // value ('light', 'medium', 'mix', etc.) into the variant
+    // identifier the URL builder expects; `upgrade_url_for_skin_variants`
+    // promotes legacy URLs into the variant-capable form. Computed
+    // once per render (deps include preferences.skin) so the swap
+    // happens reactively when the user changes the skin dropdown.
+    var skin = this.get('appState.sessionUser.preferences.skin');
+    var skin_active = !!(skin && skin !== 'default' && LingoLinq && LingoLinq.Board && LingoLinq.Board.skinned_url);
+    var which_skin = skin_active ? LingoLinq.Board.which_skinner(skin) : null;
     // Build a duplicate-label set so each cell can flag itself as a
     // duplicate independently — drives the warning icon + glow on the
     // preview card. Keyed lowercase to match label-chips' duplicate
@@ -841,6 +944,13 @@ export default Component.extend({
         // user previewed.
         var image_entry = label ? label_images[label.toLowerCase()] : null;
         var image_url = (image_entry && image_entry.image_url) || null;
+        if(image_url && skin_active && which_skin) {
+          image_url = LingoLinq.Board.skinned_url(
+            LingoLinq.Board.upgrade_url_for_skin_variants(image_url),
+            which_skin,
+            false
+          );
+        }
         row.push({
           row: r,
           col: c,
@@ -849,10 +959,13 @@ export default Component.extend({
           empty: !label,
           editing: editing,
           // Drag is disabled while a cell is being edited (otherwise dragging
-          // the click+hold to position the caret could initiate a swap),
-          // while paint mode is active (clicks are paints, not drags), and
-          // for empty placeholder cells. Template binds `draggable={{...}}`.
-          draggable: !!(label && !editing && !paint_active),
+          // the click+hold to position the caret could initiate a swap) or
+          // while paint mode is active (clicks are paints, not drags).
+          // Blank cells ARE draggable so the user can rearrange empty
+          // positions (e.g. drag a blank slot ONTO a labeled tile to push
+          // the label into the slot and leave the source blank). Template
+          // binds `draggable={{...}}`.
+          draggable: !!(!editing && !paint_active),
           painted: !!painted,
           is_duplicate: is_duplicate,
           no_category: no_category,
@@ -966,7 +1079,10 @@ export default Component.extend({
    *  server side and the user typically pauses for at least that long
    *  between adding labels. */
   _request_label_images: observer('parsed_labels.[]', function() {
-    debounce(this, this._lookup_label_images, 700);
+    if(this._label_images_debounce) {
+      cancel(this._label_images_debounce);
+    }
+    this._label_images_debounce = debounce(this, this._lookup_label_images, 700);
   }),
 
   /** Fetches a symbol image for each unseen label via the existing
@@ -977,7 +1093,10 @@ export default Component.extend({
    *  is instant; cache also caches no-match (image_url: null) so we
    *  don't re-query labels that don't have a match. */
   _lookup_label_images() {
-    if(this.isDestroyed || this.isDestroying) { return; }
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
     var labels = this.get('parsed_labels') || [];
     var cached = this.get('_label_images') || {};
     var seen = {};
@@ -988,48 +1107,196 @@ export default Component.extend({
       seen[key] = true;
       to_lookup.push(key);
     });
-    if(to_lookup.length === 0) { return; }
-    var _this = this;
+    if(to_lookup.length === 0) {
+      return RSVP.resolve();
+    }
     var locale = (this.get('model.locale') || 'en').split(/_|-/)[0];
     // Fire one request per label in parallel — the symbols endpoint is
     // single-word so we can't batch. RSVP.allSettled lets a single
     // 404/timeout not block the rest. Cap the parallel requests at a
     // reasonable number (12 at a time) so we don't flood the server
     // when the user pastes a giant label list.
-    var BATCH_SIZE = 12;
-    var run_batch = function(start) {
-      if(_this.isDestroyed || _this.isDestroying) { return; }
-      var batch = to_lookup.slice(start, start + BATCH_SIZE);
-      if(batch.length === 0) { return; }
-      var promises = batch.map(function(word) {
-        return persistence.ajax(
-          '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
-          '&safe=0&locale=' + encodeURIComponent(locale),
-          { type: 'GET' }
-        ).then(function(results) {
-          var pick = (results && results.length) ? results[0] : null;
-          return { word: word, image_url: (pick && pick.image_url) || null };
-        }, function() {
-          // Network/permission errors → cache as null so we don't retry
-          // forever. Same pattern as `_lookup_label_colors`.
-          return { word: word, image_url: null };
+    var lookup_promise = new RSVP.Promise(function(resolve) {
+      var BATCH_SIZE = 12;
+      var run_batch = function(start) {
+        if(_this.isDestroyed || _this.isDestroying) {
+          resolve();
+          return;
+        }
+        var batch = to_lookup.slice(start, start + BATCH_SIZE);
+        if(batch.length === 0) {
+          resolve();
+          return;
+        }
+        var promises = batch.map(function(word) {
+          return persistence.ajax(
+            '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
+            '&safe=0&locale=' + encodeURIComponent(locale),
+            { type: 'GET' }
+          ).then(function(results) {
+            var pick = (results && results.length) ? results[0] : null;
+            return { word: word, image_url: (pick && pick.image_url) || null };
+          }, function() {
+            // Network/permission errors → cache as null so we don't retry
+            // forever. Same pattern as `_lookup_label_colors`.
+            return { word: word, image_url: null };
+          });
         });
-      });
-      RSVP.allSettled(promises).then(function(states) {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        var next_map = Object.assign({}, _this.get('_label_images') || {});
-        states.forEach(function(state) {
-          if(state.state === 'fulfilled' && state.value && state.value.word) {
-            next_map[state.value.word] = { image_url: state.value.image_url };
+        RSVP.allSettled(promises).then(function(states) {
+          if(_this.isDestroyed || _this.isDestroying) {
+            resolve();
+            return;
           }
+          var next_map = Object.assign({}, _this.get('_label_images') || {});
+          states.forEach(function(state) {
+            if(state.state === 'fulfilled' && state.value && state.value.word) {
+              next_map[state.value.word] = { image_url: state.value.image_url };
+            }
+          });
+          _this.set('_label_images', next_map);
+          // Notify so preview_grid (which deps on _label_images) re-runs.
+          _this.notifyPropertyChange('_label_images');
+          run_batch(start + BATCH_SIZE);
         });
-        _this.set('_label_images', next_map);
-        // Notify so preview_grid (which deps on _label_images) re-runs.
-        _this.notifyPropertyChange('_label_images');
-        run_batch(start + BATCH_SIZE);
+      };
+      run_batch(0);
+    });
+    this.set('_label_images_lookup_promise', lookup_promise);
+    lookup_promise.finally(function() {
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('_label_images_lookup_promise') === lookup_promise) {
+        _this.set('_label_images_lookup_promise', null);
+      }
+    });
+    return lookup_promise;
+  },
+
+  /** Waits for any in-flight or debounced symbol lookups before save.
+   *  Applies to manual (non-AI) and AI board create — same preview path.
+   *  Waits for an in-flight lookup to finish before flushing so save
+   *  does not fire duplicate /api/v1/search/symbols requests. */
+  _ensure_label_images_before_save() {
+    var _this = this;
+    if(this._label_images_debounce) {
+      cancel(this._label_images_debounce);
+      this._label_images_debounce = null;
+    }
+    var pending = this.get('_label_images_lookup_promise');
+    var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
+    return wait.then(function() {
+      return _this._lookup_label_images();
+    }, function() {
+      return _this._lookup_label_images();
+    });
+  },
+
+  /** Bakes preview state into model.buttons and persists the board.
+   *  Must be a component method (not an action) — saveBoard calls it
+   *  from an RSVP callback after symbol lookups finish. */
+  _completeSaveBoard() {
+    var _this = this;
+    // Bake any manually-painted colors into a `buttons[]` array + a
+    // populated `grid.order`. Server-side `Board#process_buttons` only
+    // calls `populate_buttons_from_labels` when `buttons.length == 0`
+    // (see app/models/board.rb#L774), so providing buttons here means
+    // the painted `background_color`/`border_color` values persist on
+    // creation. We mirror the row/col math from `cellDragStart` so the
+    // user's labels_order choice is honored. Bakes BOTH user-applied
+    // paint AND POS auto-colors so what the user sees in the preview
+    // is what they get on the saved board (otherwise the preview's
+    // green-verb / yellow-pronoun coloring would vanish on save and
+    // every button would render with the default white background).
+    var painted = this.get('_painted_colors') || {};
+    var auto_colors = this.get('_label_colors') || {};
+    var label_images = this.get('_label_images') || {};
+    var has_painted = Object.keys(painted).length > 0;
+    var has_auto = Object.keys(auto_colors).some(function(k) {
+      var c = auto_colors[k];
+      return c && c.fill;
+    });
+    var has_images = Object.keys(label_images).some(function(k) {
+      var i = label_images[k];
+      return i && i.image_url;
+    });
+    if(has_painted || has_auto || has_images) {
+      var labels = this.get('parsed_labels') || [];
+      var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
+      var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
+      var labels_order = this.get('model.grid.labels_order') || 'rows';
+      var buttons = [];
+      var grid_order = [];
+      for(var rr = 0; rr < rows; rr++) {
+        var grid_row = [];
+        for(var cc = 0; cc < cols; cc++) { grid_row.push(null); }
+        grid_order.push(grid_row);
+      }
+      labels.forEach(function(label, idx) {
+        var btn = {
+          id: idx + 1,
+          label: label,
+          // suggest_symbol stays true only when we DON'T have a
+          // previewed image for this label — otherwise the server's
+          // post-create image-search would replace our chosen image.
+          // With a real image_url present, we lock it in.
+          suggest_symbol: true,
+          hidden: false,
+          hide_label: false
+        };
+        var key = (label || '').toLowerCase();
+        // Paint takes precedence over POS auto-color (mirrors the
+        // preview's `bg_style` resolution and the live board-detail
+        // page's button.background_color > pick_aac_color order).
+        var color = painted[key] || auto_colors[key];
+        if(color && color.fill) {
+          btn.background_color = color.fill;
+          if(color.border) { btn.border_color = color.border; }
+          var pos = color.part_of_speech || color.type;
+          if(pos) { btn.part_of_speech = pos; }
+        }
+        // Bake in the previewed symbol image so the saved board
+        // uses what the user actually saw — without this the server
+        // would re-search and might pick a different first result.
+        var img = label_images[key];
+        if(img && img.image_url) {
+          btn.image_url = img.image_url;
+          btn.suggest_symbol = false;
+        }
+        buttons.push(btn);
+        var row, col;
+        if(labels_order === 'columns') {
+          col = Math.floor(idx / rows);
+          row = idx % rows;
+        } else {
+          row = Math.floor(idx / cols);
+          col = idx % cols;
+        }
+        if(row < rows && col < cols) {
+          grid_order[row][col] = btn.id;
+        }
       });
-    };
-    run_batch(0);
+      this.set('model.buttons', buttons);
+      // Pre-populated grid.order tells the server "buttons are placed,
+      // don't auto-place" — combined with `buttons.length > 0` it
+      // also bypasses the populate_from_labels path.
+      this.set('model.grid.order', grid_order);
+    }
+    this.get('model').save().then(function(board) {
+      board.set('button_locale', board.get('locale'));
+      _this.appState.set('label_locale', board.get('locale'));
+      _this.appState.set('vocalization_locale', board.get('locale'));
+      _this.set('status', null);
+      modalUtil.close(true);
+      editManager.auto_edit(board.get('id'));
+      _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
+      var key = board.get('key') || '';
+      var parts = key.split('/');
+      if (parts.length >= 2) {
+        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      } else {
+        _this.get('router').transitionTo('board', key);
+      }
+    }, function() {
+      _this.set('status', {error: true});
+    });
   },
 
   /** Resolves the user's button_style pref into a CSS font-family string
@@ -1400,6 +1667,10 @@ export default Component.extend({
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');
       this.set('creating_for_someone_else', newValue);
+      // Mark the toggle as user-driven so `_apply_supporter_default`
+      // (above) does not re-stamp the role default if `sessionUser`
+      // happens to hydrate after this click.
+      this._user_toggled_for_else = true;
       if(!newValue) {
         // Switching to "No" — board belongs to current user.
         this.set('model.for_user_id', 'self');
@@ -1425,11 +1696,10 @@ export default Component.extend({
       var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
       var order = this.get('model.grid.labels_order') || 'rows';
       var idx = (order === 'columns') ? (col * rows + row) : (row * cols + col);
-      var labels = this.get('parsed_labels') || [];
-      if(idx >= labels.length || !labels[idx]) {
-        if(event && event.preventDefault) { event.preventDefault(); }
-        return;
-      }
+      // Blank cells can also be drag sources — dragging a blank slot
+      // onto a labeled tile pushes the label into the source slot
+      // and leaves the target blank. No payload check needed; the
+      // source index alone tells cellDrop how to swap.
       if(event && event.dataTransfer) {
         event.dataTransfer.effectAllowed = 'move';
         try { event.dataTransfer.setData('text/plain', String(idx)); } catch(e) { }
@@ -1455,11 +1725,25 @@ export default Component.extend({
       if(sourceIdx === targetIdx) { return; }
       var editIdx = this.get('_editIdx');
       if(editIdx === sourceIdx || editIdx === targetIdx) { return; }
-      var labels = (this.get('parsed_labels') || []).slice();
-      if(targetIdx >= labels.length || !labels[targetIdx]) { return; }
+      // Operate on positional_labels so blanks in the middle of the
+      // grid keep their position. Pad the array to the larger of
+      // (source, target) so a swap involving an out-of-bounds blank
+      // position writes an explicit empty string there. After the
+      // swap, trim ONLY trailing empties (preserving middle blanks)
+      // so the persisted labels string doesn't accumulate trailing
+      // blank lines on every drag.
+      var labels = (this.get('positional_labels') || []).slice();
+      var maxIdx = Math.max(sourceIdx, targetIdx);
+      while(labels.length <= maxIdx) { labels.push(''); }
+      // Source and target can both be blank; the swap is a no-op only
+      // when both are equal strings (which the index check above already
+      // rules out for the same-cell case).
+      if((labels[sourceIdx] || '') === (labels[targetIdx] || '')) { return; }
       var tmp = labels[sourceIdx];
       labels[sourceIdx] = labels[targetIdx];
       labels[targetIdx] = tmp;
+      // Trim trailing empties only — middle blanks stay in place.
+      while(labels.length > 0 && labels[labels.length - 1] === '') { labels.pop(); }
       this.set('_dragSourceIdx', null);
       var _this = this;
       var newValue = labels.join('\n');
@@ -1545,6 +1829,19 @@ export default Component.extend({
      *  previously did nothing. */
     cellClicked: function(idx, event) {
       if(!this.get('paint_mode')) { return; }
+      // Defer to the X (remove) button when the user clicked it or
+      // any of its descendants (e.g. the SVG inside). The X uses
+      // {{action "removeCellAt" ... bubbles=false}} which Ember
+      // dispatches via a root-delegated listener — that listener
+      // fires AFTER this bubble-phase onclick handler runs, so the
+      // X's bubbles=false alone can't suppress this handler. Calling
+      // event.stopPropagation() below would cancel the event before
+      // it reaches Ember's root and removeCellAt would never fire.
+      // Opt out explicitly so the X still removes the label while
+      // paint mode is armed.
+      if(event && event.target && event.target.closest && event.target.closest('.md-board-detail-symbol-card__remove')) {
+        return;
+      }
       var labels = this.get('parsed_labels') || [];
       if(idx < 0 || idx >= labels.length || !labels[idx]) { return; }
       if(event && event.stopPropagation) { event.stopPropagation(); }
@@ -1963,107 +2260,12 @@ export default Component.extend({
       if(!this.get('model.for_user_id') && currentUserId) {
         this.set('model.for_user_id', 'self');
       }
-      // Bake any manually-painted colors into a `buttons[]` array + a
-      // populated `grid.order`. Server-side `Board#process_buttons` only
-      // calls `populate_buttons_from_labels` when `buttons.length == 0`
-      // (see app/models/board.rb#L774), so providing buttons here means
-      // the painted `background_color`/`border_color` values persist on
-      // creation. We mirror the row/col math from `cellDragStart` so the
-      // user's labels_order choice is honored. Bakes BOTH user-applied
-      // paint AND POS auto-colors so what the user sees in the preview
-      // is what they get on the saved board (otherwise the preview's
-      // green-verb / yellow-pronoun coloring would vanish on save and
-      // every button would render with the default white background).
-      var painted = this.get('_painted_colors') || {};
-      var auto_colors = this.get('_label_colors') || {};
-      var label_images = this.get('_label_images') || {};
-      var has_painted = Object.keys(painted).length > 0;
-      var has_auto = Object.keys(auto_colors).some(function(k) {
-        var c = auto_colors[k];
-        return c && c.fill;
-      });
-      var has_images = Object.keys(label_images).some(function(k) {
-        var i = label_images[k];
-        return i && i.image_url;
-      });
-      if(has_painted || has_auto || has_images) {
-        var labels = this.get('parsed_labels') || [];
-        var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
-        var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
-        var labels_order = this.get('model.grid.labels_order') || 'rows';
-        var buttons = [];
-        var grid_order = [];
-        for(var rr = 0; rr < rows; rr++) {
-          var grid_row = [];
-          for(var cc = 0; cc < cols; cc++) { grid_row.push(null); }
-          grid_order.push(grid_row);
-        }
-        labels.forEach(function(label, idx) {
-          var btn = {
-            id: idx + 1,
-            label: label,
-            // suggest_symbol stays true only when we DON'T have a
-            // previewed image for this label — otherwise the server's
-            // post-create image-search would replace our chosen image.
-            // With a real image_url present, we lock it in.
-            suggest_symbol: true,
-            hidden: false,
-            hide_label: false
-          };
-          var key = (label || '').toLowerCase();
-          // Paint takes precedence over POS auto-color (mirrors the
-          // preview's `bg_style` resolution and the live board-detail
-          // page's button.background_color > pick_aac_color order).
-          var color = painted[key] || auto_colors[key];
-          if(color && color.fill) {
-            btn.background_color = color.fill;
-            if(color.border) { btn.border_color = color.border; }
-            var pos = color.part_of_speech || color.type;
-            if(pos) { btn.part_of_speech = pos; }
-          }
-          // Bake in the previewed symbol image so the saved board
-          // uses what the user actually saw — without this the server
-          // would re-search and might pick a different first result.
-          var img = label_images[key];
-          if(img && img.image_url) {
-            btn.image_url = img.image_url;
-            btn.suggest_symbol = false;
-          }
-          buttons.push(btn);
-          var row, col;
-          if(labels_order === 'columns') {
-            col = Math.floor(idx / rows);
-            row = idx % rows;
-          } else {
-            row = Math.floor(idx / cols);
-            col = idx % cols;
-          }
-          if(row < rows && col < cols) {
-            grid_order[row][col] = btn.id;
-          }
-        });
-        this.set('model.buttons', buttons);
-        // Pre-populated grid.order tells the server "buttons are placed,
-        // don't auto-place" — combined with `buttons.length > 0` it
-        // also bypasses the populate_from_labels path.
-        this.set('model.grid.order', grid_order);
-      }
-      this.get('model').save().then(function(board) {
-        board.set('button_locale', board.get('locale'));
-        _this.appState.set('label_locale', board.get('locale'));
-        _this.appState.set('vocalization_locale', board.get('locale'));
-        _this.set('status', null);
-        modalUtil.close(true);
-        editManager.auto_edit(board.get('id'));
-        _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
-        var key = board.get('key') || '';
-        var parts = key.split('/');
-        if (parts.length >= 2) {
-          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
-        } else {
-          _this.get('router').transitionTo('board', key);
-        }
+      // Wait for symbol previews (manual or AI labels) before baking buttons.
+      this._ensure_label_images_before_save().then(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._completeSaveBoard();
       }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('status', {error: true});
       });
     },

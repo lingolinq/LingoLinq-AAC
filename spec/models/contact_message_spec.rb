@@ -129,6 +129,22 @@ describe ContactMessage, :type => :model do
     expect(m.recipient).to eq('beta_feedback')
   end
 
+  it "should persist request_virtual_meeting for beta feedback" do
+    [true, 'true', '1', 'on'].each do |value|
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Summary',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'x' * 12,
+        'request_virtual_meeting' => value
+      })
+
+      expect(m.errored?).to eq(false)
+      expect(m.settings['request_virtual_meeting']).to eq(true)
+    end
+  end
+
   it "should reject beta feedback without subject" do
     m = ContactMessage.process_new({
       'recipient' => 'beta_feedback',

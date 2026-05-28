@@ -82,6 +82,15 @@ export default Route.extend({
       boardDetailController.set('edit_mode', false);
       boardDetailController.set('paint_mode', null);
       boardDetailController.set('color_picker_button', null);
+      // Restore the center section to its default-collapsed state on
+      // exit. setupController above sets `board_collapsed: false` so
+      // the editor can see board details (description / Quick Phrases /
+      // Categories / Color Key pills) while editing; without restoring
+      // it here, browser-back / Save+Exit / Discard would all leave
+      // speak-mode rendering with that expanded panel still showing.
+      // Default in the controller is `true` (collapsed) which matches
+      // the canonical speak-mode look.
+      boardDetailController.set('board_collapsed', true);
       // Clear level-paint + preview state on exit so re-entry starts fresh.
       boardDetailController.send('clear_level_paint');
       // If a modeling session was active when the user entered edit, return

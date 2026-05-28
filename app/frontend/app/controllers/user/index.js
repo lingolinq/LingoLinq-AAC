@@ -221,7 +221,12 @@ export default Controller.extend({
         if (re) {
           var show = tag.match(re);
           if (!show) {
+            /* Only let a root match cause the chip to show — sub-board
+               copies that came along via downstream tagging would
+               otherwise force the chip in for filter strings that
+               match a buried page name. */
             show = ids.some(function(gid) {
+              if (!_this._isMineBoardRoot(gid)) { return false; }
               var b = _this._findMineBoardByGlobalId(gid);
               if (!b) { return false; }
               return _this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags);
@@ -230,6 +235,7 @@ export default Controller.extend({
           if (!show) { return; }
           var cnt = 0;
           ids.forEach(function(gid) {
+            if (!_this._isMineBoardRoot(gid)) { return; }
             var b = _this._findMineBoardByGlobalId(gid);
             if (!b) { return; }
             if (_this._boardRowMatchesFilter({ board: b, children: [] }, re, gidToTags)) {
@@ -238,7 +244,16 @@ export default Controller.extend({
           });
           res.push({ tag: tag, count: cnt });
         } else {
-          res.push({ tag: tag, count: ids.length });
+          /* Count only ROOT tagged boards — sub-board copies stored in
+             the tag map via the "include sub-boards" checkbox are part
+             of their root's tree, not standalone categorized items
+             from the user's mental model. Folder chip, drilled-in
+             grid, and BOARDS-chip "in folders" all agree on this. */
+          var cnt = 0;
+          ids.forEach(function(gid) {
+            if (_this._isMineBoardRoot(gid)) { cnt++; }
+          });
+          res.push({ tag: tag, count: cnt });
         }
       });
       return res;
@@ -263,6 +278,149 @@ export default Controller.extend({
     if (!map) { return null; }
     return Object.prototype.hasOwnProperty.call(map, gid) ? map[gid] : null;
   },
+  /* Visible-tile root boards for the BOARDS chip on the boards page and
+     the dashboard summary. Mirrors the folder-count methodology fixed
+     in mineTagFolderSummaries: enumerate what the user actually sees
+     as a TILE, not the raw my_boards (which includes every sub-board
+     copy in the user's library, inflating 14 visible roots to 419
+     records).
+
+     Uses the same root-vs-copy clustering as board_list above:
+       - shallow roots: id with a `-` shape whose user_id half matches
+         model.id AND copy_id is null/self
+       - regular root: copy_id null OR equal to own id
+       - everything else is a copy (child) — not a tile of its own.
+
+     Returns an empty array while my_boards is still loading. */
+  myBoardsRoots: computed('model.my_boards.[]', 'model.id', function() {
+    var boards = this.get('model.my_boards');
+    if (!boards || !boards.forEach || !boards.length) { return []; }
+    var modelId = this.get('model.id');
+    var shallowRootKeys = Object.create(null);
+    boards.forEach(function(b) {
+      if (!b) { return; }
+      var bidRaw = emberGet(b, 'id');
+      if (bidRaw == null || bidRaw === '') { return; }
+      var bid = String(bidRaw);
+      var copyId = emberGet(b, 'copy_id');
+      if (bid.match(/-/) && (!copyId || copyId == bid || copyId == bid.split(/-/)[0])) {
+        var user_id = bid.split(/-/)[1];
+        if (user_id == modelId) {
+          shallowRootKeys[copyId || bid.split(/-/)[0]] = true;
+        }
+      }
+    });
+    var roots = [];
+    boards.forEach(function(b) {
+      if (!b) { return; }
+      var bidRaw = emberGet(b, 'id');
+      if (bidRaw == null || bidRaw === '') { return; }
+      var bid = String(bidRaw);
+      var copyId = emberGet(b, 'copy_id');
+      if (bid.match(/-/) && bid.split(/-/)[1] == modelId && copyId && shallowRootKeys[copyId]) {
+        return; // shallow clone of a shallow root
+      }
+      if (copyId && copyId != bid) {
+        return; // regular copy — child of a root tile
+      }
+      roots.push(b);
+    });
+    return roots;
+  }),
+  myBoardsTileCount: computed('myBoardsRoots.[]', function() {
+    return (this.get('myBoardsRoots') || []).length;
+  }),
+  /* Set keyed by global_id (and id when distinct) of every my_boards
+     root. Lets folder UIs answer "is this tagged id a root, or a
+     sub-board copy that came along via downstream tagging?" in O(1).
+     A board tagged with the "include sub-boards" checkbox stores its
+     root gid + every downstream_board_id in board_tag_map, so without
+     this filter every folder display over-counts the same vocab set
+     once per page in its tree. */
+  myBoardsRootGidSet: computed('myBoardsRoots.[]', function() {
+    var roots = this.get('myBoardsRoots') || [];
+    var set = Object.create(null);
+    roots.forEach(function(b) {
+      if (!b || !b.get) { return; }
+      var gid = b.get('global_id');
+      if (gid) { set[gid] = true; }
+      var bid = b.get('id');
+      if (bid && bid !== gid) { set[bid] = true; }
+    });
+    return set;
+  }),
+  _isMineBoardRoot: function(gid) {
+    if (!gid) { return false; }
+    var set = this.get('myBoardsRootGidSet');
+    return !!(set && set[gid]);
+  },
+  /* Split of myBoardsTileCount across folders vs the unfiled grid. A
+     root is "in folders" when its global_id (or id) appears in ANY
+     folder's id list in board_tag_map; otherwise it's "unfiled" and
+     renders directly in the BOARDS grid. The two always sum to the
+     total. Drives the dual-stat chip rendered in the BOARDS section
+     header (see available-boards-section.hbs). */
+  myBoardsInFoldersCount: computed('myBoardsRoots.[]', 'model.board_tag_map', function() {
+    var roots = this.get('myBoardsRoots') || [];
+    var tagMap = this.get('model.board_tag_map');
+    if (!roots.length || !tagMap || typeof tagMap !== 'object' || !Object.keys(tagMap).length) {
+      return 0;
+    }
+    var taggedSet = allTaggedGlobalIds(tagMap);
+    var cnt = 0;
+    roots.forEach(function(b) {
+      if (!b || !b.get) { return; }
+      var gid = b.get('global_id');
+      if (gid && taggedSet[gid]) { cnt++; return; }
+      var bid = b.get('id');
+      if (bid && bid !== gid && taggedSet[bid]) { cnt++; }
+    });
+    return cnt;
+  }),
+  /* True when the user's home board is tagged into at least one
+     folder. board_list always keeps the home visible in the main
+     boards grid (so the page never reads as a dead end), so a tagged
+     home renders TWICE — once inside its folder, once in the unfiled
+     grid. Both myBoardsUnfiledCount's +1 and the info-icon affordance
+     in the BOARDS header read from this. */
+  homeBoardIsTagged: computed(
+    'myBoardsRoots.[]',
+    'model.board_tag_map',
+    'model.preferences.home_board.key',
+    function() {
+      var homeKey = this.get('model.preferences.home_board.key');
+      if (!homeKey) { return false; }
+      var tagMap = this.get('model.board_tag_map');
+      if (!tagMap || typeof tagMap !== 'object' || !Object.keys(tagMap).length) {
+        return false;
+      }
+      var taggedSet = allTaggedGlobalIds(tagMap);
+      var roots = this.get('myBoardsRoots') || [];
+      return roots.some(function(b) {
+        if (!b || !b.get) { return false; }
+        if (b.get('key') !== homeKey) { return false; }
+        var gid = b.get('global_id');
+        if (gid && taggedSet[gid]) { return true; }
+        var bid = b.get('id');
+        if (bid && bid !== gid && taggedSet[bid]) { return true; }
+        return false;
+      });
+    }
+  ),
+  myBoardsUnfiledCount: computed(
+    'myBoardsTileCount',
+    'myBoardsInFoldersCount',
+    'homeBoardIsTagged',
+    function() {
+      var total = this.get('myBoardsTileCount') || 0;
+      var inFolders = this.get('myBoardsInFoldersCount') || 0;
+      var unfiled = Math.max(0, total - inFolders);
+      /* Tagged home renders as a duplicate tile in this section per the
+         board_list home-board exemption — add 1 so the pill matches the
+         number of tiles the user actually sees. */
+      return this.get('homeBoardIsTagged') ? unfiled + 1 : unfiled;
+    }
+  ),
   boards_page_raw_list: computed(
     'selected',
     'parent_object',
@@ -555,19 +713,45 @@ export default Controller.extend({
             if (bid && bid !== gid && idsInDrill[bid]) { return true; }
             return false;
           };
-          new_list = new_list.filter(function(row) {
-            if (row.orphan) { return !drill; }
-            if (!row.board || !row.board.get) { return true; }
-            if (drill) {
+          if (drill) {
+            /* Drilled-in folder view: render only ROOT tiles that are
+               tagged into this folder. Sub-board copies that came
+               along via the "include sub-boards" checkbox at tag time
+               are NOT shown as separate tiles — they belong to their
+               root's tree and the user navigates into them by clicking
+               the root, not by listing them flat. Orphan rows (clusters
+               whose root isn't in my_boards) are dropped here too;
+               they're synthetic display rows, never user-tagged units. */
+            new_list = new_list.filter(function(row) {
+              if (row.orphan) { return false; }
+              if (!row.board || !row.board.get) { return false; }
               return isInDrill(row.board);
-            }
-            return !isTagged(row.board);
-          });
-          // Also filter tagged children out of grouped rows
-          if (!drill) {
+            });
+            // Children stay nested under their root, exactly as in the
+            // main boards grid — no flattening, no second render.
+          } else {
+            /* Home board must ALWAYS render in the main boards grid,
+               even when categorized into a folder — it's the user's
+               anchor board and hiding it behind a folder turns the
+               boards page into a dead end on first paint. The folder
+               still shows the home board (drilled-in view keeps it),
+               so this just keeps a parallel copy out here. */
+            var homeKey = this.get('model.preferences.home_board.key');
+            var isHomeBoard = function(board) {
+              if (!homeKey || !board || !board.get) { return false; }
+              return board.get('key') === homeKey;
+            };
+            new_list = new_list.filter(function(row) {
+              if (row.orphan) { return true; }
+              if (!row.board || !row.board.get) { return true; }
+              if (isHomeBoard(row.board)) { return true; }
+              return !isTagged(row.board);
+            });
+            // Also filter tagged children out of grouped rows
             new_list.forEach(function(row) {
               if (row.children && row.children.length) {
                 row.children = row.children.filter(function(child) {
+                  if (isHomeBoard(child.board)) { return true; }
                   return !isTagged(child.board);
                 });
               }
@@ -1005,7 +1189,18 @@ export default Controller.extend({
       this.set('current_tag', tag);
     },
     enterMineFolderTag: function(tag) {
-      if(this.get('selected') !== 'mine') {
+      /* Use the derived `mine_selected` flag, NOT the raw `selected`
+         field. On initial page load `selected` starts as undefined
+         even though the UI shows the Mine tab as active via the
+         `default_key` fallback in update_selected. Comparing
+         `selected !== 'mine'` against an undefined value was true,
+         so set_selected('mine') fired on the first folder click,
+         which re-triggered update_selected → re-queried my_boards →
+         the array was rebuilt and its `.done` property lost → the
+         "Loading boards..." overlay flashed for the duration of the
+         refetch. mine_selected reflects the actual visible tab
+         state, so this guard skips the no-op switch correctly. */
+      if(!this.get('mine_selected')) {
         this.send('set_selected', 'mine');
       }
       this.set('mineTagFolderDrillIn', tag);

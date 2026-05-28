@@ -11,7 +11,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
-  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
+  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
   'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
 ]
 require 'resque/server'

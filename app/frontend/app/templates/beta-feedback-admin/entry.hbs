@@ -77,6 +77,16 @@
                         <dd>{{this.detail.email}}</dd>
                       </div>
                     {{/if}}
+                    <div class="la-beta-feedback-detail__meta-row">
+                      <dt>{{t "Virtual Meeting" key="beta_feedback_admin_col_virtual_meeting"}}</dt>
+                      <dd>
+                        {{#if this.detail.request_virtual_meeting}}
+                          <span class="la-beta-feedback-admin__meeting-badge">{{t "Requested" key="beta_feedback_admin_meeting_requested"}}</span>
+                        {{else}}
+                          <span class="text-muted">—</span>
+                        {{/if}}
+                      </dd>
+                    </div>
                     {{#if this.detail.version}}
                       <div class="la-beta-feedback-detail__meta-row">
                         <dt>{{t "App version" key="beta_feedback_admin_app_version"}}</dt>

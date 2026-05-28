@@ -261,7 +261,7 @@
         {{/unless}}
         <div style="margin-top: 10px;">
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
-            {{#if this.button.pending}}
+            {{#if this.model.pending_image}}
               {{t "Saving..." key="saving"}}
             {{else}}
               {{t "Use This" key="use_this"}}

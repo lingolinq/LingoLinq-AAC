@@ -107,7 +107,19 @@ function _urls_to_warm(raw, skin) {
       if (url) { image_map[String(img.id)] = url; }
     }
   });
-  image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
+  // Guard: this cache module is imported before models/board.js is
+  // guaranteed to have been evaluated, so `LingoLinq.Board` (set at
+  // module-load time inside models/board.js:109) may still be
+  // undefined when an early warm-prefetch path fires. In that case,
+  // skip the skin-tone variant transformation and warm the raw URLs
+  // instead — the route's own _build_from_raw runs skin_image_map
+  // again later once board.js is loaded, so the user-visible flow
+  // is unaffected; only the prefetch hits the un-skinned URLs for
+  // this pass. The page-rendered grid still gets the skinned URLs
+  // it asks for.
+  if (LingoLinq && LingoLinq.Board && typeof LingoLinq.Board.skin_image_map === 'function') {
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
+  }
   var urls = [];
   var seen = {};
   for (var id in image_map) {

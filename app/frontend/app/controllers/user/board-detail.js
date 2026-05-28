@@ -28,6 +28,48 @@ import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 
+// Catalog of speak-mode options-menu entries the user can show/hide
+// via the "Customize Menu" preference (right panel → Board Settings).
+// `id` is what gets stored in user.preferences.speak_mode_hidden_menu_items;
+// `label_key` / `default_label` mirror the i18n call on the actual menu
+// row so the customize list reads identically to what the user sees in
+// the speak-mode menu. `section` groups rows under a section header in
+// the customize panel — null means top-level (no group label).
+// NOTE: "Edit Board" is intentionally NOT in this catalog — its
+// visibility is gated by the PIN-assignment preference (see the
+// Preferences page), so exposing it here would split the control
+// across two places. Every other row on the speak-mode options
+// menu is listed below and can be toggled from the right panel's
+// Customize Menu section.
+const SPEAK_MENU_ITEMS = [
+  { id: 'my_boards',            section: 'board',     label_key: 'my_boards', default_label: 'My Boards' },
+  { id: 'find_boards',          section: 'board',     label_key: 'find_boards', default_label: 'Find Boards' },
+  { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
+  { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
+  { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
+  { id: 'classic_view',         section: 'display',   label_key: 'board_detail_revert_old_style', default_label: 'Classic View' },
+  { id: 'copy',                 section: 'share',     label_key: 'copy', default_label: 'Copy' },
+  { id: 'download',             section: 'share',     label_key: 'download', default_label: 'Download' },
+  { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
+  { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
+  { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
+  { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
+  { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
+  { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
+  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' },
+  { id: 'translate',            section: 'language',  label_key: 'translate', default_label: 'Translate' },
+  { id: 'switch_language',      section: 'language',  label_key: 'switch_language', default_label: 'Switch Language' }
+];
+
+const SPEAK_MENU_SECTIONS = [
+  { id: 'board',    label_key: 'board', default_label: 'Board' },
+  { id: 'buttons',  label_key: 'buttons', default_label: 'Buttons' },
+  { id: 'display',  label_key: 'display', default_label: 'Display' },
+  { id: 'share',    label_key: 'share_and_print', default_label: 'Share & Print' },
+  { id: 'session',  label_key: 'session', default_label: 'Session' },
+  { id: 'language', label_key: 'language', default_label: 'Language' }
+];
+
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
@@ -47,14 +89,17 @@ export default Controller.extend(prefClasses, {
   // default when the saved preference is absent.
   folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, button labels shrink to fit the button width (down to
-  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
-  // boundaries. When false (the default — matches modern AAC industry
-  // standard), labels keep the user's chosen font size and wrap to up
-  // to 3 lines at word boundaries with no shrinking. The two-line
-  // shrink mode replaces the older one-line-only shrink behavior so
-  // longer labels stay legible without dropping all the way to the
-  // 7px floor on a single line. Persisted on
+  // When true, each button's label is independently measured: if its
+  // text would overflow the 3-line label box at the user's chosen
+  // font size, only that one label's font is reduced (down to an 8px
+  // floor) until the full text fits without truncation. Labels that
+  // already fit at the chosen size are left alone — the toggle never
+  // rescales every label on the board uniformly, it only shrinks the
+  // specific labels that would otherwise be clipped. Implemented in
+  // app/frontend/app/utils/label_fit.js, wired via the board-detail-grid
+  // component. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and overflow
+  // past 3 lines is clipped with ellipsis. Persisted on
   // user.preferences.shrink_labels_to_fit.
   shrink_labels_to_fit: false,
   // When true, applies a softer / more tonal style to button borders
@@ -74,6 +119,11 @@ export default Controller.extend(prefClasses, {
   // contents collapse to just the options chevron. Default off.
   // Persisted on user.preferences.hide_speak_bar.
   hide_speak_bar: false,
+  // "Customize Menu" preference — array of item ids the user has
+  // hidden from the speak-mode options dropdown. Default empty
+  // (everything visible). Persisted on
+  // user.preferences.speak_mode_hidden_menu_items.
+  speak_menu_hidden_items: null,
   boardname: null,
   active_category: 'all',
 
@@ -2209,6 +2259,86 @@ export default Controller.extend(prefClasses, {
     return this.get('folder_display_style') === 'colored_corner';
   }),
 
+  // Map of speak-menu item id → true for items the user has hidden.
+  // Built from the `speak_menu_hidden_items` array (kept in sync with
+  // user.preferences.speak_mode_hidden_menu_items). Templates use
+  // `(get this.speak_menu_hidden_set "my_boards")` etc. as the gate
+  // around each menu row — undefined / missing key means visible.
+  speak_menu_hidden_set: computed('speak_menu_hidden_items.[]', function() {
+    var arr = this.get('speak_menu_hidden_items') || [];
+    var set = {};
+    for(var i = 0; i < arr.length; i++) { set[arr[i]] = true; }
+    return set;
+  }),
+
+  // Pre-shaped list for the right-panel "Customize Menu" template.
+  // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
+  //   [ { section: { id, label_key, default_label }, items: [...] }, ... ]
+  // plus a leading null-section block for the standalone "Edit Board"
+  // hero row. `hidden` on each item reflects the current preference.
+  speak_menu_sections_list: computed('speak_menu_hidden_set', function() {
+    var set = this.get('speak_menu_hidden_set') || {};
+    var top = [];
+    var by_section = {};
+    var section_order = [];
+    for(var i = 0; i < SPEAK_MENU_ITEMS.length; i++) {
+      var item = SPEAK_MENU_ITEMS[i];
+      var row = {
+        id: item.id,
+        label_key: item.label_key,
+        default_label: item.default_label,
+        hidden: !!set[item.id]
+      };
+      if(!item.section) {
+        top.push(row);
+      } else {
+        if(!by_section[item.section]) {
+          by_section[item.section] = [];
+          section_order.push(item.section);
+        }
+        by_section[item.section].push(row);
+      }
+    }
+    var groups = [{ section: null, items: top }];
+    for(var s = 0; s < SPEAK_MENU_SECTIONS.length; s++) {
+      var sec = SPEAK_MENU_SECTIONS[s];
+      if(by_section[sec.id]) {
+        groups.push({ section: sec, items: by_section[sec.id] });
+      }
+    }
+    return groups;
+  }),
+
+  // Section-visibility gates for the speak-mode menu — true when at
+  // least one child row of that section is still visible. When false,
+  // the entire section header collapses too so the menu doesn't show
+  // an empty group. Each computed depends on speak_menu_hidden_set so
+  // it re-evaluates whenever the user toggles any row.
+  speak_section_visible_board: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.my_boards || !s.find_boards;
+  }),
+  speak_section_visible_buttons: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.find_button || !s.focus_words || !s.show_hidden_buttons;
+  }),
+  speak_section_visible_display: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.classic_view;
+  }),
+  speak_section_visible_share: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.copy || !s.download || !s.print || !s.share;
+  }),
+  speak_section_visible_session: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  speak_section_visible_language: computed('speak_menu_hidden_set', function() {
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.translate || !s.switch_language;
+  }),
+
   // True while the user is editing a board they don't own — i.e. the
   // copy_on_save stash flag is set for THIS board. Used by the header
   // badge to swap "Editing" → "Creating a Copy of this Board" and shift
@@ -3517,6 +3647,44 @@ export default Controller.extend(prefClasses, {
     });
     return max_id + 1;
   },
+
+  _sidebarAppController: function() {
+    var appController = this.get('app_state.controller');
+    if(!appController || typeof appController.send !== 'function') {
+      appController = getOwner(this).lookup('controller:application');
+    }
+    return appController;
+  },
+
+  _maybeCloseInlineSidebarAfterAction: function() {
+    var prefs = this.get('app_state.currentUser.preferences') || {};
+    if(prefs.disable_quick_sidebar) { return; }
+    if(prefs.quick_sidebar || prefs.lock_quick_sidebar) { return; }
+    this.set('inlineSidebarOpen', false);
+  },
+
+  _syncInlineSidebarFromPrefs: function() {
+    var user = this.get('app_state.currentUser');
+    if(!user) { return; }
+    var prefs = user.get('preferences') || {};
+    if(prefs.disable_quick_sidebar) {
+      this.set('inlineSidebarOpen', false);
+      return;
+    }
+    if(prefs.quick_sidebar && !this.get('edit_mode')) {
+      this.set('inlineSidebarOpen', true);
+    }
+  },
+
+  syncInlineSidebarOnPrefChange: observer(
+    'app_state.currentUser.preferences.quick_sidebar',
+    'app_state.currentUser.preferences.disable_quick_sidebar',
+    'app_state.currentUser.preferences.lock_quick_sidebar',
+    'edit_mode',
+    function() {
+      this._syncInlineSidebarFromPrefs();
+    }
+  ),
 
   // Push current board state to navigation history
   _push_nav_history: function() {
@@ -4921,10 +5089,20 @@ export default Controller.extend(prefClasses, {
       modal.open('modals/board-actions', { board: this.get('model') });
     },
 
+    /* "My Boards" entry in the speak-mode options menu. Previously
+       opened the in-page modal picker (openBoardPicker on the
+       application controller); the modal was deleted 2026-05-23
+       when the My Boards UX moved to a route transition. Now
+       delegates to `openMyBoards` on the application controller,
+       which stashes the current board (so the boards page can
+       render a "Back to <board>" chip) and transitions to
+       /u/:user_name/boards. Close the options menu first so it
+       isn't lingering open during the transition. */
     open_board_picker: function() {
+      this.set('show_options_menu', false);
       var appController = getOwner(this).lookup('controller:application');
       if(appController) {
-        appController.send('openBoardPicker');
+        appController.send('openMyBoards');
       }
     },
 
@@ -5504,19 +5682,31 @@ export default Controller.extend(prefClasses, {
     },
 
     toggleInlineSidebar: function() {
+      var prefs = this.get('app_state.currentUser.preferences') || {};
+      if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
+        return;
+      }
       this.toggleProperty('inlineSidebarOpen');
     },
     sidebar_jump: function(key, board) {
-      var user = this.get('user');
-      if (!user || !key) { return; }
-      var un = user.get('user_name');
-      var boardname = key.split('/').slice(1).join('/');
-      if (boardname) {
-        this.get('router').transitionTo('user.board-detail', un, boardname);
+      if(!key) { return; }
+      this._push_nav_history();
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('jump', key, 'sidebar', board);
       }
+      this._maybeCloseInlineSidebarAfterAction();
+    },
+    sidebar_special: function(board) {
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('special', board);
+      }
+      this._maybeCloseInlineSidebarAfterAction();
     },
     sidebar_alert: function() {
-      // placeholder for sidebar alert action
+      utterance.alert({button_triggered: true});
+      this._maybeCloseInlineSidebarAfterAction();
     },
 
     // ── Edit Toolbar Actions ──
@@ -6145,11 +6335,12 @@ export default Controller.extend(prefClasses, {
     },
 
     // Toggles the "Shrink labels to fit" preference — when true,
-    // button labels shrink down to a 7px floor AND wrap to up to two
-    // lines at word boundaries inside the button. When false
-    // (default — modern AAC industry standard), labels keep the
-    // user's chosen font size and wrap to up to 3 lines at word
-    // boundaries with no shrinking. Persists to
+    // each label is independently measured and shrunk only if its
+    // text would overflow the 3-line box at the chosen font size
+    // (down to an 8px floor). Labels that already fit stay at the
+    // chosen size. When false (default — modern AAC industry
+    // standard), labels keep the chosen size and overflow past 3
+    // lines clips with ellipsis. Persists to
     // user.preferences.shrink_labels_to_fit.
     toggle_shrink_labels_to_fit: function() {
       var _this = this;
@@ -6194,6 +6385,30 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.hide_speak_bar', next);
+        user.save();
+      }
+    },
+
+    // Sets whether a single speak-mode options-menu item is hidden
+    // for this user. `id` is one of the SPEAK_MENU_ITEMS ids defined
+    // at the top of this file (e.g. 'my_boards', 'translate',
+    // 'sticky_board'). `hidden` is the explicit target state — the
+    // segmented Hide/Show pill calls this directly with `true` /
+    // `false` rather than relying on a toggle, so tapping the
+    // already-active side is a no-op instead of flipping the
+    // state. Stored as an array of hidden ids on
+    // user.preferences.speak_mode_hidden_menu_items.
+    set_speak_menu_item_hidden: function(id, hidden) {
+      var arr = (this.get('speak_menu_hidden_items') || []).slice();
+      var ix = arr.indexOf(id);
+      var want_hidden = !!hidden;
+      if(want_hidden && ix < 0) { arr.push(id); }
+      else if(!want_hidden && ix >= 0) { arr.splice(ix, 1); }
+      else { return; }
+      this.set('speak_menu_hidden_items', arr);
+      var user = this.get('app_state.currentUser');
+      if(user && user.set && user.save) {
+        user.set('preferences.speak_mode_hidden_menu_items', arr);
         user.save();
       }
     },
