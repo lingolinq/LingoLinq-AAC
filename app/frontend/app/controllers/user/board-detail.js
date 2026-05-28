@@ -519,6 +519,46 @@ export default Controller.extend(prefClasses, {
     return null;
   },
 
+  _suggestion_lookup_board_ids: function() {
+    return wordSuggestionsModule.lookup_board_ids(
+      this.get('app_state'),
+      this.get('stashes'),
+      [this.get('model.id')]
+    );
+  },
+
+  _decorate_suggestion_images: function(list) {
+    var _this = this;
+    if(!list || !list.length) { return list; }
+    if(!_this._suggestion_image_lookups) {
+      _this._suggestion_image_lookups = {};
+    }
+    var lookups = _this._suggestion_image_lookups;
+    var lookup_ids = _this._suggestion_lookup_board_ids();
+    var ctx = { appState: _this.get('app_state'), stashes: _this.get('stashes') };
+    list.forEach(function(item) {
+      if(!item || !item.word) { return; }
+      if(wordSuggestionsModule.resolve_word_image(item)) { return; }
+      var local = _this._find_local_image_for_label(item.word);
+      if(local) {
+        item.image = local;
+        return;
+      }
+      var key = item.word.toLowerCase();
+      if(lookups[key]) { return; }
+      lookups[key] = true;
+      wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
+        if(_this.isDestroyed || _this.isDestroying || !url) { return; }
+        item.image = url;
+        var current = _this.get('suggestions');
+        if(current && current.list) {
+          _this.set('suggestions', { ready: true, list: current.list.slice() });
+        }
+      }, ctx);
+    });
+    return list;
+  },
+
   _apply_sentence_chip_image: function(part, img) {
     if(!part || !img) { return false; }
     var current = (this.get('sentence_parts') || []).slice();
@@ -1491,78 +1531,159 @@ export default Controller.extend(prefClasses, {
     return !this.get('edit_mode');
   }),
 
-  updateSuggestions: observer(
-    'app_state.button_list',
-    'app_state.button_list.[]',
-    function() {
-      if(this.get('edit_mode')) { return; }
-      var _this = this;
-
-      var button_list = this.get('app_state.button_list') || [];
-      if(!button_list.length) {
-        this.set('suggestions', null);
-        return;
-      }
-
+  _suggestion_lookup_context: function() {
+    var button_list = this.get('app_state.button_list') || [];
+    if(button_list.length) {
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
         current_button = last_button;
         last_button = button_list[button_list.length - 2];
       }
-      var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
-      var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
+      return {
+        last_finished_word: ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase(),
+        word_in_progress: ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase(),
+        sentence: button_list.map(function(b) {
+          return (b.vocalization || b.label || '').replace(/^:/, '');
+        }).join(' ').trim()
+      };
+    }
 
-      var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
-      if(word_suggestions && word_suggestions.lookup) {
-        var lookup_ids = word_suggestions.lookup_board_ids(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]);
-        word_suggestions.load_vocabulary_button_sets(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]).then(function(warmed_sets) {
-          word_suggestions.lookup({
-            last_finished_word: last_finished_word,
-            word_in_progress: word_in_progress,
-            board_ids: lookup_ids,
-            button_sets: warmed_sets
-          }).then(function(result) {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
-            (result || []).forEach(function(word) {
-              word.image_update = function() {
-                if(_this.isDestroyed || _this.isDestroying) { return; }
-                var current = _this.get('suggestions');
-                if(current && current.list) {
-                  _this.set('suggestions', { ready: true, list: current.list.slice() });
-                }
-                if(typeof _this.sync_sentence_from_button_list === 'function') {
-                  _this.sync_sentence_from_button_list();
-                }
-              };
-            });
-            if(result && result.length > 0) {
-              _this.set('suggestions', { ready: true, list: result });
-            } else {
-              // Fallback to AI predictor if n-gram data has no match
-              var sentence = button_list.map(function(b) {
-                return b.label || b.vocalization || '';
-              }).join(' ').trim();
-              if(sentence) {
-                _this.set('suggestions', { loading: true });
-                aiPredictor.predict(sentence, {
-                  locale: _this.get('app_state.label_locale') || 'en'
-                }).then(function(words) {
-                  if(_this.isDestroyed || _this.isDestroying) { return; }
-                  var list = words.map(function(w) { return { word: w }; });
-                  _this.set('suggestions', { ready: true, list: list });
-                }, function() {
-                  if(_this.isDestroyed || _this.isDestroying) { return; }
-                  _this.set('suggestions', { ready: true, list: [] });
-                });
-              }
-            }
-          }, function() {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
-            _this.set('suggestions', { ready: true, list: [] });
-          });
-        }, function() { });
+    var parts = this.get('sentence_parts') || [];
+    if(!parts.length) { return null; }
+    var last_part = parts[parts.length - 1];
+    var current_part = null;
+    if(last_part && last_part.in_progress) {
+      current_part = last_part;
+      last_part = parts[parts.length - 2];
+    }
+    return {
+      last_finished_word: ((last_part && last_part.label) || '').toLowerCase(),
+      word_in_progress: ((current_part && current_part.label) || '').toLowerCase(),
+      sentence: parts.map(function(p) { return p.label || ''; }).join(' ').trim()
+    };
+  },
+
+  _apply_suggestion_results: function(result, sentence, context) {
+    var _this = this;
+    if(_this.isDestroyed || _this.isDestroying) { return; }
+    (result || []).forEach(function(word) {
+      word.image_update = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var current = _this.get('suggestions');
+        if(current && current.list) {
+          _this.set('suggestions', { ready: true, list: current.list.slice() });
+        }
+        if(typeof _this.sync_sentence_from_button_list === 'function') {
+          _this.sync_sentence_from_button_list();
+        }
+      };
+    });
+    if(result && result.length > 0) {
+      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(result) });
+      return;
+    }
+    if(!sentence) {
+      _this.set('suggestions', { ready: true, list: [] });
+      return;
+    }
+    if(context && context.word_in_progress) {
+      _this.set('suggestions', { ready: true, list: [] });
+      return;
+    }
+    _this.set('suggestions', { loading: true });
+    aiPredictor.predict(sentence, {
+      locale: _this.get('app_state.label_locale') || 'en',
+      appState: _this.get('app_state')
+    }).then(function(words) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var list = (words || []).map(function(w) { return { word: w }; });
+      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(list) });
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('suggestions', { ready: true, list: [] });
+    });
+  },
+
+  _run_suggestion_lookup: function(warmed_sets) {
+    var _this = this;
+    this.set('_last_warmed_button_sets', warmed_sets || []);
+    var context = this._suggestion_lookup_context();
+    if(!context) {
+      this.set('suggestions', null);
+      return;
+    }
+    if(typeof wordSuggestionsModule.lookup !== 'function') { return; }
+
+    var lookup_token = (this.get('_suggestion_lookup_token') || 0) + 1;
+    this.set('_suggestion_lookup_token', lookup_token);
+
+    var lookup_ids = wordSuggestionsModule.lookup_board_ids(
+      _this.get('app_state'),
+      _this.get('stashes'),
+      [_this.get('model.id')]
+    );
+    var lookup_options = {
+      last_finished_word: context.last_finished_word,
+      word_in_progress: context.word_in_progress,
+      topic_context: (_this.get('model') && _this.get('model.name')) || '',
+      sentence: context.sentence,
+      locale: _this.get('app_state.label_locale') || 'en',
+      board_ids: lookup_ids,
+      button_sets: warmed_sets
+    };
+    var lookup_promise = typeof wordSuggestionsModule.lookup_with_ai === 'function' ?
+      wordSuggestionsModule.lookup_with_ai(lookup_options) :
+      wordSuggestionsModule.lookup(lookup_options);
+
+    lookup_promise.then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+      _this._apply_suggestion_results(result, context.sentence, context);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+      _this.set('suggestions', { ready: true, list: [] });
+    });
+  },
+
+  updateSuggestions: observer(
+    'edit_mode',
+    'app_state.button_list',
+    'app_state.button_list.[]',
+    'app_state.button_list.@each.in_progress',
+    'app_state.button_list.@each.label',
+    'app_state.button_list.@each.vocalization',
+    'sentence_parts.[]',
+    'sentence_parts.@each.label',
+    'sentence_parts.@each.in_progress',
+    function() {
+      if(this.get('edit_mode')) {
+        this.set('suggestions', null);
+        return;
       }
+      var _this = this;
+      var context = this._suggestion_lookup_context();
+      if(!context) {
+        this.set('suggestions', null);
+        return;
+      }
+
+      var lookup_ids = wordSuggestionsModule.lookup_board_ids(
+        _this.get('app_state'),
+        _this.get('stashes'),
+        [_this.get('model.id')]
+      );
+      var fallback_sets = wordSuggestionsModule.button_sets_for_board_ids(lookup_ids);
+      wordSuggestionsModule.load_vocabulary_button_sets(
+        _this.get('app_state'),
+        _this.get('stashes'),
+        [_this.get('model.id')]
+      ).then(function(warmed_sets) {
+        _this._run_suggestion_lookup(warmed_sets);
+      }, function() {
+        _this._run_suggestion_lookup(fallback_sets);
+      });
     }
   ),
 
@@ -5270,6 +5391,7 @@ export default Controller.extend(prefClasses, {
       // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
       this._sentence_image_lookups = {};
+      this._suggestion_image_lookups = {};
       try { utterance.clear(); } catch(e) { }
     },
 
@@ -5290,6 +5412,7 @@ export default Controller.extend(prefClasses, {
 
     complete_word: function(word) {
       if(!word) { return; }
+      var _this = this;
       var text = word.word;
       var button = editManager.fake_button();
       button.set('label', text);
@@ -5299,18 +5422,55 @@ export default Controller.extend(prefClasses, {
         button.set('vocalization', ':predict');
       }
       button.set('completion', text);
-      var word_image = wordSuggestionsModule.resolve_word_image(word);
-      if(word_image) {
-        button.set('image', LingoLinq.store.createRecord('image'));
-        button.set('image.url', word_image);
-      }
       button.set('empty', false);
 
-      var board = this.get('model');
-      var app = this.get('app_state.controller');
-      if(app && app.activateButton && board) {
-        app.activateButton(button, { board: board, trigger_source: 'completion' });
+      try {
+        if(typeof wordSuggestionsModule.record_selection === 'function') {
+          var button_list = this.get('app_state.button_list') || [];
+          var last_button = button_list[button_list.length - 1];
+          if(last_button && last_button.in_progress) {
+            last_button = button_list[button_list.length - 2];
+          }
+          var prefix = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
+          if(!prefix) {
+            var parts = this.get('sentence_parts') || [];
+            var last_part = parts[parts.length - 1];
+            if(last_part && last_part.in_progress) {
+              last_part = parts[parts.length - 2];
+            }
+            prefix = ((last_part && last_part.label) || '').toLowerCase();
+          }
+          wordSuggestionsModule.record_selection(text, null, prefix);
+        }
+      } catch(e) { }
+
+      var activate = function(image_url) {
+        if(image_url) {
+          button.set('image', LingoLinq.store.createRecord('image'));
+          button.set('image.url', image_url);
+        }
+        var board = _this.get('model');
+        var app = _this.get('app_state.controller');
+        if(app && app.activateButton && board) {
+          app.activateButton(button, { board: board, trigger_source: 'completion' });
+        }
+      };
+
+      var image_url = wordSuggestionsModule.resolve_word_image(word) ||
+        _this._find_local_image_for_label(text) ||
+        word.original_image;
+      if(image_url) {
+        activate(image_url);
+        return;
       }
+      wordSuggestionsModule.attach_image_for_label(
+        text,
+        _this._suggestion_lookup_board_ids(),
+        function() { },
+        { appState: _this.get('app_state'), stashes: _this.get('stashes') }
+      ).then(function(image_url) {
+        activate(image_url || wordSuggestionsModule.resolve_word_image(word));
+      });
     },
 
     speak_sentence: function() {

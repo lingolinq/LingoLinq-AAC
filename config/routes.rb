@@ -172,6 +172,10 @@ LingoLinq::Application.routes.draw do
       get 'reachable_core' => 'words#reachable_core', on: :collection
       post 'predict' => 'words#predict', on: :collection
     end
+    post 'word_suggestions' => 'word_suggestions#create'
+    resources :prediction_entries, only: [:index] do
+      post 'sync', on: :collection
+    end
     
     resources :users do
       get 'stats/daily' => 'users#daily_stats'

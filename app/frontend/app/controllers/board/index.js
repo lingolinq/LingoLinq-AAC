@@ -76,7 +76,7 @@ export default Controller.extend(prefClasses, {
     'appState.shift',
     'appState.inflection_shift',
     function() {
-      if(!this.get('model.word_suggestions')) { return; }
+      if(!this.get('model.word_suggestions') || !this.appState.get('speak_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -91,9 +91,15 @@ export default Controller.extend(prefClasses, {
         _this.set('suggestions.pending', true);
       }
       runLater(function() {
-        word_suggestions.lookup({
+        var sentence = button_list.map(function(b) {
+          return (b.vocalization || b.label || '').replace(/^:/, '');
+        }).join(' ').trim();
+        word_suggestions.lookup_with_ai({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
+          topic_context: (_this.get('model') && _this.get('model.name')) || '',
+          sentence: sentence,
+          locale: _this.appState.get('label_locale') || 'en',
           board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
@@ -1452,6 +1458,15 @@ export default Controller.extend(prefClasses, {
     complete_word: function(word) {
       try {
         var _this = this;
+        if(word && word.word && typeof word_suggestions.record_selection === 'function') {
+          var button_list = _this.appState.get('button_list') || [];
+          var last_button = button_list[button_list.length - 1];
+          if(last_button && last_button.in_progress) {
+            last_button = button_list[button_list.length - 2];
+          }
+          var prefix = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
+          word_suggestions.record_selection(word.word, null, prefix);
+        }
         var text = word.word;
         var button = editManager.fake_button();
         button.set('label', text);

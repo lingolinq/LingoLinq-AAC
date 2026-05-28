@@ -56,6 +56,8 @@ file (see [README.md](README.md)).
 - [Pattern: Cross-context CSS classes need scoped overrides — `.la-about-glass-card` is dark-landing AND light-modal](#pattern-cross-context-css-classes-need-scoped-overrides--la-about-glass-card-is-dark-landing-and-light-modal)
 - [Pattern: Modern checkboxes split into two families — pick by surface type, not aesthetic preference](#pattern-modern-checkboxes-split-into-two-families--pick-by-surface-type-not-aesthetic-preference)
 - [Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering](#pattern-apiv1boardsuser_idx-returns-every-owned-board-including-sub-board-copies--visible-tile-counts-need-root-clustering)
+- [Pattern: create-board-new preview URLs stripped by process_buttons whitelist](#pattern-create-board-new-preview-urls-stripped-by-process_buttons-whitelist)
+- [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
 
 ---
 
@@ -1963,3 +1965,73 @@ count," reach for the util — don't re-read `length` off the raw
 query.
 
 **First seen in:** [2026-05-27-home-board-count-roots-only.md](./2026-05-27-home-board-count-roots-only.md)
+
+---
+
+## Pattern: create-board-new preview URLs stripped by process_buttons whitelist
+
+**Surface:** AI board creation on `/create-board-new` — preview shows OpenSymbols images but saved board has none.
+
+**Symptom:** Preview grid renders `<img src="https://opensymbols...">` from client `_label_images` cache; after Create, buttons have labels but no symbols.
+
+**Root cause:** `saveBoard` bakes `image_url` onto `model.buttons[]`, but `Board#process_buttons` `.slice(...)` whitelist drops `image_url` before `before_save :process_client_supplied_images` runs. `process_suggested_symbols` only ran for `@buttons_changed == 'populated_from_labels'`, not client-baked buttons.
+
+**Fix:** Stash `image_url` by button id in `process_buttons` before slice; consume in `process_client_supplied_images`. Fallback `process_suggested_symbols` for `@brand_new` boards still missing `image_id`.
+
+**First seen in:** [2026-05-26-ai-board-preview-images-phase1.md](./2026-05-26-ai-board-preview-images-phase1.md)
+
+---
+
+## Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize
+
+**Surface:** Button-settings Picture tab → search symbols → pick thumbnail → "Use This".
+
+**Symptoms:** License row shows `[object Object]`; "Use This" appears to do nothing (preview stays) because `save_image_preview` hangs probing remote SVG dimensions via `new Image()` with no timeout.
+
+**Root cause:** `/api/v1/search/symbols` (via `OpenSymbols.find_images`) returns `license: { type: 'CC BY-SA', author_name: ..., uneditable: true }`, but `pictureGrabber.pick_preview` treated `preview.license` as a flat string and assigned it to `license.type`. Width/height from search hits were not copied to `image_preview`, forcing a browser Image probe that can hang on CloudFront SVGs.
+
+**Fix recipe:** `normalize_preview_license(preview)` handles nested vs flat shapes; copy `width`/`height` onto `image_preview` in `pick_preview`; in `save_image_preview`, use provided dimensions when present and timeout the Image probe. Guard `Button#load_image` async callbacks with `requestedId` so modal `load_image('remote')` cannot overwrite a newly assigned image.
+
+**Evidence:** `app/frontend/app/services/content-grabbers.js`, `app/frontend/tests/utils/picture_grabber-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
+
+---
+
+## Pattern: board-detail edit grid uses image_url — change_button must update it
+
+**Surface:** Board-detail edit mode → Button Settings → Picture → pick symbol → "Use This".
+
+**Symptom:** Modal "Current picture" shows the new symbol, but the board tile still shows the old image.
+
+**Root cause:** `board-detail-grid.hbs` renders `<img src={{btn.image_url}}>`. Edit-mode buttons are built via `_make_ember_btn`, which sets `image_url` once from `raw.image_urls`. `editManager.change_button` updated `local_image_url` (used by legacy fast_html / speak paths) but not `image_url`, so the grid stayed stale after save.
+
+---
+
+## Pattern: large background prefetches must keep descendant images lazy
+
+**Surface:** session-start board prefetch in `app/frontend/app/utils/board_detail_cache.js` for home and catalog trees.
+
+**Symptom:** prefetch appears to speed up navigation but can flood browser requests and delay interactive UI when every descendant image is warmed up front.
+
+**Root cause:** `/tree` returns root plus many descendants. Warming every descendant image immediately multiplies requests by depth and board size; this can saturate the browser queue and starve foreground actions.
+
+**Fix:** ingest all descendant JSON into `board_detail_cache`, but warm images for root boards only during background prefetch; let descendant images load lazily on actual navigation.
+
+**First seen in:** [2026-05-27-lingolinq-catalog-prefetch](./2026-05-27-lingolinq-catalog-prefetch.md)
+
+**Fix recipe:** In `change_button`, when setting `local_image_url` from `image.best_url`, also `emberSet(button, 'image_url', best)`. Template fallback: `(or btn.local_image_url btn.image_url)` for defense in depth.
+
+**Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/templates/components/board-detail-grid.hbs`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
+
+---
+
+## Pattern: defer image_id in change_button — stale image_url rebinds wrong symbol
+
+**Surface:** Button-settings Picture → pick search hit → "Use This".
+
+**Symptom:** Preview shows the chosen symbol, but after "Use This" the modal "Current picture" (and board tile) revert to the **previous** symbol.
+
+**Root cause:** `change_button` set `image_id` before updating `image_url`. That synchronously triggers `Button#findContentLocally`, which calls `load_image('local')`. `load_image` falls back to the stale `button.image_url` (still pointing at the old symbol) when `board.image_urls[newId]` is not populated yet, creates an incomplete image record with the **old URL** and **new id**, and overwrites `button.image`.
+
+**Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
+
+**Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/utils/button.js`, `app/frontend/tests/utils/edit_manager-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.

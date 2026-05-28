@@ -46,9 +46,11 @@
             </button>
             <input type="file" name="board_upload" id="board_upload" tabindex="-1">
           </span>
-          <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
-            {{t "Paste HTML" key="paste_html"}}
-          </button>
+          {{#if this.paste_html_import_enabled}}
+            <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
+              {{t "Paste HTML" key="paste_html"}}
+            </button>
+          {{/if}}
           {{#if this.ai_board_generation_enabled}}
             {{!-- Generate with AI sits on the same row as Import /
                  Paste, but absolute-positioned to be centered on the
@@ -130,9 +132,11 @@
             </button>
             <input type="file" name="board_upload" id="board_upload" tabindex="-1">
           </span>
-          <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
-            {{t "Paste HTML" key="paste_html"}}
-          </button>
+          {{#if this.paste_html_import_enabled}}
+            <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
+              {{t "Paste HTML" key="paste_html"}}
+            </button>
+          {{/if}}
           {{#if this.ai_board_generation_enabled}}
             {{!-- Same-row, page-centered Generate with AI button. See
                  .nb-generate-ai-btn positioning rules in app.scss. --}}

@@ -34,6 +34,7 @@ export default modal.ModalController.extend({
     this.set('model', button);
     button.set('translations_hash', this.get('board').translations_for_button(button.id));
     this.set('handle_updates', true);
+    this.set('fresh_picture_url', null);
     this.get('contentGrabbers').setup(button, this);
     var _this = this;
 

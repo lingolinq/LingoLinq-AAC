@@ -27,6 +27,8 @@ describe('word_suggestions', function() {
     word_suggestions.last_finished_word = null;
     word_suggestions.last_result = null;
     word_suggestions.word_in_progress = null;
+    word_suggestions.last_time_bucket = null;
+    word_suggestions.last_topic_context = null;
   });
   describe("lookup", function() {
     it("should suggest words", function() {
@@ -132,6 +134,140 @@ describe('word_suggestions', function() {
         expect(res[1].image).toEqual('data:fancy');
         expect(res[2].image).toEqual('data:stuff');
       });
+    });
+
+    it('should rerank suggestions by time of day (morning vs night)', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      // Provide deterministic baseline suggestions via ngrams.
+      word_suggestions.ngrams = {
+        "": [['sleep', -1.0], ['breakfast', -1.1], ['play', -1.2]]
+      };
+
+      var resMorning = null;
+      var resNight = null;
+
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'morning' }).then(function(r) { resMorning = r; });
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'night' }).then(function(r) { resNight = r; });
+
+      waitsFor(function() { return resMorning && resNight; });
+      runs(function() {
+        expect(resMorning[0].word.toLowerCase()).toEqual('breakfast');
+        expect(resNight[0].word.toLowerCase()).toEqual('sleep');
+      });
+    });
+
+    it('should boost a word after it is selected (localStorage frequency)', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = {
+        "": [['we', -1.0], ['you', -1.1], ['i', -1.2]]
+      };
+
+      // Fake localStorage for test isolation
+      var store = {};
+      var oldLS = window.localStorage;
+      window.localStorage = {
+        getItem: function(k) { return store[k] || null; },
+        setItem: function(k, v) { store[k] = v; },
+        removeItem: function(k) { delete store[k]; }
+      };
+
+      // Record selecting "you" a few times
+      var now = Date.now();
+      word_suggestions.record_selection('you', now);
+      word_suggestions.record_selection('you', now + 1000);
+      word_suggestions.record_selection('you', now + 2000);
+
+      var res = null;
+      word_suggestions.lookup({ word_in_progress: '', time_of_day: 'afternoon', now_ms: now + 3000 }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res[0].word.toLowerCase()).toEqual('you');
+        window.localStorage = oldLS;
+      });
+    });
+
+    it('should suggest smart phrase continuations for AAC patterns', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = { 'when': [] };
+      var res = null;
+      word_suggestions.lookup({ last_finished_word: 'when', word_in_progress: '' }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res.length).toBeGreaterThan(0);
+        expect(res[0].word.toLowerCase()).toEqual('do you');
+      });
+    });
+
+    it('should boost prefix-specific continuations after selection', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = {
+        'i want': [['to', -1.0], ['more', -1.1], ['help', -1.2]]
+      };
+
+      var store = {};
+      var oldLS = window.localStorage;
+      window.localStorage = {
+        getItem: function(k) { return store[k] || null; },
+        setItem: function(k, v) { store[k] = v; },
+        removeItem: function(k) { delete store[k]; }
+      };
+
+      var now = Date.now();
+      word_suggestions.record_selection('more', now, 'i want');
+      word_suggestions.record_selection('more', now + 1000, 'i want');
+
+      var res = null;
+      word_suggestions.lookup({
+        last_finished_word: 'i want',
+        word_in_progress: '',
+        now_ms: now + 2000
+      }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res[0].word.toLowerCase()).toEqual('more');
+        window.localStorage = oldLS;
+      });
+    });
+
+    it('should merge AI words ahead of local suggestions', function() {
+      var local = [{ word: 'play' }, { word: 'go' }];
+      var merged = word_suggestions._test.merge_suggestions(local, ['eat', 'play'], 4);
+      expect(merged[0].word).toEqual('eat');
+      expect(merged[0].source).toEqual('ai');
+      expect(merged[1].word).toEqual('play');
+    });
+
+    it('should prefer local prefix matches while spelling', function() {
+      var local = [{ word: 'stop', source: 'vocab' }, { word: 'start', source: 'vocab' }];
+      var merged = word_suggestions._test.merge_suggestions(local, ['she', 'slow', 'street'], 4, { word_in_progress: 'st' });
+      expect(merged[0].word).toEqual('stop');
+      expect(merged[1].word).toEqual('start');
+      expect(merged[2].word).toEqual('street');
+    });
+
+    it('should collect board vocabulary prefix matches', function() {
+      var bs = {
+        get: function(key) { return key === 'id' ? 'board1' : null; },
+        redepth: function() {
+          return [
+            { label: 'stop', depth: 0 },
+            { label: 'start', depth: 0 },
+            { label: 'she', depth: 1 },
+            { label: 's', depth: 0 },
+            { label: '[space]', depth: 0 },
+            { label: 'play', depth: 0 }
+          ];
+        }
+      };
+      var matches = word_suggestions._test.collect_vocabulary_prefix_matches('st', { button_sets: [bs] }, 5);
+      expect(matches.map(function(m) { return m.word; })).toEqual(['stop', 'start']);
+    });
+
+    it('should collect core vocabulary prefix matches', function() {
+      word_suggestions._test.build_spelling_word_index();
+      word_suggestions._spelling_word_index = ['start', 'stay', 'stop', 'street', 'slow'].sort();
+      var matches = word_suggestions._test.collect_core_prefix_matches('st', 5, {});
+      expect(matches.map(function(m) { return m.word; })).toEqual(['start', 'stay', 'stop', 'street']);
     });
   });
 

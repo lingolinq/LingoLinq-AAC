@@ -24,7 +24,7 @@ module FeatureFlags
               'telemetry_admin_panel',
               'tarheel_reader', 'auth_spa_transition', 'google_sso', 'quick_screen_eval',
               'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu',
-              'home_tour']
+              'home_tour', 'paste_html_import', 'catalog_board_prefetch']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',

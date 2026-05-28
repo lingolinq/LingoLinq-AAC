@@ -11,9 +11,11 @@
           </button>
           <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
-        <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
-          {{t "Paste HTML" key="paste_html"}}
-        </button>
+        {{#if this.paste_html_import_enabled}}
+          <button type="button" class="btn btn-default" {{action "importFromHtml"}}>
+            {{t "Paste HTML" key="paste_html"}}
+          </button>
+        {{/if}}
         {{#if this.ai_board_generation_enabled}}
           <button type="button" class="btn btn-default" {{action "generateWithAi"}}>
             {{t "Generate with AI" key="generate_with_ai"}}
@@ -40,9 +42,11 @@
           </button>
           <input type="file" name="board_upload" id="board_upload" tabindex="-1">
         </span>
-        <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
-          {{t "Paste HTML" key="paste_html"}}
-        </button>
+        {{#if this.paste_html_import_enabled}}
+          <button type="button" class="la-btn la-btn--ghost" {{action "importFromHtml"}}>
+            {{t "Paste HTML" key="paste_html"}}
+          </button>
+        {{/if}}
         {{#if this.ai_board_generation_enabled}}
           <button type="button" class="la-btn la-btn--ghost" {{action "generateWithAi"}}>
             {{t "Generate with AI" key="generate_with_ai"}}
