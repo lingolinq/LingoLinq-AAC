@@ -2359,6 +2359,22 @@ describe Board, :type => :model do
         expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, kind_of(String), true).at_least(:once)
         b.save
       end
+
+      it "builds the buttonset on the :slow queue after a deferred copy is processed (not left missing)" do
+        u = User.create
+        parent = Board.create(:user => u)
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => [{'id' => 1, 'label' => "hi"}]}
+        b.save
+        # Deferred, so nothing was built inline in the request.
+        b.reload
+        expect(b.board_downstream_button_set).to eq(nil)
+        # The worker drains the :slow queue and the buttonset gets built (no permanent gap).
+        Worker.process_queues
+        b.reload
+        expect(b.board_downstream_button_set).not_to eq(nil)
+      end
     end
 
     it "should search for a better default icon if the default icon is being used" do
