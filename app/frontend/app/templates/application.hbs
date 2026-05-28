@@ -1530,13 +1530,5 @@
   {{page-footer support=(action "support") language=(action "language")}}
 {{/if}}
 
-{{!-- The My Boards modal lived here as a `{#if boardPickerVisible}`
-     block (backdrop + dialog + folders strip + tab strip + filter +
-     grid). Removed 2026-05-23: clicking My Boards now transitions
-     to /u/:user_name/boards instead so the boards page IS the
-     picker. The boards page renders a "Back to <board>" chip when
-     the user arrived via the navbar button so they can return to
-     their previous board if they didn't actually want to leave. --}}
-
 </div>
 {{button-tracker}}

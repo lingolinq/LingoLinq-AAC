@@ -731,7 +731,7 @@ export default Controller.extend({
        were viewing — Ember pushes a history entry on transition
        so the back stack handles this without app-level state.
        Implemented 2026-05-23 as the replacement for the
-       openBoardPicker / boardPickerVisible modal flow. */
+       old modal-based My Boards flow. */
     openMyBoards: function() {
       var userName = this.appState.get('referenced_user.user_name')
                   || this.appState.get('currentUser.user_name');
@@ -739,23 +739,6 @@ export default Controller.extend({
         this.router.transitionTo('user.boards', userName);
       }
     },
-
-    /* ────────────────────────────────────────────────────────────
-       The old My Boards modal lived here as ~700 lines of state
-       (boardPickerVisible, boardPickerTab, boardPickerBoards,
-       _loadBoardPickerForTab, the adapter aliases for
-       available-boards-section, pickBoard, pickHomeBoard,
-       openBoardPicker, closeBoardPicker, toggleSetHomeMode,
-       newBoardFromBoardPicker, set_selected, set_tag,
-       enterMineFolderTag, exitMineFolderTag, etc.). The whole
-       block was removed when the modal was replaced by a
-       route transition to `user.boards`. The boards-page
-       controller (`controller:user/index`) now owns the only
-       implementation of every action that used to be duplicated
-       here — single source of truth, no adapter, no parallel
-       state. See `openMyBoards` above for the transition
-       entry-point and user/index.js for the rest.
-       ──────────────────────────────────────────────────────── */
 
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());

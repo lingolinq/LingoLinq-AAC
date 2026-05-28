@@ -9,6 +9,15 @@ file (see [README.md](README.md)).
 > reference is usually right. If something grows past a few paragraphs,
 > move it to its own doc and link to it here.
 
+> **Related doc** — [`docs/pre-merge-audit-checklist.md`](../pre-merge-audit-checklist.md)
+> is the operational layer that turns these patterns into a per-PR
+> checklist. This file is the *knowledge* (the patterns and why they
+> matter); the checklist is the *action* (the grep/command to run
+> before opening a PR). When a pattern here grows a mechanical check,
+> add it to §2.10 of the checklist. When a recurring blocker arrives
+> from PR review (Scot-style finding), distill the pattern here first,
+> then operationalize it there.
+
 ## Index
 
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
@@ -24,6 +33,29 @@ file (see [README.md](README.md)).
 - [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
 - [Pattern: RESERVED_ROUTES blocks intended system usernames in seeds](#pattern-reserved_routes-blocks-intended-system-usernames-in-seeds)
+- [Pattern: Touch-device parity for hover-only affordances — thread context through the existing modal path](#pattern-touch-device-parity-for-hover-only-affordances--thread-context-through-the-existing-modal-path)
+- [Pattern: Pass-through actions silently truncate args when the wrapper's signature has fewer named params](#pattern-pass-through-actions-silently-truncate-args-when-the-wrappers-signature-has-fewer-named-params)
+- [Pattern: Custom-JS drag works on desktop but not in touch emulation — root cause is `touch-action`, not the JS](#pattern-custom-js-drag-works-on-desktop-but-not-in-touch-emulation--root-cause-is-touch-action-not-the-js)
+- [Pattern: `!supporter_role` is the canonical communicator gate — never invent a `communicator_role` boolean](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean)
+- [Pattern: Removing a UI feature is incomplete until every coupled site is removed](#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed)
+- [Pattern: "Silent wrong behavior" is the modal failure mode in this codebase — assume it, probe for it](#pattern-silent-wrong-behavior-is-the-modal-failure-mode-in-this-codebase--assume-it-probe-for-it)
+- [Pattern: `i18n_generator.rb` is a static parser — dynamic `{{t bound.prop key=bound.prop}}` keys are invisible to it](#pattern-i18n_generatorrb-is-a-static-parser--dynamic-t-boundprop-keyboundprop-keys-are-invisible-to-it)
+- [Pattern: Feature-flag-gated mutating actions need BOTH a template gate AND a JS action gate (defense-in-depth)](#pattern-feature-flag-gated-mutating-actions-need-both-a-template-gate-and-a-js-action-gate-defense-in-depth)
+- [Pattern: Canvas drawing has different constraints than CSS — translate the design language, don't import it](#pattern-canvas-drawing-has-different-constraints-than-css--translate-the-design-language-dont-import-it)
+- [Pattern: `context.roundRect` is a Cordova-WebView landmine — use path-based rounded-rect tracing](#pattern-contextroundrect-is-a-cordova-webview-landmine--use-path-based-rounded-rect-tracing)
+- [Pattern: Every `belongs_to`/`has_one` access in a `JsonApi::*` serializer is a potential N+1 — eager-load it at the list-endpoint controller](#pattern-every-belongs_tohas_one-access-in-a-jsonapi-serializer-is-a-potential-n1--eager-load-it-at-the-list-endpoint-controller)
+- [Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)
+- [Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)](#pattern-for-component-tests-in-this-codebase-use-legacy-jasmine--not-setupapplicationtest--mirage-which-hangs)
+- [Pattern: Canvas component tests use a context-recorder stub, not pixel inspection](#pattern-canvas-component-tests-use-a-context-recorder-stub-not-pixel-inspection)
+- [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
+- [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
+- [Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+- [Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together](#pattern-third-party-css--import-the-default-first-then-override-the-structural-rules-and-the-decorative-ones-ship-together)
+- [Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive](#pattern-sessionoverride-does-a-full-page-reload--in-memory-appstate-set-in-register-flow-doesnt-survive)
+- [Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations](#pattern-this-codebase-ships-and-and-or-template-helpers-but-not-not--pre-compute-negations)
+- [Pattern: Cross-context CSS classes need scoped overrides — `.la-about-glass-card` is dark-landing AND light-modal](#pattern-cross-context-css-classes-need-scoped-overrides--la-about-glass-card-is-dark-landing-and-light-modal)
+- [Pattern: Modern checkboxes split into two families — pick by surface type, not aesthetic preference](#pattern-modern-checkboxes-split-into-two-families--pick-by-surface-type-not-aesthetic-preference)
+- [Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering](#pattern-apiv1boardsuser_idx-returns-every-owned-board-including-sub-board-copies--visible-tile-counts-need-root-clustering)
 - [Pattern: create-board-new preview URLs stripped by process_buttons whitelist](#pattern-create-board-new-preview-urls-stripped-by-process_buttons-whitelist)
 - [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
 
@@ -488,6 +520,1451 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 **Fix:** Remove the username from `RESERVED_ROUTES` only when no dedicated app route needs that path (there is no `get 'lingolinq'` — `/lingolinq` is handled by the generic user profile route). Harden seeds with email fallback and `rename_to` for legacy `lingolinq_*` accounts.
 
 **First seen in:** [2026-05-26-lingolinq-seed-username.md](./2026-05-26-lingolinq-seed-username.md)
+
+---
+
+## Pattern: Touch-device parity for hover-only affordances — thread context through the existing modal path
+
+**Surface:** any UI element that only appears on `:hover` of its
+parent — e.g. `.board_with_action:hover .board_action` (the
+tile-level remove button on `/u/<user>`). AAC users skew heavily
+toward tablets and have no hover state, so any feature reachable
+only on hover is unreachable for them.
+
+**Symptom:** A power-user can perform an action (delete a board,
+unlike, unshare, untag) but a touch-device user cannot find or
+trigger it.
+
+**Fix recipe — DON'T duplicate the action site on the tile; thread
+it into an existing modal:**
+
+1. Find a modal the user already has a touch-friendly path to. For
+   board cards, that's the Preview modal (`modal.board_preview`)
+   reached by tapping the visible Preview chip.
+2. Plumb the action's context (label, icon, type, callback) through
+   the existing modal-open path. The codebase pattern is to **stash
+   on the board model** (`board.preview_locale`, `board.preview_option`)
+   — extend with `board.preview_remove = {…}` in the same idiom so
+   `modal.board_preview` forwards it as `model.remove`. See
+   [board-icon.js:201](app/frontend/app/components/board-icon.js#L201).
+3. The parent template that owns the context (here:
+   `available-boards-section.hbs`) passes a closure action through
+   the component as `removeCallback=(action "remove_board" …
+   target=this.boardsCtrl)`. Gate it with `(if permissions.edit …)`
+   so contexts without permission yield `undefined` and the modal
+   button silently hides.
+4. The modal controller's new action just closes itself, then invokes
+   the callback. The existing confirm-flow (`confirm-delete-board` /
+   `confirm-remove-board`) runs unchanged — no duplication of
+   confirmation UX.
+5. Keep the hover affordance on the tile. Adding the modal path is
+   ADDITIVE — removing the hover button would regress desktop
+   power-user workflow.
+
+**Why this works:** the `remove_board` handler already branches on
+`remove_type` (`delete` / `unstar` / `unlink` / `untag`) — see
+[user/index.js:1310](app/frontend/app/controllers/user/index.js#L1310).
+Threading the same `remove_type` through means all four contextual
+variants Just Work; you don't have to special-case "delete vs
+unlike" anywhere in the modal-side code.
+
+**Anti-pattern to avoid:** Don't reach for `modal.board_preview` from
+the boards page and bypass the `board.preview_*` stash. The board
+record is already the shared bus between the tile and the modal —
+keeping the convention consistent means the modal can be opened from
+any board-icon source (board-icon → tile, board-icon → search result,
+board-icon → style picker) and the modal correctly shows or hides
+the button without each call-site re-wiring it.
+
+**First seen in:** [2026-05-26-preview-modal-delete-button.md](./2026-05-26-preview-modal-delete-button.md)
+
+---
+
+## Pattern: Pass-through actions silently truncate args when the wrapper's signature has fewer named params
+
+**Surface:** any Ember component that acts as a pass-through between
+two layers — a child component fires an action with N args, and the
+intermediate component re-emits it to a parent. Specifically hit in
+[board-detail-grid.js#button_event](app/frontend/app/components/board-detail-grid.js)
+which sat between `button-listener` (the source) and the board-detail
+controller (the consumer).
+
+**Symptom:** Some pass-through actions work (the ones that happen to
+fire with ≤ N args), others silently break in a way that LOOKS like
+a state-management bug — UI shows a hint that something happened,
+but the actual mutation never runs. Specifically: drag-and-drop on
+board-detail showed the swap visual hint during drag, then snapped
+back on release. No error in the console; the inner code just hit a
+"can't find target" branch and returned silently.
+
+**Root cause anti-pattern:**
+
+```js
+// Pass-through wrapper — looks innocent but truncates
+button_event(button, event) {
+  var action = this.get('buttonEvent');
+  if(action) { action(button, event); }   // only forwards 2 args
+}
+```
+
+When the source fires `('rearrangeButtons', dragId, dropId)`, the
+3rd arg disappears at the wrapper. Downstream gets `dropId =
+undefined`, `find_button(undefined)` returns null, and the swap is
+silently aborted.
+
+**The classic-board sibling [board/index.js:1529](app/frontend/app/controllers/board/index.js#L1529)
+had the same wrapper shape but correctly declared 3 params** — so the
+exact same drag pipeline worked on classic boards and broke on the
+modern intermediate-component path. Side-by-side comparison was what
+exposed it.
+
+**Fix recipe:**
+
+```js
+// Forward EVERYTHING — use rest args or `arguments`
+button_event() {
+  var action = this.get('buttonEvent');
+  if(action) { action.apply(null, arguments); }
+}
+```
+
+**Why this is a recurring trap:** Ember closure actions, jQuery
+event handlers, and ES function signatures all silently accept too
+many args without warning. A pass-through that "looks right" because
+it works for the 80% of callers passing 2 args will silently break
+the 20% that need 3. There's no compile-time check.
+
+**Anti-pattern to avoid:** Don't declare named params on a wrapper
+that's meant to forward arbitrary args. Either match the source's
+exact arity (and keep the two in sync forever) or just spread with
+`arguments` / rest. The intermediate name `button_event(button,
+event)` made it LOOK like it knew what kind of event it was
+forwarding — but it's actually forwarding 7+ different action
+shapes from button-listener (`buttonSelect`, `buttonPaint`,
+`symbolSelect`, `actionSelect`, `rearrangeButtons`, `clear_button`,
+`stash_button`). The descriptive param names were a lie about the
+contract.
+
+**Diagnostic shortcut for "drag/drop UI hints work but nothing
+commits":** the visual hint usually means the source side fired
+correctly. The commit-side actions are dispatched through a chain.
+Walk the chain end-to-end and check each link's arity. The first
+wrapper that truncates is the bug.
+
+**First seen in:** [2026-05-26-board-detail-drag-drop-revert.md](./2026-05-26-board-detail-drag-drop-revert.md)
+
+---
+
+## Pattern: Custom-JS drag works on desktop but not in touch emulation — root cause is `touch-action`, not the JS
+
+**Surface:** any custom pointer-tracking drag system that listens to
+`touchstart`/`touchmove` (vs HTML5 native drag) — in this repo, the
+`raw_events.js` tracker that powers board-detail edit-mode tile
+swaps. Symptom: drag works fine with mouse on desktop, but in
+Chrome DevTools device-toolbar with touch ON (or on a real phone),
+dragging a tile does nothing — no drag clone, no swap, often the
+page just scroll-pans instead.
+
+**Root cause:** modern Chrome (≥ v56) registers document-level
+`touchstart`/`touchmove` listeners as **passive by default** unless
+explicitly opted out with `{passive: false}`. jQuery's
+`.on('touchmove', …)` does *not* set `{passive: false}` for
+delegated multi-type bindings (the project uses jQuery 3.7.1). So
+`event.preventDefault()` inside the touchmove handler is silently
+ignored, and the browser claims the touch as a scroll/pan gesture
+before the JS drag pipeline gets a chance to start. The drag clone
+never appears.
+
+The fix is **declarative, not procedural**: set
+`touch-action: none` (or `touch-action: manipulation`) on the
+draggable element in CSS. That tells the browser "do not interpret
+touches on this element as scroll/pan/zoom — let JS handle them
+entirely." The browser never tries to claim the gesture, so the
+passive-vs-non-passive listener question never matters.
+
+**Where to add the rule:** scope it to the element that has
+`draggable="true"`, NOT to a parent edit-mode container. In
+board-detail-grid the cell template flips
+`draggable={{if this.editMode "true" "false"}}`, so
+`.md-board-detail-grid__cell[draggable="true"]` is automatically a
+free edit-mode selector — speak-mode cells (`draggable="false"`)
+still get the browser default `touch-action: auto`, preserving
+long-press, dwell, and gaze gestures that *need* the default. The
+existing edit-mode-only rule at
+[app.scss:68041](app/frontend/app/styles/app.scss#L68041) is the
+right home; add `touch-action: none` into it, don't stack a new
+selector.
+
+**Diagnostic shortcut:** when "X works on desktop but not in touch
+emulation," check `touch-action` first. Run
+`grep -rn "touch-action" app/frontend/app/styles/` — if it returns
+zero matches across the whole project, every gesture on every
+element is at the mercy of the browser default. That alone is
+usually the bug.
+
+**Anti-pattern to avoid:** do NOT try to fix this in JS by
+monkey-patching jQuery's special event opts or by replacing the
+delegated `.on('touchmove', …)` binding with raw
+`addEventListener('touchmove', …, {passive: false})`. The CSS
+escape hatch is a single declarative line, scoped exactly to where
+it's needed, and survives jQuery upgrades.
+
+**First seen in:** [2026-05-27-board-detail-drag-touch-emulation.md](./2026-05-27-board-detail-drag-touch-emulation.md)
+
+---
+
+## Pattern: `!supporter_role` is the canonical communicator gate — never invent a `communicator_role` boolean
+
+**Surface:** any UI flow that needs to show/hide based on whether
+the current user is a *supporter* (parent/therapist/teacher building
+boards for someone else) vs a *communicator* (the AAC user
+themselves). The mistake pattern is reaching for a
+`currentUser.communicator_role` boolean or a `(eq role "communicator")`
+check — those don't reliably catch the case.
+
+**Why it's a trap:** the canonical role check on the User model is
+`preferences.role == 'supporter'` exposed as the
+`sessionUser.supporter_role` boolean computed property. Communicators
+AND users who haven't picked a role yet (`role == null` or
+`'unspecified'`) both fall into the `!supporter_role` branch — this
+matches how the backend treats unspecified-as-communicator
+(`User#supporter_registration?`). A `communicator_role` label string
+exists in some surfaces ([caseload.hbs:202](app/frontend/app/templates/caseload.hbs#L202))
+but is *not* the canonical guard — gating on it misses the
+unspecified-role population entirely.
+
+**How to apply:**
+
+```hbs
+{{!-- Hide from communicators (incl. unspecified-role users) --}}
+{{#if this.appState.sessionUser.supporter_role}}
+  ... supporter-only UI ...
+{{/if}}
+
+{{!-- Compound: only show when supporter AND has supervisees --}}
+{{#if (and this.show_user_options this.appState.sessionUser.supporter_role)}}
+  ... supporter-with-supervisees UI ...
+{{/if}}
+```
+
+In JS / controllers:
+
+```js
+if(this.appState.get('sessionUser.supporter_role')) { ... }
+```
+
+**Why `sessionUser` not `currentUser` in early-boot components:**
+in components mounted before full hydration (e.g.
+`create-board-new`), `appState.currentUser` can be `undefined`
+during boot while `appState.sessionUser` is the source the
+supporter-default observers watch ([create-board-new.js:88-94](app/frontend/app/components/create-board-new.js#L88-L94)).
+Components that already use `sessionUser` elsewhere should stay
+consistent and use `sessionUser.supporter_role` for the gate too.
+For dashboard / settled-route components,
+`currentUser.supporter_role` is fine and is the more common pattern
+elsewhere in the codebase.
+
+**Compound gates: prefer inline `(and …)` over a new computed**
+when the condition is two-property and the semantics are obvious at
+the call site. A new `show_for_supporter_prompt` computed adds a
+property to maintain and hides intent behind a name; `(and
+this.show_user_options
+this.appState.sessionUser.supporter_role)` is self-documenting and
+matches the existing codebase convention
+([organization.hbs:7,11](app/frontend/app/templates/organization.hbs#L7),
+[application.hbs:10](app/frontend/app/templates/application.hbs#L10)).
+
+**Diagnostic shortcut:** when reviewing a "hide-from-communicators"
+ask, the question is NOT "does a communicator flag exist?" — it's
+"is the existing supporter check in place?" If the surface is
+ungated or uses a different check, the unspecified-role case is
+almost certainly leaking through.
+
+**First seen in:** [2026-05-27-create-board-communicator-for-someone-else.md](./2026-05-27-create-board-communicator-for-someone-else.md)
+
+---
+
+## Pattern: Removing a UI feature is incomplete until every coupled site is removed
+
+**Surface:** any "remove feature X from page Y" task, whether the
+feature is a form input, a button, a modal, or an entire route. The
+failure mode is identical across all of them — the obvious
+visible-site removal lands, but coupled debris stays behind, gets
+caught in code review, and re-opens the PR.
+
+**The coupled sites to check** (a UI removal is incomplete until
+every applicable one is addressed):
+
+1. **The control / input / button itself.** The obvious site.
+2. **Preview / hint / help-text mentions of the control elsewhere
+   on the same page.** Collapsed-toggle previews, helper bullets,
+   "this section includes…" lists, onboarding tips, empty-state
+   copy. Removing the control without removing its description
+   leaves the description lying about what the page contains. The
+   create-board-new License removal had one of these
+   ([create-board-new.hbs:1152 "advanced_hint_license"](app/frontend/app/templates/components/create-board-new.hbs)) —
+   easy to miss because it lives 40 lines away from the actual
+   control.
+3. **Conditional render blocks gated on the removed control's
+   state.** A sub-form, follow-up question, or "if X then show Y"
+   block that only appeared when the user picked a non-default
+   value. With the control gone, the user can't change the
+   default, so the conditional becomes dead template code that
+   will never render but still ships in the bundle. The
+   create-board-new License removal had one of these
+   (`{{#if this.attributable_license_type}}` block for Author /
+   Author URL fields).
+4. **Controller / component members reachable only from the
+   removed UI.** Computeds, actions, options arrays, helper
+   methods whose sole consumer is the deleted template. Leaving
+   them in place is exactly the failure pattern Scot flagged on
+   PR #284 as a *Critical* finding — orphaned `boardPicker` state
+   and tests after the entry-point UI was removed. The fact that
+   these members "do nothing" because nothing observes them does
+   not exempt them: they are dead code, and reviewers will (rightly)
+   refuse to merge a PR that ships dead state described as removed.
+5. **Tests that exercised the removed flow.** Specs that asserted
+   on the now-gone behavior should be deleted (if the behavior is
+   gone) or rewritten (if the behavior moved). Tests that still
+   reference the removed identifier are a stronger signal of
+   incomplete removal than the production code itself, because
+   tests rarely error noisily — they just silently pass against
+   the wrong thing or get skipped. The `boardPicker` cleanup is
+   the canonical example: two full `describe('openBoardPicker', …)`
+   blocks in [application-test.js](../app/frontend/tests/controllers/application-test.js)
+   asserted on `boardPickerBoards` / `boardPickerLoading` state
+   that the controller no longer holds. CI was green; the tests
+   were neither failing nor catching regressions — they were just
+   no-op'ing past the missing action and timing out or passing on
+   a Jasmine `waitsFor` quirk. Deleted in #2 cleanup. When the
+   behavior moved (favorites-first sort moved into
+   `user/index.js`'s "Mine-tab sort"), the *equivalent* coverage
+   for the new code site is a separate concern — do not
+   silently widen the orphan-cleanup PR to also write replacement
+   tests; flag the coverage gap and let it land in its own scope.
+6. **Default model state when the field is no longer user-
+   editable.** If the user could previously change a field but
+   now can't, the model's init-time default becomes the field's
+   permanent value. Verify (a) the default is sane (privacy-safe,
+   backend-accepted), and (b) any save-flow code that consumed
+   the field still does sensible work with the locked value. In
+   the License case, `license: {type: 'private'}` at init keeps
+   every new board on the private default and the
+   `copyright_notice_url` stamping at save time still produces a
+   valid private-license URL.
+7. **Comments that name the removed identifiers.** Well-intentioned
+   "this used to live here" documentation that lists the orphan
+   names (e.g. `// removed: boardPickerVisible, boardPickerTab,
+   boardPickerBoards, openBoardPicker, …`) is grep-bait. A
+   reviewer auditing with `grep -rn "boardPicker"` cannot
+   distinguish documentation-of-removal from leftover-state, and
+   will (rightly) flag it as Critical even when the comment is
+   technically harmless. Two safe options: (a) delete the comment
+   entirely — git history preserves the archaeology of the
+   removal at the original PR; (b) rewrite the comment to
+   describe the architectural change without naming the specific
+   orphan identifiers (e.g. "this controller previously owned a
+   parallel My Boards modal implementation; replaced 2026-05-23
+   by a route transition"). The `boardPicker` cleanup did (a) for
+   the large block comment and (b) for the smaller docstring on
+   `openMyBoards` — the architectural docstring was worth
+   preserving with sanitized wording; the long inventory comment
+   was pure grep-noise and got removed entirely.
+
+**Tension with the "don't refactor" rule resolved:** CLAUDE.md says
+"don't introduce abstractions beyond what the task requires" — but
+deleting orphaned controller code that survives a UI removal is
+COMPLETING the removal, not refactoring. The mental check: "if I
+ran `grep` for the removed identifier across the codebase RIGHT
+NOW, would any results come back?" If yes, the removal is not
+done. If they're in another consumer (e.g. the legacy `new-board.js`
+also has a `setLicenseType` action — different component, separate
+flow), that's a different scope and stays untouched.
+
+**Naming-overload trap:** When grepping for the removed identifier,
+watch for sibling identifiers that are similar but distinct and
+SHOULD survive. The `boardPicker` cleanup had three overlapping
+spellings: `boardPicker` (camelCase, on application controller,
+removed) ≠ `board-picker` (kebab-case Ember component, kept,
+used by onboarding) ≠ `open_board_picker` (snake_case action on
+board-detail, kept, opens an in-page modal via a different code
+path). All three would match a careless `grep -i "boardpicker"`.
+Disambiguate before deleting; running the same grep with the
+exact original casing of the removed identifier ONLY is the
+fastest way.
+
+**Diagnostic shortcut** before declaring a removal complete: grep
+for the removed UI's specific identifiers (the CSS class, the
+action name, the i18n key, the computed name) across the whole
+repo. If you find references in:
+- The same file → those are sites #2 or #3 — remove them.
+- The component's JS controller → site #4 — remove.
+- Tests in `app/frontend/tests/` → site #5 — update or remove.
+- Comments anywhere → site #7 — remove or sanitize.
+- Other components / templates with DIFFERENT casing of a
+  similar name → those are likely separate consumers (see
+  naming-overload trap above), leave them.
+
+**First seen in:**
+- [2026-05-27-create-board-remove-license.md](./2026-05-27-create-board-remove-license.md) — License removal from create-board-new (3 template sites + 4 controller members)
+- [2026-05-27-application-boardpicker-orphan-cleanup.md](./2026-05-27-application-boardpicker-orphan-cleanup.md) — boardPicker orphan cleanup (2 test `describe` blocks + 3 comment blocks in 3 different files); also surfaced sub-lesson #7 (comments-as-grep-bait) and the naming-overload trap
+
+---
+
+## Pattern: "Silent wrong behavior" is the modal failure mode in this codebase — assume it, probe for it
+
+**Surface:** every class of code change in this repo. This is a
+meta-pattern observed across the LEARNINGS doc itself: **eleven**
+separate pattern entries describe failure modes whose defining
+characteristic is "the code runs without error but does the wrong
+thing":
+
+- Pass-through actions silently truncate args
+- Touchmove preventDefault silently ignored when listener is passive
+- Settings-backed API flags silently truthy-evaluate string "false"
+- Duplicate selectors in app.scss silently let the later copy win
+- `__label-collapsed` silently styles wrong when scoping isn't tightened
+- Tests rarely error noisily — they silently pass against the wrong code path
+- Stale Ember dev bundle silently serves yesterday's behavior
+- HTML5 drag silently no-ops when nested `<button>` children intercept
+- SVG gradient IDs silently mangled by Sprockets in production but not dev
+- "Couldn't find a button!" silently aborts swap on undefined drop_id
+- Removing a UI feature silently leaves orphan refs in JS/tests
+
+**Why it's a trap:** every one of these passes a green build. CI is
+green, the dev server reloads cleanly, the manual smoke test works
+in the obvious case. The failure only shows up in (a) a less-obvious
+case, (b) production, (c) review, or (d) months later when someone
+else maintains the code. There is no audible signal — the code is
+running, just not doing what the author thought.
+
+**How to apply** — when reviewing your own code (the [Tier 3
+adversarial sweep](../pre-merge-audit-checklist.md#tier-3--adversarial-sweep-red-team-your-own-pr)
+is built around this), the question is not "does this look right?"
+but "**if this were doing the wrong thing right now, what would I
+see?**" Often the answer is "nothing" — and that's the finding.
+Specific probe techniques:
+
+1. **Test for the negative case, not just the positive.** A test
+   that asserts `expect(result).toEqual(expected)` doesn't catch
+   "result happened to equal expected for an unrelated reason."
+   Run the test against `main` before applying your change — if
+   it passes both ways, it isn't testing your change.
+2. **`console.log` the actual values at every joint.** When you
+   suspect silent wrong behavior, instrument the joins
+   (function entry, function exit, action dispatch, observer
+   fire) and watch what *actually* flows through. Often the
+   stated parameter name and the actual passed value diverge.
+3. **Production-build before merging visual changes.** SVG, CSS
+   data URIs, dynamic class names — run `ember build
+   --environment=production` and inspect the artifact, not just
+   the dev-mode rendering.
+4. **Read the deleted code as carefully as the added code.** A
+   silent-wrong-behavior class hides in implicit guarantees that
+   used to exist (see [Removing a UI feature is incomplete](#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed)
+   pattern).
+5. **Trust the codebase's conventions over plausible-sounding
+   alternative APIs.** Many of the silent failures came from
+   using `appState.currentUser` where `appState.sessionUser` was
+   correct, or `communicator_role` where `!supporter_role` was
+   correct, or `function(button, event)` where
+   `function() { ...arguments }` was correct. The wrong API
+   reads sensibly until you trace why nothing happens.
+
+**Diagnostic shortcut:** when something "doesn't work" in this
+codebase, do not assume it errored and you missed the error.
+Assume it ran successfully against the wrong inputs/state and
+produced the wrong outputs. Probe accordingly.
+
+**Maintenance note:** as new "silent wrong behavior" patterns get
+distilled into individual LEARNINGS entries, the bullet list at
+the top of this pattern should be updated to keep an accurate
+count. The list is itself the evidence that this meta-pattern is
+real and recurring.
+
+**First seen in:** distilled while writing [`docs/pre-merge-audit-checklist.md`](../pre-merge-audit-checklist.md)
+Tier 3 (adversarial sweep) — the §3.0 mindset shift section names
+this as the dominant failure-mode class.
+
+---
+
+## Pattern: `i18n_generator.rb` is a static parser — dynamic `{{t bound.prop key=bound.prop}}` keys are invisible to it
+
+**Surface:** any catalog-driven UI that renders rows from a JS
+constant via dynamic i18n bindings — Customize Menu, accessibility
+preferences, language switchers, anything with a `SOME_ITEMS = [{
+default_label, label_key }, ...]` shape and a template loop using
+`{{t default_label key=label_key}}`. The mistake pattern is
+assuming the runtime-correct dynamic resolution also means the
+keys ship to non-English locales.
+
+**Why it's a trap:** the dynamic helper renders cleanly at runtime
+(the `t` helper looks up `label_key` against `app_state.i18n_strings`,
+which DOES have the key when the key is present elsewhere in
+en.json from a different literal-reference). So the UI looks right
+in English. The keys missing from en.json silently fall through to
+their default-label string. Non-English locales never get the
+translated string because `i18n_generator.rb` couldn't see the key
+to add it to `en.json` in the first place.
+
+**Root cause** (verified in [`i18n_generator.rb:148-180`](../i18n_generator.rb)):
+the parser walks `{{t ` or `(t ` then expects a QUOTED literal as
+the default label (line 154: `line.index(/\"|\'/, idx)`). When the
+next token is `group.section.default_label` (a bound property, not
+a quoted string), `line.index` returns `nil`; the whole extraction
+branch is skipped. Same for the `key=...` lookup at line 172 —
+must be a literal `key='...'` or `key="..."`.
+
+**How to apply** — when adding a catalog-driven dynamic-i18n UI:
+
+1. Build the catalog of `{ id, label_key, default_label }` rows as
+   normal.
+2. Render via `{{t default_label key=label_key}}` as normal — this
+   is correct at runtime.
+3. **ALSO** add a no-op extractor function in the SAME JS file as
+   the catalog constants, listing one literal `i18n.t('key', "Default")`
+   call per row. The function is never called at runtime; it exists
+   purely for the parser. Convention adopted in
+   [`board-detail.js#L73-L113`](../app/frontend/app/controllers/user/board-detail.js)
+   for the Customize Menu — the function is named
+   `_<feature>_i18n_extractor_no_op` and carries a comment
+   explaining its purpose.
+4. Add a `// eslint-disable-next-line no-unused-vars` directive so
+   the function doesn't trigger lint warnings.
+5. When you add a new row to the catalog, ALSO add a matching
+   `i18n.t(...)` line to the extractor function. The rule to write
+   in CLAUDE.md / PR description: "if you touch SOME_ITEMS, touch
+   the extractor too."
+
+**Diagnostic shortcut:** if a catalog-driven UI works fine in
+English but a non-English locale shows the English default-label
+string instead of the localized one, suspect the dynamic-key
+extraction failure first. Run `ruby i18n_generator.rb` and check
+its output for missing strings — TOTAL MISSING is the parser's
+own count of keys it found but couldn't pair with a string.
+
+**Important: `ruby i18n_generator.rb` without `--generate` only
+scans and reports; it does NOT modify `en.json`.** To actually
+write extracted strings to en.json, pass `--generate` — but the
+generator refuses to write when ANY duplicates exist in the
+extracted strings hash (see [`i18n_generator.rb:266-267`](../i18n_generator.rb)).
+If there's a pre-existing duplicate in the repo (e.g. one team
+added `loading_board_preview` with "Loading board preview..." in
+one template, another added it with "Loading Board Preview..." in
+another), `--generate` is blocked for everyone until the dup is
+resolved. Workaround: hand-add the missing keys to `en.json`
+directly in the correct group; document the workaround in the
+task log; flag the pre-existing dup for whoever owns that surface.
+
+**First seen in:** [2026-05-27-customize-menu-flag-and-i18n.md](./2026-05-27-customize-menu-flag-and-i18n.md)
+— the Customize Menu (PR #284) shipped with 17 menu-item keys + 6
+section-header keys all behind dynamic bindings. ~20 keys happened
+to be present in en.json from literal references elsewhere, so the
+English UI looked right. 3 keys (`translate`, `switch_language`,
+`share_and_print`) AND 5 customize-panel-specific UI strings
+(`customize_menu`, `customize_menu_hint`, `menu_short`,
+`hidden_word`, `shown_word`) were missing. Scot's #4 pre-merge
+finding.
+
+---
+
+## Pattern: Feature-flag-gated mutating actions need BOTH a template gate AND a JS action gate (defense-in-depth)
+
+**Surface:** any new feature where a `{{#if app_state.feature_flags.X}}`
+in the template hides a UI control that triggers a mutating action
+(persists to user.preferences, mutates app state, writes to the
+server). Common shapes: new toggles in a preferences panel, new
+options in a customize / settings dialog, new buttons on board-edit.
+
+**Why a template gate alone is insufficient:** the `{{#if}}` hides
+the UI control from view but does NOT make the underlying action
+unreachable. The action remains:
+- Callable via the browser dev console: `App.lookup('controller:user/board-detail').send('set_speak_menu_item_hidden', 'my_boards', true)`
+- Callable via a custom client (anyone running their own Ember
+  app pointing at the same backend, or replaying an XHR captured
+  earlier)
+- Callable via action chaining from a different code path that
+  IS exposed to the user
+
+For pure-UI features (e.g. a new chart that doesn't write back),
+the template gate is enough — there's no action to bypass. But
+for ANY action that mutates state, you need BOTH gates.
+
+**How to apply** — when adding a flag-gated mutating feature:
+
+1. **Template gate** — `{{#if this.app_state.feature_flags.X}}…{{/if}}` around the UI control AND any visual indicator that the feature is in play.
+2. **JS action gate** — at the very top of the action handler, before any mutation:
+   ```js
+   set_X: function(...) {
+     if(!this.get('app_state.feature_flags.X')) { return; }
+     // ... rest of handler
+   }
+   ```
+3. **Comment the JS gate** to point at the template gate — future maintainers should not "clean up" the JS gate thinking it's redundant. The convention used in [`board-detail.js#L6280-L6286`](../app/frontend/app/controllers/user/board-detail.js):
+   ```js
+   // Defense-in-depth alongside the template gate at
+   // templates/user/board-detail.hbs ({{#if app_state.feature_flags.customize_menu}}).
+   // Template gate hides UI but doesn't make the action unreachable
+   // (debug console, custom client, action chaining). Both gates needed.
+   // Per pre-merge audit §3.5 (Trust boundary analysis).
+   if(!this.get('app_state.feature_flags.customize_menu')) { return; }
+   ```
+4. **Server-side gate** (when the action persists to the server and the
+   action's effect would be sensitive or visible to other users) —
+   the controller / model accepting the persist call should ALSO
+   verify the feature is enabled for the calling user. For things
+   like `user.preferences.X` writes, the action's effect is
+   self-only (the user mutating their own preferences), so the
+   server-side gate is less critical — but it's a third line of
+   defense and removes the bypass path entirely.
+
+**Per the new pre-merge audit doc** [§3.5 Trust boundary analysis](../pre-merge-audit-checklist.md#35-trust-boundary-analysis):
+"a hidden UI doesn't mean the action is unreachable. Server-side
+enforcement is the only line that matters when the bypass is
+worth attempting." For feature-flag-controlled UX features the
+threat is low (flag bypass = user opts into beta UX they could
+opt into anyway via per-user flag), but the defense-in-depth
+discipline matters for the cases where it IS the security boundary.
+
+**First seen in:** [2026-05-27-customize-menu-flag-and-i18n.md](./2026-05-27-customize-menu-flag-and-i18n.md)
+— Scot #1 pre-merge finding called out Customize Menu shipping
+"enabled-for-all with no feature flag." The fix added both the
+template gate AND the JS action gate. The JS gate is the part
+that's easy to omit because "the UI doesn't show, so the action
+won't fire" feels true — but isn't.
+
+---
+
+## Pattern: Canvas drawing has different constraints than CSS — translate the design language, don't import it
+
+**Surface:** any UI rendered into a `<canvas>` element via the 2D
+context API instead of being styled with CSS. In this repo, the
+board preview canvas ([board-preview-canvas.js](../app/frontend/app/components/board-preview-canvas.js))
+is the primary instance — it draws the entire board grid pixel-by-pixel
+including any UI affordances on top (offline badge, missing-image
+fallback, etc.).
+
+**Why it's a trap:** the rest of the app uses the modern design
+language documented in [Atmospheric depth surface formula](#pattern-atmospheric-depth-surface-formula--replace-hard-1px-borders-with-layered-shadows--glass-veil)
+— hairline border + glass veil + three-tier shadow + inset top
+highlight, expressed as CSS `background:`, `border:`, `box-shadow:`,
+and pseudo-element layers. Canvas has **none of these properties
+as direct primitives.** The instinct is to either skip the modern
+styling (canvas UI ends up looking 2010s) or to import a heavy
+3D-graphics-library to fake it. Both wrong.
+
+**How to translate** (one column per CSS feature):
+
+| CSS feature | Canvas equivalent | Notes |
+|---|---|---|
+| `border-radius: 999px` | `trace_rounded_rect(ctx, x, y, w, h, h/2)` using moveTo + arc + lineTo | Path-based, not `roundRect` (see Cordova-WebView pattern below) |
+| `background: linear-gradient(180deg, top, bottom)` | `var g = ctx.createLinearGradient(x, y, x, y+h); g.addColorStop(0, top); g.addColorStop(1, bottom); ctx.fillStyle = g; ctx.fill();` | Same syntax shape, same gradient direction conventions |
+| `border: 1px solid rgba(…)` | After fill: `ctx.lineWidth = 2; ctx.strokeStyle = rgba; ctx.stroke();` | Remember 2× DPI — 1 CSS-px = 2 canvas-internal-px |
+| `box-shadow: 0 1px 2px, 0 8px 24px, 0 24px 60px` (three-tier stack) | **Cannot stack.** `ctx.shadowBlur` only supports ONE shadow per drawing op. Approximate by picking the broadest tier (the ambient haze): `ctx.shadowOffsetY = h * 0.18; ctx.shadowBlur = h * 0.75; ctx.shadowColor = rgba; ctx.fill();` then reset shadow to `'rgba(0,0,0,0)'` before stroking | This is the biggest gotcha. Don't try to call `fill()` three times with different shadows — they layer additively and look muddy |
+| `inset 0 1px 0 rgba(255,255,255, .6)` (inset top highlight) | Trace a path along the top edge (or top arc for pills) 2px inside the border and stroke at low alpha | The "inset" is conceptual on canvas — you're just drawing a shorter stroke inside the border path |
+| `font-weight: 600` + system font stack | `ctx.font = '600 ' + px + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';` | Quote-wrap any family names with spaces |
+| Light/dark mode | Branch your palette at the top of the draw function, pass the right palette to each draw helper | Mirrors the existing `palette = dark ? {…} : {…}` pattern in this file |
+
+**Order of operations matters.** Canvas drawing is destructive
+(later operations overwrite earlier ones in their pixel region).
+For overlays / badges drawn on top of dynamically-loaded content
+(e.g. cell images that arrive via `img.onload` AFTER the badge would
+normally be drawn), you must draw the overlay AFTER all async draws
+have settled. The board-preview-canvas does this via the
+`maybe_emit_canvas_ready` gate: draw the badge IN that handler so
+it fires only when `pending == 0`.
+
+**Diagnostic shortcut:** if your canvas UI looks "flat" or "2010s"
+compared to the rest of the app, you skipped the glass-veil gradient
++ inset highlight + shadow steps. The hairline border alone is
+load-bearing for the rounded-corner definition but doesn't carry
+the depth feel.
+
+**First seen in:** [2026-05-27-board-preview-offline-indicator.md](./2026-05-27-board-preview-offline-indicator.md)
+— offline badge + per-cell image fallback for Scot #5 review.
+
+---
+
+## Pattern: `context.roundRect` is a Cordova-WebView landmine — use path-based rounded-rect tracing
+
+**Surface:** any canvas drawing code that wants rounded corners.
+The 2D context API has `context.roundRect(x, y, w, h, radii)` as
+of Chrome 99 / Safari 16, which is what you'd reach for first.
+
+**Why it's a trap:** the installed iOS/Android app ships via
+Cordova, which uses the system WebView. Older Android devices
+and locked-down iOS WKWebView versions still in the wild don't
+have `roundRect`. Production crashes with `TypeError:
+context.roundRect is not a function` or just silently renders no
+shape (depending on the WebView's error-recovery mode). Looks
+fine in dev (modern Chrome), breaks in the installed app — the
+same shape as the [SVG gradient IDs mangled by Sprockets](#pattern-svg-gradient-id-refs-inside-css-data-uris-mangled-by-rails-sprockets-in-production)
+trap, just shifted from build pipeline to runtime browser.
+
+**How to apply** — use a path-based helper. The canonical recipe
+in this repo (extracted to a helper inside
+[board-preview-canvas.js](../app/frontend/app/components/board-preview-canvas.js)):
+
+```js
+var trace_rounded_rect = function(ctx, rx, ry, rw, rh, r) {
+  r = Math.min(r, rw / 2, rh / 2);
+  ctx.beginPath();
+  ctx.moveTo(rx + r, ry);
+  ctx.lineTo(rx + rw - r, ry);
+  ctx.arc(rx + rw - r, ry + r, r, -Math.PI / 2, 0);
+  ctx.lineTo(rx + rw, ry + rh - r);
+  ctx.arc(rx + rw - r, ry + rh - r, r, 0, Math.PI / 2);
+  ctx.lineTo(rx + r, ry + rh);
+  ctx.arc(rx + r, ry + rh - r, r, Math.PI / 2, Math.PI);
+  ctx.lineTo(rx, ry + r);
+  ctx.arc(rx + r, ry + r, r, Math.PI, 1.5 * Math.PI);
+  ctx.closePath();
+};
+```
+
+Caller follows with `ctx.fill()` or `ctx.stroke()` as needed.
+For full-pill shapes pass `r = h / 2` (the helper clamps to half
+of the shortest edge anyway).
+
+**Diagnostic shortcut:** any new canvas drawing PR should test in
+production-mode Cordova build (`rake extras:mobile`) on a real
+device or a sufficiently old WebView emulator, NOT just in dev
+Chrome. The §3.9 pre-merge audit check covers this category of
+trap; this is the most common instance.
+
+**First seen in:** [2026-05-27-board-preview-offline-indicator.md](./2026-05-27-board-preview-offline-indicator.md)
+— used for both the offline-badge pill and the per-cell missing-image
+placeholder.
+
+---
+
+## Pattern: Every `belongs_to`/`has_one` access in a `JsonApi::*` serializer is a potential N+1 — eager-load it at the list-endpoint controller
+
+**Surface:** any list endpoint (`#index`, `#search`, paginated feeds)
+that renders via `JsonApi::*.paginate(...)`. The serializer's
+`build_json(record, args)` is a flat method that touches whatever
+record properties a single-record response needs; it doesn't
+distinguish "one record" from "list-of-25-records." So the LIST
+controller is solely responsible for pre-loading every association
+the per-record `build_json` touches.
+
+**Why it's a trap:** the serializer change in PR N is often a
+one-line addition (`json['parent_board_key'] = board.parent_board.key`)
+that works correctly for the show endpoint where the controller does
+`Board.find(...).parent_board` once. But the index endpoint pages
+through 25 boards and calls `build_json` for each — without
+`.includes(:parent_board)` that's 25 extra SELECTs. The N+1 doesn't
+show up in feature tests (response body is correct, status is 200,
+no error logs); it shows up in production tail latency, in Resque
+worker time, and in slow-query log warnings. Often silent for
+months before someone notices.
+
+**Diagnostic recipe** (verified on Scot #6's `board.parent_board`
+N+1):
+
+1. **Read every `build_json` access pattern.** Inside the
+   serializer's main method, list every `record.<association>` and
+   `record.<method_that_queries>`. Build a small whitelist of
+   "this is a database round-trip per record" vs "this is a column
+   read."
+2. **Check the controller's `.includes(...)` covers every
+   association in the whitelist.** Anything in the whitelist that
+   isn't in the includes is a guaranteed N+1.
+3. **Lock it in with a query-count regression spec.** See the
+   companion pattern below — without the spec, the regression can
+   silently re-land in a future PR.
+
+**Anti-pattern to avoid:** "I'll just eager-load `:everything`" via
+nested includes (`Board.includes(parent_board: { user: :supervisors }).all`).
+The actual `build_json` typically only needs 1-2 associations; over-
+including loads unnecessary rows into memory + slows the LEFT OUTER
+JOIN. Walk the serializer methodically and include only what's
+actually touched.
+
+**Diagnostic shortcut for "is my list endpoint N+1ing?":**
+
+```ruby
+# In Rails console (or rails server with logger), tail SQL while
+# hitting the endpoint manually:
+ActiveRecord::Base.logger = Logger.new(STDOUT)
+# Then make the request. Count repeated `SELECT * FROM "boards"
+# WHERE "boards"."id" = X` or similar single-row lookups.
+# 1-2 is fine (joins, auth). 10+ is an N+1.
+```
+
+**First seen in:** [2026-05-27-boards-index-n-plus-one.md](./2026-05-27-boards-index-n-plus-one.md)
+— Scot #6 review caught `boards_controller#index` missing
+`.includes(:parent_board)` while `lib/json_api/board.rb:91` accessed
+`board.parent_board` unconditionally. ~25 extra SELECTs per paginated
+response at default per_page=25.
+
+---
+
+## Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops
+
+**Surface:** any test that asserts an upper bound on number of
+queries / API calls / external side-effects. The pattern with the
+most regression-prevention value but the highest write-only-and-
+forget risk.
+
+**Why it's a trap:** A query-count spec that "expects `count <= 4`"
+is mechanically meaningless if the broken code would ALSO produce
+`count <= 4`. The author writes the spec to lock in the fix, the
+spec stays green in CI forever, but the spec actually doesn't
+test what it claims. The threshold was set wrong, OR the subject
+matter is so trivial it never hits the bound, OR a different
+unrelated thing happens to keep the count low.
+
+**This is a specific instance of [Silent wrong behavior](#pattern-silent-wrong-behavior-is-the-modal-failure-mode-in-this-codebase--assume-it-probe-for-it)
+applied to the test suite.** Tests pass for the wrong reason.
+
+**How to apply** — verify the spec ACTUALLY catches the regression:
+
+1. **Land the fix.**
+2. **Land the spec.**
+3. **`git stash push -- <the fix file>`** to temporarily revert just
+   the fix (NOT the spec).
+4. **Run the spec.** Expected: it should FAIL with the count above
+   the threshold.
+5. **`git stash pop`** to restore the fix.
+6. **Re-run the spec.** Expected: it should PASS.
+
+If step 4 doesn't fail, the spec is a no-op. Either the threshold
+is too loose (raise it until step 4 fails, then nudge down by 1 for
+headroom), or the test data isn't triggering the broken path (add
+more records / hit the right code path).
+
+**Document the verification in the task log** so future maintainers
+can re-verify when refactoring nearby code. The task log should
+record:
+- Pre-fix count (e.g. "6 queries without eager-load")
+- Post-fix count (e.g. "3 queries with eager-load")
+- Threshold chosen (e.g. "≤ 4, one query of headroom")
+
+**First seen in:** [2026-05-27-boards-index-n-plus-one.md](./2026-05-27-boards-index-n-plus-one.md)
+— Scot #6 regression spec for boards_controller#index. Threshold
+of 4 catches the 6-query broken state while tolerating slight
+variation across Rails versions / auth-lookup query count.
+
+---
+
+## Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)
+
+**Surface:** any new `app/frontend/tests/**/*-test.js` file. The
+codebase has two test styles in use; ONE of them works reliably
+right now and the OTHER has open infrastructure issues.
+
+**The two styles:**
+
+1. **Legacy Jasmine** (USE THIS) — wraps QUnit via
+   [`tests/helpers/jasmine.js`](../app/frontend/tests/helpers/jasmine.js).
+   Test files start with:
+   ```js
+   import { describe, it, expect, beforeEach, afterEach,
+            waitsFor, runs, stub } from 'frontend/tests/helpers/jasmine';
+   import 'frontend/tests/helpers/ember_helper';
+   import EmberObject from '@ember/object';
+
+   describe('SomeController', 'controller:foo/bar', function() {
+     var testOwner;
+     beforeEach(function() { testOwner = this.owner; });
+     it('does the thing', function() {
+       var c = testOwner.lookup('controller:foo/bar');
+       c.set('foo', 'bar');
+       expect(c.get('foo')).toEqual('bar');
+     });
+   });
+   ```
+   ~99% of existing tests use this style. Works.
+
+2. **Modern Ember+QUnit** (AVOID for now) —
+   ```js
+   import { setupApplicationTest } from 'ember-qunit';
+   import { setupMirage } from 'ember-cli-mirage/test-support';
+   import { visit } from '@ember/test-helpers';
+   QUnit.module('Acceptance | foo', function(hooks) {
+     setupApplicationTest(hooks);
+     setupMirage(hooks);
+     QUnit.test('thing', async function(assert) { await visit('/'); ... });
+   });
+   ```
+   The newer file [`tests/acceptance/board-detail-empty-state-test.js`](../app/frontend/tests/acceptance/board-detail-empty-state-test.js)
+   uses this — but its own TODO comment says tests **hang on `visit()`**
+   because the app's auth/session bootstrap doesn't complete under
+   Mirage's defaults. Three of the four tests in that file are
+   `QUnit.skip(...)`.
+
+**How to apply:**
+
+- For component tests: `testOwner.factoryFor('component:my-component').create()`
+  returns an instance you can `.set()` properties on and call methods on.
+- For controller tests: `testOwner.lookup('controller:user/foo')`.
+- For async assertions: `waitsFor(function() { return done; })` followed
+  by `runs(function() { expect(...) })`.
+- For service stubs: `controller.set('persistence', EmberObject.create({...}))`.
+
+**When to revisit the modern style:** when someone writes a
+`setupAuthenticated(hooks)` helper or stubs session/auth in Mirage
+config so `visit()` resolves. Until then, sticking with the legacy
+style is not a stylistic preference — it's the only style that runs.
+
+**First seen in:** [2026-05-27-pr281-test-coverage.md](./2026-05-27-pr281-test-coverage.md)
+— Scot #3 test-coverage backfill added 4 new test files, all using
+the legacy Jasmine style.
+
+---
+
+## Pattern: Canvas component tests use a context-recorder stub, not pixel inspection
+
+**Surface:** any Ember component that draws to a `<canvas>` via the
+2D context API. In this repo, [`board-preview-canvas.js`](../app/frontend/app/components/board-preview-canvas.js)
+is the primary instance. Future canvas components (audio visualizers,
+custom chart renders, etc.) face the same testing challenge.
+
+**The pitfall:** trying to assert on actual rendered pixels is
+fragile (rendering varies across browsers, font availability, GPU
+versions) and slow (requires real DOM + canvas). Most assertions of
+the form "this component draws X" can be expressed as "this
+component calls `ctx.method(args)` with the right args."
+
+**The recorder pattern** — replace the canvas's 2D context with a
+stub that records every method call + every property assignment.
+Then assert on what got recorded:
+
+```js
+function buildContextStub() {
+  var calls = [];
+  var styles = [];
+  var record = function(name) {
+    return function() {
+      calls.push({ name: name, args: Array.prototype.slice.call(arguments) });
+    };
+  };
+  var stub = {
+    calls: calls,
+    styles: styles,
+    save: record('save'),
+    restore: record('restore'),
+    fillRect: record('fillRect'),
+    fillText: record('fillText'),
+    // ... add every method your component invokes ...
+    measureText: function(t) { return { width: (t || '').length * 7 }; },
+    createLinearGradient: function() {
+      return { addColorStop: function() {} };
+    }
+  };
+  // Property-setter recording for style assignments.
+  ['fillStyle', 'strokeStyle', 'lineWidth', 'shadowBlur',
+   'shadowColor', 'font'].forEach(function(prop) {
+    var current = null;
+    Object.defineProperty(stub, prop, {
+      configurable: true,
+      get: function() { return current; },
+      set: function(v) { current = v; styles.push({ prop: prop, value: v }); }
+    });
+  });
+  return stub;
+}
+```
+
+Then wire it into the component:
+
+```js
+component.set('element', {
+  getElementsByTagName: function(tag) {
+    return tag === 'canvas' ? [{
+      getContext: function() { return ctxStub; },
+      setAttribute: function() {},
+      getBoundingClientRect: function() { return { width: 400, height: 300 }; }
+    }] : [];
+  }
+});
+```
+
+Now assertions like:
+
+```js
+var offlineDraw = ctxStub.calls.find(c => c.name === 'fillText' && c.args[0] === 'Offline');
+expect(offlineDraw).not.toEqual(undefined);
+```
+
+work synchronously and deterministically. Reference implementation in
+[`tests/components/board-preview-canvas-test.js`](../app/frontend/tests/components/board-preview-canvas-test.js).
+
+**Bonus diagnostic — refuse forbidden APIs:** override the stub's
+forbidden methods (e.g. `roundRect` per the Cordova-WebView pattern)
+to throw. The test then catches any future use of the forbidden API
+automatically:
+
+```js
+ctxStub.roundRect = function() {
+  throw new Error('context.roundRect must not be used — older WebViews lack it');
+};
+expect(() => component.render_canvas()).not.toThrow();
+```
+
+**First seen in:** [2026-05-27-pr281-test-coverage.md](./2026-05-27-pr281-test-coverage.md)
+— Scot #3 + Scot #5 test coverage for the offline-indicator + per-cell
+fallback added to board-preview-canvas.
+
+---
+
+## Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim
+
+**Surface:** any future Ember addon install on this codebase
+(Ember 3.28, `jquery-integration: false`, Bootstrap JS vendor-loaded
+via `app.import` in
+[`ember-cli-build.js`](../../app/frontend/ember-cli-build.js)).
+
+**Symptom (round 1):** build fails with
+`<app> needs to depend on ember-auto-import in order to use
+<addon-name>`. **Symptom (round 2, after fixing round 1):** app loads
+the chrome but every Bootstrap jQuery plugin call dies with
+e.g. `(0, _jquery.default)(...).popover is not a function`,
+`...dropdown is not a function`, etc. — most visible at
+[`app-state.js:2282`](../../app/frontend/app/services/app-state.js#L2282)
+which calls `$('#speak_mode').popover('destroy')` from
+`dom_changes_on_board_state_change` during route setup, leaving the
+whole index route blank.
+
+**Detection shortcut before installing:**
+`grep -l "addon-main.cjs" node_modules/<addon>/package.json` — if
+found, the addon is v2-format and mandates ember-auto-import. The
+addon's published `peerDependencies` entry `^3.28.0 || >= 4.0.0`
+is a MINIMUM, not a maximum — it doesn't tell you about the legacy
+jQuery pipeline collision.
+
+**Root cause:** v2 addons declare their app-js manifest through
+`addon-main.cjs`, which only resolves when `ember-auto-import` is
+installed. Installing ember-auto-import then turns on its global
+import scanner — it sees `import $ from 'jquery'` in app code (10+
+files in this repo) and bundles the npm jquery as a SEPARATE ES
+module. The vendor-concat `bootstrap.min.js` extended the LEGACY
+`window.jQuery` with `.popover` / `.dropdown` / `.tooltip` plugins;
+the npm-bundled instance has none of them. Two jQuery instances,
+one with plugins, one without.
+
+**Fix recipe:**
+
+1. Install ember-auto-import directly: `npm install --save-dev
+   ember-auto-import@^2`. `ember install <addon>` adds it for you;
+   plain `npm install <addon>` does not.
+2. Add the externals shim from ember-auto-import's own README
+   ([line 351-364](../../app/frontend/node_modules/ember-auto-import/README.md))
+   to [`ember-cli-build.js`](../../app/frontend/ember-cli-build.js):
+   ```js
+   autoImport: {
+     webpack: {
+       externals: { jquery: 'jQuery' }
+     }
+   }
+   ```
+   This tells webpack to leave `import $ from 'jquery'` resolving
+   to the global `window.jQuery` rather than re-bundling.
+3. Static verification after the fix:
+   `grep "jQuery JavaScript Library" dist/assets/*.js` should
+   match ONLY `vendor.js` — never `frontend.js` or an
+   auto-import chunk. If it matches a second file, you have two
+   jQuery instances again.
+
+**Anti-pattern to avoid:** don't claim "compatible with Ember 3.28"
+based on the addon's peerDeps alone. Validate the broader install
+path against THIS codebase's actual build config first:
+[`config/optional-features.json`](../../app/frontend/config/optional-features.json)
+(jquery-integration), `ember-cli-build.js` vendor concats, anything
+in `vendor/`. The peer-dep line is a minimum; this codebase's
+legacy pipeline is the maximum.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+---
+
+## Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence
+
+**Surface:** any code that needs to mirror a visibility / availability
+state already computed by another part of the app — tours, onboarding
+flows, modals that target conditionally-rendered elements, or any
+"is the X card showing right now?" check.
+
+**Symptom:** the dependent code "silently does nothing" or skips a
+step when the source-of-truth check passes — e.g. a tour step skips
+even though the target element is rendered on the page; a modal
+fires its callback but the action no-ops because the gate evaluated
+differently than what the user can see.
+
+**Root cause:** the codebase has 357 distinct computed-property
+names defined in 2+ files, 40+ of them spanning multiple layer
+types (model + component, component + controller). Spot-checks
+confirm divergent logic is the norm, not the exception:
+- **`has_management_responsibility`** —
+  [`user.js:124`](../../app/frontend/app/models/user.js#L124)
+  returns `managed_orgs.length > 0`;
+  [`dashboard/authenticated-view.js:487`](../../app/frontend/app/components/dashboard/authenticated-view.js#L487)
+  returns `managed_orgs.length > 0 || supporter_role`. The dashboard
+  card shows for supporters even without managed orgs; the model
+  computed says they have no management responsibility.
+- **`has_supervisees`** — 6 definitions, 4 different logical
+  interpretations (some include `known_supervisees`, some include
+  `managed_orgs`, some neither).
+- **`needs_sync`** — 3 definitions, 3 different algorithms.
+- **`managed_orgs`** — 3 definitions with identical filter logic
+  but different sources (`appState.currentUser.organizations` vs
+  `app_state.currentUser.organizations` (legacy alias) vs the
+  model's raw `organizations`).
+
+Calling the wrong one passes type-check, doesn't error, and returns
+a misleading value. This is a special case of the "silent wrong
+behavior" meta-pattern above, with a specific remedy.
+
+**Fix recipe for visibility-gated code:** gate on the actual
+rendered DOM, not on a computed property:
+
+```js
+// WRONG — duplicates business logic, drifts when the source
+// component's gate changes, and may call the wrong definition.
+var manager = !!this.get('appState.sessionUser.has_management_responsibility');
+if (manager) { steps.push({ attachTo: { element: '.md-card--org-management', ... }, ... }); }
+
+// RIGHT — gate directly on whether the target is on the page.
+// Self-correcting if the source component's visibility logic
+// changes; impossible to get wrong because the anchor must
+// exist for the tour step to attach anyway.
+var orgCardVisible = !!document.querySelector('.md-card--org-management');
+if (orgCardVisible) { steps.push({ attachTo: { element: '.md-card--org-management', ... }, ... }); }
+```
+
+**For non-visibility code** (e.g. business-logic decisions that
+aren't about "is this element shown?"): grep the property name
+before calling it. If multiple definitions exist, READ all of them
+and either pick the right one with eyes open, or rename your local
+version to disambiguate.
+
+**Detection shortcut** (run from `app/frontend/`):
+```bash
+grep -rEn "^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:\s*computed\(" \
+  app/components app/controllers app/models app/services app/routes \
+  | sed -E 's|.*:[0-9]+:\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*computed.*|\1|' \
+  | sort | uniq -c | awk '$1 > 1' | sort -rn
+```
+Names with high counts that are obvious UI primitives
+(`elem_style`, `num_style`, `text_class`) are usually benign per-
+component repetition. Names with 2-4 hits that look semantically
+meaningful (`has_*`, `*_options`, `is_*`) are the high-risk ones.
+
+**Why a global fix isn't right today:** consolidating these into
+mixins/services or adding an ESLint rule needs architectural
+decisions about which definition is canonical — that's a team-level
+discussion, not a unilateral refactor. The DOM-presence pattern
+above is the per-task remedy that doesn't require touching shared
+business logic.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+— first hit at `has_management_responsibility`, audit run from the
+same session confirmed the breadth.
+
+---
+
+## Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead
+
+**Surface:** any attempt to override a rule in `app.scss` that
+already carries `!important`. Most common when targeting an element
+that's already styled by a broad selector with `!important` (e.g.
+`.md-hero`, `.md-card`, `.md-btn`) and you want a variant-specific
+override.
+
+**Symptom:** your override is the LATER rule in source, both have
+`!important`, and your styles silently don't take effect. DevTools
+shows your rule struck through; the broader rule wins.
+
+**Root cause:** CSS cascade resolution at equal specificity falls
+back to source order — the later rule wins. `!important` only
+elevates a declaration into the "important" cascade origin; it does
+NOT compete with source order within that origin. When BOTH rules
+have `!important` AND equal specificity, source order STILL
+decides. If your override is EARLIER in `app.scss` than the rule
+you're trying to beat, you lose regardless of `!important`.
+
+Concrete example from this spike: `.md-hero--dashboard
+{ position: relative !important; }` at line ~27688 lost to
+`.md-hero { position: static !important; }` at line ~38413, because
+both are `0,1,0` specificity and the `.md-hero` rule comes later.
+DevTools showed `position: BODY` (the absolutely-positioned child's
+offsetParent fell through to `<body>`), not `.md-hero--dashboard`
+as intended.
+
+**Fix recipe:** bump specificity instead of source order. The
+two-class compound selector `.md-hero.md-hero--dashboard` is `0,2,0`
+specificity and beats the single-class `.md-hero` (`0,1,0`)
+regardless of which is later in the file:
+
+```scss
+/* WRONG — equal specificity, broader rule wins via source order */
+.md-hero--dashboard {
+  position: relative !important;  /* silently overridden */
+}
+
+/* RIGHT — compound selector raises specificity to 0,2,0 */
+.md-hero.md-hero--dashboard {
+  position: relative !important;
+}
+```
+
+The compound-selector trick generalizes: any time you need to beat
+a broader rule that's later in source AND has `!important`, chain
+two of the element's existing classes (or add an ancestor
+selector) rather than reaching for `!important` you already have.
+
+**Related** to the duplicate-selectors-in-app.scss pattern above —
+both stem from the file's size making source-order reasoning
+unreliable. Detection shortcut: when DevTools shows a property
+struck through despite `!important`, look at which rule is
+WINNING and check its specificity. If specificity is the same as
+yours, source order is the issue; bump specificity, don't add a
+second `!important`.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+---
+
+## Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together
+
+**Surface:** any new vendor JS library added to the codebase that
+also ships CSS (Shepherd, Bootstrap, jquery-minicolors, etc. — see
+the `app.import('node_modules/.../dist/css/...')` chain in
+[`ember-cli-build.js`](../../app/frontend/ember-cli-build.js)).
+
+**Symptom:** the library renders something on screen, but it's
+visually broken in non-obvious ways — modal overlays don't cover
+the page, dropdowns position outside their parents, headers
+collapse onto their cancel icons, popover arrows render at the
+wrong edge. Your custom theme overrides "look like" they should be
+enough, but the layout is missing fundamentals.
+
+**Root cause:** vendor CSS files typically ship TWO kinds of rules
+mixed together:
+- **Structural** — `position: fixed`, `width: 100vw`, `display:
+  flex`, `box-sizing: border-box`, `z-index: 9997`. These set up
+  the geometry the library's JS depends on.
+- **Decorative** — colors, fonts, shadows, border-radius. The
+  surface treatment you want to replace.
+
+Skipping the default import to "write our own styling from
+scratch" silently loses BOTH categories. The library's JS still
+runs, but its DOM has no geometry — the modal overlay defaults to
+`height: 0` (literally invisible); the header has no flex layout
+(title and cancel icon collide); the arrow has no positioning
+(floats inside the popover body).
+
+Concrete example from this spike: Shepherd.js's default
+`shepherd.css` was skipped. The popover rendered with my visual
+overrides applied, but the modal overlay didn't dim the page
+(default rule `.shepherd-modal-overlay-container.shepherd-modal-is-
+visible { height: 100vh }` was missing), the cancel × icon
+overlapped the title (default `.shepherd-header { display: flex;
+justify-content: flex-end }` was missing), and the arrow was
+mispositioned. Fix was to add ONE line:
+`app.import('node_modules/shepherd.js/dist/css/shepherd.css');`
+next to the existing Bootstrap CSS import.
+
+**Fix recipe:**
+
+1. Import the default CSS via `app.import` matching the existing
+   vendor-CSS convention in `ember-cli-build.js`.
+2. Write your brand overrides in `app.scss`. Source-order does the
+   layering for you — `app.css` (your overrides) is concatenated
+   AFTER `vendor.css` (the default), so your decorative rules win
+   while the structural rules from the default still apply.
+3. If you genuinely want to drop a specific default rule, override
+   it explicitly in your CSS rather than skipping the whole file.
+
+**Anti-pattern to avoid:** assuming "the library's JS handles
+positioning, the CSS is just visual." For libraries that use
+Popper.js or Floating UI for positioning (Shepherd, Tippy, modern
+dropdowns), the JS sets inline `transform: translate(x, y)` but
+the host element still needs CSS for `position: absolute`,
+`z-index`, and `box-sizing` — those come from the default
+stylesheet.
+
+**Detection shortcut:** if a vendor component looks "almost right
+but the layout is off," check whether the default CSS got
+imported. Run `grep -l "node_modules/<library>/dist/css"
+ember-cli-build.js` — if it returns nothing, you skipped it.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+## Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive
+
+After a successful registration, [`routes/register.js`](../../app/frontend/app/routes/register.js)
+calls `session.override(meta)` to write the new access token into the
+session. Under the hood, [`services/session.js#override`](../../app/frontend/app/services/session.js)
+calls `this.reload('/')`, which does `location.href = '/'` — **a hard
+browser navigation, not an Ember route transition**. Every in-memory
+property on app-state, every controller, every component instance is
+wiped. The app boots fresh from `/` with the persisted access token.
+
+**Trap:** if you need to signal something post-register (e.g.
+"auto-fire the home tour on first dashboard mount"), setting it on
+`appState` right before `session.override()` looks correct but is
+silently erased a few ms later. The downstream component reads
+`false` on mount and never fires.
+
+**Solution:** stash the signal in `sessionStorage` (or
+`localStorage`), then read + clear it atomically on the receiving
+side:
+
+```js
+// register.js save_done
+try { sessionStorage.setItem('ll_auto_open_home_tour', '1'); } catch (e) {}
+appState.set('auto_open_home_tour', true); // SPA fast-path
+session.override(meta);                    // triggers hard reload
+
+// home-tour.js didInsertElement
+try {
+  if (sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
+    sessionStorage.removeItem('ll_auto_open_home_tour');
+    this._scheduleAutoOpen();
+  }
+} catch (e) {}
+```
+
+Always wrap in try/catch — Safari private mode and disabled-storage
+browsers throw on access.
+
+**Detection shortcut:** if a "set flag on appState → check flag on
+the next route's component" pattern silently fails after registration
+or any other place that calls `session.override()` / `session.invalidate()`,
+grep that path for `location.href` or `location.reload()` to confirm
+a hard reload is in play.
+
+**First seen in:** post-registration home-tour auto-open work, traci/styling/styling-updates branch (2026-05-27)
+
+## Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations
+
+The codebase has `app/frontend/app/helpers/and.js` and
+`app/frontend/app/helpers/or.js` but no `not.js`, and
+`package.json` does NOT depend on `ember-truth-helpers`. Using
+`(not x)` in a template silently fails at render time — and on Ember
+3.28 the failure surfaces as a re-render loop with the cryptic
+"Attempted to rerender, but the Ember application has had an
+unrecoverable error" warning (often hundreds of times until the app
+becomes unresponsive). No stack trace, no source line.
+
+**Rule of thumb:** for template conditionals that need negation, do
+NOT reach for `(not x)`. Either:
+1. Add a `show_X` / `is_X_visible` computed property on the
+   controller/component that performs the negation in JS, then use
+   the simple `{{#if this.show_X}}` form in templates.
+2. Restructure with `{{#unless x}}…{{/unless}}` (built-in to Ember,
+   always available).
+
+Approach 1 is preferred when the same condition is consumed in
+multiple templates (single source of truth) or when the negation is
+combined with other conditions.
+
+**Detection shortcut:** if the page renders blank with "Loading…"
+and DevTools shows a flood of "Attempted to rerender" warnings, grep
+your recent template diffs for `(not ` — that's the most common
+culprit. Also worth checking: any custom helper used in a template
+that doesn't exist in `app/helpers/` (e.g. `(eq …)`, `(gt …)` —
+those aren't here either unless someone adds them).
+
+**First seen in:** [2026-05-27-subscribe-modal-modernization.md](./2026-05-27-subscribe-modal-modernization.md) (welcome-notice dismiss work)
+
+## Pattern: Cross-context CSS classes need scoped overrides — `.la-about-glass-card` is dark-landing AND light-modal
+
+Some "modern" component classes (e.g. `.la-about-glass-card`,
+`.la-pricing-card`) are shared between two very different surfaces:
+the **public landing/pricing pages** (dark gradient bg, glass cards
+with light text on a translucent white pane) and the
+**subscribe modal** (white modal bg, where those same classes would
+render with washed-out light text + glass-on-white blur). The base
+definitions are tuned for the dark surface.
+
+**Rule of thumb:** if you find a shared class rendering wrong in the
+light-mode surface, do NOT retune the base — that flips the public
+landing page. Instead add a scoped override under the modal/dashboard
+container:
+
+```scss
+.subscription-form-cards .la-about-glass-card {
+  background: linear-gradient(180deg, #fff, $surface-100);
+  backdrop-filter: none;
+  border: 1px solid var(--md-line);
+  color: var(--md-ink);
+  /* …light-bg variant of the same composition… */
+}
+```
+
+The override wins on specificity (2 classes vs 1), no `!important`
+needed. The base styling continues to serve the dark-landing
+context unchanged.
+
+**Detection shortcut:** if a card pulled from the public landing page
+"works but looks washed out" inside a modal, grep the class in
+app.scss — if the base rule references rgba(255,255,255,…) or
+backdrop-filter, you're seeing the dark-bg variant leak into a
+light-bg surface.
+
+**First seen in:** [2026-05-27-subscribe-modal-modernization.md](./2026-05-27-subscribe-modal-modernization.md)
+
+## Pattern: Modern checkboxes — filled family is canonical; pick the fill color from the brand palette per surface
+
+When modernizing a checkbox cluster, the codebase has two visual
+families but the **filled family is the canonical "modern" look**.
+The white-on-white "form pattern" exists historically on
+`.md-edit-profile__form` and `.md-preferences__form` but it's NOT
+what to copy on new modernization passes — confirmed in
+[2026-05-27-register-checkboxes-modern.md](./2026-05-27-register-checkboxes-modern.md)
+when the white-on-white attempt was rejected for being inconsistent.
+
+| Family | Where used | Visual signature | When to pick |
+|---|---|---|---|
+| **Filled (canonical)** | `.md-modal-check` (`$brand-charcoal-blue`), `.la-board-privacy-boards` (`$brand-verdigris`), `.new-board--modern` (`$brand-stormy-teal`), `.register-checkboxes` (`$brand-slate-blue`) | 18–22px, hairline border at rest, filled brand-color bg on `:checked`, white rotated-rectangle tick | Default — any new "modern this checkbox" task |
+| **White-on-white (legacy form)** | `.md-edit-profile__form`, `.md-preferences__form` | 18×18, white bg even when checked, charcoal-blue tick on white | Don't copy. If you touch those forms, consider migrating them to the filled family too. |
+
+**Picking the fill color:** match the surface tone. Slate-blue for
+neutral account/auth forms (register). Charcoal-blue for modals and
+neutral overlays. Verdigris for permission/privacy toggles. Stormy-teal
+for the new-board wizard. The shape (18×18, 4px radius, hairline
+border, white tick at `top:2px;left:5px;w:5px;h:10px;rotate(45deg)`)
+is identical across all of them.
+
+**Trap:** the Bootstrap-era `.big_checkbox` rule at
+[`app.scss:6942`](../../app/frontend/app/styles/app.scss#L6942) uses
+`position: absolute` + a 24px box hung off `left: 20px` inside its
+wrapper. Modern checkboxes use `position: relative` inside the label
+inline. Override BOTH (positioning + visuals) and zero out the
+wrapper's `padding-left: 30px` (which only made sense for the
+absolute layout) — `.md-edit-profile__form .big_checkbox
+{ padding-left: 0 !important; }` does exactly this.
+
+**First seen in:** [2026-05-27-register-checkboxes-modern.md](./2026-05-27-register-checkboxes-modern.md)
+
+## Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering
+
+The boards endpoint returns the raw library: a copied board set
+contributes both its root tile AND every sub-board copy underneath
+it. On real accounts this inflates 14 visible roots to 419 records.
+Any UI surface that wants a count matching what the user *sees as
+tiles* must apply the root-vs-copy clustering, not the raw
+`my_boards.length` or paginated `store.query('board', { user_id })`
+total.
+
+Filter is in [`app/frontend/app/utils/board-roots.js`](../../app/frontend/app/utils/board-roots.js)
+(`filterRootBoards(boards, userId)`):
+
+- shallow roots: id shape `<copyId>-<userId>` with copy_id null/self
+- regular roots: copy_id null or equals own id
+- everything else is a copy → drop
+
+Used by `myBoardsRoots` on [`controllers/user/index.js`](../../app/frontend/app/controllers/user/index.js)
+(boards-page BOARDS chip / `myBoardsTileCount`) and by `boardCount`
+on [`components/dashboard/authenticated-view.js`](../../app/frontend/app/components/dashboard/authenticated-view.js)
+(home-tab Boards stat). If another surface needs an "owned board
+count," reach for the util — don't re-read `length` off the raw
+query.
+
+**First seen in:** [2026-05-27-home-board-count-roots-only.md](./2026-05-27-home-board-count-roots-only.md)
 
 ---
 

@@ -10,9 +10,12 @@
         <button class="btn btn-default" {{action "approve_or_reject_org" "user_approve" target=this.boardsCtrl}}>{{t "Approve %{org}" org=this.boardsCtrl.model.pending_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "user_reject" target=this.boardsCtrl}}>{{t "Deny Access"}}</button>
       </div>
-    {{else if this.boardsCtrl.model.pending}}
-      <div class='alert alert-success' style="margin-bottom: 16px;">
-        {{t "Welcome to %app_name%! Watch for an email from us in your inbox." key="welcome_remember_confirm"}}
+    {{else if this.boardsCtrl.show_welcome_notice}}
+      <div class="ll-welcome-notice" role="status">
+        <span class="ll-welcome-notice__text">{{t "Welcome to %app_name%! Watch for an email from us in your inbox." key="welcome_remember_confirm"}}</span>
+        <button type="button" class="ll-welcome-notice__close" {{action "dismiss_welcome_notice" target=this.boardsCtrl}} aria-label={{t "Dismiss" key="dismiss"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     {{else if this.boardsCtrl.model.expired}}
       {{#if this.appState.feature_flags.subscriptions}}
@@ -40,7 +43,6 @@
       </div>
 
       <div class="ub-boards-page__getting-started-actions">
-        <a href="#" class="ub-boards-page__gs-secondary-btn" {{action "newBoard" target=this.dashboardDelegate}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
         <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
@@ -95,7 +97,11 @@
         {{/if}}
       </h2>
       <button class="md-btn md-btn--primary ub-boards-page__new-board-btn" type="button" {{action "newBoard" target=this.dashboardDelegate}}>
-        + {{t "New Board" key="create_a_new_board"}}
+        {{#if this.boardsCtrl.is_boards_empty}}
+          + {{t "Create Your First Board" key="create_first_board"}}
+        {{else}}
+          + {{t "New Board" key="create_a_new_board"}}
+        {{/if}}
       </button>
     </div>
 

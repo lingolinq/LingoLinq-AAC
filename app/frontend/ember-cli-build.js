@@ -26,6 +26,24 @@ module.exports = function (defaults) {
     },
     sassOptions: {
       implementation: require('sass')
+    },
+    // ember-auto-import (pulled in by `ember-shepherd` v2 addon
+    // format) would otherwise bundle the npm `jquery` package as a
+    // fresh ES module — creating a SECOND jQuery instance distinct
+    // from the one our vendor-loaded Bootstrap JS (line 65 below)
+    // extends with `.popover` / `.dropdown` / `.tooltip` plugins.
+    // First call to `$(...).popover(...)` then dies with
+    // "popover is not a function".
+    // Standard fix from ember-auto-import's own README ("I'm trying
+    // to load a jQuery plugin, but it doesn't attach itself to the
+    // copy of jQuery that's already in my Ember app"): mark jquery
+    // as a webpack external so auto-import resolves `import $ from
+    // 'jquery'` to the global window.jQuery — same instance
+    // Bootstrap extended.
+    autoImport: {
+      webpack: {
+        externals: { jquery: 'jQuery' }
+      }
     }
   });
 
@@ -44,6 +62,11 @@ module.exports = function (defaults) {
   // Import CSS files
   app.import('node_modules/bootstrap/dist/css/bootstrap.min.css');
   app.import('node_modules/jquery-minicolors/jquery.minicolors.css');
+  // Shepherd's default CSS supplies layout-critical structural rules
+  // (modal overlay sizing, header flex layout, arrow positioning,
+  // z-index ordering). Our brand visual overrides in app.scss layer
+  // on top via source order — app.css is concatenated AFTER vendor.css.
+  app.import('node_modules/shepherd.js/dist/css/shepherd.css');
 
   // Import JS files
   app.import('node_modules/indexeddbshim/dist/indexeddbshim.min.js');

@@ -23,13 +23,18 @@ export default Controller.extend({
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
   }),
-  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupUserName', 'googleSignupTerms', 'showCoppaConsent', 'coppa_age_group', function() {
+  googleSignupSubmitDisabled: computed('googleSignupBusy', 'googleSignupUserName', 'googleSignupTerms', 'showCoppaConsent', 'coppa_age_group', 'age_attested', function() {
     if(this.get('googleSignupBusy')) { return true; }
     if(!this.get('googleSignupTerms')) { return true; }
     if((this.get('googleSignupUserName') || '').trim().length === 0) { return true; }
     if(this.get('showCoppaConsent')) {
       if(!this.get('coppa_age_group')) { return true; }
       if(this.get('coppa_age_group') === 'under_13') { return true; }
+    } else {
+      // Mainline (non-COPPA) path: require explicit 13+ attestation.
+      // When `showCoppaConsent` is true the radio-button flow above
+      // already gates age, so don't double-require this checkbox.
+      if(!this.get('age_attested')) { return true; }
     }
     return false;
   }),
@@ -82,6 +87,50 @@ export default Controller.extend({
     if(!pe) { return true; }
     if(pe.toLowerCase() === ce) { return true; }
     return false;
+  }),
+  // Mainline 13+ attestation. Required only when the COPPA flow is
+  // OFF (domains without parental-consent UI). The COPPA-enabled path
+  // already handles age via the radio-group at register.hbs:144-178,
+  // so we don't double-gate. `age_attested` is checkbox-bound;
+  // `ageAttestationRequired` shows the inline error message when the
+  // user tried to submit without checking.
+  age_attested: false,
+  // Combined consent — the single checkbox on the register form now
+  // confirms BOTH age (13+) and ToS agreement. Reading returns true
+  // only when both underlying flags are set; writing mirrors the new
+  // value into both, so all existing validation gates (ageBlocksSave,
+  // googleSignupSubmitDisabled, the submit path that reads
+  // model.terms_agree) continue to work unchanged. The Google-signup
+  // variant has its own pair (age_attested + googleSignupTerms).
+  combined_consent: computed('age_attested', 'model.terms_agree', {
+    get() {
+      return !!this.get('age_attested') && !!this.get('model.terms_agree');
+    },
+    set(key, value) {
+      var v = !!value;
+      this.set('age_attested', v);
+      this.set('model.terms_agree', v);
+      return v;
+    }
+  }),
+  combined_google_consent: computed('age_attested', 'googleSignupTerms', {
+    get() {
+      return !!this.get('age_attested') && !!this.get('googleSignupTerms');
+    },
+    set(key, value) {
+      var v = !!value;
+      this.set('age_attested', v);
+      this.set('googleSignupTerms', v);
+      return v;
+    }
+  }),
+  ageAttestationRequired: computed('triedToSave', 'age_attested', 'showCoppaConsent', function() {
+    if(this.get('showCoppaConsent')) { return false; }
+    return this.get('triedToSave') && !this.get('age_attested');
+  }),
+  ageBlocksSave: computed('triedToSave', 'showCoppaConsent', 'age_attested', function() {
+    if(!this.get('triedToSave') || this.get('showCoppaConsent')) { return false; }
+    return !this.get('age_attested');
   }),
   googleSsoEnabled: computed('appState.feature_flags.google_sso', function() {
     return !!this.get('appState.feature_flags.google_sso');
