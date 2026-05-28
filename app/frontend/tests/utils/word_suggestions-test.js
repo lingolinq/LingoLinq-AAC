@@ -27,6 +27,8 @@ describe('word_suggestions', function() {
     word_suggestions.last_finished_word = null;
     word_suggestions.last_result = null;
     word_suggestions.word_in_progress = null;
+    word_suggestions.last_time_bucket = null;
+    word_suggestions.last_topic_context = null;
   });
   describe("lookup", function() {
     it("should suggest words", function() {

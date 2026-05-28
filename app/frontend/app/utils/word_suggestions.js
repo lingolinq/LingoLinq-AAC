@@ -438,6 +438,7 @@ var word_suggestions = EmberObject.extend({
       var word_in_progress = options.word_in_progress;
       if(word_in_progress) { word_in_progress = word_in_progress.replace(/\s+$/, '').toLowerCase(); }
       var topic_context = options.topic_context || options.topic || '';
+      var normalized_topic = normalize_prediction_key(topic_context);
       var now_ms = options.now_ms || Date.now();
       var time_bucket = options.time_of_day || time_of_day_bucket_for_date(new Date(now_ms));
 
@@ -480,10 +481,12 @@ var word_suggestions = EmberObject.extend({
       }
 
       var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
-      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift) {
+      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic) {
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;
         _this.second_to_last_word = second_to_last_word;
+        _this.last_time_bucket = time_bucket;
+        _this.last_topic_context = normalized_topic;
         // TODO: is there an easy way to include two prior words?
         _this.word_in_progress = word_in_progress;
 
