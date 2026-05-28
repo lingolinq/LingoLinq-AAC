@@ -1100,6 +1100,15 @@ class User < ApplicationRecord
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
       'board_intros']
   def process_params(params, non_user_params)
+    # Defensive guard: `settings['admin']` may only be set via
+    # non_user_params['admin'] (see ~line 1485 below). Strip any
+    # client-supplied `admin` flag before any other processing so it
+    # can NEVER be smuggled through if a future controller path
+    # passes user params unfiltered. Belt-and-suspenders against
+    # privilege-escalation regressions — admin assignment must stay
+    # an out-of-band action (console or Admin-org manager membership).
+    params.delete('admin') if params.respond_to?(:delete)
+    params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
     ['name', 'description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
@@ -1254,6 +1263,35 @@ class User < ApplicationRecord
         val = true if val == 'true'
         val = false if val == 'false'
         self.settings['preferences'][attr] = val
+      end
+    end
+    # On INITIAL registration only, derive preferences.role from the
+    # picked registration_type so the canonical app-wide gate
+    # (preferences.role == 'supporter' → frontend `supporter_role`)
+    # actually reflects what the user told us at signup. Without this
+    # mapping the role defaults to 'communicator' for everyone
+    # regardless of pick — a real product gap because supporters
+    # then run in communicator-shaped UI until they manually flip
+    # Account View in /<user>/preferences.
+    #
+    # Gated on `new_record?` so users who later switch their Account
+    # View aren't overwritten back on subsequent edits to other
+    # preferences (e.g. updating their cookies setting).
+    #
+    # Values not in either list (`eval`, `manually-added-org-user`,
+    # `individual`, etc.) leave preferences.role at its default
+    # ('communicator' — set in User.preference_defaults['authenticated_user']).
+    # Rationale: those values describe non-self-service or
+    # device-account contexts where the role is configured later
+    # by an admin or the per-device override.
+    if self.new_record? && self.settings['preferences'] &&
+       self.settings['preferences']['registration_type'].present?
+      rt = self.settings['preferences']['registration_type']
+      if rt == 'communicator'
+        self.settings['preferences']['role'] = 'communicator'
+      elsif ['therapist', 'parent', 'teacher', 'other',
+             'manually-added-supervisor'].include?(rt)
+        self.settings['preferences']['role'] = 'supporter'
       end
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?

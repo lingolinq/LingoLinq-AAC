@@ -724,7 +724,23 @@
       {{/unless}}
     {{/if}}
   {{else}}
-    <p class="ub-boards-page__loading">{{t "None found" key="none_found"}}</p>
+    {{!-- Empty state: shown when the current user has no boards
+         (or the active filter/tab returns no results). Reuses the
+         existing `no_boards_yet` and `create_first_board` keys plus
+         a new supporting line. CTA bubbles `newBoard` up to the
+         application route, same as the header `+ New Board` pill. --}}
+    <div class="ub-boards-page__empty" role="status">
+      <span class="ub-boards-page__empty-icon" aria-hidden="true">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+      </span>
+      <h3 class="ub-boards-page__empty-title">{{t "You don't have any boards yet" key="no_boards_yet"}}</h3>
+      <p class="ub-boards-page__empty-subtitle">{{t "Create your first board and it'll appear here." key="boards_empty_subtitle"}}</p>
+    </div>
   {{/if}}
 {{/if}}
 

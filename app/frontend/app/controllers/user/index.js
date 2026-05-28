@@ -13,6 +13,7 @@ import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
+import { filterRootBoards } from '../../utils/board-roots';
 
 function invertBoardTagMap(map) {
   var inv = {};
@@ -48,6 +49,36 @@ export default Controller.extend({
   // Explicit injection for app_state to avoid implicit injection deprecation warning
 
   // Explicit injection for persistence to avoid implicit injection deprecation warning
+
+  // Welcome notice ("Watch for an email from us...") shown on boards
+  // pages while model.pending. Once the user clicks the close button
+  // we flip this flag and the notice hides for the remainder of this
+  // controller's lifetime (i.e. until next page load — the notice is
+  // a reminder to confirm a pending email, so re-appearing on reload
+  // is intentional). See user/index.hbs, user/boards.hbs, and
+  // components/dashboard-user-boards.hbs for the consumers.
+  welcome_notice_dismissed: false,
+  // Pre-computed gate so templates don't need a `(not …)` helper —
+  // the codebase only ships `and.js` and `or.js` in app/helpers, so
+  // `(not x)` silently fails at render time. Use this in templates
+  // via `{{#if this.show_welcome_notice}}` (or
+  // `this.boardsCtrl.show_welcome_notice` inside dashboard-user-boards).
+  show_welcome_notice: computed('model.pending', 'welcome_notice_dismissed', function() {
+    return !!this.get('model.pending') && !this.get('welcome_notice_dismissed');
+  }),
+  // True when board_list has finished loading and has zero results.
+  // Drives the empty-state composition in available-boards-section
+  // AND flips the header `+ New Board` pill to `+ Create Your First
+  // Board` (boards-browser.hbs + dashboard-user-boards.hbs) so the
+  // header CTA aligns with the empty-state message in the body.
+  is_boards_empty: computed('board_list', 'board_list.loading', 'board_list.error', 'board_list.results.length', function() {
+    var list = this.get('board_list');
+    if (!list) { return false; }
+    if (list.loading) { return false; }
+    if (list.error) { return false; }
+    var results = list.results;
+    return !results || (results.length || 0) === 0;
+  }),
 
   // Board Stats accordion (user.boards page) — collapsed by default
   // so the stats-row only shows when the user explicitly expands it.
@@ -283,49 +314,11 @@ export default Controller.extend({
      in mineTagFolderSummaries: enumerate what the user actually sees
      as a TILE, not the raw my_boards (which includes every sub-board
      copy in the user's library, inflating 14 visible roots to 419
-     records).
-
-     Uses the same root-vs-copy clustering as board_list above:
-       - shallow roots: id with a `-` shape whose user_id half matches
-         model.id AND copy_id is null/self
-       - regular root: copy_id null OR equal to own id
-       - everything else is a copy (child) — not a tile of its own.
-
-     Returns an empty array while my_boards is still loading. */
+     records). Filter logic lives in utils/board-roots so the home
+     dashboard can apply the same clustering against its own fetched
+     pool. Returns an empty array while my_boards is still loading. */
   myBoardsRoots: computed('model.my_boards.[]', 'model.id', function() {
-    var boards = this.get('model.my_boards');
-    if (!boards || !boards.forEach || !boards.length) { return []; }
-    var modelId = this.get('model.id');
-    var shallowRootKeys = Object.create(null);
-    boards.forEach(function(b) {
-      if (!b) { return; }
-      var bidRaw = emberGet(b, 'id');
-      if (bidRaw == null || bidRaw === '') { return; }
-      var bid = String(bidRaw);
-      var copyId = emberGet(b, 'copy_id');
-      if (bid.match(/-/) && (!copyId || copyId == bid || copyId == bid.split(/-/)[0])) {
-        var user_id = bid.split(/-/)[1];
-        if (user_id == modelId) {
-          shallowRootKeys[copyId || bid.split(/-/)[0]] = true;
-        }
-      }
-    });
-    var roots = [];
-    boards.forEach(function(b) {
-      if (!b) { return; }
-      var bidRaw = emberGet(b, 'id');
-      if (bidRaw == null || bidRaw === '') { return; }
-      var bid = String(bidRaw);
-      var copyId = emberGet(b, 'copy_id');
-      if (bid.match(/-/) && bid.split(/-/)[1] == modelId && copyId && shallowRootKeys[copyId]) {
-        return; // shallow clone of a shallow root
-      }
-      if (copyId && copyId != bid) {
-        return; // regular copy — child of a root tile
-      }
-      roots.push(b);
-    });
-    return roots;
+    return filterRootBoards(this.get('model.my_boards'), this.get('model.id'));
   }),
   myBoardsTileCount: computed('myBoardsRoots.[]', function() {
     return (this.get('myBoardsRoots') || []).length;
@@ -1079,6 +1072,9 @@ export default Controller.extend({
   actions: {
     toggle_board_stats: function() {
       this.toggleProperty('board_stats_expanded');
+    },
+    dismiss_welcome_notice: function() {
+      this.set('welcome_notice_dismissed', true);
     },
     sync: function() {
       console.debug('syncing because manually triggered');

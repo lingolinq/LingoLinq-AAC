@@ -40,7 +40,7 @@ export default Route.extend({
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave') || controller.get('ageBlocksSave')) {
         return;
       }
       if(controller.get('showCoppaConsent')) {
@@ -69,6 +69,29 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
+          // TEMPORARILY 2026-05-27: route newly-registered users
+          // directly into the home-page tour instead of the subscribe
+          // modal (which is suppressed in
+          // components/dashboard/authenticated-view.js#subscription_check).
+          //
+          // session.override() below does a hard `location.href = '/'`
+          // reload (see services/session.js#reload), which wipes any
+          // in-memory appState we set here. We stash the auto-open
+          // signal in sessionStorage so it survives the reload; the
+          // HomeTour component (components/home-tour.js) reads + clears
+          // it on mount. Also set the in-memory flag for any SPA path
+          // where session.override doesn't end up reloading.
+          //
+          // Renders only when the home_tour feature flag is on (gated
+          // in templates/components/dashboard/authenticated-view.hbs),
+          // so this is a no-op when the flag is off.
+          //
+          // To revert: remove both signals here and restore the
+          // grace_period branch in subscription_check.
+          try {
+            sessionStorage.setItem('ll_auto_open_home_tour', '1');
+          } catch (e) { /* private mode / disabled — fall back to in-memory flag */ }
+          _this.appState.set('auto_open_home_tour', true);
           _this.appState.return_to_index();
           if(meta && meta.access_token) {
             _this.get('session').override(meta);

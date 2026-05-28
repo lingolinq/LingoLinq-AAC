@@ -47,6 +47,15 @@ file (see [README.md](README.md)).
 - [Pattern: Query-count specs must be verified to FAIL against the broken state — otherwise they're no-ops](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)
 - [Pattern: For component tests in this codebase, use legacy Jasmine — not `setupApplicationTest` + Mirage (which hangs)](#pattern-for-component-tests-in-this-codebase-use-legacy-jasmine--not-setupapplicationtest--mirage-which-hangs)
 - [Pattern: Canvas component tests use a context-recorder stub, not pixel inspection](#pattern-canvas-component-tests-use-a-context-recorder-stub-not-pixel-inspection)
+- [Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim](#pattern-installing-a-v2-format-ember-addon-on-ember-328-requires-ember-auto-import--a-jquery-externals-shim)
+- [Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence](#pattern-same-named-computeds-defined-across-modelcomponentcontroller-are-widespread-and-often-diverge--gate-visibility-dependent-code-on-dom-presence)
+- [Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+- [Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together](#pattern-third-party-css--import-the-default-first-then-override-the-structural-rules-and-the-decorative-ones-ship-together)
+- [Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive](#pattern-sessionoverride-does-a-full-page-reload--in-memory-appstate-set-in-register-flow-doesnt-survive)
+- [Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations](#pattern-this-codebase-ships-and-and-or-template-helpers-but-not-not--pre-compute-negations)
+- [Pattern: Cross-context CSS classes need scoped overrides — `.la-about-glass-card` is dark-landing AND light-modal](#pattern-cross-context-css-classes-need-scoped-overrides--la-about-glass-card-is-dark-landing-and-light-modal)
+- [Pattern: Modern checkboxes split into two families — pick by surface type, not aesthetic preference](#pattern-modern-checkboxes-split-into-two-families--pick-by-surface-type-not-aesthetic-preference)
+- [Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering](#pattern-apiv1boardsuser_idx-returns-every-owned-board-including-sub-board-copies--visible-tile-counts-need-root-clustering)
 
 ---
 
@@ -1495,3 +1504,462 @@ expect(() => component.render_canvas()).not.toThrow();
 **First seen in:** [2026-05-27-pr281-test-coverage.md](./2026-05-27-pr281-test-coverage.md)
 — Scot #3 + Scot #5 test coverage for the offline-indicator + per-cell
 fallback added to board-preview-canvas.
+
+---
+
+## Pattern: Installing a v2-format Ember addon on Ember 3.28 requires ember-auto-import + a jquery externals shim
+
+**Surface:** any future Ember addon install on this codebase
+(Ember 3.28, `jquery-integration: false`, Bootstrap JS vendor-loaded
+via `app.import` in
+[`ember-cli-build.js`](../../app/frontend/ember-cli-build.js)).
+
+**Symptom (round 1):** build fails with
+`<app> needs to depend on ember-auto-import in order to use
+<addon-name>`. **Symptom (round 2, after fixing round 1):** app loads
+the chrome but every Bootstrap jQuery plugin call dies with
+e.g. `(0, _jquery.default)(...).popover is not a function`,
+`...dropdown is not a function`, etc. — most visible at
+[`app-state.js:2282`](../../app/frontend/app/services/app-state.js#L2282)
+which calls `$('#speak_mode').popover('destroy')` from
+`dom_changes_on_board_state_change` during route setup, leaving the
+whole index route blank.
+
+**Detection shortcut before installing:**
+`grep -l "addon-main.cjs" node_modules/<addon>/package.json` — if
+found, the addon is v2-format and mandates ember-auto-import. The
+addon's published `peerDependencies` entry `^3.28.0 || >= 4.0.0`
+is a MINIMUM, not a maximum — it doesn't tell you about the legacy
+jQuery pipeline collision.
+
+**Root cause:** v2 addons declare their app-js manifest through
+`addon-main.cjs`, which only resolves when `ember-auto-import` is
+installed. Installing ember-auto-import then turns on its global
+import scanner — it sees `import $ from 'jquery'` in app code (10+
+files in this repo) and bundles the npm jquery as a SEPARATE ES
+module. The vendor-concat `bootstrap.min.js` extended the LEGACY
+`window.jQuery` with `.popover` / `.dropdown` / `.tooltip` plugins;
+the npm-bundled instance has none of them. Two jQuery instances,
+one with plugins, one without.
+
+**Fix recipe:**
+
+1. Install ember-auto-import directly: `npm install --save-dev
+   ember-auto-import@^2`. `ember install <addon>` adds it for you;
+   plain `npm install <addon>` does not.
+2. Add the externals shim from ember-auto-import's own README
+   ([line 351-364](../../app/frontend/node_modules/ember-auto-import/README.md))
+   to [`ember-cli-build.js`](../../app/frontend/ember-cli-build.js):
+   ```js
+   autoImport: {
+     webpack: {
+       externals: { jquery: 'jQuery' }
+     }
+   }
+   ```
+   This tells webpack to leave `import $ from 'jquery'` resolving
+   to the global `window.jQuery` rather than re-bundling.
+3. Static verification after the fix:
+   `grep "jQuery JavaScript Library" dist/assets/*.js` should
+   match ONLY `vendor.js` — never `frontend.js` or an
+   auto-import chunk. If it matches a second file, you have two
+   jQuery instances again.
+
+**Anti-pattern to avoid:** don't claim "compatible with Ember 3.28"
+based on the addon's peerDeps alone. Validate the broader install
+path against THIS codebase's actual build config first:
+[`config/optional-features.json`](../../app/frontend/config/optional-features.json)
+(jquery-integration), `ember-cli-build.js` vendor concats, anything
+in `vendor/`. The peer-dep line is a minimum; this codebase's
+legacy pipeline is the maximum.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+---
+
+## Pattern: Same-named computeds defined across model/component/controller are widespread and often diverge — gate visibility-dependent code on DOM presence
+
+**Surface:** any code that needs to mirror a visibility / availability
+state already computed by another part of the app — tours, onboarding
+flows, modals that target conditionally-rendered elements, or any
+"is the X card showing right now?" check.
+
+**Symptom:** the dependent code "silently does nothing" or skips a
+step when the source-of-truth check passes — e.g. a tour step skips
+even though the target element is rendered on the page; a modal
+fires its callback but the action no-ops because the gate evaluated
+differently than what the user can see.
+
+**Root cause:** the codebase has 357 distinct computed-property
+names defined in 2+ files, 40+ of them spanning multiple layer
+types (model + component, component + controller). Spot-checks
+confirm divergent logic is the norm, not the exception:
+- **`has_management_responsibility`** —
+  [`user.js:124`](../../app/frontend/app/models/user.js#L124)
+  returns `managed_orgs.length > 0`;
+  [`dashboard/authenticated-view.js:487`](../../app/frontend/app/components/dashboard/authenticated-view.js#L487)
+  returns `managed_orgs.length > 0 || supporter_role`. The dashboard
+  card shows for supporters even without managed orgs; the model
+  computed says they have no management responsibility.
+- **`has_supervisees`** — 6 definitions, 4 different logical
+  interpretations (some include `known_supervisees`, some include
+  `managed_orgs`, some neither).
+- **`needs_sync`** — 3 definitions, 3 different algorithms.
+- **`managed_orgs`** — 3 definitions with identical filter logic
+  but different sources (`appState.currentUser.organizations` vs
+  `app_state.currentUser.organizations` (legacy alias) vs the
+  model's raw `organizations`).
+
+Calling the wrong one passes type-check, doesn't error, and returns
+a misleading value. This is a special case of the "silent wrong
+behavior" meta-pattern above, with a specific remedy.
+
+**Fix recipe for visibility-gated code:** gate on the actual
+rendered DOM, not on a computed property:
+
+```js
+// WRONG — duplicates business logic, drifts when the source
+// component's gate changes, and may call the wrong definition.
+var manager = !!this.get('appState.sessionUser.has_management_responsibility');
+if (manager) { steps.push({ attachTo: { element: '.md-card--org-management', ... }, ... }); }
+
+// RIGHT — gate directly on whether the target is on the page.
+// Self-correcting if the source component's visibility logic
+// changes; impossible to get wrong because the anchor must
+// exist for the tour step to attach anyway.
+var orgCardVisible = !!document.querySelector('.md-card--org-management');
+if (orgCardVisible) { steps.push({ attachTo: { element: '.md-card--org-management', ... }, ... }); }
+```
+
+**For non-visibility code** (e.g. business-logic decisions that
+aren't about "is this element shown?"): grep the property name
+before calling it. If multiple definitions exist, READ all of them
+and either pick the right one with eyes open, or rename your local
+version to disambiguate.
+
+**Detection shortcut** (run from `app/frontend/`):
+```bash
+grep -rEn "^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*:\s*computed\(" \
+  app/components app/controllers app/models app/services app/routes \
+  | sed -E 's|.*:[0-9]+:\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*computed.*|\1|' \
+  | sort | uniq -c | awk '$1 > 1' | sort -rn
+```
+Names with high counts that are obvious UI primitives
+(`elem_style`, `num_style`, `text_class`) are usually benign per-
+component repetition. Names with 2-4 hits that look semantically
+meaningful (`has_*`, `*_options`, `is_*`) are the high-risk ones.
+
+**Why a global fix isn't right today:** consolidating these into
+mixins/services or adding an ESLint rule needs architectural
+decisions about which definition is canonical — that's a team-level
+discussion, not a unilateral refactor. The DOM-presence pattern
+above is the per-task remedy that doesn't require touching shared
+business logic.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+— first hit at `has_management_responsibility`, audit run from the
+same session confirmed the breadth.
+
+---
+
+## Pattern: `!important` does not beat source order at equal specificity — bump specificity with a compound selector instead
+
+**Surface:** any attempt to override a rule in `app.scss` that
+already carries `!important`. Most common when targeting an element
+that's already styled by a broad selector with `!important` (e.g.
+`.md-hero`, `.md-card`, `.md-btn`) and you want a variant-specific
+override.
+
+**Symptom:** your override is the LATER rule in source, both have
+`!important`, and your styles silently don't take effect. DevTools
+shows your rule struck through; the broader rule wins.
+
+**Root cause:** CSS cascade resolution at equal specificity falls
+back to source order — the later rule wins. `!important` only
+elevates a declaration into the "important" cascade origin; it does
+NOT compete with source order within that origin. When BOTH rules
+have `!important` AND equal specificity, source order STILL
+decides. If your override is EARLIER in `app.scss` than the rule
+you're trying to beat, you lose regardless of `!important`.
+
+Concrete example from this spike: `.md-hero--dashboard
+{ position: relative !important; }` at line ~27688 lost to
+`.md-hero { position: static !important; }` at line ~38413, because
+both are `0,1,0` specificity and the `.md-hero` rule comes later.
+DevTools showed `position: BODY` (the absolutely-positioned child's
+offsetParent fell through to `<body>`), not `.md-hero--dashboard`
+as intended.
+
+**Fix recipe:** bump specificity instead of source order. The
+two-class compound selector `.md-hero.md-hero--dashboard` is `0,2,0`
+specificity and beats the single-class `.md-hero` (`0,1,0`)
+regardless of which is later in the file:
+
+```scss
+/* WRONG — equal specificity, broader rule wins via source order */
+.md-hero--dashboard {
+  position: relative !important;  /* silently overridden */
+}
+
+/* RIGHT — compound selector raises specificity to 0,2,0 */
+.md-hero.md-hero--dashboard {
+  position: relative !important;
+}
+```
+
+The compound-selector trick generalizes: any time you need to beat
+a broader rule that's later in source AND has `!important`, chain
+two of the element's existing classes (or add an ancestor
+selector) rather than reaching for `!important` you already have.
+
+**Related** to the duplicate-selectors-in-app.scss pattern above —
+both stem from the file's size making source-order reasoning
+unreliable. Detection shortcut: when DevTools shows a property
+struck through despite `!important`, look at which rule is
+WINNING and check its specificity. If specificity is the same as
+yours, source order is the issue; bump specificity, don't add a
+second `!important`.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+---
+
+## Pattern: Third-party CSS — import the default first, then override; the structural rules and the decorative ones ship together
+
+**Surface:** any new vendor JS library added to the codebase that
+also ships CSS (Shepherd, Bootstrap, jquery-minicolors, etc. — see
+the `app.import('node_modules/.../dist/css/...')` chain in
+[`ember-cli-build.js`](../../app/frontend/ember-cli-build.js)).
+
+**Symptom:** the library renders something on screen, but it's
+visually broken in non-obvious ways — modal overlays don't cover
+the page, dropdowns position outside their parents, headers
+collapse onto their cancel icons, popover arrows render at the
+wrong edge. Your custom theme overrides "look like" they should be
+enough, but the layout is missing fundamentals.
+
+**Root cause:** vendor CSS files typically ship TWO kinds of rules
+mixed together:
+- **Structural** — `position: fixed`, `width: 100vw`, `display:
+  flex`, `box-sizing: border-box`, `z-index: 9997`. These set up
+  the geometry the library's JS depends on.
+- **Decorative** — colors, fonts, shadows, border-radius. The
+  surface treatment you want to replace.
+
+Skipping the default import to "write our own styling from
+scratch" silently loses BOTH categories. The library's JS still
+runs, but its DOM has no geometry — the modal overlay defaults to
+`height: 0` (literally invisible); the header has no flex layout
+(title and cancel icon collide); the arrow has no positioning
+(floats inside the popover body).
+
+Concrete example from this spike: Shepherd.js's default
+`shepherd.css` was skipped. The popover rendered with my visual
+overrides applied, but the modal overlay didn't dim the page
+(default rule `.shepherd-modal-overlay-container.shepherd-modal-is-
+visible { height: 100vh }` was missing), the cancel × icon
+overlapped the title (default `.shepherd-header { display: flex;
+justify-content: flex-end }` was missing), and the arrow was
+mispositioned. Fix was to add ONE line:
+`app.import('node_modules/shepherd.js/dist/css/shepherd.css');`
+next to the existing Bootstrap CSS import.
+
+**Fix recipe:**
+
+1. Import the default CSS via `app.import` matching the existing
+   vendor-CSS convention in `ember-cli-build.js`.
+2. Write your brand overrides in `app.scss`. Source-order does the
+   layering for you — `app.css` (your overrides) is concatenated
+   AFTER `vendor.css` (the default), so your decorative rules win
+   while the structural rules from the default still apply.
+3. If you genuinely want to drop a specific default rule, override
+   it explicitly in your CSS rather than skipping the whole file.
+
+**Anti-pattern to avoid:** assuming "the library's JS handles
+positioning, the CSS is just visual." For libraries that use
+Popper.js or Floating UI for positioning (Shepherd, Tippy, modern
+dropdowns), the JS sets inline `transform: translate(x, y)` but
+the host element still needs CSS for `position: absolute`,
+`z-index`, and `box-sizing` — those come from the default
+stylesheet.
+
+**Detection shortcut:** if a vendor component looks "almost right
+but the layout is off," check whether the default CSS got
+imported. Run `grep -l "node_modules/<library>/dist/css"
+ember-cli-build.js` — if it returns nothing, you skipped it.
+
+**First seen in:** [2026-05-27-shepherd-home-tour-spike.md](./2026-05-27-shepherd-home-tour-spike.md)
+
+## Pattern: `session.override()` does a full page reload — in-memory appState set in register flow doesn't survive
+
+After a successful registration, [`routes/register.js`](../../app/frontend/app/routes/register.js)
+calls `session.override(meta)` to write the new access token into the
+session. Under the hood, [`services/session.js#override`](../../app/frontend/app/services/session.js)
+calls `this.reload('/')`, which does `location.href = '/'` — **a hard
+browser navigation, not an Ember route transition**. Every in-memory
+property on app-state, every controller, every component instance is
+wiped. The app boots fresh from `/` with the persisted access token.
+
+**Trap:** if you need to signal something post-register (e.g.
+"auto-fire the home tour on first dashboard mount"), setting it on
+`appState` right before `session.override()` looks correct but is
+silently erased a few ms later. The downstream component reads
+`false` on mount and never fires.
+
+**Solution:** stash the signal in `sessionStorage` (or
+`localStorage`), then read + clear it atomically on the receiving
+side:
+
+```js
+// register.js save_done
+try { sessionStorage.setItem('ll_auto_open_home_tour', '1'); } catch (e) {}
+appState.set('auto_open_home_tour', true); // SPA fast-path
+session.override(meta);                    // triggers hard reload
+
+// home-tour.js didInsertElement
+try {
+  if (sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
+    sessionStorage.removeItem('ll_auto_open_home_tour');
+    this._scheduleAutoOpen();
+  }
+} catch (e) {}
+```
+
+Always wrap in try/catch — Safari private mode and disabled-storage
+browsers throw on access.
+
+**Detection shortcut:** if a "set flag on appState → check flag on
+the next route's component" pattern silently fails after registration
+or any other place that calls `session.override()` / `session.invalidate()`,
+grep that path for `location.href` or `location.reload()` to confirm
+a hard reload is in play.
+
+**First seen in:** post-registration home-tour auto-open work, traci/styling/styling-updates branch (2026-05-27)
+
+## Pattern: This codebase ships `and` and `or` template helpers but NOT `not` — pre-compute negations
+
+The codebase has `app/frontend/app/helpers/and.js` and
+`app/frontend/app/helpers/or.js` but no `not.js`, and
+`package.json` does NOT depend on `ember-truth-helpers`. Using
+`(not x)` in a template silently fails at render time — and on Ember
+3.28 the failure surfaces as a re-render loop with the cryptic
+"Attempted to rerender, but the Ember application has had an
+unrecoverable error" warning (often hundreds of times until the app
+becomes unresponsive). No stack trace, no source line.
+
+**Rule of thumb:** for template conditionals that need negation, do
+NOT reach for `(not x)`. Either:
+1. Add a `show_X` / `is_X_visible` computed property on the
+   controller/component that performs the negation in JS, then use
+   the simple `{{#if this.show_X}}` form in templates.
+2. Restructure with `{{#unless x}}…{{/unless}}` (built-in to Ember,
+   always available).
+
+Approach 1 is preferred when the same condition is consumed in
+multiple templates (single source of truth) or when the negation is
+combined with other conditions.
+
+**Detection shortcut:** if the page renders blank with "Loading…"
+and DevTools shows a flood of "Attempted to rerender" warnings, grep
+your recent template diffs for `(not ` — that's the most common
+culprit. Also worth checking: any custom helper used in a template
+that doesn't exist in `app/helpers/` (e.g. `(eq …)`, `(gt …)` —
+those aren't here either unless someone adds them).
+
+**First seen in:** [2026-05-27-subscribe-modal-modernization.md](./2026-05-27-subscribe-modal-modernization.md) (welcome-notice dismiss work)
+
+## Pattern: Cross-context CSS classes need scoped overrides — `.la-about-glass-card` is dark-landing AND light-modal
+
+Some "modern" component classes (e.g. `.la-about-glass-card`,
+`.la-pricing-card`) are shared between two very different surfaces:
+the **public landing/pricing pages** (dark gradient bg, glass cards
+with light text on a translucent white pane) and the
+**subscribe modal** (white modal bg, where those same classes would
+render with washed-out light text + glass-on-white blur). The base
+definitions are tuned for the dark surface.
+
+**Rule of thumb:** if you find a shared class rendering wrong in the
+light-mode surface, do NOT retune the base — that flips the public
+landing page. Instead add a scoped override under the modal/dashboard
+container:
+
+```scss
+.subscription-form-cards .la-about-glass-card {
+  background: linear-gradient(180deg, #fff, $surface-100);
+  backdrop-filter: none;
+  border: 1px solid var(--md-line);
+  color: var(--md-ink);
+  /* …light-bg variant of the same composition… */
+}
+```
+
+The override wins on specificity (2 classes vs 1), no `!important`
+needed. The base styling continues to serve the dark-landing
+context unchanged.
+
+**Detection shortcut:** if a card pulled from the public landing page
+"works but looks washed out" inside a modal, grep the class in
+app.scss — if the base rule references rgba(255,255,255,…) or
+backdrop-filter, you're seeing the dark-bg variant leak into a
+light-bg surface.
+
+**First seen in:** [2026-05-27-subscribe-modal-modernization.md](./2026-05-27-subscribe-modal-modernization.md)
+
+## Pattern: Modern checkboxes — filled family is canonical; pick the fill color from the brand palette per surface
+
+When modernizing a checkbox cluster, the codebase has two visual
+families but the **filled family is the canonical "modern" look**.
+The white-on-white "form pattern" exists historically on
+`.md-edit-profile__form` and `.md-preferences__form` but it's NOT
+what to copy on new modernization passes — confirmed in
+[2026-05-27-register-checkboxes-modern.md](./2026-05-27-register-checkboxes-modern.md)
+when the white-on-white attempt was rejected for being inconsistent.
+
+| Family | Where used | Visual signature | When to pick |
+|---|---|---|---|
+| **Filled (canonical)** | `.md-modal-check` (`$brand-charcoal-blue`), `.la-board-privacy-boards` (`$brand-verdigris`), `.new-board--modern` (`$brand-stormy-teal`), `.register-checkboxes` (`$brand-slate-blue`) | 18–22px, hairline border at rest, filled brand-color bg on `:checked`, white rotated-rectangle tick | Default — any new "modern this checkbox" task |
+| **White-on-white (legacy form)** | `.md-edit-profile__form`, `.md-preferences__form` | 18×18, white bg even when checked, charcoal-blue tick on white | Don't copy. If you touch those forms, consider migrating them to the filled family too. |
+
+**Picking the fill color:** match the surface tone. Slate-blue for
+neutral account/auth forms (register). Charcoal-blue for modals and
+neutral overlays. Verdigris for permission/privacy toggles. Stormy-teal
+for the new-board wizard. The shape (18×18, 4px radius, hairline
+border, white tick at `top:2px;left:5px;w:5px;h:10px;rotate(45deg)`)
+is identical across all of them.
+
+**Trap:** the Bootstrap-era `.big_checkbox` rule at
+[`app.scss:6942`](../../app/frontend/app/styles/app.scss#L6942) uses
+`position: absolute` + a 24px box hung off `left: 20px` inside its
+wrapper. Modern checkboxes use `position: relative` inside the label
+inline. Override BOTH (positioning + visuals) and zero out the
+wrapper's `padding-left: 30px` (which only made sense for the
+absolute layout) — `.md-edit-profile__form .big_checkbox
+{ padding-left: 0 !important; }` does exactly this.
+
+**First seen in:** [2026-05-27-register-checkboxes-modern.md](./2026-05-27-register-checkboxes-modern.md)
+
+## Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering
+
+The boards endpoint returns the raw library: a copied board set
+contributes both its root tile AND every sub-board copy underneath
+it. On real accounts this inflates 14 visible roots to 419 records.
+Any UI surface that wants a count matching what the user *sees as
+tiles* must apply the root-vs-copy clustering, not the raw
+`my_boards.length` or paginated `store.query('board', { user_id })`
+total.
+
+Filter is in [`app/frontend/app/utils/board-roots.js`](../../app/frontend/app/utils/board-roots.js)
+(`filterRootBoards(boards, userId)`):
+
+- shallow roots: id shape `<copyId>-<userId>` with copy_id null/self
+- regular roots: copy_id null or equals own id
+- everything else is a copy → drop
+
+Used by `myBoardsRoots` on [`controllers/user/index.js`](../../app/frontend/app/controllers/user/index.js)
+(boards-page BOARDS chip / `myBoardsTileCount`) and by `boardCount`
+on [`components/dashboard/authenticated-view.js`](../../app/frontend/app/components/dashboard/authenticated-view.js)
+(home-tab Boards stat). If another surface needs an "owned board
+count," reach for the util — don't re-read `length` off the raw
+query.
+
+**First seen in:** [2026-05-27-home-board-count-roots-only.md](./2026-05-27-home-board-count-roots-only.md)
