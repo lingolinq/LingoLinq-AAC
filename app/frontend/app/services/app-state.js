@@ -1943,7 +1943,13 @@ export default Service.extend({
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);
+    this._loading_overlay_shown_at = null;
+    this._loading_overlay_min_ms = null;
     this.set('toast', null);
+
+    // In-memory board JSON / ordered_buttons / image-warm state must not
+    // leak across users on SPA sign-out (full reload clears module state).
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
     this.set('last_keepalive', null);
     this.set('refresh_stamp', null);
     this.set('short_refresh_stamp', null);
@@ -2948,22 +2954,34 @@ export default Service.extend({
   // Minimum time the overlay stays on screen once shown, so fast synchronous
   // transitions still let the user see it (and don't flash-and-disappear).
   LOADING_OVERLAY_MIN_MS: 700,
+  // Shorter minimum when navigation is a known cache hit (raw JSON + Ember
+  // record already in memory). Still long enough for click feedback.
+  LOADING_OVERLAY_CACHE_HIT_MIN_MS: 150,
 
-  show_loading_overlay: function(message) {
+  show_loading_overlay: function(message, opts) {
+    opts = opts || {};
     this.set('loading_overlay_message', message);
     this._loading_overlay_shown_at = Date.now();
+    if (opts.min_ms != null) {
+      this._loading_overlay_min_ms = opts.min_ms;
+    } else {
+      this._loading_overlay_min_ms = null;
+    }
   },
 
   hide_loading_overlay: function() {
     var _this = this;
     var shown_at = this._loading_overlay_shown_at || 0;
     var elapsed = Date.now() - shown_at;
-    var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
+    var min = this._loading_overlay_min_ms != null ?
+      this._loading_overlay_min_ms :
+      (this.get('LOADING_OVERLAY_MIN_MS') || 700);
     var remaining = Math.max(0, min - elapsed);
     runLater(function() {
       if(_this.isDestroyed) { return; }
       _this.set('loading_overlay_message', null);
       _this._loading_overlay_shown_at = null;
+      _this._loading_overlay_min_ms = null;
     }, remaining);
   },
 
