@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: `find_all_by_global_id` does not preserve input order](#pattern-find_all_by_global_id-does-not-preserve-input-order)
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
 - [Pattern: SVG gradient ID refs inside CSS data URIs mangled by Rails Sprockets in production](#pattern-svg-gradient-id-refs-inside-css-data-uris-mangled-by-rails-sprockets-in-production)
@@ -2067,3 +2068,15 @@ query.
 **Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
 
 **Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/utils/button.js`, `app/frontend/tests/utils/edit_manager-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
+
+---
+
+## Pattern: `find_all_by_global_id` does not preserve input order
+
+**Symptom:** RSpec expects `[bi1, bi2]` from `known_button_images` but gets reversed order when DB ids differ from button-list order.
+
+**Root cause:** `GlobalId.find_all_by_global_id` uses `WHERE id IN (...)`; PostgreSQL returns rows in arbitrary/id order, not the caller's id list order.
+
+**Fix recipe:** After lookup, `sort_by { |r| ids.index(r.global_id) || ids.length }` (see `Board.long_query`, `Board#known_button_images`). For specs comparing sorted `global_id` lists, sort **both** sides — lexicographic sort puts `"1_1000"` before `"1_999"`.
+
+**Evidence:** `app/models/concerns/global_id.rb:108-174`, `app/models/board.rb#known_button_images`; task log `2026-05-29-spec-ordering-flakes.md`.
