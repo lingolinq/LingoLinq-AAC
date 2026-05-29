@@ -261,7 +261,7 @@ class Board < ApplicationRecord
   def self.find_suggested(locale='en', limit=10)
     ids = nil
     if locale == 'en'
-      user = User.find_by_path('example')
+      user = SystemBoardSources.owner || User.find_by_path('lingolinq')
       ids = user && self.local_ids(user.settings['starred_board_ids'] || [])
     end
     if ids.blank?

@@ -1728,6 +1728,29 @@ class User < ApplicationRecord
     end
   end
 
+  def copy_board_to_library(library_board, updater_id, symbol_library=nil)
+    original = library_board && Board.find_by_path(library_board['id'])
+    updater = User.find_by_path(updater_id)
+    return false unless original && updater
+
+    existing = self.boards.where(parent_board: original).order('id DESC').first
+    if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      return true
+    end
+
+    new_board = original.copy_for(self, copier: updater)
+    self.copy_board_links(
+      old_board_id: original.global_id,
+      new_board_id: new_board.global_id,
+      ids_to_copy: [],
+      auth_user: updater,
+      user_for_paper_trail: "user:#{updater.global_id}",
+      copier_id: updater.global_id,
+      swap_library: symbol_library
+    )
+    true
+  end
+
   def copy_to_home_board(home_board, updater_id, symbol_library)
     original = home_board && Board.find_by_path(home_board['id'])
     updater = User.find_by_path(updater_id)
@@ -1982,8 +2005,8 @@ class User < ApplicationRecord
   def self.default_sidebar_boards
     [
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
-      {'name' => "Inflections", 'key' => 'example/inflections', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
-      {'name' => "Keyboard", 'key' => 'example/keyboard', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
+      {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
+      {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
       {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]

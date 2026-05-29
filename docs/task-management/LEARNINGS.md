@@ -58,6 +58,7 @@ file (see [README.md](README.md)).
 - [Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering](#pattern-apiv1boardsuser_idx-returns-every-owned-board-including-sub-board-copies--visible-tile-counts-need-root-clustering)
 - [Pattern: create-board-new preview URLs stripped by process_buttons whitelist](#pattern-create-board-new-preview-urls-stripped-by-process_buttons-whitelist)
 - [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
+- [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 
 ---
 
@@ -2067,3 +2068,17 @@ query.
 **Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
 
 **Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/utils/button.js`, `app/frontend/tests/utils/edit_manager-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
+
+---
+
+## Pattern: Signup default library boards — copy via Progress, not copy_to_home_board
+
+**Surface:** new user registration (email or Google SSO).
+
+**Requirement:** Give every new communicator owned copies of curated vocab boards in **My Boards** without setting `preferences.home_board`.
+
+**Root cause to avoid:** `User#copy_to_home_board` always writes `preferences.home_board` — wrong tool for library-only provisioning.
+
+**Fix recipe:** Add `User#copy_board_to_library` (`copy_for` + `copy_board_links`, no home pref). Schedule two jobs via `Progress.schedule(user, :copy_board_to_library, …, for_user: user)` from `UserBoardProvisioner` after save. Source boards live on the `lingolinq` content user (`SystemBoardSources`); import with `VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies`. Gate with `FeatureFlags.signup_default_library_boards_enabled?`.
+
+**Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.

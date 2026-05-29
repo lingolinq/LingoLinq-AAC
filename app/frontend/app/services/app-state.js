@@ -739,7 +739,7 @@ export default Service.extend({
     }
   }),
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
-    return this.get('domain_settings.board_user_name') || 'example';
+    return this.get('domain_settings.board_user_name') || 'lingolinq';
   }),
   darkMode: computed('themeMode', function() {
     return this.get('themeMode') === 'dark';
@@ -3781,7 +3781,8 @@ export default Service.extend({
         user_prefers_native_keyboard = window.user_preferences.any_user.prefer_native_keyboard;
       }
       var native_keyboard_available = capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android') && !buttonTracker.scanning_enabled;
-      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (button.load_board && button.load_board.key == 'example/keyboard');
+      var load_key = button.load_board && button.load_board.key;
+      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (load_key && load_key.match(/\/keyboard$/));
       if(expecting_key && native_keyboard_available && user_prefers_native_keyboard && window.Keyboard && window.Keyboard.hide) {
         scanner.native_keyboard();
       } else if(this.stashes.get('sticky_board') && this.get('speak_mode')) {

@@ -3558,6 +3558,32 @@ describe User, :type => :model do
     end
   end
 
+  describe "copy_board_to_library" do
+    it "returns false without a valid original board" do
+      u = User.create
+      expect(u.copy_board_to_library({}, nil, nil)).to eq(false)
+    end
+
+    it "copies a board without setting home_board" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.settings['preferences']['home_board']).to eq(nil)
+      expect(u.boards.where(parent_board: b1).first).to_not eq(nil)
+    end
+
+    it "returns true when the user already owns a matching copy" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      existing = b1.copy_for(u)
+      expect(u).to_not receive(:copy_board_links)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.boards.where(parent_board: b1).first.id).to eq(existing.id)
+    end
+  end
+
   describe "copy_to_home_board" do
     it "should return without an valid original board" do
       u = User.create
