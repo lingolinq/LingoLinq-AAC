@@ -89,15 +89,16 @@ header:has(#speak) *:focus-visible,
 .header--hidden {
   display: none !important;
 }
-#within_ember:has(> header.header--hidden) {
-  --topbar-height: 0px;
-}
 .content--no-top-padding {
   padding-top: 0 !important;
 }
 /* When user is logged in, use a shorter top navbar */
 #within_ember:has(header:not(.header--unauthenticated)) {
   --topbar-height: 16px;
+}
+/* After authenticated topbar rule — hidden header must not reserve space (beta onboarding, board layout). */
+#within_ember:has(> header.header--hidden) {
+  --topbar-height: 0px;
 }
 /* App-navbar-only header (no speak row, no legacy #nav_header): bar is 70px; 16px left #content tucked under the fixed header (e.g. /offline-boards on narrow screens). */
 #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):has(#inner_header .app-navbar):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header))) {
@@ -365,7 +366,9 @@ html, body {
 /* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user).
    Apply the login gradient to #content itself so it fills the full scroll area —
    including the top/bottom padding bands — regardless of how tall the form is. */
-#within_ember:has(.page-footer) #content:has(.login-page-bg) {
+#within_ember:has(.page-footer) #content:has(.login-page-bg),
+#within_ember:has(.page-footer) #content:has(.register-page-bg),
+#within_ember:has(.page-footer) #content:has(.beta-welcome-page) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -383,6 +386,50 @@ html, body {
     radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
 }
+
+/* Beta onboarding: same scroll model as /register — #content scrolls; page bg grows with content (no inner scrollport). */
+#within_ember:has(.beta-welcome-page) #content,
+#within_ember:has(.page-footer) #content:has(.beta-welcome-page),
+#within_ember:has(.beta-welcome-page) #content.index.with_user,
+#within_ember:has(.beta-welcome-page) #content.with_user {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box;
+  padding-top: 2.5rem !important;
+  padding-bottom: calc(var(--bottombar-height) + 2.5rem) !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .ember-view {
+  flex: 0 0 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  min-height: auto !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .register-page-bg {
+  flex: 0 0 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .register-page-bg,
+#within_ember:has(.beta-welcome-page) .beta-welcome-page.register-page-bg {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
 /* Light mode: shell bg uses active pill gradient (7eb8e0 → 3a6bc7). */
 #within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
 #within_ember.bento-page-with-footer.bento-default-mode-active #content.index.with_user {
@@ -589,7 +636,26 @@ body:has(#within_ember.bento-page-with-footer) {
 }
 /* Login, register, forgot password/username: same as .la-wrapper so content is visible and #content scrolls */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.login-page-bg),
-#within_ember:has(.page-footer) #content > .ember-view:has(.login-page-bg) {
+#within_ember:has(.page-footer) #content > .ember-view:has(.login-page-bg),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.beta-welcome-page),
+#within_ember:has(.page-footer) #content > .ember-view:has(.beta-welcome-page),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.register-page-bg),
+#within_ember:has(.page-footer) #content > .ember-view:has(.register-page-bg) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+/* Beat #content.index.with_user > .ember-view viewport lock when logged-in user hits auth/onboarding pages */
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.login-page-bg),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.login-page-bg),
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.register-page-bg),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.register-page-bg),
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.beta-welcome-page),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.beta-welcome-page) {
   flex: 0 0 auto;
   min-height: auto;
   height: auto;
@@ -8241,6 +8307,11 @@ body.pretty_loader #loading_box {
 /* Restore top padding so content starts below fixed navbar (overrides #content { padding: 0 } above) */
 #within_ember:has(header.header--unauthenticated) #content {
   padding-top: var(--topbar-height) !important;
+}
+/* Beta onboarding: beat unauthenticated top padding / content--no-top-padding; reserve footer clearance */
+#within_ember:has(.beta-welcome-page) #content {
+  padding-top: 2.5rem !important;
+  padding-bottom: calc(var(--bottombar-height) + 2.5rem) !important;
 }
 .btn-default .badge {
   color: #ffffff;
@@ -28673,6 +28744,7 @@ header #identity #identity_button.btn::after {
 .la-wrapper.la-wrapper--contact .la-hero-card .la-section-eyebrow-badge,
 .la-features-modal-body .la-section-header .la-section-eyebrow-badge,
 .ub-boards-page__page-header .la-section-eyebrow-badge,
+.beta-welcome-card .la-section-header .la-section-eyebrow-badge,
 .beta-feedback-panel .la-section-eyebrow-badge {
   background: linear-gradient(
     180deg,
@@ -37207,7 +37279,367 @@ a.la-footer-bottom-a11y-wcag {
   }
 }
 
+/* ===== Beta welcome & agreement (register-style full-page onboarding) ===== */
+.beta-welcome-page.register-page-bg {
+  /* Match .register-page-bg: min-height fills viewport; #content is the only scrollport. */
+  min-height: 100vh;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2.5rem 16px 2rem;
+  width: 100%;
+  box-sizing: border-box;
+
+  .la-bg-orbs {
+    display: block;
+    z-index: 0;
+  }
+}
+
+.beta-welcome-page__frame {
+  max-width: 720px;
+}
+
+.beta-welcome-card {
+  margin-top: 0;
+  padding: $aac-spacing-28 $aac-spacing-32 $aac-spacing-32;
+
+  .la-section-header {
+    margin-bottom: $aac-spacing-24;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .la-hero-title-wrap {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    padding-bottom: 0;
+  }
+
+  .la-hero-title {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .la-about-hero-separator {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .la-section-eyebrow-badge {
+    display: inline-block;
+    margin-bottom: $aac-spacing-12;
+    font-size: 14px;
+    font-weight: $aac-font-weight-semi;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0d5c5f;
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+
+  .la-hero-title {
+    font-size: 28px;
+
+    @media (max-width: 480px) {
+      font-size: 24px;
+    }
+  }
+
+  .la-about-hero-separator {
+    margin-bottom: $aac-spacing-16;
+  }
+}
+
+.beta-welcome-card__subtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: #5a6578;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.beta-welcome-body {
+  text-align: left;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #3d4654;
+
+  p {
+    margin: 0 0 $aac-spacing-14;
+  }
+}
+
+.beta-welcome-intro {
+  margin-bottom: $aac-spacing-24;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba($brand-teal, 0.06) 0%,
+    rgba(58, 107, 199, 0.04) 100%
+  );
+  border: 1px solid rgba($brand-teal, 0.12);
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.beta-welcome-section {
+  margin-bottom: $aac-spacing-28;
+
+  &--feedback {
+    margin-bottom: $aac-spacing-20;
+  }
+}
+
+.beta-welcome-section__title {
+  font-family: 'Maitree', serif;
+  font-size: 1.25rem;
+  font-weight: normal;
+  color: $indigo;
+  margin: 0 0 $aac-spacing-16;
+  letter-spacing: -0.01em;
+}
+
+.beta-welcome-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $aac-spacing-16;
+  margin: 0;
+}
+
+.beta-welcome-feature-card {
+  text-align: left;
+  padding: $aac-spacing-20 $aac-spacing-16;
+  border-radius: 18px;
+  border: 1px solid rgba($indigo, 0.08);
+  background: #fff;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+
+  h4 {
+    margin: 0 0 $aac-spacing-8;
+    font-size: 1.1rem;
+    font-weight: $aac-font-weight-semi;
+    color: $indigo;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: #5a6578;
+  }
+
+  .la-feature-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 0 $aac-spacing-12;
+    border-radius: 14px;
+    font-size: 26px;
+  }
+}
+
+.beta-welcome-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-14;
+}
+
+.beta-welcome-steps__item {
+  display: flex;
+  align-items: flex-start;
+  gap: $aac-spacing-14;
+  padding: $aac-spacing-16;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba($la-navy, 0.06);
+}
+
+.beta-welcome-steps__num {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  font-weight: $aac-font-weight-bold;
+  color: #fff;
+  background: linear-gradient(145deg, $brand-teal 0%, $brand-smart-blue 100%);
+  box-shadow: 0 2px 8px rgba($brand-teal, 0.35);
+}
+
+.beta-welcome-steps__content {
+  flex: 1;
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 1.08rem;
+    color: $indigo;
+    margin-bottom: 4px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+    color: #5a6578;
+    line-height: 1.55;
+  }
+}
+
+.beta-welcome-signoff {
+  margin: 0;
+  padding-top: $aac-spacing-8;
+  font-size: 1.05rem;
+  color: #3d4654;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.beta-welcome-signoff__team {
+  display: block;
+  margin-top: $aac-spacing-8;
+  font-weight: $aac-font-weight-semi;
+  color: $indigo;
+}
+
+.beta-welcome-actions {
+  margin-top: $aac-spacing-24;
+  padding-top: $aac-spacing-8;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+
+  .register-btn {
+    min-width: 12rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.beta-welcome-lead {
+  font-size: 1.08rem;
+  color: #3d4654;
+  margin-bottom: $aac-spacing-20;
+}
+
+.beta-welcome-agreement-block {
+  margin-bottom: $aac-spacing-24;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.beta-welcome-list {
+  margin: 0 0 $aac-spacing-12;
+  padding-left: 1.25rem;
+
+  li {
+    margin-bottom: $aac-spacing-10;
+    line-height: 1.55;
+    font-size: 1.02rem;
+    color: #3d4654;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  a {
+    color: $brand-smart-blue;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.beta-welcome-callout {
+  display: flex;
+  gap: $aac-spacing-14;
+  align-items: flex-start;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  border-radius: 16px;
+  margin-bottom: $aac-spacing-24;
+
+  &--safety {
+    background: linear-gradient(
+      135deg,
+      rgba(240, 106, 91, 0.08) 0%,
+      rgba(255, 193, 7, 0.06) 100%
+    );
+    border: 1px solid rgba(240, 106, 91, 0.22);
+  }
+}
+
+.beta-welcome-callout__icon {
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.beta-welcome-callout__title {
+  margin: 0 0 $aac-spacing-8;
+  font-size: 1.12rem;
+  font-weight: $aac-font-weight-semi;
+  color: $indigo;
+}
+
+.beta-welcome-callout__content p {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: #3d4654;
+}
+
+.beta-welcome-footer {
+  flex-shrink: 0;
+  margin-top: $aac-spacing-16;
+  padding-top: $aac-spacing-16;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.85) 12%);
+}
+
+.beta-welcome-accept {
+  margin-bottom: $aac-spacing-12;
+
+  .big_checkbox label {
+    font-size: 1.02rem;
+    line-height: 1.45;
+    color: #3d4654;
+  }
+}
+
 @media (max-width: 550px) {
+  .beta-welcome-page.register-page-bg {
+    padding: 0 12px 2rem;
+  }
+
+  #within_ember:has(.beta-welcome-page) #content {
+    padding-top: 1.25rem !important;
+    padding-bottom: calc(var(--bottombar-height) + 1.25rem) !important;
+  }
+
+  .beta-welcome-card {
+    padding: $aac-spacing-24 $aac-spacing-16 $aac-spacing-24;
+  }
+
   .register-page {
     padding-top: 2rem;
   }

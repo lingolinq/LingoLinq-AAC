@@ -1,43 +1,98 @@
-<div class="beta-welcome-page">
-  <div class="register-card">
-    <div class="la-section-header">
-      <div class="la-hero-title-wrap">
-        <h2 class="la-hero-title">{{t "Welcome" key="beta_welcome_title"}}</h2>
+<div class="register-page-bg beta-welcome-page" role="main">
+  <div class="la-bg-orbs" aria-hidden="true">
+    <span class="la-bg-orb la-bg-orb--a"></span>
+    <span class="la-bg-orb la-bg-orb--b"></span>
+    <span class="la-bg-orb la-bg-orb--c"></span>
+    <span class="la-bg-orb la-bg-orb--d"></span>
+  </div>
+  <div class="register-page beta-welcome-page__frame">
+    <div class="register-card beta-welcome-card">
+      <div class="la-section-header">
+        <span class="la-section-eyebrow-badge">{{t "Beta program" key="beta_welcome_eyebrow"}}</span>
+        <div class="la-hero-title-wrap">
+          <h2 class="la-hero-title">{{t "Welcome" key="beta_welcome_title"}}</h2>
+        </div>
+        <hr class="la-about-hero-separator" aria-hidden="true">
+        <p class="beta-welcome-card__subtitle">
+          {{#if this.displayName}}
+            {{t "Hi %{name}, we're glad you're here." name=this.displayName key="beta_welcome_greeting_named"}}
+          {{else}}
+            {{t "We're so glad you're here to help us build LingoLinq." key="beta_welcome_greeting_generic"}}
+          {{/if}}
+        </p>
       </div>
-      <hr class="la-about-hero-separator" aria-hidden="true">
-    </div>
 
-    <div class="beta-agreement-body">
-      <p>Hi <strong>{{this.model.name}}</strong>,</p>
-      <p>We are so glad you're here to help us!</p>
-      <p>You are not just a tester to us; you are our partner. We want LingoLinq to be more than a tool — we want it to become your voice.</p>
-      <p>Whether you're an everyday user, an SLP, teacher, or assistant — your feedback is exactly what we need to make LingoLinq support your needs.</p>
+      <div class="beta-welcome-body">
+        <div class="beta-welcome-intro">
+          <p>{{t "Thanks for joining the beta. We're building LingoLinq with AAC users, therapists, teachers, and families, and your feedback helps us improve what we ship." key="beta_welcome_intro"}}</p>
+        </div>
 
-      <h3>Two Ways We Can Explore Together</h3>
-      <ul>
-        <li><strong>Speak, Play &amp; Discover:</strong> You have an official license to roam! Feel free to explore and try things out. Find out how you can use it to talk, share, and communicate the way you like.</li>
-        <li><strong>Weekly Missions:</strong> Every week, we will share a short activity for you to try so we can practice using different things together.</li>
-      </ul>
+        <section class="beta-welcome-section" aria-labelledby="beta-welcome-explore-heading">
+          <h3 id="beta-welcome-explore-heading" class="beta-welcome-section__title">{{t "Two ways we can explore together" key="beta_welcome_explore_title"}}</h3>
+          <div class="la-feature-grid beta-welcome-feature-grid">
+            <div class="la-feature-card beta-welcome-feature-card">
+              <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">🗣️</div>
+              <h4>{{t "Speak, play & discover" key="beta_welcome_explore_speak_title"}}</h4>
+              <p>{{t "You have an official license to roam! Explore, try things out, and find how you like to talk, share, and communicate." key="beta_welcome_explore_speak_body"}}</p>
+            </div>
+            <div class="la-feature-card beta-welcome-feature-card">
+              <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">🎯</div>
+              <h4>{{t "Weekly missions" key="beta_welcome_explore_missions_title"}}</h4>
+              <p>{{t "Each week we'll share a short activity so we can practice using different features together." key="beta_welcome_explore_missions_body"}}</p>
+            </div>
+          </div>
+        </section>
 
-      <h3>Getting Started</h3>
-      <ol>
-        <li><strong>Watch the Quick Tour:</strong> We put together a short video to show how everything works and make you feel at ease.</li>
-        <li><strong>Pop-Ups:</strong> Throughout the app, you will see pop-up messages that will explain things and help you along. Consider it your cheat sheet to help explore the app like a pro right from day one.</li>
-        <li><strong>A Quick Bit of Housekeeping:</strong> The first time you log in, you'll see a short agreement written in plain English. Please take a moment to look it over and make sure you're happy with it. If it looks good, click accept to get started! If you have any questions or concerns, just let us know and we will address your concerns.</li>
-        <li><strong>Log In:</strong> Click this link to get started — <a href="#" target="_blank" rel="noopener">[insert link]</a></li>
-      </ol>
+        <section class="beta-welcome-section" aria-labelledby="beta-welcome-start-heading">
+          <h3 id="beta-welcome-start-heading" class="beta-welcome-section__title">{{t "Getting started" key="beta_welcome_start_title"}}</h3>
+          <ol class="beta-welcome-steps">
+            <li class="beta-welcome-steps__item">
+              <span class="beta-welcome-steps__num" aria-hidden="true">1</span>
+              <div class="beta-welcome-steps__content">
+                <strong>{{t "Watch the quick tour" key="beta_welcome_step_tour_title"}}</strong>
+                <p>{{t "We put together a short video to show how everything works and help you feel at ease." key="beta_welcome_step_tour_body"}}</p>
+              </div>
+            </li>
+            <li class="beta-welcome-steps__item">
+              <span class="beta-welcome-steps__num" aria-hidden="true">2</span>
+              <div class="beta-welcome-steps__content">
+                <strong>{{t "Pop-ups along the way" key="beta_welcome_step_popups_title"}}</strong>
+                <p>{{t "Throughout the app, helpful messages explain features as you go. Like a cheat sheet from day one." key="beta_welcome_step_popups_body"}}</p>
+              </div>
+            </li>
+            <li class="beta-welcome-steps__item">
+              <span class="beta-welcome-steps__num" aria-hidden="true">3</span>
+              <div class="beta-welcome-steps__content">
+                <strong>{{t "A quick bit of housekeeping" key="beta_welcome_step_agreement_title"}}</strong>
+                <p>{{t "On the next screen you'll see a short agreement in plain English. Please review it and accept when you're ready, or contact us with any questions." key="beta_welcome_step_agreement_body"}}</p>
+              </div>
+            </li>
+            <li class="beta-welcome-steps__item">
+              <span class="beta-welcome-steps__num" aria-hidden="true">4</span>
+              <div class="beta-welcome-steps__content">
+                <strong>{{t "You're signed in" key="beta_welcome_step_signed_in_title"}}</strong>
+                <p>{{t "When you finish the agreement, you'll head into LingoLinq and can start exploring right away." key="beta_welcome_step_signed_in_body"}}</p>
+              </div>
+            </li>
+          </ol>
+        </section>
 
-      <h3>How to Share Your Thoughts</h3>
-      <p>If you find a problem, catch a bug, or have an idea, just use the <strong>Beta Feedback button</strong> right inside the app. No detail is too small!</p>
+        <section class="beta-welcome-section beta-welcome-section--feedback" aria-labelledby="beta-welcome-feedback-heading">
+          <h3 id="beta-welcome-feedback-heading" class="beta-welcome-section__title">{{t "How to share your thoughts" key="beta_welcome_feedback_title"}}</h3>
+          <p>{{t "If you find a problem, catch a bug, or have an idea, use the Beta Feedback button inside the app. No detail is too small!" key="beta_welcome_feedback_body"}}</p>
+        </section>
 
-      <p>Thank you for helping us shape this new voice and being a vital part of our crew!</p>
-      <p><strong>The LingoLinq Team</strong></p>
-    </div>
+        <p class="beta-welcome-signoff">
+          {{t "Thank you for helping us shape this new voice and being a vital part of our crew!" key="beta_welcome_signoff"}}
+          <span class="beta-welcome-signoff__team">{{t "The LingoLinq Team" key="beta_welcome_team"}}</span>
+        </p>
+      </div>
 
-    <div class="register-btn-wrap">
-      <button type="button" class="register-btn" {{action "goToAgreement"}}>
-        {{t "Next" key="next"}}
-      </button>
+      <div class="register-btn-wrap beta-welcome-actions">
+        <button type="button" class="register-btn" {{action "goToAgreement"}}>
+          {{t "Next" key="next"}}
+        </button>
+      </div>
     </div>
   </div>
 </div>
