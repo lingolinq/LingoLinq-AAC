@@ -14,6 +14,7 @@ import session from '../../utils/session';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import { filterRootBoards } from '../../utils/board-roots';
+import boardDetailCache from '../../utils/board_detail_cache';
 
 function invertBoardTagMap(map) {
   var inv = {};
@@ -1279,9 +1280,23 @@ export default Controller.extend({
          board-detail / board-alt setupController calls
          hide_loading_overlay when ready. .catch handler clears the
          overlay if the transition aborts (setupController would
-         never run in that case). */
+         never run in that case). When raw JSON and an Ember board
+         record are already cached, use a shorter minimum so repeat
+         opens feel instant without skipping click feedback. */
       var _appState = this.appState;
-      _appState.show_loading_overlay(i18n.t('loading_board', "Loading board..."));
+      var board_key = parts[0] + '/' + parts[1];
+      var overlay_opts = null;
+      var cached_raw = boardDetailCache.get(board_key);
+      if (cached_raw) {
+        var cached_record = this.store.peekAll('board').find(function(b) {
+          if (!b) { return false; }
+          return b.get('key') === board_key;
+        });
+        if (cached_record && !cached_record.get('should_reload')) {
+          overlay_opts = { min_ms: _appState.get('LOADING_OVERLAY_CACHE_HIT_MIN_MS') };
+        }
+      }
+      _appState.show_loading_overlay(i18n.t('loading_board', "Loading board..."), overlay_opts);
       var transition = this.get('router').transitionTo(route, parts[0], parts[1]);
       if(transition && typeof transition.catch === 'function') {
         transition.catch(function() { _appState.hide_loading_overlay(); });

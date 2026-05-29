@@ -2024,6 +2024,38 @@ query.
 
 ---
 
+## Pattern: loading overlays are UX-only — keep them off the cache path
+
+**Surface:** global `show_loading_overlay` / `hide_loading_overlay`, board open from My Boards, board-detail route.
+
+**Finding:** Overlays only set `loading_overlay_message` and timing fields. All board JSON (`board_detail_cache`), Ember Data peek/push, `prime_caches`, and ordered-buttons caching run independently. Overlay hide in `setupController` does not invalidate caches.
+
+**Smoothness fixes (2026-05-28):**
+- Shorter overlay minimum (150ms) when raw JSON + Ember record are already cached (`open_board_in_user_view`).
+- `boardDetailCache.clear()` in `clear_user_state` on SPA sign-out.
+- Classic `board-alt` route reads `boardDetailCache` before `findRecord`.
+- `_maybe_prime_caches()` already awaited before `_build_from_raw` so `url_cache_primed` in ordered-buttons ctx is correct on first build.
+
+**Do not:** tie overlay dismissal to image warm or `/tree` completion — conflicts with lazy descendant image prefetch.
+
+**First seen in:** [2026-05-28-loading-overlay-cache-evaluation](./2026-05-28-loading-overlay-cache-evaluation.md)
+
+---
+
+## Pattern: extra_data JSON must not use FileSystem writes on web
+
+**Surface:** `persistence.store_url_now` caching `BoardDownstreamButtonSet` S3 URLs (`lingolinq-*-uploads`, `/extras…/data-….json`).
+
+**Symptom:** Console error `saving to data cache failed for https://…/BoardDownstreamButtonSet/…/data-….json` via `LingoLinq.track_error` (unhandled RSVP rejection).
+
+**Root cause:** After fetching encrypted JSON via the search proxy, `store_url_now` attempted a Chrome PERSISTENT FileSystem write when `local_system.allowed` was true. Large encrypted button-set payloads often fail that write (quota / FS limits). Images/sounds need FileSystem; JSON extra_data does not — `find_json` resolves via `data_uri` in IndexedDB `dataCache`.
+
+**Fix recipe:** In `store_url_now`, when `type == 'json'` and `object.data_uri` is set, skip `write_file` and `store('dataCache', …)` with `data_uri` retained. Add uploads buckets to `cors_match` so dev/prod S3 can be fetched directly when CORS allows.
+
+**Evidence:** `app/frontend/app/services/persistence.js`, `app/frontend/app/utils/persistence.js`; task log `2026-05-28-loading-overlay-cache-evaluation.md`.
+
+---
+
 ## Pattern: defer image_id in change_button — stale image_url rebinds wrong symbol
 
 **Surface:** Button-settings Picture → pick search hit → "Use This".

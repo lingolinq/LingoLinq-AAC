@@ -205,6 +205,28 @@ module('Unit | Utility | board-detail-cache', function() {
     });
   });
 
+  test('get_ordered_buttons returns null when url_cache_primed context differs', function(assert) {
+    boardDetailCache.clear();
+    var raw = { key: 'user/board-a', id: '1_1', buttons: [] };
+    boardDetailCache.set(raw);
+    var grid = [[{ id: 'btn-1' }]];
+    boardDetailCache.set_ordered_buttons('user/board-a', grid, {
+      skin: 'default',
+      preferred_symbols: null,
+      edit_mode: false,
+      label_locale: 'en',
+      url_cache_primed: false
+    });
+    var hit = boardDetailCache.get_ordered_buttons('user/board-a', {
+      skin: 'default',
+      preferred_symbols: null,
+      edit_mode: false,
+      label_locale: 'en',
+      url_cache_primed: true
+    });
+    assert.notOk(hit, 'url_cache_primed mismatch invalidates ordered_buttons cache');
+  });
+
   test('prefetch_lingolinq_catalog warms images for root only', function(assert) {
     boardDetailCache.clear();
     var origAjax = persistence.ajax;
