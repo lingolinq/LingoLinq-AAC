@@ -367,6 +367,22 @@ describe User, :type => :model do
   end
 
   describe "track_boards" do
+    before(:each) do
+      JobStash.delete_all
+      allow(RedisInit).to receive(:any_queue_pressure?).and_return(false)
+    end
+
+    def expect_refresh_stats_scheduled(stash)
+      jobs = Worker.scheduled_actions('slow').select do |job|
+        args = job['args'][2]
+        args &&
+          args['method'] == 'refresh_stats' &&
+          args['arguments'][0] == {'stash' => stash.global_id} &&
+          args['arguments'][1].is_a?(Integer)
+      end
+      expect(jobs.length).to eq(1)
+    end
+
     it "should schedule a background job by default" do
       u = User.create
       u.instance_variable_set('@do_track_boards', true)
@@ -396,7 +412,7 @@ describe User, :type => :model do
       expect(o).to receive(:select).with('id').and_return([b])
       u.track_boards(true)
       s = JobStash.last
-      expect(Worker.scheduled_for?(:slow, Board, :perform_action, {'method' => 'refresh_stats', 'arguments' => [{'stash' => s.global_id}, Time.now.to_i]})).to eq(true)
+      expect_refresh_stats_scheduled(s)
       expect(s.data).to eq([b.global_id])
     end
 
@@ -423,8 +439,8 @@ describe User, :type => :model do
       expect(u.settings['home_board_changed']).to eq(true)
       u.track_boards(true)
       s = JobStash.last
-      expect(Worker.scheduled_for?(:slow, Board, :perform_action, {'method' => 'refresh_stats', 'arguments' => [{'stash' => s.global_id}, Time.now.to_i]})).to eq(true)
       expect(s.data).to eq([b2.global_id])
+      expect_refresh_stats_scheduled(s)
     end
 
     it "should create missing connections" do
@@ -3555,6 +3571,32 @@ describe User, :type => :model do
       expect(u.settings['preferences']['home_board']).to_not eq(nil) 
       bb = Board.find_by_global_id(u.settings['preferences']['home_board']['id'])
       expect(bb.parent_board).to eq(b1)
+    end
+  end
+
+  describe "copy_board_to_library" do
+    it "returns false without a valid original board" do
+      u = User.create
+      expect(u.copy_board_to_library({}, nil, nil)).to eq(false)
+    end
+
+    it "copies a board without setting home_board" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.settings['preferences']['home_board']).to eq(nil)
+      expect(u.boards.where(parent_board: b1).first).to_not eq(nil)
+    end
+
+    it "returns true when the user already owns a matching copy" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      existing = b1.copy_for(u)
+      expect(u).to_not receive(:copy_board_links)
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
+      expect(u.boards.where(parent_board: b1).first.id).to eq(existing.id)
     end
   end
 

@@ -605,6 +605,12 @@ describe Api::UsersController, :type => :controller do
       post :create, params: {:user => {'name' => 'fred'}}
       expect(response).to be_successful
     end
+
+    it "should provision default library boards on signup when enabled" do
+      expect(UserBoardProvisioner).to receive(:provision_for).and_return([])
+      post :create, params: {:user => {'name' => 'fred'}}
+      expect(response).to be_successful
+    end
     
     it "should schedule delivery of a welcome message" do
       expect(UserMailer).to receive(:schedule_delivery).exactly(2).times

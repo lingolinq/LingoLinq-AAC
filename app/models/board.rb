@@ -261,7 +261,7 @@ class Board < ApplicationRecord
   def self.find_suggested(locale='en', limit=10)
     ids = nil
     if locale == 'en'
-      user = User.find_by_path('example')
+      user = SystemBoardSources.owner || User.find_by_path('lingolinq')
       ids = user && self.local_ids(user.settings['starred_board_ids'] || [])
     end
     if ids.blank?
@@ -2378,7 +2378,8 @@ class Board < ApplicationRecord
     # if self.settings && self.settings['images_not_mapped']
       return @button_images if @button_images
       image_ids = self.grid_buttons.map{|b| b['image_id'] }.compact.uniq
-      @button_images = ButtonImage.find_all_by_global_id(image_ids)
+      images = ButtonImage.find_all_by_global_id(image_ids)
+      @button_images = images.sort_by { |i| image_ids.index(i.global_id) || image_ids.length }
     # else
     #   self.button_images
     # end
@@ -2389,7 +2390,8 @@ class Board < ApplicationRecord
   def known_button_sounds
     return @button_sounds if @button_sounds
     sound_ids = (self.grid_buttons || []).map { |b| b['sound_id'] }.compact.uniq
-    @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    @button_sounds = sounds.sort_by { |s| sound_ids.index(s.global_id) || sound_ids.length }
   end
 
   def import_translation(translated_copy, locale, overwrite=false)
