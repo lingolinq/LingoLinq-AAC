@@ -47,6 +47,20 @@ export default Component.extend({
     return !(un && (this.get('appState').get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name === un && s.edit_permission; }));
   }),
 
+  // Block share/unshare while a lite-refetch is in flight (issue #293). The
+  // refetch (board.reload_if_lite) can resolve concurrently with the
+  // sharing_key set + save below; rather than risk overlapping requests on the
+  // same record silently dropping a sharing change, we make the editor wait
+  // out the brief reload window. The template also disables the buttons while
+  // reloading_detail is set, so this is the defensive backstop.
+  sharing_locked() {
+    if (this.get('board.reloading_detail')) {
+      modal.notice(i18n.t('share_details_still_loading', "Still loading sharing details, please try again in a moment."));
+      return true;
+    }
+    return false;
+  },
+
   actions: {
     close() {
       this.get('modal').close();
@@ -54,6 +68,7 @@ export default Component.extend({
     opening() {},
     closing() {},
     share_with_user() {
+      if (this.sharing_locked()) { return; }
       const user_name = this.get('share_user_name');
       const include_downstream = this.get('share_include_downstream');
       const allow_editing = this.get('share_allow_editing');
@@ -71,6 +86,7 @@ export default Component.extend({
       });
     },
     unshare(id) {
+      if (this.sharing_locked()) { return; }
       const board = this.get('board');
       board.set('sharing_key', 'remove-' + id);
       board.save().then(function() {}, function() {

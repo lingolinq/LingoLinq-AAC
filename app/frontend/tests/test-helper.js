@@ -60,6 +60,7 @@ import 'frontend/tests/acceptance/board-detail-empty-state-test';
 import 'frontend/tests/unit/controllers/copying-board-test';
 import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
 import 'frontend/tests/unit/models/board-reload-if-lite-test';
+import 'frontend/tests/unit/components/share-board-guard-test';
 
 // loadTests: false — we already pre-loaded all test modules above
 start({ loadTests: false });

@@ -119,4 +119,87 @@ module('Unit | Model | board#reload_if_lite (issue #293)', function(hooks) {
       board.reload = originalReload;
     }
   });
+
+  test('a rejected reload resolves (does not throw into the modal) and clears the flag', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const board = store.push({ data: { type: 'board', id: '293_reject', attributes: {
+      key: 'me/reject', permissions: { edit: true, share: true }
+    } } });
+
+    const originalReload = board.reload;
+    board.reload = function() { return RSVP.reject(new Error('boom')); };
+
+    try {
+      // reload_if_lite swallows the rejection (board.js:931-933) so the modal
+      // degrades to the lite view rather than surfacing an unhandled error.
+      const result = await board.reload_if_lite();
+      assert.strictEqual(result, board, 'resolves with the record, not a rejection');
+      assert.strictEqual(board.get('reloading_detail'), false, 'flag cleared even on failure');
+    } finally {
+      board.reload = originalReload;
+    }
+  });
+
+  test('re-dispatches reload on a later open after a failed reload', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const board = store.push({ data: { type: 'board', id: '293_retry', attributes: {
+      key: 'me/retry', permissions: { edit: true, share: true }
+    } } });
+
+    let reload_count = 0;
+    const originalReload = board.reload;
+    // First open: reload fails, leaving parent_board_id undefined.
+    board.reload = function() { reload_count++; return RSVP.reject(new Error('boom')); };
+
+    try {
+      await board.reload_if_lite();
+      assert.strictEqual(reload_count, 1, 'first open dispatched a reload');
+      assert.strictEqual(board.get('parent_board_id'), undefined, 'still lite after a failed reload');
+
+      // Second open: because the detector still sees undefined, it retries.
+      board.reload = function() {
+        reload_count++;
+        board.set('parent_board_id', null);
+        return RSVP.resolve(board);
+      };
+      await board.reload_if_lite();
+      assert.strictEqual(reload_count, 2, 'a later open re-dispatches after the earlier failure');
+      assert.strictEqual(board.get('parent_board_id'), null, 'second reload populated the record');
+    } finally {
+      board.reload = originalReload;
+    }
+  });
+
+  test('reload does not clobber a pending local sharing_key edit (mid-flight edit survival)', async function(assert) {
+    const store = this.owner.lookup('service:store');
+    const board = store.push({ data: { type: 'board', id: '293_dirty', attributes: {
+      key: 'me/dirty', permissions: { edit: true, share: true }
+    } } });
+
+    let resolveReload;
+    const originalReload = board.reload;
+    board.reload = function() {
+      return new RSVP.Promise(function(resolve) {
+        // Mirror a real /show response: it repopulates parent_board_id and
+        // shared_users but never echoes the write-only sharing_key command.
+        resolveReload = function() {
+          board.set('parent_board_id', null);
+          board.set('shared_users', [{ user_name: 'sup', name: 'Sup' }]);
+          resolve(board);
+        };
+      });
+    };
+
+    try {
+      const promise = board.reload_if_lite();
+      // Editor sets a sharing command while the refetch is still in flight.
+      board.set('sharing_key', 'add_edit_shallow-someuser');
+      resolveReload();
+      await promise;
+      assert.strictEqual(board.get('sharing_key'), 'add_edit_shallow-someuser', 'pending sharing_key survived the reload');
+      assert.strictEqual(board.get('shared_users.length'), 1, 'reload still applied its own fields');
+    } finally {
+      board.reload = originalReload;
+    }
+  });
 });
