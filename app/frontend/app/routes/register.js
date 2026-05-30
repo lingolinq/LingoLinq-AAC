@@ -40,7 +40,7 @@ export default Route.extend({
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave') || controller.get('ageBlocksSave')) {
         return;
       }
       if(controller.get('showCoppaConsent')) {
@@ -56,6 +56,8 @@ export default Route.extend({
         user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
+      user.set('preferences.telemetry_opt_in', controller.get('model.preferences.telemetry_opt_in') || false);
+      user.set('preferences.comms_log_opt_in', controller.get('model.preferences.comms_log_opt_in') || false);
       user.save().then(function(user) {
         controller.set('start_code', null);
         user.set('password', null);
@@ -69,9 +71,28 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
-          _this.appState.return_to_index();
+          var prefs = user.get('preferences') || {};
+          // Default true for new registration when the API omits the key.
+          var hasBetaAccess = prefs.beta_program_access !== false;
+          // session.override() hard-reloads to `/`, so route transitions here
+          // never run. Persist intent in sessionStorage and resume on boot
+          // (see index.js afterModel). Home tour runs only after beta welcome.
+          try {
+            if (hasBetaAccess) {
+              sessionStorage.setItem('ll_pending_beta_welcome', '1');
+            } else {
+              sessionStorage.setItem('ll_auto_open_home_tour', '1');
+            }
+          } catch (e) { /* private mode / disabled */ }
+          if (!hasBetaAccess) {
+            _this.appState.set('auto_open_home_tour', true);
+          }
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
+          } else if(hasBetaAccess) {
+            _this.transitionTo('beta-welcome-message');
+          } else {
+            _this.appState.return_to_index();
           }
         };
         if(user.get('start_progress')) {

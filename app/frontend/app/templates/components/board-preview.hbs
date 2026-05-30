@@ -27,6 +27,20 @@
           {{t "Copy For..." key="copy_for_ellipses"}}
         </button>
       {{/if}}
+      {{#if this.removeContext}}
+        {{!-- Touch-device parity for the tile's hover-only delete/unlike/unshare
+             button. Renders at the bottom of the action stack with a danger
+             treatment and a separator above so it reads as a destructive
+             action, isolated from the positive CTAs. Label + icon come from
+             board_list.remove_* so all four contextual variants (delete,
+             unstar, unlink, untag) are covered with their correct copy. --}}
+        <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{action this.onRemove}} aria-label={{this.removeContext.label}}>
+          {{#if this.removeContext.icon}}
+            <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
+          {{/if}}
+          <span class='md-board-preview__action--remove-text'>{{this.removeContext.label}}</span>
+        </button>
+      {{/if}}
     </div>
     {{#if this.model.loading}}
       <div class='md-board-preview__status'>{{t "Loading board..." key="loading_board"}}</div>

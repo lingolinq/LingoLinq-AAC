@@ -53,6 +53,15 @@ export default Route.extend({
   },
   afterModel: function(model) {
     if (model && model.get('user_name') && session.get('access_token')) {
+      try {
+        if (window.sessionStorage && sessionStorage.getItem('ll_pending_beta_welcome') === '1') {
+          sessionStorage.removeItem('ll_pending_beta_welcome');
+          if (model.get('preferences.beta_program_access') !== false) {
+            this.transitionTo('beta-welcome-message');
+            return;
+          }
+        }
+      } catch (e) { /* sessionStorage unavailable */ }
       var home_board_key = model.get('preferences.home_board.key');
       // Direct users straight to their home board on login/app-boot —
       // the `progress.setup_done` gate was tied to the Getting Started

@@ -89,15 +89,16 @@ header:has(#speak) *:focus-visible,
 .header--hidden {
   display: none !important;
 }
-#within_ember:has(> header.header--hidden) {
-  --topbar-height: 0px;
-}
 .content--no-top-padding {
   padding-top: 0 !important;
 }
 /* When user is logged in, use a shorter top navbar */
 #within_ember:has(header:not(.header--unauthenticated)) {
   --topbar-height: 16px;
+}
+/* After authenticated topbar rule — hidden header must not reserve space (beta onboarding, board layout). */
+#within_ember:has(> header.header--hidden) {
+  --topbar-height: 0px;
 }
 /* App-navbar-only header (no speak row, no legacy #nav_header): bar is 70px; 16px left #content tucked under the fixed header (e.g. /offline-boards on narrow screens). */
 #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):has(#inner_header .app-navbar):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header))) {
@@ -365,7 +366,9 @@ html, body {
 /* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user).
    Apply the login gradient to #content itself so it fills the full scroll area —
    including the top/bottom padding bands — regardless of how tall the form is. */
-#within_ember:has(.page-footer) #content:has(.login-page-bg) {
+#within_ember:has(.page-footer) #content:has(.login-page-bg),
+#within_ember:has(.page-footer) #content:has(.register-page-bg),
+#within_ember:has(.page-footer) #content:has(.beta-welcome-page) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -383,6 +386,50 @@ html, body {
     radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
 }
+
+/* Beta onboarding: same scroll model as /register — #content scrolls; page bg grows with content (no inner scrollport). */
+#within_ember:has(.beta-welcome-page) #content,
+#within_ember:has(.page-footer) #content:has(.beta-welcome-page),
+#within_ember:has(.beta-welcome-page) #content.index.with_user,
+#within_ember:has(.beta-welcome-page) #content.with_user {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box;
+  padding-top: 2.5rem !important;
+  padding-bottom: calc(var(--bottombar-height) + 2.5rem) !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .ember-view {
+  flex: 0 0 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  min-height: auto !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .register-page-bg {
+  flex: 0 0 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+#within_ember:has(.beta-welcome-page) #content > .register-page-bg,
+#within_ember:has(.beta-welcome-page) .beta-welcome-page.register-page-bg {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+
 /* Light mode: shell bg uses active pill gradient (7eb8e0 → 3a6bc7). */
 #within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
 #within_ember.bento-page-with-footer.bento-default-mode-active #content.index.with_user {
@@ -589,7 +636,26 @@ body:has(#within_ember.bento-page-with-footer) {
 }
 /* Login, register, forgot password/username: same as .la-wrapper so content is visible and #content scrolls */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.login-page-bg),
-#within_ember:has(.page-footer) #content > .ember-view:has(.login-page-bg) {
+#within_ember:has(.page-footer) #content > .ember-view:has(.login-page-bg),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.beta-welcome-page),
+#within_ember:has(.page-footer) #content > .ember-view:has(.beta-welcome-page),
+#within_ember.bento-page-with-footer #content > .ember-view:has(.register-page-bg),
+#within_ember:has(.page-footer) #content > .ember-view:has(.register-page-bg) {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+/* Beat #content.index.with_user > .ember-view viewport lock when logged-in user hits auth/onboarding pages */
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.login-page-bg),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.login-page-bg),
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.register-page-bg),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.register-page-bg),
+#within_ember.bento-page-with-footer #content.index.with_user > .ember-view:has(.beta-welcome-page),
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(.beta-welcome-page) {
   flex: 0 0 auto;
   min-height: auto;
   height: auto;
@@ -3075,75 +3141,197 @@ h2 {
   margin-bottom: 6px;
 }
 
+/* ── Subscribe modal: modern premium chrome ──────────────────
+   Replaces the legacy split header (logo + title + trial pill
+   on one row competing with the close X) with a centered hero
+   composition that matches the boards-page .md-card surface
+   system. Header sits on a soft surface gradient with a hairline
+   bottom rule; body has generous padding + constrained intro. */
+.modal .modal-dialog:has(.subscribe-modal-header) {
+  border-radius: $aac-radius-2xl;
+  overflow: hidden;
+  width: max-content;
+  max-width: min(92vw, 1040px);
+  min-width: 320px;
+}
+
 .subscribe-modal-header {
   position: relative;
+  padding: 28px 76px 22px;
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
 }
-.subscribe-modal-header__close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  z-index: 2;
-  border: 1px solid rgba($la-navy, 0.10);
-  background: rgba($la-navy, 0.04);
-  color: $brand-slate-gray;
+
+.subscribe-modal-header--hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
 }
-.subscribe-modal-header__close:hover {
-  background: $brand-charcoal-blue;
-  color: #fff;
-  border-color: $brand-charcoal-blue;
-}
-.subscribe-modal-header .subscribe-trial-btn {
-  margin-right: 56px;
-}
+
 .subscribe-modal-header__title-wrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .subscribe-modal-header__logo {
-  height: 50px;
+  height: 28px;
   width: auto;
   flex-shrink: 0;
 }
 
-/* Welcome to LingoLinq subscribe modal: match main board rounding (36px), width fits content */
-.modal .modal-dialog:has(.subscribe-modal-header) {
-  border-radius: 36px;
-  overflow: hidden;
-  width: max-content;
-  max-width: min(77vw, 770px);
-  min-width: 320px;
+.subscribe-modal-header__title {
+  margin: 0;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: $aac-font-weight-black;
+  color: var(--md-ink, $brand-blue-black);
+  letter-spacing: -0.01em;
 }
 
-/* Start w/ 2-Month Trial button: blue, landing-page hover effect */
+/* Canonical light-modal close button — same chip used on
+   .la-features-modal-wrap, board-stats, swap-images, etc.
+   48×48 circular, surface-300 fill, navy hairline, hover lifts.
+   The compound `.subscribe-modal-header__close.la-modal-close`
+   selector is intentional: it bumps specificity above the base
+   `.la-modal-close` rule (which is dark-bg styled — white on
+   translucent dark — and is defined LATER in app.scss, so a
+   single-class override loses on source order). */
+.subscribe-modal-header__close.la-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background-color: $surface-300;
+  color: var(--md-muted, $la-navy);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease-out, box-shadow 0.2s ease;
+
+  &:hover {
+    color: var(--md-ink, $brand-blue-black);
+    background-color: $surface-400;
+    border-color: rgba($brand-blue-black, 0.2);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 12px rgba($brand-blue-black, 0.14), 0 2px 4px rgba($brand-blue-black, 0.08);
+  }
+  &:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 3px rgba($brand-blue-black, 0.08);
+  }
+}
+
+/* "Start w/ 2-Month Trial" — secondary CTA below the hero title */
+.subscribe-modal-header__trial-btn {
+  margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .subscribe-modal-header {
+    padding: 22px 56px 18px;
+  }
+  .subscribe-modal-header__title {
+    font-size: 20px;
+  }
+}
+
+/* Start w/ 2-Month Trial pill — canonical modern action-button
+   palette (.md-btn--primary): soft dusty-denim wash with navy
+   text. Matches the plan-select pills + activate hero so the
+   whole modal speaks one button vocabulary. */
 .subscribe-trial-btn {
-  float: right;
   display: inline-flex;
   align-items: center;
-  padding: 16px 32px;
-  border-radius: 50px;
+  justify-content: center;
+  padding: 11px 24px;
+  border-radius: $aac-radius-pill;
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
-  border: none;
+  border: 1.5px solid rgba($brand-dusty-denim, 0.35);
   cursor: pointer;
-  color: #fff;
-  background: $brand-smart-blue;
-  box-shadow: 0 4px 14px rgba(58, 107, 199, 0.35);
-  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  color: $la-navy;
+  background: rgba($brand-dusty-denim, 0.45);
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.18);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 .subscribe-trial-btn:hover {
-  background: #2f56a3;
-  color: var(--fs-light-gray, #F0F0F0);
-  box-shadow: 0 6px 20px rgba(58, 107, 199, 0.45);
+  background: rgba($brand-dusty-denim, 0.6);
+  border-color: rgba($brand-dusty-denim, 0.5);
+  color: $la-navy;
+  box-shadow: 0 6px 20px rgba($brand-dusty-denim, 0.28);
   transform: translateY(-1px);
   text-decoration: none;
 }
 
 .subscribe-trial-btn:focus-visible {
-  @include focus-ring($color: $brand-smart-blue);
+  @include focus-ring($color: $brand-dusty-denim);
+}
+
+/* Body — generous padding, centered intro, banners */
+.subscribe-modal-body {
+  padding: 28px 32px 32px !important;
+  background: #fff;
+}
+
+.subscribe-modal-intro {
+  max-width: 60ch;
+  margin: 0 auto 18px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--md-muted, $la-navy);
+}
+
+.subscribe-modal-banner {
+  max-width: 60ch;
+  margin: 0 auto 20px;
+  padding: 12px 18px;
+  border-radius: $aac-radius-lg;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+
+  strong { font-weight: 700; }
+}
+.subscribe-modal-banner--discount {
+  background: rgba($brand-verdigris, 0.08);
+  border: 1px solid rgba($brand-verdigris, 0.22);
+  color: $brand-verdigris-aa;
+}
+.subscribe-modal-banner--sale {
+  background: rgba($brand-honey-bronze, 0.14);
+  border: 1px solid rgba($brand-honey-bronze, 0.32);
+  color: color.adjust($brand-honey-bronze, $lightness: -32%);
+}
+
+.subscribe-modal-finalizing {
+  text-align: center;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 20px;
+  color: var(--md-ink, $brand-blue-black);
+  margin: 28px 0;
+}
+.subscribe-modal-error {
+  text-align: center;
+  font-size: 16px;
+  margin: 24px 0;
 }
 
 /* Same button in subscription table bottom row: full styling so it matches top Start button */
@@ -8241,6 +8429,11 @@ body.pretty_loader #loading_box {
 /* Restore top padding so content starts below fixed navbar (overrides #content { padding: 0 } above) */
 #within_ember:has(header.header--unauthenticated) #content {
   padding-top: var(--topbar-height) !important;
+}
+/* Beta onboarding: beat unauthenticated top padding / content--no-top-padding; reserve footer clearance */
+#within_ember:has(.beta-welcome-page) #content {
+  padding-top: 2.5rem !important;
+  padding-bottom: calc(var(--bottombar-height) + 2.5rem) !important;
 }
 .btn-default .badge {
   color: #ffffff;
@@ -14088,185 +14281,662 @@ form.row.subscription-form-with-cards {
   max-width: 960px;
 }
 
+/* ── Subscribe modal: pricing card grid (modern) ─────────────
+   Each card is now an elevated rounded tile that mirrors the
+   boards-page .md-card aesthetic: white vertical gradient
+   surface, hairline border, navy-tinted bottom border for
+   weight, soft shadow, hover lift. Replaces the legacy flat
+   table look (flush border-left dividers, dense 16/20 padding,
+   colored stripe rows) that competed with .la-about-glass-card. */
 .subscription-form-cards {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 0;
-  max-width: 100%;
+  gap: 16px;
   width: 100%;
-  background: #fff;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba($indigo, 0.10), 0 0 0 1px rgba($indigo, 0.04);
+  max-width: 100%;
+  margin-top: 4px;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
 }
 
 .subscription-form-card {
   display: flex;
   flex-direction: column;
-  border-left: 2px solid #c5bfb3;
+  border: none;
 
-  &:first-child {
-    border-left: none;
-  }
+  &:first-child { border-left: none; }
 }
 
-.subscription-form-card__header {
-  padding: 20px;
-  text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.01em;
-
-  &.subscription-table__communicator-header {
-    background: #2c5282;
-    font-size: 22px;
-  }
-
-  &.subscription-table__supporter-header {
-    background: color.adjust(#415a75, $lightness: 20%, $saturation: 12%);
-    font-size: 18px;
-  }
-
-  &.subscription-table__eval-header {
-    background: var(--fs-medium-gray, $brand-slate-gray);
-    font-size: 18px;
-  }
-}
-
-.subscription-form-card__body {
-  flex: 1;
+/* Override .la-about-glass-card from dark-theme landing variant to
+   light-theme modal variant (still scoped to subscription form). */
+.subscription-form-cards .la-about-glass-card {
   display: flex;
   flex-direction: column;
-  padding: 16px 20px;
-  font-size: 15px;
-  line-height: 1.5;
-  color: $indigo;
+  flex: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(245, 248, 252, 0.95));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  border-bottom: 2px solid rgba($la-navy, 0.10);
+  border-radius: $aac-radius-xl;
+  padding: 24px 22px 0;
+  box-shadow:
+    0 6px 24px rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.04);
+  transform: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  overflow: hidden;
 
-  .subscription-form-card--communicator & {
-    background: rgba(44, 82, 130, 0.02);
-  }
-
-  .subscription-form-card--supporter & {
-    background: rgba(26, 122, 110, 0.04);
-  }
-
-  .subscription-form-card--eval & {
-    background: rgba(139, 111, 58, 0.04);
+  &:hover {
+    transform: translateY(-3px);
+    background: linear-gradient(180deg, #fff, rgba(245, 248, 252, 1));
+    box-shadow:
+      0 12px 32px rgba($la-navy, 0.12),
+      0 2px 6px rgba($la-navy, 0.06);
   }
 }
 
-.subscription-form-card__description,
-.subscription-form-card__feature,
-.subscription-form-card__row {
-  padding: 12px 0;
-  border-bottom: 1px solid $color-linen;
-}
-
-.subscription-form-card__description.subscription-table__row--light-gray-bg,
-.subscription-form-card__feature.subscription-table__row--light-gray-bg,
-.subscription-form-card__row.subscription-table__row--light-gray-bg {
-  background: rgba(44, 82, 130, 0.03);
-}
-
-.subscription-form-card__pricing {
+.subscription-form-cards .la-about-glass-card__header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px 0;
-  border-bottom: 1px solid $color-linen;
-  position: relative;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
 
-  .subscription-form-card__price-block {
-    flex: 1;
-    min-width: 100px;
-  }
+.subscription-form-cards .la-about-glass-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $la-navy;
 
-  .middle {
-    background: #fff;
-    padding: 6px 10px;
-    font-size: 18px;
-    color: $brand-slate-gray;
-    font-weight: 500;
-    margin: 8px 0;
-  }
+  svg { width: 28px; height: 28px; stroke: currentColor; }
+}
+.subscription-form-cards .la-about-glass-card__icon--communicator { background: rgba(44, 82, 130, 0.10); color: #2c5282; }
+.subscription-form-cards .la-about-glass-card__icon--supporter    { background: rgba($brand-verdigris, 0.12); color: $brand-verdigris-aa; }
+.subscription-form-cards .la-about-glass-card__icon--eval         { background: rgba($brand-slate-gray, 0.14); color: $brand-slate-gray; }
 
-  .sale {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: $indigo;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 6px 0;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin: -16px -20px 8px -20px;
-    padding: 6px 20px;
+.subscription-form-cards .la-about-glass-card__title {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: $aac-font-weight-bold;
+  color: var(--md-ink, $brand-blue-black);
+  margin: 0;
+  text-align: center;
+}
+
+.subscription-form-cards .la-about-glass-card__text {
+  font-size: 14px;
+  color: var(--md-muted, $la-navy);
+  line-height: 1.55;
+  margin: 0 0 4px;
+  text-align: center;
+
+  strong { color: var(--md-ink, $brand-blue-black); }
+}
+
+/* la-pricing-card (centered column inside each glass card) */
+.subscription-form-cards .la-pricing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: none;
+  transition: none;
+  flex: 1;
+
+  &:hover { transform: none; }
+}
+
+.subscription-form-cards .la-pricing-card__prices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 14px 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+}
+
+.subscription-form-cards .la-pricing-card__price-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.subscription-form-cards .la-pricing-card__amount {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 34px;
+  font-weight: $aac-font-weight-black;
+  color: var(--md-ink, $brand-blue-black);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.subscription-form-cards .la-pricing-card__currency {
+  font-size: 14px;
+  font-weight: $aac-font-weight-semi;
+  color: $brand-slate-gray;
+  vertical-align: middle;
+  margin-right: 1px;
+}
+
+.subscription-form-cards .la-pricing-card__term {
+  font-size: 13px;
+  color: $brand-charcoal-dark;
+  font-weight: $aac-font-weight-medium;
+  margin-top: 4px;
+}
+
+.subscription-form-cards .la-pricing-card__or {
+  font-size: 13px;
+  color: rgba($brand-charcoal-dark, 0.5);
+  padding: 4px 0;
+}
+
+/* Sale badge — used for "sale! 50% off" / "save 25%" */
+.subscription-form-cards .la-pricing-card .sale {
+  display: inline-block;
+  background: linear-gradient(135deg, $brand-verdigris 0%, color.adjust($brand-verdigris, $lightness: -8%) 100%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: $aac-radius-pill;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* Strikethrough price (when sale active) */
+.subscription-form-cards .la-pricing-card__amount span[style*="line-through"] {
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  color: $brand-slate-gray !important;
+  margin-right: 6px;
+}
+
+/* Features list — clean rows with hairline dividers */
+.subscription-form-cards .la-pricing-card__features {
+  list-style: none;
+  margin: 6px 0 14px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--md-ink, $brand-blue-black);
+
+  li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.06));
+    &:last-child { border-bottom: none; }
   }
 }
 
-.subscription-form-card__feature-item {
-  margin-top: 8px;
+/* "Cloud extras" inline-link/button inside features */
+.subscription-form__cloud-extras-link {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: $brand-verdigris-aa;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s ease;
 
-  &:first-child {
-    margin-top: 0;
-  }
+  &:hover { border-bottom-color: $brand-verdigris-aa; }
 }
 
+/* Card body — plan-select buttons row + sub-rows. Pulled to the
+   card's edges so backgrounds (sub-rows, navy-bg) extend full-width. */
+.subscription-form-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin: 0 -22px;
+  font-size: 14px;
+  color: var(--md-ink, $brand-blue-black);
+  background: transparent;
+}
+
+.subscription-form-cards .subscription-form-card--communicator .subscription-form-card__body,
+.subscription-form-cards .subscription-form-card--supporter   .subscription-form-card__body,
+.subscription-form-cards .subscription-form-card--eval        .subscription-form-card__body {
+  background: transparent;
+}
+
+/* Plan-select buttons row (one per card) */
 .subscription-form-card__buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid $color-linen;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  background: transparent;
 
-  .subscription-form-card--communicator & {
-    background: transparent;
+  > div { flex: 1; min-width: 110px; }
+}
+
+.subscription-form-card__buttons button,
+.subscription-form-cards button[rel='monthly'],
+.subscription-form-cards button[rel='long_term'],
+.subscription-form-cards button[rel='slp_paid'],
+.subscription-form-cards button[rel='eval_paid'] {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: $aac-radius-pill;
+  /* Canonical modern action button palette — same as
+     .md-btn--primary (rgba dusty-denim 0.3 + navy text). */
+  background: rgba($brand-dusty-denim, 0.30);
+  border: 1.5px solid rgba($brand-dusty-denim, 0.22);
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+
+  b {
+    font-size: 13px;
+    font-weight: 700;
+    color: inherit;
   }
 
-  .btn {
-    flex: 1;
-    min-width: 120px;
+  &:hover:not(:disabled) {
+    background: rgba($brand-dusty-denim, 0.45);
+    border-color: rgba($brand-dusty-denim, 0.35);
+    box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15);
+    transform: translateY(-1px);
+  }
+
+  /* Selected plan (Subscription.update_classes adds .active / .btn-primary).
+     Bumps to a stronger denim wash so the chosen plan reads as committed
+     without leaving the action-button palette. */
+  &.active,
+  &.btn-primary {
+    background: rgba($brand-dusty-denim, 0.65);
+    border-color: rgba($brand-dusty-denim, 0.55);
+    color: $la-navy;
+    box-shadow: 0 6px 18px rgba($brand-dusty-denim, 0.30);
+
+    b { color: $la-navy; font-weight: 800; }
+  }
+
+  .subscription-currency-us {
+    font-size: 10px;
+    font-weight: 500;
+    color: inherit;
+    opacity: 0.75;
+  }
+}
+
+/* Sub-rows (premium symbols, supervisor credits, navy/gift-trial) */
+.subscription-form-card__row {
+  padding: 12px 18px;
+  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--md-ink, $brand-blue-black);
+
+  &:empty { display: none; }
+}
+
+.subscription-form-card__row.subscription-table__row--light-gray-bg {
+  background: rgba($brand-slate-gray, 0.05);
+
+  label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
   }
 }
 
 .subscription-form-card__row.subscription-table__row--blue-bg {
-  background: rgba(44, 82, 130, 0.08);
-  border-bottom: 1px solid $color-linen;
-  padding: 12px 0;
+  background: rgba($brand-dusty-denim, 0.06);
 
   a {
-    color: var(--fs-dark-teal, $brand-verdigris);
+    color: $brand-verdigris-aa;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.12s ease;
+
+    &:hover { border-bottom-color: $brand-verdigris-aa; }
   }
 
-  a:hover {
-    border-bottom: 1px solid var(--fs-dark-teal, $brand-verdigris);
+  .text-muted {
+    color: $brand-slate-gray;
+    font-style: italic;
   }
 }
 
+/* Navy CTA row at bottom of each card — gift code, trial button,
+   modeling-only link. Grounds the card with a brand-color base. */
 .subscription-form-card__row.subscription-table__row--navy-bg {
-  background: $la-navy;
+  margin-top: auto;
+  margin: auto -22px -1px -22px;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, $la-navy 0%, color.adjust($la-navy, $lightness: -5%) 100%);
   color: #fff;
-  border-bottom: none;
-  padding: 12px;
-  margin: 0 -20px -16px -20px;
-  border-radius: 0 0 20px 20px;
-
-  .subscription-form-card--supporter &,
-  .subscription-form-card--eval & {
-    border-radius: 0;
-  }
+  border: none;
+  border-radius: 0;
+  text-align: center;
 
   a {
     color: $brand-honey-bronze;
+    text-decoration: none;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.12s ease;
+
+    &:hover { border-bottom-color: $brand-honey-bronze; }
   }
 
+  /* Trial pill on dark bg flips to white surface */
   .subscribe-trial-btn {
     width: 100%;
+    background: rgba(#fff, 0.96);
+    color: $la-navy;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+
+    &:hover {
+      background: #fff;
+      color: $la-navy;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    }
+  }
+
+  /* Gift code input + Check button */
+  .form-control {
+    background: rgba(#fff, 0.96);
+    border: 1px solid rgba(#fff, 0.3);
+    color: $la-navy;
+    border-radius: $aac-radius-md;
+    font-weight: 600;
+    text-align: center;
+  }
+  .btn {
+    border-radius: $aac-radius-md;
+    background: $brand-honey-bronze;
+    color: $la-navy;
+    border: none;
+    font-weight: 600;
+    padding: 10px 14px;
+
+    &:hover {
+      background: color.adjust($brand-honey-bronze, $lightness: -6%);
+      color: $la-navy;
+    }
   }
 }
+
+/* Premium-symbol image (LessonPix/PCS preview) */
+.subscription-form__premium-symbol-image {
+  float: none;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Bulk purchase explainer card */
+.subscription-form-with-cards .form-group:has(.glyphicon-paperclip) {
+  margin-top: 24px;
+
+  p {
+    background: rgba($brand-honey-bronze, 0.08);
+    border: 1px solid rgba($brand-honey-bronze, 0.22);
+    border-radius: $aac-radius-lg;
+    padding: 16px 18px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--md-ink, $brand-blue-black);
+  }
+
+  .glyphicon-paperclip {
+    color: $brand-honey-bronze;
+    font-size: 22px !important;
+    margin: 2px 12px 0 0 !important;
+  }
+}
+
+/* Expiration-notes explanation block */
+.subscribe-modal-body .explanation {
+  max-width: 60ch;
+  margin: 16px auto 0 !important;
+  padding: 12px 18px;
+  background: rgba($brand-slate-gray, 0.06);
+  border-radius: $aac-radius-lg;
+  font-size: 13px;
+  line-height: 1.5;
+  color: $brand-charcoal-dark;
+  text-align: center;
+}
+
+/* Trial-choice rare 2-button mode (trial vs purchasing) */
+.subscription-form-trial-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 24px;
+}
+.subscription-form-trial-choice__btn {
+  min-height: 90px;
+  padding: 16px 20px;
+  border-radius: $aac-radius-xl;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.subscription-form-trial-choice__btn--trial {
+  background: #fff;
+  border: 1.5px solid var(--md-line, rgba($brand-blue-black, 0.15));
+  color: var(--md-ink, $brand-blue-black);
+
+  &:hover {
+    background: $surface-100;
+    border-color: rgba($brand-blue-black, 0.25);
+    transform: translateY(-1px);
+  }
+}
+.subscription-form-trial-choice__btn--pricing {
+  /* Modern action-button palette (.md-btn--primary) — dusty
+     denim wash with navy text, slightly stronger than the
+     plan-select rest state since this is the primary choice. */
+  background: rgba($brand-dusty-denim, 0.60);
+  border: 1.5px solid rgba($brand-dusty-denim, 0.55);
+  color: $la-navy;
+  box-shadow: 0 6px 18px rgba($brand-dusty-denim, 0.28);
+
+  &:hover {
+    background: rgba($brand-dusty-denim, 0.75);
+    border-color: rgba($brand-dusty-denim, 0.7);
+    box-shadow: 0 8px 24px rgba($brand-dusty-denim, 0.38);
+    transform: translateY(-1px);
+  }
+}
+@media (max-width: 480px) {
+  .subscription-form-trial-choice { grid-template-columns: 1fr; }
+}
+
+/* Stack cards on narrow viewports */
+.skinny_subscription .subscription-form-cards {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 950px) {
+  .subscription-form-cards { grid-template-columns: 1fr; }
+}
+
+/* ── Activate row (hero CTA + secondary actions) ─────────────
+   Replaces the old white outlined activate button + cramped
+   trial link with a hero pill gradient + softer outlined
+   secondary actions. */
+.subscription-activate-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.10));
+}
+
+/* Hero activate CTA — strongest variant of the canonical
+   .md-btn--primary action-button palette (dusty-denim + navy).
+   Stays on-brand with the plan-select pills but uses a 60%
+   fill + thicker border + stronger shadow to read as the
+   primary action of the modal. */
+.subscription-activate-btn {
+  flex: 1 1 280px;
+  max-width: 480px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 28px;
+  border-radius: $aac-radius-pill;
+  border: 1.5px solid rgba($brand-dusty-denim, 0.55) !important;
+  background: rgba($brand-dusty-denim, 0.60) !important;
+  color: $la-navy !important;
+  box-shadow: 0 8px 24px rgba($brand-dusty-denim, 0.28) !important;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba($brand-dusty-denim, 0.75) !important;
+    border-color: rgba($brand-dusty-denim, 0.7) !important;
+    box-shadow: 0 12px 32px rgba($brand-dusty-denim, 0.38) !important;
+    transform: translateY(-1px);
+  }
+}
+.subscription-activate-btn__heading-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+.subscription-activate-btn__heading {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: $la-navy;
+  letter-spacing: -0.01em;
+}
+.subscription-activate-btn__arrow {
+  color: $la-navy;
+  font-size: 18px;
+}
+.subscription-activate-btn__icon { color: $la-navy; }
+.subscription-activate-btn__discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 3px 12px;
+  border-radius: $aac-radius-pill;
+  background: rgba($la-navy, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  color: $la-navy;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  .subscription-activate-btn__icon { color: $la-navy; }
+}
+.subscription-activate-btn__price {
+  color: rgba($la-navy, 0.88);
+  font-size: 13px;
+  font-weight: 500;
+}
+.subscription-activate-btn__paren {
+  color: rgba($la-navy, 0.78);
+  font-weight: 600;
+}
+.subscription-activate-btn__paying-line {
+  color: $la-navy;
+  font-weight: 600;
+}
+.subscription-activate-btn__subtext {
+  display: block;
+  margin-top: 4px;
+  color: rgba($la-navy, 0.75);
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Secondary actions in activate row (trial link, cancel, reload, log out, need-more-time) */
+.subscription-activate-row .subscribe-trial-btn {
+  flex: 0 1 auto;
+  margin-left: 0;
+  font-size: 14px;
+  background: transparent;
+  color: var(--md-muted, $la-navy);
+  border: 1.5px solid var(--md-line, rgba($brand-blue-black, 0.15));
+  box-shadow: none;
+
+  &:hover {
+    background: rgba($la-navy, 0.05);
+    color: var(--md-ink, $brand-blue-black);
+    border-color: rgba($la-navy, 0.35);
+    box-shadow: none;
+    transform: translateY(-1px);
+  }
+}
+.subscription-activate-row > .btn,
+.subscription-activate-row > a:not(.subscribe-trial-btn) {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: $aac-radius-pill;
+  background: transparent;
+  border: 1.5px solid var(--md-line, rgba($brand-blue-black, 0.15));
+  color: var(--md-muted, $la-navy);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+
+  &:hover {
+    background: rgba($la-navy, 0.05);
+    border-color: rgba($la-navy, 0.35);
+    color: var(--md-ink, $brand-blue-black);
+    text-decoration: none;
+  }
+}
+
+/* Supporter / Eval secondary states */
+.subscription-form-card .semi_dim { opacity: 0.85; }
 
 .subscription-form-cards .subscription-table__cloud-extras-right a[href*='blog.mylingolinq.com'],
 .subscription-form-cards a[href*='blog.mylingolinq.com'] {
@@ -14279,177 +14949,6 @@ form.row.subscription-form-with-cards {
 
 .subscription-form-cards a[href*='blog.mylingolinq.com']:hover {
   border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
-}
-
-/* Cloud Extras modal trigger (replaces blog link) – match previous link appearance */
-.subscription-form__cloud-extras-link {
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  color: var(--fs-dark-teal, $brand-verdigris);
-  text-decoration: none;
-  font-weight: 500;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.12s ease;
-  cursor: pointer;
-
-  &:hover {
-    border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
-  }
-}
-
-.subscription-form__premium-symbol-image {
-  float: left;
-  width: 60px;
-  margin-left: 20px;
-}
-
-/* la-* classes used in subscription-form: features list and sale badge */
-.subscription-form-cards .la-pricing-card__features {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  text-align: left;
-  width: 100%;
-  font-size: 15px;
-  line-height: 1.5;
-  color: $brand-charcoal-dark;
-
-  li {
-    padding: 0.35em 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-
-  a {
-    color: var(--fs-dark-teal, $brand-verdigris);
-    text-decoration: none;
-    font-weight: 500;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.12s ease;
-  }
-
-  a:hover {
-    border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
-  }
-}
-
-.subscription-form-cards .la-pricing-card .sale {
-  display: block;
-  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-  color: $indigo;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 6px 0;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-/* Stack cards on narrow viewports so the 3rd card is not cut off */
-.skinny_subscription .subscription-form-cards {
-  grid-template-columns: 1fr;
-}
-
-@media (max-width: 950px) {
-  .subscription-form-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .subscription-form-card {
-    border-left: none;
-    border-top: 2px solid #c5bfb3;
-
-    &:first-child {
-      border-top: none;
-    }
-  }
-
-  .subscription-form-card:last-child .subscription-form-card__row.subscription-table__row--navy-bg {
-    border-radius: 0 0 20px 20px;
-  }
-}
-
-/* Activate Account button: match Try Lingo Free (landing-page coral), same shadows as trial button */
-.subscription-activate-btn {
-  padding: 16px 36px;
-  border-radius: 50px;
-  font-weight: 600;
-  border: 2px solid var(--fs-navy, $la-navy);
-  background: #FFFFFF !important;
-  color: var(--fs-navy, $la-navy);
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.08), 0 4px 14px rgba($la-navy, 0.35);
-  transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
-  text-decoration: none;
-}
-.subscription-activate-btn:hover {
-  background: var(--fs-light-gray, #F0F0F0) !important;
-  color: var(--fs-navy, $la-navy);
-  border-color: var(--fs-navy, $la-navy);
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.1), 0 6px 20px rgba($la-navy, 0.45);
-  transform: translateY(-1px);
-}
-.subscription-activate-btn__heading-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-.subscription-activate-btn__heading {
-  font-size: 21.6px; /* 24px −10% */
-  color: $brand-teal;
-}
-.subscription-activate-btn__arrow {
-  color: $brand-teal;
-  font-size: 19.8px; /* 22px −10% */
-}
-.subscription-activate-btn__icon {
-  color: $brand-teal;
-}
-.subscription-activate-btn__discount {
-  font-weight: bold;
-  color: var(--fs-navy, $la-navy);
-  .subscription-activate-btn__icon {
-    color: $brand-teal;
-  }
-}
-.subscription-activate-btn__subtext {
-  color: var(--fs-navy, $la-navy);
-  font-weight: normal;
-}
-.subscription-activate-btn__price {
-  color: var(--fs-navy, $la-navy);
-  font-size: 14px; /* 14px −10% */
-  font-weight: 500;
-}
-.subscription-activate-btn__paren {
-  color: var(--fs-dark-teal, $brand-verdigris);
-  font-weight: 600;
-}
-.subscription-activate-btn__paying-line {
-  color: var(--fs-navy, $la-navy);
-  font-weight: 600;
-}
-
-/* Vertically center Start / Cancel next to Activate Account button */
-.subscription-activate-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.subscription-activate-row .subscribe-trial-btn {
-  flex: 1;
-  text-align: center;
-  justify-content: center;
-  float: none;
-  margin-left: 20px;
-  font-size: 14px;
 }
 
 /* Applied in: speak-menu component - speak options dropdown */
@@ -27690,6 +28189,19 @@ header #identity #identity_button.btn::after {
   padding-bottom: 20px;
   margin-bottom: 8px;
 }
+/* Positioning context for the absolutely-placed `.md-tour__trigger`
+   pill in the top-right of the dashboard hero. NOTE the
+   two-class compound selector: `.md-hero.md-hero--dashboard` is
+   0,2,0 specificity, which beats the general
+   `.md-hero { position: static !important }` rule (~line 38413,
+   0,1,0). The earlier single-class attempt at this same site
+   silently lost the cascade — `!important` does NOT override
+   source order at equal specificity, so the later `.md-hero`
+   rule still won. Higher specificity is the real fix.
+   See LEARNINGS.md duplicate-selectors-in-app.scss pattern. */
+.md-hero.md-hero--dashboard {
+  position: relative !important;
+}
 .md-hero--dashboard-user {
   padding-top: 0;
 }
@@ -28673,6 +29185,7 @@ header #identity #identity_button.btn::after {
 .la-wrapper.la-wrapper--contact .la-hero-card .la-section-eyebrow-badge,
 .la-features-modal-body .la-section-header .la-section-eyebrow-badge,
 .ub-boards-page__page-header .la-section-eyebrow-badge,
+.beta-welcome-card .la-section-header .la-section-eyebrow-badge,
 .beta-feedback-panel .la-section-eyebrow-badge {
   background: linear-gradient(
     180deg,
@@ -36659,21 +37172,85 @@ a.la-footer-bottom-a11y-wcag {
 .register-checkboxes {
   margin-bottom: $aac-spacing-16;
 
+  /* Modern checkbox styling — filled $brand-slate-blue background
+     with a white tick when checked (light mode). 18×18 box, hairline
+     border at rest, switches to slate-blue fill on :checked. The
+     input is absolute-positioned at the wrapper's top-left with a
+     matching `padding-left` on the wrapper so multi-line label text
+     (incl. inline `<a>` links) wraps as one block aligned to the
+     right of the box — NOT broken into flex columns. Selector
+     specificity beats the global .big_checkbox rule above; no
+     !important needed. */
   .big_checkbox {
-    margin-top: $aac-spacing-6;
+    position: relative;
+    margin-top: $aac-spacing-10;
     margin-bottom: 0;
+    padding-left: 28px;
+    padding-top: 0;
 
     label {
+      display: block;
       font-weight: normal;
       font-size: 14px;
-      color: #444;
-      line-height: 1.4;
+      color: var(--md-ink, $brand-blue-black);
+      line-height: 1.5;
       cursor: pointer;
+      padding-left: 0;
+      margin: 0;
 
       a {
         color: $brand-smart-blue;
+        text-decoration: underline;
       }
     }
+
+    input[type="checkbox"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      position: absolute;
+      top: 2px;
+      left: 0;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      min-height: 18px;
+      margin: 0;
+      border: 1.5px solid rgba($brand-slate-blue, 0.4);
+      border-radius: 4px;
+      background: #fff;
+      box-shadow: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+
+      &:hover {
+        border-color: $brand-slate-blue;
+      }
+
+      &:checked {
+        background: $brand-slate-blue;
+        border-color: $brand-slate-blue;
+      }
+
+      &:checked::after {
+        position: absolute;
+        content: '';
+        top: 2px;
+        left: 5px;
+        width: 5px;
+        height: 10px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+    }
+  }
+
+  .register-checkboxes__error {
+    display: block;
+    margin: $aac-spacing-4 0 0 28px;
+    font-size: 13px;
+    line-height: 1.4;
   }
 }
 
@@ -37207,7 +37784,367 @@ a.la-footer-bottom-a11y-wcag {
   }
 }
 
+/* ===== Beta welcome & agreement (register-style full-page onboarding) ===== */
+.beta-welcome-page.register-page-bg {
+  /* Match .register-page-bg: min-height fills viewport; #content is the only scrollport. */
+  min-height: 100vh;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2.5rem 16px 2rem;
+  width: 100%;
+  box-sizing: border-box;
+
+  .la-bg-orbs {
+    display: block;
+    z-index: 0;
+  }
+}
+
+.beta-welcome-page__frame {
+  max-width: 720px;
+}
+
+.beta-welcome-card {
+  margin-top: 0;
+  padding: $aac-spacing-28 $aac-spacing-32 $aac-spacing-32;
+
+  .la-section-header {
+    margin-bottom: $aac-spacing-24;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .la-hero-title-wrap {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    padding-bottom: 0;
+  }
+
+  .la-hero-title {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .la-about-hero-separator {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .la-section-eyebrow-badge {
+    display: inline-block;
+    margin-bottom: $aac-spacing-12;
+    font-size: 14px;
+    font-weight: $aac-font-weight-semi;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0d5c5f;
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+
+  .la-hero-title {
+    font-size: 28px;
+
+    @media (max-width: 480px) {
+      font-size: 24px;
+    }
+  }
+
+  .la-about-hero-separator {
+    margin-bottom: $aac-spacing-16;
+  }
+}
+
+.beta-welcome-card__subtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: #5a6578;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.beta-welcome-body {
+  text-align: left;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #3d4654;
+
+  p {
+    margin: 0 0 $aac-spacing-14;
+  }
+}
+
+.beta-welcome-intro {
+  margin-bottom: $aac-spacing-24;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba($brand-teal, 0.06) 0%,
+    rgba(58, 107, 199, 0.04) 100%
+  );
+  border: 1px solid rgba($brand-teal, 0.12);
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.beta-welcome-section {
+  margin-bottom: $aac-spacing-28;
+
+  &--feedback {
+    margin-bottom: $aac-spacing-20;
+  }
+}
+
+.beta-welcome-section__title {
+  font-family: 'Maitree', serif;
+  font-size: 1.25rem;
+  font-weight: normal;
+  color: $indigo;
+  margin: 0 0 $aac-spacing-16;
+  letter-spacing: -0.01em;
+}
+
+.beta-welcome-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $aac-spacing-16;
+  margin: 0;
+}
+
+.beta-welcome-feature-card {
+  text-align: left;
+  padding: $aac-spacing-20 $aac-spacing-16;
+  border-radius: 18px;
+  border: 1px solid rgba($indigo, 0.08);
+  background: #fff;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+
+  h4 {
+    margin: 0 0 $aac-spacing-8;
+    font-size: 1.1rem;
+    font-weight: $aac-font-weight-semi;
+    color: $indigo;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: #5a6578;
+  }
+
+  .la-feature-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 0 $aac-spacing-12;
+    border-radius: 14px;
+    font-size: 26px;
+  }
+}
+
+.beta-welcome-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-14;
+}
+
+.beta-welcome-steps__item {
+  display: flex;
+  align-items: flex-start;
+  gap: $aac-spacing-14;
+  padding: $aac-spacing-16;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid rgba($la-navy, 0.06);
+}
+
+.beta-welcome-steps__num {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  font-weight: $aac-font-weight-bold;
+  color: #fff;
+  background: linear-gradient(145deg, $brand-teal 0%, $brand-smart-blue 100%);
+  box-shadow: 0 2px 8px rgba($brand-teal, 0.35);
+}
+
+.beta-welcome-steps__content {
+  flex: 1;
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 1.08rem;
+    color: $indigo;
+    margin-bottom: 4px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1rem;
+    color: #5a6578;
+    line-height: 1.55;
+  }
+}
+
+.beta-welcome-signoff {
+  margin: 0;
+  padding-top: $aac-spacing-8;
+  font-size: 1.05rem;
+  color: #3d4654;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.beta-welcome-signoff__team {
+  display: block;
+  margin-top: $aac-spacing-8;
+  font-weight: $aac-font-weight-semi;
+  color: $indigo;
+}
+
+.beta-welcome-actions {
+  margin-top: $aac-spacing-24;
+  padding-top: $aac-spacing-8;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+
+  .register-btn {
+    min-width: 12rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.beta-welcome-lead {
+  font-size: 1.08rem;
+  color: #3d4654;
+  margin-bottom: $aac-spacing-20;
+}
+
+.beta-welcome-agreement-block {
+  margin-bottom: $aac-spacing-24;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.beta-welcome-list {
+  margin: 0 0 $aac-spacing-12;
+  padding-left: 1.25rem;
+
+  li {
+    margin-bottom: $aac-spacing-10;
+    line-height: 1.55;
+    font-size: 1.02rem;
+    color: #3d4654;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  a {
+    color: $brand-smart-blue;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.beta-welcome-callout {
+  display: flex;
+  gap: $aac-spacing-14;
+  align-items: flex-start;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  border-radius: 16px;
+  margin-bottom: $aac-spacing-24;
+
+  &--safety {
+    background: linear-gradient(
+      135deg,
+      rgba(240, 106, 91, 0.08) 0%,
+      rgba(255, 193, 7, 0.06) 100%
+    );
+    border: 1px solid rgba(240, 106, 91, 0.22);
+  }
+}
+
+.beta-welcome-callout__icon {
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.beta-welcome-callout__title {
+  margin: 0 0 $aac-spacing-8;
+  font-size: 1.12rem;
+  font-weight: $aac-font-weight-semi;
+  color: $indigo;
+}
+
+.beta-welcome-callout__content p {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: #3d4654;
+}
+
+.beta-welcome-footer {
+  flex-shrink: 0;
+  margin-top: $aac-spacing-16;
+  padding-top: $aac-spacing-16;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.85) 12%);
+}
+
+.beta-welcome-accept {
+  margin-bottom: $aac-spacing-12;
+
+  .big_checkbox label {
+    font-size: 1.02rem;
+    line-height: 1.45;
+    color: #3d4654;
+  }
+}
+
 @media (max-width: 550px) {
+  .beta-welcome-page.register-page-bg {
+    padding: 0 12px 2rem;
+  }
+
+  #within_ember:has(.beta-welcome-page) #content {
+    padding-top: 1.25rem !important;
+    padding-bottom: calc(var(--bottombar-height) + 1.25rem) !important;
+  }
+
+  .beta-welcome-card {
+    padding: $aac-spacing-24 $aac-spacing-16 $aac-spacing-24;
+  }
+
   .register-page {
     padding-top: 2rem;
   }
@@ -42835,7 +43772,18 @@ a.md-goal-nav-action:hover,
 .md-card--boards .md-strip {
   flex: 1 1 0 !important;
 
-  min-height: 0 !important;
+  /* `max-content` (not 0) so the strip never shrinks below its
+     tallest tile's natural height. The strip has `overflow-x:
+     auto` (~line 48047), which per CSS spec makes `overflow-y`
+     auto/clip too — so when a tile's label wraps to more lines
+     than the strip's flex-allocated height accommodates, the
+     bottom of the tile gets clipped. Letting min-height track
+     content size means the strip grows to fit, all tiles match
+     (default flex `align-items: stretch`), and the parent
+     boards card grows with it (the card already has
+     `height: 100%` and the dashboard grid row is auto-sized,
+     so the cascade Just Works). */
+  min-height: max-content !important;
 
 }
 .md-card--boards .md-btn--wide {
@@ -43014,6 +43962,72 @@ a.md-goal-nav-action:hover,
   padding-bottom: 35px !important;
 
 }
+/* Welcome notice ("Watch for an email from us...") shown above
+   the boards content while model.pending. Uses the brand verdigris
+   palette (replaces the old Bootstrap .alert-success green) with
+   a small dismiss chip that flips welcome_notice_dismissed on the
+   user/index controller. */
+.ll-welcome-notice {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 56px 14px 20px;
+  border-radius: $aac-radius-lg;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid rgba($brand-verdigris, 0.28);
+  color: $brand-verdigris-aa;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ll-welcome-notice__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ll-welcome-notice__link {
+  color: $brand-verdigris-aa;
+  font-weight: 600;
+  text-decoration: underline;
+
+  &:hover {
+    color: color.adjust($brand-verdigris-aa, $lightness: -8%);
+    text-decoration: underline;
+  }
+}
+
+.ll-welcome-notice__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 1px solid rgba($brand-verdigris, 0.32);
+  background: rgba($brand-verdigris, 0.08);
+  color: $brand-verdigris-aa;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+
+  &:hover {
+    background: rgba($brand-verdigris, 0.18);
+    border-color: rgba($brand-verdigris, 0.45);
+    color: color.adjust($brand-verdigris-aa, $lightness: -6%);
+    transform: scale(1.05);
+  }
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
 .ub-boards-page__getting-started.md-card--getting-started {
   position: relative !important;
 
@@ -43023,7 +44037,11 @@ a.md-goal-nav-action:hover,
 
   align-items: stretch !important;
 
-  min-height: 188px !important;
+  /* Tightened to a 100px minimum floor (was 188 → 94 → 100) with
+     12px top/bottom padding. Card still grows past 100px if content
+     needs more room (height: auto), but the typical icon + title +
+     2-line copy + buttons row now sits in roughly that height. */
+  min-height: 100px !important;
 
   height: auto !important;
 
@@ -43035,9 +44053,9 @@ a.md-goal-nav-action:hover,
 
   overflow: hidden !important;
 
-  padding-top: 35px !important;
+  padding-top: 12px !important;
 
-  padding-bottom: 35px !important;
+  padding-bottom: 12px !important;
 
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95)) !important;
 
@@ -43077,6 +44095,59 @@ a.md-goal-nav-action:hover,
   font-weight: 500 !important;
 
 }
+
+/* Boards-page empty state — shown by available-boards-section
+   when board_list.results is falsy (new accounts with zero boards,
+   or filtered queries with no matches). Polished card composition
+   matching the modern boards-page surface: soft white-gradient
+   tile, icon chip, heading, supporting copy, and a denim-palette
+   pill CTA that bubbles `newBoard` to the application route. */
+.ub-boards-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 48px 24px 44px;
+  margin: 16px 0;
+  border-radius: var(--md-r-lg, 28px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95));
+  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+}
+
+.ub-boards-page__empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $la-navy;
+  margin-bottom: 6px;
+
+  svg { width: 32px; height: 32px; stroke: currentColor; }
+}
+
+.ub-boards-page__empty-title {
+  margin: 0;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: $aac-font-weight-bold;
+  color: var(--md-ink, $brand-blue-black);
+  letter-spacing: -0.01em;
+}
+
+.ub-boards-page__empty-subtitle {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--md-muted, $la-navy);
+}
+
 .ub-boards-page__getting-started-actions {
   position: relative !important;
 
@@ -68038,8 +69109,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* ── Board-Detail: Drag & Drop feedback ─────────────── */
+/* touch-action:none keeps touch contexts (real devices + DevTools
+   touch emulation) from claiming a tile-drag as a scroll-pan before
+   the custom pointer-tracking drag pipeline in raw_events.js can
+   take over. Without this, jQuery's document-level touchmove
+   handler is registered as passive by modern Chrome, so its
+   preventDefault() is silently ignored and the browser pans the
+   page instead of letting the drag clone follow the finger. Scoped
+   to [draggable="true"] so speak-mode (draggable="false") long-press
+   gestures (inflections overlay, dwell, etc.) are untouched. */
 .md-board-detail-grid__cell[draggable="true"] {
   cursor: grab;
+  touch-action: none;
 }
 .md-board-detail-grid__cell[draggable="true"]:active {
   cursor: grabbing;
@@ -69548,6 +70629,39 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 16px;
   min-height: 52px;
   letter-spacing: 0.02em;
+}
+/* Touch-device parity for the tile's hover-only `.board_action`.
+   De-emphasized danger treatment, placed at the bottom of the action
+   column with a separator above so it reads as destructive and
+   isolated from the positive CTAs (Try / Board Actions / Copy For).
+   Capitalize via CSS because remove_label ships lowercase ("delete",
+   "un-like") from i18n — those strings double as title tooltips on
+   the tile, where lowercase is correct. */
+.md-board-preview__action--remove.md-board-preview__action--remove {
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid rgba($la-navy, 0.10);
+  background: rgba(176, 42, 42, 0.06);
+  color: #b02a2a;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  text-transform: capitalize;
+  gap: 8px;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-preview__action--remove.md-board-preview__action--remove:hover,
+.md-board-preview__action--remove.md-board-preview__action--remove:focus-visible {
+  background: #b02a2a;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(176, 42, 42, 0.30);
+}
+.md-board-preview__action--remove-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.md-board-preview__action--remove-text {
+  line-height: 1;
 }
 .md-board-preview__heading {
   text-align: center;
@@ -87460,3 +88574,269 @@ blockquote small {
   color: #fff;
 }
 
+
+/* =========================================================================
+   Home tour (Shepherd.js via ember-shepherd)
+   ─────────────────────────────────────────────────────────────────────────
+   Trigger pill `.md-tour__*` lives inside the dashboard hero and opens the
+   tour. Step popovers and the modal overlay are Shepherd's `.shepherd-*`
+   elements, portalled into <body> at run time — overrides below restyle
+   them to match the LingoLinq modern dashboard (atmospheric-depth recipe
+   from docs/task-management/LEARNINGS.md; AAC font scale, ~30% larger than
+   typical web defaults per project convention).
+   ========================================================================= */
+
+/* — Trigger pill — */
+.md-tour__trigger {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fa 100%);
+  color: $brand-charcoal-blue;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px  rgba($brand-charcoal-blue, 0.06),
+    0 6px 18px rgba($brand-charcoal-blue, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              border-color 0.18s ease, background 0.18s ease;
+  /* Sits above the topbar ($aac-z-topbar = 400) — without this
+     bump the trigger could be visually obscured by the topbar
+     chrome in narrow layouts where the hero margin is tight. */
+  z-index: 500;
+}
+.md-tour__trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba($brand-dusty-denim, 0.45);
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  box-shadow:
+    0 2px 4px  rgba($brand-charcoal-blue, 0.08),
+    0 10px 24px rgba($brand-charcoal-blue, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+.md-tour__trigger:focus-visible {
+  outline: none;
+  border-color: rgba($brand-dusty-denim, 0.7);
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.22),
+    0 6px 18px rgba($brand-charcoal-blue, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.md-tour__trigger:active {
+  transform: translateY(0);
+}
+.md-tour__trigger-icon {
+  color: $brand-dusty-denim;
+  flex: 0 0 auto;
+}
+
+/* On narrower viewports, collapse the trigger to icon-only so the hero
+   greeting still has room. The aria-label on the button preserves the
+   accessible name. */
+@media (max-width: 640px) {
+  .md-tour__trigger {
+    padding: 8px;
+    top: 12px;
+    right: 12px;
+  }
+  .md-tour__trigger-label { display: none; }
+}
+
+/* — Shepherd popover chrome — */
+/* Shepherd tour popover — matches the modern modal vocabulary
+   (.la-features-modal-wrap, subscribe-modal-header). 20px radius,
+   `overflow: hidden` so the footer/button backgrounds crop to the
+   rounded corners (fixes the "bottom edge cut off" perception),
+   white surface, hairline navy border, modern shadow, dusty-denim
+   action buttons (NO smart-blue per palette directive). */
+.shepherd-element {
+  background: #ffffff;
+  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  border-radius: $aac-radius-2xl;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba($la-navy, 0.04),
+    0 12px 32px rgba($la-navy, 0.10),
+    0 32px 72px rgba($la-navy, 0.12);
+  max-width: 460px;
+  width: calc(100vw - 32px);
+  color: var(--md-ink, $brand-blue-black);
+  font-family: inherit;
+}
+.shepherd-element.md-tour__step--intro {
+  max-width: 480px;
+  text-align: center;
+  /* Bias the intro/outro popover above geometric center — sits at
+     roughly line-of-sight on a desktop dashboard viewport instead
+     of dead-middle. Shepherd centers the element via Popper.js
+     inline transform; adding margin-top is purely additive and
+     safe (overriding `transform` in CSS would clobber Popper's
+     positioning). Adjust this single value to tune. */
+  margin-top: -20rem;
+}
+
+/* Header — soft surface tint with hairline bottom rule, matching
+   the canonical `.la-features-modal-wrap .la-modal-header` and the
+   subscribe-modal hero. */
+.shepherd-has-title .shepherd-content .shepherd-header {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 22px 28px 14px;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+}
+.shepherd-title {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: $aac-font-weight-black;
+  line-height: 1.2;
+  color: var(--md-ink, $brand-blue-black);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Body — solid white surface, AAC-scale typography (~16-17px). */
+.shepherd-text {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--md-muted, $la-navy);
+  padding: 18px 28px 8px;
+  background: #ffffff;
+}
+.shepherd-text p { margin: 0 0 8px; }
+.shepherd-text p:last-child { margin-bottom: 0; }
+
+/* Footer — modern tour-modal pattern (Linear / Stripe / Notion):
+   Back + Next grouped together on the RIGHT side with a tight 8px
+   gap. Reads as a single nav cluster rather than two competing
+   actions at opposite edges. Future enhancement: add a step
+   counter ("2 of 7") on the LEFT side; requires a JS change to
+   home-tour.js to render a `.shepherd-progress` element ahead of
+   the buttons. */
+.shepherd-footer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  background: #ffffff;
+}
+.shepherd-element .shepherd-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: $aac-radius-pill;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0;
+  padding: 7px 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+/* Primary — exact match for the dashboard primary CTAs (Continue
+   Speaking, etc.): soft dusty-denim wash + navy text. The 30%
+   denim composites to a light surface (~#C9DAF3) which gives
+   navy text ~7.9:1 contrast — clears AAA. Mirrors
+   `.md-grid--dashboard .md-card--speak .md-btn--primary` at
+   app.scss line ~44199. */
+.shepherd-element .md-tour__btn--primary {
+  background: rgba($brand-dusty-denim, 0.30);
+  border-color: rgba($brand-dusty-denim, 0.22);
+  color: $la-navy;
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15);
+}
+.shepherd-element .md-tour__btn--primary:not(:disabled):hover {
+  background: rgba($brand-dusty-denim, 0.40);
+  border-color: rgba($brand-dusty-denim, 0.32);
+  color: $la-navy;
+  box-shadow: 0 8px 24px rgba($brand-dusty-denim, 0.22);
+  transform: translateY(-1px);
+}
+.shepherd-element .md-tour__btn--primary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.35),
+    0 4px 14px rgba($brand-dusty-denim, 0.18);
+}
+/* Ghost — outlined pill, soft white surface, navy hairline. */
+.shepherd-element .md-tour__btn--ghost {
+  color: var(--md-muted, $la-navy);
+  border-color: var(--md-line, rgba($brand-blue-black, 0.15));
+  background: rgba(255, 255, 255, 0.85);
+}
+.shepherd-element .md-tour__btn--ghost:not(:disabled):hover {
+  color: var(--md-ink, $brand-blue-black);
+  border-color: rgba($la-navy, 0.35);
+  background: $surface-100;
+}
+.shepherd-element .md-tour__btn--ghost:focus-visible {
+  outline: none;
+  border-color: rgba($brand-dusty-denim, 0.6);
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
+}
+
+/* Cancel (X) — canonical light-modal close chip (matches
+   .subscribe-modal-header__close): surface-300 circle, navy
+   hairline, hover lifts. Smaller than the 48px modal version
+   since this is a popover. */
+.shepherd-element .shepherd-cancel-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  border-radius: 50%;
+  background-color: $surface-300;
+  color: var(--md-muted, $la-navy);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.shepherd-element .shepherd-cancel-icon:hover {
+  color: var(--md-ink, $brand-blue-black);
+  background-color: $surface-400;
+  border-color: rgba($brand-blue-black, 0.2);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.14);
+}
+
+/* Arrow — solid white to match the popover surface, hairline navy
+   border to match the popover edge. */
+.shepherd-element .shepherd-arrow:before {
+  background: #ffffff;
+  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+}
+
+/* — Modal overlay — the dim comes from an SVG <path fill="#000">
+   INSIDE the container at the container's opacity level. We tune
+   ONLY the opacity (not a CSS background — the container itself
+   has no fill). Default is .5; .45 reads as a softer scrim that
+   still lets dashboard chrome show through at low contrast,
+   matching the modern dashboard's airy feel. */
+.shepherd-modal-overlay-container.shepherd-modal-is-visible {
+  opacity: 0.45;
+}

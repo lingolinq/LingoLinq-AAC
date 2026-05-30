@@ -15,6 +15,15 @@ import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 
 var order = ['intro', 'usage', 'board_category', 'core', 'access', 'voice', 'logging', 'supervisors', 'extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-logs', 'extra-done'];
+// Critical-only subset used when `mode=critical` query param is set
+// (entry path: post-tour from home-tour.js for newly-registered users).
+// Includes only the steps that materially affect whether the user can
+// use the app afterwards — `board_category` (home board pick) +
+// `extra-done` (graceful exit page). The role-picking `usage` step
+// was removed 2026-05-28; role is collected elsewhere (or deferred to
+// Settings). Other steps (voice, supervisors, etc.) remain reachable
+// via Settings later.
+var critical_order = ['board_category', 'extra-done'];
 var extra_order = [];
 export default Controller.extend({
   router: service('router'),
@@ -27,16 +36,25 @@ export default Controller.extend({
   }),
   queryParams: [{ page: { defaultValue: 'intro' } }, 'finish', 'user_id', 'mode'],
   mode: null,
-  order: order,
+  // `order` returns the critical subset when `mode=critical` (post-tour
+  // entry for newly-registered users) and the full wizard order
+  // otherwise. The application controller's setup_go / setup_next /
+  // setup_previous computeds read from setup_order (set below via
+  // this.appState.controller.set), so changing the array here makes
+  // the wizard navigate through only the critical pages without any
+  // change to the navigation logic itself.
+  order: computed('mode', function() {
+    return this.get('mode') === 'critical' ? critical_order : order;
+  }),
   extra_order: extra_order,
   setup_index: computed('page', 'appState.controller.setup_index', function() {
     var ctrl = this.appState && this.appState.get('controller');
     return ctrl ? ctrl.get('setup_index') : 1;
   }),
-  setup_order_length: computed('page', 'appState.controller.setup_order', function() {
+  setup_order_length: computed('page', 'appState.controller.setup_order', 'order', function() {
     var ctrl = this.appState && this.appState.get('controller');
     var o = ctrl && ctrl.get('setup_order');
-    return o && o.length ? o.length : order.length;
+    return o && o.length ? o.length : this.get('order').length;
   }),
   setup_previous: computed('page', 'appState.controller.setup_previous', function() {
     var ctrl = this.appState && this.appState.get('controller');
@@ -55,11 +73,19 @@ export default Controller.extend({
     var pct = this.get('setupProgressPercent');
     return (pct !== undefined && pct !== null) ? ('width: ' + pct + '%') : 'width: 0%';
   }),
-  setupComponent: computed('page', function() {
+  setupComponent: computed('page', 'order', function() {
     var page = this.get('page');
-    var pages = order.concat(extra_order);
+    // Use the dynamic `order` (full or critical) so the page-validity
+    // check matches whatever mode we're in. In critical mode, the
+    // only legal pages are critical_order; any other page falls
+    // through to the `intro` fallback below — which is itself only
+    // legal in full mode. If a stray `?page=core` URL is hit in
+    // critical mode, the user gets dropped on the intro (the
+    // setup_go logic on application controller will then snap them
+    // back to the first item in setup_order on next nav).
+    var pages = this.get('order').concat(extra_order);
     if(page && page.match(/^extra/) && this.appState && this.appState.controller) {
-      this.appState.controller.set('setup_order', order.concat(extra_order));
+      this.appState.controller.set('setup_order', this.get('order').concat(extra_order));
     }
     if(pages.indexOf(page) != -1) {
       return 'setup/' + page;

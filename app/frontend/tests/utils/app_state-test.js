@@ -1052,7 +1052,7 @@ describe('app_state', function() {
       var key = null;
       app_state.set('sessionUser', EmberObject.create({
         preferences: {
-          home_board: {key: 'example/inflections'}
+          home_board: {key: 'lingolinq/inflections'}
         }
       }));
       stub(app_state.controller, 'transitionToRoute', function(r, k) {
@@ -1061,7 +1061,7 @@ describe('app_state', function() {
       });
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/inflections');
+      expect(key).toEqual('lingolinq/inflections');
     });
 
     it("should fall back to a stashed board when no home board is set", function() {
@@ -1086,10 +1086,10 @@ describe('app_state', function() {
       expect(route).toEqual(null);
       expect(key).toEqual(null);
 
-      stashes.set('root_board_state', {key: 'example/keyboard'});
+      stashes.set('root_board_state', {key: 'lingolinq/keyboard'});
       app_state.home_in_speak_mode();
       expect(route).toEqual('board');
-      expect(key).toEqual('example/keyboard');
+      expect(key).toEqual('lingolinq/keyboard');
     });
   });
 

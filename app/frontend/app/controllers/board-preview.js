@@ -106,6 +106,18 @@ export default Controller.extend({
       } else if(this.get('model.callback')) {
         this.get('model.callback')();
       }
+    },
+    remove: function() {
+      /* Touch-device parity for the tile's hover-only `.board_action`.
+         The callback is a closure bound in available-boards-section.hbs
+         that dispatches `remove_board(remove_type, board)` to the user
+         controller — same path the hover button takes. Close the
+         preview first so the subsequent confirm-delete-board /
+         confirm-remove-board modal opens on a clean stack. */
+      var ctx = this.get('model.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
     }
   }
 });

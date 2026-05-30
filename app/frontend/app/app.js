@@ -304,15 +304,26 @@ LingoLinq.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
+// Five simplified registration types + an empty placeholder. The IDs are
+// load-bearing: external_tracker.rb maps them to HubSpot Account Type
+// categories, user.rb#supporter_registration? gates FERPA/COPPA/GDPR
+// tracking on anything-not-communicator-or-unspecified, and the
+// backend now also maps these IDs to preferences.role on first save
+// (communicator → 'communicator'; therapist/parent/teacher/other →
+// 'supporter'). DO NOT change the IDs without updating those mappings.
+//
+// Two values removed from the user-facing dropdown:
+// - The duplicate "A parent and communicator" row (also id='communicator')
+// - 'eval' (evaluation/assessment device — typically org-administered,
+//   not self-registered). Both values remain valid backend-side for
+//   org workflows and historical user records.
 LingoLinq.registrationTypes = [
   {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
-  {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},
-  {name: i18n.t('registration_type_parent', "A supervising parent"), id: 'parent'},
-  {name: i18n.t('registration_type_eval', "An evaluation/assessment device"), id: 'eval'},
-  {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
-  {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_type_slp', "Therapist / SLP"), id: 'therapist'},
+  {name: i18n.t('registration_type_parent', "Parent Supporter"), id: 'parent'},
+  {name: i18n.t('registration_type_teacher', "Teacher / Educator"), id: 'teacher'},
+  {name: i18n.t('registration_type_other', "Other Supporter"), id: 'other'}
 ];
 LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},

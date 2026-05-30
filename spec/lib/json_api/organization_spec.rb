@@ -37,6 +37,19 @@ describe JsonApi::Organization do
       expect(res['allotted_licenses']).to eq(4)
       expect(res['used_licenses']).to eq(0)
     end
+
+    it "should include default_beta_program_access when edit permissions are allowed" do
+      o = Organization.create
+      u = User.create
+      o.add_manager(u.user_name, true)
+      u.reload
+      res = JsonApi::Organization.build_json(o, :permissions => u)
+      expect(res['default_beta_program_access']).to eq(true)
+      o.settings['default_beta_program_access'] = false
+      o.save!
+      res = JsonApi::Organization.build_json(o.reload, :permissions => u)
+      expect(res['default_beta_program_access']).to eq(false)
+    end
     
     it "should include basic tallies" do
       o = Organization.create(:settings => {'total_licenses' => 4})

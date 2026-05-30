@@ -640,7 +640,7 @@ class User < ApplicationRecord
         'auto_open_speak_mode' => true,
         'share_notifications' => 'email',
         'cookies' => true,
-        'beta_program_access' => false
+        'beta_program_access' => true
       }
     }
   end
@@ -1100,6 +1100,15 @@ class User < ApplicationRecord
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
       'board_intros']
   def process_params(params, non_user_params)
+    # Defensive guard: `settings['admin']` may only be set via
+    # non_user_params['admin'] (see ~line 1485 below). Strip any
+    # client-supplied `admin` flag before any other processing so it
+    # can NEVER be smuggled through if a future controller path
+    # passes user params unfiltered. Belt-and-suspenders against
+    # privilege-escalation regressions — admin assignment must stay
+    # an out-of-band action (console or Admin-org manager membership).
+    params.delete('admin') if params.respond_to?(:delete)
+    params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
     ['name', 'description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
@@ -1254,6 +1263,35 @@ class User < ApplicationRecord
         val = true if val == 'true'
         val = false if val == 'false'
         self.settings['preferences'][attr] = val
+      end
+    end
+    # On INITIAL registration only, derive preferences.role from the
+    # picked registration_type so the canonical app-wide gate
+    # (preferences.role == 'supporter' → frontend `supporter_role`)
+    # actually reflects what the user told us at signup. Without this
+    # mapping the role defaults to 'communicator' for everyone
+    # regardless of pick — a real product gap because supporters
+    # then run in communicator-shaped UI until they manually flip
+    # Account View in /<user>/preferences.
+    #
+    # Gated on `new_record?` so users who later switch their Account
+    # View aren't overwritten back on subsequent edits to other
+    # preferences (e.g. updating their cookies setting).
+    #
+    # Values not in either list (`eval`, `manually-added-org-user`,
+    # `individual`, etc.) leave preferences.role at its default
+    # ('communicator' — set in User.preference_defaults['authenticated_user']).
+    # Rationale: those values describe non-self-service or
+    # device-account contexts where the role is configured later
+    # by an admin or the per-device override.
+    if self.new_record? && self.settings['preferences'] &&
+       self.settings['preferences']['registration_type'].present?
+      rt = self.settings['preferences']['registration_type']
+      if rt == 'communicator'
+        self.settings['preferences']['role'] = 'communicator'
+      elsif ['therapist', 'parent', 'teacher', 'other',
+             'manually-added-supervisor'].include?(rt)
+        self.settings['preferences']['role'] = 'supporter'
       end
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?
@@ -1690,6 +1728,29 @@ class User < ApplicationRecord
     end
   end
 
+  def copy_board_to_library(library_board, updater_id, symbol_library=nil)
+    original = library_board && Board.find_by_path(library_board['id'])
+    updater = User.find_by_path(updater_id)
+    return false unless original && updater
+
+    existing = self.boards.where(parent_board: original).order('id DESC').first
+    if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      return true
+    end
+
+    new_board = original.copy_for(self, copier: updater)
+    self.copy_board_links(
+      old_board_id: original.global_id,
+      new_board_id: new_board.global_id,
+      ids_to_copy: [],
+      auth_user: updater,
+      user_for_paper_trail: "user:#{updater.global_id}",
+      copier_id: updater.global_id,
+      swap_library: symbol_library
+    )
+    true
+  end
+
   def copy_to_home_board(home_board, updater_id, symbol_library)
     original = home_board && Board.find_by_path(home_board['id'])
     updater = User.find_by_path(updater_id)
@@ -1944,8 +2005,8 @@ class User < ApplicationRecord
   def self.default_sidebar_boards
     [
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
-      {'name' => "Inflections", 'key' => 'example/inflections', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
-      {'name' => "Keyboard", 'key' => 'example/keyboard', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
+      {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
+      {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
       {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]

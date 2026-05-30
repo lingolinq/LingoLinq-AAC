@@ -3294,6 +3294,28 @@ describe Organization, :type => :model do
         expect(u.settings['preferences']['preferred_symbols']).to eq('twemoji')
       end
 
+      it "should set beta_program_access from org default when activating a start code" do
+        o = Organization.create
+        code = Organization.activation_code(o, {})
+        u = User.create
+        u.settings['preferences']['beta_program_access'] = true
+        u.save!
+        o.settings['default_beta_program_access'] = false
+        o.save!
+        Organization.parse_activation_code(code, u)
+        u.reload
+        expect(u.settings['preferences']['beta_program_access']).to eq(false)
+      end
+
+      it "should keep beta_program_access true when org default is unset" do
+        o = Organization.create
+        code = Organization.activation_code(o, {})
+        u = User.create
+        Organization.parse_activation_code(code, u)
+        u.reload
+        expect(u.settings['preferences']['beta_program_access']).to eq(true)
+      end
+
       it "should copy a new home board for the user if tied to the start code" do
         o = Organization.create
         s = User.create

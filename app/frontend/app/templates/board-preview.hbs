@@ -53,7 +53,7 @@
               </div>
             </div>
           {{/if}}
-          {{board-preview key=this.model_key back=this.back_func option=this.model.option onSelect=(action "select") dark_mode=true onLoadingChange=(action "set_preview_loading")}}
+          {{board-preview key=this.model_key back=this.back_func option=this.model.option onSelect=(action "select") dark_mode=true onLoadingChange=(action "set_preview_loading") removeContext=this.model.remove onRemove=(action "remove")}}
         </div>
       {{/if}}
     </div><!-- /.modal-content -->
