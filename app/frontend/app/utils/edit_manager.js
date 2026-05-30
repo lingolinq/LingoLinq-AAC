@@ -1214,7 +1214,6 @@ var editManager = EmberObject.extend({
         // Explicitly preserve empty/image_url — Button.create may not retain them from raw
         if(raw.empty) { b.set('empty', true); }
         if(raw.image_url) { b.set('image_url', raw.image_url); }
-        if(idx === 0 && jdx < 3) { console.log('[CLONE]', 'id=', b.get('id'), 'empty=', b.get('empty'), 'label=', b.get('label'), 'bg=', b.get('background_color'), 'img_url=', b.get('image_url')); }
         arr.push(b);
       }
       clone_state.push(arr);
@@ -1227,13 +1226,6 @@ var editManager = EmberObject.extend({
     if(lastState) {
       var currentState = this.clone_state();
       this.get('future').pushObject(currentState);
-      console.log('[UNDO] restoring state, first 3 buttons:');
-      if(lastState[0]) {
-        for(var ui = 0; ui < Math.min(3, lastState[0].length); ui++) {
-          var ub = lastState[0][ui];
-          console.log('[UNDO]', 'id=', ub.get('id'), 'empty=', ub.get('empty'), 'label=', ub.get('label'), 'bg=', ub.get('background_color'), 'img_url=', ub.get('image_url'));
-        }
-      }
       this.controller.set('ordered_buttons', lastState);
       this.update_color_key_id();
     }
@@ -1394,13 +1386,17 @@ var editManager = EmberObject.extend({
     }
     var button = this.find_button(id);
     if(button) {
+      var deferImageId = !!(options.image && Object.prototype.hasOwnProperty.call(options, 'image_id'));
+      var pickedDisplayUrl = options._picked_display_url || null;
       if(options.image) {
         emberSet(button, 'local_image_url', null);
+        emberSet(button, 'image_url', null);
         // Do not call load_image() when we are supplying the image: it would use the
         // current (old) image_id and later overwrite button.image when its promise
         // resolves, hiding the new image on the board.
       } else if(options.image === null) {
         emberSet(button, 'local_image_url', null);
+        emberSet(button, 'image_url', null);
       }
       if(options.sound) {
         emberSet(button, 'local_sound_url', null);
@@ -1409,6 +1405,8 @@ var editManager = EmberObject.extend({
         emberSet(button, 'local_sound_url', null);
       }
       for(var key in options) {
+        if(deferImageId && key === 'image_id') { continue; }
+        if(key === '_picked_display_url') { continue; }
         emberSet(button, key, options[key]);
       }
       // Sync changes to board.buttons so contextualized_buttons/fast_html see them immediately
@@ -1424,6 +1422,7 @@ var editManager = EmberObject.extend({
         for(var bi = 0; bi < boardButtons.length; bi++) {
           if(boardButtons[bi] && String(boardButtons[bi].id) === String(id)) {
             for(var key in options) {
+              if(key === '_picked_display_url') { continue; }
               if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
                 boardButtons[bi][key] = options[key];
               }
@@ -1437,11 +1436,30 @@ var editManager = EmberObject.extend({
         }
       }
       if(options.image && button.get('image')) {
-        emberSet(button, 'original_image_url', button.get('image.url'));
+        emberSet(button, 'original_image_url', button.get('image.url') || pickedDisplayUrl);
+        var sourceUrl = button.get('image.url') || pickedDisplayUrl;
         var best = button.get('image.best_url');
-        if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
-          emberSet(button, 'local_image_url', best);
+        // Prefer the picked/saved source URL when best_url still points at a stale
+        // processed upload for the same image id (see debug logs: savedUrl
+        // updates to OpenSymbols but displayUrl stays on old S3 SVG).
+        var displayUrl = pickedDisplayUrl || best;
+        if(!pickedDisplayUrl && sourceUrl && sourceUrl.match(/^https?:\/\//) && best && sourceUrl !== best &&
+           best.match(/lingolinq.*uploads|s3\.amazonaws\.com.*\/images\//)) {
+          displayUrl = sourceUrl;
         }
+        if(!displayUrl && sourceUrl) {
+          displayUrl = sourceUrl;
+        }
+        if(displayUrl && (displayUrl.match(/^https?:\/\//) || displayUrl.match(/^data:/) || displayUrl.match(/^blob:/))) {
+          emberSet(button, 'local_image_url', displayUrl);
+          // board-detail-grid renders btn.image_url, not local_image_url
+          emberSet(button, 'image_url', displayUrl);
+        }
+      }
+      // Apply image_id after URLs so findContentLocally does not reuse a stale
+      // button.image_url from the previous symbol when the id changes.
+      if(deferImageId) {
+        emberSet(button, 'image_id', options.image_id);
       }
       if(options.sound && button.get('sound')) {
         emberSet(button, 'local_sound_url', button.get('sound.best_url'));

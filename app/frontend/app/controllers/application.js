@@ -731,7 +731,7 @@ export default Controller.extend({
        were viewing — Ember pushes a history entry on transition
        so the back stack handles this without app-level state.
        Implemented 2026-05-23 as the replacement for the
-       openBoardPicker / boardPickerVisible modal flow. */
+       old modal-based My Boards flow. */
     openMyBoards: function() {
       var userName = this.appState.get('referenced_user.user_name')
                   || this.appState.get('currentUser.user_name');
@@ -739,23 +739,6 @@ export default Controller.extend({
         this.router.transitionTo('user.boards', userName);
       }
     },
-
-    /* ────────────────────────────────────────────────────────────
-       The old My Boards modal lived here as ~700 lines of state
-       (boardPickerVisible, boardPickerTab, boardPickerBoards,
-       _loadBoardPickerForTab, the adapter aliases for
-       available-boards-section, pickBoard, pickHomeBoard,
-       openBoardPicker, closeBoardPicker, toggleSetHomeMode,
-       newBoardFromBoardPicker, set_selected, set_tag,
-       enterMineFolderTag, exitMineFolderTag, etc.). The whole
-       block was removed when the modal was replaced by a
-       route transition to `user.boards`. The boards-page
-       controller (`controller:user/index`) now owns the only
-       implementation of every action that used to be duplicated
-       here — single source of truth, no adapter, no parallel
-       state. See `openMyBoards` above for the transition
-       entry-point and user/index.js for the rest.
-       ──────────────────────────────────────────────────────── */
 
     home: function(opts) {
       this.appState.set('last_activation', (new Date()).getTime());
@@ -999,19 +982,36 @@ export default Controller.extend({
       this.send('hide_temporary_sidebar');
     },
     special: function(opts) {
-      // sidebar actions
-      if(opts.action == ':app') {
+      // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)
+      var action = emberGet(opts, 'action');
+      var arg = emberGet(opts, 'arg');
+      var name = emberGet(opts, 'name');
+      if(!action) { return; }
+      if(action == ':app' || action.indexOf(':app(') === 0) {
+        var launchArg = arg;
+        if(!launchArg) {
+          var appMatch = action.match(/^:app\((.+)\)$/);
+          launchArg = appMatch && appMatch[1];
+        }
         if(capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android')) {
-          capabilities.apps.launch(opts.arg).then(null, function(err) {
+          if(!launchArg) {
+            modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
+            return;
+          }
+          capabilities.apps.launch(launchArg).then(null, function(err) {
             modal.error(i18n.t('app_launch_failed', "App failed to launch"), true);
           });
         } else {
           modal.error(i18n.t('no_app_launches', "App launches not available in this view"), true);
         }
       } else {
+        var vocalization = action;
+        if(arg != null && arg !== '' && vocalization.indexOf('(') === -1) {
+          vocalization = vocalization + '(' + arg + ')';
+        }
         var obj = {
-          label: opts.name,
-          vocalization: opts.action,
+          label: name,
+          vocalization: vocalization,
           prevent_return: true,
           button_id: null,
           source: 'click',

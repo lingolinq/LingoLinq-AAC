@@ -224,7 +224,7 @@
             <span class="md-board-edit-panel__label">{{t "Set as Home Board" key="set_as_home_board"}}</span>
           </button>
           <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Other Actions" key="other_actions"}} {{action "other_board_actions"}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="#46505F" stroke="none" aria-hidden="true">
+            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
               <circle cx="5" cy="12" r="2"/>
               <circle cx="12" cy="12" r="2" fill="#2A9D8F"/>
               <circle cx="19" cy="12" r="2"/>
@@ -299,11 +299,11 @@
               aria-expanded={{if this.panel_filter_open "true" "false"}}
               aria-controls="board-edit-panel-filter-list"
               {{action "toggle_panel_filter"}}>
-              {{!-- Funnel filter icon — 14×14 (~25% smaller than the
-                   default __icon 18px) since the funnel was reading
-                   visually too heavy next to the "Category" label.
+              {{!-- Funnel filter icon — 16×16 to match the search
+                   magnifier's declared size so the two icons read
+                   as uniform across the search + filter card.
                    Two-tone: verdigris funnel body. --}}
-              <svg class="md-board-edit-panel__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg class="md-board-edit-panel__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" stroke="#2A9D8F"/>
               </svg>
               <span class="md-board-edit-panel__filter-text">
@@ -634,6 +634,11 @@
                   <span class="md-board-detail-sentence-bar__prediction-group" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}}>
                     {{#each this.suggestions.list as |suggestion|}}
                       <button type="button" class="md-board-detail-sentence-bar__prediction" {{action "complete_word" suggestion}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                        {{#if this.utterance_show_symbols}}
+                          {{#if suggestion.image}}
+                            <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                          {{/if}}
+                        {{/if}}
                         <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
                       </button>
                     {{/each}}
@@ -691,6 +696,7 @@
           </svg>
         </button>
         {{#unless this.model.integration}}
+        {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
         {{#unless this.edit_mode}}
           <button type="button" class="md-board-detail-sidebar-toggle md-board-detail-sidebar-toggle--stacked {{if this.inlineSidebarOpen 'md-board-detail-sidebar-toggle--open'}}" title={{t "Toggle sidebar" key="toggle_sidebar"}} aria-label={{t "Toggle sidebar" key="toggle_sidebar"}} aria-pressed={{if this.inlineSidebarOpen "true" "false"}} {{action "toggleInlineSidebar"}}>
             {{#if this.inlineSidebarOpen}}
@@ -705,6 +711,7 @@
               </svg>
             {{/if}}
           </button>
+        {{/unless}}
         {{/unless}}
         {{/unless}}
         {{#if this.show_options_menu}}
@@ -1254,76 +1261,115 @@
                        cluster: privacy / protected pill. --}}
                   <div class="md-board-detail-header__title-row md-board-detail-header__title-row--edit">
                     <div class="md-board-detail-header__title-row-left">
+                      {{!-- Board Identity Block: a 2-column cluster.
+                           Column 1 — the board icon (anchors the cluster).
+                           Column 2 — `__identity` stacks vertically:
+                             Row 1: title
+                             Row 2: metadata (license + privacy + future
+                                    ownership / shared / collaborative
+                                    indicators).
+                           This structure handles long titles, wrapped
+                           titles, localization, and additional badges
+                           without floating elements: the title row is
+                           full-width within column 2 so it wraps cleanly,
+                           and the metadata row is a flex-wrap container
+                           so additional pills flow naturally. --}}
                       {{#if this.board_image_url}}
                         <img src={{this.board_image_url}} alt={{t "Board icon" key="board_detail_board_icon_alt"}} class="md-board-detail-header__board-icon md-board-detail-header__board-icon--in-card">
                       {{/if}}
-                      <span class="md-board-detail-header__title">{{this.title}}</span>
-                      {{#if this.cc_license}}
-                        <img src={{path "images/cc.png"}} alt={{t "Creative Commons license" key="cc_license_label"}} class="md-board-detail-header__license-icon">
-                      {{else if this.pd_license}}
-                        <img src={{path "images/pd.png"}} alt={{t "Public Domain" key="pd_license_label"}} class="md-board-detail-header__license-icon">
-                      {{/if}}
-                      {{!-- Privacy / protected pill — sits inside the
-                           left cluster (after the title + license) so
-                           it appears to the right of the board name
-                           without disturbing the centered Editing
-                           pill in the title-row-center column. --}}
-                      {{#unless this.model.public}}
-                        {{#if this.model.protected_material}}
-                          {{!-- Protected material can't change privacy via this
-                               control (the asset license blocks it), so render
-                               as a non-interactive pill. --}}
-                          <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      <div class="md-board-detail-header__identity">
+                        <span class="md-board-detail-header__title">{{this.title}}</span>
+                        {{!-- Metadata row is always rendered as a wrapper;
+                             the inner blocks (CC/PD license, privacy/lock
+                             pill) only populate when relevant. CSS hides
+                             the wrapper via `:not(:has(*))` when the inner
+                             template renders nothing, so a public board
+                             with no license doesn't get an empty gap. --}}
+                        <div class="md-board-detail-header__meta">
+                          {{#if this.cc_license}}
+                            {{!-- Inline SVG instead of cc.png raster so the
+                                 stroke-width is controllable (the raster has
+                                 thick anti-aliased lines baked in). --}}
+                            <svg class="md-board-detail-header__license-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label={{t "Creative Commons license" key="cc_license_label"}}>
+                              <circle cx="12" cy="12" r="9.5"/>
+                              <path d="M 10.2 9.5 A 2.6 2.6 0 1 0 10.2 14.5"/>
+                              <path d="M 16.4 9.5 A 2.6 2.6 0 1 0 16.4 14.5"/>
                             </svg>
-                            <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
-                          </span>
-                        {{else if this.model.permissions.edit}}
-                          {{!-- Editable board: clicking the private pill opens
-                               the board-privacy modal, matching the "Change
-                               privacy" flow on the preferences screen. The
-                               label sits to the right of the icon inside the
-                               button so the whole pill is the touch target. --}}
-                          <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} {{action "open_board_privacy"}}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                              <circle cx="12" cy="12" r="3"/>
-                              <line x1="4" y1="20" x2="20" y2="4"/>
-                            </svg>
-                            <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
-                          </button>
-                        {{else}}
-                          <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                              <circle cx="12" cy="12" r="3"/>
-                              <line x1="4" y1="20" x2="20" y2="4"/>
-                            </svg>
-                            <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
-                          </span>
-                        {{/if}}
-                      {{/unless}}
+                          {{else if this.pd_license}}
+                            <img src={{path "images/pd.png"}} alt={{t "Public Domain" key="pd_license_label"}} class="md-board-detail-header__license-icon">
+                          {{/if}}
+                          {{#unless this.model.public}}
+                            {{#if this.model.protected_material}}
+                              {{!-- Protected material can't change privacy
+                                   via this control (the asset license
+                                   blocks it), so render as a non-interactive
+                                   pill. --}}
+                              <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
+                              </span>
+                            {{else if this.model.permissions.edit}}
+                              {{!-- Editable board: clicking the private
+                                   pill opens the board-privacy modal,
+                                   matching the "Change privacy" flow on
+                                   the preferences screen. The label sits
+                                   to the right of the icon inside the
+                                   button so the whole pill is the touch
+                                   target. --}}
+                              <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} {{action "open_board_privacy"}}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                  <circle cx="12" cy="12" r="3"/>
+                                  <line x1="4" y1="20" x2="20" y2="4"/>
+                                </svg>
+                                <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                              </button>
+                            {{else}}
+                              <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                  <circle cx="12" cy="12" r="3"/>
+                                  <line x1="4" y1="20" x2="20" y2="4"/>
+                                </svg>
+                                <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                              </span>
+                            {{/if}}
+                          {{/unless}}
+                        </div>
+                      </div>
                     </div>
                     <div class="md-board-detail-header__title-row-center md-board-detail-header__edit-actions">
-                      {{!-- The "Editing" badge previously here is now
-                           rendered above the mock speak bar so the
-                           editing state reads against the inactive
-                           sentence-bar mock. This slot now hosts the
-                           Discard Edits / Save and Exit tiles that
-                           previously lived in the left panel's TOP
-                           cluster — same actions, same icons, same
-                           tile classes (so the existing CSS still
-                           styles them), wrapped in __edit-actions for
-                           the smaller header-level sizing in app.scss.
-                           The "Creating a Copy of This Board" tag for
-                           copy-on-save is preserved on its own row
-                           above the action tiles so users still see
-                           that distinct state. --}}
+                      {{!-- Center column holds the Editing pill (and the
+                           optional "Creating a Copy" badge), centered on
+                           the page. The Discard / Save tile pair lives
+                           in the right column so it right-aligns to the
+                           title row's trailing edge. --}}
+                      <span class="md-board-detail-header__sub-badge" role="status" aria-label={{t "Editing" key="editing"}}>
+                        {{t "Editing" key="editing"}}
+                      </span>
                       {{#if this.is_copy_on_save}}
                         <span class="md-board-detail-header__sub-badge md-board-detail-header__sub-badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
                       {{/if}}
+                    </div>
+                    <div class="md-board-detail-header__title-row-right">
+                      {{#unless (is-equal this.user.user_name this.app_state.currentUser.user_name)}}
+                        <span class="md-board-detail-header__editing-badge" role="status">
+                          <span class="md-board-detail-header__editing-badge__row">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                            {{this.user.user_name}}
+                          </span>
+                          <span class="md-board-detail-header__editing-badge__caption">{{t "Editing their board" key="board_detail_editing_others_board_caption"}}</span>
+                        </span>
+                      {{/unless}}
+                      {{!-- Discard / Save tile pair — lives in the right
+                           column so it right-aligns to the title row's
+                           trailing edge. Center column holds the Editing
+                           pill (centered on the page). --}}
                       <div class="md-board-edit-panel__top md-board-detail-header__edit-actions-grid">
                         <div class="md-board-edit-panel__share-grid">
                           <button type="button"
@@ -1358,19 +1404,6 @@
                           </button>
                         </div>
                       </div>
-                    </div>
-                    <div class="md-board-detail-header__title-row-right">
-                      {{#unless (is-equal this.user.user_name this.app_state.currentUser.user_name)}}
-                        <span class="md-board-detail-header__editing-badge" role="status">
-                          <span class="md-board-detail-header__editing-badge__row">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                            </svg>
-                            {{this.user.user_name}}
-                          </span>
-                          <span class="md-board-detail-header__editing-badge__caption">{{t "Editing their board" key="board_detail_editing_others_board_caption"}}</span>
-                        </span>
-                      {{/unless}}
                       {{!-- Save button commented out — may bring back later.
                            Save flow still available via the "Save and Exit"
                            button (top-left back-link, action: back_to_boards
@@ -1650,21 +1683,16 @@
              shows the current utterance if any, else the board's
              first five buttons (preview_sentence_parts). The
              --preview modifier overrides the edit-mode display:none
-             that hides the real sentence row. --}}
-        {{#if this.edit_mode}}
-          {{!-- EDITING pill sits directly above the speak-bar preview
-               (which is the mock the user actually sees in edit mode,
-               since the real #speak row is display:none-d in edit
-               mode). Reuses the canonical .md-board-detail-header__sub-
-               badge class so it keeps its glassy teal-gradient + glass
-               blur (same pill that used to live in the title row).
-               Wrapped so we can center it inline above the row. --}}
-          <div class="md-board-detail-edit-mode-badge-wrap">
-            <span class="md-board-detail-header__sub-badge" role="status" aria-label={{t "Editing — speak bar is a preview" key="board_detail_editing_mock_aria"}}>
-              {{t "Editing" key="editing"}}
-            </span>
-          </div>
-        {{/if}}
+             that hides the real sentence row.
+             The "Editing" pill that used to live above this preview
+             row was moved into the title-row-center column (header
+             area) so the editing-state indicator sits next to the
+             board title + discard/save tiles instead of inside the
+             preview-well. With the pill gone the preview row now
+             owns the top of the well visually — see the SCSS
+             `.md-board-detail-sentence-row--preview` rule for the
+             border-top + rounded-top-corners that picked up that
+             role. --}}
         {{!-- Preview sentence row was previously aria-hidden + non-
              interactive (a static mock of the speak bar) because the
              real #speak row above handled navigation. In edit mode
@@ -1958,12 +1986,18 @@
       {{/if}}{{!-- /active_view phrase-builder vs symbol-board --}}
 
       {{!-- Inline Sidebar Boards (speak mode navigation) --}}
+      {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
       {{#unless this.edit_mode}}
         {{#if this.inlineSidebarOpen}}
           <div class="md-board-detail-inline-sidebar">
             {{#each this.app_state.sidebar_boards as |board|}}
               {{#if board.alert}}
                 <button type="button" {{action "sidebar_alert"}} class="md-board-detail-inline-sidebar__item">
+                  <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
+                </button>
+              {{else if board.special}}
+                <button type="button" class="md-board-detail-inline-sidebar__item" {{action "sidebar_special" board}}>
                   <img src={{board.image}} class="md-board-detail-inline-sidebar__img" alt="" onerror="button_broken_image(this);">
                   <span class="md-board-detail-inline-sidebar__name">{{board.name}}</span>
                 </button>
@@ -1976,6 +2010,7 @@
             {{/each}}
           </div>
         {{/if}}
+      {{/unless}}
       {{/unless}}
 
       </div>{{!-- /.md-board-detail-grid-sidebar-wrap --}}
@@ -2565,7 +2600,7 @@
                     <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor"/>
                   </svg>
                 </span>
-                <span class="md-board-edit-right-panel__section-label">{{t "Text Settings" key="text_settings"}}</span>
+                <span class="md-board-edit-right-panel__section-label">{{t "Text & Image" key="text_settings"}}</span>
                 <span class="md-board-edit-right-panel__section-label-collapsed">{{t "Text" key="text_short"}}</span>
                 <svg class="md-board-edit-right-panel__section-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <polyline points="6 9 12 15 18 9"/>
@@ -2660,10 +2695,14 @@
                   {{!-- Shrink labels to fit — opt-in on/off switch.
                        Default (off) matches modern AAC industry
                        convention: labels keep the user's chosen font
-                       size and wrap to multiple lines. On switches
-                       to single-line auto-shrink down to a 7px floor
-                       so every button face reads at the same visual
-                       size even when phrases are long. Persists to
+                       size and wrap to up to 3 lines, with ellipsis
+                       past that. On runs a per-label JS measurement
+                       (utils/label_fit.js): each label whose text
+                       would overflow the 3-line box at the chosen
+                       size has its OWN font reduced down to an 8px
+                       floor so the full text appears without
+                       truncation; labels that already fit stay at
+                       the chosen size. Persists to
                        user.preferences.shrink_labels_to_fit. --}}
                   <div class="md-folder-toggle-row">
                     <span class="md-folder-toggle-row__label" id="shrink-labels-to-fit-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
@@ -2776,7 +2815,7 @@
               {{#if (is-equal this.right_panel_open_section 'board-layout')}}
                 <div class="md-board-edit-right-panel__section-body">
                   <div class="md-board-edit-right-panel__row-pair">
-                    <span class="md-board-edit-right-panel__row-pair-label md-board-edit-right-panel__row-pair-label--center">{{t "Grid Gap (Space between buttons)" key="grid_gap_with_hint"}}</span>
+                    <span class="md-board-edit-right-panel__row-pair-label md-board-edit-right-panel__row-pair-label--center">{{t "Grid Gap" key="grid_gap"}} <span class="md-board-edit-right-panel__row-pair-label-hint">{{t "(Space between buttons)" key="space_between_buttons_hint"}}</span></span>
                     <div class="md-board-detail-edit-toolbar__stepper md-settings-stepper md-settings-stepper--compact">
                       <button type="button" class="md-board-detail-edit-toolbar__stepper-btn" disabled={{this.display_prefs_spacing_at_min}} data-tooltip={{t "Tighter" key="board_detail_settings_tighter"}} aria-label={{t "Tighter" key="board_detail_settings_tighter"}} {{action "step_display_pref" "button_spacing" -1}}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor"/></svg>
@@ -2874,7 +2913,13 @@
                  rendered as small uppercase labels grouping their
                  child rows (matches the pattern used by the
                  speak-mode menu itself). Persists to
-                 user.preferences.speak_mode_hidden_menu_items. --}}
+                 user.preferences.speak_mode_hidden_menu_items.
+                 Gated behind `customize_menu` feature flag (Scot #1
+                 pre-merge review). Currently flag is ON for everyone
+                 during testing; will move to per-user beta opt-in
+                 once testing completes — see lib/feature_flags.rb
+                 comment above AVAILABLE_FRONTEND_FEATURES. --}}
+            {{#if this.app_state.feature_flags.customize_menu}}
             <div class="md-board-edit-right-panel__section {{if (is-equal this.right_panel_open_section 'customize-menu') 'md-board-edit-right-panel__section--open'}}">
               <button type="button" class="md-board-edit-right-panel__section-toggle" aria-expanded={{if (is-equal this.right_panel_open_section 'customize-menu') "true" "false"}} {{action "toggle_right_panel_section" "customize-menu"}}>
                 <span class="md-board-edit-right-panel__section-icon" data-section="customize-menu" aria-hidden="true">
@@ -2941,6 +2986,7 @@
                 </div>
               {{/if}}
             </div>
+            {{/if}}{{!-- /customize_menu feature flag --}}
 
             {{!-- Folders --}}
             <div class="md-board-edit-right-panel__section {{if (is-equal this.right_panel_open_section 'folders') 'md-board-edit-right-panel__section--open'}}">

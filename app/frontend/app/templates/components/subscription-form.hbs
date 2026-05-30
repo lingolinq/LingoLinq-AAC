@@ -1,7 +1,7 @@
 {{#if this.trial_choice}}
-  <div style='margin-top: 30px;'>
-    <button class='btn btn-default btn-lg' {{action "skip_subscription"}} style='height: 75px; width: calc(50% - 7px); margin-right: 10px;'>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
-    <button class='btn btn-primary btn-lg' {{action "check_pricing"}} style='height: 75px; width: calc(50% - 7px);'>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
+  <div class="subscription-form-trial-choice">
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--trial" {{action "skip_subscription"}}>{{t "Start with a<br>2-month trial" key="start_with_two_month_trial"}}</button>
+    <button class="subscription-form-trial-choice__btn subscription-form-trial-choice__btn--pricing" {{action "check_pricing"}}>{{t "See Purchasing<br>Options" key="see_purchasing"}}</button>
   </div>
 {{else}}
   <form {{action "purchase" on="submit"}} class="row subscription-form-with-cards">
@@ -395,7 +395,7 @@
       {{/unless}}
     {{else}}
       <div class="form-group">
-        <div class="col-sm-12 subscription-activate-row" style='margin-top: 20px;'>
+        <div class="col-sm-12 subscription-activate-row">
           {{#if this.not_authenticated}}
             {{#unless this.subscription.confirmation}}
               <p class='text-danger'>{{t "There appears to be an issue with your session that could prevent your purchase from completing. Please try logging out and back in. If that doesn't correct the problem, please try a different browser or contact our support team." key="error_subscription_wont_word"}}</p>

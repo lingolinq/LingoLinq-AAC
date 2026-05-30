@@ -230,7 +230,7 @@
     {{#unless this.image_preview}}
       <div style="text-align: center; margin-bottom: 15px; margin-top: 5px;">
         <div style="font-size: 14px; color: #666; margin-bottom: 5px;">{{t "Current picture" key="current_picture"}}</div>
-        <img src={{this.model.image.best_url_without_preferred_symbols}} class="button_image" alt="">
+        <img src={{or this.fresh_picture_url this.model.image.url this.model.image.best_url_without_preferred_symbols}} class="button_image" alt="">
       </div>
     {{/unless}}
   {{/if}}
@@ -291,7 +291,7 @@
             {{/if}}
           {{/if}}
           <button type="button" class='btn btn-primary' {{action "select_image_preview"}}>
-            {{#if this.button.pending}}
+            {{#if this.model.pending_image}}
               {{t "Saving..." key="saving"}}
             {{else}}
               {{t "Use This" key="use_this"}}

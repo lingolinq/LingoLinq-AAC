@@ -70,6 +70,46 @@ const SPEAK_MENU_SECTIONS = [
   { id: 'language', label_key: 'language', default_label: 'Language' }
 ];
 
+// Static i18n declarations for SPEAK_MENU_ITEMS / SPEAK_MENU_SECTIONS.
+// The Customize Menu template renders via dynamic
+// `{{t default_label key=label_key}}` helpers, which i18n_generator.rb's
+// static parser cannot extract (it looks for literal quoted strings,
+// not bound properties — see i18n_generator.rb:148-180). This no-op
+// function exists ONLY to make every key visible to the extractor;
+// it is never called at runtime. When you add a row to SPEAK_MENU_ITEMS
+// or SPEAK_MENU_SECTIONS, add a matching i18n.t(...) line here OR the
+// new key will silently fail to ship to non-English locales.
+// (Scot #4 pre-merge review, distilled to LEARNINGS as a recurring
+// codebase pattern — see docs/task-management/LEARNINGS.md.)
+// eslint-disable-next-line no-unused-vars
+function _customize_menu_i18n_extractor_no_op() {
+  // Sections (SPEAK_MENU_SECTIONS)
+  i18n.t('board', "Board");
+  i18n.t('buttons', "Buttons");
+  i18n.t('display', "Display");
+  i18n.t('share_and_print', "Share & Print");
+  i18n.t('session', "Session");
+  i18n.t('language', "Language");
+  // Items (SPEAK_MENU_ITEMS)
+  i18n.t('my_boards', "My Boards");
+  i18n.t('find_boards', "Find Boards");
+  i18n.t('find_a_button', "Find a Button");
+  i18n.t('focus_words', "Focus Words");
+  i18n.t('show_all_buttons', "Show Hidden Buttons");
+  i18n.t('board_detail_revert_old_style', "Classic View");
+  i18n.t('copy', "Copy");
+  i18n.t('download', "Download");
+  i18n.t('print', "Print");
+  i18n.t('share', "Share");
+  i18n.t('button_levels', "Button Levels");
+  i18n.t('stay_on_board', "Stay on this Board");
+  i18n.t('pause_logging', "Pause Logging");
+  i18n.t('board_detail_model_for_communicator', "Model for Communicator");
+  i18n.t('switch_communicators', "Switch Communicators");
+  i18n.t('translate', "Translate");
+  i18n.t('switch_language', "Switch Language");
+}
+
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
   stashes: service('stashes'),
@@ -89,14 +129,17 @@ export default Controller.extend(prefClasses, {
   // default when the saved preference is absent.
   folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, button labels shrink to fit the button width (down to
-  // a 7px floor) AND are allowed to wrap to up to TWO lines at word
-  // boundaries. When false (the default — matches modern AAC industry
-  // standard), labels keep the user's chosen font size and wrap to up
-  // to 3 lines at word boundaries with no shrinking. The two-line
-  // shrink mode replaces the older one-line-only shrink behavior so
-  // longer labels stay legible without dropping all the way to the
-  // 7px floor on a single line. Persisted on
+  // When true, each button's label is independently measured: if its
+  // text would overflow the 3-line label box at the user's chosen
+  // font size, only that one label's font is reduced (down to an 8px
+  // floor) until the full text fits without truncation. Labels that
+  // already fit at the chosen size are left alone — the toggle never
+  // rescales every label on the board uniformly, it only shrinks the
+  // specific labels that would otherwise be clipped. Implemented in
+  // app/frontend/app/utils/label_fit.js, wired via the board-detail-grid
+  // component. When false (the default — matches modern AAC industry
+  // standard), labels keep the user's chosen font size and overflow
+  // past 3 lines is clipped with ellipsis. Persisted on
   // user.preferences.shrink_labels_to_fit.
   shrink_labels_to_fit: false,
   // When true, applies a softer / more tonal style to button borders
@@ -474,6 +517,46 @@ export default Controller.extend(prefClasses, {
       }
     }
     return null;
+  },
+
+  _suggestion_lookup_board_ids: function() {
+    return wordSuggestionsModule.lookup_board_ids(
+      this.get('app_state'),
+      this.get('stashes'),
+      [this.get('model.id')]
+    );
+  },
+
+  _decorate_suggestion_images: function(list) {
+    var _this = this;
+    if(!list || !list.length) { return list; }
+    if(!_this._suggestion_image_lookups) {
+      _this._suggestion_image_lookups = {};
+    }
+    var lookups = _this._suggestion_image_lookups;
+    var lookup_ids = _this._suggestion_lookup_board_ids();
+    var ctx = { appState: _this.get('app_state'), stashes: _this.get('stashes') };
+    list.forEach(function(item) {
+      if(!item || !item.word) { return; }
+      if(wordSuggestionsModule.resolve_word_image(item)) { return; }
+      var local = _this._find_local_image_for_label(item.word);
+      if(local) {
+        item.image = local;
+        return;
+      }
+      var key = item.word.toLowerCase();
+      if(lookups[key]) { return; }
+      lookups[key] = true;
+      wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
+        if(_this.isDestroyed || _this.isDestroying || !url) { return; }
+        item.image = url;
+        var current = _this.get('suggestions');
+        if(current && current.list) {
+          _this.set('suggestions', { ready: true, list: current.list.slice() });
+        }
+      }, ctx);
+    });
+    return list;
   },
 
   _apply_sentence_chip_image: function(part, img) {
@@ -1448,79 +1531,159 @@ export default Controller.extend(prefClasses, {
     return !this.get('edit_mode');
   }),
 
-  updateSuggestions: observer(
-    'app_state.button_list',
-    'app_state.button_list.[]',
-    function() {
-      if(this.get('edit_mode')) { return; }
-      var _this = this;
-
-      var button_list = this.get('app_state.button_list') || [];
-      if(!button_list.length) {
-        this.set('suggestions', null);
-        return;
-      }
-
+  _suggestion_lookup_context: function() {
+    var button_list = this.get('app_state.button_list') || [];
+    if(button_list.length) {
       var last_button = button_list[button_list.length - 1];
       var current_button = null;
       if(last_button && last_button.in_progress) {
         current_button = last_button;
         last_button = button_list[button_list.length - 2];
       }
-      var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
-      var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase();
+      return {
+        last_finished_word: ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase(),
+        word_in_progress: ((current_button && (current_button.vocalization || current_button.label)) || '').toLowerCase(),
+        sentence: button_list.map(function(b) {
+          return (b.vocalization || b.label || '').replace(/^:/, '');
+        }).join(' ').trim()
+      };
+    }
 
-      var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
-      if(word_suggestions && word_suggestions.lookup) {
-        var lookup_ids = word_suggestions.lookup_board_ids(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]);
-        word_suggestions.load_vocabulary_button_sets(_this.get('app_state'), _this.get('stashes'), [_this.get('model.id')]).then(function(warmed_sets) {
-          word_suggestions.lookup({
-            last_finished_word: last_finished_word,
-            word_in_progress: word_in_progress,
-            topic_context: (_this.get('model') && _this.get('model.name')) || '',
-            board_ids: lookup_ids,
-            button_sets: warmed_sets
-          }).then(function(result) {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
-            (result || []).forEach(function(word) {
-              word.image_update = function() {
-                if(_this.isDestroyed || _this.isDestroying) { return; }
-                var current = _this.get('suggestions');
-                if(current && current.list) {
-                  _this.set('suggestions', { ready: true, list: current.list.slice() });
-                }
-                if(typeof _this.sync_sentence_from_button_list === 'function') {
-                  _this.sync_sentence_from_button_list();
-                }
-              };
-            });
-            if(result && result.length > 0) {
-              _this.set('suggestions', { ready: true, list: result });
-            } else {
-              // Fallback to AI predictor if n-gram data has no match
-              var sentence = button_list.map(function(b) {
-                return b.label || b.vocalization || '';
-              }).join(' ').trim();
-              if(sentence) {
-                _this.set('suggestions', { loading: true });
-                aiPredictor.predict(sentence, {
-                  locale: _this.get('app_state.label_locale') || 'en'
-                }).then(function(words) {
-                  if(_this.isDestroyed || _this.isDestroying) { return; }
-                  var list = words.map(function(w) { return { word: w }; });
-                  _this.set('suggestions', { ready: true, list: list });
-                }, function() {
-                  if(_this.isDestroyed || _this.isDestroying) { return; }
-                  _this.set('suggestions', { ready: true, list: [] });
-                });
-              }
-            }
-          }, function() {
-            if(_this.isDestroyed || _this.isDestroying) { return; }
-            _this.set('suggestions', { ready: true, list: [] });
-          });
-        }, function() { });
+    var parts = this.get('sentence_parts') || [];
+    if(!parts.length) { return null; }
+    var last_part = parts[parts.length - 1];
+    var current_part = null;
+    if(last_part && last_part.in_progress) {
+      current_part = last_part;
+      last_part = parts[parts.length - 2];
+    }
+    return {
+      last_finished_word: ((last_part && last_part.label) || '').toLowerCase(),
+      word_in_progress: ((current_part && current_part.label) || '').toLowerCase(),
+      sentence: parts.map(function(p) { return p.label || ''; }).join(' ').trim()
+    };
+  },
+
+  _apply_suggestion_results: function(result, sentence, context) {
+    var _this = this;
+    if(_this.isDestroyed || _this.isDestroying) { return; }
+    (result || []).forEach(function(word) {
+      word.image_update = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var current = _this.get('suggestions');
+        if(current && current.list) {
+          _this.set('suggestions', { ready: true, list: current.list.slice() });
+        }
+        if(typeof _this.sync_sentence_from_button_list === 'function') {
+          _this.sync_sentence_from_button_list();
+        }
+      };
+    });
+    if(result && result.length > 0) {
+      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(result) });
+      return;
+    }
+    if(!sentence) {
+      _this.set('suggestions', { ready: true, list: [] });
+      return;
+    }
+    if(context && context.word_in_progress) {
+      _this.set('suggestions', { ready: true, list: [] });
+      return;
+    }
+    _this.set('suggestions', { loading: true });
+    aiPredictor.predict(sentence, {
+      locale: _this.get('app_state.label_locale') || 'en',
+      appState: _this.get('app_state')
+    }).then(function(words) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var list = (words || []).map(function(w) { return { word: w }; });
+      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(list) });
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('suggestions', { ready: true, list: [] });
+    });
+  },
+
+  _run_suggestion_lookup: function(warmed_sets) {
+    var _this = this;
+    this.set('_last_warmed_button_sets', warmed_sets || []);
+    var context = this._suggestion_lookup_context();
+    if(!context) {
+      this.set('suggestions', null);
+      return;
+    }
+    if(typeof wordSuggestionsModule.lookup !== 'function') { return; }
+
+    var lookup_token = (this.get('_suggestion_lookup_token') || 0) + 1;
+    this.set('_suggestion_lookup_token', lookup_token);
+
+    var lookup_ids = wordSuggestionsModule.lookup_board_ids(
+      _this.get('app_state'),
+      _this.get('stashes'),
+      [_this.get('model.id')]
+    );
+    var lookup_options = {
+      last_finished_word: context.last_finished_word,
+      word_in_progress: context.word_in_progress,
+      topic_context: (_this.get('model') && _this.get('model.name')) || '',
+      sentence: context.sentence,
+      locale: _this.get('app_state.label_locale') || 'en',
+      board_ids: lookup_ids,
+      button_sets: warmed_sets
+    };
+    var lookup_promise = typeof wordSuggestionsModule.lookup_with_ai === 'function' ?
+      wordSuggestionsModule.lookup_with_ai(lookup_options) :
+      wordSuggestionsModule.lookup(lookup_options);
+
+    lookup_promise.then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+      _this._apply_suggestion_results(result, context.sentence, context);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+      _this.set('suggestions', { ready: true, list: [] });
+    });
+  },
+
+  updateSuggestions: observer(
+    'edit_mode',
+    'app_state.button_list',
+    'app_state.button_list.[]',
+    'app_state.button_list.@each.in_progress',
+    'app_state.button_list.@each.label',
+    'app_state.button_list.@each.vocalization',
+    'sentence_parts.[]',
+    'sentence_parts.@each.label',
+    'sentence_parts.@each.in_progress',
+    function() {
+      if(this.get('edit_mode')) {
+        this.set('suggestions', null);
+        return;
       }
+      var _this = this;
+      var context = this._suggestion_lookup_context();
+      if(!context) {
+        this.set('suggestions', null);
+        return;
+      }
+
+      var lookup_ids = wordSuggestionsModule.lookup_board_ids(
+        _this.get('app_state'),
+        _this.get('stashes'),
+        [_this.get('model.id')]
+      );
+      var fallback_sets = wordSuggestionsModule.button_sets_for_board_ids(lookup_ids);
+      wordSuggestionsModule.load_vocabulary_button_sets(
+        _this.get('app_state'),
+        _this.get('stashes'),
+        [_this.get('model.id')]
+      ).then(function(warmed_sets) {
+        _this._run_suggestion_lookup(warmed_sets);
+      }, function() {
+        _this._run_suggestion_lookup(fallback_sets);
+      });
     }
   ),
 
@@ -3525,6 +3688,44 @@ export default Controller.extend(prefClasses, {
     return max_id + 1;
   },
 
+  _sidebarAppController: function() {
+    var appController = this.get('app_state.controller');
+    if(!appController || typeof appController.send !== 'function') {
+      appController = getOwner(this).lookup('controller:application');
+    }
+    return appController;
+  },
+
+  _maybeCloseInlineSidebarAfterAction: function() {
+    var prefs = this.get('app_state.currentUser.preferences') || {};
+    if(prefs.disable_quick_sidebar) { return; }
+    if(prefs.quick_sidebar || prefs.lock_quick_sidebar) { return; }
+    this.set('inlineSidebarOpen', false);
+  },
+
+  _syncInlineSidebarFromPrefs: function() {
+    var user = this.get('app_state.currentUser');
+    if(!user) { return; }
+    var prefs = user.get('preferences') || {};
+    if(prefs.disable_quick_sidebar) {
+      this.set('inlineSidebarOpen', false);
+      return;
+    }
+    if(prefs.quick_sidebar && !this.get('edit_mode')) {
+      this.set('inlineSidebarOpen', true);
+    }
+  },
+
+  syncInlineSidebarOnPrefChange: observer(
+    'app_state.currentUser.preferences.quick_sidebar',
+    'app_state.currentUser.preferences.disable_quick_sidebar',
+    'app_state.currentUser.preferences.lock_quick_sidebar',
+    'edit_mode',
+    function() {
+      this._syncInlineSidebarFromPrefs();
+    }
+  ),
+
   // Push current board state to navigation history
   _push_nav_history: function() {
     var user = this.get('user');
@@ -3969,7 +4170,14 @@ export default Controller.extend(prefClasses, {
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured — same pattern as
       // switch_communicators below and the app-wide toggleEditMode.
-      var ready = app_state.open_speak_mode_exit_pin('none');
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
+      }
       var enterEditNow = function() {
         _this.set('show_options_menu', false);
         _this.set('show_color_legend', false);
@@ -4047,7 +4255,14 @@ export default Controller.extend(prefClasses, {
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured. Without this the button
       // lets a communicator leave the locked session by navigating home.
-      var ready = app_state.open_speak_mode_exit_pin('none');
+      var ready = RSVP.resolve({correct_pin: true});
+      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {
+          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
+          action: 'none',
+          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
+        });
+      }
       ready.then(function(res) {
         if(!res || !res.correct_pin) { return; }
         // Signal any in-flight async work on this controller to bail.
@@ -4061,7 +4276,6 @@ export default Controller.extend(prefClasses, {
         _this.set('show_options_menu', false);
         _this.set('app_state.board_detail_nav_history', []);
         _this.set('app_state.board_detail_entry_board', null);
-        app_state.finish_speak_mode_exit();
         app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
         var transition = _this.get('router').transitionTo('index');
         if(transition && typeof transition.then === 'function') {
@@ -4076,19 +4290,14 @@ export default Controller.extend(prefClasses, {
     },
 
     exit_speak_mode: function() {
-      var _this = this;
-      var app_state = this.get('app_state');
-      var ready = app_state.open_speak_mode_exit_pin('none');
-      ready.then(function(res) {
-        if(!res || !res.correct_pin) { return; }
-        _this.set('_exiting', true);
-        if(_this._phrase_search_timer) {
-          try { runCancel(_this._phrase_search_timer); } catch(e) {}
-          _this._phrase_search_timer = null;
-        }
-        _this.set('show_options_menu', false);
-        app_state.toggle_speak_mode('off');
-      }, function() { });
+      this.set('_exiting', true);
+      if(this._phrase_search_timer) {
+        try { runCancel(this._phrase_search_timer); } catch(e) {}
+        this._phrase_search_timer = null;
+      }
+      this.set('show_options_menu', false);
+      // app_state.toggle_speak_mode handles the loading overlay internally.
+      this.get('app_state').toggle_speak_mode();
     },
 
     toggle_all_buttons: function() {
@@ -4123,8 +4332,10 @@ export default Controller.extend(prefClasses, {
     switch_communicators: function() {
       this.set('show_options_menu', false);
       var _this = this;
-      var app_state = this.get('app_state');
-      var ready = app_state.open_speak_mode_exit_pin('none');
+      var ready = RSVP.resolve({correct_pin: true});
+      if(this.get('app_state').get('speak_mode') && this.get('app_state').get('currentUser.preferences.require_speak_mode_pin') && this.get('app_state').get('currentUser.preferences.speak_mode_pin')) {
+        ready = modal.open('speak-mode-pin', {actual_pin: this.get('app_state').get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.get('app_state').get('currentUser.preferences.hide_pin_hint')});
+      }
       ready.then(function(res) {
         if(res && res.correct_pin) {
           modal.open('switch-communicators', {});
@@ -4919,14 +5130,13 @@ export default Controller.extend(prefClasses, {
     },
 
     /* "My Boards" entry in the speak-mode options menu. Previously
-       opened the in-page modal picker (openBoardPicker on the
-       application controller); the modal was deleted 2026-05-23
-       when the My Boards UX moved to a route transition. Now
-       delegates to `openMyBoards` on the application controller,
-       which stashes the current board (so the boards page can
-       render a "Back to <board>" chip) and transitions to
-       /u/:user_name/boards. Close the options menu first so it
-       isn't lingering open during the transition. */
+       opened an in-page modal picker on the application controller;
+       the modal was deleted 2026-05-23 when the My Boards UX moved
+       to a route transition. Now delegates to `openMyBoards` on the
+       application controller, which stashes the current board (so
+       the boards page can render a "Back to <board>" chip) and
+       transitions to /u/:user_name/boards. Close the options menu
+       first so it isn't lingering open during the transition. */
     open_board_picker: function() {
       this.set('show_options_menu', false);
       var appController = getOwner(this).lookup('controller:application');
@@ -5181,6 +5391,7 @@ export default Controller.extend(prefClasses, {
       // entries back into sentence_parts via the observer.
       this.set('sentence_parts', []);
       this._sentence_image_lookups = {};
+      this._suggestion_image_lookups = {};
       try { utterance.clear(); } catch(e) { }
     },
 
@@ -5201,6 +5412,7 @@ export default Controller.extend(prefClasses, {
 
     complete_word: function(word) {
       if(!word) { return; }
+      var _this = this;
       var text = word.word;
       var button = editManager.fake_button();
       button.set('label', text);
@@ -5210,25 +5422,55 @@ export default Controller.extend(prefClasses, {
         button.set('vocalization', ':predict');
       }
       button.set('completion', text);
-      var word_image = wordSuggestionsModule.resolve_word_image(word);
-      if(word_image) {
-        button.set('image', LingoLinq.store.createRecord('image'));
-        button.set('image.url', word_image);
-      }
       button.set('empty', false);
 
       try {
-        var word_suggestions = (window.LingoLinq && window.LingoLinq.word_suggestions) || wordSuggestionsModule;
-        if(word_suggestions && typeof word_suggestions.record_selection === 'function') {
-          word_suggestions.record_selection(text);
+        if(typeof wordSuggestionsModule.record_selection === 'function') {
+          var button_list = this.get('app_state.button_list') || [];
+          var last_button = button_list[button_list.length - 1];
+          if(last_button && last_button.in_progress) {
+            last_button = button_list[button_list.length - 2];
+          }
+          var prefix = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
+          if(!prefix) {
+            var parts = this.get('sentence_parts') || [];
+            var last_part = parts[parts.length - 1];
+            if(last_part && last_part.in_progress) {
+              last_part = parts[parts.length - 2];
+            }
+            prefix = ((last_part && last_part.label) || '').toLowerCase();
+          }
+          wordSuggestionsModule.record_selection(text, null, prefix);
         }
       } catch(e) { }
 
-      var board = this.get('model');
-      var app = this.get('app_state.controller');
-      if(app && app.activateButton && board) {
-        app.activateButton(button, { board: board, trigger_source: 'completion' });
+      var activate = function(image_url) {
+        if(image_url) {
+          button.set('image', LingoLinq.store.createRecord('image'));
+          button.set('image.url', image_url);
+        }
+        var board = _this.get('model');
+        var app = _this.get('app_state.controller');
+        if(app && app.activateButton && board) {
+          app.activateButton(button, { board: board, trigger_source: 'completion' });
+        }
+      };
+
+      var image_url = wordSuggestionsModule.resolve_word_image(word) ||
+        _this._find_local_image_for_label(text) ||
+        word.original_image;
+      if(image_url) {
+        activate(image_url);
+        return;
       }
+      wordSuggestionsModule.attach_image_for_label(
+        text,
+        _this._suggestion_lookup_board_ids(),
+        function() { },
+        { appState: _this.get('app_state'), stashes: _this.get('stashes') }
+      ).then(function(image_url) {
+        activate(image_url || wordSuggestionsModule.resolve_word_image(word));
+      });
     },
 
     speak_sentence: function() {
@@ -5479,19 +5721,31 @@ export default Controller.extend(prefClasses, {
     },
 
     toggleInlineSidebar: function() {
+      var prefs = this.get('app_state.currentUser.preferences') || {};
+      if(this.get('inlineSidebarOpen') && prefs.quick_sidebar && prefs.lock_quick_sidebar) {
+        return;
+      }
       this.toggleProperty('inlineSidebarOpen');
     },
     sidebar_jump: function(key, board) {
-      var user = this.get('user');
-      if (!user || !key) { return; }
-      var un = user.get('user_name');
-      var boardname = key.split('/').slice(1).join('/');
-      if (boardname) {
-        this.get('router').transitionTo('user.board-detail', un, boardname);
+      if(!key) { return; }
+      this._push_nav_history();
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('jump', key, 'sidebar', board);
       }
+      this._maybeCloseInlineSidebarAfterAction();
+    },
+    sidebar_special: function(board) {
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('special', board);
+      }
+      this._maybeCloseInlineSidebarAfterAction();
     },
     sidebar_alert: function() {
-      // placeholder for sidebar alert action
+      utterance.alert({button_triggered: true});
+      this._maybeCloseInlineSidebarAfterAction();
     },
 
     // ── Edit Toolbar Actions ──
@@ -6120,11 +6374,12 @@ export default Controller.extend(prefClasses, {
     },
 
     // Toggles the "Shrink labels to fit" preference — when true,
-    // button labels shrink down to a 7px floor AND wrap to up to two
-    // lines at word boundaries inside the button. When false
-    // (default — modern AAC industry standard), labels keep the
-    // user's chosen font size and wrap to up to 3 lines at word
-    // boundaries with no shrinking. Persists to
+    // each label is independently measured and shrunk only if its
+    // text would overflow the 3-line box at the chosen font size
+    // (down to an 8px floor). Labels that already fit stay at the
+    // chosen size. When false (default — modern AAC industry
+    // standard), labels keep the chosen size and overflow past 3
+    // lines clips with ellipsis. Persists to
     // user.preferences.shrink_labels_to_fit.
     toggle_shrink_labels_to_fit: function() {
       var _this = this;
@@ -6183,6 +6438,12 @@ export default Controller.extend(prefClasses, {
     // state. Stored as an array of hidden ids on
     // user.preferences.speak_mode_hidden_menu_items.
     set_speak_menu_item_hidden: function(id, hidden) {
+      // Defense-in-depth alongside the template gate at
+      // templates/user/board-detail.hbs ({{#if app_state.feature_flags.customize_menu}}).
+      // Template gate hides UI but doesn't make the action unreachable
+      // (debug console, custom client, action chaining). Both gates needed.
+      // Per pre-merge audit §3.5 (Trust boundary analysis).
+      if(!this.get('app_state.feature_flags.customize_menu')) { return; }
       var arr = (this.get('speak_menu_hidden_items') || []).slice();
       var ix = arr.indexOf(id);
       var want_hidden = !!hidden;

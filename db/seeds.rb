@@ -6,9 +6,10 @@
 #
 # Sensitive credentials: Use environment variables. In production/staging, SEED_*_PASSWORD
 # must be set; in development/test, defaults are used if not set.
-#   SEED_EXAMPLE_PASSWORD - example user (default in dev: 'password')
-#   SEED_ADMIN_PASSWORD   - lingolinq_admin (default in dev: 'admin2025!')
-#   SEED_DEMO_PASSWORD   - demo users: SLPs, students (default in dev: 'demo2025!')
+#   SEED_EXAMPLE_PASSWORD   - example user (default in dev: 'password')
+#   SEED_ADMIN_PASSWORD     - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_DEMO_PASSWORD      - demo user(s) (default in dev: 'password')
+#   SEED_LINGOLINQ_PASSWORD - lingolinq system boards user (default in dev: 'password')
 
 def seed_password(env_key, dev_default)
   if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
@@ -1149,3 +1150,77 @@ end
 #         ]
 #       }
 #     ];
+
+
+# Ensure system sidebar boards exist (idempotent; runs even when initial seed was skipped)
+puts "\n===== Ensure system sidebar boards ====="
+lingolinq_password = seed_password('SEED_LINGOLINQ_PASSWORD', 'password')
+lingolinq_user = User.find_by(user_name: 'lingolinq')
+unless lingolinq_user
+  lingolinq_user = User.process_new({
+    name: 'LingoLinq',
+    user_name: 'lingolinq',
+    email: 'content@lingolinq.com',
+    public: true,
+    password: lingolinq_password,
+    description: 'Official LingoLinq communication boards',
+    location: 'Everywhere'
+  }, {
+    is_admin: false
+  })
+  puts "  Created lingolinq user"
+else
+  puts "  Found existing lingolinq user"
+end
+lingolinq_user.settings ||= {}
+lingolinq_user.settings['subscription'] ||= {}
+lingolinq_user.settings['subscription']['never_expires'] = true
+lingolinq_user.settings['subscription']['plan_id'] = 'slp_monthly_granted'
+lingolinq_user.settings['subscription']['started'] = 1.year.ago.iso8601
+lingolinq_user.save!
+puts "  Ensured lingolinq user has lifetime subscription"
+
+board_yesno = Board.find_by(key: 'yesno', user_id: lingolinq_user.id)
+unless board_yesno
+  board_yesno = Board.process_new({
+    name: 'Yes/No',
+    public: true,
+    buttons: [
+      {
+        id: 1,
+        label: 'Yes',
+        image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png'
+      },
+      {
+        id: 2,
+        label: 'No',
+        image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png'
+      }
+    ],
+    grid: {
+      rows: 1,
+      columns: 2,
+      order: [[1, 2]]
+    }
+  }, {user: lingolinq_user, key: 'yesno'})
+  puts "  Created lingolinq/yesno board"
+else
+  puts "  Found existing lingolinq/yesno board"
+end
+
+SystemSidebarBoards.ensure_for(lingolinq_user).each do |board|
+  puts "  Ensured lingolinq/#{board.key.split('/').last} board"
+end
+
+if lingolinq_user && !Board.find_by_path('lingolinq/quick-core-60')
+  if ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'].to_s =~ /^(1|true|yes)$/i
+    puts "  Importing OpenAAC vocabulary boards for lingolinq (this may take a while)..."
+    Rake::Task['openaac:import_vocabularies'].reenable
+    ENV['VOCABULARY_USER_NAME'] = 'lingolinq'
+    Rake::Task['openaac:import_vocabularies'].invoke
+  else
+    puts "  NOTE: lingolinq/quick-core-60 not found."
+    puts "        Run: VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies"
+    puts "        Or set SEED_IMPORT_OPENAAC_VOCABULARIES=1 before db:seed to import during seed."
+  end
+end

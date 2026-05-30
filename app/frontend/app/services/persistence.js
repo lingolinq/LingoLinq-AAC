@@ -1042,6 +1042,7 @@ var persistence = Service.extend({
     return token;
   },
   decrypt_json: function(str, encryption_settings) {
+    var _this = this;
     if(str.match(/^aes256-/)) {
       var te = new TextEncoder();
       str = str.replace(/^aes256-/, '');
@@ -1065,7 +1066,7 @@ var persistence = Service.extend({
           var buff = new Uint8Array(res);
           var str = buff.reduce((acc, i) => acc += String.fromCharCode.apply(null, [i]), '')
           try {
-            return this.bg_parse_json(str);
+            return _this.bg_parse_json(str);
           } catch(e) {
             return RSVP.reject({error: 'JSON parse failed on decrypted content', err: e});
           }
@@ -1073,7 +1074,7 @@ var persistence = Service.extend({
       });
     } else {
       try {
-        return this.bg_parse_json(str);
+        return _this.bg_parse_json(str);
       } catch(e) {
         return RSVP.reject({error: 'JSON parse failed', err: e});
       }
@@ -1145,7 +1146,7 @@ var persistence = Service.extend({
       _this.find_url(url, 'json').then(function(uri) {
         if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
-            this.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
+            _this.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
               resolve(json);
             }, function(err) {
               LingoLinq.track_error("No JSON dataURI");
@@ -1159,7 +1160,7 @@ var persistence = Service.extend({
           var filename = uri.split(/\//).pop();
           capabilities.storage.get_file_url('json', filename, true).then(function(data_uri) {
             try {
-              this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+              _this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
                 resolve(result || []);
               });
             } catch(e) {
@@ -1172,14 +1173,14 @@ var persistence = Service.extend({
         } else if(typeof(uri) == 'string') {
           var res = _this.ajax(uri + "?cr=" + Math.random(), {type: 'GET', dataType: 'text'});
           res.then(function(res) {
-            this.bg_parse_json(res.text).then(function(json) { 
+            _this.bg_parse_json(res.text).then(function(json) { 
               resolve(json);
             }, function(err) {
               reject(err);
             });
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
-              this.remove('dataCache', url);
+              _this.remove('dataCache', url);
               persistence.url_cache[url] = null;
             }
             LingoLinq.track_error("JSON data retrieval error", (err || {}).error || err);
@@ -1601,7 +1602,10 @@ var persistence = Service.extend({
       var trusted_not_to_change = url.match(/opensymbols\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/opensymbols/) ||
                   url.match(/lingolinq-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/lingolinq-usercontent/) ||
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
-      var cors_match = trusted_not_to_change || url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
+      var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
+        url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
+      var cors_match = trusted_not_to_change || uploads_bucket ||
+        url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
@@ -1736,6 +1740,18 @@ var persistence = Service.extend({
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
         if(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')) {
+          // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
+          // is sufficient. FileSystem writes for large JSON blobs often fail
+          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          if(type == 'json' && object.data_uri) {
+            if(!object.persisted) {
+              object.persisted = true;
+              object.url = url_id;
+            }
+            return _this.store('dataCache', object, object.url).then(function() {
+              return object;
+            });
+          }
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {

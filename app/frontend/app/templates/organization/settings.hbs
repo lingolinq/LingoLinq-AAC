@@ -33,6 +33,17 @@
     </div>
 
     <div class="md-org-settings-field">
+      <label class="md-org-settings-field__label">{{t "Beta program access for start codes" key="org_default_beta_program_access_label"}}</label>
+      <label class="md-org-settings-toggle">
+        <Input @checked={{this.model.default_beta_program_access}} @type="checkbox" class="md-org-settings-toggle__input" />
+        <span class="md-org-settings-toggle__label">{{t "Grant beta program access to new users who register with a start code from this organization" key="org_default_beta_program_access_toggle"}}</span>
+      </label>
+      <span class="md-org-settings-field__hint">
+        {{t "When off, users who sign up with this organization's start code will not see the beta welcome flow. Self-service signups without a start code are not affected by this setting." key="org_default_beta_program_access_hint"}}
+      </span>
+    </div>
+
+    <div class="md-org-settings-field">
       <label for="board" class="md-org-settings-field__label">{{t "Home Boards" key="home_boards"}}</label>
       <Textarea @value={{this.home_board_key_lines}} class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} />
       <span class="md-org-settings-field__hint">

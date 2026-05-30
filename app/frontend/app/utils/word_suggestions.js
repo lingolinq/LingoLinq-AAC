@@ -11,9 +11,13 @@ import Utils from './misc';
 import i18n from './i18n';
 import LingoLinq from '../app';
 import config from '../config/environment';
+import ai_word_predictor from './ai_word_predictor';
 
 var FREQ_STORAGE_KEY = 'lingolinq_word_freq';
+var BIGRAM_STORAGE_KEY = 'lingolinq_word_bigrams';
+var SYNC_QUEUE_KEY = 'lingolinq_prediction_sync_queue';
 var FREQ_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
+var _sync_timer = null;
 
 var normalize_prediction_key = function(phrase) {
   return (phrase || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
@@ -67,6 +71,38 @@ var load_freq_state = function(raw_json, now_ms) {
 
 var serialize_freq_state = function(state) {
   return JSON.stringify(state || { v: 1, entries: {} });
+};
+
+var load_bigram_state = function(raw_json, now_ms) {
+  var parsed = null;
+  try {
+    parsed = raw_json ? JSON.parse(raw_json) : null;
+  } catch(e) {
+    parsed = null;
+  }
+  var entries = (parsed && parsed.entries && typeof parsed.entries === 'object') ? parsed.entries : {};
+  var next = {};
+  for(var k in entries) {
+    if(!Object.prototype.hasOwnProperty.call(entries, k)) { continue; }
+    var e = entries[k];
+    var s = decayed_freq_score(e, now_ms);
+    if(s > 0.0005) {
+      next[k] = { s: s, t: now_ms, prefix: e.prefix, word: e.word };
+    }
+  }
+  return { v: 1, entries: next };
+};
+
+var serialize_bigram_state = function(state) {
+  return JSON.stringify(state || { v: 1, entries: {} });
+};
+
+var load_sync_queue = function() {
+  try {
+    return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+  } catch(e) {
+    return [];
+  }
 };
 
 var smart_phrases = {
@@ -298,7 +334,7 @@ var word_suggestions = EmberObject.extend({
           });
         }
         _this.watchers = null;
-        return true;
+        return word_suggestions.load_spelling_words();
       }, function() {
         _this.loading = false;
         _this.error = true;
@@ -402,6 +438,7 @@ var word_suggestions = EmberObject.extend({
       var word_in_progress = options.word_in_progress;
       if(word_in_progress) { word_in_progress = word_in_progress.replace(/\s+$/, '').toLowerCase(); }
       var topic_context = options.topic_context || options.topic || '';
+      var normalized_topic = normalize_prediction_key(topic_context);
       var now_ms = options.now_ms || Date.now();
       var time_bucket = options.time_of_day || time_of_day_bucket_for_date(new Date(now_ms));
 
@@ -444,10 +481,12 @@ var word_suggestions = EmberObject.extend({
       }
 
       var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
-      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift) {
+      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic) {
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;
         _this.second_to_last_word = second_to_last_word;
+        _this.last_time_bucket = time_bucket;
+        _this.last_topic_context = normalized_topic;
         // TODO: is there an easy way to include two prior words?
         _this.word_in_progress = word_in_progress;
 
@@ -458,11 +497,37 @@ var word_suggestions = EmberObject.extend({
         };
 
         var _passes_filter = function(str, wip) {
-          if(!_this.filtered_words[str.toLowerCase()]) { }
           if(_this.filtered_words[str.toLowerCase()]) { return false; }
           if(!wip) { return str[0] != "<"; }
           return str.substring(0, wip.length) == wip;
         };
+
+        if(word_in_progress) {
+          var spelling_seen = {};
+          var add_spelling_match = function(match, source) {
+            if(result.length >= max_results) { return; }
+            var key = (match.word || '').toLowerCase();
+            if(!key || spelling_seen[key]) { return; }
+            spelling_seen[key] = true;
+            result.push({ word: _safe_cap(match.word), source: source || match.source || 'core' });
+          };
+          if(options.button_sets || options.board_ids) {
+            word_suggestions.collect_vocabulary_prefix_matches(
+              word_in_progress,
+              options,
+              max_results
+            ).forEach(function(match) {
+              add_spelling_match(match, 'vocab');
+            });
+          }
+          word_suggestions.collect_core_prefix_matches(
+            word_in_progress,
+            max_results,
+            spelling_seen
+          ).forEach(function(match) {
+            add_spelling_match(match, 'core');
+          });
+        }
 
         // searches the next-words list, looking for best matches based
         // on the current partial spelling if there is one
@@ -551,6 +616,10 @@ var word_suggestions = EmberObject.extend({
           try { raw = localStorage.getItem(FREQ_STORAGE_KEY); } catch(e) { raw = null; }
           var freq_state = load_freq_state(raw, now);
           var entries = freq_state.entries || {};
+          var bigram_raw = null;
+          try { bigram_raw = localStorage.getItem(BIGRAM_STORAGE_KEY); } catch(e2) { bigram_raw = null; }
+          var bigram_state = load_bigram_state(bigram_raw, now);
+          var prefix_key = normalize_prediction_key(last_finished_word);
 
           var original_order = {};
           result.forEach(function(item, idx) {
@@ -562,6 +631,13 @@ var word_suggestions = EmberObject.extend({
             var base = 0;
             var freq = decayed_freq_score(entries[key] || { s: 0, t: now }, now);
             base += Math.min(freq, 20) * 2.0; // cap influence
+            if(prefix_key) {
+              var bigram_key = prefix_key + '->' + key;
+              var bigram = bigram_state.entries[bigram_key];
+              if(bigram) {
+                base += Math.min(decayed_freq_score(bigram, now), 20) * 3.0;
+              }
+            }
             if(weights[key]) {
               base += weights[key] * 2.5;
             }
@@ -694,23 +770,50 @@ var word_suggestions = EmberObject.extend({
       }
     });
   },
-  record_selection: function(phrase, now_ms) {
+  record_selection: function(phrase, now_ms, prefix) {
     var key = normalize_prediction_key(phrase);
     if(!key) { return; }
     var now = now_ms || Date.now();
-    var raw = null;
     try {
-      raw = localStorage.getItem(FREQ_STORAGE_KEY);
-    } catch(e) {
-      return;
-    }
-    var state = load_freq_state(raw, now);
-    var prev = state.entries[key] || { s: 0, t: now };
-    var decayed = decayed_freq_score(prev, now);
-    state.entries[key] = { s: decayed + 1, t: now };
-    try {
+      var raw = localStorage.getItem(FREQ_STORAGE_KEY);
+      var state = load_freq_state(raw, now);
+      var prev = state.entries[key] || { s: 0, t: now };
+      var decayed = decayed_freq_score(prev, now);
+      state.entries[key] = { s: decayed + 1, t: now };
       localStorage.setItem(FREQ_STORAGE_KEY, serialize_freq_state(state));
-    } catch(e2) { }
+    } catch(e) { }
+
+    var prefixKey = normalize_prediction_key(prefix);
+    if(prefixKey) {
+      try {
+        var bigramRaw = localStorage.getItem(BIGRAM_STORAGE_KEY);
+        var bigramState = load_bigram_state(bigramRaw, now);
+        var entryKey = prefixKey + '->' + key;
+        var prevBigram = bigramState.entries[entryKey] || { s: 0, t: now, prefix: prefixKey, word: key };
+        var decayedBigram = decayed_freq_score(prevBigram, now);
+        bigramState.entries[entryKey] = {
+          s: decayedBigram + 1,
+          t: now,
+          prefix: prefixKey,
+          word: key
+        };
+        localStorage.setItem(BIGRAM_STORAGE_KEY, serialize_bigram_state(bigramState));
+        word_suggestions.queue_sync({
+          locale: 'en',
+          prefix: prefixKey,
+          next_word: key,
+          delta: 1,
+          source: 'selection'
+        });
+      } catch(e2) { }
+    }
+
+    word_suggestions.log_prediction_telemetry({
+      prefix: prefixKey || '',
+      selected: key,
+      source: 'selection',
+      locale: 'en'
+    });
   },
   fallback_url: function() {
     if(this.fallback_url_result) {
@@ -774,6 +877,285 @@ var word_suggestions = EmberObject.extend({
     return next_col;
   }
 }).create({pieces: 10, max_results: 5});
+
+word_suggestions._server_entry_cache = {};
+
+word_suggestions.sentence_from_options = function(options) {
+  options = options || {};
+  if(options.sentence) { return options.sentence.toString().trim(); }
+  if(options.words && options.words.length) {
+    return options.words.join(' ').trim();
+  }
+  var parts = [];
+  if(options.last_finished_word) { parts.push(options.last_finished_word); }
+  if(options.word_in_progress) { parts.push(options.word_in_progress); }
+  return parts.join(' ').trim();
+};
+
+word_suggestions._is_spelling_label = function(label) {
+  var key = (label || '').toString().trim().toLowerCase();
+  if(!key) { return true; }
+  if(key.length === 1 && key.match(/^[a-z0-9]$/)) { return true; }
+  if(key.match(/^\[[^\]]+\]$/)) { return true; }
+  if(key === '.' || key === '?') { return true; }
+  return false;
+};
+
+word_suggestions.load_spelling_words = function() {
+  var _this = word_suggestions;
+  if(_this._spelling_words_loaded) {
+    return RSVP.resolve();
+  }
+  return $.ajax({
+    url: '/language/spelling_core_words.json',
+    type: 'GET',
+    dataType: 'json'
+  }).then(function(data) {
+    _this.spelling_words = (data && data.words) || [];
+    _this._build_spelling_word_index();
+    _this._spelling_words_loaded = true;
+  }, function() {
+    _this.spelling_words = [];
+    _this._build_spelling_word_index();
+    _this._spelling_words_loaded = true;
+  });
+};
+
+word_suggestions._build_spelling_word_index = function() {
+  var words = {};
+  var add = function(w) {
+    w = (w || '').toString().trim().toLowerCase();
+    if(!w || word_suggestions._is_spelling_label(w)) { return; }
+    if(word_suggestions.filtered_words[w]) { return; }
+    words[w] = true;
+  };
+  var ngrams = word_suggestions.ngrams || {};
+  Object.keys(ngrams).forEach(function(key) {
+    (ngrams[key] || []).forEach(function(entry) {
+      add(typeof entry === 'string' ? entry : entry[0]);
+    });
+  });
+  (word_suggestions.spelling_words || []).forEach(add);
+  word_suggestions._spelling_word_index = Object.keys(words).sort();
+};
+
+word_suggestions.collect_core_prefix_matches = function(prefix, cap, seen) {
+  prefix = (prefix || '').toLowerCase();
+  if(!prefix) { return []; }
+  cap = cap || 5;
+  var index = word_suggestions._spelling_word_index || [];
+  var matches = [];
+  for(var idx = 0; idx < index.length && matches.length < cap; idx++) {
+    var word = index[idx];
+    if(word.substring(0, prefix.length) !== prefix) { continue; }
+    if(seen && seen[word]) { continue; }
+    matches.push({ word: word, source: 'core' });
+  }
+  return matches;
+};
+
+word_suggestions.collect_vocabulary_prefix_matches = function(prefix, options, cap) {
+  prefix = (prefix || '').toLowerCase();
+  if(!prefix) { return []; }
+  cap = cap || 5;
+  var matches = [];
+  var seen = {};
+  var sets = options.button_sets || [];
+  var from_board_id = (options.board_ids && options.board_ids[0]) || null;
+  var add_label = function(label, depth) {
+    var key = (label || '').toString().trim().toLowerCase();
+    if(!key || seen[key] || word_suggestions.filtered_words[key]) { return; }
+    if(word_suggestions._is_spelling_label(key)) { return; }
+    if(key.substring(0, prefix.length) !== prefix) { return; }
+    seen[key] = true;
+    matches.push({ word: label.trim(), depth: depth || 999, source: 'vocab' });
+  };
+  sets.forEach(function(bs) {
+    if(!bs || !bs.redepth) { return; }
+    var root_id = from_board_id || (bs.get && bs.get('id'));
+    (bs.redepth(root_id) || []).forEach(function(button) {
+      if(matches.length >= cap) { return; }
+      if(!button || button.hidden) { return; }
+      add_label(button.label || button.vocalization, button.depth);
+    });
+  });
+  matches.sort(function(a, b) {
+    if(a.depth !== b.depth) { return a.depth - b.depth; }
+    return a.word.length - b.word.length;
+  });
+  return matches.slice(0, cap);
+};
+
+word_suggestions.merge_suggestions = function(localResults, aiWords, maxResults, options) {
+  maxResults = maxResults || 5;
+  options = options || {};
+  var prefix = (options.word_in_progress || '').toLowerCase();
+  var seen = {};
+  var merged = [];
+  var push_item = function(item, source) {
+    if(merged.length >= maxResults) { return; }
+    var word = (typeof item === 'string') ? item : (item && item.word);
+    if(!word) { return; }
+    var key = normalize_prediction_key(word);
+    if(!key || seen[key]) { return; }
+    if(prefix && key.substring(0, prefix.length) !== prefix) { return; }
+    seen[key] = true;
+    if(typeof item === 'string') {
+      merged.push({ word: word, source: source || 'ai' });
+    } else {
+      merged.push({
+        word: item.word,
+        image: item.image,
+        fallback_image: item.fallback_image,
+        original_image: item.original_image,
+        source: item.source || source || 'local'
+      });
+    }
+  };
+
+  if(prefix) {
+    (localResults || []).forEach(function(item) { push_item(item, 'local'); });
+    (aiWords || []).forEach(function(w) { push_item(w, 'ai'); });
+  } else {
+    (aiWords || []).forEach(function(w) { push_item(w, 'ai'); });
+    (localResults || []).forEach(function(item) { push_item(item, 'local'); });
+  }
+
+  return merged.slice(0, maxResults);
+};
+
+word_suggestions.fetch_user_entries = function(prefix, locale) {
+  var cacheKey = (locale || 'en') + ':' + normalize_prediction_key(prefix);
+  if(word_suggestions._server_entry_cache[cacheKey]) {
+    return RSVP.resolve(word_suggestions._server_entry_cache[cacheKey]);
+  }
+  var persistenceService = word_suggestions.get_persistence();
+  if(!persistenceService || typeof persistenceService.ajax !== 'function') {
+    return RSVP.resolve([]);
+  }
+  return persistenceService.ajax(
+    '/api/v1/prediction_entries?prefix=' + encodeURIComponent(normalize_prediction_key(prefix)) +
+    '&locale=' + encodeURIComponent(locale || 'en'),
+    { type: 'GET', dataType: 'json' }
+  ).then(function(res) {
+    var entries = (res && res.entries) || [];
+    word_suggestions._server_entry_cache[cacheKey] = entries;
+    return entries;
+  }, function() { return []; });
+};
+
+word_suggestions.lookup_with_ai = function(options) {
+  var _this = word_suggestions;
+  options = options || {};
+  var appState = word_suggestions.get_app_state();
+  var aiEnabled = ai_word_predictor.is_enabled(appState);
+  var locale = options.locale || (appState && appState.get && appState.get('label_locale')) || 'en';
+  var maxResults = _this.max_results || 5;
+
+  var localPromise = _this.lookup(options).then(function(results) {
+    return results || [];
+  }, function() {
+    return [];
+  });
+  if(!aiEnabled) {
+    return localPromise;
+  }
+
+  var sentence = word_suggestions.sentence_from_options(options);
+  var aiPromise = sentence ?
+    ai_word_predictor.predict(sentence, { locale: locale, count: maxResults, appState: appState }) :
+    RSVP.resolve([]);
+  var serverPromise = options.last_finished_word ?
+    word_suggestions.fetch_user_entries(options.last_finished_word, locale) :
+    RSVP.resolve([]);
+
+  return RSVP.all([localPromise, aiPromise, serverPromise]).then(function(results) {
+    var localResults = results[0] || [];
+    var aiWords = results[1] || [];
+    var serverEntries = results[2] || [];
+    var merged = word_suggestions.merge_suggestions(localResults, aiWords, maxResults, options);
+    serverEntries.forEach(function(entry) {
+      if(merged.length >= maxResults) { return; }
+      var key = normalize_prediction_key(entry.next_word);
+      if(!key) { return; }
+      var exists = merged.some(function(item) {
+        return normalize_prediction_key(item.word) === key;
+      });
+      if(!exists) {
+        merged.push({ word: entry.next_word, source: entry.source || 'server' });
+      }
+    });
+    merged = merged.slice(0, maxResults);
+    word_suggestions.log_prediction_telemetry({
+      prefix: options.last_finished_word || '',
+      offered: merged.map(function(item) { return item.word; }),
+      source: aiWords.length ? 'merged' : 'local',
+      locale: locale
+    });
+    return merged;
+  });
+};
+
+word_suggestions.queue_sync = function(entry) {
+  try {
+    var queue = load_sync_queue();
+    queue.push(entry);
+    if(queue.length > 200) { queue = queue.slice(-200); }
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+    word_suggestions.schedule_sync_flush();
+  } catch(e) { }
+};
+
+word_suggestions.schedule_sync_flush = function() {
+  if(_sync_timer) { return; }
+  _sync_timer = runLater(function() {
+    _sync_timer = null;
+    word_suggestions.flush_sync_queue();
+  }, 5000);
+};
+
+word_suggestions.flush_sync_queue = function() {
+  var persistenceService = word_suggestions.get_persistence();
+  if(!persistenceService || typeof persistenceService.ajax !== 'function') {
+    return RSVP.resolve();
+  }
+  var queue = load_sync_queue();
+  if(!queue.length) { return RSVP.resolve(); }
+  return persistenceService.ajax('/api/v1/prediction_entries/sync', {
+    type: 'POST',
+    dataType: 'json',
+    data: JSON.stringify({ prediction_entries: queue })
+  }).then(function() {
+    try {
+      localStorage.setItem(SYNC_QUEUE_KEY, '[]');
+    } catch(e) { }
+  }, function() { });
+};
+
+word_suggestions.log_prediction_telemetry = function(meta) {
+  var appState = word_suggestions.get_app_state();
+  if(!appState || !appState.get || !appState.get('feature_flags.product_telemetry')) { return; }
+  var persistenceService = word_suggestions.get_persistence();
+  if(!persistenceService || typeof persistenceService.ajax !== 'function') { return; }
+  persistenceService.ajax('/api/v1/telemetry_events', {
+    type: 'POST',
+    dataType: 'json',
+    data: JSON.stringify({
+      telemetry_events: [{
+        event_type: meta.selected ? 'word_prediction_selected' : 'word_prediction_offered',
+        feature_area: 'word_prediction',
+        occurred_at: new Date().toISOString(),
+        data: {
+          prefix: meta.prefix || '',
+          offered: meta.offered || [],
+          selected: meta.selected || '',
+          source: meta.source || 'local',
+          locale: meta.locale || 'en'
+        }
+      }]
+    })
+  }).then(null, function() { });
+};
 
 // Static service registry for app_state and persistence
 word_suggestions._services = {
@@ -945,7 +1327,7 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
       };
       match.image_update = function() { finish(); };
       finish();
-      return match;
+      return word_suggestions.resolve_word_image(match);
     });
   });
 };
@@ -955,7 +1337,13 @@ word_suggestions._test = {
   time_of_day_bucket_for_hour: time_of_day_bucket_for_hour,
   load_freq_state: load_freq_state,
   serialize_freq_state: serialize_freq_state,
-  normalize_prediction_key: normalize_prediction_key
+  load_bigram_state: load_bigram_state,
+  serialize_bigram_state: serialize_bigram_state,
+  normalize_prediction_key: normalize_prediction_key,
+  merge_suggestions: word_suggestions.merge_suggestions,
+  collect_vocabulary_prefix_matches: word_suggestions.collect_vocabulary_prefix_matches,
+  collect_core_prefix_matches: word_suggestions.collect_core_prefix_matches,
+  build_spelling_word_index: word_suggestions._build_spelling_word_index
 };
 
 export default word_suggestions;

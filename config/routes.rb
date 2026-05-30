@@ -11,7 +11,7 @@ LingoLinq::RESERVED_ROUTES ||= [
   'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
   'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
-  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'lingolinq', 'cough_drop',
+  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
   'mylingolinq', 'inflection', 'inflections', 'saml', 'eval'
 ]
 require 'resque/server'
@@ -170,6 +170,10 @@ LingoLinq::Application.routes.draw do
     resources :tags
     resources :words do
       get 'reachable_core' => 'words#reachable_core', on: :collection
+    end
+    post 'word_suggestions' => 'word_suggestions#create'
+    resources :prediction_entries, only: [:index] do
+      post 'sync', on: :collection
     end
     
     resources :users do

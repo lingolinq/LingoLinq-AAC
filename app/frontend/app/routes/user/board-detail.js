@@ -330,7 +330,11 @@ export default Route.extend({
 
     // Load button set for find-a-button functionality
     if(model.get('valid_id') && !model.get('integration')) {
-      model.load_button_set();
+      // Find-a-button support; failure must not surface as an unhandled rejection.
+      var load_bs = model.load_button_set();
+      if(load_bs && typeof load_bs.catch === 'function') {
+        load_bs.catch(function() { /* optional offline path */ });
+      }
     }
 
     // Set currentBoardState
@@ -377,7 +381,10 @@ export default Route.extend({
     contentGrabbers.board_controller = controller;
 
     // Build display buttons from raw data AFTER editManager setup
-    // so nothing overwrites them
+    // so nothing overwrites them. Prime offline url_cache BEFORE
+    // _build_from_raw so ordered_buttons cache ctx includes the
+    // correct url_cache_primed flag — overlay is already dismissed
+    // above; priming here does not extend overlay visibility.
     var raw = _this.get('_raw_board_data');
     if(raw) {
       _this._maybe_prime_caches().then(function() {
@@ -412,6 +419,10 @@ export default Route.extend({
     if(_this.stashes.get('current_mode') !== 'speak') {
       controller.set('_was_not_speak_mode', true);
       _this.stashes.persist('current_mode', 'speak');
+    }
+
+    if(typeof controller._syncInlineSidebarFromPrefs === 'function') {
+      controller._syncInlineSidebarFromPrefs();
     }
 
     // Trigger scanning check after speak mode is set and buttons are rendered

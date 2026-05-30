@@ -17,6 +17,52 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
 
+var sidebarActionCodeTemplates = {
+  ':timer': ':timer(30s)',
+  ':say': ':say(Hello)',
+  ':volume': ':volume(up)',
+  ':inflection': ':inflection(noun)',
+  ':app': ':app(com.example.app)'
+};
+
+function buildSidebarActionPickerOptions() {
+  if(!LingoLinq.special_actions) { Button.load_actions(); }
+  var options = [{name: i18n.t('sidebar_action_picker_prompt', "Choose an action..."), id: '', disabled: true}];
+  var simple = [];
+  var parameterized = [];
+  var seen = {};
+  (LingoLinq.special_actions || []).forEach(function(act) {
+    if(act.completion || act.modifier || act.inline) { return; }
+    var template = sidebarActionCodeTemplates[act.action];
+    var code = template || (!act.match && act.action);
+    if(!code || seen[code]) { return; }
+    seen[code] = true;
+    var label = act.description || code;
+    var item = {id: code, name: code + ' — ' + label};
+    if(template || act.match) {
+      parameterized.push(item);
+    } else {
+      simple.push(item);
+    }
+  });
+  var byCode = function(a, b) {
+    if(a.id < b.id) { return -1; }
+    if(a.id > b.id) { return 1; }
+    return 0;
+  };
+  simple.sort(byCode);
+  parameterized.sort(byCode);
+  if(simple.length > 0) {
+    options.push({divider: true, label: i18n.t('sidebar_actions_simple', "Actions")});
+    options = options.concat(simple);
+  }
+  if(parameterized.length > 0) {
+    options.push({divider: true, label: i18n.t('sidebar_actions_parameterized', "Actions with settings (edit values before adding)")});
+    options = options.concat(parameterized);
+  }
+  return options;
+}
+
 export default Controller.extend({
   router: service('router'),
   notification_frequency_options: [
@@ -713,6 +759,9 @@ export default Controller.extend({
       return (this.get('disabled_sidebar_options') || []).length > 0 || (this.get('pending_preferences.prior_sidebar_boards') || []).length > 0;
     }
   ),
+  sidebar_action_picker_options: computed(function() {
+    return buildSidebarActionPickerOptions();
+  }),
   logging_changed: observer('pending_preferences.logging', function() {
     if(this.get('pending_preferences.logging')) {
       if(this.get('logging_set') === false) {
@@ -1076,9 +1125,15 @@ export default Controller.extend({
     edit_sidebar: function() {
       this.set('editing_sidebar', true);
     },
+    pick_sidebar_action_code: function(code) {
+      if(!code) { return; }
+      this.set('new_sidebar_board', code);
+    },
     add_sidebar_board: function(key) {
       var _this = this;
       _this.set('add_sidebar_board_error', null);
+      if(!key) { return; }
+      key = String(key).trim();
       var add_board = function(opts) {
         var boards = [].concat(_this.get('pending_preferences.sidebar_boards') || []);
         boards.unshift(opts);
@@ -1099,20 +1154,20 @@ export default Controller.extend({
       } else if(key.match(/^:\w+/)) {
         var action = key.match(/^[^\(]+/)[0];
         var arg = null;
-        if(action) {
-          var arg = key.slice(action.length + 1, key.length - 1);
+        if(key.indexOf('(') !== -1) {
+          if(key.charAt(action.length) !== '(' || key.charAt(key.length - 1) !== ')') {
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
+            return;
+          }
+          arg = key.slice(action.length + 1, key.length - 1);
         }
         var image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/touch_437_g.svg";
         var special = LingoLinq.find_special_action(key);
-        if(special && !special.completion && !special.modifier && !special.inline) {
-          add_board({
-            name: action.slice(1),
-            special: true,
-            image: image_url,
-            action: action
-          });
-          image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Gear-46ef6dda86.svg";
-        } else if(action == ':app') {
+        if(action == ':app') {
+          if(!arg) {
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
+            return;
+          }
           var app_name = 'app';
           if(arg.match(/eyetech/)) {
             app_name = 'eyetech';
@@ -1125,9 +1180,18 @@ export default Controller.extend({
             action: action,
             arg: arg
           });
+        } else if(special && !special.completion && !special.modifier && !special.inline) {
+          add_board({
+            name: action.slice(1),
+            special: true,
+            image: image_url,
+            action: key
+          });
+        } else {
+          _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
         }
       } else {
-        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecogonized value, please enter a board key or action code"));
+        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
       }
 
     }

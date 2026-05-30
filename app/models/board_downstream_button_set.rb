@@ -414,7 +414,7 @@ class BoardDownstreamButtonSet < ApplicationRecord
     end
   end
 
-  def self.update_for(board_id, immediate_update=false, traversed_ids=[])
+  def self.update_for(board_id, immediate_update=false, traversed_ids=[], retry_count=0)
     traversed_ids ||= []
     key = "traversed/button_set/#{board_id}"
     cached_traversed = (JSON.parse(RedisInit.default.get(key)) rescue nil) || []
@@ -422,6 +422,19 @@ class BoardDownstreamButtonSet < ApplicationRecord
     traversed_ids = (traversed_ids + cached_traversed).uniq
 
     board = Board.find_by_global_id(board_id)
+    if !board
+      # Deferred rebuilds are enqueued from Board#post_process, which runs in an
+      # after_save callback (before COMMIT). A :slow worker can dequeue this job
+      # before the creating transaction commits, so the board row isn't visible
+      # yet. Re-enqueue a bounded number of times instead of silently leaving the
+      # buttonset unbuilt; give up only if the board never appears (e.g. rolled back).
+      if retry_count < 5
+        BoardDownstreamButtonSet.schedule_for(:slow, :update_for, board_id, immediate_update, traversed_ids, retry_count + 1)
+      else
+        Rails.logger.warn("[BoardDownstreamButtonSet.update_for] board #{board_id} not found after #{retry_count} retries, giving up")
+      end
+      return
+    end
     return if board && traversed_ids.include?(board.global_id)
     board.track_downstream_boards! if board && (!board.settings || !board.settings['full_set_revision'])
     if board

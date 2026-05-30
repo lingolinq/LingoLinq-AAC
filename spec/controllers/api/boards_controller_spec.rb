@@ -6,6 +6,46 @@ describe Api::BoardsController, :type => :controller do
       get :index
       expect(response).to be_successful
     end
+
+    # Regression test for Scot #6 pre-merge finding (Med-High):
+    # `lib/json_api/board.rb:91` calls `board.parent_board` unconditionally
+    # in `build_json`. Without `boards.includes(:parent_board)` in the
+    # controller's query, each board in a paginated index response fires
+    # one extra SELECT. At default per_page=25 that's ~25 extra queries.
+    # This spec counts board-table SELECTs against a 4-query budget so
+    # the regression cannot silently re-land.
+    # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    it "should eager-load parent_board to avoid N+1 on index" do
+      u = User.create(:settings => {'public' => true})
+      parent = Board.create(:user => u, :public => true)
+      # 5 child boards each referencing parent_board — without the
+      # eager-load this would fire 5 extra SELECTs (one per child).
+      5.times do
+        Board.create(:user => u, :public => true, :parent_board_id => parent.id)
+      end
+
+      board_select_count = 0
+      callback = lambda do |*args|
+        payload = args.last
+        sql = (payload && payload[:sql]) || ''
+        name = (payload && payload[:name]) || ''
+        # Skip schema introspection + ActiveRecord's prepared-statement cache;
+        # they're noise. Count only real SELECTs against the boards table.
+        next if name =~ /SCHEMA|CACHE/
+        board_select_count += 1 if sql =~ /SELECT.*FROM\s+"boards"/i
+      end
+
+      ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+        get :index, :params => {:user_id => u.global_id, :public => true}
+      end
+
+      expect(response).to be_successful
+      # With the eager-load: 1 main query + 1 parent_board preload + ~1
+      # for the user/auth lookup = ~3. Threshold of 4 catches the regression
+      # (which would push the count to 6+) with one query of headroom for
+      # incidental variations across Rails versions.
+      expect(board_select_count).to be <= 4
+    end
     
     it "should filter by user_id" do
       u = User.create(:settings => {:public => true})
@@ -2926,6 +2966,267 @@ describe Api::BoardsController, :type => :controller do
       expect(p.settings['method']).to eq('slice_locales')
       expect(p.settings['id']).to eq(b.id)
       expect(p.settings['arguments']).to eq([nil, ['a', 'b'], @user.global_id])
+    end
+  end
+
+  # Lite serialization for #tree and #bulk (RCA 2026-05-24, issue #286).
+  # These endpoints fan out as_json across up to MAX_TREE / MAX_BULK boards
+  # to warm the client prefetch cache. The full as_json path issues several
+  # unindexed per-board lookups (parent_board x2, find_copies_by, shared_users,
+  # per-image ButtonImage), which turned #tree into a Rack::Timeout source once
+  # PR #281 started firing it at every login. The :as_lite arg drops that
+  # enrichment so query count is O(1) in descendant count.
+
+  # Counts non-schema, non-transaction SQL queries fired while the block runs.
+  # Returned as an array so failures can print the offending statements.
+  def count_board_sql
+    queries = []
+    sub = ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, _start, _finish, _id, payload|
+      sql = payload[:sql].to_s
+      label = payload[:name].to_s
+      next if label == 'SCHEMA' || label == 'TRANSACTION'
+      next if payload[:cached]
+      next if sql =~ /\A\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i
+      queries << sql
+    end
+    yield
+    queries
+  ensure
+    ActiveSupport::Notifications.unsubscribe(sub) if sub
+  end
+
+  # An owned board carrying one real image button. Image-bearing fixtures
+  # matter for the query-count specs: the kept-by-lite images_and_sounds_for
+  # call only touches the DB when a board actually has images, so empty grids
+  # would hide the surviving per-board cost and make a regression test
+  # meaningless.
+  def board_with_image(owner)
+    board = Board.create(user: owner)
+    img = ButtonImage.create(url: "http://example.com/#{SecureRandom.hex(4)}.png")
+    board.settings['buttons'] = [{ 'id' => 1, 'label' => 'x', 'image_id' => img.global_id }]
+    board.settings['grid'] = { 'rows' => 1, 'columns' => 1, 'order' => [[1]] }
+    board.instance_variable_set('@buttons_changed', true)
+    board.save
+    board.reload
+  end
+
+  # Builds a root with +count+ owned, image-bearing descendants and wires
+  # downstream_board_ids directly (the controller reads it straight from
+  # settings; no linking machinery needed).
+  def build_owned_tree(owner, count)
+    root = Board.create(user: owner)
+    children = Array.new(count) { board_with_image(owner) }
+    root.settings['downstream_board_ids'] = children.map(&:global_id)
+    root.save
+    root.reload
+    expect(root.settings['downstream_board_ids'].length).to eq(count) # guard: persisted
+    [root, children]
+  end
+
+  describe "#tree" do
+    it "returns the root plus permission-filtered descendants" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['root']['board']['id']).to eq(root.global_id)
+      expect(json['descendants'].map { |d| d['board']['id'] }.sort).to eq(children.map(&:global_id).sort)
+    end
+
+    it "404s when the board is missing" do
+      token_user
+      get :tree, params: { board_id: 'no/such-board' }
+      assert_error("Record not found", 404)
+    end
+
+    it "drops descendants the caller is not allowed to view" do
+      token_user
+      other = User.create
+      root = Board.create(user: @user)
+      mine = Board.create(user: @user)
+      theirs = Board.create(user: other) # private, not shared with @user
+      root.settings['downstream_board_ids'] = [mine.global_id, theirs.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      ids = json['descendants'].map { |d| d['board']['id'] }
+      expect(ids).to include(mine.global_id)
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "caps the descendant list at MAX_TREE" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      stub_const("Api::BoardsController::MAX_TREE", 2)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(2)
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq(children.first(2).map(&:global_id))
+    end
+
+    it "omits the heavy per-board enrichment keys (lite serialization)" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Skipped by :as_lite: parent linkage, copy info, share info.
+      expect(board).to_not have_key('parent_board_id')
+      expect(board).to_not have_key('parent_board_key')
+      expect(board).to_not have_key('copy')
+      expect(board).to_not have_key('copies')
+      expect(board).to_not have_key('original')
+      expect(board).to_not have_key('shared_users')
+      # Still present: the core identity the client cache needs.
+      expect(board['id']).to eq(child.global_id)
+      expect(board['key']).to eq(child.key)
+      expect(board).to have_key('permissions')
+    end
+
+    it "honors the deploy-free kill-switch to fall back to full serialization" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      # Stub the Setting rather than writing it: avoids leaking a Redis cache
+      # entry into sibling examples (Redis is not rolled back between specs).
+      allow(Setting).to receive(:get_cached).and_call_original
+      allow(Setting).to receive(:get_cached).with('tree_lite_serialization').and_return('false')
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Full as_json path restored: the copy enrichment (skipped by lite) is
+      # present again, even when its count is zero.
+      expect(board).to have_key('copies')
+    end
+
+    it "does not run the per-board enrichment that caused the timeout" do
+      # Behavioral guard for remediation #1: lite must skip the unindexed
+      # per-board lookups (parent_board, find_copies_by, shared_users) and the
+      # per-image ButtonImage.find_by_global_id skin lookup. This is the real
+      # regression guard and does not depend on absolute query counts.
+      token_user
+      root, _children = build_owned_tree(@user, 3)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      get :tree, params: { board_id: root.global_id }
+      assert_success_json
+    end
+
+    # NOTE: lite is NOT O(1). It removes the ~4-queries-per-board fan-out
+    # (parent_board x2 + find_copies_by + the delete/admin using_user_names
+    # block) but keeps images_and_sounds_for, which still issues ~1 query per
+    # image-bearing board (known_button_images). That residual is remediation
+    # #3 (request-scoped image cache), tracked separately in issue #286. This
+    # spec therefore asserts the per-descendant marginal cost is a small bounded
+    # constant, well under the pre-fix path, rather than claiming O(1).
+    it "keeps the per-descendant query cost to a small bounded constant" do
+      token_user
+      small_root, _small = build_owned_tree(@user, 3)
+      large_root, _large = build_owned_tree(@user, 18)
+
+      # Warm permission caches (Redis, not counted here) so the measurement
+      # reflects steady-state serialization, not cold-cache permission reads.
+      get :tree, params: { board_id: small_root.global_id }
+      get :tree, params: { board_id: large_root.global_id }
+
+      small_q = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
+      large_q = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
+
+      # 15 extra image-bearing descendants. Lite measures ~1 query/board, so
+      # a ceiling of 2/board (<= 30) passes lite while the pre-fix ~5/board
+      # fan-out (>= 75) blows past it. The previous empty-grid version masked
+      # the surviving images_and_sounds_for cost (adversary review, 2026-05-26).
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 30, lambda {
+        "tree query count grew by #{delta} for 15 extra descendants " \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 30 " \
+        "(~2/board ceiling).\nlarge-tree SQL:\n#{large_q.join("\n")}"
+      })
+    end
+  end
+
+  describe "#bulk" do
+    it "returns the requested boards, permission-filtered" do
+      token_user
+      other = User.create
+      mine_a = Board.create(user: @user)
+      mine_b = Board.create(user: @user)
+      theirs = Board.create(user: other)
+      post :bulk, params: { keys: [mine_a.global_id, theirs.global_id, mine_b.global_id] }
+      json = assert_success_json
+      ids = json['boards'].map { |b| b['board']['id'] }
+      expect(ids).to match_array([mine_a.global_id, mine_b.global_id])
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "returns an empty list when no keys are given" do
+      token_user
+      post :bulk, params: { keys: [] }
+      json = assert_success_json
+      expect(json['boards']).to eq([])
+    end
+
+    it "caps the request at MAX_BULK keys" do
+      token_user
+      boards = Array.new(3) { Board.create(user: @user) }
+      stub_const("Api::BoardsController::MAX_BULK", 2)
+      post :bulk, params: { keys: boards.map(&:global_id) }
+      json = assert_success_json
+      expect(json['boards'].length).to eq(2)
+    end
+
+    it "uses the same lite serialization (no per-board copy/share enrichment)" do
+      token_user
+      board = Board.create(user: @user)
+      post :bulk, params: { keys: [board.global_id] }
+      json = assert_success_json
+      b = json['boards'][0]['board']
+      expect(b).to_not have_key('copies')
+      expect(b).to_not have_key('shared_users')
+      expect(b['id']).to eq(board.global_id)
+    end
+
+    it "does not run the per-board enrichment that caused the timeout" do
+      token_user
+      board = board_with_image(@user)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      post :bulk, params: { keys: [board.global_id] }
+      assert_success_json
+    end
+
+    # NOTE: #bulk is inherently O(n) in keys: it resolves each key with its own
+    # Board.find_by_path, and lite still pays ~1 image query per image-bearing
+    # board (images_and_sounds_for, remediation #3). The guarantee under test is
+    # that as_json adds no heavy per-board fan-out on top of the unavoidable
+    # per-key lookup. The behavioral guard above is the precise check; this one
+    # bounds the marginal cost (~2/board) so a regression to the full path
+    # (~5/board on top of lookups) fails.
+    it "keeps the per-key query cost to a small bounded constant" do
+      token_user
+      small = Array.new(3) { board_with_image(@user) }
+      large = Array.new(18) { board_with_image(@user) }
+
+      post :bulk, params: { keys: small.map(&:global_id) }
+      post :bulk, params: { keys: large.map(&:global_id) }
+
+      small_q = count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } }
+      large_q = count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } }
+
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 45, lambda {
+        "bulk query count grew by #{delta} for 15 extra keys " \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 45 " \
+        "(~3/key: one find_by_path + one image query + slack).\n" \
+        "large SQL:\n#{large_q.join("\n")}"
+      })
     end
   end
 end

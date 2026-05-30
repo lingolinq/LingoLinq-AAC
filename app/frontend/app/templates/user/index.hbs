@@ -79,14 +79,19 @@
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_approve"}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
         <button class="btn btn-default" {{action "approve_or_reject_org" "supervisor_reject"}}>{{t "Deny Access"}}</button>
       </div>
-    {{else if this.model.pending}}
-      <div class='alert alert-success'>
-        {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
-        {{#if this.resentConfirmation}}
-          {{t "Confirmation Email Sent!" key="confirmation_sent"}}
-        {{else}}
-          <a href="#" class="alert-link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
-        {{/if}}
+    {{else if this.show_welcome_notice}}
+      <div class="ll-welcome-notice ll-welcome-notice--long" role="status">
+        <span class="ll-welcome-notice__text">
+          {{t "Welcome to %app_name%! Watch for an email from us in your inbox. You'll need to confirm registration within seven days of registering or your account will be disabled." key="welcome_remember_confirm"}}
+          {{#if this.resentConfirmation}}
+            {{t "Confirmation Email Sent!" key="confirmation_sent"}}
+          {{else}}
+            <a href="#" class="ll-welcome-notice__link" {{action "resendConfirmation"}}>{{t "Re-Send Confirmation Email" key="re_send_confirmation"}}</a>
+          {{/if}}
+        </span>
+        <button type="button" class="ll-welcome-notice__close" {{action "dismiss_welcome_notice"}} aria-label={{t "Dismiss" key="dismiss"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     {{else if this.model.expired}}
       {{#if this.app_state.feature_flags.subscriptions}}

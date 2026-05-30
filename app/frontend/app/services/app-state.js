@@ -739,7 +739,7 @@ export default Service.extend({
     }
   }),
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
-    return this.get('domain_settings.board_user_name') || 'example';
+    return this.get('domain_settings.board_user_name') || 'lingolinq';
   }),
   darkMode: computed('themeMode', function() {
     return this.get('themeMode') === 'dark';
@@ -828,7 +828,8 @@ export default Service.extend({
    * current screen is already board-alt. Legacy glob `board` is used for obf/, integrations/,
    * and single-segment keys where the user/boardname split doesn't apply.
    */
-  transitionToBoardForCurrentUiStyle: function(router, boardKey) {
+  transitionToBoardForCurrentUiStyle: function(router, boardKey, opts) {
+    opts = opts || {};
     if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
     var routeName = '';
     try {
@@ -857,13 +858,15 @@ export default Service.extend({
     //   1. If we're ALREADY on board-alt, stay on board-alt — keeps
     //      in-session folder navigation continuous (don't bounce a
     //      user mid-session into the other shell on every folder tap).
+    //      Sidebar jumps pass honorViewPreference so quick links always
+    //      land in the communicator's preferred shell instead.
     //   2. Otherwise honor the communicator's saved
     //      `board_view_style` preference: 'classic' → board-alt,
     //      anything else (default 'modern') → board-detail. This is
     //      what makes post-login landing drop the user into their
     //      chosen view. Read referenced_user first (the person
     //      actually communicating in speak mode), then currentUser.
-    if(routeName.indexOf('board-alt') !== -1) {
+    if(!opts.honorViewPreference && routeName.indexOf('board-alt') !== -1) {
       router.transitionTo('user.board-alt', userName, boardSlug);
       return;
     }
@@ -931,7 +934,9 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          _this.transitionToBoardForCurrentUiStyle(router, new_state.key);
+          _this.transitionToBoardForCurrentUiStyle(router, new_state.key, {
+            honorViewPreference: !!(new_state && new_state.source === 'sidebar')
+          });
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -1966,7 +1971,13 @@ export default Service.extend({
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);
+    this._loading_overlay_shown_at = null;
+    this._loading_overlay_min_ms = null;
     this.set('toast', null);
+
+    // In-memory board JSON / ordered_buttons / image-warm state must not
+    // leak across users on SPA sign-out (full reload clears module state).
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
     this.set('last_keepalive', null);
     this.set('refresh_stamp', null);
     this.set('short_refresh_stamp', null);
@@ -2971,22 +2982,34 @@ export default Service.extend({
   // Minimum time the overlay stays on screen once shown, so fast synchronous
   // transitions still let the user see it (and don't flash-and-disappear).
   LOADING_OVERLAY_MIN_MS: 700,
+  // Shorter minimum when navigation is a known cache hit (raw JSON + Ember
+  // record already in memory). Still long enough for click feedback.
+  LOADING_OVERLAY_CACHE_HIT_MIN_MS: 150,
 
-  show_loading_overlay: function(message) {
+  show_loading_overlay: function(message, opts) {
+    opts = opts || {};
     this.set('loading_overlay_message', message);
     this._loading_overlay_shown_at = Date.now();
+    if (opts.min_ms != null) {
+      this._loading_overlay_min_ms = opts.min_ms;
+    } else {
+      this._loading_overlay_min_ms = null;
+    }
   },
 
   hide_loading_overlay: function() {
     var _this = this;
     var shown_at = this._loading_overlay_shown_at || 0;
     var elapsed = Date.now() - shown_at;
-    var min = this.get('LOADING_OVERLAY_MIN_MS') || 700;
+    var min = this._loading_overlay_min_ms != null ?
+      this._loading_overlay_min_ms :
+      (this.get('LOADING_OVERLAY_MIN_MS') || 700);
     var remaining = Math.max(0, min - elapsed);
     runLater(function() {
       if(_this.isDestroyed) { return; }
       _this.set('loading_overlay_message', null);
       _this._loading_overlay_shown_at = null;
+      _this._loading_overlay_min_ms = null;
     }, remaining);
   },
 
@@ -3786,7 +3809,8 @@ export default Service.extend({
         user_prefers_native_keyboard = window.user_preferences.any_user.prefer_native_keyboard;
       }
       var native_keyboard_available = capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android') && !buttonTracker.scanning_enabled;
-      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (button.load_board && button.load_board.key == 'example/keyboard');
+      var load_key = button.load_board && button.load_board.key;
+      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (load_key && load_key.match(/\/keyboard$/));
       if(expecting_key && native_keyboard_available && user_prefers_native_keyboard && window.Keyboard && window.Keyboard.hide) {
         scanner.native_keyboard();
       } else if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
@@ -3851,7 +3875,7 @@ export default Service.extend({
       }
     } else if(specialty_button) {
       this.track_depth('clear');
-      var res = this.specialty_actions(button.vocalization);
+      var res = this.specialty_actions(obj.vocalization || button.vocalization);
       var auto_return_possible = !!specialty_button.default_speak || res.auto_return_possible;
       if(auto_return_possible && !res.already_navigating && !skip_auto_return) {
         this.possible_auto_home(obj);

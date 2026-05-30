@@ -515,16 +515,18 @@ var modal = EmberObject.extend({
   },
   board_preview: function(board, locale, allow_style, callback) {
     var service = this._getService();
+    var remove = (board && board.preview_remove) || null;
     if (service) {
       service.open('board-preview', {
         board: board,
         locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
         option: board.preview_option || board.get ? board.get('preview_option') : undefined,
         allow_style: allow_style,
-        callback: callback
+        callback: callback,
+        remove: remove
       });
     } else if (this.route) {
-      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback}});
+      this.route.render('board-preview', { into: 'application', outlet: 'board-preview', model: {board: board, locale: locale, option: board.preview_option, allow_style: allow_style, callback: callback, remove: remove}});
     }
   },
   cancel_auto_close: function() {

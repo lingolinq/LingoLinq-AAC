@@ -26,6 +26,10 @@ var TTL_MS = 5 * 60 * 1000;
 var MAX_PREFETCH = 20;
 var WARM_BATCH = 20;
 var WARM_BATCH_GAP_MS = 80;
+var CATALOG_TREE_GAP_MS = 400;
+var CATALOG_ROOTS_PER_PAGE = 50;
+var CATALOG_ROOT_CAP = 100;
+var CATALOG_ACCOUNT = 'lingolinq';
 
 // key (e.g. "user_name/boardname") → entry
 var _by_key = {};
@@ -107,7 +111,19 @@ function _urls_to_warm(raw, skin) {
       if (url) { image_map[String(img.id)] = url; }
     }
   });
-  image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
+  // Guard: this cache module is imported before models/board.js is
+  // guaranteed to have been evaluated, so `LingoLinq.Board` (set at
+  // module-load time inside models/board.js:109) may still be
+  // undefined when an early warm-prefetch path fires. In that case,
+  // skip the skin-tone variant transformation and warm the raw URLs
+  // instead — the route's own _build_from_raw runs skin_image_map
+  // again later once board.js is loaded, so the user-visible flow
+  // is unaffected; only the prefetch hits the un-skinned URLs for
+  // this pass. The page-rendered grid still gets the skinned URLs
+  // it asks for.
+  if (LingoLinq && LingoLinq.Board && typeof LingoLinq.Board.skin_image_map === 'function') {
+    image_map = LingoLinq.Board.skin_image_map(image_map, skin, { persistence: persistence });
+  }
   var urls = [];
   var seen = {};
   for (var id in image_map) {
@@ -163,6 +179,47 @@ function _warm_urls_batched(urls) {
     };
     run_batch();
   });
+}
+
+function _push_board_to_store(raw) {
+  try {
+    if (typeof window !== 'undefined' && LingoLinq && LingoLinq.store) {
+      var norm = LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(raw)));
+      LingoLinq.store.push(norm);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function _catalog_prefetch_enabled(user) {
+  try {
+    if (typeof window !== 'undefined' && LingoLinq && LingoLinq.appState) {
+      return !!LingoLinq.appState.get('feature_flags.catalog_board_prefetch');
+    }
+    if (user && user.get) {
+      var flags = user.get('feature_flags');
+      if (flags && flags.catalog_board_prefetch) { return true; }
+    }
+  } catch (e) { /* app may not be booted yet */ }
+  return false;
+}
+
+function _ingest_tree_response(cache, data, warm_opts, options) {
+  options = options || {};
+  if (!data || !data.root || !data.root.board) { return false; }
+  var root_raw = normalize_board_payload(data.root);
+  if (!root_raw) { return false; }
+  cache.set(root_raw);
+  if (options.warm_root_images !== false) {
+    cache.warm_images(root_raw, warm_opts);
+  }
+  _push_board_to_store(root_raw);
+  (data.descendants || []).forEach(function(wrapped) {
+    var sub_raw = normalize_board_payload(wrapped);
+    if (!sub_raw) { return; }
+    cache.set(sub_raw);
+    _push_board_to_store(sub_raw);
+  });
+  return true;
 }
 
 function _collect_linked_lookups(raw) {
@@ -265,6 +322,8 @@ export default {
     _inflight = {};
     _warmed = {};
     _warmed_urls = {};
+    this._prefetched_user_ids = {};
+    this._prefetched_catalog_user_ids = {};
   },
 
   // Warm the browser image cache for every button image URL on the
@@ -416,59 +475,127 @@ export default {
     var home_key = user.get('preferences.home_board.key');
     var home_id = user.get('preferences.home_board.id');
     var lookup = home_key || home_id;
-    if (!lookup) { return; }
     var _this = this;
     var warm_opts = {
       skin: user.get('preferences.skin'),
       preferred_symbols: user.get('preferences.preferred_symbols')
     };
+    var start_catalog_prefetch = function() {
+      _this.prefetch_lingolinq_catalog(user, warm_opts);
+    };
     // Defer slightly so this doesn't compete with the post-login UI
     // render. By the time the user finishes reading the dashboard,
     // the tree is cached and Boards-tab navigation is instant.
     runLater(function() {
+      if (!lookup) {
+        start_catalog_prefetch();
+        return;
+      }
       persistence.ajax('/api/v1/boards/' + lookup + '/tree', { type: 'GET' }).then(function(data) {
-        if (!data || !data.root || !data.root.board) { return; }
-        var root_raw = normalize_board_payload(data.root);
-        if (!root_raw) { return; }
-        _this.set(root_raw);
-        _this.warm_images(root_raw, warm_opts);
-        // Try to push root into Ember Data store too so the route's
-        // cache-hit check (which requires `cached_record`) passes
-        // when the user navigates to it. The store may not be the
-        // same one as the route uses — fall back silently if so.
-        try {
-          if (typeof window !== 'undefined' && LingoLinq && LingoLinq.store) {
-            var rootNorm = LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(root_raw)));
-            LingoLinq.store.push(rootNorm);
-          }
-        } catch (e) { /* ignore */ }
-        // Cache + push every descendant — JSON only. We intentionally
-        // DO NOT warm-prefetch descendant images here: for a home
-        // board with many sub-boards (e.g. Quick Core 112 with ~95
-        // descendants × ~100 buttons each), warm_images() per
-        // descendant flooded the browser request queue with 8k+
-        // pending image requests, blocking everything else (including
-        // the Board Details modal's canvas image loads). Sub-board
-        // images now load lazily when the user actually navigates
-        // into that sub-board — the JSON cache still keeps the
-        // navigation fast; only the image fetch is deferred.
-        (data.descendants || []).forEach(function(wrapped) {
-          var sub_raw = normalize_board_payload(wrapped);
-          if (!sub_raw) { return; }
-          _this.set(sub_raw);
-          try {
-            if (typeof window !== 'undefined' && LingoLinq && LingoLinq.store) {
-              var subNorm = LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
-              LingoLinq.store.push(subNorm);
-            }
-          } catch (e) { /* ignore */ }
-        });
+        _ingest_tree_response(_this, data, warm_opts);
       }, function() {
         // Allow a retry on the next observer fire — the network may
         // have been unavailable at session-start.
         delete _this._prefetched_user_ids[user_id];
-      });
+      }).then(start_catalog_prefetch, start_catalog_prefetch);
     }, 400);
+  },
+
+  // After the home board tree is cached, prefetch full JSON trees for
+  // every public root board on the official lingolinq account so
+  // home-board picker / catalog navigation is instant in-session.
+  prefetch_lingolinq_catalog: function(user, warm_opts) {
+    if (!user || !user.get) { return RSVP.resolve(); }
+    if (!_catalog_prefetch_enabled(user)) { return RSVP.resolve(); }
+    var user_id = user.get('id');
+    if (!user_id) { return RSVP.resolve(); }
+    this._prefetched_catalog_user_ids = this._prefetched_catalog_user_ids || {};
+    if (this._prefetched_catalog_user_ids[user_id]) { return RSVP.resolve(); }
+    this._prefetched_catalog_user_ids[user_id] = true;
+
+    var _this = this;
+    warm_opts = warm_opts || {
+      skin: user.get('preferences.skin'),
+      preferred_symbols: user.get('preferences.preferred_symbols')
+    };
+    var ingested_count = 0;
+    var root_keys = [];
+
+    var collect_roots = function(list_url) {
+      if (typeof document !== 'undefined' && document.hidden) {
+        return RSVP.resolve();
+      }
+      return persistence.ajax(list_url, { type: 'GET' }).then(function(data) {
+        (data.board || []).forEach(function(b) {
+          if (b && b.key && root_keys.length < CATALOG_ROOT_CAP) {
+            root_keys.push(b.key);
+          }
+        });
+        if (data.meta && data.meta.more && data.meta.next_url && root_keys.length < CATALOG_ROOT_CAP) {
+          return collect_roots(data.meta.next_url);
+        }
+      });
+    };
+
+    var locale = user.get('preferences.locale');
+    var list_query = '/api/v1/boards?user_id=' + encodeURIComponent(CATALOG_ACCOUNT) +
+      '&public=true&sort=home_popularity&copies=false&per_page=' + CATALOG_ROOTS_PER_PAGE;
+    if (locale) {
+      list_query += '&locale=' + encodeURIComponent(locale);
+    }
+
+    var process_next_root = function(index) {
+      if (typeof document !== 'undefined' && document.hidden) {
+        return RSVP.resolve();
+      }
+      if (index >= root_keys.length) { return RSVP.resolve(); }
+      var key = root_keys[index];
+      var existing = _lookup(key);
+      if (existing && _is_fresh(existing) && existing.raw) {
+        return new RSVP.Promise(function(resolve) {
+          runLater(function() {
+            process_next_root(index + 1).then(resolve, resolve);
+          }, CATALOG_TREE_GAP_MS);
+        });
+      }
+      return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+        if (_ingest_tree_response(_this, data, warm_opts)) {
+          ingested_count++;
+        }
+      }, function() {
+        /* swallow per-board errors */
+      }).then(function() {
+        return new RSVP.Promise(function(resolve) {
+          runLater(function() {
+            process_next_root(index + 1).then(resolve, resolve);
+          }, CATALOG_TREE_GAP_MS);
+        });
+      });
+    };
+
+    return new RSVP.Promise(function(resolve) {
+      runLater(function() {
+        collect_roots(list_query).then(function() {
+          if (!root_keys.length) {
+            delete _this._prefetched_catalog_user_ids[user_id];
+            return;
+          }
+          return process_next_root(0).then(function() {
+            if (!ingested_count) {
+              delete _this._prefetched_catalog_user_ids[user_id];
+            }
+          });
+        }, function() {
+          if (!ingested_count) {
+            delete _this._prefetched_catalog_user_ids[user_id];
+          }
+        }).then(function() {
+          resolve();
+        }, function() {
+          resolve();
+        });
+      }, CATALOG_TREE_GAP_MS);
+    });
   },
 
   // BFS-walk the reachable board tree starting from `raw`, fetching

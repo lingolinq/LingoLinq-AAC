@@ -114,10 +114,11 @@ describe Api::WordsController, :type => :controller do
       expect(AiWordPredictor).not_to receive(:predict)
 
       post 'predict', params: { 'sentence' => 'I want to' }
-      assert_error('ai_word_prediction is not enabled for this user')
+      assert_missing_token
     end
 
     it "should require a sentence" do
+      token_user
       post 'predict', params: { 'sentence' => '' }
       assert_error('sentence required')
     end

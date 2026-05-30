@@ -10,11 +10,20 @@ describe BoardDownstreamButtonSet, :type => :model do
   end
   
   describe "update_for" do
-    it "should do nothing if a matching board does not exist" do
+    it "should not create a buttonset and should re-enqueue a bounded retry if a matching board is not yet visible" do
+      # The board may not be visible yet because the deferred job can run before the
+      # creating transaction commits; re-enqueue rather than silently doing nothing.
       cnt = BoardDownstreamButtonSet.count
+      expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, 'asdf', false, [], 1).once
       res = BoardDownstreamButtonSet.update_for('asdf')
       expect(res).to eq(nil)
       expect(BoardDownstreamButtonSet.count).to eq(cnt)
+    end
+
+    it "should give up (no further re-enqueue) once the retry budget is exhausted" do
+      expect(BoardDownstreamButtonSet).not_to receive(:schedule_for)
+      res = BoardDownstreamButtonSet.update_for('asdf', false, [], 5)
+      expect(res).to eq(nil)
     end
     
     it "should generate a button set for the specified board id" do

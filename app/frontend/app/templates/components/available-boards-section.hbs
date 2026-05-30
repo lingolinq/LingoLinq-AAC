@@ -214,21 +214,116 @@
                         </button>
                       </form>
                     {{else}}
-                      <h3 class="ub-boards-page__folder-context-name">{{this.boardsCtrl.mineTagFolderDrillIn}}</h3>
+                      <h3 class="ub-boards-page__folder-context-name">
+                        <span class="ub-boards-page__folder-context-name-text">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
+                        {{!-- Inline rename trigger — verdigris pencil sat right
+                             after the folder name. Replaces the standalone
+                             "Edit" pill in the actions row so the affordance
+                             reads as "edit this name" instead of "edit this
+                             folder entity". Same startFolderRename action. --}}
+                        <button type="button"
+                          class="ub-boards-page__folder-context-name-edit"
+                          {{action "startFolderRename" bubbles=false}}
+                          aria-label={{t "Rename folder" key="rename_folder"}}
+                          title={{t "Rename folder" key="rename_folder"}}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                      </h3>
                       <p class="ub-boards-page__folder-context-description">{{t "Organize related vocabularies and page-sets" key="folder_context_description"}}</p>
                     {{/if}}
                   </div>
                 </div>
-                {{!-- Action row — pill-styled Edit + Delete buttons
-                     pinned right. Separated from the identity block
-                     above so they don't compete with the folder name
-                     for visual weight. --}}
+                {{!-- Boards-in-folder dropdown — sits between the identity
+                     block and the actions row. Lists every board tagged
+                     with this folder; each row has a modern × button that
+                     untags the board (the board itself is not deleted). --}}
+                {{#unless this.editingFolderName}}
+                  <div class="ub-boards-page__folder-context-boards-menu">
+                    <button type="button"
+                      class="ub-boards-page__folder-context-boards-menu-trigger {{if this.folderBoardsMenuOpen 'ub-boards-page__folder-context-boards-menu-trigger--open'}}"
+                      aria-haspopup="true"
+                      aria-expanded={{if this.folderBoardsMenuOpen "true" "false"}}
+                      {{action "toggleFolderBoardsMenu" bubbles=false}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                      </svg>
+                      <span class="ub-boards-page__folder-context-boards-menu-label">{{t "Boards in this folder" key="boards_in_this_folder"}}</span>
+                      <span class="ub-boards-page__folder-context-boards-menu-count">{{this.folderBoardsList.length}}</span>
+                      <svg class="ub-boards-page__folder-context-boards-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
+                    {{#if this.folderBoardsMenuOpen}}
+                      <div class="ub-boards-page__folder-context-boards-menu-panel" role="group" aria-label={{t "Boards in this folder" key="boards_in_this_folder"}}>
+                        {{!-- Inline search — filters folderBoardsList by name
+                             so the user can quickly find a board when the
+                             folder has many. Focus is set on open via the
+                             toggle action below. --}}
+                        <div class="ub-boards-page__folder-context-boards-menu-search">
+                          <svg class="ub-boards-page__folder-context-boards-menu-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                          </svg>
+                          <input
+                            type="text"
+                            class="ub-boards-page__folder-context-boards-menu-search-input"
+                            autocomplete="off"
+                            placeholder={{t "Search boards..." key="folder_menu_search_placeholder"}}
+                            aria-label={{t "Search boards in this folder" key="folder_menu_search_label"}}
+                            value={{this.folderBoardsSearch}}
+                            {{on "input" (action "updateFolderBoardsSearch")}}
+                          />
+                          {{#if this.folderBoardsSearch}}
+                            <button type="button"
+                              class="ub-boards-page__folder-context-boards-menu-search-clear"
+                              {{action "clearFolderBoardsSearch" bubbles=false}}
+                              aria-label={{t "Clear search" key="clear_search"}}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                          {{/if}}
+                        </div>
+                        {{#each this.filteredFolderBoardsList key="@index" as |entry|}}
+                          <div class="ub-boards-page__folder-context-boards-menu-row">
+                            {{!-- Row name acts as an open-in-speak-mode trigger.
+                                 Separate sibling button from the × so we don't
+                                 nest interactives — bubble of the open-action
+                                 is the implicit row click; × uses bubbles=false
+                                 so it doesn't double-fire the open action. --}}
+                            <button type="button"
+                              class="ub-boards-page__folder-context-boards-menu-row-open"
+                              {{action "openBoardFromMenu" entry.board bubbles=false}}
+                              title={{entry.name}}>
+                              {{entry.name}}
+                            </button>
+                            <button type="button"
+                              class="ub-boards-page__folder-context-boards-menu-row-remove"
+                              {{action "removeBoardFromFolder" entry.board bubbles=false}}
+                              aria-label={{t "Remove from folder" key="remove_from_folder"}}
+                              title={{t "Remove from folder" key="remove_from_folder"}}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                          </div>
+                        {{else}}
+                          <p class="ub-boards-page__folder-context-boards-menu-empty">
+                            {{#if this.folderBoardsSearch}}
+                              {{t "No matching boards." key="folder_menu_search_empty"}}
+                            {{else}}
+                              {{t "No boards in this folder yet." key="folder_menu_empty"}}
+                            {{/if}}
+                          </p>
+                        {{/each}}
+                      </div>
+                    {{/if}}
+                  </div>
+                {{/unless}}
+                {{!-- Action row — pill-styled Delete button pinned right.
+                     The Edit pill was removed in favor of the inline
+                     pencil icon next to the folder name (above). --}}
                 {{#unless this.editingFolderName}}
                   <div class="ub-boards-page__folder-context-actions">
-                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--edit" {{action "startFolderRename"}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      <span>{{t "Edit" key="edit"}}</span>
-                    </button>
                     <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (action "startDeleteFolder")}}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       <span>{{t "Delete" key="delete"}}</span>
@@ -258,6 +353,70 @@
                     </div>
                   </div>
                 {{/if}}
+                {{!-- Boards inside the drilled-in folder render here so
+                     the folder card itself becomes the destination
+                     container. The Boards summary section below is
+                     hidden while drilled in (see {{#unless drill-in}}
+                     wrap further down) so the boards appear only here,
+                     not in two places. --}}
+                <div class="ub-boards-page__folder-context-boards" role="region" aria-label={{t "Boards in folder" key="boards_in_folder"}}>
+                  <div
+                    class="ub-boards-page__board-grid"
+                    aria-describedby={{this.boardGridAriaDescribedby}}
+                  >
+                    {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
+                      {{#if board.board.key}}
+                        {{#unless board.board.removed}}
+                          <div
+                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                            draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
+                            {{on "dragstart" (action "boardDragStart" board.board)}}
+                          >
+                            {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                              <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
+                            {{/if}}
+                            {{#if board.board.starred_for_current_user}}
+                              <span class="ub-boards-page__board-item-heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                                  <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                                </svg>
+                              </span>
+                            {{/if}}
+                            {{board-icon
+                              board=board
+                              onAction=(action "open_board_in_user_view" target=this.boardsCtrl)
+                              removeType=this.boardsCtrl.board_list.remove_type
+                              removeLabel=this.boardsCtrl.board_list.remove_label
+                              removeIcon=this.boardsCtrl.board_list.remove_icon
+                              removeCallback=(if this.boardsCtrl.model.permissions.edit (action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl))
+                            }}
+                            {{#if this.boardsCtrl.model.permissions.edit}}
+                              {{#if board.board.id}}
+                                <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
+                                  <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>
+                                </button>
+                              {{/if}}
+                            {{/if}}
+                          </div>
+                        {{/unless}}
+                      {{/if}}
+                    {{else}}
+                      <p class="ub-boards-page__folder-context-empty">{{t "No boards in this folder yet. Drag a board onto a folder, or use \"Tag a board\" to add one." key="folder_empty_hint"}}</p>
+                    {{/each}}
+                    {{#if this.boardsCtrl.board_list.has_more}}
+                      {{#unless this.boardsCtrl.filterString}}
+                        <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
+                          <a href="#" class="ub-boards-page__show-more-btn" {{action "show_more_boards" target=this.boardsCtrl}}>
+                            {{t "More" key="more"}}
+                            <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
+                              <span class="glyphicon glyphicon-chevron-down"></span><span class="glyphicon glyphicon-chevron-down"></span>
+                            </span>
+                          </a>
+                        </div>
+                      {{/unless}}
+                    {{/if}}
+                  </div>
+                </div>
               </div>
             {{else}}
               {{!-- Folder strip — only renders when the user has at
@@ -301,7 +460,10 @@
            toggle — surfaces the BOARDS / FAVORITES counts and the
            "+ New Board" entry point. Body always-open; wraps the
            filter row, tabs, folder-drill-in context, and the board
-           grid so they read as the contents of this section. --}}
+           grid so they read as the contents of this section.
+           Hidden entirely while drilled into a folder — the folder
+           card above becomes the sole boards container. --}}
+      {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
       <div class="ub-boards-page__boards-summary-section">
         <div class="ub-boards-page__boards-summary-header">
           <span class="ub-boards-page__boards-summary-title">
@@ -315,7 +477,67 @@
             </span>
             {{t "BOARDS" key="boards_upper"}}
             {{#if this.boardsCtrl.model.my_boards.done}}
-              <span class="ub-boards-page__boards-summary-count" aria-label={{t "Board count" key="board_count"}}>{{this.boardsCtrl.model.my_boards.length}}</span>
+              {{!-- Dual-stat split: "in folders" + "in this section".
+                   Replaces the single ambiguous total chip — that
+                   number didn't match the visible tile count
+                   whenever any root board was tagged into a folder
+                   (filtered out of the grid). Splitting tells the
+                   user exactly where their boards live: tagged-into-
+                   folders vs sitting in the BOARDS grid. The two
+                   substats always sum to the total root count. The
+                   in-folders pill is only rendered when there's
+                   actually something in folders, so a clean
+                   no-folders user just sees the unfiled count. --}}
+              <span class="ub-boards-page__boards-summary-stats" aria-label={{t "Board count" key="board_count"}}>
+                {{#if this.boardsCtrl.myBoardsInFoldersCount}}
+                  <span class="ub-boards-page__boards-summary-stat ub-boards-page__boards-summary-stat--in-folders">
+                    <svg class="ub-boards-page__boards-summary-stat-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+                    <span class="ub-boards-page__boards-summary-stat-num">{{this.boardsCtrl.myBoardsInFoldersCount}}</span>
+                    <span class="ub-boards-page__boards-summary-stat-label">{{t "in folders" key="boards_count_in_folders"}}</span>
+                  </span>
+                  <span class="ub-boards-page__boards-summary-stats-sep" aria-hidden="true"></span>
+                {{/if}}
+                <span class="ub-boards-page__boards-summary-stat ub-boards-page__boards-summary-stat--unfiled">
+                  <svg class="ub-boards-page__boards-summary-stat-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                  <span class="ub-boards-page__boards-summary-stat-num">{{this.boardsCtrl.myBoardsUnfiledCount}}</span>
+                  <span class="ub-boards-page__boards-summary-stat-label">{{t "in this section" key="boards_count_in_this_section"}}</span>
+                </span>
+                {{!-- Info affordance — only rendered when the home
+                     board is tagged into a folder, the one case where
+                     the unfiled pill includes a duplicate tile (the
+                     home always stays visible here regardless of
+                     folder filtering). Click toggles a brief popover
+                     that explains the +1 to the user; click-outside
+                     dismisses it. --}}
+                {{#if this.boardsCtrl.homeBoardIsTagged}}
+                  <span class="ub-boards-page__boards-summary-info-wrap">
+                    <button type="button"
+                      class="ub-boards-page__boards-summary-info-btn {{if this.homeBoardInfoOpen 'ub-boards-page__boards-summary-info-btn--open'}}"
+                      aria-haspopup="true"
+                      aria-expanded={{if this.homeBoardInfoOpen "true" "false"}}
+                      aria-label={{t "Why is the home board counted in both?" key="home_board_count_info_label"}}
+                      title={{t "Why is the home board counted in both?" key="home_board_count_info_label"}}
+                      {{action "toggleHomeBoardInfo" bubbles=false}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                    </button>
+                    {{#if this.homeBoardInfoOpen}}
+                      <div class="ub-boards-page__boards-summary-info-popover" role="tooltip">
+                        <div class="ub-boards-page__boards-summary-info-popover-title">{{t "Your home board" key="home_board_count_info_title"}}</div>
+                        <p class="ub-boards-page__boards-summary-info-popover-body">{{t "Your home board stays visible in this section even when it's organized into a folder, so you can always reach it from the boards page. That's why it appears in both the folder count and the count here." key="home_board_count_info_body"}}</p>
+                      </div>
+                    {{/if}}
+                  </span>
+                {{/if}}
+              </span>
             {{/if}}
           </span>
           <button type="button"
@@ -454,7 +676,14 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                {{board-icon board=board onAction=(action "open_board_in_user_view" target=this.boardsCtrl)}}
+                {{board-icon
+                  board=board
+                  onAction=(action "open_board_in_user_view" target=this.boardsCtrl)
+                  removeType=this.boardsCtrl.board_list.remove_type
+                  removeLabel=this.boardsCtrl.board_list.remove_label
+                  removeIcon=this.boardsCtrl.board_list.remove_icon
+                  removeCallback=(if this.boardsCtrl.model.permissions.edit (action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl))
+                }}
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{action "remove_board" this.boardsCtrl.board_list.remove_type board.board target=this.boardsCtrl}}>
@@ -492,9 +721,26 @@
       </div>
         </div>{{!-- /.ub-boards-page__boards-summary-body --}}
       </div>{{!-- /.ub-boards-page__boards-summary-section --}}
+      {{/unless}}
     {{/if}}
   {{else}}
-    <p class="ub-boards-page__loading">{{t "None found" key="none_found"}}</p>
+    {{!-- Empty state: shown when the current user has no boards
+         (or the active filter/tab returns no results). Reuses the
+         existing `no_boards_yet` and `create_first_board` keys plus
+         a new supporting line. CTA bubbles `newBoard` up to the
+         application route, same as the header `+ New Board` pill. --}}
+    <div class="ub-boards-page__empty" role="status">
+      <span class="ub-boards-page__empty-icon" aria-hidden="true">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+      </span>
+      <h3 class="ub-boards-page__empty-title">{{t "You don't have any boards yet" key="no_boards_yet"}}</h3>
+      <p class="ub-boards-page__empty-subtitle">{{t "Create your first board and it'll appear here." key="boards_empty_subtitle"}}</p>
+    </div>
   {{/if}}
 {{/if}}
 

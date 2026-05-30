@@ -261,7 +261,7 @@ class Board < ApplicationRecord
   def self.find_suggested(locale='en', limit=10)
     ids = nil
     if locale == 'en'
-      user = User.find_by_path('example')
+      user = SystemBoardSources.owner || User.find_by_path('lingolinq')
       ids = user && self.local_ids(user.settings['starred_board_ids'] || [])
     end
     if ids.blank?
@@ -1158,10 +1158,22 @@ class Board < ApplicationRecord
       async_during_bulk_copy = Thread.current[:bulk_copy_in_progress] &&
         ENV['ASYNC_BUTTONSET_DURING_BULK_COPY'].to_s.downcase != 'false'
 
+      # A brand-new board that is a copy of another board (or already references a
+      # downstream hierarchy) rebuilds the entire linked-board graph inline via the
+      # update_for below. The single-board copy path (POST /api/v1/boards ->
+      # Board.process_new) never sets Thread.current[:bulk_copy_in_progress] (only
+      # BoardSetCopier sets it), so without this the rebuild runs inline in the web
+      # request and can exceed the 15s Rack::Timeout, failing the copy with a 500.
+      # Route those to the :slow queue too. Toggle off via ASYNC_BUTTONSET_ON_COPY=false.
+      async_new_copy = is_new_board &&
+        (self.parent_board_id.present? || self.downstream_board_ids.any?) &&
+        ENV['ASYNC_BUTTONSET_ON_COPY'].to_s.downcase != 'false'
+
       # Always check if buttonset exists - create it if missing, update it if content changed
       if !existing_buttonset
-        if async_during_bulk_copy
-          Rails.logger.info("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (bulk copy in progress)")
+        if async_during_bulk_copy || async_new_copy
+          defer_reason = async_during_bulk_copy ? 'bulk copy in progress' : 'new copied board (avoiding inline rebuild timeout)'
+          Rails.logger.info("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (#{defer_reason})")
           BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
         else
           # No buttonset exists - create it immediately (whether new board or not)
@@ -1231,19 +1243,27 @@ class Board < ApplicationRecord
   def process_client_supplied_images
     # When the client pre-builds buttons (e.g. create-board-new bakes in
     # the symbol it previewed) it sends an `image_url` but no `image_id`.
+    # process_buttons strips image_url from the persisted hash (whitelist
+    # slice), so URLs are stashed in @client_supplied_image_urls first.
     # process_suggested_symbols only runs for the populate-from-labels
     # path, so those buttons would otherwise be saved with a bare URL
     # and no ButtonImage — and the board renders no symbol (it resolves
     # images via image_id). Turn each provided URL into a real
     # ButtonImage here so the saved board shows what the user previewed.
     buttons = self.settings['buttons'] || []
-    pending = buttons.select { |b| b['image_url'].present? && b['image_id'].blank? }
+    stashed_urls = @client_supplied_image_urls || {}
+    pending = buttons.select do |b|
+      b['image_id'].blank? && (b['image_url'].present? || stashed_urls[b['id'].to_s].present?)
+    end
     return if pending.empty?
 
     begin
       pending.each do |button|
+        url = button['image_url'].presence || stashed_urls[button['id'].to_s]
+        next if url.blank?
+
         bi = ButtonImage.process_new({
-          'url' => button['image_url'],
+          'url' => url,
           'content_type' => 'image/png',
           'public' => true,
           'protected' => false
@@ -1262,15 +1282,24 @@ class Board < ApplicationRecord
       Rails.logger.error "Failed to process client-supplied button images: #{e.message}"
       # Don't raise - board creation should continue even if image
       # processing fails.
+    ensure
+      @client_supplied_image_urls = nil
     end
   end
 
   def process_suggested_symbols
-    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols
-    return unless @buttons_changed == 'populated_from_labels'
-
+    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols.
+    # Primary path: labels-only create (populate_buttons_from_labels).
+    # Fallback: only for brand-new boards whose changed buttons still have no
+    # assigned images at all. If some client-supplied images were already
+    # processed, skip the fallback to avoid partial OpenSymbols lookups.
     buttons = self.settings['buttons'] || []
-    suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
+    from_labels = @buttons_changed == 'populated_from_labels'
+    has_existing_button_images = buttons.any? { |b| b['image_id'].present? }
+    from_new_baked = @brand_new && !!@buttons_changed && !from_labels && !has_existing_button_images
+    return unless from_labels || from_new_baked
+
+    suggested_buttons = buttons.select { |b| b['label'].present? && b['image_id'].blank? }
     return if suggested_buttons.empty?
 
     # Get user's preferred library. 'original' means "keep the board's
@@ -2047,6 +2076,14 @@ class Board < ApplicationRecord
           'level_modifications' => button['level_modifications']
         }
       end
+      # Stash preview URLs before the whitelist slice — create-board-new
+      # (AI or manual labels) sends image_url on buttons;
+      # process_client_supplied_images reads this map on before_save to
+      # create ButtonImage records.
+      if button['image_url'].present? && button['image_id'].blank?
+        @client_supplied_image_urls ||= {}
+        @client_supplied_image_urls[button['id'].to_s] = button['image_url']
+      end
       trans = button['translations'] || translations[button['id']] || translations[button['id'].to_s] || (BoardContent.load_content(self, 'translations') || {})[button['id'].to_s]
       button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization',
             'background_color', 'border_color', 'load_board', 'hide_label', 'url', 'apps', 'text_only', 
@@ -2341,7 +2378,8 @@ class Board < ApplicationRecord
     # if self.settings && self.settings['images_not_mapped']
       return @button_images if @button_images
       image_ids = self.grid_buttons.map{|b| b['image_id'] }.compact.uniq
-      @button_images = ButtonImage.find_all_by_global_id(image_ids)
+      images = ButtonImage.find_all_by_global_id(image_ids)
+      @button_images = images.sort_by { |i| image_ids.index(i.global_id) || image_ids.length }
     # else
     #   self.button_images
     # end
@@ -2352,7 +2390,8 @@ class Board < ApplicationRecord
   def known_button_sounds
     return @button_sounds if @button_sounds
     sound_ids = (self.grid_buttons || []).map { |b| b['sound_id'] }.compact.uniq
-    @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    @button_sounds = sounds.sort_by { |s| sound_ids.index(s.global_id) || sound_ids.length }
   end
 
   def import_translation(translated_copy, locale, overwrite=false)

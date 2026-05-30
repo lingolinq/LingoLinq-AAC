@@ -174,7 +174,50 @@ describe('pictureGrabber', function() {
     });
   });
 
-  // TODO: pictureGrabber.pick_preview...
+  describe('pick_preview', function() {
+    it('should normalize nested license objects from symbol search results', function() {
+      pictureGrabber.setup(button, controller);
+      controller.set('image_search', {term: 'North Dakota'});
+      pictureGrabber.pick_preview({
+        image_url: 'https://example.com/north-dakota.svg',
+        width: 500,
+        height: 500,
+        content_type: 'image/svg+xml',
+        external_id: '936',
+        license: {
+          type: 'CC BY-SA',
+          author_name: 'Symbol Author',
+          author_url: 'https://example.com/author',
+          copyright_notice_url: 'https://creativecommons.org/licenses/by-sa/4.0/',
+          source_url: 'https://example.com/source',
+          uneditable: true
+        }
+      });
+      var preview = controller.get('image_preview');
+      expect(preview.url).toEqual('https://example.com/north-dakota.svg');
+      expect(preview.width).toEqual(500);
+      expect(preview.height).toEqual(500);
+      expect(preview.external_id).toEqual('936');
+      expect(preview.license.type).toEqual('CC BY-SA');
+      expect(preview.license.author_name).toEqual('Symbol Author');
+      expect(typeof preview.license.type).toEqual('string');
+    });
+
+    it('should support flat license fields from legacy search results', function() {
+      pictureGrabber.setup(button, controller);
+      pictureGrabber.pick_preview({
+        image_url: 'https://example.com/cat.jpg',
+        license: 'CC By',
+        license_url: 'http://creativecommons.org/licenses/by/4.0/',
+        author: 'Flickr User',
+        author_url: 'https://www.flickr.com/people/user/'
+      });
+      var preview = controller.get('image_preview');
+      expect(preview.license.type).toEqual('CC By');
+      expect(preview.license.author_name).toEqual('Flickr User');
+      expect(preview.license.copyright_notice_url).toEqual('http://creativecommons.org/licenses/by/4.0/');
+    });
+  });
 
   describe('image licenses', function() {
     it('should return correctly license type when set, defaulting to private', function() {
@@ -318,9 +361,14 @@ describe('pictureGrabber', function() {
           return RSVP.reject("");
         }
       });
-      pictureGrabber.select_image_preview();
-      waitsFor(function() { return alerted; });
-      runs();
+      var saveFailed = false;
+      pictureGrabber.select_image_preview().then(function() {}, function() {
+        saveFailed = true;
+      });
+      waitsFor(function() { return alerted && saveFailed; });
+      runs(function() {
+        expect(button_set).toEqual(false);
+      });
     });
     it('should fail creating an image if the confirmation step fails', function() {
       var alerted = false;
@@ -480,6 +528,34 @@ describe('pictureGrabber', function() {
           expect(image).toNotEqual(null);
           expect(image.get('width')).toEqual(300);
           expect(image.get('height')).toEqual(150);
+        });
+      });
+
+      it('should use provided width and height without probing Image()', function() {
+        pictureGrabber.setup(button, controller);
+        var image = null;
+        var imageConstructed = false;
+        stub(window, 'Image', function() {
+          imageConstructed = true;
+          return document.createElement('img');
+        });
+        stub(contentGrabbers, 'save_record', function(img) {
+          image = img;
+          return RSVP.resolve({image: {id: '123', url: 'https://example.com/pic.svg'}});
+        });
+        var done = false;
+        pictureGrabber.save_image_preview({
+          url: 'https://example.com/pic.svg',
+          width: 480,
+          height: 320,
+          license: {type: 'CC By', copyright_notice_url: 'http://creativecommons.org/licenses/by/4.0/'}
+        }).then(function() { done = true; }, function() { done = true; });
+        waitsFor(function() { return done; });
+        runs(function() {
+          expect(imageConstructed).toEqual(false);
+          expect(image).toNotEqual(null);
+          expect(image.get('width')).toEqual(480);
+          expect(image.get('height')).toEqual(320);
         });
       });
 

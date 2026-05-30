@@ -7,6 +7,7 @@ import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import i18n from '../utils/i18n';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -53,10 +54,24 @@ export default Component.extend({
     var pending = 0;
     var loop_done = false;
     var emitted = false;
+    /* Set inside the main draw block (closure over context + palette).
+       Called by maybe_emit_canvas_ready as the FINAL drawing operation,
+       AFTER all per-cell drawImage calls have settled, so nothing can
+       overdraw the badge. Null when the canvas didn't draw (e.g.
+       board.id missing). */
+    var draw_badge_if_offline = null;
     var maybe_emit_canvas_ready = function() {
       if(emitted) { return; }
       if(!loop_done) { return; }
       if(pending > 0) { return; }
+      // Paint the offline badge LAST so no late-loading cell image can
+      // overdraw it. Only when persistence reports offline at this
+      // exact moment — the badge captures "was offline when the
+      // preview finished loading," which is the right semantic for a
+      // one-shot canvas render.
+      if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
+        draw_badge_if_offline();
+      }
       emitted = true;
       var cb = _this.get('onCanvasReady');
       if(cb && typeof cb === 'function') { cb(); }
@@ -118,7 +133,22 @@ export default Component.extend({
       fill: 'rgba(255,255,255,0.10)',
       link_fallback_stroke: 'rgba(255,255,255,0.45)',
       link_fallback_fill: 'rgba(20,40,68,0.85)',
-      label: '#f1f4f8'
+      label: '#f1f4f8',
+      /* Offline badge + missing-image fallback colors — translated from
+         the "modern pill" CSS pattern (border-radius:999px, glass-veil
+         gradient, subtle border, three-tier shadow) into canvas-API
+         operations. Atmospheric-depth recipe from LEARNINGS.md:
+         hairline border + glass veil + shadow stack + inset top
+         highlight. Dark-mode values keep the badge readable on the
+         deep-navy speak-mode surface (#0d2438). */
+      badge_fill_top: 'rgba(255,255,255,0.18)',
+      badge_fill_bottom: 'rgba(255,255,255,0.10)',
+      badge_border: 'rgba(255,255,255,0.18)',
+      badge_inset_top: 'rgba(255,255,255,0.28)',
+      badge_text: 'rgba(255,255,255,0.92)',
+      badge_shadow: 'rgba(0,0,0,0.40)',
+      missing_image_fill: 'rgba(255,255,255,0.06)',
+      missing_image_stroke: 'rgba(255,255,255,0.14)'
     } : {
       bg: null,
       hidden_stroke: '#ddd',
@@ -127,7 +157,36 @@ export default Component.extend({
       fill: '#eee',
       link_fallback_stroke: '#CCC',
       link_fallback_fill: '#FFF',
-      label: '#000'
+      label: '#000',
+      badge_fill_top: 'rgba(255,255,255,0.96)',
+      badge_fill_bottom: 'rgba(241,244,248,0.92)',
+      badge_border: 'rgba(20,40,68,0.10)',
+      badge_inset_top: 'rgba(255,255,255,0.90)',
+      badge_text: 'rgba(20,30,45,0.86)',
+      badge_shadow: 'rgba(20,40,68,0.18)',
+      missing_image_fill: 'rgba(20,40,68,0.04)',
+      missing_image_stroke: 'rgba(20,40,68,0.10)'
+    };
+
+    /* Trace a rounded-rectangle path. Mirrors `border-radius: 999px`
+       when r >= h/2 (fully rounded "pill" shape); smaller r values
+       give corner-rounded rectangles. Caller is responsible for
+       beginPath/fill/stroke around this. Path-based (not roundRect)
+       so we don't depend on Chrome 99+ / Safari 16+ — older WebViews
+       (Cordova installed app) need this. */
+    var trace_rounded_rect = function(ctx, rx, ry, rw, rh, r) {
+      r = Math.min(r, rw / 2, rh / 2);
+      ctx.beginPath();
+      ctx.moveTo(rx + r, ry);
+      ctx.lineTo(rx + rw - r, ry);
+      ctx.arc(rx + rw - r, ry + r, r, -Math.PI / 2, 0);
+      ctx.lineTo(rx + rw, ry + rh - r);
+      ctx.arc(rx + rw - r, ry + rh - r, r, 0, Math.PI / 2);
+      ctx.lineTo(rx + r, ry + rh);
+      ctx.arc(rx + r, ry + rh - r, r, Math.PI / 2, Math.PI);
+      ctx.lineTo(rx, ry + r);
+      ctx.arc(rx + r, ry + r, r, Math.PI, 1.5 * Math.PI);
+      ctx.closePath();
     };
 
     if(board && this.get('board.id')) {
@@ -176,6 +235,143 @@ export default Component.extend({
         var image_width = button_width - pad - pad - border_size - border_size;
         context.font = text_height + "px Arial";
         context.textAlign = 'center';
+
+        /* Modern "Offline" pill drawn in the top-right corner of the
+           canvas when `persistence.online === false` at canvas-ready
+           time. Visual recipe translates the app's CSS pill convention
+           (border-radius:999px, glass-veil gradient, hairline border,
+           inset top-edge highlight, three-tier drop shadow — see
+           LEARNINGS atmospheric-depth pattern) into canvas-API
+           operations. Drawn after all per-cell drawImage calls have
+           settled (see maybe_emit_canvas_ready) so no cell can
+           overdraw the badge. Geometry scales with canvas width so
+           the badge stays legible at every preview size from the
+           selection-tool's tiny preview to the full modal. */
+        var draw_offline_badge = function() {
+          var label_text = i18n.t('offline', "Offline");
+          // Badge height ~ canvas-width / 28 ≈ a 28-32px CSS pill on
+          // an 800-1200px modal preview. Floor at 36 canvas px so
+          // tiny previews still get a legible badge.
+          var badge_h = Math.max(36, Math.floor(width / 28));
+          var font_px = Math.floor(badge_h * 0.48);
+          var inner_pad_x = Math.floor(badge_h * 0.55);
+          context.save();
+          // Bold + open letter-spacing matches the .md-hero--setup pill
+          // and other modern pills throughout app.scss.
+          context.font = '600 ' + font_px + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+          var text_w = context.measureText(label_text).width;
+          var badge_w = inner_pad_x + text_w + inner_pad_x;
+          // Position: inset by `pad` from top-right; clamp so badge
+          // never overhangs the canvas edge on tiny previews.
+          var inset = Math.max(pad, badge_h * 0.35);
+          var badge_x = Math.max(inset, width - badge_w - inset);
+          var badge_y = inset;
+          var radius = badge_h / 2;  // full pill
+
+          // Three-tier shadow: close + mid implicit via blur; broad
+          // ambient haze via the offsetY+blur combo. Single shadow
+          // pass on the fill stage — canvas only allows one shadow
+          // per drawing op, so we approximate the CSS stack with the
+          // broadest tier (the "fade into the canvas" haze).
+          context.shadowOffsetX = 0;
+          context.shadowOffsetY = badge_h * 0.18;
+          context.shadowBlur = badge_h * 0.75;
+          context.shadowColor = palette.badge_shadow;
+
+          // Pill background with glass-veil gradient (top brighter,
+          // bottom slightly darker) — same direction as the CSS
+          // `linear-gradient(180deg, …)` glass veil from LEARNINGS.
+          trace_rounded_rect(context, badge_x, badge_y, badge_w, badge_h, radius);
+          var grad = context.createLinearGradient(badge_x, badge_y, badge_x, badge_y + badge_h);
+          grad.addColorStop(0, palette.badge_fill_top);
+          grad.addColorStop(1, palette.badge_fill_bottom);
+          context.fillStyle = grad;
+          context.fill();
+
+          // Reset shadow for the stroke + content layers.
+          context.shadowColor = 'rgba(0,0,0,0)';
+          context.shadowBlur = 0;
+          context.shadowOffsetY = 0;
+
+          // Hairline border (.04–.08 alpha range from the depth pattern).
+          context.lineWidth = 2;  // 1 CSS px at 2x DPI
+          context.strokeStyle = palette.badge_border;
+          context.stroke();
+
+          // Inset top-edge highlight — a faint bright stroke 1 CSS px
+          // below the top edge, hugging the pill curvature. Pairs with
+          // the outer shadow to create directional lighting (bright
+          // above, dark below) per the depth recipe.
+          context.beginPath();
+          // Arc along the top half of the pill, slightly inset so it
+          // reads as a highlight inside the border rather than on it.
+          context.arc(badge_x + radius, badge_y + radius, radius - 2, Math.PI, 1.5 * Math.PI);
+          context.lineTo(badge_x + badge_w - radius, badge_y + 2);
+          context.arc(badge_x + badge_w - radius, badge_y + radius, radius - 2, 1.5 * Math.PI, 2 * Math.PI);
+          context.lineWidth = 2;
+          context.strokeStyle = palette.badge_inset_top;
+          context.stroke();
+
+          // "Offline" label, centered vertically inside the pill.
+          context.fillStyle = palette.badge_text;
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText(label_text, badge_x + (badge_w / 2), badge_y + (badge_h / 2));
+
+          context.restore();
+        };
+
+        /* Subtle placeholder drawn into a cell's image area when its
+           symbol URL fails to load (cache-miss + offline, dead CDN
+           link, etc.). Without this the cell renders as empty white
+           space — indistinguishable from "still loading" or "broken
+           board." The placeholder is a faint rounded rect plus a
+           small broken-image glyph (rectangle + diagonal) centered
+           inside, so the user can SEE that an image was expected
+           there but couldn't be loaded. The badge (above) tells them
+           WHY when the cause is global offline; this tells them WHICH
+           individual cells were affected. Per pre-merge audit §2.5. */
+        var draw_image_fallback = function(ix, iy, iw, ih) {
+          if (iw <= 0 || ih <= 0) { return; }
+          context.save();
+          // Tile the cell's image area with a subtle rounded fill.
+          var r = Math.min(iw, ih) * 0.12;
+          trace_rounded_rect(context, ix, iy, iw, ih, r);
+          context.fillStyle = palette.missing_image_fill;
+          context.fill();
+          // Small broken-image glyph: a rectangle inset by ~25% with
+          // a single diagonal stroke. Reads as "image not loaded"
+          // without the visual noise of a "?" or full broken-image
+          // icon. Scales down to invisible on very small cells, which
+          // is the correct behavior — at selection-tool preview size
+          // the cell is too small for any glyph to read.
+          var glyph_pad = Math.max(2, Math.min(iw, ih) * 0.22);
+          var gx = ix + glyph_pad;
+          var gy = iy + glyph_pad;
+          var gw = iw - (2 * glyph_pad);
+          var gh = ih - (2 * glyph_pad);
+          if (gw > 8 && gh > 8) {
+            context.lineWidth = Math.max(1.5, Math.min(iw, ih) * 0.025);
+            context.strokeStyle = palette.missing_image_stroke;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            trace_rounded_rect(context, gx, gy, gw, gh, Math.min(gw, gh) * 0.10);
+            context.stroke();
+            context.beginPath();
+            context.moveTo(gx, gy + gh);
+            context.lineTo(gx + gw, gy);
+            context.stroke();
+          }
+          context.restore();
+        };
+
+        // Expose the badge drawer to the outer-scope
+        // maybe_emit_canvas_ready closure so it can paint the badge
+        // as the FINAL draw operation, AFTER every per-cell drawImage
+        // has settled. Assigned after the var declaration above so
+        // the closure captures the defined function, not undefined.
+        draw_badge_if_offline = draw_offline_badge;
+
         var variant_urls = board.variant_image_urls(this.appState.get('currentUser.preferences.skin'));
         /* Synchronously resolve a remote image URL through the locally
            synced URL cache, with the same fallback ladder
@@ -377,7 +573,21 @@ export default Component.extend({
                       context.drawImage(img, image_x, image_y, iw, ih);
                       cell_finish();
                     };
-                    img.onerror = cell_finish;
+                    // Per-cell fallback when the symbol URL won't load
+                    // (offline + cache-miss, dead CDN link, malformed
+                    // URL). Without this the cell shows the label but
+                    // an empty white image area — visually indistinct
+                    // from "still loading" or "broken board." Draw a
+                    // subtle placeholder + broken-image glyph instead.
+                    // Per pre-merge audit §2.5 (offline / empty-state
+                    // coverage) and Scot #5 review.
+                    img.onerror = function() {
+                      if (component.isDestroyed || component.isDestroying) { cell_finish(); return; }
+                      var fb_x = x + border_size + pad;
+                      var fb_y = y + border_size + pad + text_height;
+                      draw_image_fallback(fb_x, fb_y, image_width, image_height);
+                      cell_finish();
+                    };
                     img.src = resolved_url;
                   })(button, x, y, resolved_url, _this);
                 }
@@ -415,6 +625,13 @@ export default Component.extend({
         runLater(function() {
           if (_this.isDestroyed || _this.isDestroying) { return; }
           if (!emitted) {
+            // Safety-net path bypasses maybe_emit_canvas_ready, so
+            // paint the badge directly here too if we're offline at
+            // this point. Without this, a stuck preview goes 4s
+            // without revealing whether the user is offline.
+            if(draw_badge_if_offline && persistence && persistence.get('online') === false) {
+              draw_badge_if_offline();
+            }
             emitted = true;
             var cb = _this.get('onCanvasReady');
             if(cb && typeof cb === 'function') { cb(); }

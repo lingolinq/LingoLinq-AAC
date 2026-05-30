@@ -193,6 +193,25 @@ export default Component.extend({
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
       }
+      /* Forward the parent's remove context (label/icon/type/callback)
+         onto the board so the preview modal can render a touch-friendly
+         delete affordance. The hover-only `.board_action` button on the
+         tile is unreachable on touch devices; this carries the same
+         contextual remove (delete / unlike / unshare / untag) into the
+         modal. Only set when the parent supplied a callback — contexts
+         without remove permission (public browse, style-picker drill)
+         leave it null and the modal hides the button. */
+      var removeCallback = _this.get('removeCallback');
+      if(removeCallback) {
+        board.preview_remove = {
+          type: _this.get('removeType'),
+          label: _this.get('removeLabel'),
+          icon: _this.get('removeIcon'),
+          callback: removeCallback
+        };
+      } else {
+        board.preview_remove = null;
+      }
       if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {
         _this.onActionOverride(this.get('board_record.key'));
       } else if(_this.get('action_override')) {
