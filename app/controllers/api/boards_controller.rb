@@ -43,6 +43,11 @@ class Api::BoardsController < ApplicationController
     # extra SELECT per board (~25 at default per_page). Verified by the
     # regression spec in spec/controllers/api/boards_controller_spec.rb.
     # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    # NOTE: id-only partial selects off this relation (the two
+    # `.except(:includes)` sites below, ~line 173 and ~307) drop this
+    # eager-load so the :parent_board preloader does not read an unselected
+    # parent_board_id FK (LINGOLINQ-RAILS-J). If you ever switch this to a
+    # `references`/`eager_load`-backed join, update those two sites too.
     boards = boards.includes(:board_content, :parent_board)
     other_boards = nil
     other_searchable_board_ids = nil
@@ -163,7 +168,14 @@ class Api::BoardsController < ApplicationController
           locs = locs.where(locale: [params['locale'], params['locale'].split(/-|_/)[0]])
         end
         if params['user_id']
-          board_ids = boards.select('id, board_content_id').limit(500).map(&:id)
+          # `.except(:includes)`: `boards` carries `includes(:board_content,
+          # :parent_board)` for the full serialization path below. A partial
+          # `select('id, board_content_id')` omits `parent_board_id`, so the
+          # preloader raises MissingAttributeError when it reads the
+          # :parent_board foreign key off these records. We only want the ids
+          # here, so drop the eager-load entirely (also avoids a wasted
+          # preload over up to 500 discarded records). See LINGOLINQ-RAILS-J.
+          board_ids = boards.except(:includes).select('id, board_content_id').limit(500).map(&:id)
           locs = locs.where(board_id: board_ids)
         end
         board_ids = []
@@ -292,7 +304,12 @@ class Api::BoardsController < ApplicationController
       if !params['q'].blank? && !params['public']
         limited_boards = boards
         if params['allow_job'] #&& boards.limit(26).select('id').length > 25
-          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []), for_user: @api_user)
+          # `.except(:includes)`: see the note above. The partial select omits
+          # `parent_board_id`, which the `includes(:parent_board)` preloader
+          # needs, so loading these records raised MissingAttributeError and
+          # 500'd the request (LINGOLINQ-RAILS-J). We only need the global_ids
+          # to hand off to the background long_query job.
+          progress = Progress.schedule(Board, :long_query, params['q'], params['locale'], boards.except(:includes).select('id, board_content_id').map(&:global_id) + (other_searchable_board_ids || []), for_user: @api_user)
           boards = []
         else
           # For private user searches this will limit to the user's first 25 boards
