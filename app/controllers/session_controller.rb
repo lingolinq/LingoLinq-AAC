@@ -912,6 +912,7 @@ class SessionController < ApplicationController
       error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
       return api_error 400, {error: error}
     end
+    UserBoardProvisioner.provision_for(user)
     unless user.coppa_parental_consent_pending?
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)

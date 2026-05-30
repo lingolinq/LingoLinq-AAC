@@ -79,6 +79,8 @@ Router.map(function() {
     this.route('device');
   });
   this.route('register');
+  this.route('beta-welcome-message');
+  this.route('beta-welcome');
   this.route('intro');
   this.route('trends');
   this.route('forgot_password');

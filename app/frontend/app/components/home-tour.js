@@ -99,10 +99,15 @@ export default Component.extend({
   //      terms-agree confirm (existing flow) and the SPA-fast-path
   //      register save_done.
   //   2. `sessionStorage['ll_auto_open_home_tour']` — cross-reload
-  //      flag, set by register save_done before session.override()
-  //      hard-reloads to `/` (which wipes the in-memory flag). Read
-  //      and cleared atomically so a subsequent dashboard mount
+  //      flag, set after the beta-welcome flow completes, or directly
+  //      by register save_done when the new user has no beta access
+  //      (see register.js). session.override() hard-reloads to `/`
+  //      (which wipes the in-memory flag), so this survives the reload.
+  //      Read and cleared atomically so a subsequent dashboard mount
   //      doesn't re-fire.
+  // A third signal, `sessionStorage['ll_pending_beta_welcome']`, is NOT
+  // read here — it's consumed by index.js afterModel to route beta users
+  // through the beta-welcome flow BEFORE this tour ever auto-opens.
   didInsertElement: function() {
     this._super.apply(this, arguments);
     if (this.get('appState.auto_open_home_tour')) {

@@ -56,6 +56,8 @@ export default Route.extend({
         user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
+      user.set('preferences.telemetry_opt_in', controller.get('model.preferences.telemetry_opt_in') || false);
+      user.set('preferences.comms_log_opt_in', controller.get('model.preferences.comms_log_opt_in') || false);
       user.save().then(function(user) {
         controller.set('start_code', null);
         user.set('password', null);
@@ -69,32 +71,28 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
-          // TEMPORARILY 2026-05-27: route newly-registered users
-          // directly into the home-page tour instead of the subscribe
-          // modal (which is suppressed in
-          // components/dashboard/authenticated-view.js#subscription_check).
-          //
-          // session.override() below does a hard `location.href = '/'`
-          // reload (see services/session.js#reload), which wipes any
-          // in-memory appState we set here. We stash the auto-open
-          // signal in sessionStorage so it survives the reload; the
-          // HomeTour component (components/home-tour.js) reads + clears
-          // it on mount. Also set the in-memory flag for any SPA path
-          // where session.override doesn't end up reloading.
-          //
-          // Renders only when the home_tour feature flag is on (gated
-          // in templates/components/dashboard/authenticated-view.hbs),
-          // so this is a no-op when the flag is off.
-          //
-          // To revert: remove both signals here and restore the
-          // grace_period branch in subscription_check.
+          var prefs = user.get('preferences') || {};
+          // Default true for new registration when the API omits the key.
+          var hasBetaAccess = prefs.beta_program_access !== false;
+          // session.override() hard-reloads to `/`, so route transitions here
+          // never run. Persist intent in sessionStorage and resume on boot
+          // (see index.js afterModel). Home tour runs only after beta welcome.
           try {
-            sessionStorage.setItem('ll_auto_open_home_tour', '1');
-          } catch (e) { /* private mode / disabled — fall back to in-memory flag */ }
-          _this.appState.set('auto_open_home_tour', true);
-          _this.appState.return_to_index();
+            if (hasBetaAccess) {
+              sessionStorage.setItem('ll_pending_beta_welcome', '1');
+            } else {
+              sessionStorage.setItem('ll_auto_open_home_tour', '1');
+            }
+          } catch (e) { /* private mode / disabled */ }
+          if (!hasBetaAccess) {
+            _this.appState.set('auto_open_home_tour', true);
+          }
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
+          } else if(hasBetaAccess) {
+            _this.transitionTo('beta-welcome-message');
+          } else {
+            _this.appState.return_to_index();
           }
         };
         if(user.get('start_progress')) {

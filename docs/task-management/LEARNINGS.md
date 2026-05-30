@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: `find_all_by_global_id` does not preserve input order](#pattern-find_all_by_global_id-does-not-preserve-input-order)
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
 - [Pattern: SVG gradient ID refs inside CSS data URIs mangled by Rails Sprockets in production](#pattern-svg-gradient-id-refs-inside-css-data-uris-mangled-by-rails-sprockets-in-production)
@@ -61,6 +62,7 @@ file (see [README.md](README.md)).
 - [Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it](#pattern-speaklight-surface-overrides-shadow-speaklight-from-the-base--delete-the-override-dont-fork-it)
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
+- [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 
 ---
 - [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
@@ -2036,6 +2038,38 @@ query.
 
 ---
 
+## Pattern: loading overlays are UX-only — keep them off the cache path
+
+**Surface:** global `show_loading_overlay` / `hide_loading_overlay`, board open from My Boards, board-detail route.
+
+**Finding:** Overlays only set `loading_overlay_message` and timing fields. All board JSON (`board_detail_cache`), Ember Data peek/push, `prime_caches`, and ordered-buttons caching run independently. Overlay hide in `setupController` does not invalidate caches.
+
+**Smoothness fixes (2026-05-28):**
+- Shorter overlay minimum (150ms) when raw JSON + Ember record are already cached (`open_board_in_user_view`).
+- `boardDetailCache.clear()` in `clear_user_state` on SPA sign-out.
+- Classic `board-alt` route reads `boardDetailCache` before `findRecord`.
+- `_maybe_prime_caches()` already awaited before `_build_from_raw` so `url_cache_primed` in ordered-buttons ctx is correct on first build.
+
+**Do not:** tie overlay dismissal to image warm or `/tree` completion — conflicts with lazy descendant image prefetch.
+
+**First seen in:** [2026-05-28-loading-overlay-cache-evaluation](./2026-05-28-loading-overlay-cache-evaluation.md)
+
+---
+
+## Pattern: extra_data JSON must not use FileSystem writes on web
+
+**Surface:** `persistence.store_url_now` caching `BoardDownstreamButtonSet` S3 URLs (`lingolinq-*-uploads`, `/extras…/data-….json`).
+
+**Symptom:** Console error `saving to data cache failed for https://…/BoardDownstreamButtonSet/…/data-….json` via `LingoLinq.track_error` (unhandled RSVP rejection).
+
+**Root cause:** After fetching encrypted JSON via the search proxy, `store_url_now` attempted a Chrome PERSISTENT FileSystem write when `local_system.allowed` was true. Large encrypted button-set payloads often fail that write (quota / FS limits). Images/sounds need FileSystem; JSON extra_data does not — `find_json` resolves via `data_uri` in IndexedDB `dataCache`.
+
+**Fix recipe:** In `store_url_now`, when `type == 'json'` and `object.data_uri` is set, skip `write_file` and `store('dataCache', …)` with `data_uri` retained. Add uploads buckets to `cors_match` so dev/prod S3 can be fetched directly when CORS allows.
+
+**Evidence:** `app/frontend/app/services/persistence.js`, `app/frontend/app/utils/persistence.js`; task log `2026-05-28-loading-overlay-cache-evaluation.md`.
+
+---
+
 ## Pattern: defer image_id in change_button — stale image_url rebinds wrong symbol
 
 **Surface:** Button-settings Picture → pick search hit → "Use This".
@@ -2437,3 +2471,41 @@ when you change a positioned element's `position` responsively, check whether an
 `::before`/`::after` depends on it as the containing block.)
 
 **First seen in:** [2026-05-30-take-a-tour-glow-leak.md](./2026-05-30-take-a-tour-glow-leak.md)
+
+---
+
+## Pattern: Signup default library boards — copy via Progress, not copy_to_home_board
+
+**Surface:** new user registration (email or Google SSO).
+
+**Requirement:** Give every new communicator owned copies of curated vocab boards in **My Boards** without setting `preferences.home_board`.
+
+**Root cause to avoid:** `User#copy_to_home_board` always writes `preferences.home_board` — wrong tool for library-only provisioning.
+
+**Fix recipe:** Add `User#copy_board_to_library` (`copy_for` + `copy_board_links`, no home pref). Schedule two jobs via `Progress.schedule(user, :copy_board_to_library, …, for_user: user)` from `UserBoardProvisioner` after save. Source boards live on the `lingolinq` content user (`SystemBoardSources`); import with `VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies`. Gate with `FeatureFlags.signup_default_library_boards_enabled?`.
+
+**Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.
+
+---
+
+## Pattern: Beta program access on registration — server defaults + org opt-out
+
+**Surface:** self-service signup, org start codes, beta welcome routes.
+
+**Requirement:** New users default to `preferences.beta_program_access: true`; org admins opt out via `org.settings['default_beta_program_access'] = false` for start-code registrations only.
+
+**Fix recipe:** Change `User.preference_defaults`; in `Organization.parse_activation_code` set `activate_for.settings['preferences']['beta_program_access']` from `Organization#default_beta_program_access?` when target is an org; expose org setting in JsonApi + org settings UI; branch `register.js` post-save and guard `beta-welcome*` routes on `app_state.beta_program_access`. End users still cannot self-set the pref via API.
+
+**Evidence:** `app/models/user.rb`, `app/models/organization.rb`, `app/frontend/app/routes/register.js`; task log `2026-05-29-beta-program-registration-default.md`.
+
+---
+
+## Pattern: `find_all_by_global_id` does not preserve input order
+
+**Symptom:** RSpec expects `[bi1, bi2]` from `known_button_images` but gets reversed order when DB ids differ from button-list order.
+
+**Root cause:** `GlobalId.find_all_by_global_id` uses `WHERE id IN (...)`; PostgreSQL returns rows in arbitrary/id order, not the caller's id list order.
+
+**Fix recipe:** After lookup, `sort_by { |r| ids.index(r.global_id) || ids.length }` (see `Board.long_query`, `Board#known_button_images`). For specs comparing sorted `global_id` lists, sort **both** sides — lexicographic sort puts `"1_1000"` before `"1_999"`.
+
+**Evidence:** `app/models/concerns/global_id.rb:108-174`, `app/models/board.rb#known_button_images`; task log `2026-05-29-spec-ordering-flakes.md`.

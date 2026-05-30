@@ -1156,16 +1156,6 @@ end
 puts "\n===== Ensure system sidebar boards ====="
 lingolinq_password = seed_password('SEED_LINGOLINQ_PASSWORD', 'password')
 lingolinq_user = User.find_by(user_name: 'lingolinq')
-lingolinq_user ||= User.find_by(email: 'content@lingolinq.com')
-if lingolinq_user && lingolinq_user.user_name != 'lingolinq'
-  old_user_name = lingolinq_user.user_name
-  if lingolinq_user.rename_to('lingolinq')
-    puts "  Renamed #{old_user_name} to lingolinq"
-    lingolinq_user.reload
-  else
-    puts "  WARNING: could not rename #{old_user_name} to lingolinq (collision or invalid name)"
-  end
-end
 unless lingolinq_user
   lingolinq_user = User.process_new({
     name: 'LingoLinq',
@@ -1216,4 +1206,21 @@ unless board_yesno
   puts "  Created lingolinq/yesno board"
 else
   puts "  Found existing lingolinq/yesno board"
+end
+
+SystemSidebarBoards.ensure_for(lingolinq_user).each do |board|
+  puts "  Ensured lingolinq/#{board.key.split('/').last} board"
+end
+
+if lingolinq_user && !Board.find_by_path('lingolinq/quick-core-60')
+  if ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'].to_s =~ /^(1|true|yes)$/i
+    puts "  Importing OpenAAC vocabulary boards for lingolinq (this may take a while)..."
+    Rake::Task['openaac:import_vocabularies'].reenable
+    ENV['VOCABULARY_USER_NAME'] = 'lingolinq'
+    Rake::Task['openaac:import_vocabularies'].invoke
+  else
+    puts "  NOTE: lingolinq/quick-core-60 not found."
+    puts "        Run: VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies"
+    puts "        Or set SEED_IMPORT_OPENAAC_VOCABULARIES=1 before db:seed to import during seed."
+  end
 end
