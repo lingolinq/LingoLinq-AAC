@@ -39,17 +39,17 @@
                  has finished settling every button-image promise.
                  The board-preview component emits onLoadingChange(false)
                  only after both are true. Uses the shared
-                 .ll-loading-overlay chrome so the modal's loading
-                 visual matches the page-level "Loading boards..."
-                 and the board-icon's "Loading Board Preview..." that
-                 fires on click. The `--in-modal` modifier scopes
-                 the overlay to its modal container (position:
-                 absolute, not fixed) instead of covering the full
-                 viewport. --}}
-            <div class="ll-loading-overlay ll-loading-overlay--in-modal" role="status" aria-live="polite" aria-busy="true">
-              <div class="ll-loading-overlay__card">
-                <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
-                <p class="ll-loading-overlay__message">{{t "Loading Board Preview..." key="loading_board_preview_modal"}}</p>
+                 .ll-premium-progress chrome so the modal's loading
+                 visual matches the bootstrap skeleton + index-loading
+                 card + every other "Preparing your workspace" state.
+                 The `--in-modal` modifier scopes the overlay to its
+                 modal container (position: absolute, not fixed)
+                 instead of covering the full viewport. --}}
+            <div class="ll-premium-progress ll-premium-progress--in-modal" role="status" aria-live="polite" aria-busy="true">
+              <div class="ll-premium-progress__card">
+                <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+                <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview_modal"}}</p>
+                <div class="ll-premium-progress__bar" aria-hidden="true"></div>
               </div>
             </div>
           {{/if}}

@@ -5,6 +5,56 @@ import { observer } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import i18n from '../utils/i18n';
 
+// — Shepherd step lifecycle helpers (module scope) —
+// These run with `this` bound to the active Shepherd Step (the
+// `when` handlers below pass the step as context), so they take the
+// step explicitly where needed and stay free of component state.
+
+// Inject a decorative progress dot row into a step's footer. Dots are
+// purely visual (aria-hidden) — the real navigation is the footer
+// buttons, so screen-reader users are never gated on the dots. Count
+// and current index are derived live from the tour's step list, so the
+// indicator stays correct as supporter-/org-gated steps come and go.
+function _renderTourProgress(step) {
+  if (!step || !step.el) { return; }
+  var steps = (step.tour && step.tour.steps) || [];
+  var total = steps.length;
+  var idx = steps.indexOf(step);
+  if (total <= 1 || idx < 0) { return; }
+  var footer = step.el.querySelector('.shepherd-footer');
+  if (!footer || footer.querySelector('.md-tour__progress')) { return; }
+  var wrap = document.createElement('div');
+  wrap.className = 'md-tour__progress';
+  wrap.setAttribute('aria-hidden', 'true');
+  for (var i = 0; i < total; i++) {
+    var dot = document.createElement('span');
+    var cls = 'md-tour__progress-dot';
+    if (i === idx) { cls += ' is-active'; }
+    else if (i < idx) { cls += ' is-done'; }
+    dot.className = cls;
+    wrap.appendChild(dot);
+  }
+  footer.insertBefore(wrap, footer.firstChild);
+}
+
+// Toggle a body-level flag for the centered (intro/outro) steps so the
+// "paused" backdrop blur can be scoped to them in CSS. Attached steps
+// (those with an `attachTo` element) deliberately keep a crisp,
+// unblurred spotlight on the highlighted card.
+function _onTourStepShow() {
+  var step = this;
+  try {
+    var attach = step.options && step.options.attachTo;
+    var centered = !(attach && attach.element);
+    document.body.classList.toggle('md-tour--centered-step', !!centered);
+  } catch (e) { /* class toggle is decorative — never block the step */ }
+  try { _renderTourProgress(step); } catch (e) { /* progress is decorative */ }
+}
+
+function _clearTourCenteredClass() {
+  try { document.body.classList.remove('md-tour--centered-step'); } catch (e) { /* noop */ }
+}
+
 // Single-responsibility wrapper around the `tour` service from
 // ember-shepherd. Owns the home-page step script, the trigger
 // button, and the visual/behavioral defaults that match the
@@ -49,10 +99,15 @@ export default Component.extend({
   //      terms-agree confirm (existing flow) and the SPA-fast-path
   //      register save_done.
   //   2. `sessionStorage['ll_auto_open_home_tour']` — cross-reload
-  //      flag, set after beta welcome completes or when registration
-  //      skips beta welcome (see register.js save_done).
-  //   3. `sessionStorage['ll_pending_beta_welcome']` — consumed by
-  //      index.js afterModel to route to beta welcome before this tour.
+  //      flag, set after the beta-welcome flow completes, or directly
+  //      by register save_done when the new user has no beta access
+  //      (see register.js). session.override() hard-reloads to `/`
+  //      (which wipes the in-memory flag), so this survives the reload.
+  //      Read and cleared atomically so a subsequent dashboard mount
+  //      doesn't re-fire.
+  // A third signal, `sessionStorage['ll_pending_beta_welcome']`, is NOT
+  // read here — it's consumed by index.js afterModel to route beta users
+  // through the beta-welcome flow BEFORE this tour ever auto-opens.
   didInsertElement: function() {
     this._super.apply(this, arguments);
     if (this.get('appState.auto_open_home_tour')) {
@@ -110,6 +165,21 @@ export default Component.extend({
     ];
   },
 
+  // Build the decorated header HTML for the centered intro/outro
+  // steps: an "identity bar" eyebrow pill above the heading, giving
+  // the tutorial a product-tour identity instead of a generic modal
+  // title. Shepherd renders `title` via innerHTML (shepherd.js
+  // 14.5.1), so an HTML string is the supported way to do this; the
+  // pieces come from i18n only, never user input.
+  _decoratedTitle: function(headingKey, headingDefault) {
+    var eyebrow = i18n.t('home_tour_eyebrow', "Guided Tour");
+    var heading = i18n.t(headingKey, headingDefault);
+    var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
+    return '<span class="md-tour__eyebrow">' + spark +
+           '<span class="md-tour__eyebrow-text">' + eyebrow + '</span></span>' +
+           '<span class="md-tour__heading">' + heading + '</span>';
+  },
+
   _buildSteps: function() {
     var standardButtons = this._standardButtons();
     var supporter = !!this.get('appState.sessionUser.supporter_role');
@@ -123,13 +193,47 @@ export default Component.extend({
     // correct if the visibility logic changes in either place.
     var orgCardVisible = !!document.querySelector('.md-card--org-management');
 
+    // On narrow viewports (<=1024px) the left/right-attached card
+    // popovers run out of horizontal room and overlap the nav/cards.
+    // Place those BELOW the element instead, so the card sits under its
+    // target with the arrow on the top edge (data-popper-placement=
+    // bottom -> arrow top; see the .shepherd-arrow rules in app.scss).
+    // Below reads more naturally than above and avoids the card's drop
+    // shadow falling over the highlighted element. Top-of-page targets
+    // (the nav + its pills) are already 'bottom' at every width. Popper
+    // flips automatically if a placement can't fit.
+    var narrowTour = (typeof window !== 'undefined') && window.innerWidth <= 1024;
+    var side = function(wide) { return narrowTour ? 'bottom' : wide; };
+
+    // The caseload + speak cards now render a SINGLE markup at every
+    // width (the card-as-button variant), so the base class matches the
+    // visible element directly — no variant selection needed. (Single-
+    // markup cards boards/extras/orgs never needed it either.)
+    var cardSel = function(base) {
+      return base;
+    };
+
+    // Per-step responsive config the resize handler (_onTourResize) uses
+    // to recompute the placement side live when the viewport crosses
+    // 1024px. `wide` is the >1024px side (narrow always uses 'bottom').
+    // The nav + per-pill steps stay 'bottom' at every width, so they are
+    // intentionally NOT listed.
+    this._tourStepCfg = {
+      home_tour_caseload: { wide: 'right' },
+      home_tour_speak:    { wide: 'right' },
+      home_tour_boards:   { wide: 'left' },
+      home_tour_extras:   { wide: 'left' },
+      home_tour_orgs:     { wide: 'left' }
+    };
+    this._tourNarrow = narrowTour;
+
     var steps = [];
 
     // Step 1 — intro (centered, no attachTo)
     steps.push({
       id: 'home_tour_welcome',
-      title: i18n.t('home_tour_welcome_title', "Welcome to LingoLinq"),
-      text: i18n.t('home_tour_welcome_text', "Here's a quick tour of your dashboard so you know where everything lives. You can close this anytime."),
+      title: this._decoratedTitle('home_tour_welcome_title', "Welcome to LingoLinq"),
+      text: i18n.t('home_tour_welcome_text', "Explore your dashboard and learn where your tools, boards, and communication features live."),
       classes: 'md-tour__step md-tour__step--intro',
       buttons: [
         {
@@ -155,12 +259,59 @@ export default Component.extend({
       buttons: standardButtons
     });
 
+    // Steps 2b-2e — one explainer per nav pill (Home / Boards / Reports /
+    // Extras). Only added when the pill row is actually on-screen — it
+    // collapses to a single dropdown on very narrow layouts, and we must
+    // never attach a step to a hidden element. The spotlighted pill is
+    // styled active for the duration of its step via
+    // `.md-pillnav__pill.shepherd-target` in app.scss; this is a purely
+    // visual cue — the tour does NOT change tabs/routes. Keys are static
+    // literals (not a loop with bound keys) so i18n_generator.rb can
+    // extract them — see LEARNINGS.md on the static-parser gotcha. Pills
+    // sit at the top of the page, so 'bottom' placement is correct at
+    // every width.
+    var firstPill = document.querySelector('.md-pillnav .md-pillnav__pill');
+    if (firstPill && firstPill.offsetParent !== null) {
+      steps.push({
+        id: 'home_tour_pill_home',
+        attachTo: { element: '.md-pillnav .md-pillnav__pill:nth-of-type(1)', on: 'bottom' },
+        title: i18n.t('home_tour_page_home_title', "Home"),
+        text: i18n.t('home_tour_page_home_text', "Your dashboard home — pick up where you left off, open Speak Mode, and reach your most-used tools at a glance."),
+        classes: 'md-tour__step',
+        buttons: standardButtons
+      });
+      steps.push({
+        id: 'home_tour_pill_boards',
+        attachTo: { element: '.md-pillnav .md-pillnav__pill:nth-of-type(2)', on: 'bottom' },
+        title: i18n.t('home_tour_page_boards_title', "Boards"),
+        text: i18n.t('home_tour_page_boards_text', "Browse, create, and organize your communication boards (page-sets). Open any board to view or edit it."),
+        classes: 'md-tour__step',
+        buttons: standardButtons
+      });
+      steps.push({
+        id: 'home_tour_pill_reports',
+        attachTo: { element: '.md-pillnav .md-pillnav__pill:nth-of-type(3)', on: 'bottom' },
+        title: i18n.t('home_tour_page_reports_title', "Reports"),
+        text: i18n.t('home_tour_page_reports_text', "Track usage and progress — communication activity and word data for the people you support."),
+        classes: 'md-tour__step',
+        buttons: standardButtons
+      });
+      steps.push({
+        id: 'home_tour_pill_extras',
+        attachTo: { element: '.md-pillnav .md-pillnav__pill:nth-of-type(4)', on: 'bottom' },
+        title: i18n.t('home_tour_page_extras_title', "Extras"),
+        text: i18n.t('home_tour_page_extras_text', "Games, lessons, account settings, and other helpful tools live here whenever you need them."),
+        classes: 'md-tour__step',
+        buttons: standardButtons
+      });
+    }
+
     // Step 3 — caseload (supporter_role only — see LEARNINGS.md
     // canonical communicator gate: !supporter_role)
     if (supporter) {
       steps.push({
         id: 'home_tour_caseload',
-        attachTo: { element: '.md-card--caseload', on: 'right' },
+        attachTo: { element: cardSel('.md-card--caseload'), on: side('right') },
         title: i18n.t('home_tour_caseload_title', "Your caseload"),
         text: i18n.t('home_tour_caseload_text', "Jump straight to the people you support. Add a note, run a quick assessment, or model in speak mode."),
         classes: 'md-tour__step',
@@ -171,7 +322,7 @@ export default Component.extend({
     // Step 4 — Speak Mode card
     steps.push({
       id: 'home_tour_speak',
-      attachTo: { element: '.md-card--speak', on: 'right' },
+      attachTo: { element: cardSel('.md-card--speak'), on: side('right') },
       title: i18n.t('home_tour_speak_title', "Open Speak Mode"),
       text: i18n.t('home_tour_speak_text', "Continue Speaking opens your home board in communication mode, ready for everyday use."),
       classes: 'md-tour__step',
@@ -181,7 +332,7 @@ export default Component.extend({
     // Step 5 — Boards card
     steps.push({
       id: 'home_tour_boards',
-      attachTo: { element: '.md-card--boards', on: 'left' },
+      attachTo: { element: '.md-card--boards', on: side('left') },
       title: i18n.t('home_tour_boards_title', "Manage your boards"),
       text: i18n.t('home_tour_boards_text', "Create, browse, and organize boards. Your home board is pinned at the front of the strip."),
       classes: 'md-tour__step',
@@ -191,7 +342,7 @@ export default Component.extend({
     // Step 6 — Extras card
     steps.push({
       id: 'home_tour_extras',
-      attachTo: { element: '.md-card--extras', on: 'left' },
+      attachTo: { element: '.md-card--extras', on: side('left') },
       title: i18n.t('home_tour_extras_title', "More tools in Extras"),
       text: i18n.t('home_tour_extras_text', "Find games, lessons, account settings, and more under Extras whenever you need them."),
       classes: 'md-tour__step',
@@ -205,7 +356,7 @@ export default Component.extend({
     if (orgCardVisible) {
       steps.push({
         id: 'home_tour_orgs',
-        attachTo: { element: '.md-card--org-management', on: 'left' },
+        attachTo: { element: '.md-card--org-management', on: side('left') },
         title: i18n.t('home_tour_orgs_title', "Manage your organizations"),
         text: i18n.t('home_tour_orgs_text', "If you administer one or more LingoLinq organizations, jump in here to manage members, rooms, and licenses."),
         classes: 'md-tour__step',
@@ -217,7 +368,7 @@ export default Component.extend({
     // last step completes the tour via Shepherd's auto-complete)
     steps.push({
       id: 'home_tour_done',
-      title: i18n.t('home_tour_done_title', "You're all set"),
+      title: this._decoratedTitle('home_tour_done_title', "You're all set"),
       text: i18n.t('home_tour_done_text', "That's the tour. You can revisit it anytime from the Take a tour button at the top of the dashboard."),
       classes: 'md-tour__step md-tour__step--intro',
       buttons: [
@@ -240,6 +391,7 @@ export default Component.extend({
   // the tour ended.
   _startTour: function(options) {
     options = options || {};
+    var _this = this;
     var tour = this.get('tour');
     if(!tour) { return; }
 
@@ -251,9 +403,22 @@ export default Component.extend({
     tour.set('defaultStepOptions', {
       classes: 'md-tour__step',
       cancelIcon: { enabled: true },
-      scrollTo: { behavior: 'smooth', block: 'center' },
+      // INSTANT scroll (not 'smooth'): Shepherd computes a step's
+      // position BEFORE its scroll settles, and floating-ui's flip()
+      // middleware then re-picks top/bottom from available space. With a
+      // smooth (~300ms) scroll the target starts low in the viewport, so
+      // the popover paints ABOVE, then flips BELOW once the scroll
+      // centers it — a visible above->below flash (e.g. Speak -> Boards).
+      // An instant scroll centers the target in one frame, so flip()
+      // computes once at the final position and the flash is gone.
+      scrollTo: { behavior: 'auto', block: 'center' },
       modalOverlayOpeningPadding: 8,
-      modalOverlayOpeningRadius: 14
+      modalOverlayOpeningRadius: 14,
+      // Per-step show hook: paints the progress dots and flags the
+      // centered intro/outro steps so the backdrop blur scopes to
+      // them (see _onTourStepShow). Steps don't define their own
+      // `when`, so this default applies to every step.
+      when: { show: _onTourStepShow }
     });
 
     tour.addSteps(this._buildSteps()).then(function() {
@@ -262,12 +427,80 @@ export default Component.extend({
       // own Evented forwards method-triggered events (back, next)
       // but NOT shepherd-native lifecycle events (complete,
       // cancel) — wire those on the underlying Tour directly.
+      if (tour.tourObject) {
+        // Always tidy the body-level centered-step flag when the
+        // tour ends, however it ends.
+        tour.tourObject.on('complete', _clearTourCenteredClass);
+        tour.tourObject.on('cancel', _clearTourCenteredClass);
+        // Re-evaluate card placements live on viewport resize (flip
+        // between the wide side and 'top' when crossing 1024px), and
+        // remove the listener when the tour ends so it can't leak.
+        _this._attachTourResize();
+        tour.tourObject.on('complete', function() { _this._detachTourResize(); });
+        tour.tourObject.on('cancel', function() { _this._detachTourResize(); });
+      }
       if (options.afterComplete && tour.tourObject) {
         tour.tourObject.on('complete', options.afterComplete);
         tour.tourObject.on('cancel', options.afterComplete);
       }
       tour.start();
     });
+  },
+
+  // Attach a debounced window-resize listener that re-evaluates card
+  // placements when the viewport crosses the 1024px boundary mid-tour.
+  // Idempotent — a second call is a no-op while one is already attached.
+  _attachTourResize: function() {
+    if (this._tourResizeHandler) { return; }
+    var _this = this;
+    this._tourResizeHandler = function() { _this._onTourResize(); };
+    window.addEventListener('resize', this._tourResizeHandler);
+  },
+
+  _detachTourResize: function() {
+    if (this._tourResizeHandler) {
+      window.removeEventListener('resize', this._tourResizeHandler);
+      this._tourResizeHandler = null;
+    }
+  },
+
+  // On resize: if the narrow/wide state changed, flip every flippable
+  // step's placement (wide side <-> 'top') and re-show the currently
+  // open step so Floating UI repositions it at the new placement. The
+  // cheap early-return on an unchanged boundary keeps this safe to call
+  // on every resize tick without debouncing.
+  _onTourResize: function() {
+    var tour = this.get('tour');
+    var obj = tour && tour.tourObject;
+    if (!obj) { return; }
+    var narrow = window.innerWidth <= 1024;
+    if (narrow === this._tourNarrow) { return; }
+    this._tourNarrow = narrow;
+    var cfg = this._tourStepCfg || {};
+    (obj.steps || []).forEach(function(step) {
+      var id = step.id || (step.options && step.options.id);
+      var opts = step.options || {};
+      var c = cfg[id];
+      if (opts.attachTo && c) {
+        // Single markup per card now — only the placement side flips.
+        opts.attachTo.on = narrow ? 'bottom' : c.wide;
+      }
+    });
+    // Re-show the active step so the new placement takes effect. Guarded
+    // because getCurrentStep/isOpen vary across shepherd versions.
+    var current = obj.getCurrentStep && obj.getCurrentStep();
+    if (current && typeof current.show === 'function') {
+      if (typeof current.isOpen !== 'function' || current.isOpen()) {
+        current.show();
+      }
+    }
+  },
+
+  // Safety net: if the component is torn down while the tour is open
+  // (route change, etc.), make sure the resize listener is removed.
+  willDestroyElement: function() {
+    this._detachTourResize();
+    this._super.apply(this, arguments);
   },
 
   actions: {

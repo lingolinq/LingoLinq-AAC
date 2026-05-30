@@ -11,6 +11,7 @@ import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -42,12 +43,18 @@ import LingoLinq from '../../app';
 // menu is listed below and can be toggled from the right panel's
 // Customize Menu section.
 const SPEAK_MENU_ITEMS = [
-  { id: 'my_boards',            section: 'board',     label_key: 'my_boards', default_label: 'My Boards' },
-  { id: 'find_boards',          section: 'board',     label_key: 'find_boards', default_label: 'Find Boards' },
+  /* `board_collection` replaces the prior `my_boards` + `find_boards`
+     rows. It opens an inline panel (rendered by the BoardCollection
+     component) inside the same options menu surface, listing the
+     user's owned/shared boards plus public boards grouped by brand
+     family. The two legacy ids may still appear in some users'
+     `preferences.speak_mode_hidden_menu_items` arrays; that's
+     harmless — the values are simply no longer referenced. */
+  { id: 'board_collection',     section: 'board',     label_key: 'my_board_collection', default_label: 'My Board Collection' },
   { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
   { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
   { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
-  { id: 'classic_view',         section: 'display',   label_key: 'board_detail_revert_old_style', default_label: 'Classic View' },
+  { id: 'light_dark_mode',      section: 'display',   label_key: 'light_dark_mode', default_label: 'Light/Dark Mode' },
   { id: 'copy',                 section: 'share',     label_key: 'copy', default_label: 'Copy' },
   { id: 'download',             section: 'share',     label_key: 'download', default_label: 'Download' },
   { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
@@ -91,12 +98,11 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('session', "Session");
   i18n.t('language', "Language");
   // Items (SPEAK_MENU_ITEMS)
-  i18n.t('my_boards', "My Boards");
-  i18n.t('find_boards', "Find Boards");
+  i18n.t('my_board_collection', "My Board Collection");
   i18n.t('find_a_button', "Find a Button");
   i18n.t('focus_words', "Focus Words");
   i18n.t('show_all_buttons', "Show Hidden Buttons");
-  i18n.t('board_detail_revert_old_style', "Classic View");
+  i18n.t('light_dark_mode', "Light/Dark Mode");
   i18n.t('copy', "Copy");
   i18n.t('download', "Download");
   i18n.t('print', "Print");
@@ -291,6 +297,13 @@ export default Controller.extend(prefClasses, {
   display_submenu_open: false,
   share_print_submenu_open: false,
   language_submenu_open: false,
+  /* When true, the options menu replaces its normal section list
+     with the inline BoardCollection panel — a sectioned, alphabetized
+     list of the user's boards and public boards by brand family.
+     Driven by the `open_board_collection` action; cleared whenever
+     the options menu itself closes so a fresh open lands on the
+     normal menu. */
+  board_collection_open: false,
   show_paint_dropdown: false,
   button_menu_id: null,
   show_options_menu: false,
@@ -367,6 +380,13 @@ export default Controller.extend(prefClasses, {
          !e.target.closest('.md-board-detail-symbol-card__edit-menu-trigger')) {
         _this.set('button_menu_id', null);
       }
+      // Immersive quick-actions popover (mic/backspace/clear) — close on
+      // any click outside both the popover and its chevron trigger.
+      if(_this.get('quick_actions_open') &&
+         !e.target.closest('.md-board-detail-sentence-bar__quick-actions') &&
+         !e.target.closest('.md-board-detail-sentence-bar__tool-btn--chevron')) {
+        _this.set('quick_actions_open', false);
+      }
     };
     document.addEventListener('click', _this._closeDropdownsHandler, true);
 
@@ -407,6 +427,56 @@ export default Controller.extend(prefClasses, {
         }
       }, 0);
     }
+
+    // Portrait/narrow viewport tracking for the landscape-orientation
+    // overlay + immersive tool consolidation. Mirrors the matchMedia
+    // pattern above: stored MQLs + handlers so the reactive booleans stay
+    // current and willDestroy can detach them. Two tiers drive the
+    // orientation gate (see `portrait_overlay_eligible`):
+    //   • `viewport_narrow`       ≤640px — gates very dense boards (>8/row)
+    //   • `viewport_very_narrow`  ≤460px — gates moderately dense (>6/row)
+    //   • `viewport_ultra_narrow` ≤375px — gates even sparse boards (>4/row)
+    // 640px is the feature's hard floor — nothing changes above it.
+    if(typeof window !== 'undefined' && window.matchMedia) {
+      this._portraitViewportMql = window.matchMedia('(max-width: 640px)');
+      this.set('viewport_narrow', !!this._portraitViewportMql.matches);
+      this._portraitViewportHandler = function(e) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('viewport_narrow', !!e.matches);
+        // Leaving narrow width retires the overlay/popover entirely so a
+        // rotate-to-landscape cleanly returns to the normal board.
+        if(!e.matches) { _this.set('quick_actions_open', false); }
+      };
+      if(this._portraitViewportMql.addEventListener) {
+        this._portraitViewportMql.addEventListener('change', this._portraitViewportHandler);
+      } else if(this._portraitViewportMql.addListener) {
+        this._portraitViewportMql.addListener(this._portraitViewportHandler);
+      }
+
+      this._veryNarrowViewportMql = window.matchMedia('(max-width: 460px)');
+      this.set('viewport_very_narrow', !!this._veryNarrowViewportMql.matches);
+      this._veryNarrowViewportHandler = function(e) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('viewport_very_narrow', !!e.matches);
+      };
+      if(this._veryNarrowViewportMql.addEventListener) {
+        this._veryNarrowViewportMql.addEventListener('change', this._veryNarrowViewportHandler);
+      } else if(this._veryNarrowViewportMql.addListener) {
+        this._veryNarrowViewportMql.addListener(this._veryNarrowViewportHandler);
+      }
+
+      this._ultraNarrowViewportMql = window.matchMedia('(max-width: 375px)');
+      this.set('viewport_ultra_narrow', !!this._ultraNarrowViewportMql.matches);
+      this._ultraNarrowViewportHandler = function(e) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('viewport_ultra_narrow', !!e.matches);
+      };
+      if(this._ultraNarrowViewportMql.addEventListener) {
+        this._ultraNarrowViewportMql.addEventListener('change', this._ultraNarrowViewportHandler);
+      } else if(this._ultraNarrowViewportMql.addListener) {
+        this._ultraNarrowViewportMql.addListener(this._ultraNarrowViewportHandler);
+      }
+    }
   },
 
   // Auto-collapse panels whenever edit_mode flips on at a narrow
@@ -436,6 +506,27 @@ export default Controller.extend(prefClasses, {
         this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
       } else if(this._narrowViewportMql.removeListener) {
         this._narrowViewportMql.removeListener(this._narrowViewportHandler);
+      }
+    }
+    if(this._portraitViewportMql && this._portraitViewportHandler) {
+      if(this._portraitViewportMql.removeEventListener) {
+        this._portraitViewportMql.removeEventListener('change', this._portraitViewportHandler);
+      } else if(this._portraitViewportMql.removeListener) {
+        this._portraitViewportMql.removeListener(this._portraitViewportHandler);
+      }
+    }
+    if(this._veryNarrowViewportMql && this._veryNarrowViewportHandler) {
+      if(this._veryNarrowViewportMql.removeEventListener) {
+        this._veryNarrowViewportMql.removeEventListener('change', this._veryNarrowViewportHandler);
+      } else if(this._veryNarrowViewportMql.removeListener) {
+        this._veryNarrowViewportMql.removeListener(this._veryNarrowViewportHandler);
+      }
+    }
+    if(this._ultraNarrowViewportMql && this._ultraNarrowViewportHandler) {
+      if(this._ultraNarrowViewportMql.removeEventListener) {
+        this._ultraNarrowViewportMql.removeEventListener('change', this._ultraNarrowViewportHandler);
+      } else if(this._ultraNarrowViewportMql.removeListener) {
+        this._ultraNarrowViewportMql.removeListener(this._ultraNarrowViewportHandler);
       }
     }
   },
@@ -2356,7 +2447,7 @@ export default Controller.extend(prefClasses, {
   // it re-evaluates whenever the user toggles any row.
   speak_section_visible_board: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
-    return !s.my_boards || !s.find_boards;
+    return !s.board_collection;
   }),
   speak_section_visible_buttons: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
@@ -2364,7 +2455,7 @@ export default Controller.extend(prefClasses, {
   }),
   speak_section_visible_display: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
-    return !s.classic_view;
+    return !s.light_dark_mode;
   }),
   speak_section_visible_share: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
@@ -2543,6 +2634,53 @@ export default Controller.extend(prefClasses, {
     if(cols && cols > 0) { parts.push('--board-columns: ' + cols); }
     if(rows && rows > 0) { parts.push('--board-rows: ' + rows); }
     return parts.length ? parts.join('; ') + ';' : '';
+  }),
+
+  // ── Portrait / landscape-orientation overlay ──────────────────────
+  // All gated by the `portrait_orientation_overlay` feature flag (ships
+  // OFF). `viewport_narrow` (≤640px), `viewport_very_narrow` (≤460px) and
+  // `viewport_ultra_narrow` (≤375px) are kept current by the matchMedia
+  // listeners set up in the controller init; `current_grid.columns` counts
+  // the button placeholders per row (filled or empty). Three escalating
+  // tiers decide when a portrait phone makes the grid too cramped — the
+  // narrower the screen, the fewer columns it takes to warrant the gate:
+  //   • >8 columns → gate at ≤640px
+  //   • >6 columns → gate at ≤460px
+  //   • >4 columns → gate at ≤375px
+  portrait_overlay_dismissed: false,
+  quick_actions_open: false,
+
+  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', function() {
+    if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
+    var cols = this.get('current_grid.columns') || 0;
+    if(this.get('viewport_narrow') && cols > 8) { return true; }
+    if(this.get('viewport_very_narrow') && cols > 6) { return true; }
+    if(this.get('viewport_ultra_narrow') && cols > 4) { return true; }
+    return false;
+  }),
+
+  // The actual "show the card now" gate — eligible AND the user hasn't
+  // chosen Continue Anyway for this board this session.
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', function() {
+    return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
+  }),
+
+  // Immersive speak-mode tool consolidation: at ≤640px in speak mode
+  // (flag on) the inline mic/backspace/clear collapse into the
+  // down-arrow chevron's quick-actions popover. Independent of the
+  // column-count gate — it's about reclaiming horizontal space, which
+  // every narrow board benefits from. Edit mode has its own toolbar so
+  // it's excluded here.
+  immersive_tools: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'edit_mode', function() {
+    if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
+    return !!this.get('viewport_narrow') && !this.get('edit_mode');
+  }),
+
+  // Continue Anyway is scoped to "this board, this session" — reset the
+  // dismissal (and close any open popover) whenever the board changes.
+  _reset_portrait_overlay_on_board_change: observer('model.id', function() {
+    this.set('portrait_overlay_dismissed', false);
+    this.set('quick_actions_open', false);
   }),
 
   // Flatten the 2D ordered_buttons grid for template iteration and filtering
@@ -4000,6 +4138,12 @@ export default Controller.extend(prefClasses, {
     toggle_options_menu: function() {
       var was_open = this.get('show_options_menu');
       this.toggleProperty('show_options_menu');
+      /* Reset the inline My Board Collection panel whenever the menu
+         closes (and on a fresh open) so the user always lands on the
+         normal section list. Without this, a user who opened the
+         collection, clicked the backdrop, then reopened the menu
+         would see the collection still mid-render. */
+      this.set('board_collection_open', false);
       // When opening, move keyboard focus into the menu's first item so
       // arrow-key / Tab navigation can begin there. When closing, return
       // focus to the trigger button so the user lands back where they
@@ -4032,7 +4176,15 @@ export default Controller.extend(prefClasses, {
                 items[(idx2 - 1 + items.length) % items.length].focus();
               } else if (key === 'Escape' || key === 'Esc' || key === 27) {
                 e.preventDefault(); e.stopPropagation();
-                if (_this.get('show_options_menu')) { _this.send('toggle_options_menu'); }
+                /* Two-step Escape: if the inline collection is open,
+                   step back to the normal menu first. A second Escape
+                   then closes the menu. Mirrors common nested-menu
+                   conventions. */
+                if (_this.get('board_collection_open')) {
+                  _this.send('close_board_collection');
+                } else if (_this.get('show_options_menu')) {
+                  _this.send('toggle_options_menu');
+                }
               }
             });
           });
@@ -4078,7 +4230,9 @@ export default Controller.extend(prefClasses, {
       var key = event.key || event.keyCode;
       if (key === 'Escape' || key === 'Esc' || key === 27) {
         event.preventDefault();
-        if (this.get('show_options_menu')) {
+        if (this.get('board_collection_open')) {
+          this.send('close_board_collection');
+        } else if (this.get('show_options_menu')) {
           this.send('toggle_options_menu');
         }
         return;
@@ -4383,6 +4537,13 @@ export default Controller.extend(prefClasses, {
     // doesn't reliably mark the raw `preferences` blob dirty on a
     // nested set, so we also poke `preferences.device.updated` to
     // force the full blob to ship.
+    //
+    // Loading mask: reuse the same view-switch overlay that the
+    // Classic → Modern direction uses (controllers/board/index.js
+    // go_to_modern → utils/view_switch_overlay.js). Pass
+    // accentLight:true so the parenthesized clarifier in the title
+    // renders at a lighter font-weight on this direction, per the
+    // design ask.
     go_to_classic: function() {
       var user = this.get('user');
       var boardname = this.get('boardname');
@@ -4395,14 +4556,49 @@ export default Controller.extend(prefClasses, {
         }
       }
       if(!user || !boardname) { return; }
-      this.get('router').transitionTo('user.board-alt', user.get('user_name'), boardname);
+      var userName = user.get('user_name');
+      var routerSvc = this.get('router');
+      // Theme detection mirrors go_to_modern: prefer the user's explicit
+      // light signal, otherwise default dark so the mockup matches the
+      // destination's typical theme.
+      var appStateService = this.get('app_state');
+      var isDark = true;
+      if (appStateService && typeof appStateService.get === 'function') {
+        var themeMode = appStateService.get('themeMode');
+        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+          isDark = false;
+        }
+      }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        accentLight: true,
+        transition: function() {
+          return routerSvc.transitionTo('user.board-alt', userName, boardname);
+        }
+      });
     },
 
     toggle_board_collapsed: function() {
       this.toggleProperty('board_collapsed');
     },
 
+    /* Edit-panel Board Actions section toggle. On the COLLAPSED rail
+       (auto-engaged at viewports <1024px — see
+       `_auto_collapse_panels_on_edit_at_narrow` and the resize handler
+       around line 4214) the section's content (`.md-board-edit-panel__collapse`)
+       is hidden by `display: none !important` in app.scss (~line 85200).
+       Just flipping `board_actions_collapsed` while the panel is still a
+       rail toggles invisible state — the user taps the gear icon and
+       nothing appears to happen. Mirror the right-panel pattern
+       (`toggle_right_panel_section`, line ~5641): in rail mode, expand
+       the panel AND open the section. */
     toggle_board_actions: function() {
+      if(this.get('left_panel_collapsed')) {
+        this.set('left_panel_collapsed', false);
+        this.set('board_actions_collapsed', false);
+        return;
+      }
       this.toggleProperty('board_actions_collapsed');
     },
 
@@ -5145,6 +5341,53 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    /* My Board Collection — the inline replacement for the prior
+       My Boards + Find Boards rows. Sets `board_collection_open` so
+       the options-menu template swaps its section list for the
+       <BoardCollection /> component, and collapses the Board
+       submenu since we're taking over its surface anyway. */
+    open_board_collection: function() {
+      this.set('board_submenu_open', false);
+      this.set('board_collection_open', true);
+    },
+
+    /* Back action wired to the collection's header back button (and
+       to a one-step Escape press inside the collection). Returns to
+       the normal options menu without closing the dropdown itself. */
+    close_board_collection: function() {
+      this.set('board_collection_open', false);
+    },
+
+    /* Row click inside the collection: close the menu + collection
+       first (so the dropdown isn't lingering open across the route
+       transition) and then route to the chosen board in MODERN view.
+       The codebase has two board routes:
+         - `'board'` (splat /*key)         — the CLASSIC view
+         - `'user.board-detail'` (2 parts) — the MODERN view
+       Modern is what every other in-app navigation uses (see
+       board-detail.js:4524, 4535, 4549, 5272 — all use the
+       `(user_name, boardname)` form). Board keys are shaped
+       `<user_name>/<board_slug>`; split on the FIRST `/` and pass
+       both pieces. Anything after the first `/` rejoins so multi-
+       segment slugs survive (e.g. `quick-core-112/categories/food`). */
+    select_board_from_collection: function(board) {
+      if(!board) { return; }
+      var key = (board.get && board.get('key')) || board.key;
+      this.set('board_collection_open', false);
+      this.set('show_options_menu', false);
+      if(key && this.router) {
+        var parts = key.split('/');
+        if(parts.length >= 2) {
+          this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        } else {
+          /* Defensive fallback: keys SHOULD always be `<user>/<slug>`,
+             but if somehow not, fall back to the classic splat route
+             rather than hard-failing the transition. */
+          this.router.transitionTo('board', key);
+        }
+      }
+    },
+
     // ── Button Interaction ──
 
     // Keyboard activation for symbol grid cards. The cards are
@@ -5407,6 +5650,9 @@ export default Controller.extend(prefClasses, {
     },
 
     open_speak_menu: function() {
+      // Close the immersive quick-actions popover if it routed us here
+      // ("More"); no-op in the normal layout where it's already closed.
+      this.set('quick_actions_open', false);
       modal.open('speak-menu', { inactivity_timeout: true, scannable: true });
     },
 
@@ -5484,6 +5730,41 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // ── Portrait orientation overlay actions ──
+    // "Rotate Device" CTA. Web can't force rotation, so this is a
+    // best-effort orientation lock (supported on some mobile/Cordova
+    // builds) wrapped in try/catch; either way the overlay auto-retires
+    // the moment the viewport actually becomes landscape (the matchMedia
+    // listener flips `viewport_narrow`), so the button never hard-blocks.
+    request_landscape: function() {
+      try {
+        var orientation = (typeof window !== 'undefined' && window.screen && window.screen.orientation) || null;
+        if(orientation && typeof orientation.lock === 'function') {
+          var p = orientation.lock('landscape');
+          if(p && typeof p.catch === 'function') { p.catch(function() { /* unsupported — no-op */ }); }
+        }
+      } catch(e) { /* unsupported — the card stays up until the user rotates */ }
+    },
+
+    // "Continue Anyway" — secondary, accessibility-critical escape hatch
+    // for mounted/one-handed/non-rotatable setups. Dismisses for this
+    // board this session (reset by _reset_portrait_overlay_on_board_change).
+    // The board then renders at its natural scale; CSS grid preserves
+    // rows/columns/spacing and never reflows.
+    dismiss_portrait_overlay: function() {
+      this.set('portrait_overlay_dismissed', true);
+    },
+
+    // Down-arrow chevron in the immersive sentence bar toggles the
+    // consolidated mic/backspace/clear quick-actions popover.
+    toggle_quick_actions: function() {
+      this.set('quick_actions_open', !this.get('quick_actions_open'));
+    },
+
+    close_quick_actions: function() {
+      this.set('quick_actions_open', false);
+    },
+
     // ── Navigation ──
 
     set_category: function(category_id) {
@@ -5492,8 +5773,19 @@ export default Controller.extend(prefClasses, {
       this._apply_category_filter(category_id);
     },
 
-    /* Edit-panel: toggle the "Filter by Category" expander. */
+    /* Edit-panel "Filter by Category" expander. Same rail-mode gotcha
+       as `toggle_board_actions` above: the expander's body
+       (`.md-board-edit-panel__filter-list`) is hidden by
+       `display: none !important` when the panel is in rail mode (~app.scss
+       line 85200), so simply flipping `panel_filter_open` does nothing
+       visible. Expand the panel first when collapsed, then open the
+       filter list. Matches the right-panel pattern. */
     toggle_panel_filter: function() {
+      if(this.get('left_panel_collapsed')) {
+        this.set('left_panel_collapsed', false);
+        this.set('panel_filter_open', true);
+        return;
+      }
       this.toggleProperty('panel_filter_open');
     },
 
@@ -5726,6 +6018,18 @@ export default Controller.extend(prefClasses, {
         return;
       }
       this.toggleProperty('inlineSidebarOpen');
+    },
+    // Pin / unpin the inline sidebar open. Delegates to the application
+    // controller's existing `stickSidebar` primitive so the pinned state
+    // lives in ONE place — the persistent `quick_sidebar` preference shared
+    // with the app-level sidebar (board-alt / main board route). When
+    // quick_sidebar flips on, syncInlineSidebarOnPrefChange re-opens this
+    // sidebar and _maybeCloseInlineSidebarAfterAction keeps it open after jumps.
+    pinInlineSidebar: function() {
+      var appController = this._sidebarAppController();
+      if(appController && typeof appController.send === 'function') {
+        appController.send('stickSidebar');
+      }
     },
     sidebar_jump: function(key, board) {
       if(!key) { return; }

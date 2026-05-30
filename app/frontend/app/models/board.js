@@ -176,7 +176,7 @@ LingoLinq.Board = DS.Model.extend({
   definitely_in_use: computed('non_author_uses', 'stars', function() {
     return this.get('non_author_uses') > 0 || this.get('stars') > 0;
   }),
-  fallback_image_url: "https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png",
+  fallback_image_url: "/images/lingolinq-board-icon.png",
   key_placeholder: computed('name', function() {
     var key = (this.get('name') || "my-board").replace(/^\s+/, '').replace(/\s+$/, '');
     var ref = key;

@@ -583,7 +583,17 @@ export default Service.extend({
         }
       }, 10);
     });
-    $('#loading_box').remove();
+    // Cross-fade the bootstrap skeleton (boards/index.html.erb) into
+    // the real Ember UI rather than ripping it out. The skeleton has
+    // `transition: opacity 0.32s` and styles the `.is-fading` class
+    // to opacity:0, so adding the class + delaying remove() gives a
+    // smooth handoff. Matches the cross-fade pattern in NN/g + Material
+    // 2026 skeleton guidance.
+    var $loadingBox = $('#loading_box');
+    if($loadingBox.length) {
+      $loadingBox.addClass('is-fading');
+      setTimeout(function() { $loadingBox.remove(); }, 400);
+    }
     $("body").removeClass('pretty_loader');
   },
   refresh_user: function() {

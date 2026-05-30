@@ -7,6 +7,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { later as runLater } from '@ember/runloop';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -280,13 +281,37 @@ export default Component.extend({
         var key = board_record.get ? board_record.get('key') : board_record.key;
         var parts = key ? key.split('/') : [];
         if(parts.length === 2) {
-          _this.router.transitionTo('user.board-detail', parts[0], parts[1]);
+          // Card click → board-detail. Paint the shared "Preparing your
+          // Board" overlay (same one Classic ↔ Modern uses) so the
+          // route load is masked instead of flashing source-page chrome.
+          // Theme detection mirrors go_to_modern: default dark, flip to
+          // light only on an explicit non-dark themeMode signal.
+          var routerSvc = _this.router;
+          var appStateService = _this.appState;
+          var isDark = true;
+          if (appStateService && typeof appStateService.get === 'function') {
+            var themeMode = appStateService.get('themeMode');
+            if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+              isDark = false;
+            }
+          }
+          paint_view_switch_overlay({
+            routerSvc: routerSvc,
+            isDark: isDark,
+            accentLight: false,
+            transition: function() {
+              return routerSvc.transitionTo('user.board-detail', parts[0], parts[1]);
+            }
+          });
         } else {
           var id = board_record.get ? board_record.get('id') : board_record.id;
           var opts = {force_board_state: {key: key, id: id}};
           if(_this.get('localized')) {
             opts.force_board_state.locale = board_record.get ? board_record.get('localized_locale') : board_record.localized_locale;
           }
+          // Keyed-board path is an in-app state flip via
+          // home_in_speak_mode, not a route load — no overlay (it would
+          // just flash and dismiss with nothing to mask).
           _this.appState.home_in_speak_mode(opts);
         }
       }

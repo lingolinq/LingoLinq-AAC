@@ -11,6 +11,7 @@ import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
@@ -1326,84 +1327,35 @@ export default Controller.extend(prefClasses, {
       // Anti-flash: board-detail's route model hook does an async /tree
       // fetch on cache-miss, and Ember keeps THIS classic route rendered
       // until it resolves — that's the visible flash of stale content.
-      // Reuse the exact mechanism login uses (login-form.js
-      // login_success / _login_dispatch_after_wait): a full-screen
-      // overlay appended to document.body (OUTSIDE the Ember outlet so
-      // it survives the transition), removed only after the destination
-      // route has settled (routeDidChange quiet for 150ms) and painted
-      // (2x rAF). Same #ll-pre-reload-overlay id + .ll-loading-overlay
-      // markup so the styling matches the login flow exactly.
-      var _this = this;
+      // We mask the flash with the shared view-switch overlay (see
+      // utils/view_switch_overlay.js for full DOM + lifecycle notes).
+      //
+      // Theme detection: the destination (board-detail) defaults to
+      // `dark_mode: true` (see controllers/user/board-detail.js:319), so
+      // most users land on the dark variant unless they've explicitly
+      // toggled to light. Assume dark and only flip to light when
+      // appState gives us an EXPLICIT non-dark theme signal.
       var routerSvc = this.get('router');
-      if(typeof document !== 'undefined' && document.body && !document.getElementById('ll-pre-reload-overlay')) {
-        var overlay = document.createElement('div');
-        overlay.id = 'll-pre-reload-overlay';
-        overlay.className = 'll-loading-overlay';
-        overlay.setAttribute('role', 'status');
-        overlay.setAttribute('aria-live', 'polite');
-        overlay.setAttribute('aria-busy', 'true');
-        overlay.style.zIndex = '2147483646';
-        var card = document.createElement('div');
-        card.className = 'll-loading-overlay__card';
-        var spinner = document.createElement('div');
-        spinner.className = 'll-loading-overlay__spinner';
-        spinner.setAttribute('aria-hidden', 'true');
-        var msg = document.createElement('p');
-        msg.className = 'll-loading-overlay__message';
-        msg.textContent = i18n.t('loading', "Loading...");
-        card.appendChild(spinner);
-        card.appendChild(msg);
-        overlay.appendChild(card);
-        document.body.appendChild(overlay);
-      }
-      var removeOverlay = function() {
-        try {
-          var ov = document.getElementById('ll-pre-reload-overlay');
-          if(ov && ov.parentNode) { ov.parentNode.removeChild(ov); }
-        } catch(e) { /* DOM may be unavailable; ignore */ }
-      };
-      var pending = null;
-      var safetyTimer = null;
-      var listenerCleanedUp = false;
-      var cleanup = function() {
-        if(listenerCleanedUp) { return; }
-        listenerCleanedUp = true;
-        try { routerSvc.off('routeDidChange', onRouteDidChange); } catch(e) {}
-        if(pending) { try { cancelLater(pending); } catch(e) {} pending = null; }
-        if(safetyTimer) { try { cancelLater(safetyTimer); } catch(e) {} safetyTimer = null; }
-      };
-      var dismiss = function() {
-        cleanup();
-        var raf = window.requestAnimationFrame;
-        if(typeof raf === 'function') {
-          raf(function() { raf(function() { removeOverlay(); }); });
-        } else {
-          removeOverlay();
+      var appStateService = this.get('appState');
+      var isDark = true;
+      if (appStateService && typeof appStateService.get === 'function') {
+        var themeMode = appStateService.get('themeMode');
+        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+          isDark = false;
         }
-      };
-      var onRouteDidChange = function() {
-        if(listenerCleanedUp) { return; }
-        if(pending) { try { cancelLater(pending); } catch(e) {} }
-        pending = runLater(dismiss, 150);
-      };
-      routerSvc.on('routeDidChange', onRouteDidChange);
-      // Safety net: never trap the user behind the overlay if
-      // routeDidChange somehow never fires.
-      safetyTimer = runLater(dismiss, 8000);
-      var promise = routerSvc.transitionTo('user.board-detail', user_name, boardname);
-      if(promise && typeof promise.then === 'function') {
-        promise.then(null, function(err) {
-          // TransitionAborted is expected if a nested redirect occurs;
-          // routeDidChange still fires for the final route and dismisses.
-          var errName = err && (err.name || (err.constructor && err.constructor.name));
-          var errMsg = err && err.message;
-          var isAborted = errName === 'TransitionAborted' ||
-            (errMsg && /TransitionAborted|transition.*aborted/i.test(errMsg));
-          if(isAborted) { return; }
-          // Real failure: don't strand the user behind the overlay.
-          dismiss();
-        });
       }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        // Classic → Modern: keep the accent at its default (heavy)
+        // weight. The Modern → Classic direction in
+        // controllers/user/board-detail.js#go_to_classic sets
+        // accentLight:true to render the parenthetical lighter.
+        accentLight: false,
+        transition: function() {
+          return routerSvc.transitionTo('user.board-detail', user_name, boardname);
+        }
+      });
     },
 
     toggleBoardMenu: function() {

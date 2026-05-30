@@ -4,9 +4,11 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 
 export default Component.extend({
   appState: service('app-state'),
+  router: service('router'),
   willInsertElement: function() {
     this.set('include_canvas', window.outerWidth > 800);
     this.set('app_state', this.appState);
@@ -149,11 +151,36 @@ export default Component.extend({
       this.appState.set('referenced_board', {id: this.get('model.id'), key: this.get('model.key'), locale: this.get('locale')});
       var key = this.get('model.key');
       var parts = key ? key.split('/') : [];
-      if(parts.length === 2) {
-        this.appState.controller.transitionToRoute('user.board-detail', parts[0], parts[1]);
-      } else {
-        this.appState.controller.transitionToRoute('board', key);
+      // Both branches navigate to a board route that does an async
+      // load — mask with the shared "Preparing your Board" overlay so
+      // the modal close → route load gap doesn't flash stale chrome.
+      // Theme detection mirrors go_to_modern: default dark, flip to
+      // light only on explicit non-dark themeMode.
+      var routerSvc = this.get('router');
+      var appStateService = this.appState;
+      var appController = appStateService.controller;
+      var isDark = true;
+      if (appStateService && typeof appStateService.get === 'function') {
+        var themeMode = appStateService.get('themeMode');
+        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+          isDark = false;
+        }
       }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        accentLight: false,
+        transition: function() {
+          // transitionToRoute (Route helper) returns a Transition like
+          // router.transitionTo does, so the overlay's promise chain
+          // still works.
+          if(parts.length === 2) {
+            return appController.transitionToRoute('user.board-detail', parts[0], parts[1]);
+          } else {
+            return appController.transitionToRoute('board', key);
+          }
+        }
+      });
     },
     copy: function() {
       var _this = this;

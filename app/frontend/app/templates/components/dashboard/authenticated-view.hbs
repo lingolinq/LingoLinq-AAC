@@ -92,7 +92,14 @@
       {{/if}}
       --}}
       {{#if this.appState.currentUser.supporter_role}}
-      <div class="md-card md-card--caseload">
+      {{!-- My Caseload renders two sibling variants; the CSS @media rules in
+           app.scss show exactly one per viewport. >1024px: the wide card with
+           a separate "Manage" button (--caseload-wide-only). ≤1024px: the whole
+           card is the action target, styled as a raised button
+           (--caseload-as-button --caseload-narrow-only). Action/i18n keys are
+           duplicated across the two branches but the markup is otherwise
+           identical; the SVG/title/sub stay in lockstep. --}}
+      <div class="md-card md-card--caseload md-card--caseload-wide-only">
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
@@ -104,15 +111,25 @@
         </div>
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
       </div>
+      <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-as-button md-card--caseload-narrow-only" aria-label={{t "My Caseload" key="my_caseload"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#2A9D8F"/><circle cx="9" cy="7" r="4" stroke="#2A9D8F"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "My Caseload" key="my_caseload"}}</h3>
+            <div class="md-card__sub">{{t "View and manage your communicators" key="view_manage_communicators"}}</div>
+          </div>
+        </div>
+      </LinkTo>
       {{/if}}
-      {{!-- Speak Mode card mirrors the My Caseload card's single-row
-           layout: head on the left, action button on the right, no
-           internal divider. The legacy `md-card__row` wrapper and the
-           "Last board" chip (already disabled) lived in their own
-           second row; with the button hoisted up as a direct sibling of
-           __head, the card is now one row driven by the flex rules on
-           `.md-grid .md-card.md-card--speak` in app.scss. --}}
-      <article class="md-card md-card--speak" aria-label={{t "Speak Mode" key="speak_mode"}}>
+      {{!-- Speak Mode mirrors My Caseload: two sibling variants, CSS @media
+           rules show exactly one per viewport. >1024px: the wide card with a
+           separate "Continue Speaking" button (--speak-wide-only). ≤1024px: the
+           whole card is the action button (--speak-as-button
+           --speak-narrow-only). Single-row layout (head left, button right) is
+           driven by the flex rules on `.md-grid .md-card.md-card--speak`. --}}
+      <article class="md-card md-card--speak md-card--speak-wide-only" aria-label={{t "Speak Mode" key="speak_mode"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
@@ -127,18 +144,30 @@
         </button>
         <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
       </article>
+      <button type="button" class="md-card md-card--speak md-card--speak-as-button md-card--speak-narrow-only" aria-label={{t "Speak Mode" key="speak_mode"}} {{action "go" "speak"}}>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--speak" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" stroke="#4C86D8"/><path d="M19 10v1a7 7 0 0 1-14 0v-1" stroke="#46505F"/><path d="M12 18v3" stroke="#46505F"/><path d="M8 21h8" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
+            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}}</h3>
+            <div class="md-card__sub">{{t "Start communication" key="start_communication"}}</div>
+          </div>
+        </div>
+        <div class="md-card__bg md-card__bg--wave" aria-hidden="true"></div>
+      </button>
 
       <article class="md-card md-card--extras" aria-label={{t "Extras" key="extras"}}>
-        <div class="md-card__head md-card__head--between">
-          <div>
+        <div class="md-card__head">
+          <div class="md-card__icon md-card__icon--extras" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
+          </div>
+          <div class="md-card__titles">
             <h3 class="md-card__title">{{t "Extras" key="extras"}}</h3>
             <div class="md-card__sub">{{t "Games & Resources" key="games_and_resources"}}</div>
           </div>
         </div>
         <div class="md-extrasRow">
-          <div class="md-extrasIcon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#4C86D8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/></svg>
-          </div>
           <button type="button" class="md-btn md-btn--primary" {{action "goTab" "extras"}}>
             {{t "Explore Extras" key="explore_extras"}}
           </button>
@@ -170,7 +199,7 @@
       <article class="md-card md-card--boards" aria-label={{t "Boards" key="boards"}}>
         <div class="md-card__head md-card__head--between">
           <div class="md-card__left">
-            <h3 class="md-card__title">{{t "Boards" key="boards"}}</h3>
+            <h3 class="md-card__title">{{t "Boards" key="boards"}} <span class="md-card__title-accent--verdigris">{{t "(Page-sets)" key="page_sets_parenthetical"}}</span></h3>
             <div class="md-card__sub">{{t "Manage your boards" key="manage_your_boards"}}</div>
           </div>
           <button type="button" class="md-btn md-btn--primary md-btn--pill" {{action "openNewBoardOnBoards"}}>{{t "New Board" key="new_board"}}</button>

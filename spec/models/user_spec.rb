@@ -2027,7 +2027,7 @@ describe User, :type => :model do
         'key' => b.key,
         'home_lock' => false,
         'locale' => 'en',
-        'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'
+        'image' => Board::DEFAULT_ICON
       })
     end
 

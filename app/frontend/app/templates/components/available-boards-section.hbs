@@ -476,7 +476,8 @@
               </svg>
             </span>
             {{t "BOARDS" key="boards_upper"}}
-            {{#if this.boardsCtrl.model.my_boards.done}}
+          </span>
+          {{#if this.boardsCtrl.model.my_boards.done}}
               {{!-- Dual-stat split: "in folders" + "in this section".
                    Replaces the single ambiguous total chip — that
                    number didn't match the visible tile count
@@ -487,7 +488,12 @@
                    substats always sum to the total root count. The
                    in-folders pill is only rendered when there's
                    actually something in folders, so a clean
-                   no-folders user just sees the unfiled count. --}}
+                   no-folders user just sees the unfiled count.
+                   Moved out of the title span so it becomes a
+                   sibling at the header level — at narrow widths
+                   the header's flex-column layout (in app.scss)
+                   can now place it on its own row below the title
+                   instead of having it ride inside the title. --}}
               <span class="ub-boards-page__boards-summary-stats" aria-label={{t "Board count" key="board_count"}}>
                 {{#if this.boardsCtrl.myBoardsInFoldersCount}}
                   <span class="ub-boards-page__boards-summary-stat ub-boards-page__boards-summary-stat--in-folders">
@@ -539,7 +545,6 @@
                 {{/if}}
               </span>
             {{/if}}
-          </span>
           <button type="button"
             class="ub-boards-page__set-home-btn ub-boards-page__set-home-btn--in-header {{if this.boardsCtrl.selectingHome 'ub-boards-page__set-home-btn--active'}}"
             {{action "toggleSetHomeMode" target=this.boardsCtrl}}
@@ -589,6 +594,34 @@
              the tab strip extends across the full row (including the
              button area), not just under the tabs. --}}
         <div class="ub-boards-page__tabs-row">
+        {{!-- ≤640px collapsed picker — native <select> for OS-native
+             mobile UX (single accessible source of truth, no custom
+             toggle JS). Shown only at ≤640px via the matching CSS
+             rule (`.ub-boards-page__tabs-mobile-select` block in
+             app.scss); the styled .ub-boards-page__tabs pill row
+             below hides at the same breakpoint. Same actions, same
+             set_selected target — pure presentational alternative. --}}
+        <select class="ub-boards-page__tabs-mobile-select" onchange={{action "set_selected" target=this.boardsCtrl value="target.value"}} aria-label={{t "Boards section" key="boards_section_picker"}}>
+          {{#if this.boardsCtrl.model.permissions.edit}}
+            <option value="mine" selected={{this.boardsCtrl.mine_selected}}>{{t "My Boards" key="my_boards"}}</option>
+          {{else if this.boardsCtrl.model.permissions.model}}
+            <option value="mine" selected={{this.boardsCtrl.mine_selected}}>{{t "My Boards" key="my_boards"}}</option>
+          {{/if}}
+          {{#unless this.appState.currentUser.modeling_only}}
+            <option value="public" selected={{this.boardsCtrl.public_selected}}>{{t "Public Boards" key="public_boards"}}</option>
+            {{#if this.boardsCtrl.model.permissions.model}}
+              <option value="root">{{t "Root" key="root"}}</option>
+              <option value="starred">{{t "Liked" key="starred"}}</option>
+              {{#if this.boardsCtrl.model.permissions.edit}}
+                <option value="shared">{{t "Shared with Me" key="shared_with_me"}}</option>
+                <option value="private">{{t "Private" key="private"}}</option>
+              {{/if}}
+              {{#if this.boardsCtrl.model.prior_home_boards}}
+                <option value="prior_home">{{t "Prior Home Boards" key="prior_home"}}</option>
+              {{/if}}
+            {{/if}}
+          {{/unless}}
+        </select>
         <ul class="ub-boards-page__tabs ub-boards-page__tabs--boards" role="tablist">
           {{#if this.boardsCtrl.model.permissions.edit}}
             <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{action "set_selected" "mine" target=this.boardsCtrl}}>{{t "My Boards" key="my_boards"}}</a></li>

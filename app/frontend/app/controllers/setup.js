@@ -975,6 +975,65 @@ export default Controller.extend({
         this.appState.controller.send('setup_go', 'forward');
       }
     },
+    // One-tap convenience on the Board Category page: find the public
+    // "Vocal Flair 84" catalog board and set it as the user's home board.
+    // Resolved by name search (not a hardcoded key) so it works whether
+    // the catalog is owned by `lingolinq` (prod) or
+    // `sampleorganization_user_1` (dev seed). Prefers the exact root slug
+    // over the `-with-keyboard` / `-categories-*` sub-board variants.
+    assign_default_home_board: function() {
+      var _this = this;
+      var user = this.get('setup_user');
+      if(!user || !user.save) {
+        modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+        return;
+      }
+      this.set('assigning_home_board', true);
+      LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
+        var list = (results && results.toArray) ? results.toArray() : (results || []);
+        var pick = function(re) {
+          for(var i = 0; i < list.length; i++) {
+            if(re.test((list[i].get('key') || ''))) { return list[i]; }
+          }
+          return null;
+        };
+        var board = pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
+        if(!board) {
+          _this.set('assigning_home_board', false);
+          modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
+          return;
+        }
+        user.set('preferences.home_board', {
+          id: board.get('id'),
+          key: board.get('key'),
+          locale: _this.appState.get('label_locale')
+        });
+        user.save().then(function() {
+          if(_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
+            _this.get('persistence').sync('self', null, null, 'home_board_changed').then(null, function() { });
+          }
+          _this.appState.return_to_index();
+        }, function() {
+          _this.set('assigning_home_board', false);
+          modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+        });
+      }, function() {
+        _this.set('assigning_home_board', false);
+        modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
+      });
+    },
+    // Mirrors the home page's "New Board" button (dashboard
+    // openNewBoardOnBoards): purchase check, then route to the modern
+    // create-board flow.
+    create_new_board: function() {
+      var _this = this;
+      var go = function() { _this.get('router').transitionTo('create-board-new'); };
+      if(_this.appState && _this.appState.check_for_needing_purchase) {
+        _this.appState.check_for_needing_purchase().then(go, go);
+      } else {
+        go();
+      }
+    },
     show_more_symbols: function() {
       this.set('showing_more_symbols', true);
     }

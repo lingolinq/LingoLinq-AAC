@@ -133,15 +133,18 @@
   {{/unless}}
 </div>
 {{!-- Loading overlay — fires when EITHER the corner "i" info button
-     OR the bottom-center Preview button is clicked. Matches the
-     global `.ll-loading-overlay` chrome used elsewhere (spinner +
-     card + message). position:fixed so the overlay covers the
-     viewport regardless of where this component is rendered. --}}
+     OR the bottom-center Preview button is clicked. Uses the shared
+     `.ll-premium-progress` chrome (same card as the bootstrap
+     skeleton + index-loading template) so this loader is visually
+     continuous with every other "Preparing your workspace" state.
+     position:fixed so the overlay covers the viewport regardless
+     of where this component is rendered. --}}
 {{#if this.loadingPreview}}
-  <div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
-    <div class="ll-loading-overlay__card">
-      <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
-      <p class="ll-loading-overlay__message">{{t "Loading Board Preview..." key="loading_board_preview"}}</p>
+  <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-premium-progress__card">
+      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+      <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview"}}</p>
+      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
     </div>
   </div>
 {{/if}}

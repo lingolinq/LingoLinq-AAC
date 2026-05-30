@@ -59,9 +59,21 @@ file (see [README.md](README.md)).
 - [Pattern: `/api/v1/boards?user_id=X` returns every owned board including sub-board copies — visible-tile counts need root clustering](#pattern-apiv1boardsuser_idx-returns-every-owned-board-including-sub-board-copies--visible-tile-counts-need-root-clustering)
 - [Pattern: create-board-new preview URLs stripped by process_buttons whitelist](#pattern-create-board-new-preview-urls-stripped-by-process_buttons-whitelist)
 - [Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize](#pattern-opensymbols-search-returns-nested-license-objects--pick_preview-must-normalize)
+- [Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it](#pattern-speaklight-surface-overrides-shadow-speaklight-from-the-base--delete-the-override-dont-fork-it)
+- [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
+- [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 
 ---
+- [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
+- [Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)](#pattern-viewport-conditional-board-detail-ui-orientation-gate--immersive-tool-consolidation)
+- [Pattern: Dashboard card order is driven by grid-template-areas per breakpoint × variant — reorder there, never the DOM](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom)
+- [Pattern: board-picker is shared (setup + /search/home); reusing boards-page tab classes hits a ≤640px hide rule](#pattern-board-picker-is-shared-setup--searchhome-reusing-boards-page-tab-classes-hits-a-640px-hide-rule)
+- [Pattern: dual wide-only/narrow-only markups share a base class — `querySelector(base)` grabs the hidden one](#pattern-dual-wide-onlynarrow-only-markups-share-a-base-class--querySelectorbase-grabs-the-hidden-one)
+- [Pattern: sidebar "pin open" state lives in the `quick_sidebar` pref via `stickSidebar` — reuse it, don't add a second flag](#pattern-sidebar-pin-open-state-lives-in-the-quick_sidebar-pref-via-sticksidebar--reuse-it-dont-add-a-second-flag)
+- [Pattern: async store/query callbacks must guard `isDestroyed`/`isDestroying` before `set`](#pattern-async-storequery-callbacks-must-guard-isdestroyedisdestroying-before-set)
+- [Pattern: per-element responsive show/hide rules must sit AFTER that element's base `display` rule — don't consolidate when bases are scattered](#pattern-per-element-responsive-showhide-rules-must-sit-after-that-elements-base-display-rule--dont-consolidate-when-bases-are-scattered)
+- [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
 
 ## Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children
 
@@ -2069,6 +2081,396 @@ query.
 **Fix recipe:** When `options.image` and `image_id` are both supplied, apply `image` + URL fields first, then set `image_id` last. Clear `image_url` when swapping images. In `load_image`, prefer an already-assigned image record for the requested id; do not reuse `button.image_url` when a populated `board.image_urls` map lacks that id.
 
 **Evidence:** `app/frontend/app/utils/edit_manager.js`, `app/frontend/app/utils/button.js`, `app/frontend/tests/utils/edit_manager-test.js`; commit `770a8c624`. Task log (local): `2026-05-27-button-image-use-this.md`.
+
+---
+
+## Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it
+
+**Surface:** `app.scss` selectors of the form
+`.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) <thing>`.
+There's exactly one block of these (~app.scss:62329) and it owns the page-shell, the center stage, the tile drop-shadow, and the right-panel chrome for speak+light.
+
+**Symptom:** Design direction flips (e.g. "speak+light should mirror edit+light, not edit+dark"). The temptation is to add a new override on top, or duplicate it under a `.md-board-detail--mirror-edit` class — both leave the old rules live and create a competing-cascade footgun.
+
+**Root cause:** The base rules at `.md-shell--board-detail` (~58778), `.md-board-detail-main` (~59209), `.md-board-detail-right-panel` (~68112), and the base symbol-card shadow already deliver the edit+light look — `edit+light` has *no* overrides on those selectors. Speak+light's overrides were the only thing making it differ.
+
+**Fix recipe:** When mirroring edit+light from speak+light (or vice-versa), DELETE the page/main/tile/right-panel speak-light overrides in that block instead of forking. The remaining overrides — `.md-board-detail-sentence-bar`, `.md-board-detail-home-btn`, `.md-board-detail-sentence-bar__tool-btn`, `.md-board-detail-actions-toggle`, `.md-board-detail-sidebar-toggle--stacked` — are the ones whose BASE assumes a dark canvas (white text, frosted gray-blue / solid blue-grey). Rewrite those in place using the same translucent-white frosted-glass formula `.md-board-edit-panel` uses (`linear-gradient(180deg, rgba(255,255,255,0.78) → rgba(241,244,248,0.78)) + backdrop-blur(12px) saturate(140%) + layered $la-navy shadows + inset white top highlight`). That keeps the compose row reading as the speak-mode mirror of the edit-page rails.
+
+**Evidence:** `app/frontend/app/styles/app.scss` block @ 62329. Task log (local): `2026-05-28-board-detail-speak-light-mirror-edit-light.md`.
+
+---
+
+## Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy
+
+**Surface:** the `#ll-pre-reload-overlay` paint that masks the brief route flash when toggling between the Classic (board-alt) view and the Modern (board-detail) view. Originally inline in `controllers/board/index.js#go_to_modern` (~200 lines: DOM construction + theme detection + routeDidChange listener + safety timer + rAF-deferred transition).
+
+**Symptom:** When the inverse direction (Modern → Classic, `controllers/user/board-detail.js#go_to_classic`) needs the same overlay, the obvious move is to copy the whole block over. That doubles the maintenance footprint and the prior race-fix comment (`animation: fade-in 180ms` → "paint at full opacity, defer transition by 1 rAF") shows this overlay has already been broken once by a subtle paint-timing bug — a second copy is a second time-bomb.
+
+**Root cause:** The overlay's lifecycle is identical regardless of direction; only the visual accent differs (parenthetical font-weight). Inlining ties one direction's overlay to its controller and forces parallel evolution.
+
+**Fix recipe:** Extract to `app/frontend/app/utils/view_switch_overlay.js`. Single `default export` that takes `{ routerSvc, transition, isDark, accentLight }` and owns the entire overlay lifecycle. Each controller becomes a 10-line call site. Per-direction visual tweaks ride on modifier classes on the card (e.g. `--accent-light`); the CSS modifier sits in-place next to the existing accent rule at `app.scss:80157` (don't fork a separate scoped block). Theme detection (`themeMode` → `isDark`) stays in the controllers since they already have appState in scope.
+
+**Evidence:** `app/frontend/app/utils/view_switch_overlay.js` (new), `app/frontend/app/controllers/board/index.js` (refactor), `app/frontend/app/controllers/user/board-detail.js` (added overlay call), `app/frontend/app/styles/app.scss:80157` (accent-light modifier added in place). Task log (local): `2026-05-28-view-switch-overlay-shared-classic-direction.md`.
+
+---
+
+## Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates
+
+**Surface:** any page that renders board cards via the `board-icon` component (boards index, dashboard, My Boards picker, right-panel sub-boards, search results, find-a-board, copy-board target picker, etc.).
+
+**Symptom:** "Apply X to every board-card click" sounds like it needs a sweep across many call sites; in practice it's two well-defined ones, and wrapping the wrong ones breaks selection-only flows (copy-board, find-a-board for button targets).
+
+**Root cause:** `board-icon.js#pick_board` (lines ~225-292) has 7 branches:
+- `noop` — early return
+- `onActionOverride` (caller-supplied fn) — delegated, may or may not navigate
+- `action_override` (template attr → action) — delegated
+- `onAction` (caller-supplied fn) — delegated (selection flows live here)
+- `children` cluster → `triggerExternalAction('action', ...)` — delegated to parent (drill-in)
+- `option == 'select'` → opens preview modal — navigation happens later in the modal's `visit` action
+- `allow_style && override_count` → opens preview modal — same
+- **Default (lines 279-291):** `router.transitionTo('user.board-detail', parts[0], parts[1])` for `parts.length === 2`, else `appState.home_in_speak_mode(opts)` (in-app state flip, NOT a route load).
+
+The preview-modal "Open" lives at `board-preview.js#visit` and always calls `transitionToRoute(...)` after setting `referenced_board`.
+
+**Fix recipe:** When applying a navigation-time effect (e.g. the shared `paint_view_switch_overlay`) to "every board-card click", wrap exactly these two:
+- `board-icon.js#pick_board` default branch's `parts.length === 2` arm.
+- `board-preview.js#visit` (both arms).
+
+DO NOT wrap the delegated branches (`onAction`, `onActionOverride`, etc.) — they may not navigate at all (selection-only flows). DO NOT wrap the keyed `home_in_speak_mode` arm — it's an in-app state flip, not a route load. The card-driven UI surface is wider than these two points, but every other UI funnels through them.
+
+board-preview.js doesn't inject the router service by default — add `router: service('router')` alongside the existing `appState` injection so the overlay can attach `routeDidChange` for graceful dismissal (the appState controller's `transitionToRoute` is a Route helper, not a Router service).
+
+**Evidence:** `app/frontend/app/components/board-icon.js#pick_board`, `app/frontend/app/components/board-preview.js#visit`. Task log (local): `2026-05-28-board-card-click-loading-overlay.md`.
+
+## Pattern: ember-shepherd tour chrome and scoped overlay blur
+
+The home tour is **Shepherd.js 14.5.1** (via `ember-shepherd`). Key facts
+for restyling it (`components/home-tour.js` + the `.shepherd-*` /
+`.md-tour__*` block in `app.scss`, ~89778+):
+
+- **`title` and `text` are rendered with `innerHTML`** (a step's `text`
+  may also be a function returning an `HTMLElement`). So tutorial chrome
+  that has no template — an eyebrow identity pill, etc. — is injected as
+  an HTML string from JS (`_decoratedTitle()`), not from a `.hbs`. The
+  strings come from i18n only (no user input), so there is no XSS
+  surface. Shepherd portals popovers + the overlay into `<body>`, so the
+  component template is just the trigger.
+- **Per-step decoration goes through `defaultStepOptions.when.show`**
+  (steps don't set their own `when`, so the default applies to all). The
+  handler runs with `this` = the Step; use `step.el`, `step.tour.steps`,
+  `step.options.attachTo`. That's where the progress dots are painted
+  (`_renderTourProgress`, derived live from `tour.steps` so supporter-/
+  org-gated steps stay counted correctly).
+- **Overlay = an SVG `<path>` (default black fill) dimmed by the
+  container's `opacity`.** Tint it by overriding `fill` on the path
+  (genuinely new rule — the element ships with no fill). A spotlight
+  *hole* is cut on attached steps; `backdrop-filter` on the SVG box
+  blurs the WHOLE viewport including that hole, defeating the spotlight.
+  Fix: toggle a `body.md-tour--centered-step` class from the `show` hook
+  for intro/outro (no `attachTo`) steps and scope the blur to that class
+  — attached steps keep a crisp spotlight (RULE #0.3).
+- **CTA contrast (AAC = no compromise):** white text on a premium-looking
+  *light* lavender-denim gradient is marginal (~2.8:1) and even deepened
+  white-on-denim only reaches AA (~4.77:1 at `#4A6BCB`). Durable rule:
+  **keep navy text and make the gradient light** — a darkest stop around
+  `#C5D6F2` (the legacy `rgba(dusty-denim,.30)` solid surface, ~#C9DAF3)
+  holds navy at ~8:1 (AAA). Gradient + inner sheen + lift supply the
+  "premium" without ever touching contrast. Don't use white text on
+  brand-colored buttons in this app.
+
+Process note: `app.scss` is ~90k lines; when the `Edit` tool fails with
+*"File has been modified since read"* (stale read-state — most often a
+SECOND concurrent Claude session editing the same file; also long tool
+delays), apply changes with a one-shot **atomic Python replace-once
+script** (require each old-block to match exactly once, abort-without-
+writing otherwise, back up first) and **delete the in-repo `.bak`** so it
+isn't committed. If two sessions must run, isolate one with
+`/gsd-new-workspace` (git worktree) so they never write the same files.
+
+Atmosphere recipe (round-2 polish that read as "premium onboarding"
+rather than "enterprise modal"): (1) **delete header/footer divider
+lines** — segment with spacing + one shared translucent glass surface,
+not borders; (2) layer a **hero glow** (top-center radial) + low-opacity
+aurora corners over a *light* white base (>=0.90) — a dim surface is
+usually too-low white opacity over the navy scrim, not the scrim itself;
+(3) **glassy translucent close chip** (frosted white + blur) instead of a
+solid grey `$surface-*` circle so it stops looking system-native; (4) a
+**tiny restrained SVG illustration** (speech bubbles/nodes) as a
+`background-image` layer with opacity baked into strokes — never
+`filter: blur` the pseudo-element that carries it (it smears the glyphs).
+
+## Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)
+
+**Surface:** `controllers/user/board-detail.js`,
+`templates/user/board-detail.hbs`, `styles/app.scss`,
+`lib/feature_flags.rb`. Feature flag `portrait_orientation_overlay`
+(2026-05-29). A landscape-orientation overlay shows at ≤640px when a
+board has >8 columns; mic/backspace/clear consolidate into the
+down-arrow chevron's popover at ≤640px in speak mode.
+
+**Reusable techniques / gotchas:**
+- **Reactive width signal:** there is NO pre-baked "≤Npx" reactive
+  property. `app_state.window_inner_width` is only `.set` from
+  `controllers/board/index.js` (the CLASSIC view), so it's stale/absent
+  on the modern board-detail page. Use the controller's own stored
+  `window.matchMedia('(max-width: Npx)')` listener instead — the
+  controller already does this for the 1024px panel auto-collapse
+  (`board-detail.js` init + willDestroy). Mirror that exact pattern:
+  store the MQL + handler on `this`, `set` a boolean, detach in
+  willDestroy (both `removeEventListener` and legacy `removeListener`).
+- **Columns per row, filled or empty:** `controller.current_grid.columns`
+  (`board-detail.js` `current_grid` = `ordered_buttons[0].length`) counts
+  grid placeholders per row, not active buttons — exactly the
+  "more than N placeholders per row" signal.
+- **Both modes share one template/root:** `md-shell--board-detail` is
+  always present; `md-shell--board-detail-edit` is the only mode
+  discriminator (`board-detail.hbs:1`). "Speak OR edit" = no extra gate;
+  "speak only" = `{{#unless this.edit_mode}}` / `!edit_mode` in a computed.
+- **Premium in-page gate, not a native popup:** a `position: fixed;
+  inset: 0` veil with `backdrop-filter: blur()` keeps the board visible-
+  but-blurred behind AND freezes interaction for free (the veil captures
+  all pointer events — no `pointer-events` plumbing on the board needed).
+  Layer it ABOVE `$aac-z-topbar` (400) since it's an intentional
+  full-viewport gate (`z-index: $aac-z-topbar + 50`), the documented
+  exception to "keep floating UI < 400".
+- **Accessibility escape hatch is mandatory for AAC:** never hard-block
+  on orientation — mounted / one-handed / non-rotatable setups exist.
+  Pair the primary CTA with a quiet text-button "Continue Anyway" that
+  dismisses (scope it "this board this session" via an `observer('model.id')`
+  reset). "Rotate Device" can't force rotation on web: best-effort
+  `screen.orientation.lock('landscape')` in try/catch + auto-retire when
+  the matchMedia listener flips back to landscape.
+- **Don't fold modern quick-actions into the legacy `speak-menu` modal**
+  (`templates/speak-menu.hbs` is Bootstrap-era chrome). Build a small
+  modern popover anchored to the chevron and keep a "More" entry →
+  `open_speak_menu` so nothing becomes unreachable (RULE #0.3). Reuse the
+  existing controller action handlers (`speak_sentence` / `backspace_sentence`
+  / `clear_sentence`) — no new logic, just a new surface.
+- **`darken()`/`lighten()` are deprecated in dart-sass; this repo's
+  convention is `color.adjust(...)` (138 uses vs ~2 darken).** Use
+  `color.adjust($c, $lightness: -5%)`. `@use "sass:color"` is already at
+  the top of `app.scss`. Verify additions with
+  `node_modules/.bin/sass --no-source-map app.scss /tmp/x.css` (compiles
+  clean = no warnings).
+- **Respect `prefers-reduced-motion`:** looping illustration animations
+  (e.g. the phone-rock) must drop to a static end-state under the
+  reduced-motion media query.
+
+## Pattern: dual wide-only/narrow-only markups share a base class — `querySelector(base)` grabs the hidden one
+
+**Surface:** the dashboard caseload + speak cards render TWO markups that
+both carry the base class — `.md-card--caseload-wide-only` AND
+`.md-card--caseload-narrow-only` (same for `--speak`). A `@media` switch
+at 1024px toggles `display` between them (app.scss ~39569-39602). Only one
+is ever visible.
+
+**Symptom:** anything that does `document.querySelector('.md-card--caseload')`
+gets the FIRST DOM match — the `-wide-only` variant — which is
+`display:none` at <=1024px. A `display:none` node has no bounding rect, so
+a Shepherd tour step attached to it flies to the top-left corner and cuts
+NO spotlight hole (the modal-overlay opening needs a real rect). Looks
+like "the tour card is mispositioned and not highlighting."
+
+**Fix:** target the VISIBLE variant by width, not the base class. In
+home-tour.js: `cardSel(base) => narrow ? base+'-narrow-only' :
+base+'-wide-only'`, used for the caseload/speak `attachTo.element`. The
+live-resize handler (`_onTourResize`) must also flip `attachTo.element`
+(not just `on`) for these dual-variant steps, else crossing 1024px
+re-attaches to the now-hidden markup. Single-markup cards
+(boards/extras/orgs) pass the base class through unchanged.
+
+**General rule:** before `querySelector(base-class)` on a dashboard card,
+check whether that card has `-wide-only`/`-narrow-only` (or any
+display-toggled) twins sharing the class. If so, qualify the selector to
+the visible one. Evidence: home-tour.js `cardSel`/`_tourStepCfg`; task log
+2026-05-29-home-tour-guided-experience-surface.md.
+
+## Pattern: Dashboard card order is driven by grid-template-areas per breakpoint × variant — reorder there, never the DOM
+
+**Surface:** `templates/components/dashboard/authenticated-view.hbs`
+(home page bento) + `styles/app.scss` `.md-grid` rules.
+
+The home dashboard cards (boards / speak / extras / org_mgmt / caseload
+/ sup / getting_started) are placed by **named `grid-template-areas`**,
+not DOM order. Each card has a fixed `grid-area:` (e.g. `.md-card--extras
+{ grid-area: extras }` ~app.scss:50024, `.md-card--org-management`
+`grid-area: org_mgmt` ~app.scss:39595). To move a card at a breakpoint,
+**edit the `grid-template-areas` strings — do NOT reorder the markup**
+(the markup feeds every breakpoint at once).
+
+Gotchas:
+- The layout is defined as a **matrix of variant modifiers ×
+  breakpoints**. Variants: `--with-org-mgmt`, `--with-caseload`,
+  `--with-getting-started` (and their combinations), plus `:has(
+  .md-supervisors-page)`. Breakpoints that each REDEFINE the areas:
+  base (desktop, >950), `@media (max-width: 950px)` (~app.scss:51890,
+  single-column / caseload 2-col), and `@media (max-width: 640px)`
+  (~app.scss:52107, caseload splits to its own rows). A change "at ≤Npx"
+  usually means editing the SAME swap in BOTH the 950 and 640 blocks for
+  every variant that contains the two cards — miss one and the order
+  reverts at that narrower width.
+- `org_mgmt` only renders with `has_management_responsibility`;
+  `getting_started` is currently disabled (computed returns false) but
+  its variants still exist in CSS — keep them consistent for when it's
+  re-enabled.
+- All `.md-grid` rules use `!important` (base rule sets it), so overrides
+  must stay within the same breakpoint/specificity, not stack.
+- `820px` / `550px` blocks only define single-area full-page views
+  (`"extras"`, `"reports"`, `"sup"` for the extras/reports/supervisor
+  tabs) — NOT the multi-card home grid. Don't confuse them.
+
+## Pattern: board-picker is shared (setup + /search/home); reusing boards-page tab classes hits a ≤640px hide rule
+
+**Surface:** `components/board-picker.{hbs,js}`, `templates/components/setup/board_category.hbs`, `templates/home-boards.hbs`, boards-page tabs in `templates/components/available-boards-section.hbs` + `app.scss`.
+
+- **`board-picker` renders on two routes**: the setup wizard's
+  board_category step AND `/search/home` (`home-boards.hbs`). Any markup
+  change to the component affects both. To change only one surface, add
+  an opt-in attribute (here `tabbed=true`, passed only from the setup
+  component) and branch in the template (`{{#if this.tabbed}}`).
+  board-picker is a classic `@ember/component`, so a passed `foo=true`
+  auto-binds to `this.foo` — no JS change needed.
+- **Setup page routing**: `controllers/setup.js` `setupComponent` maps the
+  `page` query param to `components/setup/{page}` via `{{component}}`. The
+  LIVE template is `templates/components/setup/<page>.hbs`, NOT the
+  same-named route template `templates/setup/<page>.hbs` (that one is
+  dead). Edit the component template.
+- **Shared wizard chrome**: the `<header class="md-hero md-hero--setup">`
+  in `templates/setup.hbs` is shown for every step. To drop it on one
+  step, extend its `{{#unless}}` with `(is-equal this.setupComponent
+  "setup/<page>")` — don't delete the header.
+- **Reusing the boards-page folder tabs** (`ul.ub-boards-page__tabs.ub-
+  boards-page__tabs--boards > li[.is-active] > a`): the pill/active/hover
+  rules are NOT parent-scoped, so the look transfers anywhere you put
+  those classes. BUT a `@media (max-width: 640px)` rule keyed on the
+  parent `.ub-boards-page__tabs-row` HIDES the pills (`display:none`) and
+  swaps in a mobile `<select>`. If you reuse the pill classes WITHOUT a
+  mobile select, wrap them in your OWN row class (e.g.
+  `.md-home-boards-picker__tabs-row`), not `.ub-boards-page__tabs-row`,
+  or the tabs disappear on phones. Re-create the folder-baseline divider
+  by copying `.ub-boards-page__tabs-row::after`.
+
+---
+
+## Pattern: sidebar "pin open" state lives in the `quick_sidebar` pref via `stickSidebar` — reuse it, don't add a second flag
+
+**Surface:** the speak-mode boards sidebar. There are TWO renderings of
+it: the **app-level** sidebar (`application.hbs` / `brief.hbs`, used by
+board-alt and the main `/board` route) and board-detail's **inline**
+sidebar (`.md-board-detail-inline-sidebar`, board-detail explicitly
+hides the app one via `#content:has(.md-shell--board-detail) ~ #sidebar
+{ display:none }` at `app.scss:63532`).
+
+**The single source of truth for "pinned open" is the persistent
+`user.preferences.quick_sidebar` pref**, toggled by the application
+controller's `stickSidebar` action ([application.js:601](app/frontend/app/controllers/application.js#L601))
+— it flips `quick_sidebar`, clears the `sidebarEnabled` stash, and
+`user.save()`s. `app_state.sidebar_pinned` = `speak_mode &&
+quick_sidebar`. The board-detail inline sidebar ALREADY honors this pref
+(auto-open in `_syncInlineSidebarFromPrefs`, stay-open-after-jump in
+`_maybeCloseInlineSidebarAfterAction`, lock in `toggleInlineSidebar`) —
+the local `inlineSidebarOpen` is just the ephemeral show/hide on top.
+
+**Lesson:** when adding a pin control to either sidebar, delegate to the
+existing `stickSidebar` primitive (board-detail does this through its
+`_sidebarAppController()` helper, the same path `sidebar_jump`/
+`sidebar_special` already use) and bind the pressed state to
+`quick_sidebar`. Do NOT introduce a second pin boolean — the two
+sidebars must share one pinned state so pinning in board-detail is also
+pinned on board-alt. Bind the button's `aria-pressed` to
+`quick_sidebar` directly (not `sidebar_pinned`) so it reads correctly
+even outside speak_mode.
+
+**First seen in:** [2026-05-29-board-detail-inline-sidebar-pin.md](./2026-05-29-board-detail-inline-sidebar-pin.md)
+
+---
+
+## Pattern: async store/query callbacks must guard `isDestroyed`/`isDestroying` before `set`
+
+**Symptom:** `Assertion Failed: calling set on destroyed object:
+<frontend@component:…>.<prop> = …`, with a stack ending in
+`publish → invokeCallback → Class.set → assert` (i.e. a Promise
+resolving and writing to a component that's already gone).
+
+**Root cause:** a component fires an async call (`LingoLinq.store.query`,
+`persistence.ajax`, `RSVP.Promise`, `runLater`) and its `.then()`/error
+callback calls `_this.set(...)`. If the user navigates or the component
+re-renders before the promise resolves, the callback runs against a
+torn-down instance. On fast-swapping surfaces (the home page card
+layout, modals) this fires routinely.
+
+**Fix (codebase-canonical):** make the FIRST line of every async
+callback that writes to the component:
+```js
+if(_this.isDestroyed || _this.isDestroying) { return; }
+```
+Guard EACH callback (success AND every error/fallback handler), not just
+the first — a chained `.then(success, error)` has two entry points.
+Already used in board-preview-canvas.js, button-settings.js,
+board-picker.js, board-preview.js, copy-board.js. Synchronous `init` /
+`didInsertElement` sets are NOT at risk and don't need the guard.
+
+**Detection:** grep a component for `\.then(function` and check each
+callback body that calls `_this.set(` / `this.set(` has the guard.
+
+**First seen in:** [2026-05-29-board-selection-tool-destroyed-set.md](./2026-05-29-board-selection-tool-destroyed-set.md)
+
+---
+
+## Pattern: per-element responsive show/hide rules must sit AFTER that element's base `display` rule — don't consolidate when bases are scattered
+
+**Surface:** any "two sibling variants, show one per viewport via @media" setup
+where the base layout rule uses `display: <x> !important` (very common in
+`app.scss`, e.g. `.md-grid .md-card.md-card--caseload { display: flex !important }`).
+
+**Trap:** the `@media … { … display: none !important }` hide rule and the base
+rule often share specificity (e.g. both `(0,3,1)`) AND both use `!important`.
+At equal specificity + equal !important-ness, **source order is the only
+tiebreak** — the later rule wins. So a hide rule placed BEFORE the base rule is
+silently overridden and the element never hides.
+
+**How it bit (twice) on the dashboard caseload/speak cards:** consolidating both
+cards' hide rules into ONE @media block worked for caseload (its base rule was
+earlier in the file) but not speak (its base rule was ~4700 lines LATER, so the
+base `display:flex` won and BOTH speak variants rendered → "duplicated card").
+
+**Rule:** keep each element's responsive hide rule immediately AFTER (and near)
+the base `display` rule it must beat. Do NOT consolidate per-element show/hide
+rules into a single shared block when the elements' base rules are scattered
+across the file. (Alternative fix per the related pattern above — bump
+specificity with a compound selector — also works, but co-location is simpler
+and self-documenting.) Verify with `grep -n` that base line < hide line for
+each element.
+
+**First seen in:** [2026-05-28-dashboard-cards-as-buttons-narrow.md](./2026-05-28-dashboard-cards-as-buttons-narrow.md) (correction section)
+
+---
+
+## Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)
+
+**Symptom:** an element's decorative glow/halo/ring (a `::before` or `::after`
+with `position: absolute; inset: -Npx`) hugs the element fine at most widths,
+but at ONE breakpoint the glow suddenly spans the entire parent
+container/row. The element itself is sized correctly — only its pseudo blows up.
+
+**Root cause:** `position: absolute` resolves `inset`/`top`/`left` against the
+**nearest positioned ancestor**. The element is normally the glow's containing
+block because it's itself positioned (`absolute`/`relative`). A responsive
+override that flips the element to **`position: static`** (commonly to "drop an
+absolutely-pinned chip into normal flow") removes it from the positioned-ancestor
+chain, so the absolute pseudo re-anchors to the next positioned ancestor (a hero,
+card, or workspace) and `inset:-4px` stretches across THAT box instead.
+
+**Fix:** drop the element into flow with **`position: relative`**, not `static`.
+With `top/left/right` left at `auto`, relative is layout-identical to static but
+keeps the element as the pseudo's containing block, so the glow hugs it again.
+Seen on `.md-tour__trigger` (the "Take a tour" chip): its ≤1024px block set
+`position: static !important`, leaking the verdigris `::before` glow across the
+whole dashboard hero. (Same family as the absolute-pin work at app.scss ~28499 —
+when you change a positioned element's `position` responsively, check whether any
+`::before`/`::after` depends on it as the containing block.)
+
+**First seen in:** [2026-05-30-take-a-tour-glow-leak.md](./2026-05-30-take-a-tour-glow-leak.md)
 
 ---
 

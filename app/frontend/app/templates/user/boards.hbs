@@ -6,17 +6,19 @@
       <LinkTo @route="user.stats" @model={{this.model.user_name}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
       <LinkTo @route="user.extras" @model={{this.model.user_name}} class="md-pillnav__pill">{{t "Extras" key="extras"}}</LinkTo>
     </nav>
-{{!-- Full-viewport loading overlay (matches the login/boot overlay):
-     blocks the whole page until my_boards has resolved so users see
-     a single "ready" reveal instead of partial chips popping in as
-     data trickles in. Lives OUTSIDE the page wrapper + uses the
-     global `.ll-loading-overlay` z-index (10050) so it sits above
-     navbars and everything else. --}}
+{{!-- Full-viewport loading overlay — uses the same `.ll-premium-progress`
+     chrome as the bootstrap skeleton (boards/index.html.erb +
+     app/index.html) and index-loading.hbs so the user perceives ONE
+     continuous loading state from page refresh through my_boards
+     resolution (no separate spinner card flashes in afterward). Lives
+     OUTSIDE the page wrapper so it sits above the navbar and any
+     other in-page content (z-index 10054). --}}
 {{#unless this.model.my_boards.done}}
-  <div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
-    <div class="ll-loading-overlay__card">
-      <span class="ll-loading-overlay__spinner" aria-hidden="true"></span>
-      <p class="ll-loading-overlay__message">{{t "Loading boards..." key="loading_boards"}}</p>
+  <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-premium-progress__card">
+      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+      <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
+      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
     </div>
   </div>
 {{/unless}}

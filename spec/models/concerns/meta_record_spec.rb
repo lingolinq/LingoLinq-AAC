@@ -27,7 +27,7 @@ describe MetaRecord, :type => :model do
     expect(r).not_to eq(nil)
     expect(r.title).to eq("Unnamed Board")
     expect(r.summary).to eq("Communication board \"Unnamed Board\", 2 x 4")
-    expect(r.image).to eq("https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png")
+    expect(r.image).to eq(Board::DEFAULT_ICON)
     expect(r.link).to eq("#{JsonApi::Json.current_host}/#{b.key}")
     expect(Time.parse(r.created)).to be_within(2.seconds).of(b.created_at)
     expect(Time.parse(r.updated)).to be_within(2.seconds).of(b.updated_at)

@@ -40,12 +40,31 @@ export default Component.extend({
       this.set('folderBoardsSearch', '');
     }
   }),
-  /* Expanded by default per design — the folders strip is the primary
-     organization affordance on the boards page, so showing it on first
-     paint makes the user's filter + drag-to-folder workflow visible
-     without an extra click. The user can collapse it via the chevron;
-     subsequent toggle clicks persist within the session. */
-  foldersExpanded: true,
+  /* Collapsed by default — the folders strip used to be expanded on
+     first paint, but at narrow viewports it eats a lot of vertical
+     space above the board grid. The user's last choice is read from
+     localStorage in init() below; if they previously expanded it,
+     the next visit restores that. Toggle clicks write back to
+     localStorage so the preference survives reloads. The literal
+     `false` here is the floor — actual initial value is set in
+     init() based on the persisted preference. */
+  foldersExpanded: false,
+  _foldersExpandedStorageKey: 'ub-boards-folders-expanded',
+  init() {
+    this._super(...arguments);
+    /* Restore the user's last folders-section preference. Read at
+       init so the component never paints the expanded state when
+       the user previously chose collapsed, and vice versa. Try/
+       catch because localStorage can throw (Safari Private mode,
+       SSR rendering, sandboxed iframes); the `false` default still
+       holds in those cases. */
+    try {
+      var stored = localStorage.getItem(this._foldersExpandedStorageKey);
+      if (stored === 'true' || stored === 'false') {
+        this.set('foldersExpanded', stored === 'true');
+      }
+    } catch (e) { /* localStorage unavailable; keep default */ }
+  },
 
   /* Info popover next to the BOARDS-section "in this section" pill.
      Only rendered when the home board is tagged into a folder (the
@@ -165,6 +184,16 @@ export default Component.extend({
   actions: {
     toggleFoldersExpanded() {
       this.toggleProperty('foldersExpanded');
+      /* Persist the new state so the user's choice survives a
+         reload. localStorage may be unavailable (private mode /
+         sandboxed iframe) — fail silently rather than disrupting
+         the click. */
+      try {
+        localStorage.setItem(
+          this._foldersExpandedStorageKey,
+          this.get('foldersExpanded') ? 'true' : 'false'
+        );
+      } catch (e) { /* localStorage unavailable; in-memory state still updates */ }
     },
     toggleHomeBoardInfo() {
       this.toggleProperty('homeBoardInfoOpen');
