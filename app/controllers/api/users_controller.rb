@@ -260,6 +260,7 @@ class Api::UsersController < ApplicationController
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
     end
+    UserBoardProvisioner.provision_for(user)
     coppa_pending = user.coppa_parental_consent_pending?
     unless coppa_pending
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)

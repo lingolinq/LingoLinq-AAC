@@ -37,7 +37,13 @@ class Api::BoardsController < ApplicationController
       end
     end
     start = Time.now.to_i
-    boards = boards.includes(:board_content)
+    # `:parent_board` eager-load prevents the N+1 in `lib/json_api/board.rb`
+    # where `build_json` unconditionally accesses `board.parent_board` for
+    # every result. Without this include, a paginated index call fires one
+    # extra SELECT per board (~25 at default per_page). Verified by the
+    # regression spec in spec/controllers/api/boards_controller_spec.rb.
+    # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    boards = boards.includes(:board_content, :parent_board)
     other_boards = nil
     other_searchable_board_ids = nil
 

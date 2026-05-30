@@ -1602,7 +1602,10 @@ var persistence = Service.extend({
       var trusted_not_to_change = url.match(/opensymbols\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/opensymbols/) ||
                   url.match(/lingolinq-usercontent\.s3\.amazonaws\.com/) || url.match(/s3\.amazonaws\.com\/lingolinq-usercontent/) ||
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
-      var cors_match = trusted_not_to_change || url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
+      var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
+        url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
+      var cors_match = trusted_not_to_change || uploads_bucket ||
+        url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
@@ -1737,6 +1740,18 @@ var persistence = Service.extend({
       size_image.then(function(object) {
         // remember: persisted objects will not have a data_uri attribute, so this will be skipped for them
         if(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')) {
+          // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
+          // is sufficient. FileSystem writes for large JSON blobs often fail
+          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          if(type == 'json' && object.data_uri) {
+            if(!object.persisted) {
+              object.persisted = true;
+              object.url = url_id;
+            }
+            return _this.store('dataCache', object, object.url).then(function() {
+              return object;
+            });
+          }
           if(object.data_uri) {
             var local_system_filename = object.local_filename;
             if(!local_system_filename) {

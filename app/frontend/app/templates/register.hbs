@@ -67,12 +67,28 @@
               {{t "I agree to allow anonymized communication logs to be reviewed for troubleshooting and app improvement. Logs are fully stripped of names and personal profiles before any engineer reviews them." key="comms_log_opt_in"}}
             </label>
           </div>
-          <div class="checkbox big_checkbox">
-            <label>
-              <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
-              By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
-            </label>
-          </div>
+          {{!-- Combined age + ToS consent. One checkbox covers both
+               the 13+ attestation and Terms of Use agreement; the
+               `combined_google_consent` setter on the controller
+               mirrors the new value into `age_attested` and
+               `googleSignupTerms` so all existing submit gates stay
+               intact. Drops the age clause when the COPPA radio
+               flow above already gates age. --}}
+          {{#if this.showCoppaConsent}}
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @type="checkbox" @checked={{this.googleSignupTerms}} />
+                {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+              </label>
+            </div>
+          {{else}}
+            <div class="checkbox big_checkbox">
+              <label>
+                <Input @type="checkbox" @checked={{this.combined_google_consent}} />
+                {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+              </label>
+            </div>
+          {{/if}}
         </div>
         <div class="register-btn-wrap">
           <button type="button" disabled={{this.googleSignupSubmitDisabled}} class="register-btn" {{action "saveGoogleSignup"}}>
@@ -228,12 +244,31 @@
             {{t "I agree to allow anonymized communication logs to be reviewed for troubleshooting and app improvement. Logs are fully stripped of names and personal profiles before any engineer reviews them." key="comms_log_opt_in"}}
           </label>
         </div>
-        <div class="checkbox big_checkbox">
-          <label>
-            <Input @type="checkbox" @checked={{this.model.terms_agree}} />
-            By registering or using the product, you agree that you have read and understood the <a href="/terms" target="_blank" rel="noopener">Terms of Use and License Agreement</a>, and are capable of binding to a legal contract.
-          </label>
-        </div>
+        {{!-- Combined age + ToS consent. One checkbox covers both
+             the 13+ attestation and Terms of Use agreement; the
+             `combined_consent` setter on the controller mirrors the
+             new value into `age_attested` and `model.terms_agree` so
+             all existing submit gates stay intact. Drops the age
+             clause when the COPPA radio flow above already gates
+             age. --}}
+        {{#if this.showCoppaConsent}}
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.model.terms_agree}} />
+              {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
+            </label>
+          </div>
+        {{else}}
+          <div class="checkbox big_checkbox">
+            <label>
+              <Input @type="checkbox" @checked={{this.combined_consent}} />
+              {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
+            </label>
+          </div>
+        {{/if}}
+        {{#if this.ageAttestationRequired}}
+          <span class='text-danger register-checkboxes__error'>{{t "You must confirm your age and agree to the Terms of Use to create an account." key="combined_consent_required_message"}}</span>
+        {{/if}}
       </div>
       <div class="register-btn-wrap">
       {{#if this.googleSsoEnabled}}

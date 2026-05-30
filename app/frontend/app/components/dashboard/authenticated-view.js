@@ -14,6 +14,7 @@ import session from '../../utils/session';
 import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
+import { filterRootBoards } from '../../utils/board-roots';
 
 export default Component.extend({
   tagName: '',
@@ -542,12 +543,28 @@ export default Component.extend({
       var user = this.get('appState.sessionUser');
       var needs_subscribe_modal = false;
       if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {
-        if(user.get('grace_period')) {
-          if(modal.route) {
-            needs_subscribe_modal = true;
-          }
-        }
+        // TEMPORARILY DISABLED 2026-05-27: post-registration subscribe
+        // modal is suppressed so newly-registered users route directly
+        // into the home-page tour instead (see routes/register.js
+        // `save_done` → appState.auto_open_home_tour = true, which
+        // home-tour.js observes and auto-fires).
+        //
+        // The subscribe modal template, component, SCSS, and the
+        // `modal.open('subscribe')` mechanism are all preserved — to
+        // restore the original behavior, uncomment the if/grace_period
+        // block below and remove the auto_open_home_tour line in
+        // routes/register.js.
+        //
+        // if(user.get('grace_period')) {
+        //   if(modal.route) {
+        //     needs_subscribe_modal = true;
+        //   }
+        // }
       } else if(this.get('appState.sessionUser.really_expired')) {
+        // Expired-account path is UNCHANGED — existing users whose
+        // trial ran out still see the subscribe modal so they can
+        // renew. Only the new-registration grace_period path above
+        // is suppressed.
         needs_subscribe_modal = true;
       }
       if(needs_subscribe_modal && !this.appState.get('logging_in')) {
@@ -745,9 +762,9 @@ export default Component.extend({
       _this.set('_fetchedPreviewBoards', results);
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results.length);
+        _this._fetchRemainingForCount(user.get('id'), meta.next_offset, results);
       } else {
-        _this.set('_fetchedBoardCount', results.length);
+        _this.set('_fetchedBoards', results);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
@@ -758,28 +775,35 @@ export default Component.extend({
     var _this = this;
     _this.get('store').query('board', { user_id: userId, offset: offset }).then(function(boards) {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      var count = accumulated + boards.map(function(b) { return b; }).length;
+      var combined = accumulated.concat(boards.map(function(b) { return b; }));
       var meta = _this.get('persistence').meta('board', boards);
       if (meta && meta.more) {
-        _this._fetchRemainingForCount(userId, meta.next_offset, count);
+        _this._fetchRemainingForCount(userId, meta.next_offset, combined);
       } else {
-        _this.set('_fetchedBoardCount', count);
+        _this.set('_fetchedBoards', combined);
       }
     }, function() {
       if (_this.isDestroying || _this.isDestroyed) { return; }
-      _this.set('_fetchedBoardCount', accumulated);
+      _this.set('_fetchedBoards', accumulated);
     });
   },
-  boardCount: computed('appState.currentUser.root_boards.length', 'appState.currentUser.my_boards.length', '_fetchedBoardCount', function() {
+  /* Count of the user's CORE (root tile) boards, matching the "My
+     Boards" stat on the boards page. /api/v1/boards?user_id=X returns
+     every board copy in the library, so filterRootBoards clusters the
+     fetched pool the same way myBoardsRoots does on the boards page.
+     Prefer the pool the dashboard fetched itself; fall back to
+     currentUser.my_boards if the boards page has already populated
+     it. */
+  boardCount: computed('_fetchedBoards.[]', 'appState.currentUser.my_boards.[]', 'appState.currentUser.id', function() {
     var user = this.get('appState.currentUser');
     if (!user) { return 0; }
-    var roots = user.get('root_boards');
-    if (roots && roots.length !== undefined) { return roots.length; }
-    var mine = user.get('my_boards');
-    if (mine && mine.length !== undefined) { return mine.length; }
-    var fetched = this.get('_fetchedBoardCount');
-    if (fetched !== undefined && fetched !== null) { return fetched; }
-    return 0;
+    var userId = user.get('id');
+    var boards = this.get('_fetchedBoards');
+    if (!boards || !boards.length) {
+      boards = user.get('my_boards');
+    }
+    if (!boards || !boards.forEach) { return 0; }
+    return filterRootBoards(boards, userId).length;
   }),
   _animateBoardCount: observer('boardCount', function() {
     var _this = this;

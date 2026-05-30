@@ -40,7 +40,7 @@ export default Route.extend({
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave') || controller.get('ageBlocksSave')) {
         return;
       }
       if(controller.get('showCoppaConsent')) {
@@ -71,6 +71,13 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
+          // Stash home-tour auto-open for after beta welcome flow.
+          // session.override() may hard-reload (services/session.js#reload),
+          // so sessionStorage survives; HomeTour reads + clears on mount.
+          try {
+            sessionStorage.setItem('ll_auto_open_home_tour', '1');
+          } catch (e) { /* private mode / disabled — fall back to in-memory flag */ }
+          _this.appState.set('auto_open_home_tour', true);
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
           }
