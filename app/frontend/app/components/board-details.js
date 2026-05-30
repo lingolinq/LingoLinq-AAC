@@ -29,6 +29,10 @@ export default Component.extend({
     this._super(...arguments);
     this.set('hierarchy', { loading: true });
     const model = this.get('model');
+    // A board first materialized from a #tree/#bulk lite prefetch omits
+    // parent_board_id/parent_board_key, so the "Copied From" link is dropped
+    // (issue #293). Refetch so it repopulates when present.
+    if (model && model.reload_if_lite) { model.reload_if_lite(); }
     BoardHierarchy.load_with_button_set(model).then((hierarchy) => {
       this.set('hierarchy', hierarchy);
     }, () => {

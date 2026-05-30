@@ -77,6 +77,9 @@
 
     {{#if this.board.permissions.share}}
       <div style="margin-top: 20px;">
+        {{#if this.board.reloading_detail}}
+          <p class="md-modal-hint" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+        {{/if}}
         {{#if this.board.shared_users}}
           <h4 class="md-modal-section-title">{{t "Shared with" key="shared_with_others"}}</h4>
           <div class="md-modal-shared-users-list">

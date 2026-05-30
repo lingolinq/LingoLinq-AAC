@@ -27,6 +27,16 @@ export default Component.extend({
     this.set('error_confirming_public_board', false);
   },
 
+  didInsertElement() {
+    this._super(...arguments);
+    // If this board was first materialized from a #tree/#bulk lite prefetch,
+    // shared_users is absent and the "Shared with" list renders empty, which
+    // an editor misreads as "shared with nobody" (issue #293). Refetch so the
+    // list reflects the real sharing state before the editor acts on it.
+    const board = this.get('board');
+    if (board && board.reload_if_lite) { board.reload_if_lite(); }
+  },
+
   supervisee_share: computed('share_user_name', 'appState.currentUser.known_supervisees', function() {
     const un = this.get('share_user_name');
     return un && (this.get('appState').get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name === un; });
