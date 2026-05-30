@@ -581,6 +581,18 @@ export default Service.extend({
       if(window.navigator.splashscreen) {
         window.navigator.splashscreen.show();
       }
+      // Flag the bootstrap skeleton's progress card to show logout-
+      // appropriate copy ("Signing you out…" / "See you soon") instead
+      // of the default login copy ("Preparing your workspace…"). The
+      // flag survives the page reload that `reload('/')` triggers a
+      // few lines later, and is cleared by the skeleton's inline JS
+      // after the first read so subsequent navigations don't keep
+      // showing it.
+      try {
+        if(typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('lingolinq_auth_intent', 'logging_out');
+        }
+      } catch(e) { /* localStorage unavailable; skeleton falls back to default copy */ }
     }
     // SPEC R2, R3, R4, R5, R6, R8. Plan 05.
     // Flag is read once, here, before the async chain — avoids mid-flow flag flips.

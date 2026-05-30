@@ -34,56 +34,184 @@
     <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
 
     <style>
-      /* Boot overlay — painted immediately when HTML parses, before vendor.css /
-         frontend.css load and before Ember boots. Sits above #ember-application-root
-         and is dismissed by JS once the destination route's templates have rendered.
-         Mirrors .ll-loading-overlay so the in-app overlay can take over without a
-         visible seam. */
-      #ll-boot-overlay {
+      /* Bootstrap skeleton — painted before vendor.css / frontend.css load
+         and before Ember boots. Identical visual to the Rails-served
+         skeleton in app/views/boards/index.html.erb. */
+      #loading_box {
         position: fixed;
         inset: 0;
-        z-index: 2147483647;
-        background: rgba(15, 23, 42, 0.55);
-        -webkit-backdrop-filter: blur(6px);
-        backdrop-filter: blur(6px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: 'Inter', 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
-        transition: opacity 220ms ease-out;
-      }
-      #ll-boot-overlay[data-hiding='true'] { opacity: 0; pointer-events: none; }
-      #ll-boot-overlay__card {
-        background: #fff;
-        border-radius: 14px;
-        padding: 28px 36px;
-        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+        z-index: 1;
+        background: linear-gradient(180deg, #F8F9FA 0%, #F0F4F8 100%);
+        color: #1B365D;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        min-width: 240px;
-        max-width: calc(100vw - 32px);
+        opacity: 1;
+        transition: opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
       }
-      #ll-boot-overlay__spinner {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        border: 4px solid rgba(42, 157, 143, 0.18);
-        border-top-color: #2a9d8f;
-        animation: ll-boot-overlay-spin 0.9s linear infinite;
+      #loading_box.is-fading { opacity: 0; pointer-events: none; }
+      /* Logout context — uses the EXACT compiled values from landing-alt:
+         page gradient is white → white → #F5F5F3 (first two stones
+         clamp at L>100% per Sass color.adjust); glows use the same
+         rgba/opacity as `.la-hero-card-inner::before/after` (0.12 and
+         0.09 — NOT scaled up, just positioned relative to viewport). */
+      #loading_box.is-logout-context {
+        background:
+          radial-gradient(circle 420px at 75% 20%, rgba(242, 185, 90, 0.12) 0%, transparent 55%),
+          radial-gradient(circle 360px at 25% 75%, rgba(78, 205, 196, 0.09) 0%, transparent 55%),
+          linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #F5F5F3 100%);
       }
-      #ll-boot-overlay__message {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 500;
-        color: #1f2937;
+      #loading_box.is-logout-context .ll-skel-navbar,
+      #loading_box.is-logout-context .ll-skel-pillnav,
+      #loading_box.is-logout-context .ll-skel-hero,
+      #loading_box.is-logout-context .ll-skel-grid {
+        display: none;
+      }
+      .ll-skel-navbar {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; padding: 14px 28px;
+        background: #fff;
+        border-bottom: 1px solid rgba(17, 26, 46, 0.06);
+        flex-shrink: 0;
+      }
+      .ll-skel-navbar__logo img { height: 28px; width: auto; opacity: 0.95; }
+      .ll-skel-navbar__icons { display: flex; gap: 10px; }
+      .ll-skel-chip { width: 32px; height: 32px; border-radius: 50%; background: rgba(27, 54, 93, 0.06); position: relative; overflow: hidden; }
+      .ll-skel-pillnav {
+        display: flex; justify-content: center; gap: 6px;
+        padding: 24px 22px 8px; flex-wrap: wrap;
+      }
+      .ll-skel-pillnav__pill { height: 38px; min-width: 96px; border-radius: 999px; background: rgba(27, 54, 93, 0.06); position: relative; overflow: hidden; }
+      .ll-skel-pillnav__pill--active { background: #1B365D; }
+      .ll-skel-hero { padding: 16px 24px 24px; text-align: center; max-width: 720px; margin: 0 auto; width: 100%; }
+      .ll-skel-line { height: 14px; border-radius: 8px; background: rgba(27, 54, 93, 0.07); position: relative; overflow: hidden; margin: 0 auto 10px; }
+      .ll-skel-line--xl   { height: 32px; width: 65%; border-radius: 10px; }
+      .ll-skel-line--md   { width: 45%; }
+      .ll-skel-line--title { width: 50%; height: 18px; margin: 0 0 8px; border-radius: 6px; }
+      .ll-skel-line--card-sub { width: 75%; height: 11px; margin: 0; border-radius: 6px; opacity: 0.7; }
+      .ll-skel-grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        padding: 0 24px 28px;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        align-content: start;
+      }
+      @media (max-width: 720px) {
+        .ll-skel-grid { grid-template-columns: 1fr; gap: 14px; }
+      }
+      .ll-skel-card {
+        display: flex; flex-direction: column; gap: 16px;
+        padding: 24px 24px 26px;
+        min-height: 200px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 244, 248, 0.94));
+        border: 1px solid rgba(17, 26, 46, 0.06);
+        border-bottom: 2px solid rgba(27, 54, 93, 0.08);
+        box-shadow: 0 8px 28px rgba(27, 54, 93, 0.06), 0 1px 3px rgba(27, 54, 93, 0.04);
+        position: relative; overflow: hidden;
+      }
+      .ll-skel-card__head { display: flex; align-items: flex-start; gap: 16px; }
+      .ll-skel-card__icon { width: 52px; height: 52px; border-radius: 16px; background: rgba(76, 134, 216, 0.10); flex-shrink: 0; position: relative; overflow: hidden; }
+      .ll-skel-card__titles { flex: 1; min-width: 0; padding-top: 4px; }
+      .ll-skel-card__cta { margin-top: auto; align-self: flex-end; height: 42px; min-width: 160px; border-radius: 999px; background: rgba(76, 134, 216, 0.18); position: relative; overflow: hidden; }
+      .ll-skel-card--boards .ll-skel-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+      .ll-skel-tile { aspect-ratio: 1; border-radius: 14px; background: rgba(27, 54, 93, 0.05); position: relative; overflow: hidden; }
+      .ll-skel-shimmer::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+        transform: translateX(-100%);
+        animation: ll-skel-shimmer 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+      }
+      @keyframes ll-skel-shimmer {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .ll-skel-card:nth-child(1) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(1).ll-skel-shimmer::after { animation-delay: 0s; }
+      .ll-skel-card:nth-child(2) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(2).ll-skel-shimmer::after { animation-delay: 0.12s; }
+      .ll-skel-card:nth-child(3) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(3).ll-skel-shimmer::after { animation-delay: 0.24s; }
+      .ll-skel-card:nth-child(4) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(4).ll-skel-shimmer::after { animation-delay: 0.36s; }
+      @media (prefers-reduced-motion: reduce) {
+        .ll-skel-shimmer::after { animation: none; opacity: 0.5; }
+      }
+      /* Premium progress card */
+      .ll-skel-progress {
+        position: fixed;
+        left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100% - 32px);
+        max-width: 480px;
+        padding: 36px 40px 32px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow:
+          0 1px 3px rgba(15, 23, 42, 0.04),
+          0 12px 32px rgba(15, 23, 42, 0.10),
+          0 32px 64px rgba(15, 23, 42, 0.08);
+        z-index: 2;
         text-align: center;
       }
-      @keyframes ll-boot-overlay-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) {
-        #ll-boot-overlay__spinner { animation-duration: 2.5s; }
+      .ll-skel-progress__title {
+        margin: 0 0 8px;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+        font-size: 19px; font-weight: 500; letter-spacing: 0.005em;
+        color: #1B365D; line-height: 1.3;
+        transition: opacity 0.3s ease;
       }
+      .ll-skel-progress__sub {
+        margin: 0 0 22px;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+        font-size: 14px; font-weight: 400; letter-spacing: 0.01em;
+        color: rgba(27, 54, 93, 0.65); line-height: 1.5;
+        transition: opacity 0.3s ease;
+      }
+      .ll-skel-progress__bar {
+        position: relative;
+        width: 100%; height: 4px;
+        border-radius: 999px;
+        background: rgba(27, 54, 93, 0.08);
+        overflow: hidden;
+      }
+      .ll-skel-progress__bar::after {
+        content: ""; position: absolute; inset: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(42, 157, 143, 0) 0%, #2A9D8F 25%, #4C86D8 75%, rgba(76, 134, 216, 0) 100%);
+        transform: translateX(-100%);
+        animation: ll-skel-progress-sweep 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+      }
+      @keyframes ll-skel-progress-sweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ll-skel-progress__bar::after { animation: none; transform: translateX(0); opacity: 0.6; }
+      }
+      #loading_message {
+        position: fixed; left: 50%; bottom: 24px;
+        transform: translateX(-50%);
+        display: none;
+        max-width: calc(100% - 32px);
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: rgba(27, 54, 93, 0.92);
+        color: #fff;
+        font-size: 13px; font-weight: 500; line-height: 1.4;
+        box-shadow: 0 8px 24px rgba(27, 54, 93, 0.22);
+        text-align: center;
+        z-index: 3;
+      }
+      #loading_message a { color: #ffd089; text-decoration: underline; }
     </style>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -106,53 +234,151 @@
     {{content-for "head-footer"}}
   </head>
   <body>
-    <!-- Boot overlay — sibling of the Ember root so it survives Ember mounting and
-         can fade out cleanly once the destination route has rendered. Hidden by
-         window.LingoLinqHideBootOverlay() (called from an instance initializer
-         after the first stable transition) or by a safety timeout. -->
-    <div id="ll-boot-overlay" role="status" aria-live="polite" aria-busy="true">
-      <div id="ll-boot-overlay__card">
-        <div id="ll-boot-overlay__spinner" aria-hidden="true"></div>
-        <p id="ll-boot-overlay__message">Loading&hellip;</p>
+    <!-- Bootstrap skeleton — identical to the Rails-served skeleton in
+         app/views/boards/index.html.erb. Same `#loading_box` id so the
+         hide path in app-state.js:586 handles both. Stays on top until
+         either (a) the boot-overlay-hide instance initializer fires
+         after the first routeDidChange, or (b) app-state.js removes it
+         post-init, or (c) the 12s safety timeout fires. -->
+    <div id="loading_box" role="status" aria-live="polite" aria-busy="true">
+      <div class="ll-skel-navbar" aria-hidden="true">
+        <div class="ll-skel-navbar__logo">
+          <img src="{{rootURL}}images/LL_Logo_Line_Bright.png" alt=""/>
+        </div>
+        <div class="ll-skel-navbar__icons">
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+        </div>
       </div>
+      <nav class="ll-skel-pillnav" aria-hidden="true">
+        <div class="ll-skel-pillnav__pill ll-skel-pillnav__pill--active"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+      </nav>
+      <div class="ll-skel-hero" aria-hidden="true">
+        <div class="ll-skel-line ll-skel-line--xl ll-skel-shimmer"></div>
+        <div class="ll-skel-line ll-skel-line--md ll-skel-shimmer"></div>
+      </div>
+      <div class="ll-skel-grid" aria-hidden="true">
+        <!-- Caseload card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Speak Mode card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Boards card with tile strip -->
+        <div class="ll-skel-card ll-skel-card--boards">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-tiles">
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Extras card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <!-- Premium progress card -->
+      <div class="ll-skel-progress" role="status" aria-live="polite" aria-busy="true">
+        <h2 id="ll-skel-progress-title" class="ll-skel-progress__title">Preparing your workspace</h2>
+        <p id="ll-skel-progress-sub" class="ll-skel-progress__sub">Loading boards and communication resources</p>
+        <div class="ll-skel-progress__bar" aria-hidden="true"></div>
+      </div>
+      <span id="loading_message"></span>
     </div>
+    <script>
+      // Context-aware progress card copy + 3s slow-load swap.
+      // `lingolinq_auth_intent` flag is set by session.invalidate() right
+      // before reload — when present, the card shows logout-appropriate
+      // copy instead of the login copy. Flag is cleared after first read.
+      (function() {
+        var t = document.getElementById('ll-skel-progress-title');
+        var s = document.getElementById('ll-skel-progress-sub');
+        var loggingOut = false;
+        try {
+          if (window.localStorage && window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
+            loggingOut = true;
+            window.localStorage.removeItem('lingolinq_auth_intent');
+          }
+        } catch (e) {}
+
+        if (loggingOut) {
+          if (t) { t.textContent = 'Signing you out…'; }
+          if (s) { s.textContent = 'See you soon'; }
+          var box = document.getElementById('loading_box');
+          if (box) { box.classList.add('is-logout-context'); }
+        } else {
+          setTimeout(function() {
+            if (t) { t.textContent = 'Still working…'; }
+            if (s) { s.textContent = 'Large board sets can take a little longer to prepare.'; }
+          }, 3000);
+        }
+      })();
+    </script>
     <script>
       (function () {
         var SAFETY_MS = 12000;
-        var FADE_MS = 240;
+        var FADE_MS = 400;
         var hidden = false;
-        // If we're booting after an auth event (login posted), use the same
-        // "Loading your account…" message the pre-reload overlay shows. Without
-        // this, the user sees the pre-reload card swap to a generic "Loading…"
-        // boot card during the reload — visually inconsistent. localStorage
-        // survives page reload; the flag is set by login-form before reload
-        // and cleared by the ready signal once the destination route renders.
+        // Drop the legacy `lingolinq_auth_pending` localStorage flag if
+        // it's lying around from a previous login. The skeleton is the
+        // canonical first-paint visual now — no message swap required.
         try {
-          var pending = window.localStorage && window.localStorage.getItem('lingolinq_auth_pending');
-          if (pending === 'login') {
-            var msgEl = document.getElementById('ll-boot-overlay__message');
-            if (msgEl) { msgEl.textContent = 'Loading your account…'; }
-          }
-        } catch (e) { /* localStorage unavailable; keep default text */ }
+          if (window.localStorage) { window.localStorage.removeItem('lingolinq_auth_pending'); }
+        } catch (e) {}
         function remove() {
-          var el = document.getElementById('ll-boot-overlay');
+          var el = document.getElementById('loading_box');
           if (el && el.parentNode) { el.parentNode.removeChild(el); }
-          // Clear the auth-pending flag once the overlay is gone — the user
-          // has reached the destination and the message has done its job.
-          try {
-            if (window.localStorage) { window.localStorage.removeItem('lingolinq_auth_pending'); }
-          } catch (e) {}
         }
+        // Exposed for the `boot-overlay-hide` instance initializer (called
+        // after the first routeDidChange + 150ms). Adds `.is-fading` for
+        // the CSS cross-fade transition, then yanks the element after the
+        // fade completes. Idempotent — repeat calls are no-ops.
         window.LingoLinqHideBootOverlay = function () {
           if (hidden) { return; }
           hidden = true;
-          var el = document.getElementById('ll-boot-overlay');
+          var el = document.getElementById('loading_box');
           if (!el) { return; }
-          el.setAttribute('data-hiding', 'true');
+          el.classList.add('is-fading');
           setTimeout(remove, FADE_MS);
         };
-        // Safety net: never trap the user behind the overlay if the ready signal
-        // never fires (offline boot, JS error in initializer, etc.).
+        // Safety net: never trap the user behind the skeleton if the
+        // initializer's ready signal never fires (offline boot, JS error
+        // in initializer, etc.).
         setTimeout(function () { window.LingoLinqHideBootOverlay(); }, SAFETY_MS);
       })();
     </script>

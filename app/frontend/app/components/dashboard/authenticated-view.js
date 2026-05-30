@@ -647,11 +647,20 @@ export default Component.extend({
   }),
   previewBoards: computed(
     '_fetchedPreviewBoards.[]',
-    // Re-sort the preview when a board's starred flag flips or its
+    // Re-sort the preview when a board's liked status flips or its
     // display name changes, since the new ordering rule
     // (home → liked-alpha → others-alpha) reads both per-board.
-    '_fetchedPreviewBoards.@each.starred',
+    // IMPORTANT: must depend on `starred_for_current_user`, NOT the
+    // raw `starred` attribute. The boards-index endpoint that
+    // populates `_fetchedPreviewBoards` doesn't pass permissions, so
+    // every record has starred=undefined (see board.js:859). The
+    // computed `starred_for_current_user` falls back to the user's
+    // `stats.starred_board_refs` list, which is the same source the
+    // template uses to render the heart icon on each tile — keeping
+    // the sort partition and the heart rendering in sync.
+    '_fetchedPreviewBoards.@each.starred_for_current_user',
     '_fetchedPreviewBoards.@each.name',
+    'appState.referenced_user.stats.starred_board_refs.[]',
     // Re-snapshot when a board's image attrs change. The board model's
     // checkForDataURLOnChange observer sets `image_data_uri` after a
     // user visits a board (offline-caching), and `image_url` itself
@@ -726,8 +735,10 @@ export default Component.extend({
         var bn = ((b && b.get && b.get('name')) || b.get('key') || '').toLowerCase();
         return an.localeCompare(bn);
       };
-      var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred'); }).sort(alphaByName);
-      var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred'); }).sort(alphaByName);
+      // Use `starred_for_current_user` (NOT raw `starred`) — see the
+      // dependent-keys comment above for why.
+      var starredAlpha = fetched.filter(function(b) { return b && b.get && b.get('starred_for_current_user'); }).sort(alphaByName);
+      var othersAlpha  = fetched.filter(function(b) { return b && b.get && !b.get('starred_for_current_user'); }).sort(alphaByName);
       starredAlpha.forEach(function(board) {
         if (ordered.length >= 5) { return; }
         add(board, board.get('name'), board.get('key'), board.get('icon_url_with_fallback'));

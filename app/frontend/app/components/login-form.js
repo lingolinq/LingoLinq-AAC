@@ -570,7 +570,7 @@ export default Component.extend({
         var safetyTimer = null;
         var listenerCleanedUp = false;
         // Bump the pre-reload overlay's z-index so it always wins regardless
-        // of DOM order. Higher than the default .ll-loading-overlay (z 10050).
+        // of DOM order. Higher than the default .ll-premium-progress (z 10054).
         try {
           var preEl = document.getElementById('ll-pre-reload-overlay');
           if(preEl) { preEl.style.zIndex = '2147483646'; }
@@ -688,43 +688,83 @@ export default Component.extend({
         if(window.navigator.splashscreen) {
           window.navigator.splashscreen.show();
         }
-        // Set auth-pending flag in localStorage. The boot overlay in index.html
-        // reads this on the reloaded page and shows "Loading your account…"
-        // instead of the generic "Loading…" so the message is consistent
-        // throughout the auth flow regardless of whether the SPA or reload path
-        // takes. localStorage survives page reload (sessionStorage does too,
-        // but localStorage is also visible to other tabs which is fine here).
-        // Cleared by the boot overlay's remove() once dismissed.
-        try {
-          if(typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('lingolinq_auth_pending', 'login');
-          }
-        } catch(e) { /* localStorage unavailable; pre-reload overlay still works */ }
-        // Cover the login page with a full-screen overlay while we flush stashes,
-        // fetch the session user, and trigger the reload. Without this, the user
-        // sees the login form sitting "ready" during the wait, then a flash of
-        // mid-boot styling on the new page. The boot overlay in index.html picks
-        // up immediately on the reloaded page and stays until the destination
-        // route renders.
+        // Pre-reload progress card — covers the brief window between
+        // login submit and the page reload that location.assign('/')
+        // triggers. Without this, the user sees a blank/white moment
+        // during browser navigation. The card visually MATCHES the
+        // progress card baked into the post-reload bootstrap skeleton
+        // (boards/index.html.erb in prod, app/frontend/app/index.html
+        // in dev), so the user perceives one continuous loading state
+        // across the reload boundary — not two distinct overlays.
+        //
+        // The chrome is the frosted-glass progress card (no full
+        // skeleton behind it — the form is still visible underneath,
+        // dimmed by the backdrop). After reload, the full skeleton +
+        // progress card renders on the new page.
         if(typeof document !== 'undefined' && document.body && !document.getElementById('ll-pre-reload-overlay')) {
           var overlay = document.createElement('div');
           overlay.id = 'll-pre-reload-overlay';
-          overlay.className = 'll-loading-overlay';
           overlay.setAttribute('role', 'status');
           overlay.setAttribute('aria-live', 'polite');
           overlay.setAttribute('aria-busy', 'true');
+          // Inline styles — these match the .ll-skel-progress chrome in
+          // the bootstrap skeleton + the dim backdrop pattern from
+          // .ll-premium-progress. Inline because we can't depend on
+          // SCSS class authorship matching during the brief pre-reload
+          // window across all environments.
+          overlay.style.cssText = [
+            'position:fixed','inset:0','z-index:2147483646',
+            'background:rgba(15, 23, 42, 0.45)',
+            'backdrop-filter:blur(6px)','-webkit-backdrop-filter:blur(6px)',
+            'display:flex','align-items:center','justify-content:center',
+            'font-family:Lexend, "Atkinson Hyperlegible", system-ui, sans-serif'
+          ].join(';');
           var card = document.createElement('div');
-          card.className = 'll-loading-overlay__card';
-          var spinner = document.createElement('div');
-          spinner.className = 'll-loading-overlay__spinner';
-          spinner.setAttribute('aria-hidden', 'true');
-          var msg = document.createElement('p');
-          msg.className = 'll-loading-overlay__message';
-          msg.textContent = i18n.t('loading_your_account', "Loading your account…");
-          card.appendChild(spinner);
-          card.appendChild(msg);
+          card.style.cssText = [
+            'width:calc(100% - 32px)','max-width:480px',
+            'padding:36px 40px 32px','border-radius:28px',
+            'background:rgba(255, 255, 255, 0.92)',
+            'backdrop-filter:blur(20px) saturate(140%)',
+            '-webkit-backdrop-filter:blur(20px) saturate(140%)',
+            'border:1px solid rgba(255, 255, 255, 0.8)',
+            'box-shadow:0 1px 3px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.10), 0 32px 64px rgba(15, 23, 42, 0.08)',
+            'text-align:center'
+          ].join(';');
+          var title = document.createElement('h2');
+          title.id = 'll-pre-reload-overlay__title';
+          title.textContent = i18n.t('preparing_your_workspace', 'Preparing your workspace');
+          title.style.cssText = 'margin:0 0 8px;font-size:19px;font-weight:500;letter-spacing:0.005em;color:#1B365D;line-height:1.3;transition:opacity 0.3s ease';
+          var sub = document.createElement('p');
+          sub.id = 'll-pre-reload-overlay__sub';
+          sub.textContent = i18n.t('loading_boards_and_resources', 'Loading boards and communication resources');
+          sub.style.cssText = 'margin:0 0 22px;font-size:14px;font-weight:400;letter-spacing:0.01em;color:rgba(27, 54, 93, 0.65);line-height:1.5;transition:opacity 0.3s ease';
+          var bar = document.createElement('div');
+          bar.setAttribute('aria-hidden', 'true');
+          bar.style.cssText = 'position:relative;width:100%;height:4px;border-radius:999px;background:rgba(27, 54, 93, 0.08);overflow:hidden';
+          var swipe = document.createElement('div');
+          swipe.style.cssText = 'position:absolute;inset:0;border-radius:999px;background:linear-gradient(90deg, rgba(42, 157, 143, 0) 0%, #2A9D8F 25%, #4C86D8 75%, rgba(76, 134, 216, 0) 100%);transform:translateX(-100%);animation:ll-pre-reload-sweep 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite';
+          bar.appendChild(swipe);
+          card.appendChild(title);
+          card.appendChild(sub);
+          card.appendChild(bar);
           overlay.appendChild(card);
+          // Inject keyframes once.
+          if(!document.getElementById('ll-pre-reload-keyframes')) {
+            var style = document.createElement('style');
+            style.id = 'll-pre-reload-keyframes';
+            style.textContent = '@keyframes ll-pre-reload-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }';
+            document.head.appendChild(style);
+          }
           document.body.appendChild(overlay);
+          // Dynamic message swap at 3s — matches the post-reload skeleton's
+          // behavior. Soft "still working" copy reduces perceived frustration
+          // on slow connections.
+          setTimeout(function() {
+            var t = document.getElementById('ll-pre-reload-overlay__title');
+            var s = document.getElementById('ll-pre-reload-overlay__sub');
+            if(t) { t.textContent = i18n.t('still_working_loading', 'Still working…'); }
+            if(s) { s.textContent = i18n.t('large_board_sets_take_longer', 'Large board sets can take a little longer to prepare.'); }
+          }, 3000);
         }
       }
       // wait = stashes flush -> setup -> refresh_session_user (ensures navbar shows signed-in state before transition)

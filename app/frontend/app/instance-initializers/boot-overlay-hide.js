@@ -1,6 +1,12 @@
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 
 export function initialize(appInstance) {
+  // Production (Rails-served entry point) doesn't define
+  // LingoLinqHideBootOverlay — there, app-state.js:586 is the
+  // authoritative remover of #loading_box, fired AFTER currentUser is
+  // set up. Returning early here preserves that contract; the skeleton
+  // stays visible until the destination route's data is actually
+  // resolved, masking the brief index → user.home redirect window.
   if (typeof window === 'undefined' || typeof window.LingoLinqHideBootOverlay !== 'function') {
     return;
   }

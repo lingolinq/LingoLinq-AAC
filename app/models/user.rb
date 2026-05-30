@@ -1888,7 +1888,7 @@ class User < ApplicationRecord
           brd = {
             'name' => board['name'] || record.settings['name'] || 'Board',
             'key' => board['key'],
-            'image' => board['image'] || record.settings['image_url'] || 'https://opensymbols.s3.amazonaws.com//libraries/arasaac/board_3.png',
+            'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
           brd['locale'] = board['locale'] || record.settings['locale']

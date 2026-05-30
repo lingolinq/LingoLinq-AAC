@@ -15,6 +15,10 @@ export default Component.extend({
   boardSearchQuery: '',
   used_category_fallback: false,
   category_explainer_overflows: false,
+  // Brand-group results for the tabbed (setup) Robust Vocabularies view.
+  // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
+  quick_core_group: null,
+  vocal_flair_group: null,
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
@@ -61,6 +65,9 @@ export default Component.extend({
       res.push(cat);
     }
     LingoLinq.board_categories.forEach(function(c) {
+      // The tabbed (setup Board Category) view hides the Cause and Effect
+      // tab; the vertical /search/home picker keeps the full set.
+      if(_this.get('tabbed') && c.id === 'cause_effect') { return; }
       var cat = $.extend({}, c);
       if(_this.get('current_category') == c.id) {
         cat.selected = true;
@@ -69,6 +76,60 @@ export default Component.extend({
     });
     return res;
   }),
+  // True only in the setup tabbed view with Robust Vocabularies active —
+  // the gate for showing the Quick Core / Vocal Flair brand cards.
+  robust_tabbed: computed('tabbed', 'category.robust', function() {
+    return !!this.get('tabbed') && !!(this.get('category') && this.get('category').robust);
+  }),
+  // Render-ready list of brand groups for the template (one card each),
+  // DRY across Quick Core + Vocal Flair. Recomputes as each query resolves.
+  brand_groups: computed('quick_core_group', 'vocal_flair_group', function() {
+    return [
+      { id: 'quick_core', title: i18n.t('quick_core', "Quick Core"), result: this.get('quick_core_group') },
+      { id: 'vocal_flair', title: i18n.t('vocal_flair', "Vocal Flair"), result: this.get('vocal_flair_group') }
+    ];
+  }),
+  // Load the MAIN (root) Quick Core / Vocal Flair boards — sub-boards
+  // (e.g. `vocal-flair-84-categories-food`) are excluded by anchoring the
+  // slug regex at the end after the size (and optional `-with-keyboard`).
+  // Public search may return several owners' copies of the same board, so
+  // dedup by name and natural-sort (24 < 40 < 60 < 84 < 112). Loaded once.
+  _loadBrandGroups: function() {
+    var _this = this;
+    if(this._brand_groups_loaded) { return; }
+    this._brand_groups_loaded = true;
+    var defs = [
+      { prop: 'quick_core_group', q: 'Quick Core', re: /(^|\/)quick-core-\d+(-with-keyboard)?$/i },
+      { prop: 'vocal_flair_group', q: 'Vocal Flair', re: /(^|\/)vocal-flair-\d+(-with-keyboard)?$/i }
+    ];
+    defs.forEach(function(def) {
+      _this.set(def.prop, { state: 'loading' });
+      LingoLinq.store.query('board', { public: true, q: def.q, sort: 'home_popularity', per_page: 50 }).then(function(data) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var seen = Object.create(null);
+        var matched = [];
+        if(data && data.forEach) {
+          data.forEach(function(b) {
+            var key = (b && b.get && b.get('key')) || '';
+            if(!def.re.test(key)) { return; }
+            var name = (b.get && b.get('name')) || '';
+            if(name && seen[name]) { return; }
+            if(name) { seen[name] = true; }
+            matched.push(b);
+          });
+        }
+        matched.sort(function(a, b) {
+          var an = (a.get && a.get('name')) || '';
+          var bn = (b.get && b.get('name')) || '';
+          return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        _this.set(def.prop, { state: 'loaded', boards: matched });
+      }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set(def.prop, { state: 'error' });
+      });
+    });
+  },
   /** User whose boards should appear first (supervisee during setup, else signed-in user). */
   _subjectBoardUserId: function() {
     var su = this.appState.get('setup_user');
@@ -165,7 +226,11 @@ export default Component.extend({
           _this.set('category_boards', data);
         }, function(err) {
           _this.set('category_boards', {error: true});
-        });  
+        });
+      } else if(_this.get('tabbed') && str == 'robust') {
+        // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
+        // brand cards instead of the flat category grid.
+        _this._loadBrandGroups();
       } else {
         _this._resolveCategoryBoards(str);
       }

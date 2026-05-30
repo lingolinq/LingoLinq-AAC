@@ -2145,7 +2145,7 @@ var persistence = EmberObject.extend({
         eventuallies.push(function() {
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg', 'image', false, false).then(null, function() { });
-          persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png', 'image', false, false).then(null, function() { });
+          persistence.store_url('/images/lingolinq-board-icon.png', 'image', false, false).then(null, function() { });
           persistence.store_url('https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/274c.svg', 'image', false, false).then(null, function() { });
           persistence.store_url('https://opensymbols.s3.amazonaws.com/libraries/noun-project/Home-c167425c69.svg', 'image', false, false).then(null, function() { });
         });

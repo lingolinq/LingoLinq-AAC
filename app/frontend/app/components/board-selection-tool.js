@@ -138,6 +138,7 @@ export default Component.extend({
     if(canvas) { canvas.style.display = 'none'; }
     var userId = _this.appState.get('currentUser.id') || 'self';
     LingoLinq.store.query('board', { public: true, starred: true, user_id: userId, per_page: 20, category: 'layouts' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       var res = (data || []).map(function(b) { return b; });
       if (res && res.length > 0) {
         _this.set('boards', res);
@@ -146,6 +147,7 @@ export default Component.extend({
         return;
       }
       return LingoLinq.store.query('board', { public: true, sort: 'home_popularity', per_page: 20, category: 'layouts' }).then(function(pub) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         var list = (pub || []).map(function(b) { return b; });
         if (list && list.length > 0) {
           _this.set('boards', list);
@@ -157,11 +159,13 @@ export default Component.extend({
           _this.triggerExternalAction('loadError', 'load_error');
         }
       }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('status', { error: true });
         _this.set('_boards_loading', false);
         _this.triggerExternalAction('loadError', 'load_error');
       });
     }, function(err) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('status', {error: true});
       _this.set('_boards_loading', false);
       _this.triggerExternalAction('loadError', 'load_error');

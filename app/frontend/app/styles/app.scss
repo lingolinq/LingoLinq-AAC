@@ -8,6 +8,198 @@
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
 
+/* Shared "raised glass pill" button — mirrors the boards-page Change
+   Home Board button (`.ub-boards-page__set-home-btn`, ~app.scss:57064)
+   so the boards-page New Board CTA and the setup Board Category CTAs all
+   read as one button family. `$bg` / `$hover-bg` are parameterized so a
+   caller can keep its own background while sharing the shape, border,
+   layered shadow, and sizing. Defined here (before first use) because
+   the setup rules that consume it live earlier in the file than the
+   mid-file mixin cluster. */
+@mixin home-board-pill($bg, $hover-bg, $border: rgba(255, 255, 255, 0.5), $hover-border: rgba(255, 255, 255, 0.6)) {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 14px;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 999px;
+  color: var(--md-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: $hover-bg;
+    border-color: $hover-border;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 2px 4px rgba($la-navy, 0.14),
+      0 10px 22px rgba($la-navy, 0.28);
+  }
+}
+
+/* Modern board-card STYLING (the LingoLinq board-card direction), applied
+   on top of each surface's EXISTING layout — `@include` it inside any
+   `<surface> .simple_board_icon` rule. It changes only the look (glass
+   surface, subtle outline, top edge-light, contained logo tile, type
+   hierarchy, soft glass pills, gentle hover lift) — NOT the layout
+   (no display/flex/width), so every surface keeps its own composition.
+   `!important` on the conflicting cosmetics so the shared look wins over
+   each surface's bespoke declarations regardless of source order. Dark/
+   themed shells (e.g. bento --dark / --midday) re-assert their own bg +
+   text colors after including this. */
+@mixin board-card-modern {
+  position: relative;
+  border-radius: 28px !important;
+  border: 1px solid rgba(76, 134, 216, 0.08) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 255, 0.82)) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.04),
+    0 8px 20px rgba(27, 54, 93, 0.06) !important;
+  overflow: hidden;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 220ms ease !important;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      rgba($brand-verdigris, 0) 0%,
+      rgba($brand-verdigris, 0.5) 28%,
+      rgba(76, 134, 216, 0.5) 72%,
+      rgba(76, 134, 216, 0) 100%);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 1;
+  }
+  &:hover {
+    transform: translateY(-3px);
+    border-color: rgba(76, 134, 216, 0.16) !important;
+    box-shadow:
+      0 24px 48px rgba(27, 54, 93, 0.14),
+      0 12px 24px rgba(42, 157, 143, 0.10) !important;
+  }
+
+  /* Contained logo tile — soft rounded glass surface, faint inner glow,
+     gentle elevation. width:auto + max-width centers + contains it even
+     where the surface forces width:100%. */
+  & img {
+    width: auto !important;
+    max-width: 72% !important;
+    height: 104px !important;
+    object-fit: contain;
+    object-position: center;
+    margin: 2px auto 14px !important;
+    padding: 11px !important;
+    border-radius: 18px;
+    background: radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, 0.95), rgba(240, 245, 252, 0.7));
+    border: 1px solid rgba(76, 134, 216, 0.10);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      0 4px 12px rgba(27, 54, 93, 0.07);
+    box-sizing: border-box;
+  }
+  /* LingoLinq default/fallback board icon: keep the tile/card (bg, border,
+     radius, shadow inherited from `& img` above) but expand the image out
+     to the tile's borders — zero the inner padding and fill so the logo
+     uses the full tile instead of sitting inset. Vocab-icon boards keep
+     the padded contained tile. */
+  & img[src*="lingolinq-board-icon"] {
+    padding: 0 !important;
+    object-fit: cover !important;
+  }
+
+  /* Typography — also sets the compact spacing/layout (centered, clamped
+     title; tight inline `by name`) so EVERY surface reads the same as the
+     board_category page, not just the colors. Font sizes carry an 11px
+     floor via max() so card text never renders below 11px (e.g. if a root
+     font-size shrink scales the rem values down). */
+  & .name {
+    width: 100% !important;
+    font-size: max(11px, 1.2rem) !important;
+    font-weight: 700 !important;
+    color: $la-navy !important;
+    line-height: 1.25 !important;
+    text-align: center !important;
+    margin: 0 0 4px !important;
+    max-height: 2.5em !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+  }
+  & .board-icon__credit {
+    font-size: max(11px, 0.85rem) !important;
+    opacity: 0.72;
+    text-align: center !important;
+    margin: 0 0 2px !important;
+  }
+  & .author {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: baseline !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    padding: 0 2px !important;
+    max-width: 100% !important;
+    font-size: max(11px, 0.9rem) !important;
+    color: rgba(27, 54, 93, 0.72) !important;
+  }
+  & .author__label { color: rgba(27, 54, 93, 0.55) !important; }
+  & .author__username,
+  & .author__username--long {
+    color: rgba(27, 54, 93, 0.72) !important;
+    font-weight: 600 !important;
+    font-size: max(11px, 0.9rem) !important;
+  }
+
+  /* Size chip — soft navy-gray glass (was a utility sticker). */
+  & .board-icon__info {
+    background: rgba(255, 255, 255, 0.62) !important;
+    border: 1px solid rgba(27, 54, 93, 0.08) !important;
+    color: rgba(27, 54, 93, 0.66) !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 2;
+  }
+  & .board-icon__info-icon,
+  & .board-icon__info-size { color: rgba(27, 54, 93, 0.6) !important; }
+
+  /* Language pill — soft verdigris glass. */
+  & .board-icon__lang-marker {
+    background: rgba(255, 255, 255, 0.62) !important;
+    border: 1px solid rgba(42, 157, 143, 0.12) !important;
+    color: $brand-verdigris !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  /* Preview pill — integrated dusty-denim glass. */
+  & .info {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(228, 236, 255, 0.92)) !important;
+    border: 1px solid rgba(76, 134, 216, 0.14) !important;
+    box-shadow: 0 8px 18px rgba(76, 134, 216, 0.16) !important;
+    color: $la-navy !important;
+  }
+}
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -2304,9 +2496,19 @@ header.speaking.tiny #inner_header:has(#speak) #identity img.user {
   height: 32px !important;
 }
 
-/* Avatar circle: neutral slate (modern, professional) */
+/* Avatar circle: neutral slate (modern, professional).
+   IMPORTANT — use `background-color`, NOT the `background` shorthand.
+   The shorthand resets `background-image` to `none`, which wipes the
+   data-URI silhouette painted by `.user_holder--default` further
+   down (around line ~2515). That selector here is 3 IDs + 1 class so
+   with `!important` it wins specificity against `.user_holder--default`'s
+   `background-image: url(...) !important`. Net effect of the previous
+   shorthand was an empty slate circle on board-alt speak mode (and
+   anywhere else `#inner_header:has(#speak)` matches) for users with
+   the default avatar — the silhouette wasn't rendering at all.
+   See docs/task-management/2026-05-28-identity-avatar-board-alt.md. */
 #inner_header:has(#speak) #identity .user_holder {
-  background: #e2e8f0 !important;
+  background-color: #e2e8f0 !important;
 
   width: 50px !important;
 
@@ -4761,81 +4963,79 @@ tr.accuracy_non_mastered {
   padding: 0;
   min-height: 0;
 }
-/* Board cards: modern, larger, spacious; match dashboard card feel */
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon {
+/* Board cards on the board-picker surfaces (/search/home + setup Board
+   Category): client-preferred CENTERED vertical layout + the shared
+   `board-card-modern` look. Only layout/centering + the in-flow pill
+   positioning live here; all cosmetics come from the mixin. */
+.md-home-boards-picker__board .btn.simple_board_icon {
+  @include board-card-modern;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   width: 100%;
   height: auto;
-  min-height: 260px;
-  padding: 1.25rem 1rem 1rem;
-  border-radius: var(--md-r-md, 12px);
-  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.12));
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 18px 18px 16px;
   color: var(--md-ink);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
   font-size: 15px;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon:hover {
-  border-color: rgba(44, 183, 176, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
+.md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
   @include focus-ring;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon img {
-  width: 100%;
-  max-width: none;
-  height: 100px;
-  object-fit: contain;
-  object-position: center;
-  margin-bottom: 12px;
+.md-home-boards-picker__board .btn.simple_board_icon img {
   flex-shrink: 0;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .name {
+.md-home-boards-picker__board .btn.simple_board_icon .name {
   width: 100%;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
+  text-align: center;
   margin: 0 0 4px;
-  max-height: 2.7em;
+  max-height: 2.5em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  text-align: center;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .author {
-  font-size: 14px;
-  color: var(--md-muted);
+.md-home-boards-picker__board .btn.simple_board_icon .board-icon__credit {
+  text-align: center;
+  margin: 0 0 2px;
+}
+.md-home-boards-picker__board .btn.simple_board_icon .author {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
   margin: 0;
   padding: 0 2px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   max-width: 100%;
+  font-size: 0.9rem;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .author__username {
-  color: $brand-charcoal-blue;
-  font-size: 14px;
+.md-home-boards-picker__board .btn.simple_board_icon .author__username,
+.md-home-boards-picker__board .btn.simple_board_icon .author__username--long {
+  font-size: 0.9rem;
 }
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .author__username--long {
-  font-size: 14px;
-}
-.md-card--home-boards .md-home-boards-picker__board .btn.simple_board_icon .info {
-  /* BOTTOM-CENTER Preview pill (matches the boards-page treatment).
-     Silver-glass background inherits from the base .info rule. */
+/* Preview pill stays IN-FLOW, stacking below the language marker
+   (cosmetics come from the mixin). */
+.md-home-boards-picker__board .btn.simple_board_icon .info {
+  position: static;
   top: auto;
-  left: 50%;
+  left: auto;
   right: auto;
-  bottom: 10px;
-  transform: translateX(-50%);
-  padding: 4px 12px;
+  bottom: auto;
+  transform: none;
+  order: 99;
+  align-self: center;
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
   font-size: 11px;
+}
+.md-home-boards-picker__board .btn.simple_board_icon:has(.board-icon__lang-marker) .info {
+  margin-top: 0;
 }
 
 .md-home-boards-picker__grid-message {
@@ -4944,15 +5144,17 @@ tr.accuracy_non_mastered {
   }
 }
 
-/* Setup board_category step: intro full width, then left 50% category buttons / right 50% explainer + grid */
-/* Board Category step: medium-sized page header inside setup container */
+/* Setup board_category step: restyled to echo the boards page — a
+   centered hero-style heading + intro, then the tabbed category picker.
+   (The shared wizard header chrome is hidden on this step in setup.hbs.) */
 .md-card--setup .setup-board-category__page-header {
-  margin: 0 0 1rem;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.2px;
-  line-height: 1.3;
-  color: var(--md-ink, $brand-blue-black);
+  margin: 0 0 0.5rem;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  color: $la-navy;
+  text-align: center;
 }
 .setup-board-category {
   display: flex;
@@ -4961,11 +5163,95 @@ tr.accuracy_non_mastered {
   width: 100%;
   max-width: 100%;
   .setup-board-category__intro {
-    margin-bottom: 1.25rem;
-    &:last-of-type {
-      margin-bottom: 1.5rem;
-    }
+    margin: 0 auto 1.5rem;
+    max-width: 680px;
+    text-align: center;
+    color: $brand-charcoal-blue;
   }
+}
+/* "Assign a Home Board For Me" — primary convenience CTA that replaced
+   the removed wizard header's navigation. Centered above the category
+   tabs; assigns the Vocal Flair 84 board and returns to the dashboard. */
+.md-card--setup .setup-board-category__assign {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 1.75rem;
+}
+/* Both CTAs use the boards-page Change Home Board pill style, each
+   keeping its own relative background: Assign = dusty-denim wash,
+   Create a New Board = teal→blue glass (same as the boards-page CTAs). */
+.md-card--setup .setup-board-category__assign-btn {
+  @include home-board-pill(
+    rgba($brand-dusty-denim, 0.30),
+    rgba($brand-dusty-denim, 0.45)
+  );
+}
+.md-card--setup .setup-board-category__assign-btn[disabled],
+.md-card--setup .setup-board-category__assign-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.md-card--setup .setup-board-category__new-btn {
+  @include home-board-pill(
+    linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)),
+    linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
+  );
+}
+/* Verdigris accent icon on both CTAs — mirrors the Change Home Board
+   button's verdigris home glyph so the entrypoints read as one family. */
+.md-card--setup .setup-board-category__cta-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: $brand-verdigris-aa;
+}
+/* Brand groups under Robust Vocabularies (Quick Core, Vocal Flair) — each
+   on its own boards-page glass card (mirrors `.ub-boards-page__folders-
+   section`: cool-blue gradient + inset top shadow + hairline highlights). */
+.setup-board-category__brand-card {
+  margin: 0 0 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-radius: 22px;
+  border: 1px solid rgba(13, 36, 56, 0.07);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(242, 246, 250, 0.94) 0%,
+      rgba(252, 253, 254, 0.95) 45%,
+      rgba(255, 255, 255, 0.96) 100%
+    );
+  box-shadow:
+    inset 0 1px 8px rgba(13, 36, 56, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.setup-board-category__brand-title {
+  margin: 0 0 0.5rem;
+  font-size: 18px;
+  font-weight: 800;
+  color: $la-navy;
+}
+/* Board Category page: strip the shared setup card chrome so the brand
+   glass cards sit directly on the page (transparent, no border, no
+   padding). Scoped to the `--bare` modifier (board_category only) so the
+   other setup steps keep their card. `!important` is required because the
+   base `.md-card` rule sets background/border/border-radius/overflow with
+   `!important` (var(--md-surface) reads periwinkle over the page gradient). */
+.md-card--setup.md-card--setup-bare {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+}
+#setup_container.md-card--setup-bare {
+  padding: 0 !important;
+}
+.md-card--setup-bare .md-card--setup__content {
+  padding-bottom: 0;
 }
 /* Two columns: category buttons left ~50%, selected category text + board grid right ~50% */
 .md-card--setup .setup-board-category .md-home-boards-picker__layout {
@@ -4991,6 +5277,88 @@ tr.accuracy_non_mastered {
   min-width: 240px;
   max-width: 50%;
   padding-top: 5rem; /* nav-label height + margin-bottom so content starts flush with first button */
+}
+
+/* ---------- Tabbed variant (board_category, matches the boards page) ----------
+   When board-picker is invoked with tabbed=true (setup only), the
+   category sidebar is replaced by the boards-page file-folder tab row
+   and the layout stacks vertically: tabs on top, board grid below. */
+.md-card--setup .setup-board-category .md-home-boards-picker__layout--tabbed {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+.md-card--setup .setup-board-category .md-home-boards-picker__layout--tabbed .md-home-boards-picker__content {
+  flex: 1 1 100%;
+  max-width: 100%;
+  width: 100%;
+  padding-top: 0; /* no sidebar to align against in tabbed mode */
+}
+/* Board cards expand/shrink to fit content like the boards page: instead
+   of stretching to fill 1fr grid columns (which makes them oversized and
+   overflows the author line), lay them out as fixed ~280px cards that
+   wrap. Scoped to setup so /search/home keeps its own grid. Switching to
+   flex makes the base grid's `grid-template-columns` (incl. the 768/1024
+   media queries) inert. */
+.md-card--setup .setup-board-category .md-home-boards-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-content: flex-start;
+  gap: 1.25rem 1.5rem;
+}
+.md-card--setup .setup-board-category .md-home-boards-picker__board {
+  flex: 0 0 280px;
+  width: 280px;
+  max-width: 100%;
+}
+/* Setup-scoped tabs-row wrapper — deliberately NOT `.ub-boards-page__tabs-row`
+   so the boards page's ≤640px "swap pills for a <select>" rule (which is
+   keyed on that parent) doesn't hide our tabs. The folder-baseline divider
+   below mirrors `.ub-boards-page__tabs-row::after`. */
+.md-home-boards-picker__tabs-row {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.25rem 0 1.5rem;
+}
+.md-home-boards-picker__tabs-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba($la-navy, 0) 0%,
+    rgba($brand-verdigris-aa, 0.45) 14%,
+    rgba($la-navy, 0.32) 42%,
+    rgba($la-navy, 0.22) 70%,
+    rgba($brand-verdigris-aa, 0.25) 88%,
+    rgba($la-navy, 0) 100%
+  );
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, 0.65),
+    0 2px 4px -1px rgba($la-navy, 0.20),
+    0 6px 14px -6px rgba($brand-verdigris-aa, 0.28),
+    0 12px 28px -14px rgba($la-navy, 0.18);
+  pointer-events: none;
+  z-index: 1;
+}
+/* The pill look comes from the reused `.ub-boards-page__tabs--boards`
+   li/a rules; here we only need the <ul> to be a wrapping flex row of
+   list items (6 category tabs wrap to a second row on narrow widths
+   rather than scrolling off-screen). */
+.md-home-boards-picker__tabs.ub-boards-page__tabs--boards {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 6px;
 }
 
 /* ---------- Setup access step: two cards, modern radio options ---------- */
@@ -15789,7 +16157,7 @@ body:-ms-fullscreen {
     display: none;
   }
 }
-@media (max-width: 430px) {
+@media (max-width: 460px) {
   .really_skinny {
     display: inline;
   }
@@ -28131,6 +28499,24 @@ header #identity #identity_button.btn::after {
 .md-hero.md-hero--dashboard {
   position: relative !important;
 }
+@media (min-width: 1025px) {
+  /* Lift the tour trigger onto the pill-nav row, right-aligned to the
+     content gutter. The workspace becomes the containing block (scoped
+     to the dashboard via :has) and the hero gives up its relative so the
+     absolute trigger resolves to the workspace. */
+  .md-shell > .md-workspace:has(.md-hero--dashboard) {
+    position: relative !important;
+  }
+  .md-shell > .md-workspace:has(.md-hero--dashboard) .md-hero.md-hero--dashboard {
+    position: static !important;
+  }
+  .md-shell > .md-workspace:has(.md-hero--dashboard) .md-tour__trigger {
+    position: absolute !important;
+    top: 50px !important;   /* pill-nav row (42px margin + center of ~52px bar) */
+    right: 56px !important;  /* offset left of the content gutter (24px) per request */
+    z-index: 600 !important; /* above the pill-nav bar */
+  }
+}
 .md-hero--dashboard-user {
   padding-top: 0;
 }
@@ -28145,6 +28531,42 @@ header #identity #identity_button.btn::after {
   font-size: inherit;
   opacity: 0;
   animation: md-hero-from-right 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
+}
+/* ≤1024px hero layout: pull the .md-tour__trigger out of its absolute
+   top-right pin (where it lives via .md-tour__trigger position:
+   absolute / top:16 / right:16 at l. ~89271) and into the document
+   flow above the centered hero title. The hero becomes a flex column
+   only at this breakpoint; the tour trigger gets order:-1 so it
+   visually leads, even though the template renders it AFTER the
+   title and sub (no template change required). 2rem margin-top on
+   the title creates the requested breathing room between the
+   trigger and the page header text. Title and sub stretch to the
+   full hero width by default (flex column items inherit
+   align-items:stretch), so the existing text-align:center on the
+   hero keeps the H1/sub horizontally centered exactly as they were
+   above 1024px. The tour trigger uses align-self:center so the
+   chip itself stays content-width and centered rather than
+   stretching across the full hero. */
+@media (max-width: 1024px) {
+  .md-hero.md-hero--dashboard {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .md-hero.md-hero--dashboard .md-tour__trigger {
+    /* `relative` (not `static`) so the chip drops into normal flow WITHOUT
+       offsets yet remains the containing block for its `::before` glow
+       (position:absolute; inset:-4px). With `static` the glow resolved its
+       inset against the hero (the next positioned ancestor) and stretched
+       across the whole div instead of hugging the button. */
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    align-self: center !important;
+    order: -1 !important;
+  }
+  .md-hero.md-hero--dashboard .md-hero__title {
+    margin-top: 2rem !important;
+  }
 }
 .md-hero__gradient-text {
   font-style: normal;
@@ -36842,9 +37264,9 @@ a.la-footer-bottom-a11y-wcag {
   }
 }
 
-// — xxs (≤ 430px, iPhone Pro Max and below): collapse horizontal padding —
+// — xxs (≤ 460px, iPhone Pro Max and below): collapse horizontal padding —
 // Sits after the sm/xs landing-alt cascade so it wins on file order.
-@media (max-width: 430px) {
+@media (max-width: 460px) {
   .la-wrapper .la-main {
     padding-left: 2px;
     padding-right: 2px;
@@ -37692,6 +38114,7 @@ a.la-footer-bottom-a11y-wcag {
   }
 
   .btn.simple_board_icon {
+    @include board-card-modern;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
@@ -38425,9 +38848,13 @@ a.la-footer-bottom-a11y-wcag {
 
   margin: 42px auto 0 !important;
 
-  /* Vertical padding tightened from 8px → 3px for a sleeker bar; the
-     pills themselves carry the touch-target padding. */
-  padding: 3px 14px !important;
+  /* 8px top / 8px bottom / 2px sides — gives the bar enough vertical
+     breathing room to seat the pills cleanly while keeping the
+     horizontal edges flush. Single base rule covers the home page
+     and the caseload page (both render bare `<nav class="md-pillnav">`);
+     `.md-pillnav--user` further down still re-declares the same 8px
+     top/bottom values for its own variant and the result matches. */
+  padding: 8px 2px !important;
 
   display: flex !important;
 
@@ -39426,6 +39853,119 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   flex: 1 1 auto !important;
   border-bottom: none !important;
   padding-bottom: 0 !important;
+}
+/* My Caseload card-as-button — rendered at ≤1024px (see
+   components/dashboard/authenticated-view.js#is_narrow_dashboard).
+   The card itself is a <LinkTo> to the caseload route; the explicit
+   "Manage" button is dropped at this size. The radial-gradient
+   background + border + flex layout from .md-card.md-card--caseload
+   above are intentionally inherited unchanged — this rule only
+   resets the <a>'s native styling, switches the cursor, and layers
+   a raised-button shadow + hover/focus affordance so the whole
+   card reads as a tappable primary action.
+   Specificity .md-grid .md-card.md-card--caseload-as-button matches
+   the base rule so it neither under- nor over-rides the existing
+   layout. */
+.md-grid .md-card.md-card--caseload-as-button {
+  text-decoration: none !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  /* Glassy raised-button shadow stack:
+     - inset top-edge highlight (the "lit" upper bevel of a glass button)
+     - inset bottom-edge soft darkening (the lower bevel)
+     - outer drop shadow for the lift off the page
+     A single combined shadow declaration so the cascade-merge stays
+     atomic — hover/active just swap the whole stack. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10) !important;
+  transition: box-shadow 180ms ease-out, transform 140ms ease-out !important;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Gloss highlight overlay — top half of the card brightens with a
+   white veil that fades to transparent, mimicking light catching the
+   curved top surface of a glass button. Sits ABOVE the existing
+   radial-gradient card background but BELOW the head content (head
+   is forced relative + z-index 1 just below). border-radius:inherit
+   keeps the gloss inside the card's rounded corners; pointer-events:
+   none means the gloss never intercepts clicks. */
+.md-grid .md-card.md-card--caseload-as-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.22) 40%,
+    rgba(255, 255, 255, 0)    65%
+  );
+  z-index: 0;
+}
+.md-grid .md-card.md-card--caseload-as-button > .md-card__head {
+  position: relative;
+  z-index: 1;
+}
+.md-grid .md-card.md-card--caseload-as-button:hover,
+.md-grid .md-card.md-card--caseload-as-button:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 18px rgba($la-navy, 0.10),
+    0 20px 44px rgba($la-navy, 0.14) !important;
+  transform: translateY(-1px);
+  text-decoration: none !important;
+}
+.md-grid .md-card.md-card--caseload-as-button:active {
+  transform: translateY(0.5px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 2px 6px rgba($la-navy, 0.08) !important;
+}
+.md-grid .md-card.md-card--caseload-as-button:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.55);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-grid .md-card.md-card--caseload-as-button {
+    transition: none !important;
+  }
+  .md-grid .md-card.md-card--caseload-as-button:hover,
+  .md-grid .md-card.md-card--caseload-as-button:focus-visible,
+  .md-grid .md-card.md-card--caseload-as-button:active {
+    transform: none;
+  }
+}
+/* My Caseload responsive switch. The card renders TWO sibling variants in
+   the DOM (--caseload-wide-only and --caseload-narrow-only); these @media
+   rules show exactly one per viewport:
+     >1024px → wide card with a separate "Manage" button (--caseload-wide-only)
+     ≤1024px → whole card is a raised button (--caseload-as-button …-narrow-only)
+   Hide-rule selectors match the base `.md-grid .md-card.md-card--caseload`
+   specificity (0,3,1) + !important and sit LATER in source order than that
+   rule (line ~39827), so its `display: flex !important` doesn't win the
+   cascade and leave both variants visible.
+   NOTE: the Speak Mode pair is handled in its OWN @media block placed AFTER
+   `.md-grid .md-card.md-card--speak` (line ~44532) — putting speak's hide
+   rules here (before that base rule) would lose the source-order tiebreak
+   and render both speak variants. */
+@media (max-width: 1024px) {
+  .md-grid .md-card.md-card--caseload-wide-only { display: none !important; }
+  /* The card-as-button shadows feather outward; let the dashboard grid
+     overflow so they don't clip at the grid edge. Only needed at this
+     breakpoint, where the as-button variant shows. 0,2,0 beats the base
+     `.md-grid { overflow: hidden !important }`. */
+  .md-grid.md-grid--dashboard { overflow: visible !important; }
+}
+@media (min-width: 1025px) {
+  .md-grid .md-card.md-card--caseload-narrow-only { display: none !important; }
 }
 /* Org management card: full-width like getting-started */
 .md-card--org-management {
@@ -42863,6 +43403,7 @@ a.md-goal-nav-action:hover,
 /* Board cards in Available Boards: card layout (wide, spacious), not pill */
 .md-user-summary__available-boards .board_with_action.simple_board_holder .btn.simple_board_icon,
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon {
+  @include board-card-modern;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -43434,6 +43975,33 @@ a.md-goal-nav-action:hover,
   justify-self: end;
   min-width: 0;
 }
+/* ≤640px: hide the Total board count widget and slide the
+   "New Board" pill into the slot the count used to occupy.
+   The base layout (~l. 43578) uses a `1fr auto 1fr` grid
+   (left | center pill | right stat); at this width we drop
+   the right column entirely (count display:none), leaving
+   a `1fr auto` 2-column grid that pins the title/sub on the
+   left and the pill on the right. Replaces a previous ≤460px
+   block that pushed the button to its own row — that behavior
+   is intentionally retired: the user reframed the small-screen
+   intent as "count goes, button takes its place" rather than
+   "button drops below". */
+@media (max-width: 640px) {
+  .md-card--boards .md-card__head--between {
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas: "left btn" !important;
+  }
+  .md-card--boards .md-card__head--between > .md-card__left {
+    grid-area: left !important;
+  }
+  .md-card--boards .md-card__head--between > .md-btn {
+    grid-area: btn !important;
+    justify-self: end !important;
+  }
+  .md-card--boards .md-card__head--between > .md-stat {
+    display: none !important;
+  }
+}
 
 /* `.md-card__title` is now applied to <h3> elements (WCAG 1.3.1 — Heading hierarchy).
    Reset browser h3 defaults so the visual is identical to the prior <div> usage. */
@@ -43991,6 +44559,105 @@ a.md-goal-nav-action:hover,
 .md-card--speak > .md-btn {
   margin-left: auto !important;
 }
+/* Speak Mode card-as-button — rendered at ≤1024px (see
+   components/dashboard/authenticated-view.js#is_narrow_dashboard).
+   The whole card becomes a <button> firing the same `go "speak"`
+   action; the explicit "Continue Speaking" button is dropped at
+   this size. The card chrome (radial overlays, padding, layout)
+   from .md-grid .md-card.md-card--speak above carries over
+   untouched — this rule only resets the native <button> styles
+   (background/border/font/text-align), enables a pointer cursor,
+   and layers the same raised-button shadow + hover/focus affordance
+   as .md-card--caseload-as-button so the two cards read as a
+   matched pair of tappable primary actions. */
+.md-grid .md-card.md-card--speak-as-button {
+  /* Native <button> UA styles (font/text-align/color/cursor) that the
+     inherited .md-card / .md-grid .md-card rules don't override; the
+     background gradient + border come down from those parent rules
+     unchanged. Glassy shadow stack matches the caseload-as-button
+     companion (inset highlight top + inset darken bottom + lifted
+     drop shadow). */
+  font: inherit !important;
+  text-align: left !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  width: 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10) !important;
+  transition: box-shadow 180ms ease-out, transform 140ms ease-out !important;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Gloss highlight overlay — sits above the gradient background but
+   below the head content (head already has position:relative + z-index:1
+   from `.md-card--speak .md-card__head, …` block below). The wave
+   decorative bg div renders on top of the gloss because the wave is a
+   later sibling with no z-index — that's intentional; the wave reads
+   as the "glassy refraction" inside the button. */
+.md-grid .md-card.md-card--speak-as-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.22) 40%,
+    rgba(255, 255, 255, 0)    65%
+  );
+  z-index: 0;
+}
+.md-grid .md-card.md-card--speak-as-button:hover,
+.md-grid .md-card.md-card--speak-as-button:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 18px rgba($la-navy, 0.10),
+    0 20px 44px rgba($la-navy, 0.14) !important;
+  transform: translateY(-1px);
+}
+.md-grid .md-card.md-card--speak-as-button:active {
+  transform: translateY(0.5px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 2px 6px rgba($la-navy, 0.08) !important;
+}
+.md-grid .md-card.md-card--speak-as-button:focus-visible {
+  outline: 2px solid rgba($brand-dusty-denim, 0.55);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-grid .md-card.md-card--speak-as-button {
+    transition: none !important;
+  }
+  .md-grid .md-card.md-card--speak-as-button:hover,
+  .md-grid .md-card.md-card--speak-as-button:focus-visible,
+  .md-grid .md-card.md-card--speak-as-button:active {
+    transform: none;
+  }
+}
+/* Speak Mode responsive switch (mirrors My Caseload). The card renders TWO
+   sibling variants (--speak-wide-only and --speak-narrow-only); these @media
+   rules show exactly one per viewport:
+     >1024px → wide card with a separate "Continue Speaking" button (--speak-wide-only)
+     ≤1024px → whole card is a raised button (--speak-as-button …-narrow-only)
+   These rules MUST stay AFTER `.md-grid .md-card.md-card--speak` (line ~44532)
+   so the source-order tiebreak goes to the hide rule — both carry (0,3,1) +
+   !important, so the later one wins. (Caseload's pair lives near its own base
+   rule, line ~39827, for the same reason.) */
+@media (max-width: 1024px) {
+  .md-grid .md-card.md-card--speak-wide-only { display: none !important; }
+}
+@media (min-width: 1025px) {
+  .md-grid .md-card.md-card--speak-narrow-only { display: none !important; }
+}
 .md-card--speak .md-card__head,
 .md-card--speak .md-card__row,
 .md-card--speak .md-card__org-list {
@@ -44035,6 +44702,17 @@ a.md-goal-nav-action:hover,
 }
 .md-card__icon--speak { background: rgba(44, 183, 176, 0.12); }
 /* SVG icon (when using mic SVG instead of img): .md-card__icon--speak .md-card__icon-svg--mic { color: rgba(44, 183, 176, 0.92); } */
+/* Extras variant — soft warm coral tint matching the wave decoration
+   on the card's bottom. Was previously the standalone `.md-extrasIcon`
+   class living inside `.md-extrasRow` below the head; the icon is now
+   a direct head child like every other dashboard card (Caseload,
+   Speak Mode) so it sits to the LEFT of the title/sub instead of
+   below them. Same 46×46 box from the base .md-card__icon rule
+   above; this modifier only swaps the tint. */
+.md-card__icon--extras {
+  background: rgba(240, 106, 91, 0.12) !important;
+  border-color: rgba(240, 106, 91, 0.18) !important;
+}
 .md-card__icon-img {
   width: 100% !important;
 
@@ -44195,16 +44873,34 @@ a.md-goal-nav-action:hover,
 
 /* --- Boards Card --- */
 .md-card--boards { grid-area: boards; }
-/* Dashboard home: primary action buttons */
+/* Dashboard home: primary action buttons. Styled to match the Extras-tab
+   action buttons (.md-extras-card__btn): a raised glassy denim pill —
+   fully-round radius, top inner sheen + faint lower inner edge for surface
+   curvature, a tight contact shadow, and a soft diffuse denim-tinted lift, so
+   each reads as a tappable CTA rather than a flat wash. Navy-on-light AAC
+   contrast preserved. (The New Board pill is carved out below to follow the
+   Change Home Board button instead.) */
 .md-grid--dashboard .md-card--speak .md-btn--primary,
 .md-grid--dashboard .md-card--extras .md-btn--primary,
-.md-grid--dashboard .md-card--boards .md-btn--primary {
+.md-grid--dashboard .md-card--boards .md-btn--primary,
+.md-grid--dashboard .md-card--caseload .md-btn--primary,
+.md-grid--dashboard .md-card--org-management .md-btn--primary {
   background: rgba($brand-dusty-denim, 0.3) !important;
 
   color: $la-navy !important;
 
   border-color: rgba($brand-dusty-denim, 0.22) !important;
 
+  border-radius: 999px !important;
+  /* NOTE: `!important` may appear only ONCE, at the end of the whole
+     box-shadow declaration — repeating it per comma layer invalidates the
+     entire value (renders flat). */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba($brand-dusty-denim, 0.18),
+    0 1px 2px rgba($la-navy, 0.08),
+    0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease !important;
 }
 .md-grid--dashboard .md-card--speak .md-btn--primary:hover,
 .md-grid--dashboard .md-card--extras .md-btn--primary:hover,
@@ -44213,19 +44909,62 @@ a.md-goal-nav-action:hover,
 .md-grid--dashboard .md-card--org-management .md-btn--primary:hover {
   background: rgba($brand-dusty-denim, 0.4) !important;
   text-decoration: none !important;
-
+  transform: translateY(-1px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba($brand-dusty-denim, 0.22),
+    0 2px 4px rgba($la-navy, 0.10),
+    0 12px 26px rgba($brand-dusty-denim, 0.28) !important;
 }
+.md-grid--dashboard .md-card--speak .md-btn--primary:active,
+.md-grid--dashboard .md-card--extras .md-btn--primary:active,
+.md-grid--dashboard .md-card--boards .md-btn--primary:active,
+.md-grid--dashboard .md-card--caseload .md-btn--primary:active,
+.md-grid--dashboard .md-card--org-management .md-btn--primary:active {
+  transform: translateY(0) !important;
+}
+.md-grid--dashboard .md-card--speak .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--extras .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--boards .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--caseload .md-btn--primary:focus-visible,
+.md-grid--dashboard .md-card--org-management .md-btn--primary:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
+}
+/* New Board pill — carved out of the extras-style group above to instead match
+   the boards-page "Change Home Board" button (.ub-boards-page__set-home-btn):
+   white-edged glass pill with a navy-tinted raised lift. Its own verdigris
+   background colour is intentionally KEPT (per request); only the border,
+   shadow, padding and weight adopt the set-home treatment. This rule sits
+   AFTER the extras-style group and shares its (0,3,0) specificity, so its
+   box-shadow/border win the source-order tiebreak. */
 .md-grid--dashboard .md-card--boards .md-btn--pill {
   background: rgba(44, 183, 176, 0.22) !important;
 
   color: $la-navy !important;
 
-  border-color: rgba(44, 183, 176, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
 
+  padding: 8px 14px !important;
+  min-height: 44px !important;
+  font-weight: 600 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 2px rgba($la-navy, 0.12),
+    0 6px 14px rgba($la-navy, 0.22) !important;
 }
 .md-grid--dashboard .md-card--boards .md-btn--pill:hover {
   background: rgba(44, 183, 176, 0.30) !important;
-
+  transform: none !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 2px 4px rgba($la-navy, 0.14),
+    0 10px 22px rgba($la-navy, 0.28) !important;
 }
 .md-grid--dashboard .md-card--boards {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(235, 238, 243, 0.95)) !important;
@@ -48659,6 +49398,30 @@ a.md-goal-nav-action:hover,
 .md-grid--dashboard .md-card--boards .md-card__title {
   color: $la-navy !important;
 }
+/* "(Page-sets)" parenthetical clarifier rendered inline after the
+   "Boards" word inside the boards card's h3 title. Verdigris brand
+   color signals a clarifier; weight 900 mirrors the title's weight
+   so the two words read at matching boldness, distinguished only by
+   color and a 2px size drop (18px vs the dashboard title's 20px set
+   at `.md-grid--dashboard .md-card__title` above). Scoped to
+   .md-card--boards so the modifier class is reserved for this use;
+   if other cards adopt the same pattern, generalize the selector
+   at that point. */
+.md-card--boards .md-card__title-accent--verdigris {
+  color: $brand-verdigris;
+  font-weight: 900;
+  font-size: 18px;
+}
+/* ≤460px: drop the "(Page-sets)" parenthetical onto its own line
+   below "Boards" — at this width the inline placement was wrapping
+   awkwardly inside the cramped card head. The span is still a
+   child of the same h3 so the parenthetical stays semantically
+   part of the title; only the display mode changes. */
+@media (max-width: 460px) {
+  .md-card--boards .md-card__title-accent--verdigris {
+    display: block;
+  }
+}
 .md-stat__meta { font-size: 0.9375rem; color: $la-navy; } /* 15px — secondary metadata (WCAG 3:1 for small text OK with navy) */
 .md-stat__meta .md-muted { font-size: 0.9375rem; }
 .md-stat__label { font-size: 1rem; color: $la-navy; align-self: center; } /* 16px — label readability */
@@ -48852,10 +49615,25 @@ a.md-goal-nav-action:hover,
   height: 72px; /* 60 * 1.2 */
   border-radius: 14px !important;
 
-  border: 1px solid rgba($brand-blue-black, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
 
-  background: rgba($brand-blue-black, 0.05) !important;
-
+  /* White glassy card chrome — vertical gradient white → barely-off-
+     white, with a 1px inset top highlight and a hairline bottom
+     darken so the card reads as a layered glass tile under the
+     board icon. Replaces the previous flat dark-tint background.
+     Transparent areas of the board icon (most PNG icons have an
+     alpha channel) now show through this white surface instead of
+     a grey haze. */
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(248, 250, 252, 0.94) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba($brand-blue-black, 0.04),
+    0 1px 2px rgba($brand-blue-black, 0.04) !important;
 }
 .md-thumb--with-icon {
   display: grid !important;
@@ -48868,6 +49646,13 @@ a.md-goal-nav-action:hover,
 
   height: 100% !important;
 
+  /* `contain` so the WHOLE icon is visible inside the tile (no
+     cropping). Combined with the `padding: 0` further down, the
+     icon scales to the largest size that fits the tile while
+     preserving its aspect ratio — fills the long axis edge-to-edge
+     and centers on the short axis. The white glassy chrome on the
+     parent .md-thumb shows around the image where the aspect ratio
+     leaves room, AND through transparent regions of the PNG. */
   object-fit: contain !important;
 
   /* Pin board preview thumbnails to the TOP of their tile so cards
@@ -48878,7 +49663,10 @@ a.md-goal-nav-action:hover,
 
   border-radius: inherit !important;
 
-  padding: 6px !important;
+  /* Padding removed — the user explicitly asked the image to fill
+     the tile's height (and proportional width). Padding here would
+     stop it from reaching the tile edges. */
+  padding: 0 !important;
 
 }
 .md-grid--dashboard .md-thumb .md-thumb__board-img {
@@ -49693,9 +50481,12 @@ a.md-goal-nav-action:hover,
   z-index: 0 !important;
 
 }
+/* Lift the head + row above the absolutely-positioned wave bg.
+   `.md-extrasIcon` used to appear here as a third selector but the
+   icon is now a child of `.md-card__head` (canonical pattern) and
+   inherits its z-index automatically. */
 .md-card--extras .md-card__head,
-.md-card--extras .md-extrasRow,
-.md-card--extras .md-extrasIcon {
+.md-card--extras .md-extrasRow {
   position: relative !important;
 
   z-index: 1 !important;
@@ -49747,38 +50538,21 @@ a.md-goal-nav-action:hover,
 
   align-items: center !important;
 
-  justify-content: space-between !important;
+  /* flex-end so the lone "Explore Extras" button right-aligns. The
+     previous `space-between` was designed for a two-child row
+     (icon + button); now that the icon lives in `.md-card__head`
+     above (~template authenticated-view.hbs:165), space-between
+     would have left the only remaining child pinned to the left
+     edge — flex-end pins it to the right instead. */
+  justify-content: flex-end !important;
 
   gap: 12px !important;
 
 }
-.md-extrasIcon {
-  width: 46px !important;
-
-  height: 46px !important;
-
-  border-radius: 18px !important;
-
-  display: grid !important;
-
-  place-items: center !important;
-
-  background: rgba(240, 106, 91, 0.12) !important;
-
-  border: 1px solid rgba(240, 106, 91, 0.18) !important;
-
-  overflow: hidden !important;
-
-}
-/* SVG icon (when using grid SVG instead of img): .md-extrasIcon__svg { color: rgba(240, 106, 91, 0.92); } */
-.md-extrasIcon__img {
-  width: 100% !important;
-
-  height: 100% !important;
-
-  object-fit: cover !important;
-
-}
+/* `.md-extrasIcon` was removed when the Extras icon was promoted to
+   a direct child of `.md-card__head` (matching every other dashboard
+   card) — see `.md-card__icon--extras` (~l. 44323) for the
+   replacement modifier. */
 
 /* ---------- Bottom Focus Bar ---------- */
 .md-focusbar {
@@ -51494,13 +52268,53 @@ a.md-goal-nav-action:hover,
   text-align: center;
   padding-left: 8px !important;
   padding-right: 8px !important;
+  /* Compact chip — no top/bottom padding; tighter line-height and a
+     reduced min-height (44px - 6px = 38px) shrink the button height
+     below the shared .md-btn defaults. */
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 14px !important;
+  min-height: 38px !important;
+  /* Fully-round pill — set explicitly on the button's own rule so it
+     wins regardless of source order / inheritance from .md-btn. */
+  border-radius: 999px !important;
   background: rgba($brand-dusty-denim, 0.3) !important;
   border-color: rgba($brand-dusty-denim, 0.22) !important;
   color: $la-navy !important;
+  /* Sleeker, more actionable CTA — mirrors the modern dashboard/tour
+     button vocabulary: top inner sheen + faint lower inner edge for
+     surface curvature, a tight contact shadow, and a soft diffuse
+     denim-tinted lift so the button reads as a raised, tappable control
+     rather than a flat wash. Stays navy-on-light (AAC contrast intact). */
+  /* NOTE: `!important` may appear only ONCE, at the end of the whole
+     declaration — putting it after each comma layer invalidates the
+     entire box-shadow (that bug made these buttons render flat). */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba($brand-dusty-denim, 0.18),
+    0 1px 2px rgba($la-navy, 0.08),
+    0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease !important;
 }
 .md-extras-card__btn:hover {
   background: rgba($brand-dusty-denim, 0.4) !important;
   text-decoration: none !important;
+  transform: translateY(-1px) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba($brand-dusty-denim, 0.22),
+    0 2px 4px rgba($la-navy, 0.10),
+    0 12px 26px rgba($brand-dusty-denim, 0.28) !important;
+}
+.md-extras-card__btn:active {
+  transform: translateY(0) !important;
+}
+.md-extras-card__btn:focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 16px rgba($brand-dusty-denim, 0.20) !important;
 }
 
 /* ---------- Responsive ---------- */
@@ -51648,58 +52462,70 @@ a.md-goal-nav-action:hover,
     grid-template-rows: auto auto auto auto auto !important;
 
   }
+  /* ≤950px single-column variants containing BOTH cards: Speak rises
+     to the top, then Boards, then Extras ABOVE My Organizations (org
+     grounded at the bottom). Card-level `grid-area` assignments are
+     untouched; only the row order in grid-template-areas moves.
+     Variants without org_mgmt have no second card to swap with and are
+     left alone. */
   .md-grid--with-org-mgmt {
     grid-template-areas:
-      "org_mgmt"
-      "boards"
       "speak"
-      "extras" !important;
+      "boards"
+      "extras"
+      "org_mgmt" !important;
     grid-template-rows: auto auto auto auto !important;
   }
+  /* Caseload variants at ≤950px: Caseload and Speak Mode sit
+     INLINE on the top row (2-column row). All other cards span
+     both columns. Switching the grid back to 2 columns is scoped
+     to these variants only — variants without caseload keep the
+     single-column layout defined on the base `.md-grid` rule
+     above. */
   .md-grid--with-caseload:not(.md-grid--with-org-mgmt) {
+    grid-template-columns: 1fr 1fr !important;
     grid-template-areas:
-      "caseload"
-      "boards"
-      "speak"
-      "extras" !important;
-    grid-template-rows: auto auto auto auto !important;
+      "caseload speak"
+      "boards   boards"
+      "extras   extras" !important;
+    grid-template-rows: auto auto auto !important;
   }
   .md-grid--with-caseload.md-grid--with-org-mgmt {
+    grid-template-columns: 1fr 1fr !important;
     grid-template-areas:
-      "caseload"
-      "org_mgmt"
-      "boards"
-      "speak"
-      "extras" !important;
-    grid-template-rows: auto auto auto auto auto !important;
+      "caseload speak"
+      "boards   boards"
+      "extras   extras"
+      "org_mgmt org_mgmt" !important;
+    grid-template-rows: auto auto auto auto !important;
   }
   .md-grid--with-org-mgmt:has(.md-supervisors-page) {
     grid-template-areas:
-      "org_mgmt"
-      "boards"
       "speak"
+      "boards"
       "extras"
+      "org_mgmt"
       "sup" !important;
     grid-template-rows: auto auto auto auto auto !important;
   }
   .md-grid--with-getting-started.md-grid--with-org-mgmt {
     grid-template-areas:
       "getting_started"
-      "org_mgmt"
-      "boards"
       "speak"
-      "extras" !important;
+      "boards"
+      "extras"
+      "org_mgmt" !important;
     grid-template-rows: auto auto auto auto auto !important;
   }
   .md-grid--with-getting-started.md-grid--with-caseload.md-grid--with-org-mgmt {
+    grid-template-columns: 1fr 1fr !important;
     grid-template-areas:
-      "getting_started"
-      "caseload"
-      "org_mgmt"
-      "boards"
-      "speak"
-      "extras" !important;
-    grid-template-rows: auto auto auto auto auto auto !important;
+      "getting_started getting_started"
+      "caseload speak"
+      "boards   boards"
+      "extras   extras"
+      "org_mgmt org_mgmt" !important;
+    grid-template-rows: auto auto auto auto auto !important;
   }
   .md-shell--board-view .md-grid {
     grid-template-areas: "boards" !important;
@@ -51743,6 +52569,51 @@ a.md-goal-nav-action:hover,
   .md-grid .md-card--boards .md-btn--wide {
     margin-top: 20px !important;
 
+  }
+}
+
+/* ≤640px: split Caseload and Speak Mode back into their own rows.
+   At ≤950px (block above) the caseload variants share a 2-column
+   top row that pairs `caseload speak` inline; at this narrower
+   breakpoint there isn't room for the two card-as-button pills
+   side by side, so we collapse back to a single column and stack
+   them vertically. Other rows (boards / extras / org_mgmt /
+   getting_started) were already single-column at ≤950px and stay
+   that way — the only override here is dropping the top row's
+   `1fr 1fr` columns and splitting the `caseload speak` cell pair
+   into two rows. Speak Mode stays directly under Caseload, then
+   boards / extras / org_mgmt keep the order they had at ≤950px
+   (Extras above My Organizations, org grounded at the bottom). */
+@media (max-width: 640px) {
+  .md-grid--with-caseload:not(.md-grid--with-org-mgmt) {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "caseload"
+      "speak"
+      "boards"
+      "extras" !important;
+    grid-template-rows: auto auto auto auto !important;
+  }
+  .md-grid--with-caseload.md-grid--with-org-mgmt {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "caseload"
+      "speak"
+      "boards"
+      "extras"
+      "org_mgmt" !important;
+    grid-template-rows: auto auto auto auto auto !important;
+  }
+  .md-grid--with-getting-started.md-grid--with-caseload.md-grid--with-org-mgmt {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "getting_started"
+      "caseload"
+      "speak"
+      "boards"
+      "extras"
+      "org_mgmt" !important;
+    grid-template-rows: auto auto auto auto auto auto !important;
   }
 }
 
@@ -51930,13 +52801,20 @@ a.md-goal-nav-action:hover,
 
     color: #fff !important;
 
-    background: linear-gradient(135deg, rgba(color.adjust($brand-verdigris, $lightness: 10%), 0.92) 0%, rgba(color.adjust($brand-smart-blue, $lightness: 10%), 0.9) 100%) !important;
+    /* Brand-slate-blue gradient — same palette family as the
+       elsewhere-used `linear-gradient(135deg, $brand-slate-blue,
+       $brand-charcoal-dark)` (see e.g. l. ~4632). 135deg diagonal
+       gives a top-left → bottom-right depth sweep; the resulting
+       tone reads as slate-blue with a darker grounding instead of
+       the previous verdigris/smart-blue mix that no longer fit
+       this surface. */
+    background: linear-gradient(135deg, $brand-slate-blue 0%, $brand-charcoal-dark 100%) !important;
 
-    border: 1px solid rgba(44, 183, 176, 0.35) !important;
+    border: 1px solid rgba($brand-slate-blue, 0.45) !important;
 
     border-radius: 14px !important;
 
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10) !important;
 
     cursor: pointer !important;
 
@@ -51949,17 +52827,17 @@ a.md-goal-nav-action:hover,
   }
   .md-pillnav-dropdown__trigger:hover,
   .md-pillnav-dropdown__trigger:focus-visible {
-    border-color: rgba(44, 183, 176, 0.5) !important;
+    border-color: rgba($brand-slate-blue, 0.65) !important;
 
-    box-shadow: 0 2px 12px rgba(44, 183, 176, 0.25) !important;
+    box-shadow: 0 2px 12px rgba($brand-slate-blue, 0.28) !important;
 
     outline: none !important;
 
   }
   .md-pillnav-dropdown.is-open .md-pillnav-dropdown__trigger {
-    border-color: rgba(44, 183, 176, 0.5) !important;
+    border-color: rgba($brand-slate-blue, 0.65) !important;
 
-    box-shadow: 0 2px 12px rgba(44, 183, 176, 0.28) !important;
+    box-shadow: 0 2px 12px rgba($brand-slate-blue, 0.32) !important;
 
   }
 
@@ -52012,7 +52890,11 @@ a.md-goal-nav-action:hover,
 
     list-style: none !important;
 
-    background: rgba(255, 255, 255, 0.99) !important;
+    /* Fully opaque white so page content underneath can't bleed
+       through the menu rows; rgba(...,0.99) was effectively the
+       same numerically but rendering pipelines that round can
+       still produce a hint of show-through. */
+    background: rgba(255, 255, 255, 1) !important;
 
     border: 1px solid rgba(0, 0, 0, 0.08) !important;
 
@@ -52020,7 +52902,12 @@ a.md-goal-nav-action:hover,
 
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
 
-    z-index: 100 !important;
+    /* Z-index bumped from 100 → 1500 so the open menu always sits
+       above page-level chrome (hero cards, board grid, sticky
+       headers) and isn't covered by elements that share or exceed
+       the previous 100 ceiling. Stays below modal/popover layers
+       (10000+) so app dialogs still win. */
+    z-index: 1500 !important;
 
     max-height: 0 !important;
 
@@ -52079,25 +52966,33 @@ a.md-goal-nav-action:hover,
 
   }
   .md-pillnav-dropdown__option:hover {
-    background: rgba(44, 183, 176, 0.08) !important;
+    /* Slate-blue tinted hover wash — replaces the verdigris tint
+       so the option states stay in the same palette family as the
+       slate-blue trigger button + active option below. */
+    background: rgba($brand-slate-blue, 0.08) !important;
 
-    color: rgba(17, 70, 68, 0.95) !important;
+    color: $brand-charcoal-dark !important;
 
   }
   .md-pillnav-dropdown__option.is-active {
-    background: linear-gradient(135deg, rgba(color.adjust($brand-verdigris, $lightness: 10%), 0.92) 0%, rgba(color.adjust($brand-smart-blue, $lightness: 10%), 0.9) 100%) !important;
+    /* Matches the collapsed-trigger button background exactly: the
+       slate-blue → charcoal-dark gradient set on
+       `.md-pillnav-dropdown__trigger` above. Same border tint, same
+       shadow weight — the active option reads as the same surface
+       as the trigger that opened the menu. */
+    background: linear-gradient(135deg, $brand-slate-blue 0%, $brand-charcoal-dark 100%) !important;
 
     color: #fff !important;
 
     font-weight: 600 !important;
 
-    border: 1px solid rgba(44, 183, 176, 0.35) !important;
+    border: 1px solid rgba($brand-slate-blue, 0.45) !important;
 
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10) !important;
 
   }
   .md-pillnav-dropdown__option:active {
-    background: rgba(44, 183, 176, 0.2) !important;
+    background: rgba($brand-slate-blue, 0.20) !important;
 
   }
 }
@@ -52374,6 +53269,19 @@ a.md-goal-nav-action:hover,
     border-bottom: none !important;
   }
 
+  // OUTER <header> border kill — _header_sizing.scss:1-2 sets
+  // `header.new_index { border-bottom: 1px solid #eee; }` (no !important).
+  // The base #inner_header rule above is overridden for the inner box,
+  // but the outer header still paints a 1px #eee hairline that reads as
+  // a white sliver on board-alt's dark theme just below the speak bar.
+  // Killing it here keeps the dark surface continuous. Scoped to speak
+  // mode so the non-speak board-alt header (which currently uses #eee)
+  // is not affected — that's a separate decision.
+  header.new_index.speaking:has(#speak),
+  header.new_index:has(#speak) {
+    border-bottom: none !important;
+  }
+
   // Home marker: reset chrome, flex-center the button
   #inner_header:has(#speak) .speak-header__home-marker {
     padding: 0 8px 0 4px !important;
@@ -52549,16 +53457,73 @@ a.md-goal-nav-action:hover,
     &:hover { filter: brightness(1.12); }
   }
 
-  // User avatar holder: match identity button bg
+  // User avatar holder: match the SURROUNDING #inner_header bg, which
+  // on board-alt + speak is `$brand-charcoal-blue` (#46505F) per the
+  // override at ~line 1668 (`#within_ember.board-alt-view header.speaking
+  // :has(#speak) #inner_header`, specificity 3 IDs + 2 classes + 1
+  // element — beats the simpler rule below at 4 IDs + 1 class).
+  // Earlier this used `$brand-charcoal-dark` (#374151) which was a
+  // visibly darker tile sitting on the lighter charcoal-blue bar.
+  //
+  // IMPORTANT — use `background-color`, NOT the `background` shorthand.
+  // See docs/task-management/2026-05-28-identity-avatar-board-alt.md.
   #inner_header:has(#speak) #identity .user_holder {
-    background: $brand-charcoal-dark !important;
+    background-color: $brand-charcoal-blue !important;
   }
 
-  // Identity button: dark charcoal background
+  // Dark-themed default-avatar silhouette for board-alt's dark header.
+  // Outer ring fill is the SURROUNDING bar color (`#46505F` =
+  // $brand-charcoal-blue) so the avatar disk blends into the header
+  // rather than reading as a darker tile.
+  //
+  // PALETTE TUNED FOR CONTRAST IN TWO ZONES:
+  //
+  // Zone 1 — outer disk + outline against the dark charcoal-blue bar
+  //   needs LIGHT colors to read against the dark page bg:
+  //     - outer disk fill #46505F (matches bar, blends in)
+  //     - white outline stroke alpha 0.59 (clearly visible ring)
+  //     - inner highlight ring #ABB1BA / #B3B8C1 (light gray)
+  //
+  // Zone 2 — head + body silhouette against the LIGHT inner highlight
+  //   ring. Because the inner is now light, the head + body need to
+  //   stay DARK to read against it — same approach the home-page
+  //   silhouette uses (light outer + light inner + dark figure).
+  //   Reverting these to the original brand palette:
+  //     - head #8585E6 (brand periwinkle — same as home page)
+  //     - body #1B1F4A (dark navy — same as home page)
+  //
+  // Earlier passes brightened the head/body too (#C2C2F3 + #E2E8F0)
+  // which made them blend into the light inner highlight — the
+  // figure disappeared. The full-50%-brighten was correct for the
+  // outer/outline (which sits on the dark bar) but wrong for the
+  // inner figure (which sits on the light inner highlight).
+  //
+  // No `url(#…)` gradient refs anywhere — all solid colors — so the
+  // Sprockets URL normalizer can't mangle them (same constraint that
+  // the original light data URI lives under, see the deployment
+  // gradient-ref task log from 2026-05-24).
+  .user_holder--default {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Ccircle cx='48' cy='48' r='42' fill='%2346505F'/%3E%3Ccircle cx='48' cy='48' r='40.75' fill='none' stroke='%23FFFFFF' stroke-opacity='0.59' stroke-width='2'/%3E%3Ccircle cx='48' cy='48' r='25' fill='%23ABB1BA' stroke='%23B3B8C1' stroke-width='1' stroke-opacity='0.45'/%3E%3Ccircle cx='48' cy='38.5' r='8.5' fill='%238585E6'/%3E%3Cpath d='M31.8 62.5C34.6 53.8 40.7 49.7 48 49.7C55.3 49.7 61.4 53.8 64.2 62.5C60.5 65.8 55 67.7 48 67.7C41 67.7 35.5 65.8 31.8 62.5Z' fill='%231B1F4A'/%3E%3C/svg%3E") !important;
+  }
+
+  // Dropdown chevron next to the avatar — same 50%-brighter treatment.
+  // Base rule (~line 2357) sets `border-top-color: $brand-slate-gray`
+  // (#6B7280) which is too low-contrast against the charcoal-blue bar.
+  // Mix to white at 50% gives #B5B8BF, a clearly visible chevron that
+  // still reads as a quiet secondary affordance, not a primary action.
+  #inner_header:has(#speak) #identity #identity_button .caret {
+    border-top-color: #B5B8BF !important;
+  }
+
+  // Identity button: matches the header bar's `$brand-charcoal-blue`
+  // bg (not the darker `$brand-charcoal-dark` it used previously).
+  // The button itself is the outer tile — so making it the same
+  // color as the surrounding bar lets the whole identity area read
+  // as one continuous surface.
   #inner_header:has(#speak) #identity #identity_button.btn {
-    background: $brand-charcoal-dark !important;
+    background-color: $brand-charcoal-blue !important;
     background-image: none !important;
-    border-color: $brand-charcoal-dark !important;
+    border-color: $brand-charcoal-blue !important;
     color: #fff !important;
   }
 
@@ -53351,9 +54316,15 @@ a.md-goal-nav-action:hover,
     &:hover { filter: brightness(1.12); }
   }
 
-  // Identity button: light glass
+  // Identity button: light glass.
+  // Use `background-color`, NOT shorthand — same reason as the
+  // board-alt rule above (the shorthand resets background-image to
+  // none and wipes the data-URI silhouette painted by
+  // `.user_holder--default`). Default-avatar users on modern board
+  // pages should see the silhouette through this light-glass tint;
+  // real-avatar users keep their photo via the visible `<img class="user">`.
   #inner_header:has(#speak) #identity .user_holder {
-    background: rgba(255, 255, 255, 0.72) !important;
+    background-color: rgba(255, 255, 255, 0.72) !important;
   }
   #inner_header:has(#speak) #identity #identity_button.btn {
     background: rgba(255, 255, 255, 0.72) !important;
@@ -53957,6 +54928,155 @@ a.md-goal-nav-action:hover,
   justify-content: flex-start;
   gap: 6px;
   position: relative;
+}
+/* ≤640px boards-section picker — at this width the styled
+   `.ub-boards-page__tabs--boards` pill row collapses into a single
+   native <select> dropdown so the section picker fits comfortably
+   next to the New Board button on a phone-width viewport. The
+   select fires the same `set_selected` action with the option's
+   value (mine / public / root / starred / shared / private /
+   prior_home), so all wiring is identical to the desktop pills. */
+.ub-boards-page__tabs-mobile-select {
+  display: none;
+}
+@media (max-width: 640px) {
+  .ub-boards-page__tabs-row > .ub-boards-page__tabs.ub-boards-page__tabs--boards {
+    display: none !important;
+  }
+  .ub-boards-page__tabs-mobile-select {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Chunky pill so the control reads as a primary affordance at
+       phone widths instead of a tiny system control. Native styling
+       reset (appearance:none) so we control the chrome; a chevron
+       SVG via background-image gives the dropdown affordance. */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 10px 36px 10px 14px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: $la-navy;
+    background-color: rgba(255, 255, 255, 0.92);
+    /* Chevron stroke is %231B365D (URL-encoded $la-navy = #1B365D);
+       hardcoded so we don't need Sass string interpolation inside
+       the data URI, which sassc choked on in earlier attempts. */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="%231B365D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px 14px;
+    border: 1px solid rgba($la-navy, 0.18);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba($la-navy, 0.05);
+    cursor: pointer;
+  }
+  .ub-boards-page__tabs-mobile-select:focus-visible {
+    outline: 2px solid rgba($brand-verdigris, 0.55);
+    outline-offset: 2px;
+  }
+  /* New Board button drops to its own row beneath the picker.
+     The tabs-row already has the select on it; allowing wrap and
+     forcing both children to 100% basis stacks them vertically
+     instead of cramming both into the single narrow row. */
+  .ub-boards-page__tabs-row {
+    flex-wrap: wrap !important;
+  }
+  .ub-boards-page__tabs-mobile-select {
+    flex: 1 1 100% !important;
+  }
+  .ub-boards-page__boards-summary-new-btn--in-tabs-row {
+    flex: 1 1 100% !important;
+    margin-top: 8px !important;
+  }
+  /* Folders header — at this width the [+ New folder] / [Tag a board]
+     action pills drop to their own row directly below the FOLDERS
+     title/chevron row. Switched from flex-wrap (which left the
+     chevron stranded on its own row depending on basis math) to
+     CSS Grid with explicit `grid-template-areas`. Grid honors the
+     area assignment regardless of source order, so the actions
+     <div> between the toggle and the chevron in the DOM still
+     visually lands on row 2 while the chevron stays on row 1's
+     right edge. The subtitle stays hidden at this width to keep
+     row 1 uncluttered. */
+  .ub-boards-page__folders-header {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "toggle chevron"
+      "actions actions" !important;
+    align-items: center !important;
+  }
+  .ub-boards-page__folders-toggle {
+    grid-area: toggle !important;
+  }
+  .ub-boards-page__folders-chevron-btn {
+    grid-area: chevron !important;
+  }
+  .ub-boards-page__folders-subtitle {
+    display: none !important;
+  }
+  .ub-boards-page__folders-actions--header {
+    grid-area: actions !important;
+    padding: 8px 14px !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+    border-top: 1px solid rgba($brand-blue-black, 0.06) !important;
+  }
+  /* Boards-summary header — flex-column layout. Children stack
+     vertically with explicit align-self per item:
+       Row 1: BOARDS title    (align-self: flex-start, left)
+       Row 2: Stats pills      (align-self: flex-start, left)
+       Row 3: Change Home Board (align-self: flex-end, right)
+     Replaces a prior CSS Grid attempt that should have worked per
+     the cascade math but the user reported as not visibly applying.
+     flex-column achieves the same row-separation without the
+     grid-template-areas math, eliminating any chance of a
+     grid-specific quirk. Parent-anchored selector keeps specificity
+     at (0,2,0) so the cascade is unambiguous over the base rule
+     defined later in source order. */
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    row-gap: 6px !important;
+  }
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__boards-summary-title {
+    align-self: flex-start !important;
+  }
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__boards-summary-stats {
+    align-self: flex-start !important;
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+  }
+  /* Change Home Board lands on its own row beneath the stats and
+     right-aligns via align-self: flex-end. */
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__set-home-btn {
+    align-self: flex-end !important;
+  }
+  /* Hairline ::before was a row-separator between title and stats
+     when they shared a row. Stats now sit in their own row, so
+     hide the divider to avoid a stray vertical pip floating at
+     row 2. */
+  .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__boards-summary-stats::before {
+    display: none !important;
+  }
+}
+
+/* ≤460px — Boards-section in-tabs-row New Board button hides at
+   this very narrow viewport. The page-level
+   `.ub-boards-page__new-board-btn` at the top of the boards page
+   (see boards-browser.hbs:18-24) stays as the only New Board
+   affordance at this width. All other mobile-collapse behavior
+   (folders-header grid, boards-summary-header grid, mobile select
+   picker, etc.) lives in the ≤640px block above and cascades down
+   to ≤460 via the standard @media min-/max-width chain. */
+@media (max-width: 460px) {
+  .ub-boards-page__boards-summary-new-btn--in-tabs-row {
+    display: none !important;
+  }
 }
 /* Modern layered divider — sits flush with the tab bottoms. Three
    stacked visual elements give it depth without resorting to a
@@ -54836,30 +55956,50 @@ a.md-goal-nav-action:hover,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  /* Modern silverish glass — cool linear gradient (white → cool-silver)
-     instead of flat translucent white. Backdrop blur softens what's
-     behind; the gradient + dual inset highlights (bright top edge,
-     subtle bottom rim) give it a brushed-metal/iOS-control feel.
-     Outer multi-layer shadow lifts the disc off the tile. */
+  /* Glassy raised pill — three stacked background layers for an
+     unmissable difference from the prior flat translucent chip:
+       1. A bright crescent radial highlight at the top — the obvious
+          glass sheen (95% white, extends nearly halfway down).
+       2. A soft warmer radial blush at the bottom — pulls in a hint
+          of pink so the disc reads as "warm glass over a heart".
+       3. A vertical linear gradient white → faint pink as the
+          mid-tone fill underneath both highlights.
+     Stronger backdrop blur + saturation for a fuller frosted read.
+     Multi-layer outer shadow with deeper alphas so the disc lifts
+     clearly off the tile (~16px halo). !important defends against
+     the `> *` shorthand resets the boards-page grid applies to
+     direct children of liked tiles. */
+  /* Neutral white-to-pale-silver disc — the previous pink tint
+     clashed with the new silver/verdigris heart and read as too
+     attention-grabbing. Now reads as a cool glass tile that lets
+     the silver-verdigris heart inside lead. */
   background:
+    radial-gradient(
+      circle at 50% 12%,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 0) 50%
+    ),
     linear-gradient(
-      155deg,
-      rgba(255, 255, 255, 0.85) 0%,
-      rgba(232, 237, 243, 0.65) 55%,
-      rgba(206, 213, 224, 0.55) 100%
-    );
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  color: #e0245e;
+      180deg,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(232, 238, 244, 0.86) 100%
+    ) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 1) !important;
+  /* `color` is no longer wired to the heart fill (SVG fill replaced
+     by a CSS gradient mask) but kept defined for any other inline
+     accent that might still inherit it. */
+  color: #2a9d8f !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -1px 0 rgba(13, 36, 56, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 -1.5px 0 rgba(13, 36, 56, 0.08),
     0 1px 2px rgba(13, 36, 56, 0.10),
-    0 4px 10px rgba(13, 36, 56, 0.16);
+    0 6px 14px rgba(13, 36, 56, 0.16),
+    0 16px 32px rgba(13, 36, 56, 0.14) !important;
   pointer-events: none;
   z-index: 2;
 }
@@ -54871,9 +56011,9 @@ a.md-goal-nav-action:hover,
    against the offending (0,2,1) rule and restores the small square
    heart pill. Same defensive boost given to the SVG inside. */
 .ub-boards-page__board-item.simple_board_holder > .ub-boards-page__board-item-heart {
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
@@ -54912,13 +56052,45 @@ a.md-goal-nav-action:hover,
   height: 16px;
   flex-shrink: 0;
 }
+/* Hide the inline red heart SVG — replaced by a CSS-rendered
+   silver→verdigris gradient heart on the parent span's ::before
+   pseudo-element below. No template changes required; the SVG
+   stays in markup (good for SEO/printed view fallback if CSS
+   doesn't load) but is visually swapped out. */
+.board-picker__heart svg,
+.ub-boards-page__board-item-heart svg,
+.md-strip__heart svg {
+  display: none !important;
+}
+/* Silver → verdigris gradient heart, rendered via SVG mask on a
+   ::before pseudo so a single CSS rule covers all four template
+   surfaces (picker / boards page / dashboard strip / user.boards
+   page sibling). The mask uses the same heart path data as the
+   inline SVG; the gradient runs cool silver at the top to the
+   project's verdigris brand color at the bottom. Subtle drop-
+   shadow keeps the heart looking embossed inside the glass disc
+   without the pink-red distraction. */
+.board-picker__heart::before,
+.ub-boards-page__board-item-heart::before,
+.md-strip__heart::before {
+  content: "";
+  display: block;
+  width: 65%;
+  height: 65%;
+  background: linear-gradient(180deg, #c8d2de 0%, $brand-verdigris 100%);
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/></svg>') center/contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/></svg>') center/contain no-repeat;
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7))
+    drop-shadow(0 1px 2px rgba(13, 36, 56, 0.25));
+}
 /* Dashboard strip tile is smaller than the picker/boards-page tiles,
    so dial the heart down a notch. Anchored top-LEFT to match the
    boards-page + picker placement; the shared base rule sets the
    right anchor so we release it here. */
 .md-strip__heart {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   top: 4px;
   left: 4px;
   right: auto;
@@ -55305,36 +56477,14 @@ a.md-goal-nav-action:hover,
   /* New Board CTA — pinned right via margin-left:auto. Pill chrome
      matches the boards-page New Board button family (rounded, light
      tactile shadow, hover lift). */
+  /* Matches the Change Home Board button (set-home-btn) so the two
+     boards-page entrypoints read as the same button family. */
   &__boards-summary-new-btn {
     margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 16px;
-    border-radius: 999px;
-    border: 1px solid rgba($brand-blue-black, 0.12);
-    background: #fff;
-    color: $brand-charcoal-blue;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow:
-      0 1px 2px rgba($la-navy, 0.06),
-      0 2px 8px rgba($la-navy, 0.10),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-    &:hover,
-    &:focus-visible {
-      background: rgba($brand-blue-black, 0.05);
-      border-color: rgba($brand-blue-black, 0.2);
-      color: $indigo;
-      box-shadow:
-        0 2px 4px rgba($la-navy, 0.08),
-        0 6px 16px rgba($la-navy, 0.14),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
-      transform: translateY(-1px);
-      outline: none;
-    }
+    @include home-board-pill(
+      linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)),
+      linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
+    );
   }
   /* In-tabs-row positional modifier — lifts the button 1rem off the
      layered divider beneath the tabs so it doesn't sit directly on
@@ -55798,10 +56948,11 @@ a.md-goal-nav-action:hover,
     border-bottom-right-radius: 28px;
   }
 
-  /* Page-loading: handled by the global `.ll-loading-overlay`
-     (z-index 10050, matches login/boot overlay). Template renders
-     it OUTSIDE the .ub-boards-page wrapper so it sits above the
-     navbar and any other in-page content. */
+  /* Page-loading: handled by the global `.ll-premium-progress` card
+     (z-index 10054, same chrome as the bootstrap skeleton and
+     index-loading template). Template renders it OUTSIDE the
+     .ub-boards-page wrapper so it sits above the navbar and any
+     other in-page content. */
 
   // ── Hero ──────────────────────────────────────────────────
   &__hero {
@@ -57825,7 +58976,11 @@ a.md-goal-nav-action:hover,
      halo on the tile, floating uppercase "HOME BOARD" pill above. */
   &__board-item--home {
     position: relative;
-    .btn.simple_board_icon {
+    /* `&.simple_board_holder` (same element carries both classes) bumps
+       this to (0,4,0) so the home-board verdigris highlight survives the
+       `board-card-modern` mixin's (0,3,0) `border`/`box-shadow !important`
+       on the board-grid card. */
+    &.simple_board_holder .btn.simple_board_icon {
       border-color: $brand-verdigris !important;
       border-width: 2px !important;
       box-shadow:
@@ -57871,6 +59026,10 @@ a.md-goal-nav-action:hover,
     display: flex !important;
     flex-wrap: wrap;
     justify-content: center;
+    /* Stretch holders so every card in a row is the same height (the
+       tallest card defines the row height); cards stay compact via 18px
+       padding + no fixed min-height floor. */
+    align-items: stretch;
     gap: 0.5rem 0.75rem;
     margin-left: 0 !important;
     margin-right: 0 !important;
@@ -57910,6 +59069,7 @@ a.md-goal-nav-action:hover,
     // Board card styling (matches md-user-summary__available-boards)
     .board_with_action.simple_board_holder .btn.simple_board_icon,
     .simple_board_holder .btn.simple_board_icon {
+      @include board-card-modern;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -57917,31 +59077,18 @@ a.md-goal-nav-action:hover,
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      /* Fill the wrapping ember-view (which itself flexes to fill the
-         stretched holder) so every visible card in the same row reads
-         the same height — the tallest title's tile defines the row
-         height and all siblings match. The min-height keeps the floor
-         when content is short and there's nothing to stretch against. */
+      /* Equal-height cards: fill the wrapping ember-view (which flexes to
+         fill the stretched holder) so every card in a row matches the
+         TALLEST card's height — the PREVIEW pill (margin-top:auto) then
+         anchors to the bottom. No fixed min-height floor (that caused the
+         old dead-space stretch); height is driven by the tallest card's
+         content + the compact 18px padding. */
       height: 100%;
       flex: 1 1 auto;
-      /* Consistent min-height so every tile in the grid takes up the
-         same vertical footprint by default (gives the boards page a
-         clean uniform-grid feel). */
-      min-height: 300px;
-      /* Top padding bumped 1rem (2.4rem → 3.4rem) so the icon,
-         title, and PREVIEW pill stack sit 1rem lower from the top
-         edge. Bottom padding back to 2rem (the PREVIEW pill is
-         anchored at the bottom of the flex column via margin-top:
-         auto, so this padding becomes the breathing strip beneath
-         the pill). */
-      padding: 3.4rem 2.4rem 2rem;
-      border-radius: var(--md-r-lg, 16px);
-      border: 1px solid var(--md-line, rgba($brand-blue-black, 0.12));
-      background: rgba(255, 255, 255, 0.92);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      min-height: 0;
+      padding: 18px 18px 16px;
       color: var(--md-ink);
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      font-size: 19.5px;
+      font-size: 15px;
       overflow: visible;
     }
     .board_with_action.simple_board_holder .btn.simple_board_icon:hover,
@@ -58993,56 +60140,86 @@ a.md-goal-nav-action:hover,
   border-radius: 10px !important;
 }
 
+/* Each sidebar section is now a glassy card matching the boards-page
+   `stat-card` pattern used elsewhere on board-detail speak mode (My
+   Board Collection drawer, options menu surfaces). White surface,
+   1px subtle border, 3px brand-teal accent stroke at the top, 12px
+   radius, layered shadow. Hover brightens the teal stroke so the
+   cards feel alive when scanned. This keeps the sidebar consistent
+   with the other modern speak-mode surfaces. */
 .md-board-detail-sidebar__section {
-  margin-bottom: 18px;
+  background: #fff;
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  border-top: 3px solid rgba($brand-teal, 0.32);
+  border-radius: 12px;
+  padding: 10px 10px 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba($brand-blue-black, 0.06), 0 4px 16px rgba($brand-blue-black, 0.04);
+  transition: box-shadow 0.18s ease, border-top-color 0.18s ease;
+}
+.md-board-detail-sidebar__section:hover {
+  border-top-color: rgba($brand-teal, 0.50);
 }
 .md-board-detail-sidebar__section:last-child {
   margin-bottom: 0;
 }
 
+/* Section heading aligned with the My Board Collection / boards-page
+   stat-label pattern: 11px uppercase brand-slate-blue, 0.12em
+   tracking, hairline bottom border inside the card so the heading
+   separates from the items without needing a different surface. */
 .md-board-detail-sidebar__heading {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba($la-navy, 0.55);
-  padding: 4px 14px 10px;
-  margin: 0;
+  color: $brand-slate-blue;
+  margin: 0 0 6px;
+  padding: 0 4px 6px;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.07);
 }
 
+/* Item rows: tighter padding to match the modern row scale used on
+   the collection drawer, while keeping a 44px min-height for WCAG
+   2.5.5 AAA touch-target compliance (the icon + label naturally
+   center inside that box). 14px label matches collection rows.
+   Hover uses the neutral navy tint everywhere else does — no
+   competing brand accent on hover. */
 .md-board-detail-sidebar__item {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 11px 12px;
+  padding: 7px 10px;
   min-height: 44px;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   background: transparent;
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 500;
-  color: rgba($la-navy, 0.78);
+  color: rgba($la-navy, 0.82);
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
   text-align: left;
   position: relative;
 }
 .md-board-detail-sidebar__item:hover {
-  background: rgba($brand-verdigris, 0.08);
+  background: rgba($la-navy, 0.06);
   color: $la-navy;
 }
 .md-board-detail-sidebar__item:active {
   transform: scale(0.985);
 }
-/* Modern active treatment: soft tinted background + a 3px verdigris bar
-   pinned to the left edge as a clear "you are here" indicator. */
+/* Active state now uses brand-teal — same accent as the card's top
+   border, so the "you are here" indicator stays in family with the
+   surrounding card chrome. The 3px left bar is the same shape as
+   before. */
 .md-board-detail-sidebar__item--active {
-  background: linear-gradient(135deg, rgba($brand-verdigris, 0.14), rgba($brand-dusty-denim, 0.08));
+  background: linear-gradient(135deg, rgba($brand-teal, 0.12), rgba($brand-teal, 0.05));
   color: $la-navy;
   font-weight: 600;
-  border: 1px solid rgba($brand-verdigris, 0.20);
-  box-shadow: 0 1px 4px rgba($brand-verdigris, 0.10);
+  border: 1px solid rgba($brand-teal, 0.20);
+  box-shadow: 0 1px 4px rgba($brand-teal, 0.10);
 }
 .md-board-detail-sidebar__item--active::before {
   content: '';
@@ -59053,7 +60230,7 @@ a.md-goal-nav-action:hover,
   width: 3px;
   height: 22px;
   border-radius: 2px;
-  background: $brand-verdigris;
+  background: $brand-teal;
 }
 
 .md-board-detail-sidebar__icon {
@@ -60029,6 +61206,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-shrink: 1;
   min-height: 0;
 }
+/* Dark-mode icon visibility lift — sentence-bar chip thumbs are mostly
+   ARASAAC / OpenSymbols PNGs with dark line art on transparent. The
+   existing dark sentence bar sits on a near-black surface; without a
+   pad behind the icon the dark lines blend into the bar. Soft rounded
+   pad keeps the lift from reading as a hard tile. AAC-safe (no hue
+   shift). Same pattern applied to the prediction thumbs below. */
+.md-board-detail--dark .md-board-detail-sentence-bar__chip-img {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 6px;
+}
 .md-board-detail-sentence-bar__chip-label {
   font-size: 15px;
   font-weight: 600;
@@ -60134,6 +61321,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-height: 0;
   opacity: 0.7;
 }
+/* Dark-mode prediction-thumb lift — same idea as the chip-img above.
+   Slightly lower pad opacity (the prediction rail has more icons in
+   it, and these images already render at 0.7 opacity by design — a
+   full 0.88 pad would visually shout). */
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction-img {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 6px;
+}
 .md-board-detail-sentence-bar__prediction-label {
   font-size: 15px;
   font-weight: 500;
@@ -60203,6 +61398,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   gap: 8px;
   margin-left: 4px;
+  /* Anchor for the immersive quick-actions popover (≤640px), which is
+     absolutely positioned above the down-arrow chevron. No visual effect
+     in the normal (non-immersive) layout — no positioned children there. */
+  position: relative;
 }
 .md-board-detail-sentence-bar__tool-btn {
   /* WCAG 2.5.5 AAA touch target — was 32×32. */
@@ -60263,6 +61462,298 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 2px 6px rgba($la-navy, 0.08);
+}
+
+/* ── Immersive quick-actions popover (≤640px) ──────────────────────
+   At narrow widths the mic/backspace/clear buttons collapse into the
+   down-arrow chevron (see board-detail.hbs `immersive_tools`). The
+   chevron gains an active/open state; tapping it reveals this popover
+   anchored above it with the consolidated actions. Styling mirrors the
+   existing tool-btn chip language so it reads as part of the same bar. */
+.md-board-detail-sentence-bar__tool-btn--chevron.md-board-detail-sentence-bar__tool-btn--active {
+  background: rgba($brand-verdigris, 0.18);
+  color: $brand-verdigris;
+  border-color: rgba($brand-verdigris, 0.35);
+}
+.md-board-detail-sentence-bar__quick-actions {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: $aac-z-dropdown;
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow:
+    0 12px 32px rgba($la-navy, 0.22),
+    0 2px 8px rgba($la-navy, 0.10);
+  animation: md-quick-actions-pop 0.14s ease-out;
+}
+@keyframes md-quick-actions-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.md-board-detail-sentence-bar__quick-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: $la-navy;
+  font-size: $aac-font-size-base;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-board-detail-sentence-bar__quick-action svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: rgba($la-navy, 0.62);
+}
+.md-board-detail-sentence-bar__quick-action:hover,
+.md-board-detail-sentence-bar__quick-action:active {
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris;
+}
+.md-board-detail-sentence-bar__quick-action:hover svg,
+.md-board-detail-sentence-bar__quick-action:active svg {
+  color: $brand-verdigris;
+}
+/* "More" → legacy speak-menu modal; divider above it sets it apart from
+   the three sentence actions. */
+.md-board-detail-sentence-bar__quick-action--more {
+  margin-top: 4px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  border-radius: 0 0 10px 10px;
+  padding-top: 12px;
+}
+/* Dark mode: match the bar's translucent dark chrome. */
+.md-board-detail--dark .md-board-detail-sentence-bar__quick-actions {
+  background: linear-gradient(180deg, rgba(48, 62, 82, 0.98), rgba(42, 54, 73, 0.98));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__quick-action {
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__quick-action svg {
+  color: rgba(255, 255, 255, 0.62);
+}
+.md-board-detail--dark .md-board-detail-sentence-bar__quick-action--more {
+  border-top-color: rgba(255, 255, 255, 0.10);
+}
+
+/* ── Landscape-orientation overlay (≤640px, >8 columns) ────────────
+   Feature: portrait_orientation_overlay. The board stays visible behind
+   — dimmed, blurred via the veil's backdrop-filter, and frozen because
+   the fixed veil sits over everything and captures all pointer events.
+   The card is a dark-glass panel (Apple-setup-meets-AAC-clinical): a
+   verdigris accent line, a gently rocking phone-rotation illustration,
+   restrained typography, a primary Rotate CTA and a deliberately quiet
+   "Continue Anyway" escape hatch. Sits above $aac-z-topbar (400) as an
+   intentional full-viewport gate. */
+.md-shell--portrait-locked {
+  /* Lock background scroll while the gate is up. */
+  overflow: hidden;
+}
+.md-board-detail-portrait-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $aac-z-topbar + 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Soft navy spotlight — brighter behind the card, deepening to the
+     edges — over a gentle blur of the board underneath. */
+  background:
+    radial-gradient(120% 90% at 50% 38%, rgba($la-navy, 0.52), rgba($la-navy, 0.80));
+  backdrop-filter: blur(7px) saturate(0.92);
+  -webkit-backdrop-filter: blur(7px) saturate(0.92);
+  animation: md-portrait-overlay-fade 0.18s ease-out;
+}
+@keyframes md-portrait-overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.md-board-detail-portrait-overlay__card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  padding: 34px 28px 28px;
+  text-align: center;
+  border-radius: 22px;
+  /* Dark frosted glass. */
+  background: linear-gradient(180deg, rgba(33, 43, 64, 0.86), rgba(24, 33, 53, 0.90));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 24px 60px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  animation: md-portrait-card-rise 0.22s ease-out;
+}
+@keyframes md-portrait-card-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Verdigris accent line across the top of the card. */
+.md-board-detail-portrait-overlay__accent {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 4px;
+  border-radius: 0 0 4px 4px;
+  background: $brand-verdigris;
+  box-shadow: 0 0 16px rgba($brand-verdigris, 0.55);
+}
+/* Phone-rotation illustration: the phone gently rocks portrait →
+   landscape and back; the verdigris arc shows the rotation direction. */
+.md-board-detail-portrait-overlay__phone {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  margin: 6px auto 20px;
+}
+.md-board-detail-portrait-overlay__phone-svg,
+.md-board-detail-portrait-overlay__phone-arc {
+  position: absolute;
+  inset: 0;
+}
+.md-board-detail-portrait-overlay__phone-svg {
+  color: rgba(255, 255, 255, 0.92);
+  transform-origin: 50% 50%;
+  animation: md-portrait-phone-rotate 3.4s cubic-bezier(0.66, 0, 0.34, 1) infinite;
+}
+.md-board-detail-portrait-overlay__phone-arc {
+  color: $brand-verdigris;
+}
+/* Dimensional rotation guide: a faint static track, a bright gradient
+   "comet" that sweeps the arc as the phone turns, and an arrowhead that
+   pops in at the tip when the sweep arrives. Timed against the 3.4s
+   phone cycle so the guide leads the rotation, then clears during the
+   invisible portrait reset. */
+.md-board-detail-portrait-overlay__arc-comet {
+  stroke-dasharray: 30 100;
+  animation: md-rot-comet 3.4s cubic-bezier(0.66, 0, 0.34, 1) infinite;
+}
+@keyframes md-rot-comet {
+  0%       { stroke-dashoffset: 34;   opacity: 0; }
+  8%       { stroke-dashoffset: 30;   opacity: 1; }
+  50%      { stroke-dashoffset: -100; opacity: 1; }
+  58%      { stroke-dashoffset: -100; opacity: 0; }
+  100%     { stroke-dashoffset: -100; opacity: 0; }
+}
+.md-board-detail-portrait-overlay__arc-head {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: md-rot-head 3.4s cubic-bezier(0.66, 0, 0.34, 1) infinite;
+}
+@keyframes md-rot-head {
+  0%, 36%   { opacity: 0; transform: scale(0.55); }
+  50%       { opacity: 1; transform: scale(1.15); }
+  58%, 80%  { opacity: 1; transform: scale(1); }
+  90%, 100% { opacity: 0; transform: scale(0.55); }
+}
+/* Portrait → landscape ONLY. The phone holds portrait, rotates smoothly
+   clockwise to landscape, holds there, then fades out, snaps back to
+   portrait while invisible, and fades in — so the reverse rotation is
+   never seen and the motion always reads a single direction. */
+@keyframes md-portrait-phone-rotate {
+  0%, 18%   { transform: rotate(0deg);  opacity: 1; }
+  58%, 80%  { transform: rotate(90deg); opacity: 1; }
+  90%       { transform: rotate(90deg); opacity: 0; }
+  91%       { transform: rotate(0deg);  opacity: 0; }
+  100%      { transform: rotate(0deg);  opacity: 1; }
+}
+.md-board-detail-portrait-overlay__title {
+  margin: 0 0 10px;
+  font-size: $aac-font-size-xl;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+.md-board-detail-portrait-overlay__desc {
+  margin: 0 0 24px;
+  font-size: $aac-font-size-md;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.74);
+}
+.md-board-detail-portrait-overlay__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.md-board-detail-portrait-overlay__btn {
+  display: block;
+  width: 100%;
+  font-size: $aac-font-size-md;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+}
+.md-board-detail-portrait-overlay__btn--primary {
+  min-height: 50px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 14px;
+  background: $brand-verdigris;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba($brand-verdigris, 0.40);
+}
+.md-board-detail-portrait-overlay__btn--primary:hover {
+  background: color.adjust($brand-verdigris, $lightness: -5%);
+}
+.md-board-detail-portrait-overlay__btn--primary:active {
+  transform: scale(0.98);
+}
+/* Deliberately quiet secondary — a text button, never competing with
+   the primary CTA, but always reachable for non-rotatable setups. */
+.md-board-detail-portrait-overlay__btn--secondary {
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 500;
+}
+.md-board-detail-portrait-overlay__btn--secondary:hover {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: underline;
+}
+/* Respect reduced-motion: hold the phone at the landscape hint, drop
+   the looping rock and the entrance animations. */
+@media (prefers-reduced-motion: reduce) {
+  .md-board-detail-portrait-overlay,
+  .md-board-detail-portrait-overlay__card {
+    animation: none;
+  }
+  .md-board-detail-portrait-overlay__phone-svg {
+    animation: none;
+    transform: rotate(90deg);
+  }
+  /* Hold the guide as a complete static arrow — no sweep, no pop. */
+  .md-board-detail-portrait-overlay__arc-comet {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 1;
+  }
+  .md-board-detail-portrait-overlay__arc-head {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .md-board-detail-sentence-bar__btn--speak {
@@ -62179,167 +63670,104 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 /* ──────────────────────────────────────────────────────────────────
-   Speak-mode surface layering (board-detail, non-edit only).
-   Three-layer depth treatment so the communicator reads as a focused
-   speaking environment rather than the warm "studio" canvas used in
-   edit mode:
-     1. Page (shell) bg  → deep navy with soft radial bloom for life
-     2. Board panel bg   → slightly lighter navy, sits on the page
-     3. Symbol-card tile → stronger drop-shadow so coloured buttons
-                           pop forward as elevated cards on the
-                           darker surface.
-   Excluded when the user has the explicit `dark_mode` preference on
-   (`.md-board-detail--dark`) — that mode has its own pure-black
-   treatment further down (~line 63014) and should keep winning.
-   Excluded in edit mode so the warm authoring canvas stays intact. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) {
-  background:
-    radial-gradient(1200px 600px at 15% 0%,  rgba(58, 77, 110, 0.38), transparent 55%),
-    radial-gradient(1100px 500px at 85% 12%, rgba(30, 51, 88, 0.45),  transparent 55%),
-    radial-gradient(900px 600px at 50% 100%, rgba(21, 34, 55, 0.55),  transparent 50%),
-    linear-gradient(180deg, #0e1830 0%, #0b1426 100%);
-}
+   Speak-mode surface layering (board-detail, non-edit, LIGHT theme).
 
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-main {
-  /* Translucent center stage — was opaque `#1b2741 → #182135` which
-     read as a stamped slab on the dark navy canvas. Same atmospheric
-     treatment edit+dark just got: layered translucent navy +
-     backdrop-blur lets the canvas radial halos bleed through. Drop
-     shadow softened (.42 → .28) since the surface is now lighter. */
-  background: linear-gradient(180deg, rgba(27, 39, 65, 0.72), rgba(24, 33, 53, 0.64));
-  backdrop-filter: blur(10px) saturate(120%);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow:
-    0 12px 48px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
+   Goal: mirror the EDIT+light page exactly so the speak page is the
+   same room — bright halo gradient canvas + soft $surface-200 rounded
+   center card + the same translucent-white frosted-glass formula on
+   the compose row as the edit-page side rails (.md-board-edit-panel,
+   ~app.scss:82479). Speak mode has no left/right rails — the compose
+   row plays the same "menu" role here that those rails play in edit.
 
-/* Tiles get a stronger drop-shadow stack on the dark surface so the
-   colored fills read as floating cards. Inset top-edge highlight
-   stays soft white — the universal "lit from above" cue. !important
-   wins over the base card box-shadow rule (line 57959) without
-   needing a more-specific selector everywhere.
-   Restricted to grids WITHOUT soft-borders — soft-borders cards
-   already get a dramatic raised-pill shadow stack from the
-   `.md-board-detail-grid--soft-borders .md-board-detail-symbol-card`
-   rule (~line 58081), which intentionally mirrors the label's
-   floating-plate look across the whole card. Letting soft-borders
-   own the shadow on those cards keeps both contexts consistent
-   instead of clobbering them here. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-grid:not(.md-board-detail-grid--soft-borders) .md-board-detail-symbol-card {
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.40),
-    0 12px 32px rgba(0, 0, 0, 0.22),
-    0 1px 3px  rgba(0, 0, 0, 0.30),
-    inset 0 1px 0 rgba(255, 255, 255, 0.30) !important;
-}
+   Page bg, center card, tile shadow, and right-panel chrome all
+   inherit their base rules now — those bases already deliver the
+   edit+light look (.md-shell--board-detail base @ ~58778,
+   .md-board-detail-main base @ ~59209), and edit+light itself adds
+   no overrides on them. Removing the prior pass's dark-navy
+   overrides on those selectors lets speak+light land on the same
+   surface tier as edit+light with zero duplication.
 
-/* Right-panel chrome stays legible against the deep navy page: lift
-   the border and headings to light-on-dark values. Panel content
-   surface remains transparent — sits directly on the page bg. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel {
-  border-left-color: rgba(255, 255, 255, 0.10);
-}
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel__heading {
-  color: rgba(255, 255, 255, 0.72);
-}
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-right-panel__empty {
-  color: rgba(255, 255, 255, 0.55);
-}
+   The selectors that still need overrides — sentence-bar / home /
+   tool-btn / actions-toggle / sidebar-toggle--stacked — are the
+   ones whose base rules (~59650 / 59598 / 60341 / 63226 / 62234)
+   assume a darker canvas (frosted-gray-blue fill, white text, solid
+   $brand-blue-grey block). Below they're re-skinned with the same
+   translucent-white linear-gradient + backdrop-blur + layered
+   shadow + inset top highlight formula the edit-page rail uses, so
+   the row reads as the speak-mode mirror of those rails.
 
-/* ──────────────────────────────────────────────────────────────────
-   Speak-mode top compose-bar refinements (board-detail, non-edit).
-   Coordinated with the deep-navy speak-mode page bg above so the
-   compose row reads as a calm, breathy band on the dark canvas
-   instead of a tight cluster of heavy chrome controls.
-   Three coordinated changes:
-     1. Breathing room — bump inner horizontal padding + gap on the
-        sentence bar so chips / text / action buttons get more space
-        between them. Vertical padding intentionally untouched — the
-        bar's height is locked to the user's vocalization_height
-        preference and adding vertical padding inflates it past the
-        contract.
-     2. Softer tonal tool buttons — backspace / clear / options
-        chevron. The base white-translucent treatment is OK but the
-        text color (indigo @ 0.60) reads dim on the dark canvas;
-        lift to high-alpha white for readability while keeping the
-        translucent bg so they stay secondary to the primary speak
-        button.
-     3. Lighter right utility rail — the stacked options + sidebar
-        toggles currently use solid `$brand-blue-grey` (#7693B9), a
-        heavy steel-blue block that fights the calm dark surface.
-        Switch to a translucent white-on-dark treatment so the rail
-        reads as secondary chrome, not a primary action cluster.
-        The base sidebar-toggle--stacked rule uses !important
-        everywhere (~line 56487); these overrides match with
-        !important + higher specificity to win. */
+   Speak+DARK has its own separate treatment further down and is not
+   touched here. */
 
-/* 1. Breathing room + bar surface tuned for the dark canvas.
-   Wider horizontal padding + bigger gap give the chips and action
-   buttons real breathing room. The default bar bg is
-   `rgba(110, 122, 140, 0.32)` (frosted gray-blue) with a heavy
-   inset-shadow "sunken well" effect — on the new deep-navy page
-   that combination reads as a stark steel-gray block embedded in
-   the canvas. Switch to a translucent navy-tinted bg + soft inner
-   highlight so the bar reads as a calm raised band sitting ON the
-   dark surface, not a depression drilled into it. The vertical
-   padding stays at 2px so the bar's height contract with
-   `vocalization_height` stays intact. */
+/* 1. Compose bar surface — translucent white glass mirroring
+   .md-board-edit-panel @ app.scss:82528. Wider inner padding + gap
+   keep the chip-and-tool breathing room from the prior pass. The
+   vertical padding stays at 2px so the bar's height contract with
+   the user's `vocalization_height` setting is preserved. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
   padding: 2px 18px;
   gap: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba($la-navy, 0.06);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.25);
+    0 1px 2px rgba($la-navy, 0.04),
+    0 8px 24px rgba($la-navy, 0.07),
+    0 24px 60px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  color: $la-navy;
 }
 
-/* Home button — mirrors the sentence-bar surface so the two read
-   as one coordinated row on the dark canvas instead of a frosted
-   sunken well sitting next to a translucent band. */
+/* 2. Home button — same translucent-white treatment so the home
+   button + bar read as one coordinated rail on the bright canvas. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
+  border: 1px solid rgba($la-navy, 0.06);
+  color: $la-navy;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.25);
+    0 1px 2px rgba($la-navy, 0.04),
+    0 4px 14px rgba($la-navy, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.92) 100%);
+  color: $la-navy;
 }
 
-/* 2. Softer tonal tool buttons (backspace / clear / options chevron) */
+/* 3. Tool buttons (backspace / clear / options chevron) — smaller
+   translucent-white chips sitting inside the bar's glass surface. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba($la-navy, 0.08);
+  color: rgba($la-navy, 0.78);
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
-  background: rgba(255, 255, 255, 0.20);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.85);
+  color: $la-navy;
 }
 
-/* 3. Lighter right utility rail (options + sidebar toggles) */
+/* 4. Stacked right utility rail (options + sidebar toggles) — same
+   translucent-white chip treatment. The base .md-board-detail-sidebar-
+   toggle--stacked rule uses !important everywhere (~app.scss:62234);
+   these overrides match with !important to win. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle {
-  background: rgba(255, 255, 255, 0.10) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba($la-navy, 0.08) !important;
+  color: rgba($la-navy, 0.78) !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle:hover {
-  background: rgba(255, 255, 255, 0.20) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: $la-navy !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked {
-  background: rgba(255, 255, 255, 0.10) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba($la-navy, 0.08) !important;
+  color: rgba($la-navy, 0.78) !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked:hover {
-  background: rgba(255, 255, 255, 0.20) !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: $la-navy !important;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -62615,6 +64043,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   max-height: 100%;
   object-fit: contain;
 }
+/* Dark-mode lift for phrase-builder chip thumbnails (edit mode). The
+   image inside is sized to fit the 52px chip; pad the IMG itself so
+   the chip body stays glassy while the icon gets a readable backdrop. */
+.md-board-detail--dark .md-board-detail-phrase-builder__sentence-chip-img img {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+}
 .md-board-detail-phrase-builder__sentence-chip-label {
   display: block;
   font-size: 15px;
@@ -62837,6 +64272,46 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     color: #555;
   }
 }
+/* Pin / unpin control at the top of the inline sidebar. Mirrors the
+   app-level sidebar's pushpin; pressed (active) state when quick_sidebar
+   is on. Sizing/brand tokens match .md-board-detail-sidebar-toggle--stacked
+   so the two controls read as a family. */
+.md-board-detail-inline-sidebar__pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  margin: 5px auto;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.2);
+  background: rgba($brand-blue-grey, 0.15);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  &:hover {
+    background: rgba($brand-blue-grey, 0.3);
+  }
+}
+.md-board-detail-inline-sidebar__pin--active {
+  background: rgba($brand-verdigris, 0.18);
+  border-color: rgba($brand-verdigris, 0.45);
+  color: $brand-verdigris;
+}
+.md-board-detail--dark .md-board-detail-inline-sidebar__pin {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+.md-board-detail--dark .md-board-detail-inline-sidebar__pin--active {
+  background: rgba($brand-verdigris, 0.28);
+  border-color: rgba($brand-verdigris, 0.6);
+  color: #fff;
+}
 .md-board-detail-inline-sidebar__item {
   /* Now a <button> element (was <a href="#">) per WCAG 2.1.1.
      Reset button defaults so the visual is identical to the prior link.
@@ -62866,6 +64341,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   height: 60px;
   object-fit: contain;
   margin: 0 auto 4px;
+}
+/* Dark-mode lift for sidebar board thumbnails — these are 60px
+   isolated board-tile icons that sit on the dark glass sidebar
+   surface. Same pad pattern as the other small-thumb surfaces.
+   Border-radius matches the icon's visual silhouette (modest
+   rounding for a board-tile look). */
+.md-board-detail--dark .md-board-detail-inline-sidebar__img {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 8px;
 }
 .md-board-detail-inline-sidebar__name {
   display: block;
@@ -63284,6 +64768,539 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail-actions-menu__item--exit:hover svg {
   color: #fff;
+}
+
+/* ── Light/Dark Mode row inside the Display section ──────────────
+   Reuses the `new-board-mockup-toggle` pill markup from the
+   collapsed edit-mode left panel (board-detail.hbs:438-455). The
+   whole row is the switch (role="switch" + aria-checked), so the
+   pill carries `aria-hidden` and just visually tracks the state. */
+.md-board-detail-actions-menu__item--theme {
+  /* Reserve breathing room on the right edge so the pill doesn't
+     hug the rounded corner of the menu surface. */
+  padding-right: 12px;
+}
+.md-board-detail-actions-menu__theme-label {
+  /* Fill the row, pushing the pill to the right edge via flex
+     spacing (the parent row already has `display: flex; gap: 10px`). */
+  flex: 1 1 auto;
+}
+.md-board-detail-actions-menu__theme-pill {
+  /* The pill's own `display: inline-flex` already centers content,
+     so we just need to keep it from stretching and let the hover
+     state of the parent row tint through to the pill border. */
+  flex-shrink: 0;
+  margin-left: auto;
+  /* Block the parent row's hover-color tint from washing the pill —
+     the pill has its own background; we want it visually distinct. */
+  background-clip: padding-box;
+}
+/* Subtle visual lift on hover: the pill border picks up the same
+   navy accent the row uses. The pill's own hover rule (~line 46733)
+   targets only direct hovers on the pill — when the user hovers the
+   row, we forward that intent to the pill border for parity. */
+.md-board-detail-actions-menu__item--theme:hover .md-board-detail-actions-menu__theme-pill:not(.new-board-mockup-toggle--dark) {
+  border-color: rgba($la-navy, 0.28);
+}
+.md-board-detail-actions-menu__item--theme:hover .md-board-detail-actions-menu__theme-pill.new-board-mockup-toggle--dark {
+  border-color: rgba(255, 255, 255, 0.40);
+}
+/* Dark-mode parity: the row's parent menu has its own dark-mode
+   surface; the pill's `--dark` modifier already paints the pill
+   correctly, so nothing extra needed here. The leading SVG inherits
+   the row's `color`, which the existing menu-item dark rules handle. */
+
+/* ── My Board Collection (inline panel inside the options menu) ───
+   When `board_collection_open` is true, the options menu adopts the
+   `--collection` modifier: detaches from the trigger's anchor point
+   and becomes a full-height side drawer pinned to the right edge of
+   the viewport. Sharp right edge (flush with the viewport), rounded
+   left edge for the floating-drawer feel that matches the rest of
+   the modern design language. The shared `.md-board-detail-actions-backdrop`
+   (z-index 99, full-viewport position: fixed) already sits beneath. */
+.md-board-detail-actions-menu--collection {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
+  max-height: 100vh;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px 0 0 14px;
+}
+.md-board-detail-actions-menu--collection .md-board-collection__header {
+  /* Sticky header now sits flush against the viewport top — kill the
+     top-right radius (we have a sharp right edge in drawer mode)
+     while keeping the top-left radius to match the parent. */
+  border-radius: 14px 0 0 0;
+}
+.md-board-collection {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow inner body to actually scroll inside the flex parent */
+  width: 100%;
+}
+.md-board-collection__header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 8px;
+  background: #fff;
+  border-bottom: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px 14px 0 0;
+  z-index: 1;
+}
+.md-board-collection__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 10px 6px 6px;
+  border: none;
+  background: rgba($la-navy, 0.04);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.md-board-collection__back:hover {
+  background: rgba($la-navy, 0.10);
+}
+.md-board-collection__back:focus-visible {
+  outline: 2px solid $la-navy;
+  outline-offset: 2px;
+}
+.md-board-collection__back svg {
+  flex-shrink: 0;
+  color: $brand-slate-gray;
+}
+.md-board-collection__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: $brand-charcoal-dark;
+  letter-spacing: -0.01em;
+  padding: 2px 4px 0;
+}
+/* In-panel search filter — sits inside the sticky header. Soft
+   pill (border-radius: 999px) with subtle border, magnifier on the
+   left, optional clear (×) on the right when the user has typed.
+   Brand-teal focus ring ties it to the rest of the panel's accent
+   language (collection card top stroke, Show more pill). The
+   active modifier (added when the input has a value) sustains the
+   teal ring so users see "search is on" at a glance. */
+.md-board-collection__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 2px 0;
+  padding: 6px 10px;
+  border: 1px solid rgba($brand-blue-black, 0.10);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.md-board-collection__search:hover {
+  border-color: rgba($brand-blue-black, 0.18);
+}
+.md-board-collection__search:focus-within,
+.md-board-collection__search--active {
+  border-color: rgba($brand-teal, 0.50);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba($brand-teal, 0.10);
+}
+.md-board-collection__search-icon {
+  flex-shrink: 0;
+  color: rgba($brand-blue-black, 0.55);
+  transition: color 0.15s ease;
+}
+.md-board-collection__search:focus-within .md-board-collection__search-icon,
+.md-board-collection__search--active .md-board-collection__search-icon {
+  color: $brand-teal;
+}
+.md-board-collection__search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+.md-board-collection__search-input::placeholder {
+  color: rgba($brand-blue-black, 0.42);
+  font-weight: 400;
+}
+.md-board-collection__search-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: rgba($brand-blue-black, 0.06);
+  border-radius: 999px;
+  color: rgba($brand-blue-black, 0.65);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.md-board-collection__search-clear:hover {
+  background: rgba($brand-blue-black, 0.12);
+  color: $brand-blue-black;
+}
+.md-board-collection__search-clear:focus-visible {
+  outline: 2px solid $brand-teal;
+  outline-offset: 2px;
+}
+/* Dark-mode parity: glassier surface, teal accents remain. */
+.md-board-detail--dark .md-board-collection__search {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.md-board-detail--dark .md-board-collection__search:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+.md-board-detail--dark .md-board-collection__search:focus-within,
+.md-board-detail--dark .md-board-collection__search--active {
+  border-color: rgba(80, 217, 209, 0.55);
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 0 0 3px rgba(80, 217, 209, 0.14);
+}
+.md-board-detail--dark .md-board-collection__search-icon {
+  color: rgba(255, 255, 255, 0.55);
+}
+.md-board-detail--dark .md-board-collection__search:focus-within .md-board-collection__search-icon,
+.md-board-detail--dark .md-board-collection__search--active .md-board-collection__search-icon {
+  color: rgba(115, 232, 224, 1);
+}
+.md-board-detail--dark .md-board-collection__search-input {
+  color: #fff;
+}
+.md-board-detail--dark .md-board-collection__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+.md-board-detail--dark .md-board-collection__search-clear {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.70);
+}
+.md-board-detail--dark .md-board-collection__search-clear:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.md-board-collection__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 10px 14px;
+  /* Subtle navy wash behind the floating cards so each glassy section
+     reads as elevated above the panel surface. Two-stop gradient is
+     just enough contrast for the box-shadows to register without
+     tinting the drawer to a noticeably different color. */
+  background: linear-gradient(180deg, rgba($la-navy, 0.018), rgba($la-navy, 0.030));
+}
+/* Each section is now a glassy card — same elevation language as the
+   boards-page stat cards (white surface, teal accent stroke at the
+   top, layered shadow, 12px radius). The gradient divider that
+   previously separated sections is gone: floating cards with shadows
+   carry the separation themselves. */
+.md-board-collection__section {
+  background: #fff;
+  border: 1px solid rgba($brand-blue-black, 0.08);
+  border-top: 3px solid rgba($brand-teal, 0.32);
+  border-radius: 12px;
+  padding: 12px 14px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba($brand-blue-black, 0.06), 0 4px 16px rgba($brand-blue-black, 0.04);
+  transition: box-shadow 0.18s ease, border-top-color 0.18s ease;
+}
+.md-board-collection__section:hover {
+  /* Brighter teal stroke on hover — mirrors the boards-page stat-card
+     hover language so the cards feel alive when scanned. */
+  border-top-color: rgba($brand-teal, 0.50);
+}
+.md-board-collection__section:last-child {
+  margin-bottom: 0;
+}
+.md-board-collection__section-label {
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $brand-slate-blue;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.07);
+}
+.md-board-collection__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.md-board-collection__row {
+  margin: 0;
+  padding: 0;
+}
+.md-board-collection__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  color: $brand-charcoal-dark;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.md-board-collection__item:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.md-board-collection__item:focus-visible {
+  outline: 2px solid $la-navy;
+  outline-offset: -2px;
+}
+.md-board-collection__item-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba($la-navy, 0.06);
+}
+.md-board-collection__item-name {
+  flex: 1 1 auto;
+  min-width: 0; /* allow ellipsis to actually clip inside the flex row */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Home-board indicator. Mirrors the Glyphicon-home pattern from
+   `templates/components/board-icon.hbs` so the user's home board
+   reads consistently across surfaces. Sits between the name and the
+   total-buttons pill, with a brand-teal tint so the eye lands on it
+   first when scanning the My Boards list (home is always first row,
+   so the indicator + position together announce "this is home"). */
+.md-board-collection__item-home {
+  flex-shrink: 0;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: rgba(44, 183, 176, 0.14); /* matches the teal accent on the boards-page grid icon */
+  color: rgba(44, 183, 176, 1);
+  font-size: 11px;
+}
+.md-board-collection__item-home .glyphicon {
+  top: 0; /* glyphicon ships with `top: 1px` from Bootstrap — neutralize inside the chip so it centers cleanly */
+}
+.md-board-collection__item--home .md-board-collection__item-name {
+  /* Slight emphasis on the home-board row's name so the row reads
+     as anchored / primary even before the eye reaches the indicator
+     chip. Keeps the same font size — only the weight bumps. */
+  font-weight: 700;
+}
+.md-board-detail--dark .md-board-collection__item-home {
+  background: rgba(80, 217, 209, 0.18);
+  color: rgba(115, 232, 224, 1);
+}
+
+/* Side-information pill — total button count for the board. Sits
+   flush right inside the row, tabular numerals so values like "9" /
+   "112" line up neatly down the list, and a soft navy tint that
+   keeps the row reading as one unit (no competing brand color). */
+.md-board-collection__item-count {
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.72);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+.md-board-collection__item:hover .md-board-collection__item-count {
+  /* On hover the row tints navy; bump the pill background so it
+     stays legible against the hover state. */
+  background: rgba($la-navy, 0.14);
+  color: $la-navy;
+}
+/* "Show N more boards" / "Show fewer" expansion control at the foot
+   of the My Boards card. Pill-shaped, brand-teal accent so it reads
+   as an intentional next step rather than a drab gray strip — same
+   teal that anchors the section card's top border, so the affordance
+   stays in family with the card it sits inside. Subtle border + tint
+   at rest, brightens on hover. The chevron flips when the section is
+   expanded so the affordance reads both directions. */
+.md-board-collection__more {
+  /* fit-content + margin: auto centers the pill inside the section
+     card without needing a wrapper element. The button collapses to
+     content width so the pill stays compact regardless of label
+     length ("Show 3 more boards" vs. "Show fewer"). */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 4px auto 0;
+  padding: 6px 14px 6px 16px;
+  border: 1px solid rgba($brand-teal, 0.22);
+  background: rgba($brand-teal, 0.06);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: $brand-teal;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.md-board-collection__more:hover {
+  background: rgba($brand-teal, 0.14);
+  border-color: rgba($brand-teal, 0.44);
+  transform: translateY(-1px);
+}
+.md-board-collection__more:active {
+  transform: translateY(0);
+}
+.md-board-collection__more:focus-visible {
+  outline: 2px solid $brand-teal;
+  outline-offset: 2px;
+}
+.md-board-collection__more-label {
+  /* Keep the label tight against the chevron so the pill reads as
+     a single affordance rather than two stacked elements. */
+  white-space: nowrap;
+}
+.md-board-collection__more-chevron {
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: transform 0.18s ease;
+}
+.md-board-collection__more-chevron--open {
+  transform: rotate(180deg);
+}
+/* Dark-mode parity — brighter teal token so the pill stays legible
+   against the dark glass section card. */
+.md-board-detail--dark .md-board-collection__more {
+  background: rgba(80, 217, 209, 0.10);
+  border-color: rgba(80, 217, 209, 0.28);
+  color: rgba(115, 232, 224, 1);
+}
+.md-board-detail--dark .md-board-collection__more:hover {
+  background: rgba(80, 217, 209, 0.18);
+  border-color: rgba(80, 217, 209, 0.55);
+  color: rgba(160, 240, 234, 1);
+}
+
+.md-board-collection__loading,
+.md-board-collection__empty,
+.md-board-collection__error {
+  margin: 4px 10px;
+  font-size: 13px;
+  color: $brand-cool-steel;
+  font-style: italic;
+}
+.md-board-collection__error {
+  color: #b94a48;
+  font-style: normal;
+}
+/* Dark-mode parity — surfaces use the same dark glass as the rest of
+   the options menu in dark mode. Section dividers and section labels
+   shift to lighter alphas; row hover stays neutral (no teal accent)
+   to match the other items. */
+.md-board-detail--dark .md-board-detail-actions-menu--collection {
+  /* Inherit the dark surface from `.md-board-detail--dark .md-board-detail-actions-menu`
+     elsewhere in this file — only header background + dividers need
+     overrides because they live on `.md-board-collection__*`. */
+}
+.md-board-detail--dark .md-board-collection__header {
+  background: rgba(20, 28, 40, 0.98);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-collection__back {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.md-board-detail--dark .md-board-collection__back:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.md-board-detail--dark .md-board-collection__back svg {
+  color: rgba(255, 255, 255, 0.75);
+}
+.md-board-detail--dark .md-board-collection__title {
+  color: #fff;
+}
+/* Dark-mode glassy card: translucent white surface (so the panel
+   gradient subtly shows through), brighter teal top stroke for
+   legibility, deeper shadow to keep the card lifted off the dark
+   glass underneath. Mirrors the boards-page card language. */
+.md-board-detail--dark .md-board-collection__body {
+  /* Slightly stronger wash than light mode so the floating cards
+     register against the dark panel surface. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.04));
+}
+.md-board-detail--dark .md-board-collection__section {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(20, 127, 130, 0.62);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.md-board-detail--dark .md-board-collection__section:hover {
+  border-top-color: rgba(80, 217, 209, 0.82);
+}
+.md-board-detail--dark .md-board-collection__section-label {
+  color: rgba(255, 255, 255, 0.68);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+}
+.md-board-detail--dark .md-board-collection__item {
+  color: rgba(255, 255, 255, 0.92);
+}
+.md-board-detail--dark .md-board-collection__item:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+.md-board-detail--dark .md-board-collection__item-icon {
+  /* Strong white pad behind small drawer-row icons in dark mode.
+     ARASAAC / OpenSymbols PNGs are typically dark line art on
+     transparent — a subtle tint (we used 0.06 earlier) is not
+     enough to lift them; this matches the header-icon pattern
+     (`rgba(255,255,255,0.92)` at app.scss:60335) which solves the
+     same problem for the larger board header tile. */
+  background: rgba(255, 255, 255, 0.88);
+}
+.md-board-detail--dark .md-board-collection__item-count {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.78);
+}
+.md-board-detail--dark .md-board-collection__item:hover .md-board-collection__item-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.md-board-detail--dark .md-board-collection__loading,
+.md-board-detail--dark .md-board-collection__empty {
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Exit button (above options dropdown, right of sentence bar) */
@@ -64027,6 +66044,25 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
   filter: none;
 }
+/* Dark-mode icon halo for the button grid — adds a soft white
+   drop-shadow around the visible pixels of every symbol icon. This
+   is the AAC-safe alternative to inverting hues (which would change
+   semantic meaning): the halo lifts dark line art off any dark card
+   surface without recoloring the icon itself. The two rules below
+   mirror the existing filter rules above so CSS-filter chains stay
+   intact:
+     - Clear mode PNG: keep the matte-knockoff filter AND add the halo
+     - Anything else in dark mode: halo only
+   Both exclude the `square.svg` placeholder (empty cells get no halo). */
+.md-board-detail--dark .md-board-detail-symbol-card__image img.symbol {
+  filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
+}
+.md-board-detail--dark .symbol_background_clear .md-board-detail-symbol-card__image img.symbol[src*=".png"] {
+  filter: url(#ll-symbol-white-matte) drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.65));
+}
+.md-board-detail--dark .md-board-detail-symbol-card__image img.symbol[src$="square.svg"] {
+  filter: none;
+}
 /* "Colored" / "Colored Soft" (symbol_background_clear, the latter
    also carries .fitzgerald-soft): opaque white mattes in imported PNG
    symbols are knocked out via the ll-symbol-white-matte filter (alpha
@@ -64190,6 +66226,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @media (max-width: 768px) {
   .md-board-detail-symbol-card__label {
     padding-bottom: 0;
+  }
+}
+/* Short viewports in speak mode: reclaim vertical padding on the
+   label, keyed on height. Below 400px tall the grid cells get short
+   enough that the label's 3px top + 5px bottom padding eats a
+   noticeable slice of the card and crowds the label against the
+   image/card edges. Drop the top padding entirely and trim the bottom
+   to a 1px hairline; horizontal padding kept so the label stays clear
+   of the card rim. Scoped to speak mode (not the edit page, whose
+   toolbar already eats vertical space) to match the image-scale
+   blocks below. */
+@media (max-height: 400px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__label {
+    padding-top: 0;
+    padding-bottom: 1px;
   }
 }
 /* Short viewports — progressive image-size compensation in board-
@@ -66480,6 +68531,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-color-legend__swatch:focus-visible,
 .md-board-detail-symbol-card[role="button"]:focus-visible,
 .md-board-detail-inline-sidebar__item:focus-visible,
+.md-board-detail-inline-sidebar__pin:focus-visible,
 /* ── Added 2026-04-11 pass 4 (2.4.7 Focus Visible). ── */
 .md-board-detail-edit-toolbar__stepper-btn:focus-visible,
 .md-board-detail-edit-toolbar__paint-dropdown-item:focus-visible,
@@ -69714,19 +71766,39 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-detail-sidebar {
   border-right-color: rgba(255, 255, 255, 0.06);
 }
+/* Dark-mode sidebar card: translucent white surface (so the dark
+   panel gradient subtly shows through), brighter teal top stroke
+   for legibility, deeper shadow to keep the card lifted off the
+   dark glass underneath. Mirrors the My Board Collection card
+   language in this same surface family. */
+.md-board-detail--dark .md-board-detail-sidebar__section {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(20, 127, 130, 0.62);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.md-board-detail--dark .md-board-detail-sidebar__section:hover {
+  border-top-color: rgba(80, 217, 209, 0.82);
+}
 .md-board-detail--dark .md-board-detail-sidebar__heading {
-  color: rgba(255, 255, 255, 0.40);
+  color: rgba(255, 255, 255, 0.68);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
 }
 .md-board-detail--dark .md-board-detail-sidebar__item {
-  color: #d1d5db;
+  color: rgba(255, 255, 255, 0.88);
 }
 .md-board-detail--dark .md-board-detail-sidebar__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.10);
   color: #fff;
 }
 .md-board-detail--dark .md-board-detail-sidebar__item--active {
-  background: rgba($brand-verdigris, 0.15);
-  color: $brand-verdigris;
+  background: linear-gradient(135deg, rgba(80, 217, 209, 0.18), rgba(80, 217, 209, 0.06));
+  color: #fff;
+  border: 1px solid rgba(80, 217, 209, 0.30);
+  box-shadow: 0 1px 4px rgba(80, 217, 209, 0.14);
+}
+.md-board-detail--dark .md-board-detail-sidebar__item--active::before {
+  background: rgba(115, 232, 224, 1);
 }
 .md-board-detail--dark .md-board-detail-right-panel {
   border-left-color: rgba(255, 255, 255, 0.06);
@@ -75362,8 +77434,8 @@ a.md-caseload__quick-action:hover,
   transform: rotate(180deg) !important;
 }
 .md-pillnav-dropdown--caseload[open] .md-pillnav-dropdown__trigger {
-  border-color: rgba(44, 183, 176, 0.5) !important;
-  box-shadow: 0 2px 12px rgba(44, 183, 176, 0.28) !important;
+  border-color: rgba($brand-slate-blue, 0.65) !important;
+  box-shadow: 0 2px 12px rgba($brand-slate-blue, 0.32) !important;
 }
 .md-pillnav-dropdown--caseload[open] .md-pillnav-dropdown__list {
   max-height: 320px !important;
@@ -76941,8 +79013,8 @@ a.md-caseload__action {
   transform: rotate(180deg) !important;
 }
 .md-pillnav-dropdown--caseload[open] .md-pillnav-dropdown__trigger {
-  border-color: rgba(44, 183, 176, 0.5) !important;
-  box-shadow: 0 2px 12px rgba(44, 183, 176, 0.28) !important;
+  border-color: rgba($brand-slate-blue, 0.65) !important;
+  box-shadow: 0 2px 12px rgba($brand-slate-blue, 0.32) !important;
 }
 .md-pillnav-dropdown--caseload[open] .md-pillnav-dropdown__list {
   max-height: 320px !important;
@@ -79018,7 +81090,7 @@ a.md-caseload__action {
   align-items: center;
   justify-content: center;
   border-radius: inherit;
-  animation: ll-loading-overlay-fade-in 120ms ease-out;
+  animation: ll-premium-progress-fade-in 120ms ease-out;
 }
 .ll-confirm-card {
   background: #fff;
@@ -79169,72 +81241,300 @@ a.md-caseload__action {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Global loading overlay — used during major route transitions (e.g. exit
-   speak mode → home page). Dims + blurs the background; centers a card with
-   a spinner and status message. Controlled by app_state.loading_overlay_message.
+   Spin keyframe — formerly paired with the now-deleted `.ll-loading-overlay`
+   chrome, but still referenced by `.board-picker__loading-spinner` and the
+   `.md-board-details-modal__overlay-spinner` / `__header-spinner` pair, so
+   the @keyframes block stays. The old class rules were removed in favor of
+   the unified `.ll-premium-progress` chrome (see below) — one "Preparing
+   your workspace" card serves every loading surface.
    ───────────────────────────────────────────────────────────────────────── */
-.ll-loading-overlay {
+@keyframes ll-loading-overlay-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Premium progress card — used by index-loading.hbs (route-loading
+   template) AND mirrors the inline-styled chrome in:
+   - boards/index.html.erb (bootstrap skeleton's `.ll-skel-progress`)
+   - app/frontend/app/index.html (Ember-served bootstrap skeleton)
+   - login-form.js (`#ll-pre-reload-overlay` inline styles)
+   All three render the same look — the user perceives one continuous
+   loading state across the entire login flow. */
+.ll-premium-progress {
   position: fixed;
   inset: 0;
-  z-index: 10050;
-  background: rgba(15, 23, 42, 0.55);
+  z-index: 10054;
+  background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: ll-loading-overlay-fade-in 180ms ease-out;
+  font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  animation: ll-premium-progress-fade-in 220ms ease-out;
 }
-.ll-loading-overlay__card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 28px 36px;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  min-width: 240px;
-  max-width: calc(100vw - 32px);
-}
-.ll-loading-overlay__spinner {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 4px solid rgba(42, 157, 143, 0.18);
-  border-top-color: #2a9d8f;
-  animation: ll-loading-overlay-spin 0.9s linear infinite;
-}
-.ll-loading-overlay__message {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #1f2937;
+.ll-premium-progress__card {
+  width: calc(100% - 32px);
+  max-width: 480px;
+  padding: 36px 40px 32px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.04),
+    0 12px 32px rgba(15, 23, 42, 0.10),
+    0 32px 64px rgba(15, 23, 42, 0.08);
   text-align: center;
 }
-@keyframes ll-loading-overlay-spin {
-  to { transform: rotate(360deg); }
+.ll-premium-progress__title {
+  margin: 0 0 8px;
+  font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  color: $la-navy;
+  line-height: 1.3;
 }
-@keyframes ll-loading-overlay-fade-in {
+.ll-premium-progress__sub {
+  margin: 0 0 22px;
+  font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: rgba($la-navy, 0.65);
+  line-height: 1.5;
+}
+.ll-premium-progress__bar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  overflow: hidden;
+}
+.ll-premium-progress__bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba($brand-verdigris, 0) 0%,
+    $brand-verdigris 25%,
+    $brand-dusty-denim 75%,
+    rgba($brand-dusty-denim, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: ll-premium-progress-sweep 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+}
+@keyframes ll-premium-progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes ll-premium-progress-fade-in {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ll-loading-overlay { animation: none; }
-  .ll-loading-overlay__spinner { animation-duration: 2.5s; }
+  .ll-premium-progress { animation: none; }
+  .ll-premium-progress__bar::after { animation: none; transform: translateX(0); opacity: 0.6; }
 }
-/* Modal-scoped variant — sits absolutely inside its modal-body
-   container instead of covering the viewport. Same card chrome
-   so the visual reads as the same loading state, just confined
-   to the modal's bounds. Used by the board-preview modal while
-   the preview canvas finishes settling every button-image
+
+/* Modal-scoped variant of `.ll-premium-progress` — sits absolutely
+   inside its modal-body container instead of covering the viewport.
+   Same card chrome so the visual reads as the same loading state,
+   just confined to the modal's bounds. Used by the board-preview
+   modal while the preview canvas finishes settling every button-image
    promise. */
-.ll-loading-overlay--in-modal {
+.ll-premium-progress--in-modal {
   position: absolute;
   z-index: 5;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+}
+
+/* ── Classic → Modern view switch overlay ──────────────────────────
+   Used by board/index.js `go_to_modern` to mask the route-transition
+   flash when the user clicks "Modern View" on the classic board page.
+   The user briefly sees the classic board WITHOUT its board-alt-view
+   styling (because that class drops the instant the route changes,
+   and board-detail's /tree model hook is still async). We cover that
+   window with a board-detail speak-mode skeleton mockup PLUS the
+   login-flow premium-progress card overlay.
+
+   The overlay paints at full opacity from frame 1 (no fade-in) so
+   nothing slips through the first frame. The mockup behind the card
+   is blurred by the card's own `backdrop-filter` (~line 79975), so
+   the user reads it as a soft preview of where they're going. */
+.ll-view-switch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10056;
+  background: #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ll-view-switch-overlay--dark {
+  background: #1f2937;
+}
+
+/* Skeleton mockup of the modern board-detail speak-mode page —
+   roughly: header (back/picker, sentence bar, options, avatar) +
+   left sidebar with 3 cards + button grid (8×5). All elements are
+   neutral-tinted blocks; no text. Subtle shimmer animation gives
+   the impression of in-flight loading without being noisy. */
+.ll-view-switch-mockup {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 16px;
+}
+/* Header row mock */
+.ll-view-switch-mockup__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 0 8px;
+  margin-bottom: 14px;
+}
+.ll-view-switch-mockup__nav,
+.ll-view-switch-mockup__opts,
+.ll-view-switch-mockup__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba($la-navy, 0.10);
+  flex-shrink: 0;
+}
+.ll-view-switch-mockup__avatar {
+  border-radius: 999px;
+}
+.ll-view-switch-mockup__sentence {
+  flex: 1 1 auto;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.08);
+}
+/* Body: sidebar + grid layout */
+.ll-view-switch-mockup__body {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+.ll-view-switch-mockup__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px;
+}
+.ll-view-switch-mockup__sidebar-card {
+  height: 110px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.08);
+  border-top: 3px solid rgba($brand-teal, 0.32);
+}
+.ll-view-switch-mockup__grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 8px;
+  padding: 4px;
+}
+.ll-view-switch-mockup__tile {
+  border-radius: 10px;
+  background: rgba($la-navy, 0.08);
+}
+/* Subtle shimmer — slow sweep across every block so the mockup
+   reads as actively loading rather than static. Uses the same
+   timing function as the premium-progress bar so the two
+   animations feel coordinated. `prefers-reduced-motion` opts out. */
+.ll-view-switch-mockup__sentence,
+.ll-view-switch-mockup__sidebar-card,
+.ll-view-switch-mockup__tile,
+.ll-view-switch-mockup__nav,
+.ll-view-switch-mockup__opts,
+.ll-view-switch-mockup__avatar {
+  position: relative;
+  overflow: hidden;
+}
+.ll-view-switch-mockup__sentence::after,
+.ll-view-switch-mockup__sidebar-card::after,
+.ll-view-switch-mockup__tile::after,
+.ll-view-switch-mockup__nav::after,
+.ll-view-switch-mockup__opts::after,
+.ll-view-switch-mockup__avatar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.18) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: ll-view-switch-shimmer 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+}
+@keyframes ll-view-switch-shimmer {
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-view-switch-mockup__sentence::after,
+  .ll-view-switch-mockup__sidebar-card::after,
+  .ll-view-switch-mockup__tile::after,
+  .ll-view-switch-mockup__nav::after,
+  .ll-view-switch-mockup__opts::after,
+  .ll-view-switch-mockup__avatar::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+/* Dark-mode placeholder palette — slightly translucent white blocks
+   on the dark canvas, brighter shimmer to read against. */
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__nav,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__opts,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__avatar,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__sentence,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__sidebar-card,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__tile {
+  background: rgba(255, 255, 255, 0.06);
+}
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__sidebar-card {
+  border-top-color: rgba(80, 217, 209, 0.55);
+}
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__sentence::after,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__sidebar-card::after,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__tile::after,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__nav::after,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__opts::after,
+.ll-view-switch-overlay--dark .ll-view-switch-mockup__avatar::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.10) 50%, transparent 100%);
+}
+/* The premium-progress card already sits at z-index 10054 — bump
+   the version inside this overlay above the mockup so the card
+   reads cleanly on top. */
+.ll-view-switch-overlay .ll-premium-progress {
+  z-index: 1;
+}
+/* "(Page-Set & Vocabularies)" accent within the view-switch title.
+   Scoped to `.ll-view-switch-overlay .ll-premium-progress__title-accent`
+   so only THIS overlay's title picks up the verdigris tint — the
+   login flow's "Preparing your workspace" overlay never renders
+   this span and is therefore untouched.
+
+   The `--accent-light` modifier on the card opts the parenthetical
+   into a lighter font-weight. Applied by Modern → Classic
+   (controllers/user/board-detail.js#go_to_classic) so the parenthesized
+   clarifier reads softer in that direction; Classic → Modern keeps
+   the default heavier weight. */
+.ll-view-switch-overlay .ll-premium-progress__title-accent {
+  color: $brand-verdigris;
+  font-weight: 600;
+}
+.ll-view-switch-overlay .ll-premium-progress__card--accent-light .ll-premium-progress__title-accent {
+  font-weight: 400;
 }
 
 /* ── Modern Toast Notification ─────────────────────────
@@ -84916,16 +87216,26 @@ blockquote small {
 .md-board-edit-panel--collapsed .md-board-edit-panel__share-grid .md-board-edit-panel__tile:nth-child(2) {
   margin-top: 0;
 }
-/* Icons stay visible; the controls themselves don't take clicks so
-   the rail expands instead of firing an action while collapsed. The
-   collapse button keeps its own handler (toggles back open). */
-.md-board-edit-panel--collapsed .md-board-edit-panel__back-link,
-.md-board-edit-panel--collapsed .md-board-edit-panel__search,
-.md-board-edit-panel--collapsed .md-board-edit-panel__filter-toggle,
-.md-board-edit-panel--collapsed .md-board-edit-panel__tile,
-.md-board-edit-panel--collapsed .md-board-edit-panel__row {
-  pointer-events: none;
-}
+/* Rail items remain clickable in the collapsed state. The OLDER design
+   relied on an aside-level `{{action "expand_left_panel"}}` to catch
+   every click on the rail and re-expand the panel — that pattern
+   required `pointer-events: none` on the inner items so the click
+   would bubble to the aside. That aside-level action was intentionally
+   removed (see board-detail.hbs lines 95-102) so each rail icon would
+   fire its own action and the panel would NOT auto-expand on every
+   tap. The stale `pointer-events: none` below was the missed half of
+   that change — it kept every icon (Copy / Download / Print / Share /
+   Classic View / Filter / Board Actions / Search) silently dead. Only
+   the theme slider (`__row--theme-pill`, a different class) escaped
+   and worked.
+   With the rule removed, clicks reach the actions:
+     - Section toggles (Board Actions / Filter by Category) flip their
+       own state AND expand the panel via the rail-mode branch added in
+       `toggle_board_actions` / `toggle_panel_filter`.
+     - Direct-action tiles (Copy / Download / Print / Share) and the
+       Classic View row fire their handlers normally.
+   The collapse button at the top of the rail still has its own
+   `pointer-events: auto` rule below — unchanged. */
 .md-board-edit-panel--collapsed .md-board-edit-panel__collapse-btn {
   /* 30×30 — shrunk from 40×40 per request to match the now-
      smaller right-panel collapse-btn. transform shifts the
@@ -88157,7 +90467,13 @@ blockquote small {
 /* — Trigger pill — */
 .md-tour__trigger {
   position: absolute;
-  top: 16px;
+  /* `16px - 2rem` lifts the trigger 2rem higher than its prior
+     top:16px anchor at >1024px viewports. The ≤1024px @media block
+     further down sets top:auto !important so this offset is only
+     active at the wider viewports where the trigger pins to the
+     hero's top-right corner; at ≤1024px it drops into the hero's
+     flex column instead and the top coordinate is irrelevant. */
+  top: calc(16px - 2rem);
   right: 16px;
   display: inline-flex;
   align-items: center;
@@ -88173,10 +90489,23 @@ blockquote small {
   line-height: 1;
   letter-spacing: 0.1px;
   cursor: pointer;
+  /* Glassy raised-button shadow stack — promoted from the prior
+     info-pill weight so the trigger reads as an actionable button.
+     Layers (top to bottom):
+       - inset top-edge highlight (the "lit" upper bevel)
+       - inset bottom-edge soft darken (the lower bevel)
+       - tight contact shadow (1-2px below)
+       - mid lift shadow
+       - far diffuse shadow for the rise off the page
+     Negative spread on the outer layers keeps horizontal extent
+     contained so the chip doesn't bleed into surrounding hero text
+     at narrow widths. */
   box-shadow:
-    0 1px 2px  rgba($brand-charcoal-blue, 0.06),
-    0 6px 18px rgba($brand-charcoal-blue, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($brand-charcoal-blue, 0.08),
+    0 1px 2px -1px rgba($brand-charcoal-blue, 0.10),
+    0 4px 8px -1px rgba($brand-charcoal-blue, 0.14),
+    0 10px 22px -4px rgba($brand-charcoal-blue, 0.16);
   transition: transform 0.18s ease, box-shadow 0.18s ease,
               border-color 0.18s ease, background 0.18s ease;
   /* Sits above the topbar ($aac-z-topbar = 400) — without this
@@ -88184,14 +90513,56 @@ blockquote small {
      chrome in narrow layouts where the hero margin is tight. */
   z-index: 500;
 }
+/* Onboarding discoverability — a soft verdigris glow ring that gently
+   pulses behind the chip so new users notice it without it shouting.
+   Sits behind the chip's opaque gradient (z-index:-1) and peeks around
+   the edges. Motion is opt-in only: the animation is wrapped in a
+   prefers-reduced-motion guard so it stays a static soft halo for
+   users who ask for reduced motion. */
+.md-tour__trigger::before {
+  content: '';
+  position: absolute;
+  /* Solid pill-shaped fill (not a radial gradient) + blur so the glow
+     hugs the WHOLE button evenly. The earlier
+     `radial-gradient(closest-side)` sized a circle to the button's
+     shortest side (its height), so on a wide pill it read as a dot in
+     the center. A full-bleed rounded fill blurred outward halos the
+     entire shape, left edge to right edge. */
+  inset: -4px;
+  border-radius: 999px;
+  /* Softer verdigris glow — lighter fill + lower resting opacity than
+     the prior 0.38/0.55 so the halo reads as a gentle ambient cue, not
+     a heavy dark ring. */
+  background: rgba(42, 157, 143, 0.22);
+  filter: blur(10px);
+  opacity: 0.4;
+  z-index: -1;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .md-tour__trigger::before {
+    animation: md-tour-trigger-pulse 4.5s ease-in-out infinite;
+  }
+}
+@keyframes md-tour-trigger-pulse {
+  /* Gentler swell: tighter opacity band + smaller scale travel so the
+     glow breathes softly rather than flashing. */
+  0%, 100% { opacity: 0.2; transform: scale(0.97); }
+  50% { opacity: 0.55; transform: scale(1.04); }
+}
+.md-tour__trigger:hover::before {
+  opacity: 0.7;
+}
 .md-tour__trigger:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   border-color: rgba($brand-dusty-denim, 0.45);
   background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
   box-shadow:
-    0 2px 4px  rgba($brand-charcoal-blue, 0.08),
-    0 10px 24px rgba($brand-charcoal-blue, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba($brand-charcoal-blue, 0.10),
+    0 2px 4px -1px rgba($brand-charcoal-blue, 0.12),
+    0 8px 16px -2px rgba($brand-charcoal-blue, 0.18),
+    0 18px 36px -8px rgba($brand-charcoal-blue, 0.22);
 }
 .md-tour__trigger:focus-visible {
   outline: none;
@@ -88209,16 +90580,22 @@ blockquote small {
   flex: 0 0 auto;
 }
 
-/* On narrower viewports, collapse the trigger to icon-only so the hero
-   greeting still has room. The aria-label on the button preserves the
-   accessible name. */
+/* On narrower viewports, tighten the trigger's padding for a more
+   compact chip. The label intentionally stays visible at every width
+   (no `display: none` on `.md-tour__trigger-label` here) — the
+   ≤1024px rule already drops the trigger out of its top-right
+   absolute pin into the hero's flex column, so there's room for the
+   full "Take a tour" label. The `top: 12px; right: 12px` lines are
+   ineffective at this width because they're overridden by the
+   ≤1024px block (top:auto !important / right:auto !important); kept
+   here for the >1024px-only-but-≤640px edge case in case the wider
+   override is ever changed, so this rule still works on its own. */
 @media (max-width: 640px) {
   .md-tour__trigger {
-    padding: 8px;
+    padding: 8px 12px;
     top: 12px;
     right: 12px;
   }
-  .md-tour__trigger-label { display: none; }
 }
 
 /* — Shepherd popover chrome — */
@@ -88229,22 +90606,72 @@ blockquote small {
    white surface, hairline navy border, modern shadow, dusty-denim
    action buttons (NO smart-blue per palette directive). */
 .shepherd-element {
-  background: #ffffff;
-  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  position: relative;
+  /* "Guided Experience" surface — soft navy-tinted glass with two
+     low-opacity aurora washes (verdigris top-right, denim top-left)
+     instead of the flat white card. The translucency + backdrop blur
+     give it depth against the paused navy scrim, and immediately
+     separate the tutorial from normal white-card UI. */
+  background:
+    radial-gradient(120% 110% at 100% 0%, rgba(42, 157, 143, 0.10) 0%, rgba(42, 157, 143, 0) 52%),
+    radial-gradient(120% 120% at 0% 0%, rgba(86, 110, 180, 0.12) 0%, rgba(86, 110, 180, 0) 55%),
+    rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  /* Illuminated hairline border. */
+  border: 1px solid rgba(86, 110, 180, 0.18);
   border-radius: $aac-radius-2xl;
   overflow: hidden;
+  /* Floating depth — a single large soft glow plus a tight contact
+     shadow and an inset top highlight (the "lit" upper edge). */
   box-shadow:
-    0 1px 3px rgba($la-navy, 0.04),
-    0 12px 32px rgba($la-navy, 0.10),
-    0 32px 72px rgba($la-navy, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 14px rgba(22, 34, 70, 0.12),
+    0 26px 56px rgba(22, 34, 70, 0.26),
+    0 64px 150px rgba(22, 34, 70, 0.18);
   max-width: 460px;
   width: calc(100vw - 32px);
   color: var(--md-ink, $brand-blue-black);
   font-family: inherit;
 }
+/* Top accent line — verdigris -> denim -> lavender brand gradient. A
+   thin illuminated ribbon across the top edge that brands the surface
+   as an onboarding/guided experience. */
+.shepherd-element::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2A9D8F 0%, #4C86D8 50%, #7FA7FF 100%);
+  z-index: 3;
+  pointer-events: none;
+}
+/* Keep the header/body/footer content above the intro orbital accent. */
+.shepherd-element .shepherd-content {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
 .shepherd-element.md-tour__step--intro {
-  max-width: 480px;
+  /* Wider than the prior 436px — the tour now has more steps (a longer
+     progress-dot row), and a roomier welcome card gives the intro/outro
+     more presence. */
+  max-width: 520px;
   text-align: center;
+  /* Hero glow + aurora blend over a lighter white base (the first pass
+     read a touch dark): a soft glow behind the title (top-center) plus
+     verdigris (top-left), denim (right) and lavender (lower-right)
+     washes, all <=0.12 — dimensional, not noisy. Overrides the base
+     element background for the centered intro/outro variant only. */
+  background:
+    radial-gradient(120% 75% at 50% 0%, rgba(127, 167, 255, 0.12) 0%, rgba(127, 167, 255, 0) 62%),
+    radial-gradient(90% 70% at 0% 0%, rgba(42, 157, 143, 0.10) 0%, rgba(42, 157, 143, 0) 55%),
+    radial-gradient(90% 80% at 100% 16%, rgba(86, 110, 180, 0.10) 0%, rgba(86, 110, 180, 0) 55%),
+    radial-gradient(85% 85% at 100% 100%, rgba(146, 130, 220, 0.10) 0%, rgba(146, 130, 220, 0) 60%),
+    radial-gradient(75% 75% at 6% 92%, rgba(42, 157, 143, 0.07) 0%, rgba(42, 157, 143, 0) 60%),
+    rgba(255, 255, 255, 0.93);
   /* Bias the intro/outro popover above geometric center — sits at
      roughly line-of-sight on a desktop dashboard viewport instead
      of dead-middle. Shepherd centers the element via Popper.js
@@ -88253,16 +90680,53 @@ blockquote small {
      positioning). Adjust this single value to tune. */
   margin-top: -20rem;
 }
+/* Orbital accent — one abstract, premium onboarding visual (no
+   mascot): a soft cluster of glowing brand-coloured orbs fading into
+   the top-right corner. Pure CSS layered radials, blurred and low
+   opacity, clipped by the card's overflow:hidden so it reads as an
+   ambient glow rather than a graphic. Decorative only. */
+.shepherd-element.md-tour__step--intro::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  right: -6px;
+  width: 190px;
+  height: 170px;
+  /* Restrained onboarding illustration — faint floating speech bubbles
+     + nodes (communication motif) layered OVER a soft brand-orb glow,
+     top-right, partially clipped by the card's overflow:hidden so it
+     fades into the corner. The SVG (built in apply_tour_v2.py) uses
+     rgb() colours and no gradient IDs to dodge the Sprockets data-URI
+     mangling noted in LEARNINGS. No blur here — it would smear the
+     glyphs; the orb radials are already soft. */
+  background:
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%27150%27%20height%3D%27140%27%20viewBox%3D%270%200%20150%20140%27%20fill%3D%27none%27%3E%3Cg%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%2772%27%20y%3D%2718%27%20width%3D%2760%27%20height%3D%2738%27%20rx%3D%2712%27%20stroke%3D%27rgb%2876%2C134%2C216%29%27%20stroke-opacity%3D%270.26%27%2F%3E%3Cpath%20d%3D%27M88%2056%20l0%2012%20l14%20-12%27%20stroke%3D%27rgb%2876%2C134%2C216%29%27%20stroke-opacity%3D%270.26%27%2F%3E%3Crect%20x%3D%2746%27%20y%3D%2762%27%20width%3D%2746%27%20height%3D%2730%27%20rx%3D%2710%27%20stroke%3D%27rgb%2842%2C157%2C143%29%27%20stroke-opacity%3D%270.26%27%2F%3E%3Cpath%20d%3D%27M66%2092%20l0%2010%20l12%20-10%27%20stroke%3D%27rgb%2842%2C157%2C143%29%27%20stroke-opacity%3D%270.26%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27rgb%2876%2C134%2C216%29%27%20fill-opacity%3D%270.28%27%3E%3Ccircle%20cx%3D%2790%27%20cy%3D%2737%27%20r%3D%272.4%27%2F%3E%3Ccircle%20cx%3D%27102%27%20cy%3D%2737%27%20r%3D%272.4%27%2F%3E%3Ccircle%20cx%3D%27114%27%20cy%3D%2737%27%20r%3D%272.4%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27rgb%2842%2C157%2C143%29%27%20fill-opacity%3D%270.28%27%3E%3Ccircle%20cx%3D%2761%27%20cy%3D%2777%27%20r%3D%272.2%27%2F%3E%3Ccircle%20cx%3D%2771%27%20cy%3D%2777%27%20r%3D%272.2%27%2F%3E%3Ccircle%20cx%3D%2781%27%20cy%3D%2777%27%20r%3D%272.2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") no-repeat right 24px top 40px / 132px auto,
+    radial-gradient(circle at 32% 34%, rgba(127, 167, 255, 0.30), rgba(127, 167, 255, 0) 60%),
+    radial-gradient(circle at 68% 48%, rgba(42, 157, 143, 0.24), rgba(42, 157, 143, 0) 60%),
+    radial-gradient(circle at 52% 74%, rgba(146, 130, 220, 0.20), rgba(146, 130, 220, 0) 62%);
+  opacity: 0.95;
+  z-index: 0;
+  pointer-events: none;
+}
 
 /* Header — soft surface tint with hairline bottom rule, matching
    the canonical `.la-features-modal-wrap .la-modal-header` and the
    subscribe-modal hero. */
 .shepherd-has-title .shepherd-content .shepherd-header {
-  background: rgba(255, 255, 255, 0.6);
-  padding: 22px 28px 14px;
-  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  /* No divider line — the header blends into the body via spacing and
+     the shared glass surface alone (kills the segmented, enterprise-
+     modal feel). */
+  background: transparent;
+  padding: 22px 28px 8px;
 }
 .shepherd-title {
+  /* Stack the eyebrow identity pill above the heading on the centered
+     intro/outro steps. Interior steps carry a plain-string title (a
+     single text node) — column layout is harmless there. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
   font-size: 22px;
   font-weight: $aac-font-weight-black;
@@ -88271,34 +90735,129 @@ blockquote small {
   letter-spacing: -0.01em;
   margin: 0;
 }
+.shepherd-element.md-tour__step--intro .shepherd-title {
+  /* Eyebrow pill + heading left-aligned on the centered intro/outro
+     steps (per request) — the body is pushed right below for an
+     asymmetric, editorial layout. Footer is untouched. */
+  align-items: flex-start;
+  text-align: left;
+}
+/* Eyebrow identity pill — "[ Guided Tour ]". Soft verdigris glass,
+   semi-bold, slightly smaller than the nav pills, with a faint icon
+   glow. Establishes the product-tour identity above the heading. */
+.shepherd-title .md-tour__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: $aac-radius-pill;
+  background: rgba(42, 157, 143, 0.12);
+  border: 1px solid rgba(42, 157, 143, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 8px rgba(42, 157, 143, 0.14);
+  color: #1f6b60;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.shepherd-title .md-tour__eyebrow-icon {
+  color: #2A9D8F;
+  filter: drop-shadow(0 0 4px rgba(42, 157, 143, 0.5));
+  flex: 0 0 auto;
+}
+/* Intro/outro heading — larger, tighter tracking, deeper navy than the
+   interior step titles for a clear hierarchy step-down. */
+.shepherd-title .md-tour__heading {
+  /* Confident onboarding heading, not a marketing hero: a touch
+     smaller, tighter line-height, slightly more tracking than the
+     first pass (-0.012em vs -0.02em). */
+  font-size: 24px;
+  font-weight: $aac-font-weight-black;
+  line-height: 1.08;
+  letter-spacing: -0.012em;
+  color: var(--md-ink, $brand-blue-black);
+}
 
 /* Body — solid white surface, AAC-scale typography (~16-17px). */
 .shepherd-text {
   font-size: 16px;
-  line-height: 1.55;
-  color: var(--md-muted, $la-navy);
+  line-height: 1.65;
+  color: rgba(70, 80, 95, 0.82);
   padding: 18px 28px 8px;
-  background: #ffffff;
+  background: transparent;
 }
 .shepherd-text p { margin: 0 0 8px; }
 .shepherd-text p:last-child { margin-bottom: 0; }
+/* Centered intro/outro copy: constrain measure + center so the body
+   reads as airy, deliberate onboarding text rather than edge-to-edge. */
+.shepherd-element.md-tour__step--intro .shepherd-text {
+  max-width: 33ch;
+  /* Centered body (per request): the constrained measure is centered
+     under the left-aligned header. 33ch keeps the lines a touch
+     shorter for a tighter, more premium editorial rhythm. */
+  margin: 0 auto;
+  text-align: center;
+  /* A touch more breathing room under the heading (was 18px via the
+     base rule) — improves elegance without feeling loose. */
+  padding-top: 28px;
+}
 
 /* Footer — modern tour-modal pattern (Linear / Stripe / Notion):
-   Back + Next grouped together on the RIGHT side with a tight 8px
-   gap. Reads as a single nav cluster rather than two competing
-   actions at opposite edges. Future enhancement: add a step
-   counter ("2 of 7") on the LEFT side; requires a JS change to
-   home-tour.js to render a `.shepherd-progress` element ahead of
-   the buttons. */
+   the progress dots sit on the LEFT (pushed there by margin-right:auto)
+   and the Back + Next buttons group together on the RIGHT with a tight
+   8px gap, reading as a single nav cluster. The dots are injected by
+   home-tour.js (`_renderTourProgress` via the `show` step hook). */
 .shepherd-footer {
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 14px 22px 18px;
-  border-top: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
-  background: #ffffff;
+  /* No divider line; generous top padding pushes the footer down with
+     extra breathing room between the body and the footer (per request). */
+  padding: 20px 22px 16px;
+  background: transparent;
+}
+/* Progress system — subtle muted dots showing length + position so the
+   tour reads as a designed, manageable flow. Decorative (aria-hidden);
+   the buttons are the actual navigation. */
+.shepherd-footer .md-tour__progress {
+  display: inline-flex;
+  align-items: center;
+  /* 9px gap: the active dot is 9px with a crisp 3px ring (0 blur),
+     reaching 7.5px from its centre. Neighbour near-edges sit ~13.5px
+     away, so the ring clears them with margin to spare. */
+  gap: 9px;
+  margin-right: auto;
+}
+.shepherd-footer .md-tour__progress-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(86, 110, 180, 0.12);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.shepherd-footer .md-tour__progress-dot.is-done {
+  background: rgba(42, 157, 143, 0.45);
+}
+.shepherd-footer .md-tour__progress-dot.is-active {
+  /* Refined active indicator (AAC / low-vision visibility): a solid,
+     fully-opaque dot in a slightly LESS-SATURATED denim (#8C9CC4 vs the
+     base #7E96C8) grown by REAL dimensions (no transform-scale, which
+     softens edges). The "soft glow" is two STACKED rings, BOTH 0-blur:
+     a tighter inner ring + a wider, fainter outer ring. Graduated
+     spread reads as a soft halo while every edge stays razor-sharp —
+     deliberately NOT a blurred shadow (the earlier 0 0 6px read fuzzy). */
+  background: #8C9CC4;
+  width: 10px;
+  height: 10px;
+  box-shadow:
+    0 0 0 2px rgba(140, 156, 196, 0.26),
+    0 0 0 4px rgba(140, 156, 196, 0.10);
 }
 .shepherd-element .shepherd-button {
   flex: 0 0 auto;
@@ -88311,49 +90870,65 @@ blockquote small {
   color: inherit;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0;
   margin: 0;
-  padding: 7px 18px;
+  padding: 8px 18px;
   transition: transform 0.18s ease, box-shadow 0.18s ease,
               background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
-/* Primary — exact match for the dashboard primary CTAs (Continue
-   Speaking, etc.): soft dusty-denim wash + navy text. The 30%
-   denim composites to a light surface (~#C9DAF3) which gives
-   navy text ~7.9:1 contrast — clears AAA. Mirrors
-   `.md-grid--dashboard .md-card--speak .md-btn--primary` at
-   app.scss line ~44199. */
+/* Primary — premium layered LIGHT denim-lavender gradient with an inner
+   sheen and floating elevation, but with NAVY text (not white) so it
+   never risks the AAC contrast requirement. The darkest gradient stop
+   (#C5D6F2) composites about as light as the prior solid surface
+   (~#C9DAF3), so navy text stays ~8:1 — comfortably past AAA — while the
+   gradient + sheen + lift keep it from reading flat. */
 .shepherd-element .md-tour__btn--primary {
-  background: rgba($brand-dusty-denim, 0.30);
-  border-color: rgba($brand-dusty-denim, 0.22);
+  background: linear-gradient(135deg, #EAF1FD 0%, #C9D9F4 100%);
+  border-color: rgba($brand-dusty-denim, 0.28);
   color: $la-navy;
-  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15);
+  /* Softly-illuminated glass CTA (Linear / Arc / Apple): top inner
+     sheen + a faint lower inner edge for surface curvature, a tight
+     contact shadow, and a richer diffuse bottom shadow for lift. Stays
+     navy-on-light so AAC contrast is untouched (~8:1). */
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 1),
+    inset 0 -2px 3px rgba(76, 134, 216, 0.16),
+    0 1px 1px rgba(22, 34, 70, 0.06),
+    0 3px 6px rgba(22, 34, 70, 0.10),
+    0 14px 32px rgba(76, 134, 216, 0.26);
 }
 .shepherd-element .md-tour__btn--primary:not(:disabled):hover {
-  background: rgba($brand-dusty-denim, 0.40);
-  border-color: rgba($brand-dusty-denim, 0.32);
+  background: linear-gradient(135deg, #DCE7FA 0%, #BBCEF0 100%);
+  border-color: rgba($brand-dusty-denim, 0.40);
   color: $la-navy;
-  box-shadow: 0 8px 24px rgba($brand-dusty-denim, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(76, 134, 216, 0.14),
+    0 1px 2px rgba(22, 34, 70, 0.10),
+    0 16px 36px rgba(76, 134, 216, 0.30);
   transform: translateY(-1px);
 }
 .shepherd-element .md-tour__btn--primary:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 3px rgba($brand-dusty-denim, 0.35),
-    0 4px 14px rgba($brand-dusty-denim, 0.18);
+    0 0 0 3px rgba($brand-dusty-denim, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+    0 10px 24px rgba(76, 134, 216, 0.20);
 }
-/* Ghost — outlined pill, soft white surface, navy hairline. */
+/* Ghost — lower-emphasis transparent glass. No border at rest so it
+   visibly recedes against the primary CTA; a faint denim wash appears
+   on hover. */
 .shepherd-element .md-tour__btn--ghost {
   color: var(--md-muted, $la-navy);
-  border-color: var(--md-line, rgba($brand-blue-black, 0.15));
-  background: rgba(255, 255, 255, 0.85);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.0);
 }
 .shepherd-element .md-tour__btn--ghost:not(:disabled):hover {
   color: var(--md-ink, $brand-blue-black);
-  border-color: rgba($la-navy, 0.35);
-  background: $surface-100;
+  border-color: rgba(86, 110, 180, 0.22);
+  background: rgba(86, 110, 180, 0.08);
 }
 .shepherd-element .md-tour__btn--ghost:focus-visible {
   outline: none;
@@ -88372,39 +90947,155 @@ blockquote small {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: 1px solid rgba($brand-blue-black, 0.12);
+  /* Glassy translucent close chip — softer + more on-brand than the
+     stark grey system circle: frosted white fill, faint white edge,
+     muted ink, gentle shadow. */
+  border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 50%;
-  background-color: $surface-300;
-  color: var(--md-muted, $la-navy);
-  font-size: 18px;
+  background-color: rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  color: rgba(70, 80, 95, 0.52);
+  font-size: 17px;
   font-weight: 400;
   line-height: 1;
+  box-shadow: 0 1px 3px rgba(22, 34, 70, 0.05);
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .shepherd-element .shepherd-cancel-icon:hover {
   color: var(--md-ink, $brand-blue-black);
-  background-color: $surface-400;
-  border-color: rgba($brand-blue-black, 0.2);
+  background-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.8);
   transform: translateY(-1px) scale(1.04);
-  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.14);
+  box-shadow: 0 6px 16px rgba(22, 34, 70, 0.16);
 }
 
-/* Arrow — solid white to match the popover surface, hairline navy
-   border to match the popover edge. */
+/* Arrow — enlarged + recessed "notch" pointer. Bigger than Shepherd's
+   default 16px (now 20px, re-offset to -10px per placement) so the
+   pointer is clearly visible, with a cool tinted fill + an inset shadow
+   that makes it read as an indent carved INTO the surface rather than a
+   flat glass tab. Stronger hairline so the notch edges stay crisp. The
+   per-placement offset overrides match our app.css source order so they
+   win over Shepherd's vendor -8px rules at equal specificity. */
+.shepherd-element .shepherd-arrow,
 .shepherd-element .shepherd-arrow:before {
-  background: #ffffff;
-  border: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+  width: 20px;
+  height: 20px;
+}
+.shepherd-element[data-popper-placement^=top] > .shepherd-arrow { bottom: -10px; }
+.shepherd-element[data-popper-placement^=bottom] > .shepherd-arrow { top: -10px; }
+.shepherd-element[data-popper-placement^=left] > .shepherd-arrow { right: -10px; }
+.shepherd-element[data-popper-placement^=right] > .shepherd-arrow { left: -10px; }
+.shepherd-element .shepherd-arrow:before {
+  background: rgba(238, 242, 249, 0.95);
+  border: 1px solid rgba(86, 110, 180, 0.32);
+  box-shadow: inset 0 0 7px rgba(22, 34, 70, 0.20);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
 }
 
-/* — Modal overlay — the dim comes from an SVG <path fill="#000">
-   INSIDE the container at the container's opacity level. We tune
-   ONLY the opacity (not a CSS background — the container itself
-   has no fill). Default is .5; .45 reads as a softer scrim that
-   still lets dashboard chrome show through at low contrast,
-   matching the modern dashboard's airy feel. */
+/* — Tour active-pill spotlight — while a per-page step highlights a nav
+   pill, Shepherd tags that pill with `.shepherd-target`. Mirror the
+   `.md-pillnav__pill.is-active` treatment onto it so the showcased page
+   reads as "active" as the user moves through the tour. This is a purely
+   visual cue (home-tour.js never changes tabs). The :has() rule then
+   neutralises the genuinely-active pill for the duration, so exactly one
+   pill looks active at a time. (:has() is already used elsewhere in this
+   file — e.g. the recolor-board modal.) */
+.md-pillnav__pill.shepherd-target {
+  background: linear-gradient(135deg, $brand-charcoal-blue 0%, $la-navy 100%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.30),
+    0 6px 16px rgba($la-navy, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.md-pillnav:has(.md-pillnav__pill.shepherd-target) .md-pillnav__pill.is-active:not(.shepherd-target) {
+  background: transparent;
+  /* matches the inactive .md-pillnav__pill muted ink — literal rgba used
+     there, since no muted-ink token is defined for it. */
+  color: rgba(75, 78, 92, 0.85);
+  box-shadow: none;
+}
+
+/* — Motion polish — all opt-in (prefers-reduced-motion: no-preference).
+   IMPORTANT: entrance animates the INDEPENDENT `translate`/`scale` CSS
+   properties, NOT `transform`. Attached steps are positioned by Popper
+   via an inline `transform`; animating `transform` here would clobber
+   that and break tooltip placement. `translate`/`scale` compose on top,
+   and the centered intro/outro steps (positioned via margin-top) are
+   unaffected either way. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Each step popover floats up + scales .97 -> 1 + fades in on show. */
+  .shepherd-element {
+    animation: md-tour-step-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  /* The intro illustration + orb glow drifts very slowly (ambient). */
+  .shepherd-element.md-tour__step--intro::after {
+    animation: md-tour-orb-drift 6s ease-in-out infinite alternate;
+  }
+  /* Active progress dot breathes (glow swells), reinforcing "live". */
+  .shepherd-footer .md-tour__progress-dot.is-active {
+    animation: md-tour-dot-pulse 2.4s ease-in-out infinite;
+  }
+  /* Eyebrow pill + heading slide in FROM THE LEFT on the centered
+     intro/outro steps — the SAME keyframe the dashboard hero uses
+     (la-hero-title-from-left: translateX(-36px) + fade), same 1s easing,
+     with a short cascade so the eyebrow leads the heading. opacity:0 and
+     the animation live together INSIDE this no-preference block, so
+     reduced-motion users keep both fully visible with no animation. */
+  .shepherd-element.md-tour__step--intro .md-tour__eyebrow {
+    opacity: 0;
+    animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s forwards;
+  }
+  .shepherd-element.md-tour__step--intro .md-tour__heading {
+    display: inline-block;
+    opacity: 0;
+    animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.24s forwards;
+  }
+}
+@keyframes md-tour-step-in {
+  from { opacity: 0; translate: 0 12px; scale: 0.985; }
+  to   { opacity: 1; translate: 0 0;    scale: 1; }
+}
+@keyframes md-tour-orb-drift {
+  from { translate: 0 0; }
+  to   { translate: -6px 5px; }
+}
+@keyframes md-tour-dot-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(140, 156, 196, 0.26),
+      0 0 0 4px rgba(140, 156, 196, 0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(140, 156, 196, 0.20),
+      0 0 0 6px rgba(140, 156, 196, 0.06);
+  }
+}
+
+/* — Modal overlay — the dim is an SVG <path> (default black fill)
+   rendered at the container's opacity. We tint it NAVY instead of
+   black for a cinematic "paused" feel, and lift opacity to .5.
+   Overriding `fill` on the path is a genuinely new rule (the element
+   ships with no fill of its own — browser default black). */
 .shepherd-modal-overlay-container.shepherd-modal-is-visible {
-  opacity: 0.45;
+  opacity: 0.42;
+}
+.shepherd-modal-overlay-container path {
+  fill: #111b3a;
+}
+/* "Paused" background blur — scoped to the centered intro/outro steps
+   only (body.md-tour--centered-step is toggled in home-tour.js). The
+   attached steps (2-7) cut a spotlight hole in the overlay; blurring
+   the whole SVG box there would also blur the highlighted card, so we
+   deliberately leave those crisp and only soften the background for
+   the full-screen intro/outro modals. */
+body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-visible {
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
 }

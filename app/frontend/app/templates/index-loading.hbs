@@ -1,11 +1,18 @@
 {{!--
   Renders automatically while the index route's model() hook resolves.
-  Prevents the post-login flash of stale content (login form / landing page)
-  while appState.refresh_session_user() and the user fetch are still pending.
+  Uses the canonical premium progress card chrome that matches:
+    - The pre-reload overlay (login-form.js) — covers the brief blank
+      moment between submit and the reload firing.
+    - The bootstrap skeleton's progress card (boards/index.html.erb +
+      app/frontend/app/index.html) — covers the post-reload boot
+      window.
+  All three layers share the same look so the user perceives one
+  continuous loading state across the entire login flow.
 --}}
-<div class="ll-loading-overlay" role="status" aria-live="polite" aria-busy="true">
-  <div class="ll-loading-overlay__card">
-    <div class="ll-loading-overlay__spinner" aria-hidden="true"></div>
-    <p class="ll-loading-overlay__message">{{t "Loading..." key="loading"}}</p>
+<div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
+  <div class="ll-premium-progress__card">
+    <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+    <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
+    <div class="ll-premium-progress__bar" aria-hidden="true"></div>
   </div>
 </div>
