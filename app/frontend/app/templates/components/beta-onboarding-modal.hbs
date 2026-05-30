@@ -1,0 +1,65 @@
+{{#modal-dialog action=(action "close") opening=(action "opening") closing=(action "closing") dialogClass="beta-onboarding-modal-dialog" contentClass="beta-onboarding-modal-content"}}
+  <div class="beta-onboarding-modal-wrap">
+    {{#if (is-equal this.currentStep 1)}}
+      <header class="beta-onboarding-modal__header">
+        <button type="button" class="beta-onboarding-modal__close" {{action "close"}} aria-label={{t "Dismiss onboarding" key="onboarding.dismiss_aria"}}>
+          <svg class="beta-onboarding-modal__close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18"/>
+            <path d="m6 6 12 12"/>
+          </svg>
+        </button>
+        <div class="beta-onboarding-modal__icon" aria-hidden="true">
+          <svg class="beta-onboarding-modal__icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.4 5.2L19 10l-5.6 1.5L12 17l-1.4-5.5L5 10l5.6-1.8L12 3z"/>
+            <path d="M19 14l.7 2.1L22 17l-2.3.8L19 20l-.7-2.3L16 17l2.3-.7L19 14z"/>
+          </svg>
+        </div>
+        <h2 class="beta-onboarding-modal__title">{{t "[PENDING] Welcome to LingoLinq Beta" key="onboarding.welcome_title"}}</h2>
+      </header>
+      <div class="beta-onboarding-modal__body">
+        <p class="beta-onboarding-modal__lead">{{t "[PENDING] Thank you for being part of our beta program." key="onboarding.welcome_body"}}</p>
+        <div class="beta-onboarding-modal__steps" role="group" aria-label={{t "Step %{current} of %{total}" key="step_current_of_total" current=1 total=2}}>
+          <span class="beta-onboarding-modal__step-pill beta-onboarding-modal__step-pill--active">{{t "Step %{current} of %{total}" key="step_current_of_total" current=1 total=2}}</span>
+          <span class="beta-onboarding-modal__step-pill">{{t "Step %{current} of %{total}" key="step_current_of_total" current=2 total=2}}</span>
+        </div>
+      </div>
+      <footer class="beta-onboarding-modal__footer">
+        <button type="button" class="btn btn-default" {{action "close"}} aria-label={{t "Dismiss onboarding" key="onboarding.dismiss_aria"}}>{{t "Skip" key="onboarding.skip_button"}}</button>
+        <button type="button" class="btn btn-primary" {{action "nextStep"}}>{{t "Next" key="onboarding.next_button"}}</button>
+      </footer>
+    {{else}}
+      <header class="beta-onboarding-modal__header">
+        <button type="button" class="beta-onboarding-modal__close" {{action "close"}} aria-label={{t "Dismiss onboarding" key="onboarding.dismiss_aria"}}>
+          <svg class="beta-onboarding-modal__close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18"/>
+            <path d="m6 6 12 12"/>
+          </svg>
+        </button>
+        <div class="beta-onboarding-modal__icon" aria-hidden="true">
+          <svg class="beta-onboarding-modal__icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.4 5.2L19 10l-5.6 1.5L12 17l-1.4-5.5L5 10l5.6-1.8L12 3z"/>
+            <path d="M19 14l.7 2.1L22 17l-2.3.8L19 20l-.7-2.3L16 17l2.3-.7L19 14z"/>
+          </svg>
+        </div>
+        <h2 class="beta-onboarding-modal__title">{{t "[PENDING] Getting Started" key="onboarding.video_title"}}</h2>
+      </header>
+      <div class="beta-onboarding-modal__body">
+        <div class="onboarding-video-placeholder">
+          <svg class="onboarding-video-placeholder__play" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M10 8.5v7l6-3.5-6-3.5z" fill="currentColor" stroke="none"/>
+          </svg>
+          <p class="onboarding-video-placeholder__label">{{t "Video coming soon" key="onboarding.video_placeholder"}}</p>
+        </div>
+        <div class="beta-onboarding-modal__steps" role="group" aria-label={{t "Step %{current} of %{total}" key="step_current_of_total" current=2 total=2}}>
+          <span class="beta-onboarding-modal__step-pill">{{t "Step %{current} of %{total}" key="step_current_of_total" current=1 total=2}}</span>
+          <span class="beta-onboarding-modal__step-pill beta-onboarding-modal__step-pill--active">{{t "Step %{current} of %{total}" key="step_current_of_total" current=2 total=2}}</span>
+        </div>
+      </div>
+      <footer class="beta-onboarding-modal__footer">
+        <button type="button" class="btn btn-default" {{action "prevStep"}}>{{t "Back" key="onboarding.back_button"}}</button>
+        <button type="button" class="btn btn-primary" {{action "close"}}>{{t "Get Started" key="onboarding.done_button"}}</button>
+      </footer>
+    {{/if}}
+  </div>
+{{/modal-dialog}}
