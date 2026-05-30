@@ -1429,6 +1429,9 @@ class Organization < ApplicationRecord
         end
         activate_for.settings['preferences']['locale'] = locale if locale
         activate_for.settings['preferences']['preferred_symbols'] = symbol_library if symbol_library
+        if org_or_user.is_a?(Organization)
+          activate_for.settings['preferences']['beta_program_access'] = org_or_user.default_beta_program_access?
+        end
         do_copy = false
         if !activate_for.settings['preferences']['home_board'] && copy_board
           # if overrides['shallow_clone']
@@ -1449,11 +1452,18 @@ class Organization < ApplicationRecord
     end
   end
   
+  def default_beta_program_access?
+    self.settings['default_beta_program_access'] != false
+  end
+
   def process_params(params, non_user_params)
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['premium'] = process_boolean(params['premium']) if params['premium'] != nil
     self.settings['org_access'] = process_boolean(params['org_access']) if params['org_access'] != nil
+    if params.key?('default_beta_program_access') || params.key?(:default_beta_program_access)
+      self.settings['default_beta_program_access'] = process_boolean(params['default_beta_program_access'])
+    end
     self.settings['inactivity_timeout'] = params['inactivity_timeout'].to_i if params['inactivity_timeout']
     self.settings.delete('inactivity_timeout') if (self.settings['inactivity_timeout'] || 0) < 10
     self.settings['image_url'] = process_string(params['image_url']) if params['image_url']
