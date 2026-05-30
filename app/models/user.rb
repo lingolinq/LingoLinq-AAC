@@ -640,7 +640,7 @@ class User < ApplicationRecord
         'auto_open_speak_mode' => true,
         'share_notifications' => 'email',
         'cookies' => true,
-        'beta_program_access' => false
+        'beta_program_access' => true
       }
     }
   end

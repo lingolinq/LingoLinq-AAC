@@ -103,3 +103,4 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # disk for the author's reference, NOT committed. Pattern matches any
 # YYYY-MM-DD-*.md file anywhere in the tree.
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md
+.cursor/rules/melissa-branch-workflow.mdc

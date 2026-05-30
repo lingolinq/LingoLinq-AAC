@@ -853,6 +853,26 @@ describe Api::UsersController, :type => :controller do
       expect(u.settings['preferences']['home_board']['key']).to_not eq(b.key)
       expect(b2.instance_variable_get('@sub_id')).to eq(u.global_id)
     end
+
+    it "should omit beta_program_access when org disables default for start code registrations" do
+      o = Organization.create
+      o.settings['default_beta_program_access'] = false
+      o.save!
+      code = Organization.activation_code(o, {'user_type' => 'communicator'})
+      post :create, params: {:user => {'name' => 'fred_no_beta', 'start_code' => code}}
+      json = assert_success_json
+      u = User.find_by_path(json['user']['id'])
+      expect(u.settings['preferences']['beta_program_access']).to eq(false)
+      expect(json['user']['preferences']['beta_program_access']).to eq(false)
+    end
+
+    it "should default beta_program_access to true for registrations without a start code" do
+      post :create, params: {:user => {'name' => 'fred_beta_default'}}
+      json = assert_success_json
+      u = User.find_by_path(json['user']['id'])
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
+      expect(json['user']['preferences']['beta_program_access']).to eq(true)
+    end
     
     it "should throttle or captcha or something to prevent abuse"
 

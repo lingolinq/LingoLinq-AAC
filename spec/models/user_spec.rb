@@ -565,6 +565,11 @@ describe User, :type => :model do
       expect(u.settings['preferences']['beta_program_access']).to eq(false)
     end
 
+    it "should default beta_program_access to true for new users" do
+      u = User.process_new({'name' => 'beta_default_user'})
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
+    end
+
     it "should remove spaces from email" do
       u = User.new
       u.process({'email' => 'bob@ example.com '})
