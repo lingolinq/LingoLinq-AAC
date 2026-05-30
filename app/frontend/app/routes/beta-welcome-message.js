@@ -5,9 +5,17 @@ import config from '../config/environment';
 export default Route.extend({
   session: service('session'),
   appState: service('app-state'),
+  store: service('store'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
       this.transitionTo('login');
+      return;
+    }
+    if (this.session.get('isAuthenticated')) {
+      var user = this.appState.get('currentUser') || this.store.peekRecord('user', 'self');
+      if (user && !user.get('preferences.beta_program_access')) {
+        this.appState.return_to_index();
+      }
     }
   },
   activate() {
@@ -20,7 +28,7 @@ export default Route.extend({
   },
   setupController(controller) {
     this._super(...arguments);
-    var user = this.appState.get('currentUser');
+    var user = this.appState.get('currentUser') || this.store.peekRecord('user', 'self');
     var name = user && (user.get('name') || user.get('user_name'));
     controller.set('displayName', (name || '').trim() || 'Friend');
   },

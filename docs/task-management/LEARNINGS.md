@@ -2086,6 +2086,18 @@ query.
 
 ---
 
+## Pattern: Beta program access on registration — server defaults + org opt-out
+
+**Surface:** self-service signup, org start codes, beta welcome routes.
+
+**Requirement:** New users default to `preferences.beta_program_access: true`; org admins opt out via `org.settings['default_beta_program_access'] = false` for start-code registrations only.
+
+**Fix recipe:** Change `User.preference_defaults`; in `Organization.parse_activation_code` set `activate_for.settings['preferences']['beta_program_access']` from `Organization#default_beta_program_access?` when target is an org; expose org setting in JsonApi + org settings UI; branch `register.js` post-save and guard `beta-welcome*` routes on `app_state.beta_program_access`. End users still cannot self-set the pref via API.
+
+**Evidence:** `app/models/user.rb`, `app/models/organization.rb`, `app/frontend/app/routes/register.js`; task log `2026-05-29-beta-program-registration-default.md`.
+
+---
+
 ## Pattern: `find_all_by_global_id` does not preserve input order
 
 **Symptom:** RSpec expects `[bi1, bi2]` from `known_button_images` but gets reversed order when DB ids differ from button-list order.

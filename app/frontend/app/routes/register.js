@@ -71,17 +71,29 @@ export default Route.extend({
         }
         var save_done = function() {
           controller.set('registering', null);
-          // Stash home-tour auto-open for after beta welcome flow.
-          // session.override() may hard-reload (services/session.js#reload),
-          // so sessionStorage survives; HomeTour reads + clears on mount.
+          var prefs = user.get('preferences') || {};
+          // Default true for new registration when the API omits the key.
+          var hasBetaAccess = prefs.beta_program_access !== false;
+          // session.override() hard-reloads to `/`, so route transitions here
+          // never run. Persist intent in sessionStorage and resume on boot
+          // (see index.js afterModel). Home tour runs only after beta welcome.
           try {
-            sessionStorage.setItem('ll_auto_open_home_tour', '1');
-          } catch (e) { /* private mode / disabled — fall back to in-memory flag */ }
-          _this.appState.set('auto_open_home_tour', true);
+            if (hasBetaAccess) {
+              sessionStorage.setItem('ll_pending_beta_welcome', '1');
+            } else {
+              sessionStorage.setItem('ll_auto_open_home_tour', '1');
+            }
+          } catch (e) { /* private mode / disabled */ }
+          if (!hasBetaAccess) {
+            _this.appState.set('auto_open_home_tour', true);
+          }
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
+          } else if(hasBetaAccess) {
+            _this.transitionTo('beta-welcome-message');
+          } else {
+            _this.appState.return_to_index();
           }
-          _this.transitionTo('beta-welcome-message');
         };
         if(user.get('start_progress')) {
           controller.set('registering', {saving: true, initializing: true})

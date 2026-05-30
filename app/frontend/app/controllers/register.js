@@ -216,6 +216,9 @@ export default Controller.extend({
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('googleSignupBusy', false);
         if(res.token) {
+          try {
+            sessionStorage.setItem('ll_pending_beta_welcome', '1');
+          } catch (e) { /* sessionStorage unavailable */ }
           _this.session.confirm_authentication(res.token).then(function() {
             _this.appState.return_to_index();
           }, function() {

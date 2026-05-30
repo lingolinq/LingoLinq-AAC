@@ -6,9 +6,17 @@ export default Route.extend({
   session: service('session'),
   persistence: service('persistence'),
   appState: service('app-state'),
+  store: service('store'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
       this.transitionTo('login');
+      return;
+    }
+    if (this.session.get('isAuthenticated')) {
+      var user = this.appState.get('currentUser') || this.store.peekRecord('user', 'self');
+      if (user && !user.get('preferences.beta_program_access')) {
+        this.appState.return_to_index();
+      }
     }
   },
   activate() {
@@ -35,8 +43,16 @@ export default Route.extend({
         type: 'PUT',
         data: { user: { preferences: { beta_agreement_accepted: true } } }
       }).then(() => {
+        try {
+          sessionStorage.setItem('ll_auto_open_home_tour', '1');
+        } catch (e) { /* sessionStorage unavailable */ }
+        this.appState.set('auto_open_home_tour', true);
         this.appState.return_to_index();
       }, () => {
+        try {
+          sessionStorage.setItem('ll_auto_open_home_tour', '1');
+        } catch (e) { /* sessionStorage unavailable */ }
+        this.appState.set('auto_open_home_tour', true);
         this.appState.return_to_index();
       });
     }
