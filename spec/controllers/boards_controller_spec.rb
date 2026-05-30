@@ -123,7 +123,7 @@ describe BoardsController, :type => :controller do
       b = Board.create(:user => u)
       get :icon, params: {:id => b.global_id}
       expect(response).to be_redirect
-      expect(response.location).to eq(b.icon_url_or_fallback)
+      expect(response.location).to eq("http://test.host#{b.icon_url_or_fallback}")
     end
   end
   
