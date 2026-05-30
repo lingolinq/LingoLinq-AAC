@@ -4170,14 +4170,7 @@ export default Controller.extend(prefClasses, {
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured — same pattern as
       // switch_communicators below and the app-wide toggleEditMode.
-      var ready = RSVP.resolve({correct_pin: true});
-      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {
-          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
-          action: 'none',
-          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
-        });
-      }
+      var ready = app_state.open_speak_mode_exit_pin('none');
       var enterEditNow = function() {
         _this.set('show_options_menu', false);
         _this.set('show_color_legend', false);
@@ -4255,14 +4248,7 @@ export default Controller.extend(prefClasses, {
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured. Without this the button
       // lets a communicator leave the locked session by navigating home.
-      var ready = RSVP.resolve({correct_pin: true});
-      if(app_state.get('speak_mode') && app_state.get('currentUser.preferences.require_speak_mode_pin') && app_state.get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {
-          actual_pin: app_state.get('currentUser.preferences.speak_mode_pin'),
-          action: 'none',
-          hide_hint: app_state.get('currentUser.preferences.hide_pin_hint')
-        });
-      }
+      var ready = app_state.open_speak_mode_exit_pin('none');
       ready.then(function(res) {
         if(!res || !res.correct_pin) { return; }
         // Signal any in-flight async work on this controller to bail.
@@ -4276,6 +4262,7 @@ export default Controller.extend(prefClasses, {
         _this.set('show_options_menu', false);
         _this.set('app_state.board_detail_nav_history', []);
         _this.set('app_state.board_detail_entry_board', null);
+        app_state.finish_speak_mode_exit();
         app_state.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
         var transition = _this.get('router').transitionTo('index');
         if(transition && typeof transition.then === 'function') {
@@ -4290,14 +4277,19 @@ export default Controller.extend(prefClasses, {
     },
 
     exit_speak_mode: function() {
-      this.set('_exiting', true);
-      if(this._phrase_search_timer) {
-        try { runCancel(this._phrase_search_timer); } catch(e) {}
-        this._phrase_search_timer = null;
-      }
-      this.set('show_options_menu', false);
-      // app_state.toggle_speak_mode handles the loading overlay internally.
-      this.get('app_state').toggle_speak_mode();
+      var _this = this;
+      var app_state = this.get('app_state');
+      var ready = app_state.open_speak_mode_exit_pin('none');
+      ready.then(function(res) {
+        if(!res || !res.correct_pin) { return; }
+        _this.set('_exiting', true);
+        if(_this._phrase_search_timer) {
+          try { runCancel(_this._phrase_search_timer); } catch(e) {}
+          _this._phrase_search_timer = null;
+        }
+        _this.set('show_options_menu', false);
+        app_state.toggle_speak_mode('off');
+      }, function() { });
     },
 
     toggle_all_buttons: function() {
@@ -4332,10 +4324,8 @@ export default Controller.extend(prefClasses, {
     switch_communicators: function() {
       this.set('show_options_menu', false);
       var _this = this;
-      var ready = RSVP.resolve({correct_pin: true});
-      if(this.get('app_state').get('speak_mode') && this.get('app_state').get('currentUser.preferences.require_speak_mode_pin') && this.get('app_state').get('currentUser.preferences.speak_mode_pin')) {
-        ready = modal.open('speak-mode-pin', {actual_pin: this.get('app_state').get('currentUser.preferences.speak_mode_pin'), action: 'none', hide_hint: this.get('app_state').get('currentUser.preferences.hide_pin_hint')});
-      }
+      var app_state = this.get('app_state');
+      var ready = app_state.open_speak_mode_exit_pin('none');
       ready.then(function(res) {
         if(res && res.correct_pin) {
           modal.open('switch-communicators', {});

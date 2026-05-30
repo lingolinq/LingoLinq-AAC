@@ -170,6 +170,7 @@ LingoLinq::Application.routes.draw do
     resources :tags
     resources :words do
       get 'reachable_core' => 'words#reachable_core', on: :collection
+      post 'predict' => 'words#predict', on: :collection
     end
     post 'word_suggestions' => 'word_suggestions#create'
     resources :prediction_entries, only: [:index] do
