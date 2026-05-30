@@ -7,6 +7,7 @@ describe UserBoardProvisioner do
       user = User.create
       b1 = Board.process_new({name: 'Quick Core 60', public: true}, {user: source, key: 'quick-core-60'})
       b2 = Board.process_new({name: 'Vocal Flair 60', public: true}, {user: source, key: 'vocal-flair-60'})
+      b3 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
 
       allow(FeatureFlags).to receive(:signup_default_library_boards_enabled?).and_return(true)
       expect(Progress).to receive(:schedule).with(
@@ -21,6 +22,14 @@ describe UserBoardProvisioner do
         user,
         :copy_board_to_library,
         {'id' => b2.global_id},
+        source.global_id,
+        nil,
+        for_user: user
+      ).ordered
+      expect(Progress).to receive(:schedule).with(
+        user,
+        :copy_board_to_library,
+        {'id' => b3.global_id},
         source.global_id,
         nil,
         for_user: user
