@@ -129,6 +129,50 @@ The following protections are enforced at the repository level:
 
 These rules apply to all contributors, including admins.
 
+## Dual-Reviewer Policy (Phase 1)
+
+In addition to the automated Gemini Code Assist review, certain PRs require a
+**dual-reviewer pass** before merge: one senior-dev review and one adversary
+(red-team) review.
+
+### When it is mandatory (Phase 1 scope)
+
+A PR MUST receive the dual-reviewer pass before merge if it touches any of:
+
+- Security (authn/authz, access control, secrets, encryption, `secure_serialize`)
+- AI generation (any call to an external LLM; confirm it goes through `PiiScrubber`)
+- User-data flows (anything reading or writing student / patient / guardian data)
+- Feature flags (`lib/feature_flags.rb`)
+- Mailers
+- The performance-sensitive paths: `#tree`, `#bulk`, `global_id`, `board`,
+  `board_content`, or `SlowWorker`
+
+Backend-only changes with a genuinely internal surface area may skip the
+feature-flag requirement but still need the dual-reviewer pass if they fall in
+any category above.
+
+### The two passes
+
+1. **Senior-dev pass** (`/review-pr`): correctness, edge cases, security, privacy,
+   performance, tests, and LingoLinq conventions. Prefer running this on a fresh
+   model (e.g. Codex CLI) for independence from the author.
+2. **Adversary pass** (`/adversary-review`): red-team scrub for security flaws,
+   PII leakage, FERPA/HIPAA/GDPR exposure, and broken assumptions. Read-only; it
+   flags, it does not fix.
+
+### Gating
+
+- **Critical** or **High** finding from either pass: blocks merge. Fix it in the
+  PR, or get explicit sign-off to defer with a tracked follow-up issue.
+- **Medium**: surface to the approver for triage.
+- **Low**: log and continue.
+
+### Phase 2
+
+After the team has run Phase 1 on roughly five PRs without friction, the
+dual-reviewer pass expands to all PRs. Until then, it applies only to the scope
+above.
+
 ## Commit Messages
 
 Format: `type: short description`
