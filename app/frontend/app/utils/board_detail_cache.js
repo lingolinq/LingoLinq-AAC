@@ -202,14 +202,21 @@ function _document_hidden() {
   return typeof document !== 'undefined' && document.hidden;
 }
 
+function _complete_phase_if_done(phaseDone, phaseKey, completed) {
+  if (completed === true) {
+    phaseDone[phaseKey] = true;
+  } else if (completed === false) {
+    delete phaseDone[phaseKey];
+  }
+}
+
 function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
   if (!rootKeys || !rootKeys.length) { return RSVP.resolve(true); }
   var index = 0;
-  var anyIngested = false;
 
   var processNext = function() {
     if (_document_hidden() || !_is_online()) {
-      return RSVP.resolve(anyIngested);
+      return RSVP.resolve(false);
     }
     if (index >= rootKeys.length) {
       return RSVP.resolve(true);
@@ -224,9 +231,7 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
       });
     }
     return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
-      if (_ingest_tree_response(cache, data, warm_opts)) {
-        anyIngested = true;
-      }
+      _ingest_tree_response(cache, data, warm_opts);
     }, function() {
       /* swallow per-board errors */
     }).then(function() {
@@ -512,8 +517,8 @@ export default {
           phaseDone.phase1 = true;
           return RSVP.resolve();
         }
-        return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function() {
-          phaseDone.phase1 = true;
+        return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+          _complete_phase_if_done(phaseDone, 'phase1', completed);
         }, function() {
           delete phaseDone.phase1;
         });
@@ -531,8 +536,8 @@ export default {
             phaseDone.phase2 = true;
             return RSVP.resolve();
           }
-          return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function() {
-            phaseDone.phase2 = true;
+          return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+            _complete_phase_if_done(phaseDone, 'phase2', completed);
           }, function() {
             delete phaseDone.phase2;
           });
@@ -555,8 +560,8 @@ export default {
               phaseDone.phase3 = true;
               return RSVP.resolve();
             }
-            return _process_roots_sequentially(_this, phased.phase3, warm_opts, TREE_GAP_MS).then(function() {
-              phaseDone.phase3 = true;
+            return _process_roots_sequentially(_this, phased.phase3, warm_opts, TREE_GAP_MS).then(function(completed) {
+              _complete_phase_if_done(phaseDone, 'phase3', completed);
             }, function() {
               delete phaseDone.phase3;
             });
@@ -592,8 +597,8 @@ export default {
             phaseDone.phase4 = true;
             return RSVP.resolve();
           }
-          return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function() {
-            phaseDone.phase4 = true;
+          return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function(completed) {
+            _complete_phase_if_done(phaseDone, 'phase4', completed);
           }, function() {
             delete phaseDone.phase4;
           });

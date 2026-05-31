@@ -485,4 +485,90 @@ module('Unit | Utility | board-detail-cache', function() {
       throw err;
     });
   });
+
+  test('prefetch pipeline does not mark phase done when interrupted mid-phase', function(assert) {
+    boardDetailCache.clear();
+    var done = assert.async();
+    var treeCount = 0;
+    var origAjax = persistence.ajax;
+    var origAppState = LingoLinq.appState;
+    var origGet = persistence.get;
+    var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        return null;
+      }
+    };
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: function() { return treeCount >= 1; }
+    });
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        treeCount++;
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_50') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var user = {
+      get: function(k) {
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        if (k === 'stats.starred_board_refs') {
+          return [{ key: 'user/liked-a' }, { key: 'user/liked-b' }];
+        }
+        return null;
+      }
+    };
+
+    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      var phaseDone = boardDetailCache._prefetch_phase_done['1_50'] || {};
+      assert.ok(phaseDone.phase1, 'phase1 marked done when home tree finishes');
+      assert.notOk(phaseDone.phase2, 'phase2 stays incomplete when tab hidden mid-phase');
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      } else {
+        delete document.hidden;
+      }
+      done();
+    }, function(err) {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      }
+      throw err;
+    });
+  });
 });
