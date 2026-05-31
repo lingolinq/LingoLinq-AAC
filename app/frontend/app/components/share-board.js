@@ -47,12 +47,15 @@ export default Component.extend({
     return !(un && (this.get('appState').get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name === un && s.edit_permission; }));
   }),
 
-  // Block share/unshare while a lite-refetch is in flight (issue #293). The
-  // refetch (board.reload_if_lite) can resolve concurrently with the
-  // sharing_key set + save below; rather than risk overlapping requests on the
-  // same record silently dropping a sharing change, we make the editor wait
-  // out the brief reload window. The template also disables the buttons while
-  // reloading_detail is set, so this is the defensive backstop.
+  // Block the set+save actions (share_with_user, unshare, make_public) while a
+  // lite-refetch is in flight (issue #293). The refetch (board.reload_if_lite)
+  // can resolve concurrently with a set + save on the same record, so we make
+  // the editor wait out the reload window rather than risk an overlapping
+  // request silently dropping their change. This narrows the overlap window to
+  // near-zero; it is a poll on reloading_detail, not a hard lock, so a tiny
+  // residual window between reload() resolving and Ember Data flushing the
+  // payload remains. The template also disables the buttons while
+  // reloading_detail is set; this is the defensive backstop.
   sharing_locked() {
     if (this.get('board.reloading_detail')) {
       modal.notice(i18n.t('share_details_still_loading', "Still loading sharing details, please try again in a moment."));
@@ -95,6 +98,7 @@ export default Component.extend({
     },
     make_public(action) {
       if (action === 'confirm') {
+        if (this.sharing_locked()) { return; }
         const board = this.get('board');
         board.set('visibility', 'public');
         board.set('public', true);

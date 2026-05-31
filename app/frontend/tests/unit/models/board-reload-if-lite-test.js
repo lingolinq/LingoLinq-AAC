@@ -170,7 +170,16 @@ module('Unit | Model | board#reload_if_lite (issue #293)', function(hooks) {
     }
   });
 
-  test('reload does not clobber a pending local sharing_key edit (mid-flight edit survival)', async function(assert) {
+  // NOTE: this documents the INTENDED behavior under a stubbed reload(); it
+  // does not exercise Ember Data's real canonical-vs-dirty merge (the stub
+  // never echoes sharing_key, so survival is guaranteed by the stub, not by
+  // the framework). The actual data-safety guarantee for a mid-flight edit is
+  // the share-board sharing_locked() guard (share-board-guard-test.js), which
+  // blocks the edit while the reload is in flight. A real-merge assertion would
+  // need a store.push of a sharing_key-omitting payload during the in-flight
+  // window; left as a follow-up since behavioral unit tests do not currently
+  // execute in this harness (issue #314).
+  test('reload does not clobber a pending local sharing_key edit (documented under stub)', async function(assert) {
     const store = this.owner.lookup('service:store');
     const board = store.push({ data: { type: 'board', id: '293_dirty', attributes: {
       key: 'me/dirty', permissions: { edit: true, share: true }

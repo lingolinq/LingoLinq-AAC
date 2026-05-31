@@ -66,7 +66,7 @@
             </div>
           {{/if}}
           <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button class="btn md-modal-btn md-modal-btn--primary" {{action "make_public" "confirm"}}>{{t "Make the Board Public" key="make_it_public"}}</button>
+            <button class="btn md-modal-btn md-modal-btn--primary" {{action "make_public" "confirm"}} disabled={{this.board.reloading_detail}}>{{t "Make the Board Public" key="make_it_public"}}</button>
             <button class="btn md-modal-btn md-modal-btn--cancel" {{action "make_public" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         {{else}}

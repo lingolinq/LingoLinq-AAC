@@ -6,11 +6,18 @@ import modal from 'frontend/utils/modal';
 
 // Regression for issue #293 (High finding from adversary review): the share
 // modal calls board.reload_if_lite() on open, and that refetch can resolve
-// concurrently with a share/unshare action's sharing_key set + save on the
-// same record. share-board now blocks both actions while
-// board.reloading_detail is set so a pending change cannot be silently lost
-// in the reload window. modal.notice is stubbed because modal.flash throws
-// without a full app setup (utils/modal.js:449).
+// concurrently with a set + save in share_with_user / unshare / make_public on
+// the same record. share-board now blocks those actions while
+// board.reloading_detail is set so a pending change cannot be silently lost in
+// the reload window. modal.notice is stubbed because modal.flash throws without
+// a full app setup (utils/modal.js:449).
+//
+// SCOPE: this tests the sharing_locked() guard in ISOLATION by setting
+// reloading_detail manually. It does NOT exercise the real
+// didInsertElement -> reload_if_lite -> reloading_detail integration, nor the
+// disabled-button binding. End-to-end coverage of that path would need a
+// rendering test; deferred since behavioral unit tests do not currently
+// execute in this harness (issue #314).
 module('Unit | Component | share-board (issue #293 reload guard)', function(hooks) {
   setupTest(hooks);
 
@@ -57,6 +64,17 @@ module('Unit | Component | share-board (issue #293 reload guard)', function(hook
     component.send('unshare', 'user_123');
     assert.strictEqual(board.__saved.count, 0, 'no save dispatched while reloading_detail is set');
     assert.strictEqual(board.get('sharing_key'), undefined, 'sharing_key not mutated while locked');
+    assert.strictEqual(this.notice_count, 1, 'editor is told to wait');
+  });
+
+  test('make_public confirm is blocked while a lite-refetch is in flight', function(assert) {
+    var component = this.owner.factoryFor('component:share-board').create();
+    var board = buildBoard({ reloading_detail: true });
+    component.set('board', board);
+
+    component.send('make_public', 'confirm');
+    assert.strictEqual(board.__saved.count, 0, 'no save dispatched while reloading_detail is set');
+    assert.strictEqual(board.get('public'), undefined, 'public flag not mutated while locked');
     assert.strictEqual(this.notice_count, 1, 'editor is told to wait');
   });
 
