@@ -17,6 +17,7 @@ import contentGrabbers from './content_grabbers';
 import Utils from './misc';
 import modal from './modal';
 import capabilities from './capabilities';
+import boardPrefetchPlanner from './board_prefetch_planner';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -2245,7 +2246,8 @@ var persistence = EmberObject.extend({
             });
           }
         }
-        // TODO: also download all the user's personally-created boards
+        // Phased board sync (owned + public roots) handled in sync_boards
+        // when background_board_prefetch is enabled.
 
         var sync_log = [];
 
@@ -3048,8 +3050,10 @@ var persistence = EmberObject.extend({
     });
 
     var sync_all_boards = get_sounds.then(function() {
-      return new RSVP.Promise(function(resolve, reject) {
+      var startBoardSync = function(listData) {
+        return new RSVP.Promise(function(resolve, reject) {
         var to_visit_boards = [];
+        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
         if(user.get('preferences.home_board.id')) {
           var board = user.get('preferences.home_board');
           board.depth = 0;
@@ -3063,8 +3067,25 @@ var persistence = EmberObject.extend({
             }
           });
         }
-        // A user without a home board should also sync starred boards, by default
-        if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
+        if(backgroundPrefetch) {
+          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+            ownedBoards: listData && listData.ownedBoards,
+            catalogBoards: listData && listData.catalogBoards,
+            globalBoards: listData && listData.globalBoards,
+            includeLiked: true
+          });
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
+          );
+          to_visit_boards = to_visit_boards.concat(
+            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
+          );
+          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
+            to_visit_boards = to_visit_boards.concat(
+              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
+            );
+          }
+        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
           var sync_all = user.get('preferences.sync_starred_boards') === true;
           user.get('stats.starred_board_refs').forEach(function(ref) {
             if(sync_all || !ref.suggested) {
@@ -3126,7 +3147,7 @@ var persistence = EmberObject.extend({
               var content_promises = 0;
               var safely_cached = !!safely_cached_boards[board.id];
               // force a reload of the buttonset if the board changed
-              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board')) {
+              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board') || (next.depth == 0 && next.visit_source == 'owned root') || (next.depth == 0 && next.visit_source == 'public root')) {
                 // Confirm if the button set is stored locally
                 persistence.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
@@ -3451,6 +3472,23 @@ var persistence = EmberObject.extend({
           reject.apply(null, arguments);
         });
       });
+      };
+
+      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
+        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+          persistence.ajax.bind(persistence),
+          user,
+          {
+            includeOwned: true,
+            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
+          }
+        ).then(function(listData) {
+          return startBoardSync(listData);
+        }, function() {
+          return startBoardSync(null);
+        });
+      }
+      return startBoardSync(null);
     });
 
     return sync_all_boards.then(function(full_set_revisions) {

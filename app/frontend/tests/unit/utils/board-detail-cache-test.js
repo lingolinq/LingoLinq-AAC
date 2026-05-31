@@ -105,6 +105,9 @@ module('Unit | Utility | board-detail-cache', function() {
           meta: { more: false }
         });
       }
+      if (url.indexOf('q=&sort=popularity') !== -1 || url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         return RSVP.resolve({
@@ -168,6 +171,9 @@ module('Unit | Utility | board-detail-cache', function() {
           ],
           meta: { more: false }
         });
+      }
+      if (url.indexOf('q=&sort=popularity') !== -1 || url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
       }
       if (url.indexOf('board-b/tree') !== -1) {
         return RSVP.resolve({
@@ -246,6 +252,9 @@ module('Unit | Utility | board-detail-cache', function() {
           meta: { more: false }
         });
       }
+      if (url.indexOf('q=&sort=popularity') !== -1 || url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
       if (url.indexOf('/tree') !== -1) {
         return RSVP.resolve({
           root: { board: { key: 'lingolinq/board-a', id: '1_1', buttons: [] } },
@@ -279,6 +288,286 @@ module('Unit | Utility | board-detail-cache', function() {
       persistence.ajax = origAjax;
       LingoLinq.appState = origAppState;
       boardDetailCache.warm_images = origWarm;
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline runs home then liked then owned when background flag enabled', function(assert) {
+    boardDetailCache.clear();
+    var done = assert.async();
+    var treeOrder = [];
+    var origAjax = persistence.ajax;
+    var origAppState = LingoLinq.appState;
+    var origGet = persistence.get;
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        return null;
+      }
+    };
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeOrder.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_50') !== -1) {
+        return RSVP.resolve({
+          board: [{ key: 'user/owned', id: '1_20' }],
+          meta: { more: false }
+        });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var user = {
+      get: function(k) {
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        if (k === 'stats.starred_board_refs') { return [{ key: 'user/liked' }]; }
+        return null;
+      }
+    };
+
+    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      assert.deepEqual(treeOrder, ['user/home', 'user/liked', 'user/owned'], 'runs phased trees in order');
+      done();
+    }, function(err) {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline skips extended phases when background flag off', function(assert) {
+    boardDetailCache.clear();
+    var done = assert.async();
+    var treeOrder = [];
+    var origAjax = persistence.ajax;
+    var origAppState = LingoLinq.appState;
+    var origGet = persistence.get;
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = { get: function() { return null; } };
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeOrder.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var user = {
+      get: function(k) {
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'stats.starred_board_refs') { return [{ key: 'user/liked' }]; }
+        return null;
+      }
+    };
+
+    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      assert.deepEqual(treeOrder, ['user/home'], 'only home phase when flag off');
+      done();
+    }, function(err) {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline skips roots already fresh in cache', function(assert) {
+    boardDetailCache.clear();
+    var done = assert.async();
+    var treeOrder = [];
+    var origAjax = persistence.ajax;
+    var origAppState = LingoLinq.appState;
+    var origGet = persistence.get;
+
+    boardDetailCache.set({ key: 'user/liked', id: '1_2', buttons: [] });
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        return null;
+      }
+    };
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeOrder.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_50') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var user = {
+      get: function(k) {
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        if (k === 'stats.starred_board_refs') { return [{ key: 'user/liked' }]; }
+        return null;
+      }
+    };
+
+    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      assert.deepEqual(treeOrder, ['user/home'], 'skips cached liked board');
+      done();
+    }, function(err) {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline does not mark phase done when interrupted mid-phase', function(assert) {
+    boardDetailCache.clear();
+    var done = assert.async();
+    var treeCount = 0;
+    var origAjax = persistence.ajax;
+    var origAppState = LingoLinq.appState;
+    var origGet = persistence.get;
+    var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        return null;
+      }
+    };
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: function() { return treeCount >= 1; }
+    });
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        treeCount++;
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_50') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var user = {
+      get: function(k) {
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        if (k === 'stats.starred_board_refs') {
+          return [{ key: 'user/liked-a' }, { key: 'user/liked-b' }];
+        }
+        return null;
+      }
+    };
+
+    boardDetailCache._run_prefetch_pipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      var phaseDone = boardDetailCache._prefetch_phase_done['1_50'] || {};
+      assert.ok(phaseDone.phase1, 'phase1 marked done when home tree finishes');
+      assert.notOk(phaseDone.phase2, 'phase2 stays incomplete when tab hidden mid-phase');
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      } else {
+        delete document.hidden;
+      }
+      done();
+    }, function(err) {
+      persistence.ajax = origAjax;
+      LingoLinq.appState = origAppState;
+      persistence.get = origGet;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      }
       throw err;
     });
   });

@@ -139,6 +139,18 @@ export default Service.extend({
     }
     
     this.setup();
+    if (typeof document !== 'undefined' && !isTesting() && !this._visibilityPrefetchBound) {
+      this._visibilityPrefetchBound = true;
+      var _this = this;
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden || _this.isDestroyed || _this.isDestroying) { return; }
+        if (!_this.get('persistence.online')) { return; }
+        var user = _this.get('currentUser');
+        if (user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+          try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+        }
+      });
+    }
     // Defer refresh timers to ensure all services are initialized
     // This prevents errors if window.persistence isn't ready yet
     var _this = this;
@@ -2586,6 +2598,13 @@ export default Service.extend({
     // navigate to Boards. boardDetailCache.prefetch_for_user dedupes
     // per user id, so this observer firing repeatedly during session
     // restore only triggers one prefetch.
+    var user = this.get('currentUser');
+    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+    }
+  }),
+  on_online_board_prefetch: observer('persistence.online', function() {
+    if(!this.get('persistence.online')) { return; }
     var user = this.get('currentUser');
     if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
       try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
