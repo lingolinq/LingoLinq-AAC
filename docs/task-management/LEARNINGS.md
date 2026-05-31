@@ -2482,7 +2482,7 @@ when you change a positioned element's `position` responsively, check whether an
 
 **Root cause to avoid:** `User#copy_to_home_board` always writes `preferences.home_board` — wrong tool for library-only provisioning.
 
-**Fix recipe:** Add `User#copy_board_to_library` (`copy_for` + `copy_board_links`, no home pref). Schedule two jobs via `Progress.schedule(user, :copy_board_to_library, …, for_user: user)` from `UserBoardProvisioner` after save. Source boards live on the `lingolinq` content user (`SystemBoardSources`); import with `VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies`. Gate with `FeatureFlags.signup_default_library_boards_enabled?`.
+**Fix recipe:** Add `User#copy_board_to_library` (`copy_for` + `copy_board_links`, no home pref). Schedule one Progress job per slug in `SystemBoardSources::SIGNUP_LIBRARY_SLUGS` via `Progress.schedule(user, :copy_board_to_library, …, for_user: user)` from `UserBoardProvisioner` after save. Source boards live on the `lingolinq` content user (`SystemBoardSources`); import with `VOCABULARY_USER_NAME=lingolinq bundle exec rake openaac:import_vocabularies`. Gate with `FeatureFlags.signup_default_library_boards_enabled?`.
 
 **Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.
 
