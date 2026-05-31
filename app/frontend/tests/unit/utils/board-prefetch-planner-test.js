@@ -7,6 +7,7 @@ function mockUser(attrs) {
     get: function(k) {
       if (k === 'id') { return attrs.id || '1_50'; }
       if (k === 'preferences.home_board') { return attrs.home_board || null; }
+      if (k === 'preferences.sync_starred_boards') { return attrs.sync_starred_boards; }
       if (k === 'stats.starred_board_refs') { return attrs.starred_board_refs || []; }
       return null;
     }
@@ -35,6 +36,32 @@ module('Unit | Utility | board-prefetch-planner', function() {
     boardPrefetchPlanner.collectHomeLookups(user).forEach(function(l) { seen[l] = true; });
     var liked = boardPrefetchPlanner.collectLikedLookups(user, seen);
     assert.deepEqual(liked, ['user/style-a', 'user/style-b', 'user/liked-z'], 'expands options and skips home');
+  });
+
+  test('collectLikedLookups skips suggested refs unless sync_starred_boards is true', function(assert) {
+    var user = mockUser({
+      starred_board_refs: [
+        { key: 'user/suggested-pick', suggested: true },
+        { key: 'user/real-like' }
+      ]
+    });
+    assert.deepEqual(
+      boardPrefetchPlanner.collectLikedLookups(user, {}),
+      ['user/real-like'],
+      'excludes suggested home-board picker refs by default'
+    );
+    var syncAllUser = mockUser({
+      sync_starred_boards: true,
+      starred_board_refs: [
+        { key: 'user/suggested-pick', suggested: true },
+        { key: 'user/real-like' }
+      ]
+    });
+    assert.deepEqual(
+      boardPrefetchPlanner.collectLikedLookups(syncAllUser, {}),
+      ['user/suggested-pick', 'user/real-like'],
+      'includes suggested refs when sync_starred_boards is true'
+    );
   });
 
   test('collectOwnedRootLookups filters to root tiles only', function(assert) {

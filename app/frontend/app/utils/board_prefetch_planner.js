@@ -37,9 +37,11 @@ export function collectLikedLookups(user, seen) {
   if (!user || !user.get) { return []; }
   seen = seen || {};
   var refs = user.get('stats.starred_board_refs') || [];
+  var syncAll = user.get('preferences.sync_starred_boards') === true;
   var result = [];
   refs.forEach(function(ref) {
     if (!ref) { return; }
+    if (!syncAll && ref.suggested) { return; }
     if (ref.style && ref.style.options) {
       ref.style.options.forEach(function(opt) {
         if (opt && opt.key) {

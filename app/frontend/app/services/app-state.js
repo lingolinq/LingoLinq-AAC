@@ -139,6 +139,18 @@ export default Service.extend({
     }
     
     this.setup();
+    if (typeof document !== 'undefined' && !isTesting() && !this._visibilityPrefetchBound) {
+      this._visibilityPrefetchBound = true;
+      var _this = this;
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden || _this.isDestroyed || _this.isDestroying) { return; }
+        if (!_this.get('persistence.online')) { return; }
+        var user = _this.get('currentUser');
+        if (user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+          try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+        }
+      });
+    }
     // Defer refresh timers to ensure all services are initialized
     // This prevents errors if window.persistence isn't ready yet
     var _this = this;
