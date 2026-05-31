@@ -18,6 +18,7 @@
 // and on entering edit mode so editors never read stale state.
 
 import persistence from './persistence';
+import boardPrefetchPlanner from './board_prefetch_planner';
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
@@ -26,10 +27,7 @@ var TTL_MS = 5 * 60 * 1000;
 var MAX_PREFETCH = 20;
 var WARM_BATCH = 20;
 var WARM_BATCH_GAP_MS = 80;
-var CATALOG_TREE_GAP_MS = 400;
-var CATALOG_ROOTS_PER_PAGE = 50;
-var CATALOG_ROOT_CAP = 100;
-var CATALOG_ACCOUNT = 'lingolinq';
+var TREE_GAP_MS = 400;
 
 // key (e.g. "user_name/boardname") → entry
 var _by_key = {};
@@ -190,17 +188,57 @@ function _push_board_to_store(raw) {
   } catch (e) { /* ignore */ }
 }
 
-function _catalog_prefetch_enabled(user) {
+function _is_online() {
   try {
-    if (typeof window !== 'undefined' && LingoLinq && LingoLinq.appState) {
-      return !!LingoLinq.appState.get('feature_flags.catalog_board_prefetch');
+    if (!persistence) { return false; }
+    if (typeof persistence.get === 'function') {
+      return !!persistence.get('online');
     }
-    if (user && user.get) {
-      var flags = user.get('feature_flags');
-      if (flags && flags.catalog_board_prefetch) { return true; }
+    return !!persistence.online;
+  } catch (e) { return false; }
+}
+
+function _document_hidden() {
+  return typeof document !== 'undefined' && document.hidden;
+}
+
+function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
+  if (!rootKeys || !rootKeys.length) { return RSVP.resolve(true); }
+  var index = 0;
+  var anyIngested = false;
+
+  var processNext = function() {
+    if (_document_hidden() || !_is_online()) {
+      return RSVP.resolve(anyIngested);
     }
-  } catch (e) { /* app may not be booted yet */ }
-  return false;
+    if (index >= rootKeys.length) {
+      return RSVP.resolve(true);
+    }
+    var key = rootKeys[index++];
+    var existing = _lookup(key);
+    if (existing && _is_fresh(existing) && existing.raw) {
+      return new RSVP.Promise(function(resolve) {
+        runLater(function() {
+          processNext().then(resolve, resolve);
+        }, gapMs);
+      });
+    }
+    return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
+      if (_ingest_tree_response(cache, data, warm_opts)) {
+        anyIngested = true;
+      }
+    }, function() {
+      /* swallow per-board errors */
+    }).then(function() {
+      return new RSVP.Promise(function(resolve) {
+        runLater(function() {
+          processNext().then(resolve, resolve);
+        }, gapMs);
+      });
+    });
+  };
+
+  return processNext();
 }
 
 function _ingest_tree_response(cache, data, warm_opts, options) {
@@ -324,6 +362,8 @@ export default {
     _warmed_urls = {};
     this._prefetched_user_ids = {};
     this._prefetched_catalog_user_ids = {};
+    this._prefetch_phase_done = {};
+    this._prefetch_pipeline_running = {};
   },
 
   // Warm the browser image cache for every button image URL on the
@@ -451,150 +491,197 @@ export default {
     });
   },
 
-  // Session-start prefetch: called when a user logs in (or session is
-  // restored on app boot). Fires a one-shot /tree fetch for the user's
-  // home board so by the time the user navigates to Boards / clicks a
-  // sub-board, every board JSON and every image URL is already in
-  // cache.
-  //
-  // Industry-standard pattern: prefetch the user's known data envelope
-  // at session start (Slack, Notion, Linear all do this), so subsequent
-  // navigation is instant rather than slow on first hit.
-  //
-  // - Tracked per user id so we don't re-prefetch on every observer
-  //   fire (currentUser can flicker during session restore).
-  // - Fire-and-forget; returns nothing. Doesn't block any caller.
-  // - Skips silently if no home board is configured.
-  prefetch_for_user: function(user) {
-    if (!user || !user.get) { return; }
-    var user_id = user.get('id');
-    if (!user_id) { return; }
-    this._prefetched_user_ids = this._prefetched_user_ids || {};
-    if (this._prefetched_user_ids[user_id]) { return; }
-    this._prefetched_user_ids[user_id] = true;
-    var home_key = user.get('preferences.home_board.key');
-    var home_id = user.get('preferences.home_board.id');
-    var lookup = home_key || home_id;
+  _run_prefetch_pipeline: function(user, warm_opts) {
     var _this = this;
-    var warm_opts = {
-      skin: user.get('preferences.skin'),
-      preferred_symbols: user.get('preferences.preferred_symbols')
-    };
-    var start_catalog_prefetch = function() {
-      _this.prefetch_lingolinq_catalog(user, warm_opts);
-    };
-    // Defer slightly so this doesn't compete with the post-login UI
-    // render. By the time the user finishes reading the dashboard,
-    // the tree is cached and Boards-tab navigation is instant.
-    runLater(function() {
-      if (!lookup) {
-        start_catalog_prefetch();
-        return;
-      }
-      persistence.ajax('/api/v1/boards/' + lookup + '/tree', { type: 'GET' }).then(function(data) {
-        _ingest_tree_response(_this, data, warm_opts);
-      }, function() {
-        // Allow a retry on the next observer fire — the network may
-        // have been unavailable at session-start.
-        delete _this._prefetched_user_ids[user_id];
-      }).then(start_catalog_prefetch, start_catalog_prefetch);
-    }, 400);
-  },
-
-  // After the home board tree is cached, prefetch full JSON trees for
-  // every public root board on the official lingolinq account so
-  // home-board picker / catalog navigation is instant in-session.
-  prefetch_lingolinq_catalog: function(user, warm_opts) {
-    if (!user || !user.get) { return RSVP.resolve(); }
-    if (!_catalog_prefetch_enabled(user)) { return RSVP.resolve(); }
     var user_id = user.get('id');
-    if (!user_id) { return RSVP.resolve(); }
-    this._prefetched_catalog_user_ids = this._prefetched_catalog_user_ids || {};
-    if (this._prefetched_catalog_user_ids[user_id]) { return RSVP.resolve(); }
-    this._prefetched_catalog_user_ids[user_id] = true;
-
-    var _this = this;
     warm_opts = warm_opts || {
       skin: user.get('preferences.skin'),
       preferred_symbols: user.get('preferences.preferred_symbols')
     };
-    var ingested_count = 0;
-    var root_keys = [];
+    _this._prefetch_phase_done = _this._prefetch_phase_done || {};
+    var phaseDone = _this._prefetch_phase_done[user_id] || {};
+    _this._prefetch_phase_done[user_id] = phaseDone;
 
-    var collect_roots = function(list_url) {
-      if (typeof document !== 'undefined' && document.hidden) {
-        return RSVP.resolve();
-      }
-      return persistence.ajax(list_url, { type: 'GET' }).then(function(data) {
-        (data.board || []).forEach(function(b) {
-          if (b && b.key && root_keys.length < CATALOG_ROOT_CAP) {
-            root_keys.push(b.key);
-          }
-        });
-        if (data.meta && data.meta.more && data.meta.next_url && root_keys.length < CATALOG_ROOT_CAP) {
-          return collect_roots(data.meta.next_url);
+    var chain = RSVP.resolve();
+
+    if (!phaseDone.phase1) {
+      chain = chain.then(function() {
+        if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+        var lookups = boardPrefetchPlanner.collectHomeLookups(user);
+        if (!lookups.length) {
+          phaseDone.phase1 = true;
+          return RSVP.resolve();
         }
+        return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function() {
+          phaseDone.phase1 = true;
+        }, function() {
+          delete phaseDone.phase1;
+        });
       });
-    };
-
-    var locale = user.get('preferences.locale');
-    var list_query = '/api/v1/boards?user_id=' + encodeURIComponent(CATALOG_ACCOUNT) +
-      '&public=true&sort=home_popularity&copies=false&per_page=' + CATALOG_ROOTS_PER_PAGE;
-    if (locale) {
-      list_query += '&locale=' + encodeURIComponent(locale);
     }
 
-    var process_next_root = function(index) {
-      if (typeof document !== 'undefined' && document.hidden) {
-        return RSVP.resolve();
-      }
-      if (index >= root_keys.length) { return RSVP.resolve(); }
-      var key = root_keys[index];
-      var existing = _lookup(key);
-      if (existing && _is_fresh(existing) && existing.raw) {
-        return new RSVP.Promise(function(resolve) {
-          runLater(function() {
-            process_next_root(index + 1).then(resolve, resolve);
-          }, CATALOG_TREE_GAP_MS);
-        });
-      }
-      return persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' }).then(function(data) {
-        if (_ingest_tree_response(_this, data, warm_opts)) {
-          ingested_count++;
-        }
-      }, function() {
-        /* swallow per-board errors */
-      }).then(function() {
-        return new RSVP.Promise(function(resolve) {
-          runLater(function() {
-            process_next_root(index + 1).then(resolve, resolve);
-          }, CATALOG_TREE_GAP_MS);
-        });
-      });
-    };
-
-    return new RSVP.Promise(function(resolve) {
-      runLater(function() {
-        collect_roots(list_query).then(function() {
-          if (!root_keys.length) {
-            delete _this._prefetched_catalog_user_ids[user_id];
-            return;
+    if (boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
+      if (!phaseDone.phase2) {
+        chain = chain.then(function() {
+          if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+          var seen = {};
+          boardPrefetchPlanner.collectHomeLookups(user).forEach(function(l) { seen[l] = true; });
+          var lookups = boardPrefetchPlanner.collectLikedLookups(user, seen);
+          if (!lookups.length) {
+            phaseDone.phase2 = true;
+            return RSVP.resolve();
           }
-          return process_next_root(0).then(function() {
-            if (!ingested_count) {
-              delete _this._prefetched_catalog_user_ids[user_id];
+          return _process_roots_sequentially(_this, lookups, warm_opts, TREE_GAP_MS).then(function() {
+            phaseDone.phase2 = true;
+          }, function() {
+            delete phaseDone.phase2;
+          });
+        });
+      }
+
+      if (!phaseDone.phase3) {
+        chain = chain.then(function() {
+          if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+          return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+            persistence.ajax.bind(persistence),
+            user,
+            { includeOwned: true, includePublic: false }
+          ).then(function(listData) {
+            var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+              ownedBoards: listData.ownedBoards,
+              includeLiked: false
+            });
+            if (!phased.phase3.length) {
+              phaseDone.phase3 = true;
+              return RSVP.resolve();
             }
+            return _process_roots_sequentially(_this, phased.phase3, warm_opts, TREE_GAP_MS).then(function() {
+              phaseDone.phase3 = true;
+            }, function() {
+              delete phaseDone.phase3;
+            });
+          }, function() {
+            delete phaseDone.phase3;
+          });
+        });
+      }
+    }
+
+    if (boardPrefetchPlanner.publicPrefetchEnabled(user) && !phaseDone.phase4) {
+      chain = chain.then(function() {
+        if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+          persistence.ajax.bind(persistence),
+          user,
+          { includeOwned: false, includePublic: true }
+        ).then(function(listData) {
+          var seen = {};
+          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+            catalogBoards: listData.catalogBoards,
+            globalBoards: listData.globalBoards,
+            includeLiked: false
+          });
+          phased.phase1.concat(phased.phase2, phased.phase3).forEach(function(l) { seen[l] = true; });
+          var publicLookups = boardPrefetchPlanner.collectPublicLookups(
+            user,
+            listData.catalogBoards,
+            listData.globalBoards,
+            seen
+          );
+          if (!publicLookups.length) {
+            phaseDone.phase4 = true;
+            return RSVP.resolve();
+          }
+          return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function() {
+            phaseDone.phase4 = true;
+          }, function() {
+            delete phaseDone.phase4;
           });
         }, function() {
-          if (!ingested_count) {
-            delete _this._prefetched_catalog_user_ids[user_id];
-          }
-        }).then(function() {
-          resolve();
-        }, function() {
-          resolve();
+          delete phaseDone.phase4;
         });
-      }, CATALOG_TREE_GAP_MS);
+      });
+    }
+
+    return chain;
+  },
+
+  // Session-start prefetch: called when a user logs in (or session is
+  // restored on app boot). Runs a phased pipeline — home board first,
+  // then liked boards, all owned roots, and public boards when the
+  // background_board_prefetch flag is enabled.
+  //
+  // - Phase completion tracked per user so reconnect resumes incomplete
+  //   phases without re-fetching finished work.
+  // - Fire-and-forget; returns nothing. Doesn't block any caller.
+  prefetch_for_user: function(user) {
+    if (!user || !user.get) { return; }
+    var user_id = user.get('id');
+    if (!user_id) { return; }
+    if (!_is_online()) { return; }
+    if (_document_hidden()) { return; }
+
+    var _this = this;
+    _this._prefetch_pipeline_running = _this._prefetch_pipeline_running || {};
+    if (_this._prefetch_pipeline_running[user_id]) { return; }
+    _this._prefetch_pipeline_running[user_id] = true;
+
+    var warm_opts = {
+      skin: user.get('preferences.skin'),
+      preferred_symbols: user.get('preferences.preferred_symbols')
+    };
+
+    runLater(function() {
+      _this._run_prefetch_pipeline(user, warm_opts).then(function() {
+        delete _this._prefetch_pipeline_running[user_id];
+      }, function() {
+        delete _this._prefetch_pipeline_running[user_id];
+      });
+    }, 400);
+  },
+
+  // Legacy entry point kept for tests. Prefetches LingoLinq catalog +
+  // global public roots when public prefetch is enabled.
+  prefetch_lingolinq_catalog: function(user, warm_opts) {
+    if (!user || !user.get) { return RSVP.resolve(); }
+    if (!boardPrefetchPlanner.publicPrefetchEnabled(user)) { return RSVP.resolve(); }
+    var user_id = user.get('id');
+    if (!user_id) { return RSVP.resolve(); }
+    if (!_is_online()) { return RSVP.resolve(); }
+
+    var _this = this;
+    _this._prefetched_catalog_user_ids = _this._prefetched_catalog_user_ids || {};
+    if (_this._prefetched_catalog_user_ids[user_id]) { return RSVP.resolve(); }
+    _this._prefetched_catalog_user_ids[user_id] = true;
+
+    warm_opts = warm_opts || {
+      skin: user.get('preferences.skin'),
+      preferred_symbols: user.get('preferences.preferred_symbols')
+    };
+
+    return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+      persistence.ajax.bind(persistence),
+      user,
+      { includeOwned: false, includePublic: true }
+    ).then(function(listData) {
+      var seen = {};
+      var publicLookups = boardPrefetchPlanner.collectPublicLookups(
+        user,
+        listData.catalogBoards,
+        listData.globalBoards,
+        seen
+      );
+      if (!publicLookups.length) {
+        delete _this._prefetched_catalog_user_ids[user_id];
+        return RSVP.resolve();
+      }
+      return _process_roots_sequentially(_this, publicLookups, warm_opts, TREE_GAP_MS).then(function() {
+        /* done */
+      }, function() {
+        delete _this._prefetched_catalog_user_ids[user_id];
+      });
+    }, function() {
+      delete _this._prefetched_catalog_user_ids[user_id];
     });
   },
 

@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: `find_all_by_global_id` does not preserve input order](#pattern-find_all_by_global_id-does-not-preserve-input-order)
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
@@ -74,6 +75,18 @@ file (see [README.md](README.md)).
 - [Pattern: async store/query callbacks must guard `isDestroyed`/`isDestroying` before `set`](#pattern-async-storequery-callbacks-must-guard-isdestroyedisdestroying-before-set)
 - [Pattern: per-element responsive show/hide rules must sit AFTER that element's base `display` rule — don't consolidate when bases are scattered](#pattern-per-element-responsive-showhide-rules-must-sit-after-that-elements-base-display-rule--dont-consolidate-when-bases-are-scattered)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
+
+## Pattern: phased board prefetch — shared planner, dual persistence files
+
+**Surface:** session navigation cache (`board_detail_cache.js`) and offline IndexedDB sync (`sync_boards`).
+
+**Approach:** [`board_prefetch_planner.js`](../../app/frontend/app/utils/board_prefetch_planner.js) enumerates roots in priority order (home → liked → owned → public). Session cache runs `/tree` per root via `_run_prefetch_pipeline`; offline sync seeds the BFS queue with the same lookups via `lookupsToSyncSeeds`.
+
+**Gotcha:** `sync_boards` exists in **both** [`app/utils/persistence.js`](../../app/frontend/app/utils/persistence.js) and [`app/services/persistence.js`](../../app/frontend/app/services/persistence.js). Runtime sync uses `window.persistence` (the service). Any offline-sync change must be applied to **both** files or offline behavior won't match.
+
+**Flags:** Phase 1 (home) is unconditional; phases 2–4 run when `background_board_prefetch` is enabled (shipped in `ENABLED_FRONTEND_FEATURES`). Phase 4 also honors legacy `catalog_board_prefetch`.
+
+**First seen in:** [2026-05-30-phased-online-board-caching.md](./2026-05-30-phased-online-board-caching.md)
 
 ## Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children
 

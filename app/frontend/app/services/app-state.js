@@ -2591,6 +2591,13 @@ export default Service.extend({
       try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
     }
   }),
+  on_online_board_prefetch: observer('persistence.online', function() {
+    if(!this.get('persistence.online')) { return; }
+    var user = this.get('currentUser');
+    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
+      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+    }
+  }),
   speak_mode_handlers: observer(
     'speak_mode',
     'currentUser.id',
