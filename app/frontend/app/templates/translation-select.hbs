@@ -40,7 +40,15 @@
         <div class='form-group'>
           <div class='col-sm-9 col-sm-offset-3'>
             <p class='form-control-static text-info'>
-              {{t "This board already has some translations for this language. Would you like to switch to the existing translations as the new default language?" key="switch_default_languages_prompt"}}
+              {{t "This board already has translations for this language. Use Switch to Existing Translation to make it the default display and speak language. To change languages, open the original English board copy or use Switch Language from the board menu." key="board_already_translated_prompt"}}
+            </p>
+          </div>
+        </div>
+      {{else if this.is_source_language}}
+        <div class='form-group'>
+          <div class='col-sm-9 col-sm-offset-3'>
+            <p class='form-control-static text-info'>
+              {{t "This board is already in %{language}. To view another language, use Switch Language from the board menu or open a translated copy of this board." key="board_already_in_source_language" language=this.source_language_name}}
             </p>
           </div>
         </div>
@@ -58,9 +66,10 @@
           {{t "Switch to Existing Translation" key="switch_translation"}}
         {{/if}}
       </button>
-      <button class='btn btn-default' {{action "translate"}}>{{t "Re-Translate" key="re_translate"}}</button>
+    {{else if this.is_source_language}}
+      <button class='btn btn-primary' disabled={{true}}>{{t "Already Translated" key="already_translated"}}</button>
     {{else}}
-      <button class='btn btn-primary' {{action "translate"}}>{{t "Start Translation" key="start_translation"}}</button>
+      <button class='btn btn-primary' {{action "translate"}} disabled={{this.not_ready}}>{{t "Start Translation" key="start_translation"}}</button>
     {{/if}}
     <a href="#" class="btn btn-default" {{action "close"}}>{{t "Cancel" key="cancel"}}</a>
   </div>

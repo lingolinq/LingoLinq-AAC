@@ -74,15 +74,46 @@ var AAC_WORD_OVERRIDES = {
   "won't": 'negation'
 };
 
+function normalize_aac_word(word) {
+  if(!word) { return word; }
+  var key = String(word).trim().toLowerCase();
+  if(AAC_WORD_OVERRIDES[key]) { return key; }
+  // Simple English plural heuristic for single-token Fitzgerald lookup.
+  if(key.indexOf(' ') === -1 && key.length > 3 && key.match(/ies$/)) {
+    return key.replace(/ies$/, 'y');
+  }
+  if(key.indexOf(' ') === -1 && key.length > 3 && key.match(/es$/)) {
+    return key.replace(/es$/, '');
+  }
+  if(key.indexOf(' ') === -1 && key.length > 2 && key.match(/s$/) && !key.match(/ss$/)) {
+    return key.replace(/s$/, '');
+  }
+  return key;
+}
+
+function normalize_aac_types(types) {
+  if(!types || !types.length) { return types; }
+  return types.map(function(t) {
+    if(t === 'plural noun' || t === 'plural_noun') { return 'noun'; }
+    if(t === 'noun phrase') { return 'noun'; }
+    return t;
+  });
+}
+
 // Returns the AAC-preferred type for a `types` array, or null if empty.
 // If `word` is provided and matches an AAC override, returns the override
 // type (caller should still verify the override type maps to a color in
 // the active palette via pick_aac_color, which falls back gracefully).
 // Otherwise falls back to types[0] when no priority match is found.
 export function pick_aac_type(types, word) {
+  types = normalize_aac_types(types);
   if(word) {
     var key = String(word).trim().toLowerCase();
     if(AAC_WORD_OVERRIDES[key]) { return AAC_WORD_OVERRIDES[key]; }
+    var normalized = normalize_aac_word(key);
+    if(normalized !== key && AAC_WORD_OVERRIDES[normalized]) {
+      return AAC_WORD_OVERRIDES[normalized];
+    }
   }
   if(!types || !types.length) { return null; }
   for(var i = 0; i < AAC_PRIORITY.length; i++) {
@@ -112,7 +143,14 @@ export function color_for_type(type, palette) {
 // isn't represented in the palette, falls through remaining types in
 // dictionary order so an exotic primary doesn't blank out coloring.
 export function pick_aac_color(types, palette, word) {
-  var picked = pick_aac_type(types, word);
+  var lookupWord = word;
+  if(word) {
+    var normalized = normalize_aac_word(String(word).trim().toLowerCase());
+    if(normalized !== String(word).trim().toLowerCase()) {
+      lookupWord = normalized;
+    }
+  }
+  var picked = pick_aac_type(types, lookupWord || word);
   if(!picked) { return null; }
   var c = color_for_type(picked, palette);
   if(c) { return { type: picked, color: c }; }

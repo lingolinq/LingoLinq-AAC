@@ -1257,7 +1257,7 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
   if(!missing.length) {
     return RSVP.resolve(warmed);
   }
-  return RSVP.all_wait(missing.map(function(id) {
+  return RSVP.all_wait(missing.filter(function(id) { return !!id; }).map(function(id) {
     return LingoLinq.Buttonset.load_button_set(id).then(function(bs) { return bs; }, function() { return null; });
   })).then(function(loaded) {
     var seen = {};

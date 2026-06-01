@@ -8,6 +8,8 @@ import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 import LingoLinq from '../app';
+import app_state from '../utils/app_state';
+import modal from '../utils/modal';
 import { observer, computed } from '@ember/object';
 
 export default Component.extend({
@@ -99,7 +101,9 @@ export default Component.extend({
        sets still respect the translate endpoint's batch ceiling. */
     var batches = [];
     Object.keys(by_locale).forEach(function(src_lang) {
-      var words = by_locale[src_lang];
+      var words = by_locale[src_lang].filter(function(word) {
+        return !(_this.get('translations') || {})[word];
+      });
       for (var i = 0; i < words.length; i += 100) {
         batches.push({ src: src_lang, words: words.slice(i, i + 100) });
       }
@@ -289,7 +293,13 @@ export default Component.extend({
           board_ids_to_translate: _this.get('model.new_board_ids_to_translate')
         }
       }).then(function(res) {
+        app_state.set('board_translate_in_progress', true);
+        modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);
         progress_tracker.track(res.progress, function(event) {
+          if (event.status === 'finished' || event.status === 'errored') {
+            app_state.set('board_translate_in_progress', false);
+            modal.close('flash');
+          }
           if (event.status === 'errored' || (event.status === 'finished' && event.result && event.result.translated === false)) {
             _this.set('saving_translations', null);
             LingoLinq.track_error('translation save fail - ' + JSON.stringify(event), event);

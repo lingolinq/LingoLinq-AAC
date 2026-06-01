@@ -697,6 +697,13 @@ export default Component.extend({
           name: displayName,
           imageUrl: (board && board.get && board.get('icon_url_with_fallback')) || fallbackImg || '',
           key: key,
+          languageLabel: board && board.get ? (function() {
+            var locale = board.get('locale');
+            var locales = board.get('locales') || [];
+            if(!locale) { return null; }
+            if(locales.length <= 1 && (locale === 'en' || locale === 'en-US')) { return null; }
+            return i18n.readable_language(locale);
+          })() : null,
           // Flag the home-board tile so the template can apply the
           // distinct outline + glow + "Home Board" badge styling
           // defined in app.scss (.md-strip__item--home).

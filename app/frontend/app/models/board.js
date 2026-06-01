@@ -493,32 +493,57 @@ LingoLinq.Board = DS.Model.extend({
     });
     return button;
   },
+  _translation_entry: function(translations, button_id, locale) {
+    var trans = translations || {};
+    var entry = trans[button_id];
+    if(!entry && button_id != null) {
+      entry = trans[String(button_id)];
+    }
+    if(!entry || !locale) { return null; }
+    return entry[locale] || entry[locale.split(/-|_/)[0]] || null;
+  },
   translated_buttons: function(label_locale, vocalization_locale) {
     var res = [];
     var trans = this.get('translations') || {};
     var buttons = this.get('buttons') || [];
     if(!trans) { return buttons; }
     var current_locale = this.get('locale') || 'en';
+    var current_root = current_locale.split(/-|_/)[0];
     label_locale = label_locale || trans.current_label || this.get('locale') || 'en';
     vocalization_locale = vocalization_locale || trans.current_vocalization || this.get('locale') || 'en';
-    if(trans.current_label == label_locale && trans.current_vocalization == vocalization_locale) { return buttons; }
+    var label_root = label_locale.split(/-|_/)[0];
+    var vocalization_root = vocalization_locale.split(/-|_/)[0];
     var level = this.get('display_level');
     var _this = this;
     buttons.forEach(function(button) {
       var b = $.extend({}, button);
-      if(trans[b.id]) {
-        if(trans[b.id][label_locale] || trans[b.id][vocalization_locale]) {
-          if(label_locale != current_locale && trans[b.id][label_locale] && trans[b.id][label_locale].label) {
-            b.label = trans[b.id][label_locale].label;
-          }
-          if(vocalization_locale != current_locale) {
-            if(trans[b.id][vocalization_locale] && (trans[b.id][vocalization_locale].vocalization || trans[b.id][vocalization_locale].label)) {
-              b.vocalization = (trans[b.id][vocalization_locale].vocalization || trans[b.id][vocalization_locale].label);
-            } else if(vocalization_locale.split(/_|-/)[0] != current_locale.split(/_|-/)[0]) {
-              delete b['vocalization'];
-            }
-          }  
+      var label_trans = _this._translation_entry(trans, button.id, label_locale);
+      var vocalization_trans = _this._translation_entry(trans, button.id, vocalization_locale);
+      if(label_trans && label_trans.label) {
+        // Overlay when viewing a non-default language, or when live button
+        // text is out of sync with the translations blob (common after
+        // translate_set updates locale metadata before raw buttons reload).
+        if(label_root !== current_root || label_trans.label !== button.label) {
+          b.label = label_trans.label;
         }
+      }
+      if(vocalization_root !== current_root) {
+        if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
+          b.vocalization = (vocalization_trans.vocalization || vocalization_trans.label);
+        } else if(vocalization_root !== current_root) {
+          delete b['vocalization'];
+        }
+      } else if(label_locale === vocalization_locale && b.label !== button.label) {
+        if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
+          b.vocalization = vocalization_trans.vocalization || vocalization_trans.label;
+        } else if(!button.vocalization || button.vocalization === button.label) {
+          b.vocalization = b.label;
+        }
+      }
+      // When label and speak locales match, ensure TTS follows the
+      // translated label instead of a stale English vocalization field.
+      if(label_locale === vocalization_locale && b.label && (!b.vocalization || b.vocalization === button.vocalization || b.vocalization === button.label)) {
+        b.vocalization = b.label;
       }
       if(level && level < 10) {
         b = _this.apply_button_level(b, level);

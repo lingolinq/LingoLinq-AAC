@@ -5,6 +5,7 @@ import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
 import progress_tracker from '../utils/progress_tracker';
+import stashes from '../utils/_stashes';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -34,6 +35,28 @@ export default modal.ModalController.extend({
     var list = this.get('model.board.locales') || [];
     return this.get('default_language') && list.indexOf(loc) != -1;
   }),
+  is_source_language: computed('translate_locale', 'model.board.locale', 'model.board.translations', function() {
+    var loc = this.get('translate_locale');
+    if(!loc) { return false; }
+    var board = this.get('model.board');
+    var trans = (board && board.get && board.get('translations')) || {};
+    var source = trans.default || (board && board.get && board.get('locale')) || 'en';
+    var locRoot = loc.split(/-|_/)[0];
+    var sourceRoot = String(source).split(/-|_/)[0];
+    return loc === source || locRoot === sourceRoot;
+  }),
+  can_start_translation: computed('translate_locale', 'existing_default_language', 'is_source_language', function() {
+    return !!this.get('translate_locale') && !this.get('existing_default_language') && !this.get('is_source_language');
+  }),
+  not_ready: computed('can_start_translation', function() {
+    return !this.get('can_start_translation');
+  }),
+  source_language_name: computed('translate_locale', 'model.board.locale', 'model.board.translations', function() {
+    var board = this.get('model.board');
+    var trans = (board && board.get && board.get('translations')) || {};
+    var source = trans.default || (board && board.get && board.get('locale')) || 'en';
+    return i18n.readable_language(this.get('translate_locale') || source);
+  }),
   done_translating: function(new_default) {
     var _this = this;
     return _this.get('model.board').reload(true).then(function() {
@@ -49,6 +72,8 @@ export default modal.ModalController.extend({
            navigated away. */
         app_state.set('label_locale', new_locale);
         app_state.set('vocalization_locale', new_locale);
+        stashes.persist('label_locale', new_locale);
+        stashes.persist('vocalization_locale', new_locale);
         if(app_state.get('currentBoardState.id') == _this.get('model.board.id')) {
           app_state.set('currentBoardState.default_locale', new_locale);
         }
@@ -104,7 +129,7 @@ export default modal.ModalController.extend({
          Re-Translate button only renders when `existing_default_language`
          is true, so use that flag as the signal to ask the server to
          honor `set_as_default` regardless of locale match. */
-      var force_update = !!_this.get('existing_default_language');
+      var force_update = false;
 
       var translate_opts = {
         board: _this.get('model.board'),

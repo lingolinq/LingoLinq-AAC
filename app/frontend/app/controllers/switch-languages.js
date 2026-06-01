@@ -68,6 +68,9 @@ export default modal.ModalController.extend({
       this.set(type + '_locale', val);
     },
     set_languages: function() {
+      if(this.get('same_locale')) {
+        this.set('label_locale', this.get('vocalization_locale'));
+      }
       app_state.set('label_locale', this.get('label_locale'));
       stashes.persist('label_locale', this.get('label_locale'));
       app_state.set('vocalization_locale', this.get('vocalization_locale'));

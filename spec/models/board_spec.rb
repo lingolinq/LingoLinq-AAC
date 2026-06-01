@@ -3438,13 +3438,34 @@ describe Board, :type => :model do
         'board_name' => {'en' => 'radish'},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
+    end
+
+    it "mirrors translated label into vocalization when vocalization was unset" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'hat'},
+        {'id' => 2, 'label' => 'cat', 'vocalization' => 'kitten'}
+      ]
+      b.save
+      b.translate_set({'hat' => 'sombrero', 'cat' => 'gato', 'kitten' => 'gatito'}, {
+        'source' => 'en',
+        'dest' => 'es',
+        'board_ids' => [b.global_id],
+        'default' => true
+      })
+      expect(b.settings['buttons'][0]['label']).to eq('sombrero')
+      expect(b.settings['buttons'][0]['vocalization']).to eq('sombrero')
+      expect(b.settings['buttons'][1]['label']).to eq('gato')
+      expect(b.settings['buttons'][1]['vocalization']).to eq('gatito')
+      expect(b.settings['translations']['1']['es']['vocalization']).to eq('sombrero')
     end
     
     it "should keep translations after multiple iterations" do
@@ -3469,11 +3490,11 @@ describe Board, :type => :model do
         'board_name' => {},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
       
@@ -3492,13 +3513,13 @@ describe Board, :type => :model do
         "board_name" => {},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'},
-          'fr' => {'label' => 'yat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'},
+          'fr' => {'label' => 'yat', 'vocalization' => 'yat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'},
-          'fr' => {'label' => 'eat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'},
+          'fr' => {'label' => 'eat', 'vocalization' => 'eat'}
         }
       })
     end
@@ -3527,11 +3548,11 @@ describe Board, :type => :model do
         'board_name' => {'en' => 'my board', 'es' => 'boardiness'},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
     end
@@ -3649,7 +3670,8 @@ describe Board, :type => :model do
             'label' => 'hat'
           },
           'es' => {
-            'label' => 'sat'
+            'label' => 'sat',
+            'vocalization' => 'sat'
           }
         },
         '2' => {
@@ -3657,7 +3679,8 @@ describe Board, :type => :model do
             'label' => 'cat'
           },
           'es' => {
-            'label' => 'rat'
+            'label' => 'rat',
+            'vocalization' => 'rat'
           }
         }
       })

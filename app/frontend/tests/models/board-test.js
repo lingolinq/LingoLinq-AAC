@@ -741,6 +741,42 @@ describe('Board', function() {
       ]);
     });
 
+    it('should resolve button ids and locale roots when translating', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'en' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'en',
+        current_vocalization: 'en',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
+    it('should apply stored translations when live buttons lag the board locale', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'es' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'es',
+        current_vocalization: 'es',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
     it('should return the original list if already in the right locales', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
@@ -750,12 +786,12 @@ describe('Board', function() {
         current_vocalization: 'en',
         '1': {
           'en': {
-            label: 'has'
+            label: 'hat'
           }
         },
         '2': {
           'en': {
-            label: 'cat'
+            label: 'car'
           }
         }
       });

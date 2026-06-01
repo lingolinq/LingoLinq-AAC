@@ -74,6 +74,9 @@ export default Component.extend({
     set_languages() {
       const appState = this.get('appState');
       const stashes = this.get('stashes');
+      if (this.get('same_locale')) {
+        this.set('label_locale', this.get('vocalization_locale'));
+      }
       appState.set('label_locale', this.get('label_locale'));
       stashes.persist('label_locale', this.get('label_locale'));
       appState.set('vocalization_locale', this.get('vocalization_locale'));

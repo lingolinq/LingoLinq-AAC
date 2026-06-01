@@ -589,6 +589,13 @@ class Api::BoardsController < ApplicationController
       return unless allowed?(user, 'edit')
       @board_user = user
     end
+    if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)
+      locale = board_params['locale'].to_s
+      translations = board_params['translations']
+      if locale.present? && !locale.match?(/^en/i) && translations.blank?
+        board_params['locale'] = 'en'
+      end
+    end
     opts = {:user => @board_user, :author => @api_user, :key => board_params['key']}
     if board_params['parent_board_id']
       pb = Board.find_by_path(board_params['parent_board_id'])

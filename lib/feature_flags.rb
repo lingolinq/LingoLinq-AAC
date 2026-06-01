@@ -26,7 +26,8 @@ module FeatureFlags
               'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu',
               'home_tour', 'paste_html_import', 'catalog_board_prefetch',
               'background_board_prefetch',
-              'portrait_orientation_overlay', 'signup_default_library_boards']
+              'portrait_orientation_overlay', 'signup_default_library_boards',
+              'english_first_board_generation', 'signup_spanish_library_boards']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -41,7 +42,7 @@ module FeatureFlags
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
               'background_board_prefetch',
-              'signup_default_library_boards']
+              'signup_default_library_boards', 'english_first_board_generation']
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -103,6 +104,14 @@ module FeatureFlags
   def self.signup_default_library_boards_enabled?(_user = nil)
     return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
     ENABLED_FRONTEND_FEATURES.include?('signup_default_library_boards')
+  end
+
+  def self.signup_spanish_library_boards_enabled?(user = nil)
+    return true if ENV['SIGNUP_SPANISH_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
+    return false unless ENABLED_FRONTEND_FEATURES.include?('signup_spanish_library_boards')
+    return true unless user
+    locale = user.settings && (user.settings['locale'] || user.preferences && user.preferences['locale'])
+    locale.to_s.match?(/^es/i)
   end
 
   # Check if AI features are allowed for a user's organization.

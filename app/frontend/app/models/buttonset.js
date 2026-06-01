@@ -1188,6 +1188,7 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
 };
 LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, skipEmberRecordReload) {
   // use promises to make this call idempotent
+  if(!id) { return RSVP.reject({error: 'missing button set id'}); }
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
   if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
   var promise = LingoLinq.Buttonset.pending_promises[id];
@@ -1197,9 +1198,12 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
   }
 
   var button_sets = LingoLinq.store.peekAll('buttonset');
-  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs.get('key') == id; });
+  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) {
+    return bs && bs.get && bs.get('key') == id;
+  });
   if(!found) {
     button_sets.forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
       // TODO: check board keys in addition to board ids
       if((bs.get('board_ids') || []).indexOf(id) != -1 || bs.get('key') == id) {
         if(bs.get('fresh') || !found) {

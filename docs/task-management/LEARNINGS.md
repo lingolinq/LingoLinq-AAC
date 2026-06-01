@@ -2522,3 +2522,37 @@ when you change a positioned element's `position` responsively, check whether an
 **Fix recipe:** After lookup, `sort_by { |r| ids.index(r.global_id) || ids.length }` (see `Board.long_query`, `Board#known_button_images`). For specs comparing sorted `global_id` lists, sort **both** sides — lexicographic sort puts `"1_1000"` before `"1_999"`.
 
 **Evidence:** `app/models/concerns/global_id.rb:108-174`, `app/models/board.rb#known_button_images`; task log `2026-05-29-spec-ordering-flakes.md`.
+
+---
+
+## Pattern: board translation speak text must mirror label when vocalization unset
+
+**Symptom:** Board shows translated labels but Speak reads English.
+
+**Root cause:** Buttons often have only `label`; after translation the label overlay updates but a stale English `vocalization` field (or missing dest-lang vocalization in the translations blob) wins in `utterance.speak_button` (`vocalization || label`).
+
+**Fix recipe:** In `Board#translate_set`, when dest label is stored and source vocalization was blank or matched source label, also write dest vocalization and update live button vocalization. Mirror label→vocalization in `edit_manager.update_inflections` and `board.translated_buttons` when speak/label locales match. Sync `label_locale`/`vocalization_locale` stashes after translate; on board load prefer board default locale unless `override_*` stashes exist from Switch Languages.
+
+**Evidence:** `app/models/board.rb#translate_set`, `app/frontend/app/models/board.js`, `app/frontend/app/utils/edit_manager.js`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: pre-built Spanish library boards — translate copies, do not regenerate
+
+**Symptom:** Spanish labels break symbol/image lookup when boards are generated directly in Spanish.
+
+**Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
+
+**Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: board-detail Switch Languages — overlay translations on ordered_buttons
+
+**Symptom:** Switch Languages changes speak locale metadata but grid labels stay in the board default language; taps may not vocalize on board-detail.
+
+**Root cause:** Modern board-detail builds `ordered_buttons` from raw API buttons in `_build_from_raw` and does not apply `contextualized_buttons` overlays. In speak mode, `edit_manager.process_for_displaying` takes the legacy `fast_html` shortcut and returns early without rebuilding `ordered_buttons`.
+
+**Fix recipe:** After `_build_from_raw`, call `_apply_display_locales_to_ordered_buttons` (maps `contextualized_buttons` onto the plain-object grid). On Switch Languages close, invalidate `last_cb`/`fast_html` and re-run that overlay plus `process_for_displaying(true)`. Skip the speak-mode `fast_html` early-return path when `controller.is_board_detail`.
+
+**Evidence:** `app/frontend/app/controllers/user/board-detail.js`, `app/frontend/app/utils/edit_manager.js`; task log `2026-05-30-board-translation-fixes.md`.

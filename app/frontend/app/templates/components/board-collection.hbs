@@ -54,6 +54,9 @@
               <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
                 <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
                 <span class="md-board-collection__item-name">{{board.name}}</span>
+                {{#if (board-language-label board)}}
+                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
+                {{/if}}
                 {{#if (is_equal board.key this.home_key)}}
                   {{!-- Home-board indicator. Mirrors the per-tile pattern
                        on the boards page (templates/components/board-icon.hbs)
@@ -118,6 +121,9 @@
                 <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" {{action "select_board" board}}>
                   <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
                   <span class="md-board-collection__item-name">{{board.name}}</span>
+                {{#if (board-language-label board)}}
+                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
+                {{/if}}
                   {{#if (is_equal board.key this.home_key)}}
                     <span class="md-board-collection__item-home" aria-label={{t "Home board" key="home_board"}} title={{t "Home board" key="home_board"}}>
                       <span class="glyphicon glyphicon-home" aria-hidden="true"></span>

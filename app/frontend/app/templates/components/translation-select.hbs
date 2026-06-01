@@ -12,7 +12,10 @@
       <label class="la-translate-board-label">{{t "Boards" key="boards"}}</label>
       <div class="la-translate-board-boards">
         {{#if this.hierarchy.loading}}
-          <span class="la-translate-board-loading">{{t "Loading linked boards..." key="loading_linked_boards"}}</span>
+          <span class="la-translate-board-loading">
+            <div class="md-loading-spinner" aria-hidden="true"></div>
+            {{t "Loading linked boards..." key="loading_linked_boards"}}
+          </span>
         {{else if this.hierarchy.error}}
           <span class="la-translate-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
         {{else}}
@@ -36,7 +39,13 @@
     {{#if this.existing_default_language}}
       <div class="la-translate-board-section">
         <p class="la-translate-board-info">
-          {{t "This board already has some translations for this language. Would you like to switch to the existing translations as the new default language?" key="switch_default_languages_prompt"}}
+          {{t "This board already has translations for this language. Use Switch to Existing Translation to make it the default display and speak language. To change languages, open the original English board copy or use Switch Language from the board menu." key="board_already_translated_prompt"}}
+        </p>
+      </div>
+    {{else if this.is_source_language}}
+      <div class="la-translate-board-section">
+        <p class="la-translate-board-info">
+          {{t "This board is already in %{language}. To view another language, use Switch Language from the board menu or open a translated copy of this board." key="board_already_in_source_language" language=this.source_language_name}}
         </p>
       </div>
     {{/if}}
@@ -46,6 +55,7 @@
     {{#if this.existing_default_language}}
       <button disabled={{this.switch_status.pending}} class='la-translate-board-submit' {{action "switch_language"}}>
         {{#if this.switch_status.pending}}
+          <div class="md-loading-spinner la-translate-board-footer-spinner" aria-hidden="true"></div>
           {{t "Applying Translations..." key="applying_translations"}}
         {{else if this.switch_status.error}}
           {{t "Error Applying Translations" key="error_applying_translations"}}
@@ -53,7 +63,8 @@
           {{t "Switch to Existing Translation" key="switch_translation"}}
         {{/if}}
       </button>
-      <button class='la-translate-board-alt-btn' {{action "translate"}}>{{t "Re-Translate" key="re_translate"}}</button>
+    {{else if this.is_source_language}}
+      <button class='la-translate-board-submit' disabled={{true}}>{{t "Already Translated" key="already_translated"}}</button>
     {{else}}
       <button class='la-translate-board-submit' {{action "translate"}} disabled={{this.not_ready}}>{{t "Start Translation" key="start_translation"}}</button>
     {{/if}}
