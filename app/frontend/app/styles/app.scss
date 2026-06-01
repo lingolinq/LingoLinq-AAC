@@ -62574,12 +62574,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   color: $indigo;
 }
-/* The live sentence bar carries the speak action — tapping the composed
-   message speaks it (the inline mic button was removed). Only the
-   interactive instance opts in via tabindex (it can't be a real <button>
-   because it contains the inline word-prediction buttons); the read-only
-   preview mirror has no tabindex and keeps the default cursor. */
-.md-board-detail-sentence-bar__text[tabindex] {
+/* The live sentence bar also carries the speak action — tapping the composed
+   message speaks it (a pointer bonus alongside the inline mic button). Scoped
+   to the live row only; the read-only edit-mode `--preview` mirror has no
+   action and keeps the default cursor. */
+.md-board-detail-sentence-row:not(.md-board-detail-sentence-row--preview) .md-board-detail-sentence-bar__text {
   cursor: pointer;
 }
 .md-board-detail-sentence-bar__text--with-symbols {
@@ -69984,7 +69983,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-sentence-nav__btn:focus-visible,
 .md-board-detail-color-legend__swatch:focus-visible,
 .md-board-detail-symbol-card[role="button"]:focus-visible,
-.md-board-detail-sentence-bar__text[tabindex]:focus-visible,
 .md-board-detail-inline-sidebar__item:focus-visible,
 .md-board-detail-inline-sidebar__pin:focus-visible,
 /* ── Added 2026-04-11 pass 4 (2.4.7 Focus Visible). ── */
