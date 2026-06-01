@@ -76,4 +76,19 @@ module Api::SchemaExplorer
 
     api_error 403, {error: 'Not authorized'}
   end
+
+  # The identity a disclosure is booked to, for FERPA/HIPAA accounting-of-
+  # disclosures. Under admin masquerade (?as_user_id=...), ApplicationController
+  # reassigns @api_user to the impersonated user and stashes the real admin in
+  # @true_user, so the disclosure must be attributed to the admin who actually
+  # performed the read, not the account they were viewing as.
+  def audit_user_key
+    (@true_user || @api_user)&.global_id || 'unknown'
+  end
+
+  # The impersonated (effective) user when masquerading, else nil. Recorded
+  # alongside audit_user_key so the trail shows both who acted and as whom.
+  def audit_acting_as
+    @api_user&.global_id if @true_user
+  end
 end

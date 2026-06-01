@@ -89,13 +89,14 @@ class Api::DatabaseContentsController < ApplicationController
   # disclose nothing). Auditing is best-effort: an audit-write failure must
   # never break a read that the requester is already authorized to perform.
   def log_access(table, limit, offset, returned)
-    AuditEvent.log_command(@api_user&.global_id || 'unknown', {
+    AuditEvent.log_command(audit_user_key, {
       'type' => 'database_contents',
       'command' => table,
       'limit' => limit,
       'offset' => offset,
-      'returned' => returned
-    })
+      'returned' => returned,
+      'acting_as' => audit_acting_as
+    }.compact)
   rescue => e
     Rails.logger.error("database_contents audit log failed: #{e.class}: #{e.message}")
   end

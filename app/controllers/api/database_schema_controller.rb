@@ -79,11 +79,12 @@ class Api::DatabaseSchemaController < ApplicationController
   # requester is already authorized to perform. Mirrors
   # Api::DatabaseContentsController#log_access.
   def log_access(table_count)
-    AuditEvent.log_command(@api_user&.global_id || 'unknown', {
+    AuditEvent.log_command(audit_user_key, {
       'type' => 'database_schema',
       'command' => 'schema',
-      'tables' => table_count
-    })
+      'tables' => table_count,
+      'acting_as' => audit_acting_as
+    }.compact)
   rescue => e
     Rails.logger.error("database_schema audit log failed: #{e.class}: #{e.message}")
   end

@@ -146,5 +146,24 @@ describe Api::DatabaseSchemaController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['database_schema']['tables']).to be_a(Array)
     end
+
+    # Accounting-of-disclosures must name the admin who actually performed the
+    # read, not the account they were masquerading as (?as_user_id=...).
+    it 'should attribute the disclosure to the real admin when masquerading' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+      target = User.create
+      target.settings['admin'] = true
+      target.save
+
+      expect {
+        get :index, params: {as_user_id: target.global_id}
+      }.to change { AuditEvent.count }.by(1)
+      expect(response.successful?).to eq(true)
+      event = AuditEvent.last
+      expect(event.user_key).to eq(@user.global_id)
+      expect(event.data['acting_as']).to eq(target.global_id)
+    end
   end
 end
