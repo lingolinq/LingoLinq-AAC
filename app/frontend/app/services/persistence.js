@@ -1143,11 +1143,21 @@ var persistence = Service.extend({
     // TODO: replace JSON.parse with webworker if too big:
     // https://stackoverflow.com/questions/10494285/is-delegating-json-parse-to-web-worker-worthwile-in-chrome-extension-ff-addon
     var _this = this;
+    var decode_data_uri = function(data_uri) {
+      var decoded = atob(data_uri.split(/,/)[1]);
+      try {
+        return decodeURIComponent(escape(decoded));
+      } catch(e) {
+        return decoded;
+      }
+    };
     return new RSVP.Promise(function(resolve, reject) {
       _this.find_url(url, 'json').then(function(uri) {
-        if(typeof(uri) == 'string' && uri.match(/^data:/)) {
+        if(uri && uri.json_payload) {
+          resolve(uri.json_payload);
+        } else if(typeof(uri) == 'string' && uri.match(/^data:/)) {
           try {
-            _this.bg_parse_json(atob(uri.split(/,/)[1])).then(function(json) {
+            _this.bg_parse_json(decode_data_uri(uri)).then(function(json) {
               resolve(json);
             }, function(err) {
               LingoLinq.track_error("No JSON dataURI");
@@ -1161,7 +1171,7 @@ var persistence = Service.extend({
           var filename = uri.split(/\//).pop();
           capabilities.storage.get_file_url('json', filename, true).then(function(data_uri) {
             try {
-              _this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+              _this.bg_parse_json(decode_data_uri(data_uri)).then(function(result) {
                 resolve(result || []);
               });
             } catch(e) {
@@ -1209,11 +1219,18 @@ var persistence = Service.extend({
       persistence.json_cache[url] = json;
     }
     return _this.store_url(url, 'json', encryption_settings).then(function(storage) {
-      var data_uri = storage.data_uri || storage;
+      if(storage && storage.json_payload) {
+        return RSVP.resolve(storage.json_payload);
+      }
+      var data_uri = storage && storage.data_uri ? storage.data_uri : storage;
       var result = undefined;
       var parse_uri = function(data_uri) {
         try {
-          return _this.bg_parse_json(atob(data_uri.split(/,/)[1])).then(function(result) {
+          var decoded = atob(data_uri.split(/,/)[1]);
+          try {
+            decoded = decodeURIComponent(escape(decoded));
+          } catch(e) { }
+          return _this.bg_parse_json(decoded).then(function(result) {
             return result || [];
           });
         } catch(e) {
@@ -1249,7 +1266,7 @@ var persistence = Service.extend({
           });  
         }
       } else {
-        if(data_uri || result !== undefined) {
+        if(typeof(data_uri) == 'string' || result !== undefined) {
           return result || json;
         } else {
           console.error("nothing", url, json);
@@ -1293,7 +1310,9 @@ var persistence = Service.extend({
       return find.then(function(data) {
         _this.url_cache = _this.url_cache || {};
         var file_missing = _this.url_cache[url] === false;
-        if(data.local_url) {
+        if(type == 'json' && data.json_payload) {
+          return data.json_payload;
+        } else if(data.local_url) {
           if(data.local_filename) {
             if(type == 'image' && _this.image_filename_cache && _this.image_filename_cache[data.local_filename]) {
               _this.url_cache[url] = capabilities.storage.fix_url(data.local_url, true);
@@ -1589,13 +1608,14 @@ var persistence = Service.extend({
     var _this = this;
     return new RSVP.Promise(function(resolve, reject) {
       var lookup = RSVP.reject();
+      var parsed_json_payload = null;
 
       if(url && url.match(/^cache:/) && persistence.json_cache && persistence.json_cache[url]) {
         lookup = RSVP.resolve({
           url: url,
           type: type,
           content_type: 'text/json',
-          data_uri: "data:text/json;base64," + btoa(JSON.stringify(persistence.json_cache[url])),
+          data_uri: "data:text/json;base64," + btoa(unescape(encodeURIComponent(JSON.stringify(persistence.json_cache[url])))),
           local_filename: persistence.json_cache[url].filename
         });
       }
@@ -1703,14 +1723,20 @@ var persistence = Service.extend({
       });
 
       var decrypt = fallback.then(function(object) {
-        if(encryption_settings && object.content_type.match(/json/)) {
-          var str = object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
+        if(encryption_settings && (object.content_type || '').match(/json/)) {
+          var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
             // if it's encrypted, try decrypting it and generating a
             // new data-uri before continuing
             return _this.decrypt_json(str, encryption_settings).then(function(res) {
-              var json_str = JSON.stringify(res);
-              object.data_uri = "data:application/json," + btoa(json_str);
+              parsed_json_payload = res;
+              object.json_payload = res;
+              try {
+                var json_str = JSON.stringify(res);
+                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
+              } catch(e) {
+                object.data_uri = null;
+              }
               return object;
             });
           } else {
@@ -1744,7 +1770,7 @@ var persistence = Service.extend({
           // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
           // is sufficient. FileSystem writes for large JSON blobs often fail
           // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
-          if(type == 'json' && object.data_uri) {
+          if(type == 'json' && (object.data_uri || object.json_payload)) {
             if(!object.persisted) {
               object.persisted = true;
               object.url = url_id;
@@ -1835,6 +1861,12 @@ var persistence = Service.extend({
       }, function(err) {
         persistence.url_uncache = persistence.url_uncache || {};
         persistence.url_uncache[url_id] = true;
+        if(type == 'json' && parsed_json_payload) {
+          persistence.url_cache = persistence.url_cache || {};
+          persistence.url_cache[url_id] = null;
+          resolve({url: url_id, type: 'json', json_payload: parsed_json_payload});
+          return;
+        }
         var error = {error: "saving to data cache failed for " + url_id};
         if(err && err.name == "QuotaExceededError") {
           capabilities.storage.already_limited_size = true;
@@ -1845,7 +1877,7 @@ var persistence = Service.extend({
           persistence.url_cache[url_id] = null;
           error.quota_maxed = true;
           _this.set('local_system.allowed', false);
-        } else if(err.error == 'rejected' || err.error == 'already_rejected') {
+        } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
           capabilities.storage.already_limited_size = true;
           if(_this.stashes && _this.stashes.persist) {
             _this.stashes.persist('allow_local_filesystem_request', false);

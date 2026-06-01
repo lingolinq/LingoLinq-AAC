@@ -261,16 +261,23 @@ LingoLinq.Buttonset = DS.Model.extend({
           return bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
             return process_buttons(res);
           }, function(err) {
+            var remote_fallback = function() {
+              return bs.persistence.remote_json(bs.get('root_url'), bs.get('encryption_settings')).then(function(buttons) {
+                return process_buttons(buttons);
+              }, function() {
+                reject(err);
+              });
+            };
             var fallback = function() {
               if(already_tried_local) {
-                reject(err);
+                remote_fallback();
               } else {
                 // Something local is better than nothing,
                 // even if we suspect it is out of date
                 bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
                   return process_buttons(buttons);
                 }, function() {
-                  reject(err);
+                  remote_fallback();
                 });
               }  
             };
