@@ -5720,6 +5720,20 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    // Keyboard/switch activation for the sentence-bar speak target. The bar
+    // is a focusable div (not a <button>) because it contains the inline
+    // word-prediction buttons — a <button> can't legally nest them — so
+    // Enter/Space won't fire a click on their own. Only speak when the bar
+    // itself is focused; a prediction button keypress bubbles here but must
+    // activate the prediction, not speak, so bail when the target is a child.
+    speak_sentence_keydown: function(event) {
+      if(!event || event.target !== event.currentTarget) { return; }
+      if(event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault();
+        this.send('speak_sentence');
+      }
+    },
+
     // ── Portrait orientation overlay actions ──
     // "Rotate Device" CTA. Web can't force rotation, so this is a
     // best-effort orientation lock (supported on some mobile/Cordova

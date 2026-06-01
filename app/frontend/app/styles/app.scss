@@ -609,6 +609,26 @@ html, body {
     linear-gradient(180deg, #F9FAFB 0%, #F5F7FA 100%);
 }
 
+/* Login + Register: the SAME gradient/blobs mesh, painted on the full-viewport
+   #within_ember exactly like the beta page above. This is the background the
+   page intends — .login-page-bg / .register-page-bg are transparent alignment
+   boxes (the `#content:has(...)` rule keeps #content transparent too), so the
+   mesh must live here or the pages render bare white (login) / with the bg
+   only covering the card (register). Filling #within_ember means the mesh
+   covers the ENTIRE page height behind the scrolling content — no seam, no
+   short bg, no bare "footer" strip. Compound :has() (1,2,0) out-specifies the
+   `:has(.page-footer)` transparent reset above. */
+#within_ember:has(.page-footer):has(.register-page-bg),
+#within_ember:has(.page-footer):has(.login-page-bg) {
+  background:
+    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
+    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
+    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
+    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
+    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
+    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
+}
+
 /* Full-screen onboarding: hide the app footer bar on the beta pages. Use
    display:none (not removal) — the element stays in the DOM so the
    `:has(.page-footer)` shell layout above still matches; it just no longer
@@ -38020,20 +38040,26 @@ a.la-footer-bottom-a11y-wcag {
 /* ===== Modern Register Page (matches login: same gradient + orbs + card, compact layout) ===== */
 /* Register – same bg as modern-dashboard */
 .register-page-bg {
+  /* Transparent content-alignment box ONLY. The gradient/blobs mesh lives on
+     the full-viewport #within_ember (see the
+     `:has(.page-footer):has(.register-page-bg)` rule) so it fills the ENTIRE
+     page height behind the scrolling #content — no seam, no short bg — and
+     the same mesh is shared with the login page. Mirrors .login-page-bg.
+
+     Two things were removed here, both of which broke the layout:
+     - `background: <gradient>` — moved to #within_ember (above). On this box
+       it only painted as far down as the box reached, so the card spilled
+       onto a bare white strip below it.
+     - `min-height: 100vh` — as a flex child of the shorter #content
+       scrollport it pinned this box to the viewport floor while taller forms
+       (the Google-signup consent block) overflowed past it. With no
+       min-height the box sizes to its content and #content scrolls. */
   position: relative;
-  background:
-    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
-    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
-    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
-    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
-    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
-    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
-  min-height: 100vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding: 2.5rem 16px 2rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .register-page-bg .la-bg-orbs {
@@ -62097,6 +62123,63 @@ a.md-goal-nav-action:hover,
 .md-board-detail--dark .md-board-detail-home-btn {
   color: #fff;
 }
+/* Left nav stack — Home button, plus (inside a folder) a Back button
+   beneath it. Mirrors the right-side
+   .md-board-detail-sentence-bar__actions-wrap--stacked column so the row
+   reads symmetric: stacked controls | sentence bar | stacked controls.
+   Owns the home button's former -8px right margin so the gap to the
+   sentence bar stays tight. */
+.md-board-detail-nav-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-right: -8px;
+}
+/* Home fills the column on its own (no folder). When a Back button joins
+   it (`--with-back`), the two split the row height evenly — ~44px each at
+   the default size — so Home visually shrinks to make room for Back. */
+.md-board-detail-nav-stack .md-board-detail-home-btn {
+  flex: 1;
+  min-height: 0;
+  margin-right: 0;
+}
+/* Back button under Home — only inside a folder. Styled to mirror the
+   right-side sidebar dropdown button (.md-board-detail-sidebar-toggle
+   --stacked): translucent blue-grey tint, charcoal icon, 12px radius —
+   but carries the back chevron and matches Home's 56px width so the two
+   stack as one coordinated column. */
+.md-board-detail-nav-stack__back {
+  flex: 1;
+  width: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.2);
+  background: rgba($brand-blue-grey, 0.15);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.md-board-detail-nav-stack__back svg {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+.md-board-detail-nav-stack__back:hover {
+  background: rgba($brand-blue-grey, 0.3);
+}
+.md-board-detail-nav-stack__back:active {
+  transform: scale(var(--md-tap, 0.97));
+}
+.md-board-detail--dark .md-board-detail-nav-stack__back {
+  color: #e1e5eb;
+}
 
 .md-board-detail-sentence-bar {
   flex: 1;
@@ -62387,37 +62470,9 @@ a.md-goal-nav-action:hover,
 .md-board-detail-sentence-bar::after {
   right: -7px;
 }
-/* Back button inside the sentence bar — appears only when the user has
-   navigated into a sub-board via a folder. Styled as a subtle pill that
-   sits at the left edge of the bar, matching the sentence bar's frosted
-   aesthetic. */
-.md-board-detail-sentence-bar__back-btn {
-  flex-shrink: 0;
-  /* WCAG 2.5.5 AAA touch target. */
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid rgba($la-navy, 0.12);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
-  color: $brand-charcoal-blue;
-  cursor: pointer;
-  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-  box-shadow: 0 1px 4px rgba($la-navy, 0.06);
-}
-.md-board-detail-sentence-bar__back-btn:hover {
-  background: #fff;
-  border-color: rgba($brand-verdigris, 0.4);
-  box-shadow: 0 2px 8px rgba($la-navy, 0.12);
-}
-.md-board-detail-sentence-bar__back-btn:active {
-  transform: scale(var(--md-tap, 0.97));
-}
+/* (The folder Back button no longer sits inside the sentence bar — it
+   now stacks beneath the Home button in .md-board-detail-nav-stack on
+   the left of the row. See .md-board-detail-nav-stack__back above.) */
 /* Modeling mode badge — appears inside the sentence bar when modeling
    is active so the supporter always knows their taps are being logged
    as modeling actions, not communicator actions. Click to pause/resume. */
@@ -62518,6 +62573,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: flex;
   align-items: center;
   color: $indigo;
+}
+/* The live sentence bar carries the speak action — tapping the composed
+   message speaks it (the inline mic button was removed). Only the
+   interactive instance opts in via tabindex (it can't be a real <button>
+   because it contains the inline word-prediction buttons); the read-only
+   preview mirror has no tabindex and keeps the default cursor. */
+.md-board-detail-sentence-bar__text[tabindex] {
+  cursor: pointer;
 }
 .md-board-detail-sentence-bar__text--with-symbols {
   flex-wrap: wrap;
@@ -69915,11 +69978,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-quick-toggle:focus-visible,
 .md-board-detail-filter-chip__clear:focus-visible,
 .md-board-detail-sidebar-toggle--stacked:focus-visible,
+.md-board-detail-nav-stack__back:focus-visible,
 .md-board-detail-phrase-builder__clear:focus-visible,
 .md-board-detail-actions-toggle:focus-visible,
 .md-board-detail-sentence-nav__btn:focus-visible,
 .md-board-detail-color-legend__swatch:focus-visible,
 .md-board-detail-symbol-card[role="button"]:focus-visible,
+.md-board-detail-sentence-bar__text[tabindex]:focus-visible,
 .md-board-detail-inline-sidebar__item:focus-visible,
 .md-board-detail-inline-sidebar__pin:focus-visible,
 /* ── Added 2026-04-11 pass 4 (2.4.7 Focus Visible). ── */
@@ -73214,13 +73279,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-detail-collapse-btn:hover svg {
   filter: brightness(4);
 }
-/* Brighten hardcoded SVG strokes in dark mode for sidebar toggle & back button */
-.md-board-detail--dark .md-board-detail-sidebar-toggle svg,
-.md-board-detail--dark .md-board-detail-sentence-bar__back-btn svg {
+/* Brighten hardcoded SVG strokes in dark mode for the sidebar toggle. */
+.md-board-detail--dark .md-board-detail-sidebar-toggle svg {
   filter: brightness(3);
 }
-.md-board-detail--dark .md-board-detail-sidebar-toggle:hover svg,
-.md-board-detail--dark .md-board-detail-sentence-bar__back-btn:hover svg {
+.md-board-detail--dark .md-board-detail-sidebar-toggle:hover svg {
   filter: brightness(4);
 }
 /* Edit toolbar in dark mode — matches the actions-cluster gradient so the
@@ -77484,7 +77547,9 @@ a.md-caseload__goal-list__link {
 .md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  /* Match the rounded-rectangle tile shape (10px) — was 50%, which on a
+     wider-than-tall cell rendered the More Actions tile as an ellipse. */
+  border-radius: 10px;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -77496,7 +77561,7 @@ a.md-caseload__goal-list__link {
 .md-caseload__actions--tiles .md-caseload__extras-dropdown--mobile .md-caseload__action--more {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 10px;
 }
 /* Caseload card avatar — KEEPS the inline SVG fallback. Every
    other avatar surface in the app now uses the redesigned colored
@@ -80250,6 +80315,17 @@ a.md-caseload__action {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
+}
+/* When the mobile More Actions menu is open, lift the WHOLE action-tiles
+   row above everything else on the card. The menu lives inside this row,
+   which the card's `> * { z-index: 1 }` rule pins at z:1 — below card-top
+   (z:5) and the OPTIONS row (z:10) — so the upward-opening menu was being
+   painted over by the goals / Add-goal content above it. The row is the
+   menu's stacking-context ancestor, so raising the row is the only way the
+   menu can clear them. 9999 matches the open-dropdown tier used elsewhere
+   in this component and sits above every other caseload-card layer. */
+.md-caseload__card > .md-caseload__actions--tiles:has(.md-caseload__extras-dropdown--mobile.open) {
+  z-index: 9999;
 }
 .md-caseload__badge-progress {
   margin-top: 12px;

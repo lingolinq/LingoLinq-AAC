@@ -78,6 +78,10 @@ file (see [README.md](README.md)).
 - [Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override](#pattern-gate-hover-motion-behind-prefers-reduced-motion-no-preference-instead-of-an-important-reduced-motion-override)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
+- [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
+- [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
+- [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
+- [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
@@ -2617,3 +2621,72 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Naming trap:** `templates/board-details.hbs` / `components/board-details.js` (PLURAL) is an unrelated "Board Details" metadata MODAL — not the page. A reusable page component named `board-detail` (SINGULAR) sits one character away; keep them distinct.
 
 **Evidence:** task log `2026-05-31-board-detail-speak-component-spec.md`; `.planning/phases/04-board-detail-speak-component/04-{SPEC,CONTEXT}.md`.
+
+---
+
+## Pattern: a click-to-speak (or click-to-act) container that holds the inline word-prediction buttons CANNOT be `role="button"`
+
+**Surface:** making the board-detail sentence bar (`.md-board-detail-sentence-bar__text`) the speak trigger, or any time you want a large region clickable that also contains child buttons.
+
+**Root cause (verified 2026-05-31):** `__text` renders the inline word-prediction `<button>`s (`.md-board-detail-sentence-bar__prediction`). Giving the container `role="button"` (or making it a real `<button>`) nests interactive controls, which `ember-template-lint` blocks with **`no-nested-interactive`** (and it's genuinely invalid ARIA). The predictions can't be hoisted out of `__text` without breaking the tuned `__text--with-symbols` flex-wrap/scroll layout.
+
+**Recipe that satisfies lint + a11y + layout:**
+- Use `tabindex="0"` + `aria-label` on the container (focusable + labeled). `tabindex` alone does NOT trip `no-nested-interactive`; only an interactive *role*/element does.
+- Click via `{{action "speak_sentence"}}`.
+- A focusable `<div>` is not Enter/Space-activated like a `<button>`, so add `{{action "..._keydown" on="keyDown"}}` and, in the handler, **bail when `event.target !== event.currentTarget`** so a keypress on a focused child button activates the child, not the container.
+- Give child buttons `{{action "..." bubbles=false}}` so a child *click* (which calls `stopPropagation`) doesn't bubble to the container's click handler.
+- Scope CSS (cursor, focus-visible) with the `[tabindex]` attribute selector, not `[role="button"]` — it still targets only the interactive instance (the edit-mode `--preview` mirror has no tabindex). Add the focus-visible selector to the existing shared WCAG block, don't write a new ring.
+
+**Related:** [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children) — same family (nested interactive elements bite you), different symptom.
+
+**Evidence:** task log `2026-05-31-speak-bar-mic-and-folder-back-btn.md`.
+
+---
+
+## Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`
+
+**Surface:** adding controls to the left of the board-detail sentence bar (e.g. moving the folder Back button out of the pill to sit under Home).
+
+**Reality (verified 2026-05-31):** the row `.md-board-detail-sentence-row` is `display:flex; align-items:stretch`. The RIGHT side already uses a stacked column `.md-board-detail-sentence-bar__actions-wrap--stacked` (flex column, `gap:2px`) whose two buttons are each `flex:1`, so they split the row height evenly and scale with the bar size class (small 90 / medium 100 / large 150 / huge 200px row heights, `app.scss:~62169`). To stay visually balanced, build the LEFT side the same way: a `flex-direction:column` wrapper with `flex:1` children (Home on top, Back beneath). At the default size each lands ~44px; they grow together at larger sizes — exactly matching the right pair. A *fixed* 44px Home would look unbalanced on large/huge rows.
+
+**Gotchas:** Home's tight gap to the bar comes from `margin-right:-8px` ON the home button; when you wrap Home, move that margin to the wrapper and zero it on Home, or the inner column misaligns. There's an OLDER dead `.md-board-detail-sentence-nav*` "home+back stack" experiment in `app.scss` — unused in any template; don't reuse it (its `__btn` is solid blue-grey, not Home's frosted glass). Style a new Back to mirror `.md-board-detail-sidebar-toggle--stacked` instead, and switch its SVG stroke to `currentColor` so dark mode works via a `color` override rather than the `brightness()` filter used for hardcoded strokes.
+
+**Evidence:** task log `2026-05-31-speak-bar-mic-and-folder-back-btn.md`.
+
+---
+
+## Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu
+
+**Surface:** an absolutely-positioned popover/dropdown that opens and is painted UNDER a sibling section, even though the popover itself has a huge `z-index` (e.g. 99999). Seen on the caseload card's mobile "More Actions" dropdown getting covered by the goals / "Add goal" content.
+
+**Root cause:** `z-index` is resolved at EACH stacking-context level, not globally. The caseload card uses `.md-caseload__card > * { position: relative; z-index: 1 }`, then bumps `card-top` to `z:5` (so the OPTIONS dropdown wins). That leaves the action-tiles ROW at `z:1`. The dropdown lives inside that row; at the *card* level its ancestor (the row, z:1) loses to card-top (z:5), so NOTHING inside the row — no matter how high its own z-index — can paint above card-top. Raising the popover or its wrapper is futile; they're trapped inside the row's z:1 context.
+
+**Fix:** lift the popover's stacking-context ANCESTOR (the row), gated on the open state, via `:has()`:
+```scss
+.md-caseload__card > .md-caseload__actions--tiles:has(.md-caseload__extras-dropdown--mobile.open) {
+  z-index: 9999;
+}
+```
+`.open` is the Bootstrap toggle class on the wrapper (`controllers/caseload.js:438`). `:has()` is supported in this build. Match an existing open-dropdown z tier rather than inventing a new ceiling.
+
+**Diagnostic:** when a high-z popover is still covered, walk UP from the popover to the common stacking root and find the first ancestor whose `z-index` is lower than the covering element's ancestor at that same level — that ancestor is the trap. Also: the caseload card deliberately avoids `transform` on `:hover` because a transform creates a containing block that would CLIP the overflowing dropdown — reach for shadow-only elevation when a card must let a child overflow.
+
+**Evidence:** task log `2026-05-31-caseload-more-actions-shape-and-zindex.md`.
+
+---
+
+## Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`
+
+**Surface:** the recurring "content not expanding to full height / cuts off at the bottom" bug on unauthenticated shell pages (login, register, beta onboarding). Also presents as "the bg only covers the card, then a bare white/dark strip below," or "the sign-in page lost its background."
+
+**Architecture:** these pages use the `:has(.page-footer)` app-shell. `#within_ember:has(.page-footer)` is `position: fixed; inset: 0; overflow: hidden` (full viewport). `#content` is the ONLY scrollport (`flex:1 1 auto; min-height:0; overflow-y:auto`). The page-bg wrapper (`.login-page-bg` / `.register-page-bg`) is meant to be a TRANSPARENT alignment box; the shared `#content:has(.{login,register}-page-bg)` rule sets `#content` transparent on purpose, with the comment "the mesh lives on the full-viewport #within_ember below."
+
+**Two failure modes (both seen 2026-05-31):**
+1. **`min-height: 100vh` on the page-bg wrapper.** As a flex child of the shorter `#content` scrollport, with default `flex-shrink:1`, the wrapper is pinned to the 100vh floor while taller content (e.g. the Google-signup consent block) overflows past it — `overflow:hidden` then clips it, `overflow:visible` makes it visibly spill. FIX: remove `min-height`; the box sizes to content and `#content` scrolls (mirror `.login-page-bg`, which never had it).
+2. **Gradient painted on the wrapper instead of `#within_ember`.** It only covers as far as the box reaches, leaving a bare strip below the card (mistaken for "the footer showing"). And if the `#within_ember` mesh was never added (it was only done for beta-welcome), sibling pages render bare white. FIX: paint the mesh on the full-viewport `#within_ember:has(.page-footer):has(.{page}-bg)` (compound `:has()` = (1,2,0), out-specifies the `:has(.page-footer)` transparent reset). It then fills the entire page height behind the scrolling content — no seam, no short bg.
+
+**The mesh to use** is the shared `.md-shell` base gradient (app.scss ~40000) — the SAME stormy-teal/charcoal-blue/charcoal-dark/verdigris/dusty-denim blob mesh + stone linear-gradient used on the authenticated home/app pages. Reuse it verbatim so auth pages match the app.
+
+**Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
+
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
