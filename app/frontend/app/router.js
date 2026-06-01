@@ -128,6 +128,9 @@ Router.map(function() {
   });
   // Setup must come before user so /setup matches the wizard, not user with id "setup"
   this.route('setup', { path: '/setup'});
+  // Standalone home-board picker (decoupled from the setup wizard). Must also
+  // come before user so /board-picker isn't matched as a user id.
+  this.route('board-picker', { path: '/board-picker'});
   this.route('user', { resetNamespace: true, path: '/:user_id' }, function() {
     this.route('home', { path: '/home' });
     this.route('extras', { path: '/extras' });

@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: `find_all_by_global_id` does not preserve input order](#pattern-find_all_by_global_id-does-not-preserve-input-order)
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
@@ -74,7 +75,14 @@ file (see [README.md](README.md)).
 - [Pattern: sidebar "pin open" state lives in the `quick_sidebar` pref via `stickSidebar` — reuse it, don't add a second flag](#pattern-sidebar-pin-open-state-lives-in-the-quick_sidebar-pref-via-sticksidebar--reuse-it-dont-add-a-second-flag)
 - [Pattern: async store/query callbacks must guard `isDestroyed`/`isDestroying` before `set`](#pattern-async-storequery-callbacks-must-guard-isdestroyedisdestroying-before-set)
 - [Pattern: per-element responsive show/hide rules must sit AFTER that element's base `display` rule — don't consolidate when bases are scattered](#pattern-per-element-responsive-showhide-rules-must-sit-after-that-elements-base-display-rule--dont-consolidate-when-bases-are-scattered)
+- [Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build](#pattern-compile-appscss-standalone-with-dart-sass-to-catch-scss-errors-without-a-full-ember-build)
+- [Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override](#pattern-gate-hover-motion-behind-prefers-reduced-motion-no-preference-instead-of-an-important-reduced-motion-override)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
+- [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
+- [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
+- [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
+- [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
+- [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
@@ -87,6 +95,14 @@ file (see [README.md](README.md)).
 **Flags:** Phase 1 (home) is unconditional; phases 2–4 run when `background_board_prefetch` is enabled (shipped in `ENABLED_FRONTEND_FEATURES`). Phase 4 also honors legacy `catalog_board_prefetch`.
 
 **First seen in:** [2026-05-30-phased-online-board-caching.md](./2026-05-30-phased-online-board-caching.md)
+
+## Pattern: encrypted buttonset JSON cache must carry parsed payloads
+
+**Surface:** `store_url_now` / `store_json` / `find_json` in both [`app/services/persistence.js`](../../app/frontend/app/services/persistence.js) and [`app/utils/persistence.js`](../../app/frontend/app/utils/persistence.js), especially downstream `BoardDownstreamButtonSet` JSON used by Translate and board hierarchy loading.
+
+**Gotcha:** The network/decrypt path can succeed while the cache path fails later. Do not make parsed JSON depend on a `data_uri` re-encode or filesystem write: Unicode labels and large buttonsets can make `btoa(JSON.stringify(...))` fragile, and local filesystem rejection should not block JSON consumers. Carry `json_payload` through the cache object, read it directly from `store_json`/`find_json`, and keep `buttonset.load_buttons` able to fall back to `remote_json` when cache persistence rejects.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
 
 ## Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children
 
@@ -2487,6 +2503,34 @@ when you change a positioned element's `position` responsively, check whether an
 
 ---
 
+## Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem
+
+**The trap:** This app sets the root `html` font-size to **10px** (the classic
+`62.5%` of the 16px default — see the `html:has(#within_ember…)` rules ~app.scss
+8277/8284, and many `font-size: 10px` anchors). So **`1rem` = 10px, not 16px.**
+A rule written `font-size: 1.05rem` renders at **10.5px**, `1rem` at **10px** —
+roughly two-thirds of what you'd expect. That's why the `$aac-font-size-*`
+design tokens are all in **px** (`xs/sm: 14px`, `base: 15px`, `md: 18px`).
+
+**How it bit (3 rounds on the beta-welcome pages):** the staging beta CSS used
+`rem` font-sizes (`1rem`, `1.05rem`, `1.08rem`, `1.18rem`) assuming a 16px root,
+so all body copy rendered at ~10–12px. Worse: an audit that "verified nothing is
+below 14px" computed `rem × 16` — **wrong**, because the root is 10px. The audit
+passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` →
+**11.8px**) exposed it.
+
+**Rules:**
+1. **Never use `rem` for `font-size`** in this codebase. Use **px** literals or
+   the `$aac-font-size-*` tokens. (`em` is fine where parent-relative scaling is
+   intended, but watch the cascade.)
+2. When auditing font sizes, **don't assume a 16px root** — `rem×16` is wrong
+   here. Verify against the actual 10px root, or just confirm everything is px.
+3. clamp()/px/vw values are root-independent and render as written — safe.
+
+**First seen in:** [2026-05-30-beta-welcome-premium-redesign.md](./2026-05-30-beta-welcome-premium-redesign.md)
+
+---
+
 ## Pattern: Signup default library boards — copy via Progress, not copy_to_home_board
 
 **Surface:** new user registration (email or Google SSO).
@@ -2556,3 +2600,188 @@ when you change a positioned element's `position` responsively, check whether an
 **Fix recipe:** After `_build_from_raw`, call `_apply_display_locales_to_ordered_buttons` (maps `contextualized_buttons` onto the plain-object grid). On Switch Languages close, invalidate `last_cb`/`fast_html` and re-run that overlay plus `process_for_displaying(true)`. Skip the speak-mode `fast_html` early-return path when `controller.is_board_detail`.
 
 **Evidence:** `app/frontend/app/controllers/user/board-detail.js`, `app/frontend/app/utils/edit_manager.js`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build
+
+**Surface:** any SCSS-only change to `app/frontend/app/styles/app.scss` (or its partials). A full `ember build` to validate one selector edit is slow.
+
+**Technique:** dart-sass ships in the frontend `node_modules`. Compile the whole stylesheet with its `@use` load path and throw away the output:
+
+```bash
+cd app/frontend
+npx --no-install sass --no-source-map --load-path=app/styles app/styles/app.scss /dev/null
+```
+
+`--no-source-map` matters with a `/dev/null` target: without it dart-sass tries to write `/dev/null.map` and exits 66 (permission denied) even though the stylesheet compiled fine. Exit 0 = the SCSS parses and all `@use`'d tokens/functions resolve (`$brand-*`, `color.adjust`, `clamp`, multi-layer `background`, etc.). Exit non-zero prints the file:line of the syntax/var error. Catches the common breakages (typo'd `$var`, unbalanced braces, mixed-unit `calc` issues) in ~1s. Note: this is a *syntax* gate, not a visual one — it won't catch cascade/specificity problems, only that the file compiles.
+
+**Evidence:** task log `2026-05-30-beta-feedback-section-redesign.md`.
+
+---
+
+## Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override
+
+**Surface:** AAC-friendly hover affordances (cards, list rows) that should lift/translate on hover but must respect reduced-motion users.
+
+**Anti-pattern:** add the `transform`/`transition` unconditionally, then cancel it in a `@media (prefers-reduced-motion: reduce)` block with `transform: none !important; transition: none !important;`. This needs `!important` to beat the `:hover` rule and litters the file with override blocks (CLAUDE.md Rule #0.7 discourages `!important` cascade patches).
+
+**Better:** keep the base + non-motion hover styling (color/shadow brightening) always-on, and put ONLY the movement inside `@media (prefers-reduced-motion: no-preference)`:
+
+```scss
+.card { /* base + glass */
+  &:hover { background: …brighter…; box-shadow: …stronger…; } /* depth, no motion */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    transition: transform 180ms ease, box-shadow 220ms ease;
+    &:hover { transform: translateY(-2px); }
+  }
+}
+```
+
+Reduced-motion users get the hover depth with zero movement; everyone else gets the lift. No `!important`, no override block. Keep motion calm (no scale/bounce/spring) for AAC.
+
+**Note:** the original live example (`.beta-welcome-mission`) was later removed when that checklist was switched to a static, no-hover treatment — so this is a technique to reach for, not a selector to copy. The reusable point stands: gate motion with `no-preference` rather than cancelling it with a `reduce` + `!important` override.
+
+**Evidence:** task log `2026-05-30-beta-feedback-section-redesign.md`.
+
+---
+
+## Gotcha: the board-detail "speak page" and "edit page" are ONE route/controller/template gated by `edit_mode`
+
+**Surface:** any work that treats board-detail speak mode and edit mode as separable (extraction, reuse, refactor).
+
+**Reality (verified 2026-05-31):**
+- The page is the `user/board-detail` route: `app/frontend/app/templates/user/board-detail.hbs` (~3,535 lines) + `app/frontend/app/controllers/user/board-detail.js` (~7,127 lines) + `routes/user/board-detail.js` (~468 lines).
+- Speak vs edit is NOT two pages — it's one template + one controller branched by an `edit_mode` flag (~19 `edit_mode` branches in the template, ~38 in the controller). The grid, sentence/speak bar, header, and board-loading machinery are shared.
+- The button grid is already its own component: `board-detail-grid` (`board-detail.hbs:2051`). The hard-to-reuse part is the *behavior* in the route controller, not the markup.
+- Landmarks: options menu = `.md-board-detail-actions-menu` / `toggle_options_menu` (`board-detail.hbs:792-825`); header = `md-board-detail-header` (:1319); edit left panel = `md-board-edit-panel` (:153); left nav sidebar = `md-board-detail-sidebar` (:84).
+- Controller is route-coupled: ~57 `transitionTo*`/`this.send`/etc. calls; `setupController` (routes/user/board-detail.js:206-264) seeds the initial UI state (`edit_mode`, `show_options_menu`, `paint_mode`, …).
+
+**Implication:** To make board-detail reusable, relocate the WHOLE thing (both modes) into one classic `@ember/component` — Ember can't embed a route/controller into another template (controllers are route-bound singletons; the old `{{render}}` helper is gone). It's relocation, not a rewrite: alias the incoming `@board` to an internal `model` so the ~23 `this.model` template refs stay verbatim; move `setupController` seeding into the component's `init`/`didReceiveAttrs`; keep route-only concerns (model load, navigation) in the route. Splitting speak from edit is the high-risk path — avoid it.
+
+**Naming trap:** `templates/board-details.hbs` / `components/board-details.js` (PLURAL) is an unrelated "Board Details" metadata MODAL — not the page. A reusable page component named `board-detail` (SINGULAR) sits one character away; keep them distinct.
+
+**Evidence:** task log `2026-05-31-board-detail-speak-component-spec.md`; `.planning/phases/04-board-detail-speak-component/04-{SPEC,CONTEXT}.md`.
+
+---
+
+## Pattern: a click-to-speak (or click-to-act) container that holds the inline word-prediction buttons CANNOT be `role="button"`
+
+**Surface:** making the board-detail sentence bar (`.md-board-detail-sentence-bar__text`) the speak trigger, or any time you want a large region clickable that also contains child buttons.
+
+**Root cause (verified 2026-05-31):** `__text` renders the inline word-prediction `<button>`s (`.md-board-detail-sentence-bar__prediction`). Giving the container `role="button"` (or making it a real `<button>`) nests interactive controls, which `ember-template-lint` blocks with **`no-nested-interactive`** (and it's genuinely invalid ARIA). The predictions can't be hoisted out of `__text` without breaking the tuned `__text--with-symbols` flex-wrap/scroll layout.
+
+**Recipe that satisfies lint + a11y + layout:**
+- Use `tabindex="0"` + `aria-label` on the container (focusable + labeled). `tabindex` alone does NOT trip `no-nested-interactive`; only an interactive *role*/element does.
+- Click via `{{action "speak_sentence"}}`.
+- A focusable `<div>` is not Enter/Space-activated like a `<button>`, so add `{{action "..._keydown" on="keyDown"}}` and, in the handler, **bail when `event.target !== event.currentTarget`** so a keypress on a focused child button activates the child, not the container.
+- Give child buttons `{{action "..." bubbles=false}}` so a child *click* (which calls `stopPropagation`) doesn't bubble to the container's click handler.
+- Scope CSS (cursor, focus-visible) with the `[tabindex]` attribute selector, not `[role="button"]` — it still targets only the interactive instance (the edit-mode `--preview` mirror has no tabindex). Add the focus-visible selector to the existing shared WCAG block, don't write a new ring.
+
+**Related:** [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children) — same family (nested interactive elements bite you), different symptom.
+
+**Evidence:** task log `2026-05-31-speak-bar-mic-and-folder-back-btn.md`.
+
+---
+
+## Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`
+
+**Surface:** adding controls to the left of the board-detail sentence bar (e.g. moving the folder Back button out of the pill to sit under Home).
+
+**Reality (verified 2026-05-31):** the row `.md-board-detail-sentence-row` is `display:flex; align-items:stretch`. The RIGHT side already uses a stacked column `.md-board-detail-sentence-bar__actions-wrap--stacked` (flex column, `gap:2px`) whose two buttons are each `flex:1`, so they split the row height evenly and scale with the bar size class (small 90 / medium 100 / large 150 / huge 200px row heights, `app.scss:~62169`). To stay visually balanced, build the LEFT side the same way: a `flex-direction:column` wrapper with `flex:1` children (Home on top, Back beneath). At the default size each lands ~44px; they grow together at larger sizes — exactly matching the right pair. A *fixed* 44px Home would look unbalanced on large/huge rows.
+
+**Gotchas:** Home's tight gap to the bar comes from `margin-right:-8px` ON the home button; when you wrap Home, move that margin to the wrapper and zero it on Home, or the inner column misaligns. There's an OLDER dead `.md-board-detail-sentence-nav*` "home+back stack" experiment in `app.scss` — unused in any template; don't reuse it (its `__btn` is solid blue-grey, not Home's frosted glass). Style a new Back to mirror `.md-board-detail-sidebar-toggle--stacked` instead, and switch its SVG stroke to `currentColor` so dark mode works via a `color` override rather than the `brightness()` filter used for hardcoded strokes.
+
+**Evidence:** task log `2026-05-31-speak-bar-mic-and-folder-back-btn.md`.
+
+---
+
+## Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu
+
+**Surface:** an absolutely-positioned popover/dropdown that opens and is painted UNDER a sibling section, even though the popover itself has a huge `z-index` (e.g. 99999). Seen on the caseload card's mobile "More Actions" dropdown getting covered by the goals / "Add goal" content.
+
+**Root cause:** `z-index` is resolved at EACH stacking-context level, not globally. The caseload card uses `.md-caseload__card > * { position: relative; z-index: 1 }`, then bumps `card-top` to `z:5` (so the OPTIONS dropdown wins). That leaves the action-tiles ROW at `z:1`. The dropdown lives inside that row; at the *card* level its ancestor (the row, z:1) loses to card-top (z:5), so NOTHING inside the row — no matter how high its own z-index — can paint above card-top. Raising the popover or its wrapper is futile; they're trapped inside the row's z:1 context.
+
+**Fix:** lift the popover's stacking-context ANCESTOR (the row), gated on the open state, via `:has()`:
+```scss
+.md-caseload__card > .md-caseload__actions--tiles:has(.md-caseload__extras-dropdown--mobile.open) {
+  z-index: 9999;
+}
+```
+`.open` is the Bootstrap toggle class on the wrapper (`controllers/caseload.js:438`). `:has()` is supported in this build. Match an existing open-dropdown z tier rather than inventing a new ceiling.
+
+**Diagnostic:** when a high-z popover is still covered, walk UP from the popover to the common stacking root and find the first ancestor whose `z-index` is lower than the covering element's ancestor at that same level — that ancestor is the trap. Also: the caseload card deliberately avoids `transform` on `:hover` because a transform creates a containing block that would CLIP the overflowing dropdown — reach for shadow-only elevation when a card must let a child overflow.
+
+**Evidence:** task log `2026-05-31-caseload-more-actions-shape-and-zindex.md`.
+
+---
+
+## Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`
+
+**Surface:** the recurring "content not expanding to full height / cuts off at the bottom" bug on unauthenticated shell pages (login, register, beta onboarding). Also presents as "the bg only covers the card, then a bare white/dark strip below," or "the sign-in page lost its background."
+
+**Architecture:** these pages use the `:has(.page-footer)` app-shell. `#within_ember:has(.page-footer)` is `position: fixed; inset: 0; overflow: hidden` (full viewport). `#content` is the ONLY scrollport (`flex:1 1 auto; min-height:0; overflow-y:auto`). The page-bg wrapper (`.login-page-bg` / `.register-page-bg`) is meant to be a TRANSPARENT alignment box; the shared `#content:has(.{login,register}-page-bg)` rule sets `#content` transparent on purpose, with the comment "the mesh lives on the full-viewport #within_ember below."
+
+**Two failure modes (both seen 2026-05-31):**
+1. **`min-height: 100vh` on the page-bg wrapper.** As a flex child of the shorter `#content` scrollport, with default `flex-shrink:1`, the wrapper is pinned to the 100vh floor while taller content (e.g. the Google-signup consent block) overflows past it — `overflow:hidden` then clips it, `overflow:visible` makes it visibly spill. FIX: remove `min-height`; the box sizes to content and `#content` scrolls (mirror `.login-page-bg`, which never had it).
+2. **Gradient painted on the wrapper instead of `#within_ember`.** It only covers as far as the box reaches, leaving a bare strip below the card (mistaken for "the footer showing"). And if the `#within_ember` mesh was never added (it was only done for beta-welcome), sibling pages render bare white. FIX: paint the mesh on the full-viewport `#within_ember:has(.page-footer):has(.{page}-bg)` (compound `:has()` = (1,2,0), out-specifies the `:has(.page-footer)` transparent reset). It then fills the entire page height behind the scrolling content — no seam, no short bg.
+
+**The mesh to use** is the shared `.md-shell` base gradient (app.scss ~40000) — the SAME stormy-teal/charcoal-blue/charcoal-dark/verdigris/dusty-denim blob mesh + stone linear-gradient used on the authenticated home/app pages. Reuse it verbatim so auth pages match the app.
+
+**Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
+
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
+
+---
+
+## Pattern: spec re-reading `Time.now` to rebuild a value the implementation stamped earlier — clock-boundary flake (NOT a format bug, and do NOT fix with `travel_to`)
+
+**Surface:** a spec creates records (or schedules a job), then rebuilds an expected string from a SECOND `Time.now` read and compares it to output the implementation derived from the FIRST read. Two seen 2026-06-01:
+- `admin_reports` (`organizations_controller_spec`): `ts = Time.now.strftime('%m-%Y')` vs report keys built from `event.created_at`. CI: `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, labels/counts matching, only the month differing.
+- transcoding (`callbacks_controller_spec`): `prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s` vs the prefix `media_object#schedule_transcoding` already scheduled using its own `Time.now.to_i`. CI: `Worker.scheduled?(...)` got `false` (a 1-SECOND boundary is enough).
+
+**Root cause:** two independent clock reads. The first is stamped at create/schedule time; the test's is read later (after the HTTP request, which takes real time). When they land in different periods (month rollover, or just a 1s tick — a 5000+ example suite takes minutes, so it happens) the strings disagree. The implementation is correct; the TEST is non-deterministic.
+
+**Anti-fix to reject #1:** "compute the timestamp differently / before the call." If it still comes from a separate `Time.now`, the two-reads race remains. Reordering hash keys does nothing — Ruby `eq` ignores order.
+
+**Anti-fix to reject #2 — `travel_to` / freezing the clock (tried 2026-06-01, REGRESSED).** Wrapping the body in `travel_to(Time.now)` makes auth fail with `400 Not authorized`. Why: `allowed?(org,'edit')` resolves org-manager permission through `UserLink.links_for`, whose Redis cache key is `links/for/<code>/<record.updated_at.to_f.round(3)>`. Freezing time pins `updated_at`, so the empty link set cached at instant T is NOT invalidated when `add_manager` writes the link (its `updated_at` touch also lands on T) → stale "no manager" → 401/400. **This codebase relies on `updated_at` actually ADVANCING between writes to bust caches; never freeze the clock around code that reads permission/link caches.** (Same family as the `links_for`/`updated_at` reload gotcha elsewhere in this doc.)
+
+**Correct fix — bind the expectation to the source of truth, never read the clock twice:**
+- Report-by-month: build the expected key from the event's OWN `created_at`, e.g. `"#{ae3.created_at.strftime('%m-%Y')} asd iOS"`. The report groups by `event.created_at`, so this is exactly right and deterministic.
+- Scheduled-job prefix: read the actual scheduled args back instead of recomputing — `action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder','convert_audio', bs.global_id] }; prefix = action['args'][3]`. `Worker`/`scheduled_actions` come from the `boy_band` gem; an action is `{'class'=>'Worker','args'=>[klass, method, *args]}`.
+
+**Codebase gotchas surfaced en route:**
+- Local specs can fail to LOAD with `ActiveRecord::PendingMigrationError` (whole file errors, looks like "all tests failing"). CI uses `db:schema:load` (`.github/workflows/ci.yml`) so CI won't hit it — local-only; run `RAILS_ENV=test rails db:migrate`.
+- `RAILS_ENV=test rails db:migrate` can rewrite `db/schema.rb` with a cosmetic index `WHERE`-clause re-serialization (`ARRAY[...]` predicate) — a Postgres-version artifact, not a real change. Revert it (`git checkout db/schema.rb`).
+- `callbacks_controller_spec.rb:5` ("invalid arn") stubs `ENV` with `expect(ENV).to receive(:[]).with("SNS_ARNS")`; that strict mock fails when Rack reads `RACK_MULTIPART_BUFFERED_UPLOAD_BYTESIZE_LIMIT` during `post`. Fails when the file runs ALONE, passes in the full CI order — a pre-existing isolation quirk, not a real CI failure.
+- Always demand the real CI log before fixing a "format mismatch" — the `expected`/`got` diff is the decisive evidence; a plausible theory was wrong here twice.
+
+**Evidence:** task log `2026-06-01-admin-reports-timestamp-month-boundary-flake.md`.
+
+---
+
+## Pattern: Org/room reports read from WeeklyStatsSummary, not raw logs
+
+**Surface:** seed/demo data, org portal reports, room (OrganizationUnit) stats.
+
+**Root cause:** `Organization.usage_stats` (used by the org portal AND `units_controller#stats`) sources word clouds / total words / modeled words from `WeeklyStatsSummary` rows over an **8-week** window; only the session timeline comes from raw `LogSession` (4 months), and room `user_weeks` from raw logs (12 weeks). `LogSession` schedules summary builds **async** (`after_save :schedule_summary`), so freshly-created logs have no summaries until a worker runs. `lib/seed_reporting_logs.rb` actively *deletes* summaries (fine for the individual `/user/stats` page, which recomputes live, but leaves org/room reports empty).
+
+**Fix recipe:** After seeding sessions, build summaries synchronously: collect distinct weekyears via `WeeklyStatsSummary.date_to_weekyear(started_at.utc.beginning_of_week(:sunday))` and call `WeeklyStatsSummary.update_now(user_id, weekyear)` per week. For supervisor modeling frequency in room reports, seed `daily_use` logs (`LogSession.process_daily_use`) with `models`/`modeled` per `DAILY_EVENT_TYPES`.
+
+**Gotcha:** `UserLink.links_for(record)` caches in Redis keyed by `record.updated_at`. `OrganizationUnit#assert_supervision!` reads `links_for(self)`; each `add_supervisor`/`add_communicator` bumps the unit's `updated_at` via `UserLink#touch_connections` but only in the DB. Reload the unit (`unit.reload`) before `assert_supervision!` or it reads a stale empty link set and wires nothing.
+
+**Evidence:** `app/models/organization.rb:1085` (`usage_stats`), `app/controllers/api/units_controller.rb:68` (`stats`), `app/models/log_session.rb:18,883`, `app/models/weekly_stats_summary.rb:192,197`, `app/models/user_link.rb:19,94`; impl `lib/seed_organization.rb` (`seed_room`, `seed_communicator_history`).
+
+---
+
+## Gotcha: organizations.admin has a UNIQUE index — normal orgs must be NULL
+
+**Symptom:** `PG::UniqueViolation ... index_organizations_on_admin ... Key (admin)=(f) already exists` when seeding a second org.
+
+**Root cause:** `t.index ["admin"], unique: true` (`db/schema.rb`). Postgres unique indexes allow unlimited NULLs but only one row per concrete value: `admin = true` is the single super-admin org, and `admin = false` is a *second* singleton slot already claimed by the demo org from `db/seeds.rb`. Every normal/seeded district must use `admin = nil`.
+
+**Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
+
+**Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.

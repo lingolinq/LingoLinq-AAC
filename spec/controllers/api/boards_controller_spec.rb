@@ -351,7 +351,41 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'].length).to eq(1)
       expect(json['board'][0]['id']).to eq(b2.global_id)
     end
-    
+
+    it "should not 500 on a private query search with allow_job (regression: LINGOLINQ-RAILS-J)" do
+      # The index relation eager-loads `includes(:board_content, :parent_board)`
+      # for the full serialization path. The allow_job branch builds the
+      # candidate id list with a partial `select('id, board_content_id')` that
+      # omits `parent_board_id`; the :parent_board preloader then raised
+      # ActiveModel::MissingAttributeError ("missing attribute 'parent_board_id'
+      # for Board"), 500ing the request. A child board exercises the
+      # parent_board association so the preloader has linkage to resolve.
+      token_user
+      parent = Board.create(:user => @user, :settings => {'name' => "prologue parent"})
+      child = Board.create(:user => @user, :parent_board => parent, :settings => {'name' => "prologue child"})
+      get :index, params: {:user_id => @user.global_id, :q => "pro", :allow_job => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # allow_job offloads the heavy search to a background job and returns an
+      # empty board list with a progress handle in meta.
+      expect(json['board']).to eq([])
+      expect(json['meta']['progress']).to_not eq(nil)
+    end
+
+    it "should not 500 on a public query search scoped to a user_id (regression: LINGOLINQ-RAILS-J twin)" do
+      # The public+user_id branch builds its candidate id list with the same
+      # partial `select('id, board_content_id')` off the includes-carrying
+      # relation, so it had the identical MissingAttributeError defect as the
+      # allow_job branch. This covers the second `.except(:includes)` site.
+      token_user
+      @user.settings['public'] = true
+      @user.save
+      parent = Board.create(:user => @user, :public => true, :settings => {'name' => "prologue parent"})
+      child = Board.create(:user => @user, :public => true, :parent_board => parent, :settings => {'name' => "prologue child"})
+      get :index, params: {:user_id => @user.global_id, :public => true, :q => "pro"}
+      expect(response).to be_successful
+    end
+
     it "should allow sorting by popularity or home_popularity" do
       u = User.create(:settings => {:public => true})
       b = Board.create(:user => u, :public => true)

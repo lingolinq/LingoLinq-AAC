@@ -957,11 +957,12 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "premium_voices"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      ts = Time.now.strftime('%m-%Y')
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
       expect(json['stats']).to eq({
-        "#{ts} asd iOS" => 1,
-        "#{ts} asd Android" => 1,
-        "#{ts} asdf iOS" => 1
+        "#{ae3.created_at.strftime('%m-%Y')} asd iOS" => 1,
+        "#{ae1.created_at.strftime('%m-%Y')} asd Android" => 1,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf iOS" => 1
       })
     end
     
@@ -1080,10 +1081,11 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "extras"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      ts = Time.now.strftime('%m-%Y')
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
       expect(json['stats']).to eq({
-        "#{ts} asd" => 2,
-        "#{ts} asdf" => 1
+        "#{ae1.created_at.strftime('%m-%Y')} asd" => 2,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf" => 1
       })
     end
     

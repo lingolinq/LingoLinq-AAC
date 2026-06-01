@@ -66,7 +66,7 @@
             </div>
           {{/if}}
           <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button class="btn md-modal-btn md-modal-btn--primary" {{action "make_public" "confirm"}}>{{t "Make the Board Public" key="make_it_public"}}</button>
+            <button class="btn md-modal-btn md-modal-btn--primary" {{action "make_public" "confirm"}} disabled={{this.board.reloading_detail}}>{{t "Make the Board Public" key="make_it_public"}}</button>
             <button class="btn md-modal-btn md-modal-btn--cancel" {{action "make_public" "cancel"}}>{{t "Cancel" key="cancel"}}</button>
           </div>
         {{else}}
@@ -77,6 +77,9 @@
 
     {{#if this.board.permissions.share}}
       <div style="margin-top: 20px;">
+        {{#if this.board.reloading_detail}}
+          <p class="md-modal-hint" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+        {{/if}}
         {{#if this.board.shared_users}}
           <h4 class="md-modal-section-title">{{t "Shared with" key="shared_with_others"}}</h4>
           <div class="md-modal-shared-users-list">
@@ -100,7 +103,7 @@
                     {{/if}}
                   </div>
                 </div>
-                <button type="button" class="md-modal-shared-user__remove" {{action "unshare" user.id}} title="Remove">
+                <button type="button" class="md-modal-shared-user__remove" {{action "unshare" user.id}} disabled={{this.board.reloading_detail}} title="Remove">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
@@ -145,7 +148,7 @@
             {{/if}}
           {{/if}}
           <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <button type="submit" class="btn md-modal-btn md-modal-btn--primary">{{t "Share This Board" key="share_this_board"}}</button>
+            <button type="submit" class="btn md-modal-btn md-modal-btn--primary" disabled={{this.board.reloading_detail}}>{{t "Share This Board" key="share_this_board"}}</button>
             {{#if this.supervisee_share}}
               {{#if this.not_copyable}}
                 <span class="md-modal-hint">{{t "You are a read-only supervisor for this user" key="read_only_supervisor"}}</span>

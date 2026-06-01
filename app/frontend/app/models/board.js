@@ -937,6 +937,27 @@ LingoLinq.Board = DS.Model.extend({
   multiple_copies: computed('copies', function() {
     return this.get('copies') > 1;
   }),
+  reload_if_lite: function() {
+    // Boards first materialized from a #tree/#bulk lite prefetch (issues #286/#293)
+    // omit parent_board_id, copies/copy, and the edit-gated shared_users. A full
+    // /show always serializes parent_board_id (value may be null), so its absence
+    // marks a lite-sourced record. Refetch so the share/details modals don't misread
+    // a genuinely-shared board as "shared with nobody" or drop the "Copied From" link.
+    // reload() never rejects out of here: on failure we just leave the record as-is
+    // and the modal degrades to the pre-fix (lite) view rather than throwing.
+    if(this.get('isNew') || !this.get('id')) { return RSVP.resolve(this); }
+    if(this.get('parent_board_id') !== undefined) { return RSVP.resolve(this); }
+    if(this.get('reloading_detail')) { return RSVP.resolve(this); }
+    var _this = this;
+    _this.set('reloading_detail', true);
+    return _this.reload().then(function(board) {
+      _this.set('reloading_detail', false);
+      return board;
+    }, function() {
+      _this.set('reloading_detail', false);
+      return _this;
+    });
+  },
   visibility_setting: computed('visibility', function() {
     var res = {};
     res[this.get('visibility')] = true;

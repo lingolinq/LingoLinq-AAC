@@ -2653,6 +2653,7 @@
   "home_board_assign_not_found": "We couldn't find the recommended home board. Please pick one below.",
   "board_sharing_failed": "Board sharing action failed",
   "unsharing_failed": "Board unsharing action failed",
+  "share_details_still_loading": "Still loading sharing details, please try again in a moment.",
   "speech_test_1": "You should hear \"this is test number one\" being spoken by the speech synthesis engine.",
   "speech_test_2": "You should hear \"this is test number two\" being spoken by the speech synthesis engine.",
   "speech_test_3": "You should hear \"this is test number three\" being spoken by the speech synthesis engine.",
