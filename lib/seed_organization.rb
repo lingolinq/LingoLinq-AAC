@@ -15,7 +15,14 @@ def seed_organization(org_name: "Sample Organization",
                       students_per_room: 3,
                       seed_reports: true,
                       report_weeks: 13,
-                      sessions_per_week: 2)
+                      sessions_per_week: 2,
+                      password: nil)
+  # All seeded accounts share one password. In production/staging this MUST be
+  # supplied via SEED_ORG_PASSWORD (no weak default is allowed to reach a
+  # shared/internet-facing DB); dev/test fall back to a known demo password.
+  # Mirrors the seed_password guard in db/seeds.rb.
+  password ||= seed_org_password
+
   puts "\n" + "=" * 60
   puts "Seeding Organization: #{org_name}"
   puts "=" * 60
@@ -71,7 +78,7 @@ def seed_organization(org_name: "Sample Organization",
         user_name: user_name,
         email: "manager#{manager_num}@#{org_name.downcase.gsub(/\s+/, '')}.com",
         public: false,
-        password: 'password123',
+        password: password,
         description: "Manager #{manager_num} for #{org_name}",
         location: "Organization Location"
       }, {
@@ -100,7 +107,7 @@ def seed_organization(org_name: "Sample Organization",
         user_name: user_name,
         email: "supervisor#{supervisor_num}@#{org_name.downcase.gsub(/\s+/, '')}.com",
         public: false,
-        password: 'password123',
+        password: password,
         description: "Supervisor #{supervisor_num} for #{org_name}",
         location: "Organization Location"
       }, {
@@ -131,7 +138,7 @@ def seed_organization(org_name: "Sample Organization",
         user_name: user_name,
         email: "user#{user_num}@#{org_name.downcase.gsub(/\s+/, '')}.com",
         public: false,
-        password: 'password123',
+        password: password,
         description: "User #{user_num} in #{org_name}",
         location: "Organization Location"
       }, {
@@ -160,7 +167,7 @@ def seed_organization(org_name: "Sample Organization",
         user_name: user_name,
         email: "eval#{eval_num}@#{org_name.downcase.gsub(/\s+/, '')}.com",
         public: false,
-        password: 'password123',
+        password: password,
         description: "Evaluation account #{eval_num} for #{org_name}",
         location: "Organization Location"
       }, {
@@ -282,6 +289,8 @@ def seed_organization(org_name: "Sample Organization",
     puts "\nCreating usage logs for communicator users..."
     users.each_with_index do |user, idx|
       user_device = ensure_device.call(user)
+      # Idempotency: these variety logs are additive, so skip users already seeded.
+      next if user_device.settings && user_device.settings['variety_seeded']
       base_ts = (3 + idx).days.ago.to_f
       begin
         # 1) Session log (button + utterance events)
@@ -315,6 +324,8 @@ def seed_organization(org_name: "Sample Organization",
           },
           { user: user, author: supervisors.first, device: supervisor_device }
         )
+        user_device.settings['variety_seeded'] = true
+        user_device.save!
         puts "  ✓ Logs for #{user.user_name} (session, note, assessment)"
       rescue => e
         puts "  ⚠ Logs for #{user.user_name}: #{e.message}"
@@ -324,7 +335,7 @@ def seed_organization(org_name: "Sample Organization",
     # Seed one of each remaining log type (eval, journal, profile, daily_use, modeling_activities)
     first_user = users.first
     first_user_device = ensure_device.call(first_user)
-    if first_user && supervisors.any?
+    if first_user && supervisors.any? && !(first_user_device.settings && first_user_device.settings['extras_seeded'])
       puts "\nCreating one of each additional log type..."
       begin
         # 4) Eval (evaluation session)
@@ -416,6 +427,8 @@ def seed_organization(org_name: "Sample Organization",
       rescue => e
         puts "  ⚠ modeling_activities: #{e.message}"
       end
+      first_user_device.settings['extras_seeded'] = true
+      first_user_device.save!
     end
   end
 
@@ -439,7 +452,7 @@ def seed_organization(org_name: "Sample Organization",
     puts "\nCreating rooms (teacher + SLP + students) with cumulative reports..."
     room_names.each do |room_name|
       rooms << seed_room(org, org_name: org_name, room_name: room_name,
-                         students_per_room: students_per_room,
+                         students_per_room: students_per_room, password: password,
                          seed_reports: seed_reports, report_weeks: report_weeks,
                          sessions_per_week: sessions_per_week)
     end
@@ -468,7 +481,8 @@ def seed_organization(org_name: "Sample Organization",
     end
     puts "  Report history: ~#{report_weeks} weeks x #{sessions_per_week} sessions/student + supervisor modeling" if seed_reports
   end
-  puts "\nLogin Credentials (everyone uses password123):"
+  puts "\nLogin Credentials (every seeded account uses the same password,"
+  puts "set via SEED_ORG_PASSWORD; defaults to 'password123' in dev/test only):"
   puts "  Manager: #{managers.first.user_name}"
   puts "  Supervisor: #{supervisors.first.user_name}"
   puts "  User: #{users.first.user_name}"
@@ -488,12 +502,24 @@ end
 # Room (OrganizationUnit) + reporting helpers
 # ---------------------------------------------------------------------------
 
+# Resolve the shared password for all seeded accounts. In production/staging a
+# strong SEED_ORG_PASSWORD MUST be supplied so a weak, source-controlled default
+# can never land loginable supervisor/student accounts on a shared or
+# internet-facing database. Dev/test fall back to a known demo password.
+# Mirrors db/seeds.rb's seed_password guard.
+def seed_org_password
+  if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV['SEED_ORG_PASSWORD'].blank?
+    raise "Cannot seed organization: set SEED_ORG_PASSWORD (strong credentials) in production/staging."
+  end
+  ENV['SEED_ORG_PASSWORD'].presence || 'password123'
+end
+
 # Create (or reuse) a room with a dedicated teacher (supervisor, edit access),
 # SLP (supervisor, edit access), and N students (communicators). Members must be
 # org members first (org.supervisor? / org.managed_user? are enforced by the unit),
 # so we attach them to the org here too. assert_supervision! wires each supervisor
 # to each student synchronously so room/individual reports link up immediately.
-def seed_room(org, org_name:, room_name:, students_per_room:, seed_reports: true, report_weeks: 13, sessions_per_week: 2)
+def seed_room(org, org_name:, room_name:, students_per_room:, password:, seed_reports: true, report_weeks: 13, sessions_per_week: 2)
   slug = org_name.downcase.gsub(/\s+/, '')
   room_slug = "#{slug}_#{room_name.downcase.gsub(/\s+/, '')}"
 
@@ -503,17 +529,17 @@ def seed_room(org, org_name:, room_name:, students_per_room:, seed_reports: true
   end
   puts "  ✓ Room: #{room_name} (#{unit.global_id})"
 
-  teacher = seed_org_supervisor(org, "#{room_slug}_teacher", "#{room_name} Teacher")
+  teacher = seed_org_supervisor(org, "#{room_slug}_teacher", "#{room_name} Teacher", password)
   unit.add_supervisor(teacher.user_name, true) unless unit.supervisor?(teacher)
   puts "    ✓ Teacher: #{teacher.user_name}"
 
-  slp = seed_org_supervisor(org, "#{room_slug}_slp", "#{room_name} SLP")
+  slp = seed_org_supervisor(org, "#{room_slug}_slp", "#{room_name} SLP", password)
   unit.add_supervisor(slp.user_name, true) unless unit.supervisor?(slp)
   puts "    ✓ SLP: #{slp.user_name}"
 
   students = []
   students_per_room.times do |i|
-    student = seed_org_communicator(org, "#{room_slug}_student_#{i + 1}", "#{room_name} Student #{i + 1}")
+    student = seed_org_communicator(org, "#{room_slug}_student_#{i + 1}", "#{room_name} Student #{i + 1}", password)
     unit.add_communicator(student.user_name) unless unit.communicator?(student)
     students << student
     puts "    ✓ Student: #{student.user_name}"
@@ -535,21 +561,25 @@ def seed_room(org, org_name:, room_name:, students_per_room:, seed_reports: true
   unit
 end
 
-# Find or create a user, attach as a non-pending org supervisor (premium).
-def seed_org_supervisor(org, user_name, display_name)
+# Find or create a user, attach as a non-pending org supervisor.
+# premium=false on purpose: each premium seat counts against
+# total_supervisor_licenses, and add_supervisor raises once they run out, which
+# would abort the seed partway through. Supervision/reporting works fine without
+# a premium seat, so room teachers/SLPs stay non-premium and never exhaust the budget.
+def seed_org_supervisor(org, user_name, display_name, password)
   user = User.find_by(user_name: user_name) || User.process_new({
     name: display_name, user_name: user_name,
-    email: "#{user_name}@example.com", public: false, password: 'password123'
+    email: "#{user_name}@example.com", public: false, password: password
   }, { is_admin: false })
-  org.add_supervisor(user.user_name, false, true) unless org.supervisor?(user) # pending=false, premium=true
+  org.add_supervisor(user.user_name, false, false) unless org.supervisor?(user) # pending=false, premium=false
   user.reload
 end
 
 # Find or create a user, attach as a non-pending sponsored org communicator.
-def seed_org_communicator(org, user_name, display_name)
+def seed_org_communicator(org, user_name, display_name, password)
   user = User.find_by(user_name: user_name) || User.process_new({
     name: display_name, user_name: user_name,
-    email: "#{user_name}@example.com", public: false, password: 'password123'
+    email: "#{user_name}@example.com", public: false, password: password
   }, { is_admin: false })
   org.add_user(user.user_name, false, true, false) unless org.managed_user?(user) # pending=false, sponsored=true
   user.reload
@@ -572,6 +602,15 @@ def seed_communicator_history(user, org_name:, weeks_back: 13, sessions_per_week
   device = Device.find_or_create_by!(user_id: user.id, developer_key_id: 0, device_key: "seed_history_#{user.id}") do |d|
     d.settings ||= {}
     d.settings['name'] = "Seed device for #{user.user_name}"
+  end
+
+  # Idempotency: session history is purely additive (each run creates new
+  # LogSessions and re-inflates the weekly summaries), so stamp the seed device
+  # and no-op on subsequent runs. Without this, re-seeding a shared DB silently
+  # doubles every student's totals.
+  if device.settings && device.settings['history_seeded']
+    puts "    • #{user.user_name}: report history already seeded, skipping"
+    return 0
   end
 
   word_events = REPORTING_SEED_WORDS.flat_map { |word, count| [word] * count }
@@ -612,12 +651,19 @@ def seed_communicator_history(user, org_name:, weeks_back: 13, sessions_per_week
     end
   end
 
+  device.settings['history_seeded'] = true
+  device.save!
+
   puts "    ✓ #{user.user_name}: #{created} sessions / #{weekyears.count} weekly summaries"
   created
 end
 
 # Seed supervisor daily_use modeling activity across `weeks_back` weeks so room
 # reports show modeling frequency / average activity level for the teacher & SLP.
+# Idempotent by design: process_daily_use keeps a single daily_use LogSession per
+# author and merges by date (replacing, not appending), so re-runs overwrite the
+# same days rather than accumulating. Values are derived deterministically (no
+# random sampling) so a re-run reproduces the exact same history.
 def seed_supervisor_modeling(supervisor, weeks_back: 13)
   model_words = %w[more want help go stop like that look different again]
   device = Device.find_or_create_by!(user_id: supervisor.id, developer_key_id: 0, device_key: "seed_model_#{supervisor.id}") do |d|
@@ -627,14 +673,15 @@ def seed_supervisor_modeling(supervisor, weeks_back: 13)
 
   events = []
   weeks_back.times do |w|
-    [1, 3, 5].each do |dow| # three active modeling days per week
+    [1, 3, 5].each_with_index do |dow, i| # three active modeling days per week
       date = ((w * 7) + dow).days.ago.to_date.to_s
+      offset = (w + i) % model_words.length
       events << {
         'date' => date,
         'active' => true,
         'activity_level' => 3 + (w % 3),
         'models' => 4 + (w % 5),
-        'modeled' => model_words.sample(3)
+        'modeled' => model_words.rotate(offset).first(3)
       }
     end
   end

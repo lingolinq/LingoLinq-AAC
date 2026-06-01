@@ -20,10 +20,12 @@ namespace :db do
       user_count: ENV['USER_COUNT']&.to_i || 10,
       eval_count: ENV['EVAL_COUNT']&.to_i || 3,
       room_names: room_names,
-      students_per_room: ENV['STUDENTS_PER_ROOM']&.to_i || 3,
+      # Clamp the loop-size knobs so a fat-fingered ENV value can't spin up an
+      # unbounded number of records on a shared DB.
+      students_per_room: (ENV['STUDENTS_PER_ROOM']&.to_i || 3).clamp(0, 50),
       seed_reports: ENV['SEED_REPORTS'] != 'false',
-      report_weeks: ENV['REPORT_WEEKS']&.to_i || 13,
-      sessions_per_week: ENV['SESSIONS_PER_WEEK']&.to_i || 2
+      report_weeks: (ENV['REPORT_WEEKS']&.to_i || 13).clamp(1, 52),
+      sessions_per_week: (ENV['SESSIONS_PER_WEEK']&.to_i || 2).clamp(1, 20)
     )
   end
 
