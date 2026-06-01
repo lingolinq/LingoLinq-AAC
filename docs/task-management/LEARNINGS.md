@@ -73,7 +73,10 @@ file (see [README.md](README.md)).
 - [Pattern: sidebar "pin open" state lives in the `quick_sidebar` pref via `stickSidebar` — reuse it, don't add a second flag](#pattern-sidebar-pin-open-state-lives-in-the-quick_sidebar-pref-via-sticksidebar--reuse-it-dont-add-a-second-flag)
 - [Pattern: async store/query callbacks must guard `isDestroyed`/`isDestroying` before `set`](#pattern-async-storequery-callbacks-must-guard-isdestroyedisdestroying-before-set)
 - [Pattern: per-element responsive show/hide rules must sit AFTER that element's base `display` rule — don't consolidate when bases are scattered](#pattern-per-element-responsive-showhide-rules-must-sit-after-that-elements-base-display-rule--dont-consolidate-when-bases-are-scattered)
+- [Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build](#pattern-compile-appscss-standalone-with-dart-sass-to-catch-scss-errors-without-a-full-ember-build)
+- [Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override](#pattern-gate-hover-motion-behind-prefers-reduced-motion-no-preference-instead-of-an-important-reduced-motion-override)
 - [Pattern: a glow/halo `::before` that "leaks to the whole container" at one breakpoint = the host lost `position` (static re-anchors the absolute pseudo)](#pattern-a-glowhalo-before-that-leaks-to-the-whole-container-at-one-breakpoint--the-host-lost-position-static-re-anchors-the-absolute-pseudo)
+- [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 
 ## Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children
 
@@ -2474,6 +2477,34 @@ when you change a positioned element's `position` responsively, check whether an
 
 ---
 
+## Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem
+
+**The trap:** This app sets the root `html` font-size to **10px** (the classic
+`62.5%` of the 16px default — see the `html:has(#within_ember…)` rules ~app.scss
+8277/8284, and many `font-size: 10px` anchors). So **`1rem` = 10px, not 16px.**
+A rule written `font-size: 1.05rem` renders at **10.5px**, `1rem` at **10px** —
+roughly two-thirds of what you'd expect. That's why the `$aac-font-size-*`
+design tokens are all in **px** (`xs/sm: 14px`, `base: 15px`, `md: 18px`).
+
+**How it bit (3 rounds on the beta-welcome pages):** the staging beta CSS used
+`rem` font-sizes (`1rem`, `1.05rem`, `1.08rem`, `1.18rem`) assuming a 16px root,
+so all body copy rendered at ~10–12px. Worse: an audit that "verified nothing is
+below 14px" computed `rem × 16` — **wrong**, because the root is 10px. The audit
+passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` →
+**11.8px**) exposed it.
+
+**Rules:**
+1. **Never use `rem` for `font-size`** in this codebase. Use **px** literals or
+   the `$aac-font-size-*` tokens. (`em` is fine where parent-relative scaling is
+   intended, but watch the cascade.)
+2. When auditing font sizes, **don't assume a 16px root** — `rem×16` is wrong
+   here. Verify against the actual 10px root, or just confirm everything is px.
+3. clamp()/px/vw values are root-independent and render as written — safe.
+
+**First seen in:** [2026-05-30-beta-welcome-premium-redesign.md](./2026-05-30-beta-welcome-premium-redesign.md)
+
+---
+
 ## Pattern: Signup default library boards — copy via Progress, not copy_to_home_board
 
 **Surface:** new user registration (email or Google SSO).
@@ -2509,3 +2540,67 @@ when you change a positioned element's `position` responsively, check whether an
 **Fix recipe:** After lookup, `sort_by { |r| ids.index(r.global_id) || ids.length }` (see `Board.long_query`, `Board#known_button_images`). For specs comparing sorted `global_id` lists, sort **both** sides — lexicographic sort puts `"1_1000"` before `"1_999"`.
 
 **Evidence:** `app/models/concerns/global_id.rb:108-174`, `app/models/board.rb#known_button_images`; task log `2026-05-29-spec-ordering-flakes.md`.
+
+---
+
+## Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build
+
+**Surface:** any SCSS-only change to `app/frontend/app/styles/app.scss` (or its partials). A full `ember build` to validate one selector edit is slow.
+
+**Technique:** dart-sass ships in the frontend `node_modules`. Compile the whole stylesheet with its `@use` load path and throw away the output:
+
+```bash
+cd app/frontend
+npx --no-install sass --no-source-map --load-path=app/styles app/styles/app.scss /dev/null
+```
+
+`--no-source-map` matters with a `/dev/null` target: without it dart-sass tries to write `/dev/null.map` and exits 66 (permission denied) even though the stylesheet compiled fine. Exit 0 = the SCSS parses and all `@use`'d tokens/functions resolve (`$brand-*`, `color.adjust`, `clamp`, multi-layer `background`, etc.). Exit non-zero prints the file:line of the syntax/var error. Catches the common breakages (typo'd `$var`, unbalanced braces, mixed-unit `calc` issues) in ~1s. Note: this is a *syntax* gate, not a visual one — it won't catch cascade/specificity problems, only that the file compiles.
+
+**Evidence:** task log `2026-05-30-beta-feedback-section-redesign.md`.
+
+---
+
+## Pattern: gate hover motion behind `prefers-reduced-motion: no-preference` instead of an `!important` reduced-motion override
+
+**Surface:** AAC-friendly hover affordances (cards, list rows) that should lift/translate on hover but must respect reduced-motion users.
+
+**Anti-pattern:** add the `transform`/`transition` unconditionally, then cancel it in a `@media (prefers-reduced-motion: reduce)` block with `transform: none !important; transition: none !important;`. This needs `!important` to beat the `:hover` rule and litters the file with override blocks (CLAUDE.md Rule #0.7 discourages `!important` cascade patches).
+
+**Better:** keep the base + non-motion hover styling (color/shadow brightening) always-on, and put ONLY the movement inside `@media (prefers-reduced-motion: no-preference)`:
+
+```scss
+.card { /* base + glass */
+  &:hover { background: …brighter…; box-shadow: …stronger…; } /* depth, no motion */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    transition: transform 180ms ease, box-shadow 220ms ease;
+    &:hover { transform: translateY(-2px); }
+  }
+}
+```
+
+Reduced-motion users get the hover depth with zero movement; everyone else gets the lift. No `!important`, no override block. Keep motion calm (no scale/bounce/spring) for AAC.
+
+**Note:** the original live example (`.beta-welcome-mission`) was later removed when that checklist was switched to a static, no-hover treatment — so this is a technique to reach for, not a selector to copy. The reusable point stands: gate motion with `no-preference` rather than cancelling it with a `reduce` + `!important` override.
+
+**Evidence:** task log `2026-05-30-beta-feedback-section-redesign.md`.
+
+---
+
+## Gotcha: the board-detail "speak page" and "edit page" are ONE route/controller/template gated by `edit_mode`
+
+**Surface:** any work that treats board-detail speak mode and edit mode as separable (extraction, reuse, refactor).
+
+**Reality (verified 2026-05-31):**
+- The page is the `user/board-detail` route: `app/frontend/app/templates/user/board-detail.hbs` (~3,535 lines) + `app/frontend/app/controllers/user/board-detail.js` (~7,127 lines) + `routes/user/board-detail.js` (~468 lines).
+- Speak vs edit is NOT two pages — it's one template + one controller branched by an `edit_mode` flag (~19 `edit_mode` branches in the template, ~38 in the controller). The grid, sentence/speak bar, header, and board-loading machinery are shared.
+- The button grid is already its own component: `board-detail-grid` (`board-detail.hbs:2051`). The hard-to-reuse part is the *behavior* in the route controller, not the markup.
+- Landmarks: options menu = `.md-board-detail-actions-menu` / `toggle_options_menu` (`board-detail.hbs:792-825`); header = `md-board-detail-header` (:1319); edit left panel = `md-board-edit-panel` (:153); left nav sidebar = `md-board-detail-sidebar` (:84).
+- Controller is route-coupled: ~57 `transitionTo*`/`this.send`/etc. calls; `setupController` (routes/user/board-detail.js:206-264) seeds the initial UI state (`edit_mode`, `show_options_menu`, `paint_mode`, …).
+
+**Implication:** To make board-detail reusable, relocate the WHOLE thing (both modes) into one classic `@ember/component` — Ember can't embed a route/controller into another template (controllers are route-bound singletons; the old `{{render}}` helper is gone). It's relocation, not a rewrite: alias the incoming `@board` to an internal `model` so the ~23 `this.model` template refs stay verbatim; move `setupController` seeding into the component's `init`/`didReceiveAttrs`; keep route-only concerns (model load, navigation) in the route. Splitting speak from edit is the high-risk path — avoid it.
+
+**Naming trap:** `templates/board-details.hbs` / `components/board-details.js` (PLURAL) is an unrelated "Board Details" metadata MODAL — not the page. A reusable page component named `board-detail` (SINGULAR) sits one character away; keep them distinct.
+
+**Evidence:** task log `2026-05-31-board-detail-speak-component-spec.md`; `.planning/phases/04-board-detail-speak-component/04-{SPEC,CONTEXT}.md`.

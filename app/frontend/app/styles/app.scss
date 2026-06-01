@@ -570,13 +570,9 @@ html, body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background:
-    radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
-    radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
-    radial-gradient(1100px 700px at 50% 95%, rgba($brand-charcoal-dark, 0.20), transparent 50%),
-    radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
-    radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
-    linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
+  /* Transparent: the mesh lives on the full-viewport #within_ember below, so
+     #content scrolls over it with no second background layer (no seam). */
+  background: transparent;
 }
 
 /* Beta onboarding: same scroll model as /register — #content scrolls; page bg grows with content (no inner scrollport). */
@@ -595,6 +591,30 @@ html, body {
   box-sizing: border-box;
   padding-top: 2.5rem !important;
   padding-bottom: calc(var(--bottombar-height) + 2.5rem) !important;
+  /* Transparent: mesh is on the full-viewport #within_ember below. */
+  background: transparent !important;
+}
+
+/* SINGLE full-viewport beta background. #within_ember is `position: fixed;
+   inset: 0` on the page-footer layout (line ~412), so its background fills the
+   ENTIRE viewport behind the fixed topbar, the transparent scrolling #content,
+   and the footer band — one continuous mesh, no seam top or bottom. The
+   compound :has() (1,2,0) out-specifies the `:has(.page-footer)` transparent
+   reset above. */
+#within_ember:has(.page-footer):has(.beta-welcome-page) {
+  background:
+    radial-gradient(60% 45% at 12% 8%,  rgba($brand-verdigris, 0.16), transparent 60%),
+    radial-gradient(55% 50% at 92% 18%, rgba($brand-dusty-denim, 0.14), transparent 62%),
+    radial-gradient(70% 60% at 50% 108%, rgba($la-navy, 0.06), transparent 60%),
+    linear-gradient(180deg, #F9FAFB 0%, #F5F7FA 100%);
+}
+
+/* Full-screen onboarding: hide the app footer bar on the beta pages. Use
+   display:none (not removal) — the element stays in the DOM so the
+   `:has(.page-footer)` shell layout above still matches; it just no longer
+   paints the fixed bottom band over the mesh. */
+#within_ember:has(.beta-welcome-page) .page-footer {
+  display: none !important;
 }
 
 #within_ember:has(.beta-welcome-page) #content > .ember-view {
@@ -5425,6 +5445,395 @@ tr.accuracy_non_mastered {
   padding: 0;
   margin: 0;
   gap: 6px;
+}
+
+/* ===== Standalone Board Picker page (/board-picker) — premium refactor =====
+   Brings this page in line with the modern Boards app-shell language. The
+   tabs, board cards, and "Quick Core" headings come from the SHARED
+   board-picker/board-icon components, so every override here is page-scoped
+   under `.board-picker-page` / `.md-shell--board-picker` — /setup and
+   /search/home are unaffected. */
+
+/* --- Immersive glass workspace panel; atmosphere comes from the .md-shell
+       base gradient behind it. --- */
+.md-shell--board-picker > .md-workspace {
+  background:
+    radial-gradient(680px 380px at 50% 1%, rgba($brand-verdigris, 0.10), transparent 52%),
+    radial-gradient(880px 460px at 12% 4%, rgba($brand-verdigris, 0.14), transparent 44%),
+    radial-gradient(820px 460px at 92% 12%, rgba($brand-dusty-denim, 0.12), transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(248, 250, 252, 0.5));
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 24px 64px rgba(15, 23, 42, 0.08),
+    0 10px 28px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.board-picker-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  padding: $aac-spacing-8 0 $aac-spacing-16;
+}
+
+/* --- Hero --- */
+.board-picker-page__header {
+  margin: 0 0 $aac-spacing-16;
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: $la-navy;
+  text-align: center;
+  /* Same entrance movement as the home-page hero: title in from the left. */
+  opacity: 0;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.board-picker-page__intro {
+  margin: 0 auto clamp(40px, 6vh, 64px);
+  max-width: 660px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.7;
+  color: rgba(43, 52, 69, 0.82);
+  /* Same entrance movement as the home-page hero: subheader in from the right,
+     staggered after the title. */
+  opacity: 0;
+  animation: md-hero-from-right 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
+
+  /* "over time" reuses the landing-alt "every student" gradient
+     (.hero-gradient = verdigris→denim clipped to text) — color only, not the
+     1.155em emphasis bump, so it stays inline with the sentence. */
+  .hero-gradient {
+    font-size: inherit;
+  }
+}
+/* Honor reduced-motion: show the header/subheader immediately, no movement. */
+@media (prefers-reduced-motion: reduce) {
+  .board-picker-page__header,
+  .board-picker-page__intro {
+    opacity: 1;
+    animation: none;
+  }
+}
+.board-picker-page__assign {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 clamp(28px, 4vh, 40px);
+}
+
+/* Modern "or" divider below the CTAs — brand verdigris→denim gradient rules
+   that fade out to the edges, with a centered uppercase label. */
+.board-picker-page__divider {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: 720px;
+  margin: 0 auto clamp(34px, 4.5vh, 56px);
+}
+.board-picker-page__divider-line {
+  flex: 1 1 0;
+  min-width: 40px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba($brand-verdigris-aa, 0.7) 45%);
+}
+.board-picker-page__divider-line--right {
+  background: linear-gradient(90deg, rgba($brand-dusty-denim, 0.7) 55%, transparent 100%);
+}
+.board-picker-page__divider-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.55);
+}
+.board-picker-page__assign-btn {
+  @include home-board-pill(
+    rgba($brand-dusty-denim, 0.30),
+    rgba($brand-dusty-denim, 0.45)
+  );
+}
+.board-picker-page__assign-btn[disabled],
+.board-picker-page__assign-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.board-picker-page__new-btn {
+  @include home-board-pill(
+    linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10)),
+    linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
+  );
+}
+.board-picker-page__cta-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: $brand-verdigris-aa;
+}
+
+/* --- Category tabs → glass pill segmented nav. Scoped + higher specificity +
+       !important to beat the shared file-folder `.ub-boards-page__tabs--boards`
+       rules (app.scss ~55970, themselves !important). Other pages keep the
+       file-folder tabs. --- */
+/* Category panel — the glass holds the pill tabs (top) AND the selected
+   category's description (bottom) as ONE connected surface. The tabs-row and
+   the sibling .category_explainer are full-width and flush in the tabbed
+   column, so they're styled as the top/bottom halves of a single glass card. */
+.board-picker-page .md-home-boards-picker__tabs-row {
+  width: 100%;
+  max-width: 100%;
+  /* Now a section INSIDE the unified panel: no surface of its own, just the
+     pill row with a hairline beneath separating it from the description. */
+  margin: 0 0 clamp(18px, 2.5vh, 28px);
+  padding: 0 0 clamp(18px, 2.5vh, 28px);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.board-picker-page .md-home-boards-picker__tabs-row::after {
+  display: none; /* drop the file-folder baseline divider */
+}
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards {
+  /* Always wrap overflow tabs onto the next row (never clip/overflow), with a
+     touch more space between wrapped rows. */
+  flex-wrap: wrap !important;
+  gap: 8px 4px;
+  justify-content: center;
+}
+/* Every tab is a filled glass pill so they all read as tappable action
+   buttons (not just the selected one). */
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a {
+  padding: 9px 18px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.9)) !important;
+  color: $la-navy !important;
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:hover,
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li > a:focus-visible {
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+/* Selected tab — same pill, plus a soft subtle verdigris glow ring so it's
+   clearly the active one. */
+.board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li.is-active > a {
+  padding: 9px 18px !important;
+  border-radius: 999px !important;
+  /* Same single rim as the other pills (no second outline) — the active state
+     is marked by a soft blurred glow, not a hard ring. */
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  background: linear-gradient(180deg, #fff, rgba(245, 247, 250, 0.92)) !important;
+  color: $la-navy !important;
+  box-shadow:
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 6px 16px rgba($brand-verdigris-aa, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* --- Selected category's description: the bottom half of the category panel,
+       connected to the tabs-row above (shared glass, no top border, flush). --- */
+.board-picker-page .category_explainer {
+  /* Section inside the unified panel — text only, hairline below separating it
+     from the board content. */
+  margin: 0 0 clamp(24px, 3.5vh, 40px);
+  padding: 0 0 clamp(24px, 3.5vh, 40px);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-align: center;
+}
+.board-picker-page .category_explainer p {
+  margin: 0 auto;
+  max-width: 860px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(43, 52, 69, 0.8);
+}
+
+/* --- Quick Core / Vocal Flair: a plain section INSIDE the unified panel
+       (heading + board grid), no separate glass surface of its own. --- */
+.board-picker-page .setup-board-category__brand-card {
+  margin: 0 0 clamp(28px, 4vh, 48px);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.board-picker-page .setup-board-category__brand-card:last-child {
+  margin-bottom: 0;
+}
+.board-picker-page .setup-board-category__brand-title {
+  margin: 0 0 $aac-spacing-16;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $la-navy;
+}
+
+/* --- Board cards (Layer 2): softer glass surface, near-invisible border,
+       atmospheric shadow + top-edge lighting. Card GEOMETRY (height, internal
+       spacing) and the PREVIEW pill are left exactly as the shared boards-page
+       card so names aren't clipped and the pill matches the Boards page. --- */
+.board-picker-page .md-home-boards-picker__board .simple_board_icon {
+  /* Flex-column layout matching the boards page: the PREVIEW pill rides the
+     bottom (margin-top: auto, in-flow) instead of being absolutely positioned,
+     so the author's bottom margin can actually open a gap above it. Auto height
+     + min-height keeps tiles uniform without clipping the name. */
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto !important;
+  min-height: 268px !important;
+  border: 1px solid rgba(15, 23, 42, 0.05) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.86)) !important;
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.06),
+    0 6px 18px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84) !important;
+}
+/* PREVIEW pill in-flow at the bottom (was position:absolute on this layout). */
+.board-picker-page .md-home-boards-picker__board .simple_board_icon .info {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  order: 99;
+  align-self: center;
+  margin-top: auto !important;
+}
+/* When a language marker is present it owns the bottom auto-margin, so the pill
+   drops its own (mirrors the boards-page :has override) — keeps them tight. */
+.board-picker-page .md-home-boards-picker__board .simple_board_icon:has(.board-icon__lang-marker) .info {
+  margin-top: 0 !important;
+}
+/* Guaranteed gap below the author line, above the bottom-anchored pill. */
+.board-picker-page .md-home-boards-picker__board .simple_board_icon .author {
+  margin: 0 0 16px !important;
+}
+/* Hover (Layer 3): wrapper lifts (motion, reduced-motion-gated below); the
+   card's shadow deepens here (no motion, always on). */
+.board-picker-page .md-home-boards-picker__board:hover .simple_board_icon {
+  box-shadow:
+    0 26px 56px rgba(15, 23, 42, 0.10),
+    0 10px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* --- Metadata "4×6" badge (§6): whisper-weight — lower opacity, faint rim,
+       calmer ink, no drop shadow so it reads as secondary, not a label. --- */
+.board-picker-page .md-home-boards-picker__board .board-icon__info {
+  background: rgba(255, 255, 255, 0.58) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: rgba(43, 52, 69, 0.62) !important;
+  box-shadow: none !important;
+}
+.board-picker-page .md-home-boards-picker__board .board-icon__info-icon,
+.board-picker-page .md-home-boards-picker__board .board-icon__info-size {
+  color: rgba(43, 52, 69, 0.6) !important;
+}
+
+/* --- Smooth category switching (SPA feel): the async grid reload would
+       collapse the layout to the tiny "Loading…" message and snap back open as
+       boards render. Reserve a row of height so the area stays put, and fade
+       the new boards in instead of popping. --- */
+.board-picker-page .md-home-boards-picker__grid-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 280px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .board-picker-page .md-home-boards-picker__board {
+    animation: bp-board-fade 260ms ease both;
+  }
+}
+@keyframes bp-board-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- Tabbed picker layout: tabs on top, board grid below as ~280px cards. --- */
+.board-picker-page .md-home-boards-picker__layout {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.5rem 2rem;
+  width: 100%;
+}
+.board-picker-page .md-home-boards-picker__layout--tabbed {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0;
+  /* ONE unified glass panel holding the tabs, description, and board content —
+     so the category browser reads as a single connected surface. */
+  padding: clamp(20px, 3vw, 36px);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 24px 64px rgba(15, 23, 42, 0.08),
+    0 10px 28px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.board-picker-page .md-home-boards-picker__layout--tabbed .md-home-boards-picker__content {
+  flex: 1 1 100%;
+  max-width: 100%;
+  width: 100%;
+  padding-top: 0;
+}
+.board-picker-page .md-home-boards-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-content: flex-start;
+  gap: 1.5rem;
+}
+.board-picker-page .md-home-boards-picker__board {
+  flex: 0 0 280px;
+  width: 280px;
+  max-width: 100%;
+}
+
+/* --- Gentle card hover-lift (premium, AAC-friendly: no scale/bounce/spring,
+       and only when the user hasn't requested reduced motion). --- */
+@media (prefers-reduced-motion: no-preference) {
+  .board-picker-page .md-home-boards-picker__board {
+    transition: transform 180ms ease;
+  }
+  .board-picker-page .md-home-boards-picker__board:hover {
+    transform: translateY(-3px);
+  }
 }
 
 /* ---------- Setup access step: two cards, modern radio options ---------- */
@@ -38214,26 +38623,64 @@ a.la-footer-bottom-a11y-wcag {
   align-items: flex-start;
   justify-content: center;
   overflow: hidden;
-  padding: 2.5rem 16px 2rem;
+  /* No top padding (the card sits up near the top); side + generous bottom only. */
+  padding: 0 16px clamp(2.5rem, 6vh, 4rem);
   width: 100%;
   box-sizing: border-box;
+  /* The warm atmospheric mesh lives on #content (the full-height scrollport) so
+     it fills the topbar/bottombar padding bands; this inner layer stays
+     transparent so there's one continuous background with no seam. */
+  background: transparent;
 
+  /* Orbs removed on the beta page: this inner box has `overflow: hidden`, so the
+     blurred orbs were clipped flat at its edge — painting a tinted rectangle
+     over the uniform #content mesh and creating the top/bottom seam. The mesh
+     alone carries the atmosphere now (single continuous background). */
   .la-bg-orbs {
-    display: block;
-    z-index: 0;
+    display: none;
   }
 }
 
 .beta-welcome-page__frame {
-  max-width: 720px;
+  /* Wider, more generous reading column for the premium feel. */
+  max-width: 760px;
+  box-sizing: border-box;
+  /* The single frosted-glass surface for the welcome screen — the card inside
+     is transparent and just supplies content padding, so THIS frame is the
+     visible glass container. No padding here (the card's padding insets the
+     content); the mesh frosts through the translucent veil + strong blur. */
+  border-radius: 36px;
+  /* Faint COOL tint (not pure white) so the frosted surface reads as a distinct
+     glass card over the near-white page instead of vanishing into it. Brighter
+     defined rim + stronger frost + deeper float shadow make the "glass" read. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(232, 239, 247, 0.40) 100%);
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 36px 90px rgba(15, 23, 42, 0.14),
+    0 14px 36px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .beta-welcome-card {
   margin-top: 0;
-  padding: $aac-spacing-28 $aac-spacing-32 $aac-spacing-32;
+  /* Transparent content wrapper — the outer .beta-welcome-page__frame is the
+     single glass surface now, so this card carries no surface of its own
+     (overrides the flat-white .register-card it inherits). It keeps its padding
+     and inner layout; the padding is what insets content from the glass edge. */
+  padding: $aac-spacing-32 clamp($aac-spacing-24, 5vw, 40px) $aac-spacing-40;
+  border-radius: 32px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
 
   .la-section-header {
-    margin-bottom: $aac-spacing-24;
+    /* More breathing room beneath the hero now the divider is gone. */
+    margin-bottom: $aac-spacing-32;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -38250,57 +38697,66 @@ a.la-footer-bottom-a11y-wcag {
     padding-bottom: 0;
   }
 
-  .la-hero-title {
-    text-align: center;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .la-about-hero-separator {
-    width: 100%;
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
   .la-section-eyebrow-badge {
     display: inline-block;
-    margin-bottom: $aac-spacing-12;
-    font-size: 14px;
+    margin-bottom: $aac-spacing-16;
+    /* 15px floor (not 14) so the uppercase, letter-spaced pill never reads
+       below the AAC minimum. */
+    font-size: 15px;
     font-weight: $aac-font-weight-semi;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #0d5c5f;
-    padding: 6px 14px;
+    padding: 7px 16px;
     border-radius: 999px;
+    /* Subtle glass glow around the pill (background/border come from the
+       shared eyebrow rule). */
+    box-shadow:
+      0 4px 16px rgba($brand-verdigris, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
   .la-hero-title {
-    font-size: 28px;
-
-    @media (max-width: 480px) {
-      font-size: 24px;
-    }
-  }
-
-  .la-about-hero-separator {
-    margin-bottom: $aac-spacing-16;
+    /* Larger, more cinematic serif headline — landing-page scale, light weight,
+       tight tracking, with a touch more line breathing room. clamp keeps it
+       graceful from phone to desktop. */
+    font-family: 'Maitree', serif;
+    font-size: clamp(32px, 5.5vw, 48px);
+    font-weight: normal;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+    color: $indigo;
+    text-align: center;
+    margin: 0 auto;
   }
 }
 
 .beta-welcome-card__subtitle {
-  margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.55;
-  color: #5a6578;
-  max-width: 36rem;
-  margin-left: auto;
-  margin-right: auto;
+  margin: $aac-spacing-16 auto 0;
+  /* Softer conversational subhead — relaxed leading, lighter ink. */
+  font-size: 17px;
+  line-height: 1.65;
+  font-weight: $aac-font-weight-regular;
+  color: rgba(45, 55, 72, 0.74);
+  max-width: 34rem;
+
+  /* "help shape what comes next." reuses the landing-alt "every student"
+     gradient (.hero-gradient = verdigris→dusty-denim clipped to text). Keep
+     it the same size/weight as the rest of the line — we only want the color,
+     not .hero-gradient's 1.155em bump. Forced onto its own centered row so the
+     gradient phrase always reads as a distinct second line. */
+  .hero-gradient {
+    font-size: inherit;
+    font-weight: inherit;
+    display: block;
+    width: fit-content;
+    margin: 0 auto;
+  }
 }
 
 .beta-welcome-body {
   text-align: left;
-  font-size: 1.05rem;
+  font-size: 14px;
   line-height: 1.6;
   color: #3d4654;
 
@@ -38310,15 +38766,20 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 .beta-welcome-intro {
-  margin-bottom: $aac-spacing-24;
-  padding: $aac-spacing-16 $aac-spacing-20;
-  border-radius: 14px;
+  /* Narrower, centered, conversational — relational not instructional. */
+  margin: 0 auto $aac-spacing-40;
+  max-width: 540px;
+  padding: $aac-spacing-20 $aac-spacing-28;
+  border-radius: 20px;
+  text-align: center;
+  /* Softer, more translucent tinted glass — barely-there, not a boxed panel. */
   background: linear-gradient(
     135deg,
-    rgba($brand-teal, 0.06) 0%,
-    rgba(58, 107, 199, 0.04) 100%
+    rgba($brand-verdigris, 0.05) 0%,
+    rgba($brand-dusty-denim, 0.035) 100%
   );
-  border: 1px solid rgba($brand-teal, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 
   p:last-child {
     margin-bottom: 0;
@@ -38326,60 +38787,124 @@ a.la-footer-bottom-a11y-wcag {
 }
 
 .beta-welcome-section {
-  margin-bottom: $aac-spacing-28;
+  /* Intentional rhythm — generous breathing room BEFORE each major section so
+     the page pauses between ideas (landing-page pacing), while internal groups
+     (grids/timeline) stay tight. */
+  margin-bottom: clamp(48px, 7vh, 72px);
 
   &--feedback {
-    margin-bottom: $aac-spacing-20;
+    margin-bottom: $aac-spacing-24;
   }
 }
 
 .beta-welcome-section__title {
   font-family: 'Maitree', serif;
-  font-size: 1.25rem;
+  /* Refined editorial heading — serif, light weight (already below 'bold'),
+     tighter tracking for the premium SaaS feel. Hierarchy comes from spacing +
+     the serif contrast, not heavy weight. */
+  font-size: 20px;
   font-weight: normal;
   color: $indigo;
-  margin: 0 0 $aac-spacing-16;
-  letter-spacing: -0.01em;
+  margin: 0 0 $aac-spacing-20;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
 }
 
 .beta-welcome-feature-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: $aac-spacing-16;
+  gap: $aac-spacing-20;
   margin: 0;
 }
 
 .beta-welcome-feature-card {
+  position: relative;
   text-align: left;
-  padding: $aac-spacing-20 $aac-spacing-16;
-  border-radius: 18px;
-  border: 1px solid rgba($indigo, 0.08);
-  background: #fff;
+  padding: $aac-spacing-28 $aac-spacing-24;
+  border-radius: 22px;
+  /* Elevated glass surface (no hard gray outline) — onboarding pathway card.
+     Subtle top-to-bottom surface gradient + bright top-edge light + airy
+     layered shadow so it reads like the floating internal app surfaces. */
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.82));
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.04);
+    0 18px 40px rgba(15, 23, 42, 0.06),
+    0 6px 18px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+
+  /* Icon sits beside the heading (not stacked above it). */
+  .beta-welcome-feature-card__head {
+    display: flex;
+    align-items: center;
+    gap: $aac-spacing-16;
+    margin: 0 0 $aac-spacing-16;
+  }
 
   h4 {
-    margin: 0 0 $aac-spacing-8;
-    font-size: 1.1rem;
+    margin: 0;
+    font-size: clamp(19px, 2.6vw, 22px);
     font-weight: $aac-font-weight-semi;
     color: $indigo;
+    line-height: 1.25;
   }
 
   p {
     margin: 0;
-    font-size: 1rem;
-    line-height: 1.55;
+    font-size: 14px;
+    line-height: 1.6;
     color: #5a6578;
   }
 
+  /* Richer gradient icon tile — deeper tint, softer edge sheen, more glow. */
   .la-feature-icon {
-    width: 52px;
-    height: 52px;
-    margin: 0 0 $aac-spacing-12;
-    border-radius: 14px;
-    font-size: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    margin: 0;
+    flex-shrink: 0;
+    border-radius: 18px;
+    font-size: 30px;
+    background: linear-gradient(135deg, rgba($brand-verdigris, 0.20), rgba($brand-dusty-denim, 0.12));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 8px 20px rgba($brand-verdigris, 0.16);
   }
+  .la-feature-icon--navy {
+    background: linear-gradient(135deg, rgba($brand-dusty-denim, 0.20), rgba($la-navy, 0.12));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 8px 20px rgba($brand-dusty-denim, 0.16);
+  }
+}
+
+/* Featured card — brighter surface and soft teal glow for visual emphasis
+   only (no interactive lift): it highlights the primary "explore" message
+   without implying a clickable action. */
+.beta-welcome-feature-card--featured {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(236, 248, 246, 0.82));
+  border-color: rgba($brand-verdigris, 0.32);
+  box-shadow:
+    0 18px 48px rgba($brand-verdigris, 0.16),
+    0 8px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* Weekly-missions card — same elevated tinted surface as the featured card,
+   in a softer bluish-purple (brand lavender blended toward denim). Tint and
+   glow are dialed down so it reads quieter than the teal "Speak" card.
+   Visual emphasis only (no lift). */
+.beta-welcome-feature-card--missions {
+  $missions-accent: color.mix($brand-dusty-denim, $brand-right-logo, 45%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 241, 251, 0.6));
+  border-color: rgba($missions-accent, 0.22);
+  box-shadow:
+    0 18px 48px rgba($missions-accent, 0.10),
+    0 8px 24px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .beta-welcome-steps {
@@ -38388,31 +38913,72 @@ a.la-footer-bottom-a11y-wcag {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: $aac-spacing-14;
+  gap: $aac-spacing-24;
+  position: relative;
+}
+/* Connected progression — a soft gradient line down the number column (low
+   opacity, not a hard border). Inset to span first→last badge centers; the
+   opaque badges sit on top so it reads as connected steps. */
+.beta-welcome-steps::before {
+  content: '';
+  position: absolute;
+  /* Aligned to the centre of the 36px number circles. */
+  left: 18px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba($brand-verdigris, 0.40) 0%,
+    rgba($brand-dusty-denim, 0.20) 100%
+  );
+  /* Whisper-faint connector — guides the eye without reading as a border. */
+  opacity: 0.18;
+  border-radius: 999px;
+  pointer-events: none;
 }
 
 .beta-welcome-steps__item {
   display: flex;
   align-items: flex-start;
+  /* Pull the text closer to the timeline (was 16) so it reads as one fluid
+     unit, not a rigid two-column grid. */
   gap: $aac-spacing-14;
-  padding: $aac-spacing-16;
-  border-radius: 14px;
-  background: #f8fafc;
-  border: 1px solid rgba($la-navy, 0.06);
+  /* Lighter — no heavy boxed container; the timeline + spacing carry it. */
+  padding: 0;
+  background: transparent;
+  border: 0;
+  position: relative;
 }
 
 .beta-welcome-steps__num {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  /* Smaller, more elegant circles (was 42px) — less dominant in the column. */
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 1rem;
+  font-size: 16px;
   font-weight: $aac-font-weight-bold;
-  color: #fff;
-  background: linear-gradient(145deg, $brand-teal 0%, $brand-smart-blue 100%);
-  box-shadow: 0 2px 8px rgba($brand-teal, 0.35);
+  /* Dark numerals on a light glass badge — high contrast, crisp look. */
+  color: $indigo;
+  /* Glassmorphism disc — a bright specular sheen over a translucent denim→
+     verdigris tint, frosted backdrop, crisp light rim, and layered inner
+     highlight + colored under-glow so the circles read like polished glass. */
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.28) 100%);
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 6px 16px rgba($brand-dusty-denim, 0.20),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -4px 8px rgba($brand-verdigris, 0.16);
+  position: relative;
+  z-index: 1;
 }
 
 .beta-welcome-steps__content {
@@ -38421,70 +38987,206 @@ a.la-footer-bottom-a11y-wcag {
 
   strong {
     display: block;
-    font-size: 1.08rem;
+    font-size: 16px;
     color: $indigo;
     margin-bottom: 4px;
   }
 
   p {
     margin: 0;
-    font-size: 1rem;
+    font-size: 14px;
     color: #5a6578;
     line-height: 1.55;
   }
 }
 
-.beta-welcome-signoff {
-  margin: 0;
-  padding-top: $aac-spacing-8;
-  font-size: 1.05rem;
-  color: #3d4654;
+/* Emotional intro framing for the participation section — centered and
+   conversational, sets the "you're shaping this" tone before the checklist. */
+.beta-welcome-feedback__intro {
+  max-width: 560px;
+  margin: 0 auto $aac-spacing-28;
   text-align: center;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #4a5568;
 }
 
-.beta-welcome-signoff__team {
+/* Mission checklist — reuses the landing-alt plan-item card + check icon
+   styling (.la-plan-item / .la-plan-check) for a consistent look, laid out as
+   a calm single-column list. No hover effect here: this is an informational
+   checklist, not an interactive surface (landing-alt keeps its own hover). */
+.beta-welcome-missions {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: $aac-spacing-12;
+
+  /* Neutralize the shared .la-plan-item hover lift in this context only —
+     reset to its own resting shadow so the cards stay static. */
+  .la-plan-item:hover {
+    transform: none;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+}
+
+/* "We're listening" community panel — premium centered glass with a soft
+   verdigris/denim mesh glow; replaces the old generic thank-you signoff. */
+.beta-welcome-listening {
+  position: relative;
+  max-width: 580px;
+  margin: clamp(40px, 6vh, 64px) auto 0;
+  padding: $aac-spacing-40 $aac-spacing-40;
+  border-radius: 24px;
+  text-align: center;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 130% at 18% 0%, rgba($brand-verdigris, 0.12) 0%, rgba($brand-verdigris, 0) 55%),
+    radial-gradient(120% 130% at 85% 100%, rgba($brand-dusty-denim, 0.10) 0%, rgba($brand-dusty-denim, 0) 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.90), rgba(248, 250, 252, 0.82));
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.07),
+    0 8px 22px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.beta-welcome-listening__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: $aac-spacing-8;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: $aac-font-weight-semi;
+  letter-spacing: 0.01em;
+  color: #0d5c5f;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.16), rgba($la-teal, 0.12));
+  border: 1px solid rgba($brand-verdigris, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  /* Badge owns the gap to the message below it. */
+  margin-bottom: $aac-spacing-32;
+}
+
+/* Small "live" dot — signals an open, listening channel. */
+.beta-welcome-listening__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.16);
+}
+
+.beta-welcome-listening__body {
+  /* Full-width centered (no narrow inner column) — badge owns the top gap. */
+  margin: 0 auto $aac-spacing-20;
+  font-size: 15px;
+  line-height: 1.75;
+  color: #3d4654;
+}
+
+.beta-welcome-listening__hint {
+  margin: 0 auto;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #6b7688;
+}
+
+/* Right-aligned closing signature with a leading em-dash (added decoratively
+   so the translatable team name stays clean). */
+.beta-welcome-listening__team {
   display: block;
-  margin-top: $aac-spacing-8;
+  margin-top: $aac-spacing-32;
+  font-size: 14px;
   font-weight: $aac-font-weight-semi;
   color: $indigo;
+  text-align: right;
+
+  &::before {
+    content: '— ';
+  }
 }
 
 .beta-welcome-actions {
   margin-top: $aac-spacing-24;
   padding-top: $aac-spacing-8;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
 
+  /* Brand-slate-blue Next button (scoped — the shared .register-btn stays
+     charcoal everywhere else). White text keeps ~5.5:1 contrast. */
   .register-btn {
     min-width: 12rem;
     padding-left: 2rem;
     padding-right: 2rem;
+    background: $brand-slate-blue;
+
+    &:hover:not(:disabled):not(.register-btn--disabled) {
+      background: color.adjust($brand-slate-blue, $lightness: 8%);
+    }
   }
 }
 
 .beta-welcome-lead {
-  font-size: 1.08rem;
-  color: #3d4654;
-  margin-bottom: $aac-spacing-20;
+  font-size: 15px;
+  line-height: 1.65;
+  color: #4a5568;
+  margin-bottom: $aac-spacing-24;
 }
 
+/* Each agreement section is a translucent glass card (same family as the
+   message page's feature/listening cards) for the modern sectioned rhythm —
+   kept light enough that the frosted panel reads through between blocks. */
 .beta-welcome-agreement-block {
-  margin-bottom: $aac-spacing-24;
+  margin-bottom: $aac-spacing-20;
+  padding: $aac-spacing-24;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(248, 250, 252, 0.54));
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 14px 36px rgba(15, 23, 42, 0.05),
+    0 6px 16px rgba(15, 23, 42, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 
   &:last-child {
+    margin-bottom: 0;
+  }
+
+  .beta-welcome-section__title {
+    margin-bottom: $aac-spacing-12;
+  }
+
+  p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #3d4654;
+  }
+
+  p:last-child {
     margin-bottom: 0;
   }
 }
 
 .beta-welcome-list {
-  margin: 0 0 $aac-spacing-12;
+  margin: 0;
   padding-left: 1.25rem;
 
   li {
-    margin-bottom: $aac-spacing-10;
-    line-height: 1.55;
-    font-size: 1.02rem;
+    margin-bottom: $aac-spacing-12;
+    line-height: 1.6;
+    font-size: 15px;
     color: #3d4654;
+
+    &::marker {
+      color: $brand-verdigris;
+    }
 
     &:last-child {
       margin-bottom: 0;
@@ -38502,37 +39204,44 @@ a.la-footer-bottom-a11y-wcag {
   display: flex;
   gap: $aac-spacing-14;
   align-items: flex-start;
-  padding: $aac-spacing-16 $aac-spacing-20;
-  border-radius: 16px;
-  margin-bottom: $aac-spacing-24;
+  padding: $aac-spacing-20 $aac-spacing-24;
+  border-radius: 20px;
+  margin-bottom: $aac-spacing-20;
+  /* Glass backdrop + lift to match the card family; the safety tint still
+     carries the warning color so it stands apart from the neutral blocks. */
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow:
+    0 14px 36px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
   &--safety {
     background: linear-gradient(
       135deg,
-      rgba(240, 106, 91, 0.08) 0%,
-      rgba(255, 193, 7, 0.06) 100%
+      rgba(240, 106, 91, 0.10) 0%,
+      rgba(255, 193, 7, 0.07) 100%
     );
-    border: 1px solid rgba(240, 106, 91, 0.22);
+    border: 1px solid rgba(240, 106, 91, 0.26);
   }
 }
 
 .beta-welcome-callout__icon {
   flex-shrink: 0;
-  font-size: 1.5rem;
+  font-size: 24px;
   line-height: 1;
 }
 
 .beta-welcome-callout__title {
   margin: 0 0 $aac-spacing-8;
-  font-size: 1.12rem;
+  font-size: 20px;
   font-weight: $aac-font-weight-semi;
   color: $indigo;
 }
 
 .beta-welcome-callout__content p {
   margin: 0;
-  font-size: 1.02rem;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.6;
   color: #3d4654;
 }
 
@@ -38540,15 +39249,16 @@ a.la-footer-bottom-a11y-wcag {
   flex-shrink: 0;
   margin-top: $aac-spacing-16;
   padding-top: $aac-spacing-16;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.85) 12%);
+  /* Transparent on the beta-welcome page so the glass panel shows through
+     (no separate white surface or divider behind the accept + Get Started). */
+  background: transparent;
 }
 
 .beta-welcome-accept {
   margin-bottom: $aac-spacing-12;
 
   .big_checkbox label {
-    font-size: 1.02rem;
+    font-size: 15px;
     line-height: 1.45;
     color: #3d4654;
   }
