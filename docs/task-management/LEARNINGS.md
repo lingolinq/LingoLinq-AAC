@@ -2522,3 +2522,29 @@ when you change a positioned element's `position` responsively, check whether an
 **Fix recipe:** After lookup, `sort_by { |r| ids.index(r.global_id) || ids.length }` (see `Board.long_query`, `Board#known_button_images`). For specs comparing sorted `global_id` lists, sort **both** sides — lexicographic sort puts `"1_1000"` before `"1_999"`.
 
 **Evidence:** `app/models/concerns/global_id.rb:108-174`, `app/models/board.rb#known_button_images`; task log `2026-05-29-spec-ordering-flakes.md`.
+
+---
+
+## Pattern: Org/room reports read from WeeklyStatsSummary, not raw logs
+
+**Surface:** seed/demo data, org portal reports, room (OrganizationUnit) stats.
+
+**Root cause:** `Organization.usage_stats` (used by the org portal AND `units_controller#stats`) sources word clouds / total words / modeled words from `WeeklyStatsSummary` rows over an **8-week** window; only the session timeline comes from raw `LogSession` (4 months), and room `user_weeks` from raw logs (12 weeks). `LogSession` schedules summary builds **async** (`after_save :schedule_summary`), so freshly-created logs have no summaries until a worker runs. `lib/seed_reporting_logs.rb` actively *deletes* summaries (fine for the individual `/user/stats` page, which recomputes live, but leaves org/room reports empty).
+
+**Fix recipe:** After seeding sessions, build summaries synchronously: collect distinct weekyears via `WeeklyStatsSummary.date_to_weekyear(started_at.utc.beginning_of_week(:sunday))` and call `WeeklyStatsSummary.update_now(user_id, weekyear)` per week. For supervisor modeling frequency in room reports, seed `daily_use` logs (`LogSession.process_daily_use`) with `models`/`modeled` per `DAILY_EVENT_TYPES`.
+
+**Gotcha:** `UserLink.links_for(record)` caches in Redis keyed by `record.updated_at`. `OrganizationUnit#assert_supervision!` reads `links_for(self)`; each `add_supervisor`/`add_communicator` bumps the unit's `updated_at` via `UserLink#touch_connections` but only in the DB. Reload the unit (`unit.reload`) before `assert_supervision!` or it reads a stale empty link set and wires nothing.
+
+**Evidence:** `app/models/organization.rb:1085` (`usage_stats`), `app/controllers/api/units_controller.rb:68` (`stats`), `app/models/log_session.rb:18,883`, `app/models/weekly_stats_summary.rb:192,197`, `app/models/user_link.rb:19,94`; impl `lib/seed_organization.rb` (`seed_room`, `seed_communicator_history`).
+
+---
+
+## Gotcha: organizations.admin has a UNIQUE index — normal orgs must be NULL
+
+**Symptom:** `PG::UniqueViolation ... index_organizations_on_admin ... Key (admin)=(f) already exists` when seeding a second org.
+
+**Root cause:** `t.index ["admin"], unique: true` (`db/schema.rb`). Postgres unique indexes allow unlimited NULLs but only one row per concrete value: `admin = true` is the single super-admin org, and `admin = false` is a *second* singleton slot already claimed by the demo org from `db/seeds.rb`. Every normal/seeded district must use `admin = nil`.
+
+**Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
+
+**Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.
