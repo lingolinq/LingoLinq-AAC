@@ -2690,3 +2690,22 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Footer note:** `.page-footer` is `display:none` everywhere except landing-alt (rules ~378/382) but KEPT in the DOM because the whole shell layout keys off `:has(.page-footer)`. A `display:none` footer still matches `:has()`. Don't remove the element to "hide the footer" — you'll break the scroll layout app-wide.
 
 **Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`.
+
+---
+
+## Pattern: admin-report spec asserting `strftime('%m-%Y')` against `Time.now` — month-boundary flake (not a format bug)
+
+**Surface:** specs that build an expected timestamp with `ts = Time.now.strftime('%m-%Y')` (or any date granularity) AFTER creating records, then compare against output the implementation derived from `record.created_at`. Presents as a CI failure that "can't be reproduced locally" — e.g. `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, with labels/counts matching exactly and only the month differing.
+
+**Root cause:** two independent clock reads. The record's `created_at` is stamped at creation; the test's `Time.now` is read later. If those two instants land in different periods (the suite running across a midnight/month rollover — 5000+ examples take minutes, so it happens), the formatted strings disagree. The implementation is correct; the TEST is non-deterministic.
+
+**Anti-fix to reject:** "compute `ts` differently / before the call." If `ts` still comes from `Time.now`, the two-reads race remains. Reordering hash keys does nothing — Ruby `eq` ignores order.
+
+**Fix:** freeze the clock so creation and assertion share one instant. Scope `include ActiveSupport::Testing::TimeHelpers` to the example group (NOT global `spec_helper.rb` — it's not wired in by default; rspec-rails doesn't auto-include it) and wrap the body in `travel_to(Time.now) do ... end`. `travel_to` patches `Time.now`, `Time.current`, and `Date.today` consistently, so AR timestamps and the assertion agree by construction.
+
+**Codebase gotchas surfaced en route:**
+- Local specs can fail to LOAD with `ActiveRecord::PendingMigrationError` (whole file errors, looks like "all tests failing"). CI uses `db:schema:load` (`.github/workflows/ci.yml`) so CI won't hit it — it's local-only; run `RAILS_ENV=test rails db:migrate`.
+- `RAILS_ENV=test rails db:migrate` can rewrite `db/schema.rb` with a cosmetic index `WHERE`-clause re-serialization (`ARRAY[...]` predicate) — a Postgres-version artifact, not a real change. Revert it (`git checkout db/schema.rb`).
+- Always demand the real CI log before fixing a "format mismatch" — the diff (`expected`/`got`) is the decisive evidence; a plausible theory was wrong here.
+
+**Evidence:** task log `2026-06-01-admin-reports-timestamp-month-boundary-flake.md`.
