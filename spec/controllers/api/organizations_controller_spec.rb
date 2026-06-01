@@ -908,11 +908,6 @@ describe Api::OrganizationsController, :type => :controller do
   end
   
   describe "admin_reports" do
-    # Reports group AuditEvents by the month of created_at; freezing the clock keeps
-    # event creation and the expected timestamp on the same instant so the suite can't
-    # flake when it runs across a month boundary (e.g. May 31 -> June 1).
-    include ActiveSupport::Testing::TimeHelpers
-
     it "should require api token" do
       get :admin_reports, params: {:organization_id => '1_1234'}
       assert_missing_token
@@ -952,24 +947,23 @@ describe Api::OrganizationsController, :type => :controller do
     end
     
     it "should generate a report for premium_voices" do
-      travel_to(Time.now) do
-        token_user
-        o = Organization.create(:admin => true)
-        o.add_manager(@user.user_name, false)
-        ae1 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asd', 'system' => 'Android'})
-        ae2 = AuditEvent.create(:data => {'voice_id' => 'asd'})
-        ae3 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asd'})
-        ae4 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asdf'})
-        get :admin_reports, params: {:organization_id => o.global_id, :report => "premium_voices"}
-        expect(response).to be_successful
-        json = JSON.parse(response.body)
-        ts = Time.now.strftime('%m-%Y')
-        expect(json['stats']).to eq({
-          "#{ts} asd iOS" => 1,
-          "#{ts} asd Android" => 1,
-          "#{ts} asdf iOS" => 1
-        })
-      end
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, false)
+      ae1 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asd', 'system' => 'Android'})
+      ae2 = AuditEvent.create(:data => {'voice_id' => 'asd'})
+      ae3 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asd'})
+      ae4 = AuditEvent.create(:event_type => 'voice_added', :data => {'voice_id' => 'asdf'})
+      get :admin_reports, params: {:organization_id => o.global_id, :report => "premium_voices"}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
+      expect(json['stats']).to eq({
+        "#{ae3.created_at.strftime('%m-%Y')} asd iOS" => 1,
+        "#{ae1.created_at.strftime('%m-%Y')} asd Android" => 1,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf iOS" => 1
+      })
     end
     
     it "should not work on non-admin orgs" do
@@ -1077,23 +1071,22 @@ describe Api::OrganizationsController, :type => :controller do
     # end
 
     it "should generate extras report" do
-      travel_to(Time.now) do
-        token_user
-        o = Organization.create(:admin => true)
-        o.add_manager(@user.user_name, false)
-        ae1 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asd'})
-        ae2 = AuditEvent.create(:data => {'source' => 'asd'})
-        ae3 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asd'})
-        ae4 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asdf'})
-        get :admin_reports, params: {:organization_id => o.global_id, :report => "extras"}
-        expect(response).to be_successful
-        json = JSON.parse(response.body)
-        ts = Time.now.strftime('%m-%Y')
-        expect(json['stats']).to eq({
-          "#{ts} asd" => 2,
-          "#{ts} asdf" => 1
-        })
-      end
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, false)
+      ae1 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asd'})
+      ae2 = AuditEvent.create(:data => {'source' => 'asd'})
+      ae3 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asd'})
+      ae4 = AuditEvent.create(:event_type => 'extras_added', :data => {'source' => 'asdf'})
+      get :admin_reports, params: {:organization_id => o.global_id, :report => "extras"}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
+      expect(json['stats']).to eq({
+        "#{ae1.created_at.strftime('%m-%Y')} asd" => 2,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf" => 1
+      })
     end
     
     it "should generate new_users report" do

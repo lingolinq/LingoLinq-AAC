@@ -2693,20 +2693,27 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 
 ---
 
-## Pattern: admin-report spec asserting `strftime('%m-%Y')` against `Time.now` — month-boundary flake (not a format bug)
+## Pattern: spec re-reading `Time.now` to rebuild a value the implementation stamped earlier — clock-boundary flake (NOT a format bug, and do NOT fix with `travel_to`)
 
-**Surface:** specs that build an expected timestamp with `ts = Time.now.strftime('%m-%Y')` (or any date granularity) AFTER creating records, then compare against output the implementation derived from `record.created_at`. Presents as a CI failure that "can't be reproduced locally" — e.g. `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, with labels/counts matching exactly and only the month differing.
+**Surface:** a spec creates records (or schedules a job), then rebuilds an expected string from a SECOND `Time.now` read and compares it to output the implementation derived from the FIRST read. Two seen 2026-06-01:
+- `admin_reports` (`organizations_controller_spec`): `ts = Time.now.strftime('%m-%Y')` vs report keys built from `event.created_at`. CI: `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, labels/counts matching, only the month differing.
+- transcoding (`callbacks_controller_spec`): `prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s` vs the prefix `media_object#schedule_transcoding` already scheduled using its own `Time.now.to_i`. CI: `Worker.scheduled?(...)` got `false` (a 1-SECOND boundary is enough).
 
-**Root cause:** two independent clock reads. The record's `created_at` is stamped at creation; the test's `Time.now` is read later. If those two instants land in different periods (the suite running across a midnight/month rollover — 5000+ examples take minutes, so it happens), the formatted strings disagree. The implementation is correct; the TEST is non-deterministic.
+**Root cause:** two independent clock reads. The first is stamped at create/schedule time; the test's is read later (after the HTTP request, which takes real time). When they land in different periods (month rollover, or just a 1s tick — a 5000+ example suite takes minutes, so it happens) the strings disagree. The implementation is correct; the TEST is non-deterministic.
 
-**Anti-fix to reject:** "compute `ts` differently / before the call." If `ts` still comes from `Time.now`, the two-reads race remains. Reordering hash keys does nothing — Ruby `eq` ignores order.
+**Anti-fix to reject #1:** "compute the timestamp differently / before the call." If it still comes from a separate `Time.now`, the two-reads race remains. Reordering hash keys does nothing — Ruby `eq` ignores order.
 
-**Fix:** freeze the clock so creation and assertion share one instant. Scope `include ActiveSupport::Testing::TimeHelpers` to the example group (NOT global `spec_helper.rb` — it's not wired in by default; rspec-rails doesn't auto-include it) and wrap the body in `travel_to(Time.now) do ... end`. `travel_to` patches `Time.now`, `Time.current`, and `Date.today` consistently, so AR timestamps and the assertion agree by construction.
+**Anti-fix to reject #2 — `travel_to` / freezing the clock (tried 2026-06-01, REGRESSED).** Wrapping the body in `travel_to(Time.now)` makes auth fail with `400 Not authorized`. Why: `allowed?(org,'edit')` resolves org-manager permission through `UserLink.links_for`, whose Redis cache key is `links/for/<code>/<record.updated_at.to_f.round(3)>`. Freezing time pins `updated_at`, so the empty link set cached at instant T is NOT invalidated when `add_manager` writes the link (its `updated_at` touch also lands on T) → stale "no manager" → 401/400. **This codebase relies on `updated_at` actually ADVANCING between writes to bust caches; never freeze the clock around code that reads permission/link caches.** (Same family as the `links_for`/`updated_at` reload gotcha elsewhere in this doc.)
+
+**Correct fix — bind the expectation to the source of truth, never read the clock twice:**
+- Report-by-month: build the expected key from the event's OWN `created_at`, e.g. `"#{ae3.created_at.strftime('%m-%Y')} asd iOS"`. The report groups by `event.created_at`, so this is exactly right and deterministic.
+- Scheduled-job prefix: read the actual scheduled args back instead of recomputing — `action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder','convert_audio', bs.global_id] }; prefix = action['args'][3]`. `Worker`/`scheduled_actions` come from the `boy_band` gem; an action is `{'class'=>'Worker','args'=>[klass, method, *args]}`.
 
 **Codebase gotchas surfaced en route:**
-- Local specs can fail to LOAD with `ActiveRecord::PendingMigrationError` (whole file errors, looks like "all tests failing"). CI uses `db:schema:load` (`.github/workflows/ci.yml`) so CI won't hit it — it's local-only; run `RAILS_ENV=test rails db:migrate`.
+- Local specs can fail to LOAD with `ActiveRecord::PendingMigrationError` (whole file errors, looks like "all tests failing"). CI uses `db:schema:load` (`.github/workflows/ci.yml`) so CI won't hit it — local-only; run `RAILS_ENV=test rails db:migrate`.
 - `RAILS_ENV=test rails db:migrate` can rewrite `db/schema.rb` with a cosmetic index `WHERE`-clause re-serialization (`ARRAY[...]` predicate) — a Postgres-version artifact, not a real change. Revert it (`git checkout db/schema.rb`).
-- Always demand the real CI log before fixing a "format mismatch" — the diff (`expected`/`got`) is the decisive evidence; a plausible theory was wrong here.
+- `callbacks_controller_spec.rb:5` ("invalid arn") stubs `ENV` with `expect(ENV).to receive(:[]).with("SNS_ARNS")`; that strict mock fails when Rack reads `RACK_MULTIPART_BUFFERED_UPLOAD_BYTESIZE_LIMIT` during `post`. Fails when the file runs ALONE, passes in the full CI order — a pre-existing isolation quirk, not a real CI failure.
+- Always demand the real CI log before fixing a "format mismatch" — the `expected`/`got` diff is the decisive evidence; a plausible theory was wrong here twice.
 
 **Evidence:** task log `2026-06-01-admin-reports-timestamp-month-boundary-flake.md`.
 
