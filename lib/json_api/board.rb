@@ -87,6 +87,14 @@ module JsonApi::Board
     # that becomes an N+1 across a MAX_TREE-node tree (RCA 2026-05-24, issue
     # #286). Prefetch is only a cache warm; the full per-board endpoint
     # refills parent linkage when the user actually navigates into a board.
+    # CONTRACT (issue #293): the non-lite path below ALWAYS sets
+    # json['parent_board_id'] (to null when there is no parent). The Ember
+    # client (Board#reload_if_lite) keys on parent_board_id === undefined to
+    # detect a lite-sourced record and trigger a refetch in the share/details
+    # modals. Do not make this key conditional on having a parent, or the
+    # client can no longer distinguish "lite, not yet loaded" from "fully
+    # loaded, genuinely no parent" and will either refetch on every modal open
+    # or miss the refetch entirely.
     unless args[:as_lite]
       self.trace_execution_scoped(['json/board/parent_board']) do
         parent_board = nil

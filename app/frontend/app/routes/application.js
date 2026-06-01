@@ -80,6 +80,20 @@ export default Route.extend({
     obf.register_services(this.appState);
 
     this.appState.setup_controller(this, controller);
+    runLater(function() {
+      try {
+        var seen = localStorage.getItem('lingolinq_beta_onboarding_seen');
+        var appState = controller.get('appState');
+        var u = appState && (appState.get('sessionUser') || appState.get('currentUser'));
+        if (!seen && u && appState.get('beta_program_access')) {
+          modal.open('beta-onboarding-modal').then(function() {
+            try {
+              localStorage.setItem('lingolinq_beta_onboarding_seen', 'true');
+            } catch(e) { /* ignore */ }
+          }, function() { });
+        }
+      } catch(e) { /* ignore */ }
+    }, 500);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },

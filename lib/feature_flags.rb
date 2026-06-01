@@ -25,6 +25,7 @@ module FeatureFlags
               'tarheel_reader', 'auth_spa_transition', 'google_sso', 'quick_screen_eval',
               'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu',
               'home_tour', 'paste_html_import', 'catalog_board_prefetch',
+              'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
@@ -39,6 +40,7 @@ module FeatureFlags
               'customize_menu', # TEMPORARY: ON for everyone during testing — remove from this list when moving to beta-opt-in (see comment above AVAILABLE_FRONTEND_FEATURES)
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): ON for everyone so Traci can view the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. REMOVE from this list before merging out of traci/styling/styling-updates — canonical state is AVAILABLE-only (beta opt-in per user).
+              'background_board_prefetch',
               'signup_default_library_boards']
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {

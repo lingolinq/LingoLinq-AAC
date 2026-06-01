@@ -1033,7 +1033,22 @@ export default Controller.extend({
       this.send('switch_communicators', {modeling: (type == 'modeling'), stay: true, header: prompt});
     },
     toggleSpeakMode: function(decision) {
-      this.appState.toggle_speak_mode(decision);
+      var appState = this.appState;
+      var routeName = appState.get('router.currentRouteName') || '';
+      var onBoardDetail = routeName.indexOf('board-detail') !== -1 && routeName.indexOf('.edit') === -1;
+      var exiting = appState.get('speak_mode') && decision !== 'off';
+      if(onBoardDetail && !exiting && appState.speak_mode_exit_pin_required()) {
+        exiting = true;
+      }
+      if(onBoardDetail && exiting) {
+        var detailCtrl = getOwner(this).lookup('controller:user.board-detail') ||
+          getOwner(this).lookup('controller:user/board-detail');
+        if(detailCtrl) {
+          detailCtrl.send('exit_to_home');
+          return;
+        }
+      }
+      appState.toggle_speak_mode(decision);
     },
     startRecording: function() {
       // currently-speaking user must have active paid subscription to do video recording
@@ -1043,7 +1058,7 @@ export default Controller.extend({
     },
     toggleEditMode: function(decision) {
       if(!this.appState.get('edit_mode')) {
-        if(this.appState.get('speak_mode') && this.appState.get('currentUser.preferences.require_speak_mode_pin') && this.appState.get('currentUser.preferences.speak_mode_pin')) {
+        if(this.appState.speak_mode_exit_pin_required()) {
           modal.open('speak-mode-pin', {actual_pin: this.appState.get('currentUser.preferences.speak_mode_pin'), action: 'edit', hide_hint: this.appState.get('currentUser.preferences.hide_pin_hint')});
         } else {
           this.appState.toggle_edit_mode(decision);

@@ -40,7 +40,7 @@
         {{#if this.show_pin}}
           PIN: {{ this.model.actual_pin }}
         {{else}}
-          <a href="#" {{action "reveal_pin" on="click"}}>touch here to show the PIN</a>
+          <a href="#" {{action "reveal_pin" on="click"}}>{{t "Reveal PIN" key="pin_reveal_pin"}}</a>
         {{/if}}
       {{/unless}}
     </div>
