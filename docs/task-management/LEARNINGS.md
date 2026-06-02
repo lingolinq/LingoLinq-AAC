@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
 - [Pattern: button_set per-button locale can stale — translate modal must use board locale](#pattern-button_set-per-button-locale-can-stale--translate-modal-must-use-board-locale)
@@ -114,6 +115,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Flags:** Phase 1 (home) is unconditional; phases 2–4 run when `background_board_prefetch` is enabled (shipped in `ENABLED_FRONTEND_FEATURES`). Phase 4 also honors legacy `catalog_board_prefetch`.
 
 **First seen in:** [2026-05-30-phased-online-board-caching.md](./2026-05-30-phased-online-board-caching.md)
+
+## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
+
+**Surface:** fast online navigation cache in [`board_detail_cache.js`](../../app/frontend/app/utils/board_detail_cache.js).
+
+Supervisor caseload warming should call the existing phased `_run_prefetch_pipeline` for supervisee user records. Keep it online-only, visible-tab-only, bounded, and deduped per supervisor/supervisee pair; do not change `persistence.sync_boards` unless the request is specifically about persistent offline availability.
+
+**Gotcha:** supervisee summaries from `currentUser.supervisees` may only contain ids/user names. Load the full `user` record before planning roots when possible, then fall back to a summary wrapper.
+
+**First seen in:** [2026-06-02-supervisor-caseload-session-prefetch.md](./2026-06-02-supervisor-caseload-session-prefetch.md)
 
 ## Pattern: encrypted buttonset JSON cache must carry parsed payloads
 

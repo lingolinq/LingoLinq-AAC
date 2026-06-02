@@ -146,9 +146,7 @@ export default Service.extend({
         if (document.hidden || _this.isDestroyed || _this.isDestroying) { return; }
         if (!_this.get('persistence.online')) { return; }
         var user = _this.get('currentUser');
-        if (user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
-          try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
-        }
+        _this.prefetch_board_details_for_user(user);
       });
     }
     // Defer refresh timers to ensure all services are initialized
@@ -2599,17 +2597,23 @@ export default Service.extend({
     // per user id, so this observer firing repeatedly during session
     // restore only triggers one prefetch.
     var user = this.get('currentUser');
-    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
-      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
-    }
+    this.prefetch_board_details_for_user(user);
   }),
   on_online_board_prefetch: observer('persistence.online', function() {
     if(!this.get('persistence.online')) { return; }
     var user = this.get('currentUser');
-    if(user && user.get && user.get('id') && boardDetailCache && boardDetailCache.prefetch_for_user) {
-      try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
-    }
+    this.prefetch_board_details_for_user(user);
   }),
+  prefetch_board_details_for_user: function(user) {
+    if(user && user.get && user.get('id') && boardDetailCache) {
+      if(boardDetailCache.prefetch_for_user) {
+        try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+      }
+      if(boardDetailCache.prefetch_caseload_for_user) {
+        try { boardDetailCache.prefetch_caseload_for_user(user); } catch(e) { /* non-critical */ }
+      }
+    }
+  },
   speak_mode_handlers: observer(
     'speak_mode',
     'currentUser.id',
