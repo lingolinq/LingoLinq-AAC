@@ -79,8 +79,12 @@ function defaultActiveSidebarBoards(defaults) {
   });
 }
 
-function sidebarAutoAddKeys() {
-  return ['lingolinq/crisis-vocabulary'];
+function sidebarAutoAddKeys(defaults) {
+  return (defaults || []).filter(function(board) {
+    return board && board.key && board.key.split('/').pop() === 'crisis-vocabulary';
+  }).map(function(board) {
+    return board.key;
+  });
 }
 
 function mergeMissingDefaultSidebarBoards(stored, prior, defaults) {
@@ -98,7 +102,7 @@ function mergeMissingDefaultSidebarBoards(stored, prior, defaults) {
   if(!storedIds.some(function(id) { return defaultIds.indexOf(id) !== -1; })) {
     return stored.slice();
   }
-  var autoAddKeys = sidebarAutoAddKeys();
+  var autoAddKeys = sidebarAutoAddKeys(defaults);
   var missingAutoAdd = autoAddKeys.filter(function(key) { return storedIds.indexOf(key) === -1; });
   if(missingAutoAdd.length === 0) {
     return stored.slice();

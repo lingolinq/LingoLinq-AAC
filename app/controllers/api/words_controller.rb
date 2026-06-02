@@ -1,5 +1,5 @@
 class Api::WordsController < ApplicationController
-  before_action :require_api_token, :except => [:reachable_core, :lang]
+  before_action :require_api_token, :except => [:reachable_core, :lang, :predict]
   
   def index
     return unless allowed?(@api_user, 'admin_support_actions')
@@ -49,6 +49,8 @@ class Api::WordsController < ApplicationController
   end
 
   def predict
+    return api_error(401, {error: "Authentication required", unauthorized: true}) unless @api_user
+
     sentence = params['sentence'].to_s.strip
     return api_error(400, {error: "sentence required"}) if sentence.blank?
 

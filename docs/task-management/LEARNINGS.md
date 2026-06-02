@@ -2752,3 +2752,17 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
 
 **Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.
+
+---
+
+## Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`
+
+**Surface:** API actions that are publicly routed or intentionally exempt from `require_api_token`, but still need a clear authentication challenge before action-specific validation or feature checks.
+
+**Gotcha:** `require_api_token` intentionally returns the legacy 400 "Access token required..." response, and `spec/controllers/application_controller_spec.rb` locks that behavior. Do not change it just to make one endpoint return 401.
+
+**Fix recipe:** exempt only the target action from the shared guard, then make the action's first check `return api_error(401, {error: "Authentication required", unauthorized: true}) unless @api_user`. This preserves global compatibility while keeping clients from seeing misleading feature/validation errors when they simply need to authenticate.
+
+**Related permission gotcha:** `admin_support_actions` is a global support capability from `User` permissions (`Organization.admin_manager?(user) && !user.valet_mode?`). For global admin/support endpoints, prefer a direct predicate over `@api_user.allows?(@api_user, 'admin_support_actions')`, which makes the acting user both resource and actor and obscures the real authorization rule.
+
+**Evidence:** task log `2026-06-02-word-predict-auth-and-admin-support-permission.md`.

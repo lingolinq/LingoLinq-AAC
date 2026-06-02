@@ -35,8 +35,8 @@ module SystemBoardSources
     boards.each_with_index do |board, idx|
       if idx.zero?
         board.public = true
-        board.key = CRISIS_VOCABULARY_SLUG if board.user_id == owner.id
-        board.settings['name'] ||= 'Crisis Vocabulary'
+        board.key = key if board.user_id == owner.id
+        board.settings['name'] ||= "Crisis Vocabulary"
         board.settings['unlisted'] = false
       else
         board.public = true

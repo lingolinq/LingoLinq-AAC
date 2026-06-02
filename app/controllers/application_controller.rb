@@ -249,6 +249,10 @@ class ApplicationController < ActionController::Base
       true
     end
   end
+
+  def admin_support_actions_allowed?(user=@api_user)
+    user && Organization.admin_manager?(user) && !user.valet_mode?
+  end
   
   def api_error(status_code, hash)
     hash[:status] = status_code

@@ -2418,6 +2418,14 @@ describe User, :type => :model do
       expect(u.sidebar_boards).to eq(['a', 'b', 'c'])
     end
 
+    it "should merge new default sidebar entries into an older saved string list" do
+      u = User.new
+      old_default_keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact - [SystemBoardSources.board_key('crisis-vocabulary')]
+      u.settings = {'preferences' => {'sidebar_boards' => old_default_keys}}
+      keys = u.sidebar_boards.map { |b| User.sidebar_board_identity(b) }
+      expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
+    end
+
     it "should merge new default sidebar entries into an older saved default list" do
       u = User.new
       old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }

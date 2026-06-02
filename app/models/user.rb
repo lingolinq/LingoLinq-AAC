@@ -2012,7 +2012,10 @@ class User < ApplicationRecord
 
     defaults = default_sidebar_boards
     stored_by_id = {}
-    stored.each { |b| stored_by_id[sidebar_board_identity(b)] = b if b.is_a?(Hash) }
+    stored.each do |b|
+      id = sidebar_board_identity(b)
+      stored_by_id[id] = b if id
+    end
     stored_ids = stored_by_id.keys
     default_ids = defaults.map { |b| sidebar_board_identity(b) }
 
@@ -2061,7 +2064,7 @@ class User < ApplicationRecord
       {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
       {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
       {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
-      {'name' => 'Crisis Vocabulary', 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
+      {'name' => "Crisis Vocabulary", 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]
   end

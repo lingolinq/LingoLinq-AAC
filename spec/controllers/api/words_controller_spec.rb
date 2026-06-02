@@ -114,7 +114,9 @@ describe Api::WordsController, :type => :controller do
       expect(AiWordPredictor).not_to receive(:predict)
 
       post 'predict', params: { 'sentence' => 'I want to' }
-      assert_missing_token
+      assert_error('Authentication required', 401)
+      expect(response.status).to eq(401)
+      expect(@error_json['unauthorized']).to eq(true)
     end
 
     it "should require a sentence" do
