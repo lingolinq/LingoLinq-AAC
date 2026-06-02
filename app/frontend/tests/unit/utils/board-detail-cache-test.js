@@ -659,4 +659,115 @@ module('Unit | Utility | board-detail-cache', function() {
       throw err;
     });
   });
+
+  test('prefetch_caseload_for_user retries after interrupted phased prefetch', function(assert) {
+    boardDetailCache.clear();
+    var treeCalls = [];
+    var treeCount = 0;
+    var hidden = false;
+    var origAjax = persistence.ajax;
+    var origGet = persistence.get;
+    var origStore = LingoLinq.store;
+    var origAppState = LingoLinq.appState;
+    var origHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        return null;
+      }
+    };
+    LingoLinq.store = {
+      peekRecord: function() {
+        return null;
+      },
+      findRecord: function(type, id) {
+        return RSVP.resolve({
+          get: function(k) {
+            if (k === 'id') { return id; }
+            if (k === 'preferences.home_board') { return { key: 'student/home', id: id + '-home' }; }
+            if (k === 'preferences.skin') { return 'default'; }
+            if (k === 'preferences.preferred_symbols') { return 'original'; }
+            if (k === 'preferences.locale') { return 'en'; }
+            if (k === 'stats.starred_board_refs') { return [{ key: 'student/liked' }]; }
+            return null;
+          }
+        });
+      },
+      normalize: function(type, raw) {
+        return { data: { id: raw.id, type: type, attributes: raw } };
+      },
+      push: function() {}
+    };
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: function() { return hidden; }
+    });
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeCalls.push(key);
+        treeCount++;
+        if (treeCount === 1) { hidden = true; }
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_1') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      if (url.indexOf('q=&') !== -1) {
+        return RSVP.resolve({ board: [], meta: { more: false } });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var supervisor = {
+      get: function(k) {
+        if (k === 'id') { return '9_1'; }
+        if (k === 'supervisees') { return [{ id: '1_1' }]; }
+        return null;
+      }
+    };
+
+    return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0 }).then(function() {
+      hidden = false;
+      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 1, gapMs: 0 });
+    }).then(function() {
+      persistence.ajax = origAjax;
+      persistence.get = origGet;
+      LingoLinq.store = origStore;
+      LingoLinq.appState = origAppState;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      } else {
+        delete document.hidden;
+      }
+
+      assert.deepEqual(treeCalls, ['student/home', 'student/liked'], 'reruns incomplete caseload prefetch phases after visibility returns');
+    }, function(err) {
+      persistence.ajax = origAjax;
+      persistence.get = origGet;
+      LingoLinq.store = origStore;
+      LingoLinq.appState = origAppState;
+      if (origHidden) {
+        Object.defineProperty(document, 'hidden', origHidden);
+      } else {
+        delete document.hidden;
+      }
+      throw err;
+    });
+  });
 });

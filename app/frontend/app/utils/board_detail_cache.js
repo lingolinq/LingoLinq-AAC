@@ -212,6 +212,17 @@ function _complete_phase_if_done(phaseDone, phaseKey, completed) {
   }
 }
 
+function _prefetch_pipeline_complete(user, phaseDone) {
+  if (!phaseDone.phase1) { return false; }
+  if (boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user) && (!phaseDone.phase2 || !phaseDone.phase3)) {
+    return false;
+  }
+  if (boardPrefetchPlanner.publicPrefetchEnabled(user) && !phaseDone.phase4) {
+    return false;
+  }
+  return true;
+}
+
 function _later_promise(ms) {
   return new RSVP.Promise(function(resolve) {
     runLater(resolve, ms);
@@ -669,7 +680,9 @@ export default {
       });
     }
 
-    return chain;
+    return chain.then(function() {
+      return _prefetch_pipeline_complete(user, phaseDone);
+    });
   },
 
   // Session-start prefetch: called when a user logs in (or session is
@@ -749,8 +762,10 @@ export default {
             skin: prefetchUser.get('preferences.skin'),
             preferred_symbols: prefetchUser.get('preferences.preferred_symbols')
           };
-          return _this._run_prefetch_pipeline(prefetchUser, warm_opts).then(function() {
-            _this._prefetched_caseload_supervisee_ids[key] = true;
+          return _this._run_prefetch_pipeline(prefetchUser, warm_opts).then(function(completed) {
+            if (completed) {
+              _this._prefetched_caseload_supervisee_ids[key] = true;
+            }
           });
         }, function() {
           return RSVP.resolve();
