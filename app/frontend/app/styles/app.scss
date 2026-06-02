@@ -10693,9 +10693,20 @@ video.button_image {
   }
 }
 
+@keyframes flash-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .flash {
   position: fixed;
-  top: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   left: 50%;
   transform: translateX(-50%);
   width: auto;
@@ -10710,13 +10721,13 @@ video.button_image {
     pointer-events: auto;
     position: relative;
     border: none;
-    border-radius: 0 0 14px 14px;
+    border-radius: 14px;
     padding: 12px 44px 12px 16px;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.4;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
-    animation: flash-slide-down 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: flash-slide-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 
     .shadow { display: none; }
 
@@ -10787,7 +10798,12 @@ video.button_image {
 
     &.below_header {
       border-radius: 0 0 14px 14px;
+      animation-name: flash-slide-down;
     }
+  }
+
+  &:has(.below_header) {
+    bottom: auto;
   }
 }
 
@@ -12119,6 +12135,7 @@ video.button_image {
 .la-board-actions-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
   width: 100%;
   padding: 14px 16px;
@@ -13534,6 +13551,41 @@ select.la-tag-board-input::-ms-expand,
   font-size: 14px;
   color: $brand-danger;
 }
+.la-translate-board-error-card {
+  font-size: 15px;
+  color: $brand-danger;
+  background: rgba($brand-danger, 0.08);
+  border: 1px solid rgba($brand-danger, 0.18);
+  border-radius: 10px;
+  padding: 12px 16px;
+  line-height: 1.5;
+  margin: 0;
+}
+.la-translate-board-copy-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: $brand-charcoal-dark;
+}
+.la-translate-board-copy-card svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #d97706;
+}
+.la-translate-board-copy-card p {
+  margin: 0;
+}
+.la-translate-board-cant-copy {
+  font-size: 14px;
+  color: $brand-slate-gray;
+  align-self: center;
+}
 .la-translate-board-select {
   appearance: none;
   -webkit-appearance: none;
@@ -13583,6 +13635,37 @@ select.la-tag-board-input::-ms-expand,
   padding: 12px 16px;
   line-height: 1.5;
   margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+}
+.la-translate-board-info__text {
+  margin: 0;
+  flex: 1 1 auto;
+}
+.la-translate-board-retranslate {
+  border-radius: 20px;
+  padding: 8px 16px;
+  background: #fff;
+  color: $brand-charcoal-dark;
+  border: 1px solid rgba($brand-verdigris, 0.28);
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.la-translate-board-retranslate:hover {
+  background: rgba($brand-verdigris, 0.08);
+  border-color: rgba($brand-verdigris, 0.45);
+  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
+}
+.la-translate-board-retranslate:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Footer */
@@ -50965,6 +51048,13 @@ a.md-goal-nav-action:hover,
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
+.md-strip__lang {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba($la-navy, 0.65);
+}
 
 /* Dashboard home only: increase height of boards and extras cards */
 .md-grid--dashboard .md-card--boards {
@@ -66543,6 +66633,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.md-board-collection__item-lang {
+  flex-shrink: 0;
+  margin-left: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba($la-navy, 0.65);
+}
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
    `templates/components/board-icon.hbs` so the user's home board
    reads consistently across surfaces. Sits between the name and the
@@ -74425,6 +74522,30 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 2px 8px rgba($la-navy, 0.10);
   max-height: 320px;
   overflow-y: auto;
+}
+.bound-select__search {
+  list-style: none;
+  padding: 6px 6px 8px;
+  margin: 0 0 4px;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+}
+.bound-select__search-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.15);
+  padding: 9px 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: $la-navy;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.bound-select__search-input:focus,
+.bound-select__search-input:focus-visible {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+  outline: none;
 }
 .bound-select__option {
   padding: 10px 14px;

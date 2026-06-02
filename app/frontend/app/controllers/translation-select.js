@@ -5,19 +5,27 @@ import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import { computed } from '@ember/object';
 import progress_tracker from '../utils/progress_tracker';
+import stashes from '../utils/_stashes';
 
 export default modal.ModalController.extend({
   opening: function() {
     var _this = this;
-    _this.set('switch_status', {pending: true});
+    _this.set('switch_status', null);
     _this.set('default_language', true);
     _this.set('hierarchy', {loading: true});
-    BoardHierarchy.load_with_button_set(this.get('model.board'), {deselect_on_different: true, prevent_different: true}).then(function(hierarchy) {
-      _this.set('hierarchy', hierarchy);
-    }, function(err) {
-      _this.set('hierarchy', {error: true});
-    });
-    
+    var board = this.get('model.board');
+    var loadHierarchy = function() {
+      BoardHierarchy.load_with_button_set(board, {deselect_on_different: true, prevent_different: true}).then(function(hierarchy) {
+        _this.set('hierarchy', hierarchy);
+      }, function() {
+        _this.set('hierarchy', {error: true});
+      });
+    };
+    if (board && board.reload) {
+      board.reload(true).then(loadHierarchy, loadHierarchy);
+    } else {
+      loadHierarchy();
+    }
   },
   locales: computed(function() {
     var list = i18n.get('translatable_locales');
@@ -34,6 +42,36 @@ export default modal.ModalController.extend({
     var list = this.get('model.board.locales') || [];
     return this.get('default_language') && list.indexOf(loc) != -1;
   }),
+  is_source_language: computed('translate_locale', 'model.board.locale', 'model.board.translations', function() {
+    var loc = this.get('translate_locale');
+    if(!loc) { return false; }
+    var board = this.get('model.board');
+    var trans = (board && board.get && board.get('translations')) || {};
+    var source = trans.default || (board && board.get && board.get('locale')) || 'en';
+    var locRoot = loc.split(/-|_/)[0];
+    var sourceRoot = String(source).split(/-|_/)[0];
+    return loc === source || locRoot === sourceRoot;
+  }),
+  can_start_translation: computed('translate_locale', 'existing_default_language', 'is_source_language', 'hierarchy.loading', 'hierarchy.error', function() {
+    var hierarchy = this.get('hierarchy');
+    if (hierarchy && (hierarchy.loading || hierarchy.error)) { return false; }
+    return !!this.get('translate_locale') && !this.get('existing_default_language') && !this.get('is_source_language');
+  }),
+  not_ready: computed('can_start_translation', function() {
+    return !this.get('can_start_translation');
+  }),
+  can_edit_board: computed('model.board.permissions.edit', function() {
+    var board = this.get('model.board');
+    if (!board) { return false; }
+    if (board.get && board.get('permissions.edit')) { return true; }
+    return !!(board.permissions && board.permissions.edit);
+  }),
+  source_language_name: computed('translate_locale', 'model.board.locale', 'model.board.translations', function() {
+    var board = this.get('model.board');
+    var trans = (board && board.get && board.get('translations')) || {};
+    var source = trans.default || (board && board.get && board.get('locale')) || 'en';
+    return i18n.readable_language(this.get('translate_locale') || source);
+  }),
   done_translating: function(new_default) {
     var _this = this;
     return _this.get('model.board').reload(true).then(function() {
@@ -49,6 +87,8 @@ export default modal.ModalController.extend({
            navigated away. */
         app_state.set('label_locale', new_locale);
         app_state.set('vocalization_locale', new_locale);
+        stashes.persist('label_locale', new_locale);
+        stashes.persist('vocalization_locale', new_locale);
         if(app_state.get('currentBoardState.id') == _this.get('model.board.id')) {
           app_state.set('currentBoardState.default_locale', new_locale);
         }
@@ -59,30 +99,46 @@ export default modal.ModalController.extend({
   actions: {
     switch_language: function() {
       var _this = this;
+      if (!this.get('can_edit_board')) {
+        modal.flash(i18n.t('board_translate_edit_permission_required', "You need editing permission for this board before you can translate it."), 'error');
+        return;
+      }
       _this.set('switch_status', {pending: true});
-      var loc = this.get('translate_locale');
       var board_ids_to_include = null;
       if(this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
         board_ids_to_include = this.get('hierarchy').selected_board_ids();
       }
+      var board = this.get('model.board');
+      var trans = (board && board.get && board.get('translations')) || {};
+      var source_locale = trans.default || (board && board.get && board.get('locale')) || 'en';
 
       persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/translate', {
         type: 'POST',
         data: {
-          source_lang: _this.get('model.board.locale'),
+          source_lang: source_locale,
           destination_lang: _this.get('translate_locale'),
           set_as_default: true,
+          fallbacks: 'true',
+          force_update_default: true,
           translations: {},
           board_ids_to_translate: board_ids_to_include
         }
       }).then(function(res) {
-        progress_tracker.track(res.progress, function(event) {
-          if(event.status == 'errored' || (event.status == 'finished' && event.result && event.result.translated === false)) {
+        app_state.set('board_translate_in_progress', true);
+        modal.flash(i18n.t('switching_language', "Switching Language..."), 'notice', false, true);
+        var track_id = null;
+        track_id = progress_tracker.track(res.progress, function(event) {
+          if(progress_tracker.is_terminal(event)) {
+            app_state.set('board_translate_in_progress', false);
+            modal.close('flash');
+            progress_tracker.untrack(track_id);
+          }
+          if(progress_tracker.is_errored(event) || (progress_tracker.is_finished(event) && event.result && event.result.translated === false)) {
             _this.set('switch_status', {error: true});
-          } else if(event.status == 'finished') {
+          } else if(progress_tracker.is_finished(event)) {
             _this.set('switch_status', null);
             _this.done_translating(true);
-            modal.close({translated: true});
+            modal.close({switched: true});
           }
         });
       }, function(res) {
@@ -104,12 +160,12 @@ export default modal.ModalController.extend({
          Re-Translate button only renders when `existing_default_language`
          is true, so use that flag as the signal to ask the server to
          honor `set_as_default` regardless of locale match. */
-      var force_update = !!_this.get('existing_default_language');
+      var force_update = false;
 
       var translate_opts = {
         board: _this.get('model.board'),
         copy: _this.get('model.board'),
-        button_set: _this.get('model.board.button_set'),
+        button_set: (_this.get('hierarchy') && _this.get('hierarchy.button_set')) || _this.get('model.board.button_set'),
         locale: _this.get('translate_locale'),
         default_language: _this.get('default_language'),
         force_update_default: force_update,
@@ -119,7 +175,10 @@ export default modal.ModalController.extend({
 
       return modal.open('button-set', translate_opts).then(function(res) {
         if(res && res.translated) {
-          _this.done_translating(translate_opts.default_language);
+          return _this.done_translating(translate_opts.default_language).then(function() {
+            modal.close({translated: true});
+            modal.flash(i18n.t('translations_applied', "Translations applied."), 'notice');
+          });
         }
       });
     },

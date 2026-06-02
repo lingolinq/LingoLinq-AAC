@@ -1,5 +1,19 @@
 class Board < ApplicationRecord
   DEFAULT_ICON = "/images/lingolinq-board-icon.png"
+  TRANSLATION_LANGUAGE_LABELS = {
+    'en' => "English",
+    'es' => "Spanish",
+    'fr' => "French",
+    'de' => "German",
+    'pl' => "Polish",
+    'pt' => "Portuguese",
+    'ru' => "Russian",
+    'uk' => "Ukrainian",
+    'ja' => "Japanese",
+    'zh' => "Chinese",
+    'ga' => "Irish",
+    'ar' => "Arabic"
+  }.freeze
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
@@ -256,6 +270,11 @@ class Board < ApplicationRecord
       # TODO: also in that case, schedule an action to map all of the symbol libraries
       #    for the board set to get even faster symbol switching
     end
+  end
+
+  def self.translation_language_label(locale)
+    root = locale.to_s.split(/-|_/).first
+    TRANSLATION_LANGUAGE_LABELS[root] || root.to_s.capitalize
   end
 
   def self.find_suggested(locale='en', limit=10)
@@ -2446,7 +2465,13 @@ class Board < ApplicationRecord
         self.settings['translations']['board_name'][dest_lang] = translations[self.settings['name']] if translations[self.settings['name']]
       end
       if self.settings['name'] && translations[self.settings['name']] && set_as_default_here
-        self.settings['name'] = translations[self.settings['name']]
+        translated_name = translations[self.settings['name']]
+        lang_label = self.class.translation_language_label(dest_lang)
+        if lang_label.present? && !translated_name.to_s.match(/\(\s*#{Regexp.escape(lang_label)}/i)
+          translated_name = "#{translated_name} (#{lang_label})"
+        end
+        self.settings['name'] = translated_name
+        self.settings['translations']['board_name'][dest_lang] = translated_name
       end
       self.settings['locale'] ||= source_lang
       self.settings['translations']['default'] ||= source_lang
@@ -2461,12 +2486,28 @@ class Board < ApplicationRecord
       buttons = self.buttons.map do |button|
         button = button.dup
         if button['label'] && translations[button['label']]
+          original_label = button['label']
+          original_vocalization = button['vocalization']
+          translated_label = translations[original_label]
           self.settings['translations'][button['id'].to_s] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang] ||= {}
-          self.settings['translations'][button['id'].to_s][source_lang]['label'] ||= button['label']
+          self.settings['translations'][button['id'].to_s][source_lang]['label'] ||= original_label
           self.settings['translations'][button['id'].to_s][dest_lang] ||= {}
-          self.settings['translations'][button['id'].to_s][dest_lang]['label'] = translations[button['label']]
-          button['label'] = translations[button['label']] if set_as_default_here
+          self.settings['translations'][button['id'].to_s][dest_lang]['label'] = translated_label
+          if button['part_of_speech'].present?
+            self.settings['translations'][button['id'].to_s]['source_part_of_speech'] = button['part_of_speech']
+          end
+          # Mirror speak text when vocalization is unset or matches the source label
+          # so runtime TTS does not fall back to stale English vocalization.
+          if original_vocalization.blank? || original_vocalization == original_label
+            self.settings['translations'][button['id'].to_s][dest_lang]['vocalization'] = translated_label
+          end
+          if set_as_default_here
+            button['label'] = translated_label
+            if original_vocalization.blank? || original_vocalization == original_label
+              button['vocalization'] = translated_label
+            end
+          end
           @buttons_changed = 'translated'
         elsif allow_fallbacks && set_as_default_here
           fallback = ((self.settings['translations'][button['id'].to_s] || {})[dest_lang] || {})['label']

@@ -130,6 +130,8 @@ export default Component.extend({
               copy: copiedBoard,
               button_set: board.get('button_set'),
               locale: model.translate_locale,
+              source_locale: board.get('translations.default') || board.get('locale'),
+              default_language: true,
               old_board_ids_to_translate: board_ids_to_include,
               new_board_ids_to_translate: new_board_ids
             };

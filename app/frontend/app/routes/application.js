@@ -191,7 +191,7 @@ export default Route.extend({
     newBoard: function() {
       var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        _this.transitionTo('create-board-new');
+        _this.router.transitionTo('create-board-new');
       });
     },
     pickWhichHome: function() {

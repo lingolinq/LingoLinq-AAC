@@ -29,8 +29,11 @@ export default Component.extend({
 
   // Used by some callers to display a slimmer trigger in tight UI.
   short: false,
+  searchable: false,
+  search_placeholder: null,
 
   isOpen: false,
+  searchQuery: '',
 
   /** Explicit label set when user chooses an option; ensures trigger updates even if parent re-render overwrites selection. */
   _chosenLabel: null,
@@ -63,18 +66,26 @@ export default Component.extend({
    *  (rendered as <li class="bound-select__divider">). Each divider
    *  item gets an internal _isDivider flag so the template can branch
    *  cleanly. */
-  renderContent: computed('content', function() {
+  renderContent: computed('content', 'searchable', 'searchQuery', function() {
     const content = this.get('content') || [];
+    const searchable = this.get('searchable');
+    const query = searchable ? (this.get('searchQuery') || '').toLowerCase().trim() : '';
     return content.map(function(c) {
       if (c && c.divider) {
         return { _isDivider: true, label: c.label || '' };
       }
       return c;
+    }).filter(function(c) {
+      if (!query) { return true; }
+      if (!c || c._isDivider) { return false; }
+      return (c.name || '').toLowerCase().indexOf(query) !== -1 ||
+        String(c.id || '').toLowerCase().indexOf(query) !== -1;
     });
   }),
 
   close() {
     this.set('isOpen', false);
+    this.set('searchQuery', '');
   },
 
   _clickOutside: null,
@@ -105,10 +116,15 @@ export default Component.extend({
 
   /** Focus the active option when the dropdown opens. See
    *  docs/styling-recurring-problems.md #11 for context. */
-  _focusActiveOption() {
+  _focusInitialControl() {
     if (!this.element) { return; }
     const list = this.element.querySelector('.bound-select__list');
     if (!list) { return; }
+    const search = list.querySelector('.bound-select__search-input');
+    if (search && typeof search.focus === 'function') {
+      search.focus();
+      return;
+    }
     const selected = list.querySelector('.bound-select__option--selected');
     const target = selected || list.querySelector('.bound-select__option');
     if (target && typeof target.focus === 'function') { target.focus(); }
@@ -130,7 +146,7 @@ export default Component.extend({
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;
-        scheduleOnce('afterRender', this, function() { self._focusActiveOption(); });
+        scheduleOnce('afterRender', this, function() { self._focusInitialControl(); });
       }
     },
     choose(item, ev) {
@@ -143,6 +159,7 @@ export default Component.extend({
       run(() => {
         self.set('_chosenLabel', name);
         self.set('selection', id);
+        self.set('searchQuery', '');
         if (typeof callback === 'function') {
           callback(id);
         }

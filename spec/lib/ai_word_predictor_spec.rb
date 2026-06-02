@@ -57,6 +57,14 @@ describe AiWordPredictor do
       ))
     end
 
+    it "preserves non-English letters in predicted words" do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('sí, también, después, más'))
+
+      words = described_class.predict(sentence: 'quiero', locale: 'es')
+
+      expect(words).to eq(%w[sí también después más])
+    end
+
     it "scrubs PII from the sentence before sending it to the provider" do
       received_sentence = nil
       allow(described_class).to receive(:call_anthropic) do |_config, sentence, _locale, _count, _context|

@@ -2408,17 +2408,17 @@ var buttonTracker = EmberObject.extend({
         var height = $board.height() + top;
         var pct_x = Math.round((x - left) / width * 1000) / 1000;
         var pct_y = Math.round((y - top) / height * 1000) / 1000;
-        var prior = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 2];
+        var hit_spots = buttonTracker.hit_spots || [];
+        var prior = hit_spots[hit_spots.length - 2];
         if(prior) {
           prior.pct_x = Math.round((prior.x - left) / width * 1000) / 1000;
-          prior.pct_y = Math.round((prior.y - left) / height * 1000) / 1000;
+          prior.pct_y = Math.round((prior.y - top) / height * 1000) / 1000;
         }
-        if(buttonTracker.hit_spots && buttonTracker.hit_spots.length > 0 && buttonTracker.hit_spots[buttonTracker.hit_spots.length - 1].distance != null) {
-          var distance = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 1].distance;
+        if(hit_spots.length > 0 && hit_spots[hit_spots.length - 1].distance != null) {
+          var distance = hit_spots[hit_spots.length - 1].distance;
           travel = Math.round((distance.x / width) + (distance.y / height) * 1000) / 1000;
         } else if(prior) {
           // find based on the last location
-          var prior = buttonTracker.hit_spots[buttonTracker.hit_spots.length - 2];
           var a = Math.abs(pct_x - ((prior.x - left) / width));
           var b = Math.abs(pct_y - ((prior.y - top) / height));
           travel = Math.round(Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2)) * 1000) / 1000;

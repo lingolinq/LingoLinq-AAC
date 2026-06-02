@@ -23,12 +23,12 @@ export default IndexRoute.extend({
   afterModel: function(user) {
     var _this = this;
     if (!session.get('access_token')) {
-      this.transitionTo('index');
+      this.router.transitionTo('index');
       return RSVP.reject();
     }
     var check = function(selfUser) {
       if (!selfUser || !selfUser.get('user_name') || !user.get('user_name')) {
-        _this.transitionTo('index');
+        _this.router.transitionTo('index');
         return RSVP.reject();
       }
       if (selfUser.get('user_name') !== user.get('user_name')) {

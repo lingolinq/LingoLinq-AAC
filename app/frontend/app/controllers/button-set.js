@@ -7,6 +7,7 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
+import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
@@ -214,12 +215,20 @@ export default modal.ModalController.extend({
           board_ids_to_translate: _this.get('model.new_board_ids_to_translate')
         }
       }).then(function(res) {
-        progress_tracker.track(res.progress, function(event) {
-          if(event.status == 'errored' || (event.status == 'finished' && event.result && event.result.translated === false)) {
+        app_state.set('board_translate_in_progress', true);
+        modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);
+        var track_id = null;
+        track_id = progress_tracker.track(res.progress, function(event) {
+          if(progress_tracker.is_terminal(event)) {
+            app_state.set('board_translate_in_progress', false);
+            modal.close('flash');
+            progress_tracker.untrack(track_id);
+          }
+          if(progress_tracker.is_errored(event) || (progress_tracker.is_finished(event) && event.result && event.result.translated === false)) {
             _this.set('saving_translations', null);
             LingoLinq.track_error("translation save fail - " + JSON.stringify(event), event)
             _this.set('error_saving_translations', true);
-          } else if(event.status == 'finished') {
+          } else if(progress_tracker.is_finished(event)) {
             _this.set('saving_translations', null);
             _this.set('error_saving_translations', null);
             modal.close({translated: true});

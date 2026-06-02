@@ -2110,6 +2110,34 @@ describe Api::BoardsController, :type => :controller do
       expect(json).to eq({'rename' => true, 'key' => "#{@user.user_name}/bacon"})
     end
 
+    it "should resolve an old key after rename for board detail lookups" do
+      token_user
+      b = Board.create(:user => @user)
+      old_key = b.key
+      post :rename, params: {:board_id => b.global_id, :old_key => old_key, :new_key => "#{@user.user_name}/bacon"}
+      expect(response).to be_successful
+
+      get :show, params: { id: old_key }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['id']).to eq(b.global_id)
+      expect(json['board']['key']).to eq("#{@user.user_name}/bacon")
+    end
+
+    it "should resolve an old key after rename for board detail tree lookups" do
+      token_user
+      b = Board.create(:user => @user)
+      old_key = b.key
+      post :rename, params: {:board_id => b.global_id, :old_key => old_key, :new_key => "#{@user.user_name}/bacon"}
+      expect(response).to be_successful
+
+      get :tree, params: { board_id: old_key }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['root']['board']['id']).to eq(b.global_id)
+      expect(json['root']['board']['key']).to eq("#{@user.user_name}/bacon")
+    end
+
     it "should require the correct old_key" do
       token_user
       b = Board.create(:user => @user)

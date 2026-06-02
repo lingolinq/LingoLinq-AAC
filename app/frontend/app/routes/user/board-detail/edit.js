@@ -14,6 +14,7 @@ function scrollAllToTop() {
 }
 
 export default Route.extend({
+  router: service(),
   appState: service('app-state'),
   stashes: service('stashes'),
 
@@ -27,7 +28,7 @@ export default Route.extend({
     var boardDetailController = this.controllerFor('user.board-detail');
 
     if(!model) {
-      _this.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
+      _this.router.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
     // On entering the edit page, always present the right panel fully

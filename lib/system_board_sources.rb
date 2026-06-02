@@ -4,6 +4,11 @@ module SystemBoardSources
   CRISIS_VOCABULARY_SLUG = 'crisis-vocabulary'.freeze
   CRISIS_VOCABULARY_OBZ = Rails.root.join('public/system-boards/crisis-vocabulary.obz').freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary].freeze
+  SPANISH_LIBRARY_SLUGS = %w[quick-core-60-es vocal-flair-60-es].freeze
+  SPANISH_SOURCE_MAP = {
+    'quick-core-60-es' => 'quick-core-60',
+    'vocal-flair-60-es' => 'vocal-flair-60'
+  }.freeze
 
   def self.board_key(slug)
     "#{USER_NAME}/#{slug}"

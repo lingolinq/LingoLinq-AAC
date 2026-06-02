@@ -51,15 +51,22 @@ export default Component.extend({
         return;
       }
       const _this = this;
-      BoardHierarchy.load_with_button_set(board, {
-        deselect_on_different: true,
-        prevent_keyboard: true,
-        prevent_different: true
-      }).then(function(hierarchy) {
-        _this.set('hierarchy', hierarchy);
-      }, function() {
-        _this.set('hierarchy', { error: true });
-      });
+      var loadHierarchy = function() {
+        BoardHierarchy.load_with_button_set(board, {
+          deselect_on_different: true,
+          prevent_keyboard: true,
+          prevent_different: true
+        }).then(function(hierarchy) {
+          _this.set('hierarchy', hierarchy);
+        }, function() {
+          _this.set('hierarchy', { error: true });
+        });
+      };
+      if (board.reload) {
+        board.reload(true).then(loadHierarchy, loadHierarchy);
+      } else {
+        loadHierarchy();
+      }
     },
     closing() {},
     nothing() {},

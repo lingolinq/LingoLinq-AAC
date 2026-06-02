@@ -992,6 +992,51 @@ describe('Buttonset', function() {
     })
   });
 
+  describe('load_buttons remote fallback', function() {
+    it('should use remote_json when store_json cannot save cached buttonset json', function() {
+      var buttons = [{label: 'hola', depth: 0, board_id: 'board-1'}];
+      var remote_calls = 0;
+      var bs = LingoLinq.store.createRecord('buttonset', {
+        id: 'bs-cache-fail',
+        global_id: 'board-1',
+        root_url: 'http://www.example.com/buttons.json',
+        full_set_revision: 'abc',
+        buttons_loaded: false
+      });
+
+      stub(bs.persistence, 'find_json', function() {
+        return RSVP.reject({error: 'url not in storage'});
+      });
+      stub(bs.persistence, 'store_json', function() {
+        return RSVP.reject({error: 'saving to data cache failed'});
+      });
+      stub(bs.persistence, 'ajax', function() {
+        return RSVP.reject({error: 'generate unavailable'});
+      });
+      stub(bs.persistence, 'remote_json', function(url) {
+        remote_calls++;
+        expect(url).toEqual('http://www.example.com/buttons.json');
+        return RSVP.resolve(buttons);
+      });
+
+      var resolved = false;
+      var rejected = null;
+      bs.load_buttons().then(function() {
+        resolved = true;
+      }, function(err) {
+        rejected = err;
+      });
+
+      waitsFor(function() { return resolved || rejected; });
+      runs(function() {
+        expect(rejected).toEqual(null);
+        expect(remote_calls).toEqual(1);
+        expect(bs.get('buttons')).toEqual(buttons);
+        expect(bs.get('buttons_loaded')).toEqual(true);
+      });
+    });
+  });
+
   describe('load_buttons serial tail timeout', function() {
     var original_timeout = null;
     beforeEach(function() {
