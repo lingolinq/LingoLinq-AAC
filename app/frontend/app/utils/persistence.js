@@ -1881,12 +1881,16 @@ var persistence = EmberObject.extend({
           error.quota_maxed = true;
           safeSet(getPersistence(), 'local_system.allowed', false);
         } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
-          capabilities.storage.already_limited_size = true;
-          stashes.persist('allow_local_filesystem_request', false);
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
-          error.quota_maxed = true;
-          safeSet(getPersistence(), 'local_system.allowed', false);
+          // UI feedback sounds (beep, click, etc.) are optional; don't disable the
+          // whole local cache path when filesystem quota is denied on a small mp3.
+          if(type != 'sound') {
+            capabilities.storage.already_limited_size = true;
+            stashes.persist('allow_local_filesystem_request', false);
+            persistence.url_cache = persistence.url_cache || {};
+            persistence.url_cache[url_id] = null;
+            error.quota_maxed = true;
+            safeSet(getPersistence(), 'local_system.allowed', false);
+          }
         }
         reject(error);
       });

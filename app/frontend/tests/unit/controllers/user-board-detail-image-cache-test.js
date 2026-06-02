@@ -1,4 +1,5 @@
 import { module, test } from 'qunit';
+import EmberObject from '@ember/object';
 import BoardDetailController from 'frontend/controllers/user/board-detail';
 import LingoLinq from 'frontend/app';
 
@@ -76,5 +77,31 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     var map = LingoLinq.Board.skin_image_map({ bi1: base }, 'medium');
     var btn = controller._make_btn({ id: '1', image_id: 'bi1', label: 'go' }, map);
     assert.ok(btn.image_url.indexOf('.variant-medium.png') > -1, 'expected medium skin variant URL');
+  });
+
+  test('_word_prediction_locale uses the visible label locale first', function(assert) {
+    controller.set('app_state', EmberObject.create({
+      label_locale: 'es',
+      currentBoardState: { default_locale: 'en' }
+    }));
+    controller.set('model', EmberObject.create({ locale: 'en' }));
+
+    assert.equal(controller._word_prediction_locale(), 'es');
+  });
+
+  test('_name_matches_translation detects localized board names', function(assert) {
+    var board = EmberObject.create({
+      locale: 'es',
+      translations: {
+        default: 'en',
+        board_name: {
+          en: 'Crisis Vocabulary',
+          es: 'Vocabulario de Crisis'
+        }
+      }
+    });
+
+    assert.equal(controller._name_matches_translation(board, 'Vocabulario de Crisis'), true);
+    assert.equal(controller._name_matches_translation(board, 'My Crisis Board'), false);
   });
 });

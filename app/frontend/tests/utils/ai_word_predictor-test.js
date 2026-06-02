@@ -48,4 +48,23 @@ describe('ai_word_predictor', function() {
       expect(res).toEqual(['play', 'go']);
     });
   });
+
+  it('should cache predictions separately by locale', function() {
+    var appState = {
+      get: function(key) {
+        if(key === 'feature_flags.ai_word_prediction') { return true; }
+        return null;
+      }
+    };
+    ai_word_predictor._cache_put('i want to', ['play'], 'en');
+    ai_word_predictor._cache_put('i want to', ['jugar'], 'es');
+    var res = null;
+    ai_word_predictor.predict('I want to', { appState: appState, locale: 'es', immediate: true }).then(function(words) {
+      res = words;
+    });
+    waitsFor(function() { return res; });
+    runs(function() {
+      expect(res).toEqual(['jugar']);
+    });
+  });
 });

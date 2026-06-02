@@ -355,7 +355,7 @@ class Api::BoardsController < ApplicationController
     ApplicationRecord.using(:master) do
       # Followers can get behind, resulting in outdated info being
       # sent back to the user, or used for background jobs :-/
-      board = Board.find_by_path(params['id'])
+      board = Board.find_by_possibly_old_path(params['id'])
     end
     if !board
       deleted_board = DeletedBoard.find_by_path(params['id'])
@@ -420,7 +420,7 @@ class Api::BoardsController < ApplicationController
     board_path = params['board_id'] || params['id']
     root = nil
     ApplicationRecord.using(:master) do
-      root = Board.find_by_path(board_path)
+      root = Board.find_by_possibly_old_path(board_path)
     end
     return unless exists?(root)
     return unless allowed?(root, 'view')

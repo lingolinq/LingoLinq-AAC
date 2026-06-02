@@ -50,6 +50,17 @@ export default Controller.extend(prefClasses, {
     return title;
   }),
   ordered_buttons: null,
+  suggestions: null,
+  word_prediction_locale: function() {
+    return this.appState.get('label_locale') ||
+      this.get('model.locale') ||
+      this.appState.get('currentBoardState.default_locale') ||
+      'en';
+  },
+  set_suggestions: function(updates) {
+    var current = this.get('suggestions') || {};
+    this.set('suggestions', Object.assign({}, current, updates));
+  },
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
     var _vb = (window.LingoLinq || {}).verboseDebug;
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') }); }
@@ -76,6 +87,10 @@ export default Controller.extend(prefClasses, {
     'appState.currentUser',
     'appState.shift',
     'appState.inflection_shift',
+    'appState.label_locale',
+    'appState.vocalization_locale',
+    'model.locale',
+    'model.translations',
     function() {
       if(!this.get('model.word_suggestions') || !this.appState.get('speak_mode')) { return; }
       var _this = this;
@@ -89,7 +104,9 @@ export default Controller.extend(prefClasses, {
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || "").toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || "").toLowerCase();
       if(capabilities.system == 'Android') {
-        _this.set('suggestions.pending', true);
+        _this.set_suggestions({ pending: true, ready: false });
+      } else {
+        _this.set_suggestions({ ready: false });
       }
       runLater(function() {
         var sentence = button_list.map(function(b) {
@@ -100,7 +117,9 @@ export default Controller.extend(prefClasses, {
           word_in_progress: word_in_progress,
           topic_context: (_this.get('model') && _this.get('model.name')) || '',
           sentence: sentence,
-          locale: _this.appState.get('label_locale') || 'en',
+          locale: _this.word_prediction_locale(),
+          board_locale: (_this.get('model') && _this.get('model.locale')) || 'en',
+          translations: (_this.get('model') && _this.get('model.translations')) || null,
           board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
@@ -108,11 +127,11 @@ export default Controller.extend(prefClasses, {
           // attached and triggers a HashChangeEvent which causes
           // navigation back to the index page
           runLater(function() {
-            _this.set('suggestions.pending', null);
+            _this.set_suggestions({ pending: null });
           }, 200);
-          _this.set('suggestions.list', result);
+          _this.set_suggestions({ ready: true, list: result || [] });
         }, function() {
-          _this.set('suggestions.list', []);
+          _this.set_suggestions({ ready: true, list: [] });
         });
       });
     }
@@ -1417,7 +1436,7 @@ export default Controller.extend(prefClasses, {
             last_button = button_list[button_list.length - 2];
           }
           var prefix = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
-          word_suggestions.record_selection(word.word, null, prefix);
+          word_suggestions.record_selection(word.word, null, prefix, _this.word_prediction_locale());
         }
         var text = word.word;
         var button = editManager.fake_button();

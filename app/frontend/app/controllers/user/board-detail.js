@@ -1669,6 +1669,9 @@ export default Controller.extend(prefClasses, {
       }
       boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
       _this._build_from_raw(merged);
+      if(_this.get('edit_mode') && editManager.controller === _this) {
+        editManager.process_for_displaying(true);
+      }
     }, function() {
       /* Network or auth failure — leave the stale render in place
          rather than blanking the grid. Next route activation will
@@ -1780,6 +1783,35 @@ export default Controller.extend(prefClasses, {
     };
   },
 
+  _word_prediction_locale: function() {
+    var raw = this._last_raw || {};
+    return this.get('app_state.label_locale') ||
+      this.get('model.locale') ||
+      raw.locale ||
+      this.get('app_state.currentBoardState.default_locale') ||
+      'en';
+  },
+
+  _word_prediction_lookup_options: function(context, warmed_sets) {
+    var raw = this._last_raw || {};
+    var model = this.get('model');
+    return {
+      last_finished_word: context.last_finished_word,
+      word_in_progress: context.word_in_progress,
+      topic_context: (model && model.get && model.get('name')) || '',
+      sentence: context.sentence,
+      locale: this._word_prediction_locale(),
+      board_locale: (model && model.get && model.get('locale')) || raw.locale || 'en',
+      translations: (model && model.get && model.get('translations')) || raw.translations,
+      board_ids: wordSuggestionsModule.lookup_board_ids(
+        this.get('app_state'),
+        this.get('stashes'),
+        [this.get('model.id')]
+      ),
+      button_sets: warmed_sets
+    };
+  },
+
   _apply_suggestion_results: function(result, sentence, context) {
     var _this = this;
     if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -1809,7 +1841,7 @@ export default Controller.extend(prefClasses, {
     }
     _this.set('suggestions', { loading: true });
     aiPredictor.predict(sentence, {
-      locale: _this.get('app_state.label_locale') || 'en',
+      locale: _this._word_prediction_locale(),
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -1839,15 +1871,8 @@ export default Controller.extend(prefClasses, {
       _this.get('stashes'),
       [_this.get('model.id')]
     );
-    var lookup_options = {
-      last_finished_word: context.last_finished_word,
-      word_in_progress: context.word_in_progress,
-      topic_context: (_this.get('model') && _this.get('model.name')) || '',
-      sentence: context.sentence,
-      locale: _this.get('app_state.label_locale') || 'en',
-      board_ids: lookup_ids,
-      button_sets: warmed_sets
-    };
+    var lookup_options = _this._word_prediction_lookup_options(context, warmed_sets);
+    lookup_options.board_ids = lookup_ids;
     var lookup_promise = typeof wordSuggestionsModule.lookup_with_ai === 'function' ?
       wordSuggestionsModule.lookup_with_ai(lookup_options) :
       wordSuggestionsModule.lookup(lookup_options);
@@ -1870,9 +1895,12 @@ export default Controller.extend(prefClasses, {
     'app_state.button_list.@each.in_progress',
     'app_state.button_list.@each.label',
     'app_state.button_list.@each.vocalization',
+    'app_state.label_locale',
+    'app_state.vocalization_locale',
     'sentence_parts.[]',
     'sentence_parts.@each.label',
     'sentence_parts.@each.in_progress',
+    'model.locale',
     function() {
       if(this.get('edit_mode')) {
         this.set('suggestions', null);
@@ -3866,10 +3894,11 @@ export default Controller.extend(prefClasses, {
         }
         finish();
 
-        // Auto-rename the board key if the display name changed
+        // Auto-rename the board key only for direct user renames. Translation
+        // can change the visible board name, but route keys must stay stable.
         var original_name = _this.get('_original_board_name');
         var current_name = board.get('name');
-        if(original_name && current_name && original_name !== current_name) {
+        if(original_name && current_name && original_name !== current_name && !_this._name_matches_translation(board, current_name)) {
           _this._auto_rename_board(board, current_name);
           _this.set('_original_board_name', current_name);
         } else {
@@ -3884,6 +3913,20 @@ export default Controller.extend(prefClasses, {
       _this.set('board_saving', false);
       modal.error(i18n.t('board_save_failed', "Failed to save board"));
     });
+  },
+
+  _name_matches_translation: function(board, name) {
+    if(!board || !name) { return false; }
+    var translations = board.get('translations') || {};
+    var names = translations.board_name || {};
+    var default_locale = translations.default || board.get('locale') || 'en';
+    var current_locale = board.get('locale');
+    for(var loc in names) {
+      if(!Object.prototype.hasOwnProperty.call(names, loc)) { continue; }
+      if(loc === default_locale && loc === current_locale) { continue; }
+      if(names[loc] === name) { return true; }
+    }
+    return false;
   },
 
   // Automatically rename the board key to match the new display name
@@ -5805,7 +5848,7 @@ export default Controller.extend(prefClasses, {
             }
             prefix = ((last_part && last_part.label) || '').toLowerCase();
           }
-          wordSuggestionsModule.record_selection(text, null, prefix);
+          wordSuggestionsModule.record_selection(text, null, prefix, this._word_prediction_locale());
         }
       } catch(e) { }
 

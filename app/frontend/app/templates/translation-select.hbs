@@ -59,9 +59,9 @@
     {{#if this.existing_default_language}}
       <button disabled={{this.switch_status.pending}} class='btn btn-primary' {{action "switch_language"}}>
         {{#if this.switch_status.pending}}
-          {{t "Applying Translations..." key="applying_translations"}}
+          {{t "Switching Language..." key="switching_language"}}
         {{else if this.switch_status.error}}
-          {{t "Error Applying Translations" key="error_applying_translations"}}
+          {{t "Error Switching Language" key="error_switching_language"}}
         {{else}}
           {{t "Switch to Existing Translation" key="switch_translation"}}
         {{/if}}

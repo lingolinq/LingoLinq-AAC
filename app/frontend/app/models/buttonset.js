@@ -208,6 +208,9 @@ LingoLinq.Buttonset = DS.Model.extend({
         };
         var process_buttons = function(buttons) {
           try {
+            if(buttons && buttons.buttons && buttons.buttons.find) {
+              buttons = buttons.buttons;
+            }
             if(buttons && buttons.find) {
               bs.set('buttons_loaded', true);
               if(force) { bs.set('buttons_force_loaded', true); }
@@ -224,10 +227,19 @@ LingoLinq.Buttonset = DS.Model.extend({
                     }
                     resolve(bs);
                   }, function(err) {
-                    resolve(bs);
+                    return bs.persistence.remote_json(url, bs.get('encryption_settings')).then(function(res) {
+                      bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                      bs.set('buttons', res);
+                      if(res && res.find && !res.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                        bs.set('buttons', bs.redepth(board_id));
+                      }
+                      resolve(bs);
+                    }, function() {
+                      reject({error: 'not a valid buttonset result', details: err});
+                    });
                   });
                 }, function(err) {
-                  resolve(bs);
+                  reject({error: 'not a valid buttonset result', details: err});
                 });
               } else if(!buttons.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
                 bs.set('buttons', bs.redepth(board_id));
@@ -309,6 +321,12 @@ LingoLinq.Buttonset = DS.Model.extend({
         }
       } else if(bs.get('buttons') && bs.get('buttons').length) {
         resolve(bs);
+      } else if(bs.get('remote_enabled') && board_id) {
+        LingoLinq.Buttonset.load_button_set(board_id, true, bs.get('full_set_revision'), true).then(function(loaded_bs) {
+          resolve(loaded_bs);
+        }, function(err) {
+          reject({error: 'root url not available', details: err});
+        });
       } else {
         reject({error: 'root url not available'});
       }
@@ -1243,9 +1261,13 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
               if(!skipEmberRecordReload) {
                 reload = button_set.reload().then(null, function() { return RSVP.resolve(); });
               }
-              button_set.set('root_url', url);
             }
             reload.then(function() {
+              // Apply after reload: API payloads for remote buttonsets omit inline buttons
+              // and may not include root_url until url_for catches up; generate already has the URL.
+              if(url && (!button_set.get('root_url') || button_set.get('root_url') != url)) {
+                button_set.set('root_url', url);
+              }
               button_set.load_buttons(true).then(function() {
                 resolve(button_set);
               }, function(err) {
@@ -1299,7 +1321,11 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
         return RSVP.resolve(button_set) 
       });
     }
+    var prior_root_url = button_set.get('root_url');
     return reload.then(function(button_set) {
+      if(prior_root_url && !button_set.get('root_url')) {
+        button_set.set('root_url', prior_root_url);
+      }
       if(!button_set.get('root_url') && button_set.get('remote_enabled')) {
         // if root_url not available for the user, try to build one
         return generate(id);

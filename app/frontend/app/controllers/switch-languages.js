@@ -87,6 +87,19 @@ export default modal.ModalController.extend({
       stashes.persist('override_label_locale', null);
       stashes.persist('override_vocalization_locale', null);
       modal.close({switched: true});
+    },
+    open_translate: function() {
+      var board = this.get('model.board');
+      if (!board) { return; }
+      var opts = { board: board };
+      if (board.get) {
+        opts.button_set = board.get('button_set');
+      }
+      var locale = this.get('vocalization_locale') || this.get('label_locale');
+      if (locale) {
+        opts.translate_locale = locale;
+      }
+      modal.open('translation-select', opts);
     }
   }
 });

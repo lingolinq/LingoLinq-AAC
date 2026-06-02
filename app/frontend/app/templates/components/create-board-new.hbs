@@ -180,7 +180,7 @@
                   {{#if this.ai_mode}}
                     <p class="nb-field__hint">{{t "The AI uses this description to generate your board's labels — be specific (who it's for, the setting, the vocabulary focus)." key="ai_description_hint"}}</p>
                   {{/if}}
-                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" @rows="1" />
+                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" rows="1" />
                 </div>
               </div>
               {{!-- supporter_role gate added per Phase D #19 review:

@@ -1315,15 +1315,7 @@ LingoLinq.Board = DS.Model.extend({
       }
       var res = LingoLinq.Buttonset.load_button_set(this.get('id'), force, this.get('full_set_revision'), skipEmberRecordReload).then(function(button_set) {
         _this.set('button_set', button_set);
-        if(skipEmberRecordReload) {
-          // Buttonset.load_button_set already finished load_buttons on this record.
-          return RSVP.resolve(button_set);
-        }
-        if((_this.get('fresh') || force) && !button_set.get('fresh')) {
-          return button_set.reload().then(function(bs) { return bs.load_buttons(force); });
-        } else {
-          return button_set.load_buttons(force);
-        }
+        return sync_buttons_from_set(button_set);
       });
       res.then(sync_buttons_from_set, function() { });
       return res;
@@ -1459,6 +1451,9 @@ LingoLinq.Board = DS.Model.extend({
         last_finished_word: last_word || "",
         second_to_last_word: second_to_last_word,
         word_in_progress: in_progress,
+        locale: _this.appState.get('label_locale') || _this.get('locale') || 'en',
+        board_locale: _this.get('locale') || 'en',
+        translations: _this.get('translations'),
         board_ids: lookup_ids,
         button_sets: warmed_sets,
         max_results: suggested_buttons.length > 5 ? (suggested_buttons.length + 3) : (suggested_buttons.length * 2)

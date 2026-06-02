@@ -48,4 +48,32 @@ module('Unit | Model | buttonset cache fallback', function(hooks) {
       bs.persistence.remote_json = originalRemoteJson;
     }
   });
+
+  test('load_buttons regenerates when remote_enabled but root_url is missing', async function(assert) {
+    var store = this.owner.lookup('service:store');
+    var bs = store.createRecord('buttonset', {
+      id: 'board-1',
+      remote_enabled: true,
+      full_set_revision: 'abc'
+    });
+    var originalLoadButtonSet = window.LingoLinq.Buttonset.load_button_set;
+    var loadCalls = 0;
+    window.LingoLinq.Buttonset.load_button_set = function(id, force, revision, skipReload) {
+      loadCalls++;
+      assert.strictEqual(id, 'board-1', 'uses board global id');
+      assert.strictEqual(force, true, 'forces refresh');
+      assert.strictEqual(skipReload, true, 'skips ember reload that would wipe root_url');
+      bs.set('buttons_loaded', true);
+      bs.set('buttons', [{label: 'linked', depth: 0, board_id: 'board-1'}]);
+      return RSVP.resolve(bs);
+    };
+
+    try {
+      var result = await bs.load_buttons(true);
+      assert.strictEqual(loadCalls, 1, 'delegates to load_button_set once');
+      assert.strictEqual(result, bs, 'resolves loaded buttonset');
+    } finally {
+      window.LingoLinq.Buttonset.load_button_set = originalLoadButtonSet;
+    }
+  });
 });

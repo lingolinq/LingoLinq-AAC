@@ -562,6 +562,35 @@ describe('Board', function() {
       });
     });
 
+    it('should not reload again when load_button_set already loaded remote buttons', function() {
+      var b = LingoLinq.store.createRecord('board');
+      b.set('id', '1234');
+      b.set('fresh', true);
+      var bs1 = LingoLinq.store.createRecord('buttonset', {
+        id: '1234',
+        buttons_loaded: true,
+        buttons: [{label: 'hello', depth: 0, board_id: '1234'}]
+      });
+      var reloaded = false;
+      stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
+      var load_buttons_calls = 0;
+      stub(bs1, 'load_buttons', function() {
+        load_buttons_calls++;
+        return RSVP.resolve(bs1);
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
+      });
+      var res = null;
+      b.load_button_set(true).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual(bs1);
+        expect(reloaded).toEqual(false);
+        expect(load_buttons_calls).toEqual(0);
+      });
+    });
+
     it('should reload if force is called, regardless of other factors', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
