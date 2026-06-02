@@ -87,7 +87,7 @@ function sidebarAutoAddKeys(defaults) {
   });
 }
 
-function mergeMissingDefaultSidebarBoards(stored, prior, defaults) {
+function mergeMissingDefaultSidebarBoards(stored, defaults) {
   defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
   if(!stored || stored.length === 0) {
     return defaultActiveSidebarBoards(defaults);
@@ -775,12 +775,10 @@ export default Controller.extend({
   },
   active_sidebar_options: computed(
     'pending_preferences.sidebar_boards',
-    'pending_preferences.prior_sidebar_boards',
     function() {
       var defaults = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
       var res = mergeMissingDefaultSidebarBoards(
         this.get('pending_preferences.sidebar_boards'),
-        this.get('pending_preferences.prior_sidebar_boards'),
         defaults
       );
       res.forEach(function(b, idx) { b.idx = idx; });

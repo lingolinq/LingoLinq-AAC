@@ -1,5 +1,5 @@
 namespace :lingolinq do
-  desc 'Ensure lingolinq/crisis-vocabulary exists from public/system-boards/crisis-vocabulary.obz'
+  desc 'Ensure the configured system board user has crisis-vocabulary from public/system-boards/crisis-vocabulary.obz'
   task ensure_crisis_vocabulary: :environment do
     owner = SystemBoardSources.owner
     raise "User not found: #{SystemBoardSources::USER_NAME}. Run db:seed first." unless owner

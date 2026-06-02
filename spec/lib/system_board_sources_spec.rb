@@ -10,6 +10,20 @@ describe SystemBoardSources do
       expect(result.id).to eq(board.id)
     end
 
+    it 'publishes an existing private board at the target key without re-importing' do
+      owner = User.create(user_name: 'lingolinq')
+      board = Board.process_new({name: "Crisis Vocabulary", public: false}, {user: owner, key: 'crisis-vocabulary'})
+      board.settings['unlisted'] = true
+      board.save!
+      expect(Converters::LingoLinq).to_not receive(:from_obz)
+
+      result = described_class.ensure_crisis_vocabulary!(owner)
+
+      expect(result.id).to eq(board.id)
+      expect(result.reload.public).to eq(true)
+      expect(result.settings['unlisted']).to eq(false)
+    end
+
     it 'returns nil when the OBZ file is missing and the board does not exist' do
       owner = User.create(user_name: 'lingolinq')
       allow(File).to receive(:exist?).and_call_original

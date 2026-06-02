@@ -18,14 +18,21 @@ module SystemBoardSources
     User.find_by(user_name: USER_NAME)
   end
 
-  # Idempotent: ensures lingolinq/crisis-vocabulary exists from the committed OBZ.
+  # Idempotent: ensures the configured system board user has crisis-vocabulary from the committed OBZ.
   def self.ensure_crisis_vocabulary!(owner = nil)
     owner ||= self.owner
     return nil unless owner
 
     key = board_key(CRISIS_VOCABULARY_SLUG)
     existing = Board.find_by_path(key)
-    return existing if existing&.public?
+    if existing
+      existing.public = true
+      existing.settings['name'] ||= "Crisis Vocabulary"
+      existing.settings['unlisted'] = false
+      existing.generate_stats
+      existing.save_without_post_processing
+      return existing
+    end
 
     unless File.exist?(CRISIS_VOCABULARY_OBZ)
       Rails.logger.warn("[SystemBoardSources] Missing #{CRISIS_VOCABULARY_OBZ} — cannot import crisis vocabulary board")
