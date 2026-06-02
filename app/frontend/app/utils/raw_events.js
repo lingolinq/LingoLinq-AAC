@@ -2412,7 +2412,7 @@ var buttonTracker = EmberObject.extend({
         var prior = hit_spots[hit_spots.length - 2];
         if(prior) {
           prior.pct_x = Math.round((prior.x - left) / width * 1000) / 1000;
-          prior.pct_y = Math.round((prior.y - left) / height * 1000) / 1000;
+          prior.pct_y = Math.round((prior.y - top) / height * 1000) / 1000;
         }
         if(hit_spots.length > 0 && hit_spots[hit_spots.length - 1].distance != null) {
           var distance = hit_spots[hit_spots.length - 1].distance;

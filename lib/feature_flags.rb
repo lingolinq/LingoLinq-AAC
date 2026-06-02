@@ -110,7 +110,8 @@ module FeatureFlags
     return true if ENV['SIGNUP_SPANISH_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
     return false unless ENABLED_FRONTEND_FEATURES.include?('signup_spanish_library_boards')
     return true unless user
-    locale = user.settings && (user.settings['locale'] || user.preferences && user.preferences['locale'])
+    prefs = user.settings && user.settings['preferences']
+    locale = (prefs && prefs['locale']) || (user.settings && user.settings['locale'])
     locale.to_s.match?(/^es/i)
   end
 

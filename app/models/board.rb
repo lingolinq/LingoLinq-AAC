@@ -1,18 +1,18 @@
 class Board < ApplicationRecord
   DEFAULT_ICON = "/images/lingolinq-board-icon.png"
   TRANSLATION_LANGUAGE_LABELS = {
-    'en' => 'English',
-    'es' => 'Spanish',
-    'fr' => 'French',
-    'de' => 'German',
-    'pl' => 'Polish',
-    'pt' => 'Portuguese',
-    'ru' => 'Russian',
-    'uk' => 'Ukrainian',
-    'ja' => 'Japanese',
-    'zh' => 'Chinese',
-    'ga' => 'Irish',
-    'ar' => 'Arabic'
+    'en' => "English",
+    'es' => "Spanish",
+    'fr' => "French",
+    'de' => "German",
+    'pl' => "Polish",
+    'pt' => "Portuguese",
+    'ru' => "Russian",
+    'uk' => "Ukrainian",
+    'ja' => "Japanese",
+    'zh' => "Chinese",
+    'ga' => "Irish",
+    'ar' => "Arabic"
   }.freeze
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.

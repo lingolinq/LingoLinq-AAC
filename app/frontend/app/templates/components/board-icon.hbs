@@ -42,7 +42,7 @@
        translated_language_label resolves (board has multiple locales
        OR a non-English default locale). --}}
   {{#if this.translated_language_label}}
-    <span class="board-icon__lang-marker" title={{t "Board language" key="board_language"}}>
+    <span class="board-icon__lang-marker" aria-hidden="true" title={{t "Board language" key="board_language"}}>
       <svg class="board-icon__lang-marker-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10"/>
         <line x1="2" y1="12" x2="22" y2="12"/>

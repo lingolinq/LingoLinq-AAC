@@ -33,7 +33,7 @@ class SpanishLibraryBoards
     end
 
     board ||= source.copy_for(owner, copier: owner)
-    board.key = dest_slug
+    board.key = dest_key
     board.public = true
     board.settings['locale'] = SOURCE_LANG
     board.settings['name'] ||= source.settings['name']
