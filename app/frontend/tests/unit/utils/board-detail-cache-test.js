@@ -571,4 +571,92 @@ module('Unit | Utility | board-detail-cache', function() {
       throw err;
     });
   });
+
+  test('prefetch_caseload_for_user caps supervisees and dedupes reruns', function(assert) {
+    boardDetailCache.clear();
+    var treeCalls = [];
+    var findCalls = [];
+    var origAjax = persistence.ajax;
+    var origGet = persistence.get;
+    var origStore = LingoLinq.store;
+    var origAppState = LingoLinq.appState;
+
+    persistence.get = function(key) {
+      if (key === 'online') { return true; }
+      if (origGet) { return origGet.call(persistence, key); }
+      return true;
+    };
+
+    LingoLinq.appState = { get: function() { return null; } };
+    LingoLinq.store = {
+      peekRecord: function() {
+        return null;
+      },
+      findRecord: function(type, id) {
+        findCalls.push({ type: type, id: id });
+        return RSVP.resolve({
+          get: function(k) {
+            if (k === 'id') { return id; }
+            if (k === 'preferences.home_board') { return { key: 'student-' + id + '/home', id: id + '-home' }; }
+            if (k === 'preferences.skin') { return 'default'; }
+            if (k === 'preferences.preferred_symbols') { return 'original'; }
+            if (k === 'stats.starred_board_refs') { return []; }
+            return null;
+          }
+        });
+      },
+      normalize: function(type, raw) {
+        return { data: { id: raw.id, type: type, attributes: raw } };
+      },
+      push: function() {}
+    };
+
+    persistence.ajax = function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeCalls.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    };
+
+    var supervisor = {
+      get: function(k) {
+        if (k === 'id') { return '9_1'; }
+        if (k === 'supervisees') {
+          return [
+            { id: '1_1' },
+            { id: '1_2' },
+            { id: '1_3' }
+          ];
+        }
+        return null;
+      }
+    };
+
+    var first = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
+    var second = boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
+    assert.strictEqual(second, first, 'returns the running prefetch promise for the same supervisor');
+
+    return first.then(function() {
+      return boardDetailCache.prefetch_caseload_for_user(supervisor, { cap: 2, gapMs: 0 });
+    }).then(function() {
+      persistence.ajax = origAjax;
+      persistence.get = origGet;
+      LingoLinq.store = origStore;
+      LingoLinq.appState = origAppState;
+
+      assert.deepEqual(treeCalls, ['student-1_1/home', 'student-1_2/home'], 'prefetches only the capped supervisee set');
+      assert.deepEqual(findCalls.map(function(c) { return c.id; }), ['1_1', '1_2'], 'loads full supervisee user records once');
+    }, function(err) {
+      persistence.ajax = origAjax;
+      persistence.get = origGet;
+      LingoLinq.store = origStore;
+      LingoLinq.appState = origAppState;
+      throw err;
+    });
+  });
 });
