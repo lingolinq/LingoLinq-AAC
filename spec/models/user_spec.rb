@@ -2401,21 +2401,48 @@ describe User, :type => :model do
   end
   
   describe "sidebar_boards" do
-    it "should return the default by default" do
+    it "should return the default active list by default" do
       u = User.new
-      expect(u.sidebar_boards).to eq(User.default_sidebar_boards)
+      expect(u.sidebar_boards).to eq(User.default_active_sidebar_boards)
     end
     
-    it "should return the default if the current setting is an empty list" do
+    it "should return the default active list if the current setting is an empty list" do
       u = User.new
       u.settings = {'preferences' => {'sidebar_boards' => []}}
-      expect(u.sidebar_boards).to eq(User.default_sidebar_boards)
+      expect(u.sidebar_boards).to eq(User.default_active_sidebar_boards)
     end
     
     it "should return the current setting if it's a non-empty list" do
       u = User.new
       u.settings = {'preferences' => {'sidebar_boards' => ['a', 'b', 'c']}}
       expect(u.sidebar_boards).to eq(['a', 'b', 'c'])
+    end
+
+    it "should merge new default sidebar entries into an older saved default list" do
+      u = User.new
+      old_defaults = User.default_sidebar_boards.reject { |b| b['key'] == SystemBoardSources.board_key('crisis-vocabulary') }
+      u.settings = {'preferences' => {'sidebar_boards' => old_defaults}}
+      expect(u.sidebar_boards.map { |b| b['key'] || 'alert' }).to eq(
+        User.default_sidebar_boards.map { |b| b['key'] || 'alert' }
+      )
+    end
+
+    it "should not re-add sidebar boards the user removed from their saved list" do
+      u = User.new
+      social_key = 'mbaud12/senner-baud-greetings'
+      saved = User.default_sidebar_boards.reject do |b|
+        b['key'] == social_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
+      end
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+      keys = u.sidebar_boards.map { |b| b['key'] || 'alert' }
+      expect(keys).not_to include(social_key)
+      expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
+    end
+
+    it "should leave social in the disabled pool by default" do
+      keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include('mbaud12/senner-baud-greetings')
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
     end
   end
   

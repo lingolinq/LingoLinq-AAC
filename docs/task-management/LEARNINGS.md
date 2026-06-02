@@ -2536,6 +2536,16 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
+
+**Surface:** a public board on the `lingolinq` account that must exist in fresh DBs, appear in `User.default_sidebar_boards`, and optionally copy on signup.
+
+**Fix recipe:** Export with `Converters::LingoLinq.to_obz` → `public/system-boards/<slug>.obz`. Add slug to `SIGNUP_LIBRARY_SLUGS` if signup should copy it. Implement idempotent `ensure_<slug>!` via `from_obz` (mirror `openaac:import_vocabularies` post-import: public root, `generate_stats`, `save!` button set). Wire `db:seed` and optional `rake lingolinq:ensure_<slug>`. Sidebar defaults reference `SystemBoardSources.board_key(slug)` (public key), not the user's copy.
+
+**Evidence:** `lib/system_board_sources.rb`, `public/system-boards/crisis-vocabulary.obz`, task log `2026-06-01-crisis-vocabulary-defaults.md`.
+
+---
+
 ## Pattern: Beta program access on registration — server defaults + org opt-out
 
 **Surface:** self-service signup, org start codes, beta welcome routes.
