@@ -995,6 +995,10 @@ var speecher = EmberObject.extend({
         });
       });
       return find.then(null, function(err) {
+        // Local cache is optional for UI feedback sounds; keep the CDN URL for playback.
+        if(speecher[attr] && LingoLinq.remote_url(speecher[attr])) {
+          return RSVP.resolve(true);
+        }
         console.log(err);
         return RSVP.reject(err);
       });

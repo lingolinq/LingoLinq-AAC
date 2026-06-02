@@ -21,6 +21,12 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
+- [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
+- [Pattern: button_set per-button locale can stale — translate modal must use board locale](#pattern-button_set-per-button-locale-can-stale--translate-modal-must-use-board-locale)
+- [Pattern: translate Accept must persist via Resque and a full save payload](#pattern-translate-accept-must-persist-via-resque-and-a-full-save-payload)
+- [Pattern: translate linked-board scope needs button_set.buttons, not root board.buttons fallback](#pattern-translate-linked-board-scope-needs-button_setbuttons-not-root-boardbuttons-fallback)
+- [Pattern: progress polling stops on finished_at — handlers must not require status === 'finished' alone](#pattern-progress-polling-stops-on-finished_at--handlers-must-not-require-status--finished-alone)
 - [Pattern: `find_all_by_global_id` does not preserve input order](#pattern-find_all_by_global_id-does-not-preserve-input-order)
 - [Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children](#pattern-html5-drag-and-drop-suppressed-by-nested-button-children)
 - [Pattern: "It's broken" symptoms that vanish on re-test = stale Ember dev bundle](#pattern-its-broken-symptoms-that-vanish-on-re-test--stale-ember-dev-bundle)
@@ -64,8 +70,11 @@ file (see [README.md](README.md)).
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
+- [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 
 ---
+
 - [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
 - [Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)](#pattern-viewport-conditional-board-detail-ui-orientation-gate--immersive-tool-consolidation)
 - [Pattern: Dashboard card order is driven by grid-template-areas per breakpoint × variant — reorder there, never the DOM](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom)
@@ -83,6 +92,14 @@ file (see [README.md](README.md)).
 - [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 
+## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
+
+Word predictions should follow the visible label language first (`app_state.label_locale`), then fall back to the board model's `locale`. Translated boards can display Spanish while the underlying board record still reports English, so using `model.locale` first sends English AI requests. When changing prediction language behavior, update all three layers together: controller lookup locale, AI client cache key, and `record_selection` sync/telemetry locale. The local ngram/helper corpus in `app/frontend/app/utils/word_suggestions.js` is English-only, so non-English prediction lookup should keep vocabulary prefix matches but skip English fallback suggestions. For non-English locales without AI, add translation-aware vocabulary suggestions from warmed button sets (`collect_vocabulary_next_words`) and pass `translations` + `board_locale` into lookup options so Spanish labels resolve from the board translations blob, not raw English button text.
+
+## Pattern: Translated board names must not rename route keys
+
+Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` changes after save. Translation also changes `board.name` when a localized board name becomes visible/default, so auto-rename must skip names that match `translations.board_name`; otherwise canonical URLs like `crisis-vocabulary` become localized slugs like `vocabulario-de-crisis`. Existing accidental renames should resolve through `OldKey` by using `Board.find_by_possibly_old_path` in board-detail API lookups.
+
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
 **Surface:** session navigation cache (`board_detail_cache.js`) and offline IndexedDB sync (`sync_boards`).
@@ -94,6 +111,62 @@ file (see [README.md](README.md)).
 **Flags:** Phase 1 (home) is unconditional; phases 2–4 run when `background_board_prefetch` is enabled (shipped in `ENABLED_FRONTEND_FEATURES`). Phase 4 also honors legacy `catalog_board_prefetch`.
 
 **First seen in:** [2026-05-30-phased-online-board-caching.md](./2026-05-30-phased-online-board-caching.md)
+
+## Pattern: encrypted buttonset JSON cache must carry parsed payloads
+
+**Surface:** `store_url_now` / `store_json` / `find_json` in both [`app/services/persistence.js`](../../app/frontend/app/services/persistence.js) and [`app/utils/persistence.js`](../../app/frontend/app/utils/persistence.js), especially downstream `BoardDownstreamButtonSet` JSON used by Translate and board hierarchy loading.
+
+**Gotcha:** The network/decrypt path can succeed while the cache path fails later. Do not make parsed JSON depend on a `data_uri` re-encode or filesystem write: Unicode labels and large buttonsets can make `btoa(JSON.stringify(...))` fragile, and local filesystem rejection should not block JSON consumers. Carry `json_payload` through the cache object, read it directly from `store_json`/`find_json`, and keep `buttonset.load_buttons` able to fall back to `remote_json` when cache persistence rejects.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
+
+## Pattern: remote buttonset reload can wipe generate URL before second load_buttons
+
+**Surface:** `board.load_button_set` → `Buttonset.load_button_set` → `load_buttons`, especially Translate modal / `BoardHierarchy.load_with_button_set`.
+
+**Gotcha:** `load_button_set` already completes `load_buttons` on success paths. A follow-up `buttonset.reload()` for freshness replaces the Ember record with API JSON that omits inline `buttons` (remote mode) and may omit `root_url` when `url_for` is not ready — even though `/generate` just returned a working S3 URL. The second `load_buttons` then rejects `{error: 'root url not available'}`. Skip redundant reload when `buttons_loaded` is set; apply generate URLs **after** reload; add a `remote_enabled` fallback to `load_button_set(..., skipEmberRecordReload=true)`.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
+
+## Pattern: button_set per-button locale can stale — translate modal must use board locale
+
+**Surface:** `components/button-set.js` `_startTranslating`, `/api/v1/users/self/translate`.
+
+**Gotcha:** `BoardDownstreamButtonSet` embeds `'locale' => board.settings['locale']` at generation time. That tag can lag `board.locale` or reflect destination metadata while labels stay in the source language. Grouping translate batches by `b.locale` then sends `source_lang === destination_lang`, Google echoes, and the echo filter drops every result — only words using `board.locale` (e.g. board name) get translations.
+
+**Fix recipe:** For the translate review modal, derive `source_lang` from each button's `board_id` → current board record locale; for the root board always use `model.board.locale`. Do not trust button_set snapshot locale alone.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
+
+## Pattern: translate Accept must persist via Resque and a full save payload
+
+**Surface:** `components/button-set.js` `save_translations`, `POST /api/v1/boards/:id/translate`, Switch Language / `board.locales`.
+
+**Gotcha:** Accept is two steps — AJAX POST then background `translate_set`. If Resque is not running locally, progress never finishes and nothing is stored (`translated_locales` stays English-only). Separately, `save_translations` must merge auto-translate dict + row edits; row-only payload can be empty even when the review UI looked filled.
+
+**Fix recipe:** Merge `_this.get('translations')` with per-row fields before POST; guard against zero button keys; verify progress reaches `finished`; bump `board_reload_key` and reload board before language modals.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
+
+## Pattern: translate linked-board scope needs button_set.buttons, not root board.buttons fallback
+
+**Surface:** Translate Boards hierarchy + `components/button-set.js`.
+
+**Gotcha:** Hierarchy selection passes `board_ids_to_translate` for whole-set translation, but when `button_set.buttons` is empty the modal falls back to `model.board.buttons` (root only). Linked boards never appear in review or save. Strict `board_ids.indexOf(b.board_id)` also drops rows when id string formats differ.
+
+**Fix recipe:** Shared `_buttons_for_translate()` for review + auto-translate; normalize ids with `String()`; refuse root-only fallback when linked boards are selected; surface `load_buttons` failure instead of swallowing it.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
+
+## Pattern: progress polling stops on finished_at — handlers must not require status === 'finished' alone
+
+**Surface:** `progress_tracker.js`, translate Accept / Switch Language flows, any `progress_tracker.track` consumer.
+
+**Gotcha:** `check()` stops rescheduling when `finished_at` is present. Consumers that only run success UI when `event.status === 'finished'` miss completion if the API returns `finished_at` before `settings.state` reads `'finished'` (or normalizes inconsistently). Polling correctly halts; modal stays on "Accepting…" and `board_reload_key` never fires — user refreshes and sees saved server data.
+
+**Fix recipe:** Use shared `progress_tracker.is_finished(event)` (`status === 'finished' || finished_at`). Normalize in `_normalize_progress`. Match buttonset.js pattern. Store `track_id` and `untrack` on terminal.
+
+**First seen in:** [2026-05-30-board-translation-fixes.md](./2026-05-30-board-translation-fixes.md)
 
 ## Pattern: HTML5 drag-and-drop suppressed by nested `<button>` children
 
@@ -2560,6 +2633,40 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: board translation speak text must mirror label when vocalization unset
+
+**Symptom:** Board shows translated labels but Speak reads English.
+
+**Root cause:** Buttons often have only `label`; after translation the label overlay updates but a stale English `vocalization` field (or missing dest-lang vocalization in the translations blob) wins in `utterance.speak_button` (`vocalization || label`).
+
+**Fix recipe:** In `Board#translate_set`, when dest label is stored and source vocalization was blank or matched source label, also write dest vocalization and update live button vocalization. Mirror label→vocalization in `edit_manager.update_inflections` and `board.translated_buttons` when speak/label locales match. Sync `label_locale`/`vocalization_locale` stashes after translate; on board load prefer board default locale unless `override_*` stashes exist from Switch Languages.
+
+**Evidence:** `app/models/board.rb#translate_set`, `app/frontend/app/models/board.js`, `app/frontend/app/utils/edit_manager.js`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: pre-built Spanish library boards — translate copies, do not regenerate
+
+**Symptom:** Spanish labels break symbol/image lookup when boards are generated directly in Spanish.
+
+**Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
+
+**Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: board-detail Switch Languages — overlay translations on ordered_buttons
+
+**Symptom:** Switch Languages changes speak locale metadata but grid labels stay in the board default language; taps may not vocalize on board-detail.
+
+**Root cause:** Modern board-detail builds `ordered_buttons` from raw API buttons in `_build_from_raw` and does not apply `contextualized_buttons` overlays. In speak mode, `edit_manager.process_for_displaying` takes the legacy `fast_html` shortcut and returns early without rebuilding `ordered_buttons`.
+
+**Fix recipe:** After `_build_from_raw`, call `_apply_display_locales_to_ordered_buttons` (maps `contextualized_buttons` onto the plain-object grid). On Switch Languages close, invalidate `last_cb`/`fast_html` and re-run that overlay plus `process_for_displaying(true)`. Skip the speak-mode `fast_html` early-return path when `controller.is_board_detail`.
+
+**Evidence:** `app/frontend/app/controllers/user/board-detail.js`, `app/frontend/app/utils/edit_manager.js`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
 ## Pattern: compile `app.scss` standalone with dart-sass to catch SCSS errors without a full ember build
 
 **Surface:** any SCSS-only change to `app/frontend/app/styles/app.scss` (or its partials). A full `ember build` to validate one selector edit is slow.
@@ -2742,3 +2849,31 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
 
 **Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.
+
+---
+
+## Pattern: activation location logging must tolerate missing hit history
+
+**Surface:** Speak Mode button activation, especially fast-html/controller handoffs, translated display paths, find-button highlights, keyboard/programmatic activation, and any path that reaches `application.activateButton` without first running `raw_events.track_selection`.
+
+**Root cause:** `buttonTracker.track_selection` initializes `buttonTracker.hit_spots`, but `buttonTracker.locate_button_on_board` is also called from activation logging and used to assume `hit_spots.length` existed before its own fallback logic. If a valid activation path has no prior selection history, telemetry/location calculation can throw before speech activation completes.
+
+**Fix recipe:** Treat activation location telemetry as best-effort. In `locate_button_on_board`, normalize `var hit_spots = buttonTracker.hit_spots || []` and use the existing no-prior-point fallback (`percent_travel` from closest edge) when history is absent.
+
+**Evidence:** `app/frontend/app/utils/raw_events.js` (`locate_button_on_board`); task log `2026-06-01-translated-speak-button-hit-spots.md`.
+
+---
+
+## Pattern: retranslate existing board language must force default update
+
+**Surface:** Translate Boards modal, `components/translation-select.js`, `components/button-set.js`, `/api/v1/boards/:id/translate`, `Board#translate_set`.
+
+**Root cause:** The normal translate path intentionally avoids applying visible labels when `destination_lang` already equals the board locale (`set_as_default_here = false`). That is safe for ordinary same-locale cache updates, but wrong for an explicit support/admin retranslate after a previous broken translation marked the language as available.
+
+**Gotcha:** Broken translated boards can report `board.locale === destination_lang` while their visible labels are still in the original language. If the review modal derives `source_lang` from `board.locale`, it sends Spanish → Spanish, Google echoes, and the frontend echo filter drops every target field.
+
+**Permission gotcha:** `/api/v1/boards/:id/translate` requires edit permission on the board in the URL before it schedules progress. Public library boards like `lingolinq/core-blocks-*` can be viewed but not translated in place by regular users. The user-facing path should not hard-stop; it should copy first, then translate the copy.
+
+**Fix recipe:** Only from the explicit Re-Translate UI, open the existing button-set review modal with `force_update_default: true` and pass the original source locale (`translations.default || board.locale`) as `source_locale`; keep normal Start Translation and Switch Existing Translation unchanged. The server will then apply reviewed labels/vocalizations to the visible board text and propagate the override to selected linked boards. For read-only boards, keep the translate modal reachable and show a `Translate a Copy` action that calls the existing application `copy_board` flow with `translate_locale`; `copying-board` then opens the review modal against the copied board.
+
+**Evidence:** `app/frontend/app/components/translation-select.js`, `app/frontend/app/templates/components/translation-select.hbs`, `app/models/board.rb` (`translate_set`); task log `2026-06-01-translate-modal-retranslate.md`.

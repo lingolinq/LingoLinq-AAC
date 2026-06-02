@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer } from '@ember/object';
-import { next, debounce, cancel } from '@ember/runloop';
+import { next, debounce, cancel, later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import { htmlSafe } from '@ember/template';
 import $ from 'jquery';
@@ -61,7 +61,10 @@ export default Component.extend({
       this.set('model.grid.labels_order', this.stashes.get('new_board_labels_order'));
     }
 
-    // Set locale
+    // Board vocabulary is always authored in English first so Fitzgerald
+    // key colors and part-of-speech lookup stay accurate; offer translation
+    // after save when the communicator prefers another language.
+    var preferred_locale = null;
     var locale = ((i18n.langs || {}).preferred || window.navigator.language || 'en').replace(/-/g, '_');
     var pieces = locale.split(/_/);
     if(pieces[0]) { pieces[0] = pieces[0].toLowerCase(); }
@@ -69,12 +72,18 @@ export default Component.extend({
     locale = pieces[0] + '_' + pieces[1];
     var locales = (i18n.get && i18n.get('locales')) || {};
     if(locales[locale]) {
-      this.set('model.locale', locale);
+      preferred_locale = locale;
     } else {
       locale = locale.split(/_/)[0];
       if(locales[locale]) {
-        this.set('model.locale', locale);
+        preferred_locale = locale;
       }
+    }
+    this.set('preferred_communicator_locale', preferred_locale);
+    if(this.appState.get('feature_flags.english_first_board_generation')) {
+      this.set('model.locale', 'en');
+    } else if(preferred_locale) {
+      this.set('model.locale', preferred_locale);
     }
     
     this.set('status', null);
@@ -1276,10 +1285,26 @@ export default Component.extend({
       _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
       var key = board.get('key') || '';
       var parts = key.split('/');
-      if (parts.length >= 2) {
-        _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+      var transition = function() {
+        if (parts.length >= 2) {
+          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        } else {
+          _this.get('router').transitionTo('board', key);
+        }
+      };
+      var preferred = _this.get('preferred_communicator_locale');
+      var prefRoot = (preferred || 'en').split(/_|-/)[0];
+      if(_this.appState.get('feature_flags.english_first_board_generation') && preferred && prefRoot !== 'en') {
+        transition();
+        runLater(function() {
+          modalUtil.open('translation-select', {
+            board: board,
+            button_set: board.get('button_set'),
+            translate_locale: preferred
+          });
+        }, 500);
       } else {
-        _this.get('router').transitionTo('board', key);
+        transition();
       }
     }, function() {
       _this.set('status', {error: true});

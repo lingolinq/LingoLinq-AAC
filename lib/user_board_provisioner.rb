@@ -10,7 +10,12 @@ class UserBoardProvisioner
     end
 
     progresses = []
-    SystemBoardSources::SIGNUP_LIBRARY_SLUGS.each do |slug|
+    slugs = if FeatureFlags.signup_spanish_library_boards_enabled?(user)
+      SystemBoardSources::SPANISH_LIBRARY_SLUGS
+    else
+      SystemBoardSources::SIGNUP_LIBRARY_SLUGS
+    end
+    slugs.each do |slug|
       key = SystemBoardSources.board_key(slug)
       board = Board.find_by_path(key)
       unless board&.public?
