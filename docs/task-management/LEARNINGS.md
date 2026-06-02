@@ -72,6 +72,9 @@ file (see [README.md](README.md)).
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
+- [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
+- [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
+- [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 
 ---
 
@@ -2609,6 +2612,16 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
+
+**Surface:** a public board on the `lingolinq` account that must exist in fresh DBs, appear in `User.default_sidebar_boards`, and optionally copy on signup.
+
+**Fix recipe:** Export with `Converters::LingoLinq.to_obz` → `public/system-boards/<slug>.obz`. Add slug to `SIGNUP_LIBRARY_SLUGS` if signup should copy it. Implement idempotent `ensure_<slug>!` via `from_obz` (mirror `openaac:import_vocabularies` post-import: public root, `generate_stats`, `save!` button set). Wire `db:seed` and optional `rake lingolinq:ensure_<slug>`. Sidebar defaults reference `SystemBoardSources.board_key(slug)` (public key), not the user's copy.
+
+**Evidence:** `lib/system_board_sources.rb`, `public/system-boards/crisis-vocabulary.obz`, task log `2026-06-01-crisis-vocabulary-defaults.md`.
+
+---
+
 ## Pattern: Beta program access on registration — server defaults + org opt-out
 
 **Surface:** self-service signup, org start codes, beta welcome routes.
@@ -2849,6 +2862,20 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
 
 **Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.
+
+---
+
+## Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`
+
+**Surface:** API actions that are publicly routed or intentionally exempt from `require_api_token`, but still need a clear authentication challenge before action-specific validation or feature checks.
+
+**Gotcha:** `require_api_token` intentionally returns the legacy 400 "Access token required..." response, and `spec/controllers/application_controller_spec.rb` locks that behavior. Do not change it just to make one endpoint return 401.
+
+**Fix recipe:** exempt only the target action from the shared guard, then make the action's first check `return api_error(401, {error: "Authentication required", unauthorized: true}) unless @api_user`. This preserves global compatibility while keeping clients from seeing misleading feature/validation errors when they simply need to authenticate.
+
+**Related permission gotcha:** `admin_support_actions` is a global support capability from `User` permissions (`Organization.admin_manager?(user) && !user.valet_mode?`). For global admin/support endpoints, prefer a direct predicate over `@api_user.allows?(@api_user, 'admin_support_actions')`, which makes the acting user both resource and actor and obscures the real authorization rule.
+
+**Evidence:** task log `2026-06-02-word-predict-auth-and-admin-support-permission.md`.
 
 ---
 

@@ -1212,6 +1212,14 @@ SystemSidebarBoards.ensure_for(lingolinq_user).each do |board|
   puts "  Ensured lingolinq/#{board.key.split('/').last} board"
 end
 
+crisis_board = SystemBoardSources.ensure_crisis_vocabulary!(lingolinq_user)
+if crisis_board
+  puts "  Ensured lingolinq/#{SystemBoardSources::CRISIS_VOCABULARY_SLUG} board"
+else
+  puts "  NOTE: lingolinq/#{SystemBoardSources::CRISIS_VOCABULARY_SLUG} not found."
+  puts "        Add public/system-boards/crisis-vocabulary.obz or run: bundle exec rake lingolinq:ensure_crisis_vocabulary"
+end
+
 if lingolinq_user && !Board.find_by_path('lingolinq/quick-core-60')
   if ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'].to_s =~ /^(1|true|yes)$/i
     puts "  Importing OpenAAC vocabulary boards for lingolinq (this may take a while)..."
