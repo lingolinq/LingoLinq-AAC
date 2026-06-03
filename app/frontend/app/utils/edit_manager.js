@@ -638,6 +638,13 @@ var editManager = EmberObject.extend({
           }
           if(updated_button) {
             updated_button.condense_items = infl.condense_items;
+            // Keep speak text aligned with inflected label when vocalization
+            // was not manually set to something different.
+            var base_voc = button.vocalization;
+            var base_label = button.original_label || button.label;
+            if(!base_voc || base_voc === base_label) {
+              updated_button.vocalization = updated_button.label;
+            }
           }
         });
       }
@@ -1921,7 +1928,8 @@ var editManager = EmberObject.extend({
 
     var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
     var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
-    if(appState.get('speak_mode')) {
+    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
+    if(appState.get('speak_mode') && !is_board_detail) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();
       if(!ignore_fast_html && board.get('fast_html') && fastHtmlHasRenderableContent(board.get('fast_html'))

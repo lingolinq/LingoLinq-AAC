@@ -10,14 +10,13 @@
       <div class="la-section-header">
         <span class="la-section-eyebrow-badge">{{t "Beta program" key="beta_welcome_eyebrow"}}</span>
         <div class="la-hero-title-wrap">
-          <h2 class="la-hero-title">{{t "Welcome" key="beta_welcome_title"}}</h2>
+          <h2 class="la-hero-title">{{t "Welcome to LingoLinq" key="beta_welcome_title"}}</h2>
         </div>
-        <hr class="la-about-hero-separator" aria-hidden="true">
         <p class="beta-welcome-card__subtitle">
           {{#if this.displayName}}
-            {{t "Hi %{name}, we're glad you're here." name=this.displayName key="beta_welcome_greeting_named"}}
+            {{t "Hi %{name} — explore, communicate, and" name=this.displayName key="beta_welcome_tagline_named_pre"}} <span class="hero-gradient">{{t "help shape what comes next." key="beta_welcome_tagline_highlight"}}</span>
           {{else}}
-            {{t "We're so glad you're here to help us build LingoLinq." key="beta_welcome_greeting_generic"}}
+            {{t "Explore, communicate, and" key="beta_welcome_tagline_pre"}} <span class="hero-gradient">{{t "help shape what comes next." key="beta_welcome_tagline_highlight"}}</span>
           {{/if}}
         </p>
       </div>
@@ -30,14 +29,65 @@
         <section class="beta-welcome-section" aria-labelledby="beta-welcome-explore-heading">
           <h3 id="beta-welcome-explore-heading" class="beta-welcome-section__title">{{t "Two ways we can explore together" key="beta_welcome_explore_title"}}</h3>
           <div class="la-feature-grid beta-welcome-feature-grid">
-            <div class="la-feature-card beta-welcome-feature-card">
-              <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">🗣️</div>
-              <h4>{{t "Speak, play & discover" key="beta_welcome_explore_speak_title"}}</h4>
+            <div class="la-feature-card beta-welcome-feature-card beta-welcome-feature-card--featured">
+              <div class="beta-welcome-feature-card__head">
+                <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="bwSpeakFill" x1="3" y1="3" x2="20" y2="18" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#2A9D8F" stop-opacity="0.20"/>
+                      <stop offset="1" stop-color="#4ECDC4" stop-opacity="0.08"/>
+                    </linearGradient>
+                    <linearGradient id="bwSpeakStroke" x1="3" y1="3" x2="20" y2="18" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#2A9D8F"/>
+                      <stop offset="1" stop-color="#3FBEAE"/>
+                    </linearGradient>
+                    <linearGradient id="bwSpeakBars" x1="12" y1="5" x2="12" y2="13" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#37B7A8"/>
+                      <stop offset="1" stop-color="#1F8C7F"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M6 3 H18 A3 3 0 0 1 21 6 V12 A3 3 0 0 1 18 15 H10 L6 19 V15 A3 3 0 0 1 3 12 V6 A3 3 0 0 1 6 3 Z"
+                        fill="url(#bwSpeakFill)" stroke="url(#bwSpeakStroke)" stroke-width="1.6" stroke-linejoin="round"/>
+                  <g stroke="url(#bwSpeakBars)" stroke-width="2.1" stroke-linecap="round">
+                    <line x1="8" y1="7.6" x2="8" y2="10.4"/>
+                    <line x1="10.5" y1="5.9" x2="10.5" y2="12.1"/>
+                    <line x1="13" y1="6.7" x2="13" y2="11.3"/>
+                    <line x1="15.5" y1="8" x2="15.5" y2="10"/>
+                  </g>
+                </svg>
+              </div>
+                <h4>{{t "Speak, play & discover" key="beta_welcome_explore_speak_title"}}</h4>
+              </div>
               <p>{{t "You have an official license to roam! Explore, try things out, and find how you like to talk, share, and communicate." key="beta_welcome_explore_speak_body"}}</p>
             </div>
-            <div class="la-feature-card beta-welcome-feature-card">
-              <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">🎯</div>
-              <h4>{{t "Weekly missions" key="beta_welcome_explore_missions_title"}}</h4>
+            <div class="la-feature-card beta-welcome-feature-card beta-welcome-feature-card--missions">
+              <div class="beta-welcome-feature-card__head">
+                <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="bwFlagFabric" x1="6" y1="4" x2="18.5" y2="12" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#4C86D8"/>
+                      <stop offset="1" stop-color="#8585E6"/>
+                    </linearGradient>
+                    <linearGradient id="bwFlagPole" x1="6" y1="3" x2="6" y2="21" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#5E7FD2"/>
+                      <stop offset="1" stop-color="#7178D6"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="6" y1="4" x2="6" y2="21" stroke="url(#bwFlagPole)" stroke-width="2.1" stroke-linecap="round"/>
+                  <circle cx="6" cy="3.4" r="1.15" fill="#5E7FD2"/>
+                  <path d="M6 4.4 C8.5 3.2 10.6 5.6 13 4.65 C15.2 3.8 16.9 4.25 18.5 4.55 L18.5 11.95 C16.9 11.65 15.2 11.2 13 12.05 C10.6 13 8.5 10.6 6 11.8 Z"
+                        fill="url(#bwFlagFabric)"/>
+                  <path d="M6 4.4 C8.5 3.2 10.6 5.6 13 4.65 C15.2 3.8 16.9 4.25 18.5 4.55"
+                        stroke="#ffffff" stroke-opacity="0.55" stroke-width="1" stroke-linecap="round"/>
+                  <path d="M13 4.65 C13.45 7 13.4 9.6 13 12.05"
+                        stroke="#ffffff" stroke-opacity="0.3" stroke-width="0.9" stroke-linecap="round"/>
+                  <path d="M19.4 14.1 l0.42 1.18 1.18 0.42 -1.18 0.42 -0.42 1.18 -0.42 -1.18 -1.18 -0.42 1.18 -0.42 Z" fill="#8585E6"/>
+                </svg>
+              </div>
+                <h4>{{t "Weekly missions" key="beta_welcome_explore_missions_title"}}</h4>
+              </div>
               <p>{{t "Each week we'll share a short activity so we can practice using different features together." key="beta_welcome_explore_missions_body"}}</p>
             </div>
           </div>
@@ -78,14 +128,46 @@
         </section>
 
         <section class="beta-welcome-section beta-welcome-section--feedback" aria-labelledby="beta-welcome-feedback-heading">
-          <h3 id="beta-welcome-feedback-heading" class="beta-welcome-section__title">{{t "How to share your thoughts" key="beta_welcome_feedback_title"}}</h3>
-          <p>{{t "If you find a problem, catch a bug, or have an idea, use the Beta Feedback button inside the app. No detail is too small!" key="beta_welcome_feedback_body"}}</p>
+          <h3 id="beta-welcome-feedback-heading" class="beta-welcome-section__title">{{t "Help shape LingoLinq" key="beta_welcome_feedback_title"}}</h3>
+          <p class="beta-welcome-feedback__intro">{{t "As an early beta member, your feedback directly helps shape the future of communication tools for AAC users, families, therapists, and educators." key="beta_welcome_feedback_intro"}}</p>
+
+          <ul class="beta-welcome-missions">
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Explore communication boards" key="beta_welcome_mission_explore"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Try speaking, modeling, and navigation tools" key="beta_welcome_mission_tools"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Tell us what feels confusing or difficult" key="beta_welcome_mission_confusing"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Share ideas or feature requests" key="beta_welcome_mission_ideas"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Report bugs or anything that feels off" key="beta_welcome_mission_bugs"}}</span>
+            </li>
+            <li class="la-plan-item">
+              <span class="la-plan-check" aria-hidden="true">✓</span>
+              <span>{{t "Let us know what you love, too" key="beta_welcome_mission_love"}}</span>
+            </li>
+          </ul>
         </section>
 
-        <p class="beta-welcome-signoff">
-          {{t "Thank you for helping us shape this new voice and being a vital part of our crew!" key="beta_welcome_signoff"}}
-          <span class="beta-welcome-signoff__team">{{t "The LingoLinq Team" key="beta_welcome_team"}}</span>
-        </p>
+        <div class="beta-welcome-listening" role="group" aria-labelledby="beta-welcome-listening-heading">
+          <span class="beta-welcome-listening__pill" id="beta-welcome-listening-heading">
+            <span class="beta-welcome-listening__dot" aria-hidden="true"></span>
+            {{t "We're listening" key="beta_welcome_listening_pill"}}
+          </span>
+          <p class="beta-welcome-listening__body">{{t "Every idea, bug report, and observation helps us build communication tools that feel more human, modern, and accessible. No detail is too small." key="beta_welcome_listening_body"}}</p>
+          <p class="beta-welcome-listening__hint">{{t "The Beta Feedback button is always available inside the app whenever inspiration strikes." key="beta_welcome_listening_hint"}}</p>
+          <span class="beta-welcome-listening__team">{{t "The LingoLinq Team" key="beta_welcome_team"}}</span>
+        </div>
       </div>
 
       <div class="register-btn-wrap beta-welcome-actions">

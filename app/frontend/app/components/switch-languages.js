@@ -30,6 +30,14 @@ export default Component.extend({
     this.set('same_locale', labels === vocalizations);
   },
 
+  didInsertElement() {
+    this._super(...arguments);
+    var board = this.get('model.board');
+    if (board && board.reload) {
+      board.reload(true).then(null, function() {});
+    }
+  },
+
   update_matching_other: observer('vocalization_locale', 'same_locale', function() {
     if (this.get('same_locale')) {
       this.set('label_locale', this.get('vocalization_locale'));
@@ -74,6 +82,9 @@ export default Component.extend({
     set_languages() {
       const appState = this.get('appState');
       const stashes = this.get('stashes');
+      if (this.get('same_locale')) {
+        this.set('label_locale', this.get('vocalization_locale'));
+      }
       appState.set('label_locale', this.get('label_locale'));
       stashes.persist('label_locale', this.get('label_locale'));
       appState.set('vocalization_locale', this.get('vocalization_locale'));
@@ -93,6 +104,19 @@ export default Component.extend({
       stashes.persist('override_label_locale', null);
       stashes.persist('override_vocalization_locale', null);
       this.get('modal').close({ switched: true });
+    },
+    open_translate() {
+      const board = this.get('model.board');
+      if (!board) { return; }
+      const opts = { board: board };
+      if (board.get) {
+        opts.button_set = board.get('button_set');
+      }
+      const locale = this.get('vocalization_locale') || this.get('label_locale');
+      if (locale) {
+        opts.translate_locale = locale;
+      }
+      modal.open('translation-select', opts);
     }
   }
 });

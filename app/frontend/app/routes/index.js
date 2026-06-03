@@ -57,7 +57,7 @@ export default Route.extend({
         if (window.sessionStorage && sessionStorage.getItem('ll_pending_beta_welcome') === '1') {
           sessionStorage.removeItem('ll_pending_beta_welcome');
           if (model.get('preferences.beta_program_access') !== false) {
-            this.transitionTo('beta-welcome-message');
+            this.router.transitionTo('beta-welcome-message');
             return;
           }
         }

@@ -70,9 +70,15 @@ module Api::SchemaExplorer
     model.column_names - stripped
   end
 
+  # Gate for both explorer endpoints. Global admins always pass; everyone else
+  # must clear admin_support_actions_allowed? (an admin-org manager who is not in
+  # valet/eval mode), the tightened check introduced on staging in #334. We defer
+  # to that ApplicationController helper rather than the older
+  # allows?(user, 'admin_support_actions') call so both endpoints share one
+  # authorization definition that stays in lockstep with the rest of the app.
   def require_schema_explorer_access
     return if @api_user&.admin?
-    return if @api_user && @api_user.allows?(@api_user, 'admin_support_actions')
+    return if admin_support_actions_allowed?
 
     api_error 403, {error: 'Not authorized'}
   end

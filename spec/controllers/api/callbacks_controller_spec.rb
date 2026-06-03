@@ -105,7 +105,12 @@ describe Api::CallbacksController, :type => :controller do
       bs = ButtonSound.create(:user => u, :settings => {
         'full_filename' => 'sounds/4/3/0-something.wav'
       })
-      prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
+      # The prefix embeds Time.now.to_i captured inside schedule_transcoding (media_object.rb).
+      # Read it back from the scheduled job rather than recomputing Time.now here, which flakes
+      # when a second ticks over between ButtonSound.create and this line.
+      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+      expect(action).to_not eq(nil)
+      prefix = action['args'][3]
       expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, "abcdefg")).to eq(true)
       config = OpenStruct.new
       expect(bs.settings['transcoding_attempted']).to eq(true)

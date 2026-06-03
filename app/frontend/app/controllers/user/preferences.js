@@ -63,6 +63,69 @@ function buildSidebarActionPickerOptions() {
   return options;
 }
 
+function sidebarBoardIdentity(board) {
+  if(board && (board.alert || (board.special && board.alert))) {
+    return 'alert';
+  }
+  return board && board.key;
+}
+
+function defaultActiveSidebarBoards(defaults) {
+  defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_active_sidebar_boards) || [];
+  if(defaults.length) { return defaults.slice(); }
+  var inactive = {'mbaud12/senner-baud-greetings': true};
+  return (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards || []).filter(function(b) {
+    return !inactive[b.key];
+  });
+}
+
+function sidebarAutoAddKeys(defaults) {
+  return (defaults || []).filter(function(board) {
+    return board && board.key && board.key.split('/').pop() === 'crisis-vocabulary';
+  }).map(function(board) {
+    return board.key;
+  });
+}
+
+function mergeMissingDefaultSidebarBoards(stored, defaults) {
+  defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
+  if(!stored || stored.length === 0) {
+    return defaultActiveSidebarBoards(defaults);
+  }
+  var storedById = {};
+  stored.forEach(function(b) {
+    var id = sidebarBoardIdentity(b);
+    if(id) { storedById[id] = b; }
+  });
+  var storedIds = Object.keys(storedById);
+  var defaultIds = defaults.map(sidebarBoardIdentity);
+  if(!storedIds.some(function(id) { return defaultIds.indexOf(id) !== -1; })) {
+    return stored.slice();
+  }
+  var autoAddKeys = sidebarAutoAddKeys(defaults);
+  var missingAutoAdd = autoAddKeys.filter(function(key) { return storedIds.indexOf(key) === -1; });
+  if(missingAutoAdd.length === 0) {
+    return stored.slice();
+  }
+  var result = [];
+  defaults.forEach(function(defaultItem) {
+    var id = sidebarBoardIdentity(defaultItem);
+    var key = defaultItem.key;
+    if(storedById[id]) {
+      result.push(storedById[id]);
+    } else if(key && missingAutoAdd.indexOf(key) !== -1) {
+      result.push(defaultItem);
+    }
+  });
+  stored.forEach(function(b) {
+    var id = sidebarBoardIdentity(b);
+    if(defaultIds.indexOf(id) === -1 && result.indexOf(b) === -1) {
+      result.push(b);
+    }
+  });
+  return result;
+}
+
 export default Controller.extend({
   router: service('router'),
   notification_frequency_options: [
@@ -710,14 +773,18 @@ export default Controller.extend({
       _this.set('pending_preferences.device.voice.voice_uri', val);
     });
   },
-  active_sidebar_options: computed('pending_preferences.sidebar_boards', function() {
-    var res = this.get('pending_preferences.sidebar_boards');
-    if(!res || res.length === 0) {
-     res = [].concat((window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || []);
+  active_sidebar_options: computed(
+    'pending_preferences.sidebar_boards',
+    function() {
+      var defaults = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
+      var res = mergeMissingDefaultSidebarBoards(
+        this.get('pending_preferences.sidebar_boards'),
+        defaults
+      );
+      res.forEach(function(b, idx) { b.idx = idx; });
+      return res;
     }
-    res.forEach(function(b, idx) { b.idx = idx; });
-    return res;
-  }),
+  ),
   set_limited_logging: observer('model.has_logging_code', 'pending_preferences.logging_cutoff', 'pending_preferences.private_logging', function() {
     if(this.get('model.has_logging_code') || ((this.get('pending_preferences.logging_cutoff') || 'none') != 'none') || this.get('pending_preferences.private_logging')) {
       this.set('limited_logging', true);
@@ -942,6 +1009,16 @@ export default Controller.extend({
       }
       this.set('pending_preferences.substitutions', editManager.parse_rules(this.get('substitution_string')));
       this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
+
+      // Persist the sidebar list the user sees (active options), not a stale raw pref.
+      var activeSidebar = (this.get('active_sidebar_options') || []).map(function(b) {
+        var item = {};
+        Object.keys(b).forEach(function(k) {
+          if(k !== 'idx') { item[k] = b[k]; }
+        });
+        return item;
+      });
+      this.set('pending_preferences.sidebar_boards', activeSidebar);
 
       var _this = this;
       ['debounce', 'device.dwell_release_distance', 'device.scanning_next_keycode', 'device.scanning_prev_keycode', 'device.scanning_region_columns', 'device.scanning_region_rows', 'device.scanning_select_keycode', 'device.scanning_interval'].forEach(function(key) {

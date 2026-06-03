@@ -47,6 +47,25 @@ var progress_tracker = EmberObject.extend({
       this.track_ids[track_id] = false;
     }
   },
+  is_finished: function(event) {
+    return !!(event && (event.status === 'finished' || event.finished_at));
+  },
+  is_errored: function(event) {
+    return !!(event && event.status === 'errored');
+  },
+  is_terminal: function(event) {
+    return this.is_finished(event) || this.is_errored(event);
+  },
+  _normalize_progress: function(prog) {
+    if(!prog) { return prog; }
+    /* Some workers set finished_at before settings.state catches up; consumers
+       that only check status === 'finished' miss completion and stop updating
+       the UI even though polling correctly halted on finished_at. */
+    if(prog.finished_at && prog.status !== 'errored' && prog.status !== 'finished') {
+      prog.status = 'finished';
+    }
+    return prog;
+  },
   run_later: function(_this, cb, delay) {
     runLater(_this, cb, delay);
   },
@@ -63,12 +82,13 @@ var progress_tracker = EmberObject.extend({
           status_callback({ status: 'errored', sub_status: 'invalid_progress_response' });
           return;
         }
+        prog = progress_tracker._normalize_progress(prog);
         prog.still_working = false;
         if(!prog.finished_at) {
           prog.still_working = true;
           progress_tracker.run_later(_this, function() {
-            if(this.track_ids[track_id]) {
-              this.check(url, status_callback, 0, track_id, opts);
+            if(_this.track_ids[track_id]) {
+              _this.check(url, status_callback, 0, track_id, opts);
             }
           }, opts.success_wait);
         }
@@ -90,8 +110,8 @@ var progress_tracker = EmberObject.extend({
         });
       } else {
         progress_tracker.run_later(_this, function() {
-          if(this.track_ids[track_id]) {
-            this.check(url, status_callback, error_count + 1, track_id, opts);
+          if(_this.track_ids[track_id]) {
+            _this.check(url, status_callback, error_count + 1, track_id, opts);
           }
         }, opts.error_wait);
       }

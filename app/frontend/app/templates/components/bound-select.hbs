@@ -11,6 +11,17 @@
   </button>
   {{#if this.isOpen}}
     <ul class="bound-select__list" role="listbox" {{action "stopPropagation" on="click"}} {{action "list_keydown" on="keydown"}}>
+      {{#if this.searchable}}
+        <li class="bound-select__search" role="presentation">
+          <Input
+            @type="text"
+            @value={{this.searchQuery}}
+            class="bound-select__search-input"
+            placeholder={{this.search_placeholder}}
+            aria-label={{this.search_placeholder}}
+          />
+        </li>
+      {{/if}}
       {{#if this.renderContent.length}}
         {{#each this.renderContent as |item|}}
           {{#if item._isDivider}}
