@@ -505,7 +505,7 @@ describe ApplicationController, :type => :controller do
       expect(assigns[:domain_overrides]).to_not eq(nil)
       expect(assigns[:domain_overrides]['host']).to eq('test.host')
       expect(assigns[:domain_overrides]['settings']['app_name']).to eq('LingoLinq')
-      expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Someone')
+      expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Lingolinq')
     end
 
     it "should load org-set settings" do
@@ -522,7 +522,7 @@ describe ApplicationController, :type => :controller do
       expect(assigns[:domain_overrides]['host']).to eq('bacon.com')
       expect(assigns[:domain_overrides]['css']).to eq('asdf')
       expect(assigns[:domain_overrides]['settings']['app_name']).to eq('bacon')
-      expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Someone')
+      expect(assigns[:domain_overrides]['settings']['company_name']).to eq('Lingolinq')
     end
   end
 

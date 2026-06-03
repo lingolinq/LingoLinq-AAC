@@ -18,5 +18,5 @@ Aws::Rails.add_action_mailer_delivery_method(
     ENV['SES_KEY'] || ENV['AWS_KEY'],
     ENV['SES_SECRET'] || ENV['AWS_SECRET']
   ),
-  region: ENV['SES_REGION']
+  region: ENV['SES_REGION'] || ENV['AWS_REGION'] || ENV['AWS_DEFAULT_REGION']
 )
