@@ -53,7 +53,7 @@ describe UserMailer, :type => :mailer do
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/Welcome to LingoLinq!/)
-      expect(html).to match("-The Someone Team")
+      expect(html).to match("The Lingolinq Team")
       expect(html).to match(/<b>#{u.user_name}<\/b>/)
       text = message_body(m, :text)
       expect(text).to match(/Welcome to LingoLinq!/)
@@ -77,7 +77,7 @@ describe UserMailer, :type => :mailer do
       m = UserMailer.confirm_registration(u.global_id)
       expect(m.subject).to eq("Cheddar - Welcome!")
       html = message_body(m, :html)
-      expect(html).to match("-The Cheddarific Team")
+      expect(html).to match("The Cheddarific Team")
     end
   end
 

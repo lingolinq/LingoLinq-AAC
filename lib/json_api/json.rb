@@ -96,7 +96,7 @@ module JsonApi::Json
         'settings' => domain
       }
       domain_overrides['settings']['app_name'] ||= "LingoLinq"
-      domain_overrides['settings']['company_name'] ||= "Someone"
+      domain_overrides['settings']['company_name'] ||= "Lingolinq"
       # Org host_settings replace default_domain; merge COPPA from ENV unless org set it explicitly.
       s = domain_overrides['settings']
       if s['coppa_parental_consent'].nil?
@@ -139,7 +139,7 @@ module JsonApi::Json
       'css' => nil,
       'settings' => {
         'app_name' => ENV['APP_NAME'] || "LingoLinq",
-        'company_name' => ENV['COMPANY_NAME'] || "Someone",
+        'company_name' => ENV['COMPANY_NAME'] || "Lingolinq",
         'logo_url' => "/images/logo-new.png",
         'ios_store_url' => ENV['IOS_STORE_URL'],
         'play_store_url' => ENV['PLAY_STORE_URL'],

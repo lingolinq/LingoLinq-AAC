@@ -171,7 +171,7 @@ describe JsonApi::Json do
       host = JsonApi::Json.load_domain('bacon.com')
       expect(host).to_not eq(nil)
       expect(host['host']).to eq('bacon.com')
-      expect(host['settings']['company_name']).to eq('Someone')
+      expect(host['settings']['company_name']).to eq('Lingolinq')
     end
 
     it 'fills coppa_parental_consent from ENV when org host_settings omit it' do
@@ -231,7 +231,7 @@ describe JsonApi::Json do
       default = JsonApi::Json.default_domain
       expect(default['css']).to eq(nil)
       expect(default['settings']['app_name']).to eq('LingoLinq')
-      expect(default['settings']['company_name']).to eq('Someone')
+      expect(default['settings']['company_name']).to eq('Lingolinq')
       expect(default['settings']['full_domain']).to eq(true)
     end
   end
