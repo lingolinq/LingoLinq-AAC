@@ -5,7 +5,7 @@ module MailerHelper
   end
 
   def email_signature
-    "-The #{JsonApi::Json.current_domain['settings']['company_name']} Team"
+    "The Lingolinq Team"
   end
 
   def app_name

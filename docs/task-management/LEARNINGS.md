@@ -76,6 +76,7 @@ file (see [README.md](README.md)).
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
+- [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
 
 ---
 
@@ -2915,3 +2916,15 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Only from the explicit Re-Translate UI, open the existing button-set review modal with `force_update_default: true` and pass the original source locale (`translations.default || board.locale`) as `source_locale`; keep normal Start Translation and Switch Existing Translation unchanged. The server will then apply reviewed labels/vocalizations to the visible board text and propagate the override to selected linked boards. For read-only boards, keep the translate modal reachable and show a `Translate a Copy` action that calls the existing application `copy_board` flow with `translate_locale`; `copying-board` then opens the review modal against the copied board.
 
 **Evidence:** `app/frontend/app/components/translation-select.js`, `app/frontend/app/templates/components/translation-select.hbs`, `app/models/board.rb` (`translate_set`); task log `2026-06-01-translate-modal-retranslate.md`.
+
+---
+
+## Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`
+
+**Surface:** registration emails and any mail delivered through `config/initializers/amazon_ses.rb`.
+
+**Root cause pattern:** local/Render env may provide standard AWS keys like `AWS_REGION` while the app-specific SES initializer reads only `SES_REGION`. Credentials can be present and `op run` can be working, but SES still fails before delivery with `Aws::Errors::MissingRegionError`.
+
+**Fix recipe:** Keep `SES_REGION` as the explicit override, but fall back to `AWS_REGION` and `AWS_DEFAULT_REGION`. For diagnosis, check the running app process env in a sanitized way and use read-only `Aws::SES::Client#get_send_quota` before sending a real email.
+
+**Evidence:** `config/initializers/amazon_ses.rb`; task log `2026-06-02-registration-email-sending-investigation.md`.
