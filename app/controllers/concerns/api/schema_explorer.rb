@@ -76,9 +76,18 @@ module Api::SchemaExplorer
   # to that ApplicationController helper rather than the older
   # allows?(user, 'admin_support_actions') call so both endpoints share one
   # authorization definition that stays in lockstep with the rest of the app.
+  #
+  # Authorize the ACTING identity, not the account being viewed. Under admin
+  # masquerade (?as_user_id=...), ApplicationController reassigns @api_user to the
+  # impersonated account and stashes the real actor in @true_user. Evaluating the
+  # gate against (@true_user || @api_user) -- the same precedence audit_user_key
+  # uses to attribute the disclosure -- stops a lower-privileged user from
+  # reaching this admin-only endpoint by masquerading as a privileged target, and
+  # keeps the authorization decision booked to the same person as the audit trail.
   def require_schema_explorer_access
-    return if @api_user&.admin?
-    return if admin_support_actions_allowed?
+    actor = @true_user || @api_user
+    return if actor&.admin?
+    return if admin_support_actions_allowed?(actor)
 
     api_error 403, {error: 'Not authorized'}
   end

@@ -148,15 +148,16 @@ describe Api::DatabaseSchemaController, :type => :controller do
       expect(json['database_schema']['tables']).to be_a(Array)
     end
 
-    # Accounting-of-disclosures must name the admin who actually performed the
-    # read, not the account they were masquerading as (?as_user_id=...).
-    it 'should attribute the disclosure to the real admin when masquerading' do
+    # The gate must authorize the ACTING admin (@true_user), not the account
+    # being viewed (@api_user). The target here is deliberately a plain non-admin
+    # user: the read still succeeds because the real actor is an admin-org
+    # manager, and the disclosure is attributed to that admin (not the target).
+    # This would 403 if the gate evaluated the impersonated user.
+    it 'should authorize and attribute to the real admin when masquerading as a non-admin' do
       admin_org = Organization.create(admin: true)
       token_user
       admin_org.add_manager(@user.user_name, true)
       target = User.create
-      target.settings['admin'] = true
-      target.save
 
       expect {
         get :index, params: {as_user_id: target.global_id}
@@ -165,6 +166,26 @@ describe Api::DatabaseSchemaController, :type => :controller do
       event = AuditEvent.last
       expect(event.user_key).to eq(@user.global_id)
       expect(event.data['acting_as']).to eq(target.global_id)
+    end
+
+    # A non-admin who is merely able to masquerade (an org manager viewing as one
+    # of their users) must NOT inherit schema-explorer access just because the
+    # impersonated target happens to be privileged. The gate authorizes the
+    # acting non-admin (@true_user), who fails, so the read is denied and nothing
+    # is disclosed or logged. Guards the escalation direction of the same gate.
+    it 'should deny a non-admin who masquerades as a privileged target' do
+      token_user
+      org = Organization.create
+      org.add_manager(@user.user_name, true)
+      admin_org = Organization.create(admin: true)
+      target = User.create(user_name: 'privtarget')
+      org.add_user(target.user_name, false, false)
+      admin_org.add_manager(target.user_name, true)
+
+      expect {
+        get :index, params: {as_user_id: target.global_id}
+      }.not_to change { AuditEvent.count }
+      expect(response.status).to eq(403)
     end
   end
 end

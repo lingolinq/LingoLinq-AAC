@@ -203,15 +203,16 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(response.status).to eq(403)
     end
 
-    # Accounting-of-disclosures must name the admin who actually performed the
-    # read, not the account they were masquerading as (?as_user_id=...).
-    it 'should attribute the disclosure to the real admin when masquerading' do
+    # The gate must authorize the ACTING admin (@true_user), not the account
+    # being viewed (@api_user). The target here is deliberately a plain non-admin
+    # user: the read still succeeds because the real actor is an admin-org
+    # manager, and the disclosure is attributed to that admin (not the target).
+    # This would 403 if the gate evaluated the impersonated user.
+    it 'should authorize and attribute to the real admin when masquerading as a non-admin' do
       admin_org = Organization.create(admin: true)
       token_user
       admin_org.add_manager(@user.user_name, true)
       target = User.create
-      target.settings['admin'] = true
-      target.save
       Organization.create
 
       expect {
