@@ -38028,6 +38028,84 @@ a.la-footer-bottom-a11y-wcag {
   max-width: 560px;
 }
 
+.register-step-copy {
+  margin: 0 0 18px;
+  color: #4f5c6f;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.register-role-heading {
+  margin: 0 0 18px;
+  color: $la-navy;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.register-role-options {
+  display: grid;
+  gap: $aac-spacing-12;
+  margin-bottom: $aac-spacing-16;
+}
+
+.register-choice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 64px;
+  padding: $aac-spacing-16 $aac-spacing-20;
+  border-radius: 14px;
+  border: 1px solid rgba($brand-smart-blue, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(241, 246, 255, 0.9) 100%);
+  color: $brand-smart-blue;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 8px rgba($la-navy, 0.12);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba($brand-smart-blue, 0.55);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 4px 14px rgba($la-navy, 0.16);
+    transform: translateY(-1px);
+    outline: none;
+  }
+}
+
+.register-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $aac-spacing-12;
+}
+
+.register-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 $aac-spacing-14;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $brand-smart-blue;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    outline: none;
+  }
+}
+
 /* Supporter sub-type buttons — revealed under the role dropdown when
    "Supporter" is selected. Modern glassy pill buttons (2 per row), with a
    brand-smart-blue active state for the chosen type. */
@@ -38036,6 +38114,10 @@ a.la-footer-bottom-a11y-wcag {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+}
+
+.register-supporter-types--large {
+  margin-bottom: $aac-spacing-16;
 }
 .register-supporter-type {
   flex: 1 1 calc(50% - 4px);
@@ -38070,6 +38152,27 @@ a.la-footer-bottom-a11y-wcag {
     0 0 0 2px rgba($brand-smart-blue, 0.18);
 }
 
+.register-footer-link {
+  margin: 18px 0 0;
+  color: $brand-blue-black;
+  font-size: 15px;
+  text-align: center;
+
+  a {
+    color: $brand-smart-blue;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+}
+
+.register-help-text {
+  margin: $aac-spacing-8 0 $aac-spacing-12;
+  color: #5a6578;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .register-card {
   margin-top: $aac-spacing-24;
   background:
@@ -38085,7 +38188,7 @@ a.la-footer-bottom-a11y-wcag {
     0 8px 24px rgba(0, 0, 0, 0.07),
     0 24px 48px -12px rgba(0, 0, 0, 0.08);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 
   /* Auth header/divider: match about page design */
   .la-section-header {
@@ -38374,6 +38477,10 @@ a.la-footer-bottom-a11y-wcag {
   transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease, color 0.2s ease;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   text-align: center;
+
+  &.register-btn--wide {
+    width: 100%;
+  }
 
   &:hover:not(:disabled):not(.register-btn--disabled) {
     background: color.adjust(rgba($brand-charcoal-dark, 1), $lightness: 8%);

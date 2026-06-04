@@ -19,6 +19,11 @@ export default Route.extend({
     controller.set('model', model);
     controller.set('user', model);
     controller.set('coppaWaitingParent', false);
+    controller.set('registrationStep', 'role');
+    controller.set('registration_role', '');
+    controller.set('birth_month', '');
+    controller.set('birth_year', '');
+    controller.set('productImprovementOptIn', false);
     controller.set('coppa_age_group', null);
     controller.set('parent_consent_email', '');
     if(model.get('reg_params.code') && model.get('reg_params.v')) {
@@ -41,24 +46,21 @@ export default Route.extend({
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('noName')|| controller.get('noSpacesName') || controller.get('coppaBlocksSave') || controller.get('ageBlocksSave') || controller.get('roleIncomplete')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('userNameMissing') || controller.get('noSpacesName') || controller.get('userNameUnavailable') || controller.get('coppaBlocksSave') || controller.get('roleIncomplete')) {
         return;
       }
-      if(controller.get('showCoppaConsent')) {
-        if(controller.get('coppa_age_group') === 'under_13') {
-          user.set('coppa_under_13', true);
-          user.set('parent_consent_email', (controller.get('parent_consent_email') || '').trim());
-        } else {
-          user.set('coppa_under_13', false);
-          user.set('parent_consent_email', null);
-        }
+      if(controller.get('coppa_age_group') === 'under_13') {
+        user.set('coppa_under_13', true);
+        user.set('parent_consent_email', (controller.get('parent_consent_email') || '').trim());
       } else {
         user.set('coppa_under_13', false);
         user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
-      user.set('preferences.telemetry_opt_in', controller.get('model.preferences.telemetry_opt_in') || false);
-      user.set('preferences.comms_log_opt_in', controller.get('model.preferences.comms_log_opt_in') || false);
+      var productImprovementOptIn = !!controller.get('productImprovementOptIn');
+      user.set('preferences.cookies', productImprovementOptIn);
+      user.set('preferences.telemetry_opt_in', productImprovementOptIn);
+      user.set('preferences.comms_log_opt_in', productImprovementOptIn);
       user.save().then(function(user) {
         controller.set('start_code', null);
         user.set('password', null);

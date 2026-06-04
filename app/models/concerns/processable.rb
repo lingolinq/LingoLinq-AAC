@@ -176,7 +176,9 @@ module Processable
   end
   
   def generate_user_name(suggestion=nil, downcased=true)
+    suggestion = nil if suggestion.respond_to?(:blank?) && suggestion.blank?
     suggestion ||= self.user_name || (self.settings && self.settings['name'])
+    suggestion = nil if suggestion.respond_to?(:blank?) && suggestion.blank?
     suggestion ||= (self.settings && self.settings['email'] && self.settings['email'].split(/@/)[0])
     suggestion ||= "person"
     suggestion = suggestion.downcase if downcased
