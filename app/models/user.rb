@@ -1081,7 +1081,7 @@ class User < ApplicationRecord
       'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
       'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
-      'new_index', 'debounce', 'cookies', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
+      'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
       'highlight_popup_text', 'phrase_categories', 'high_contrast', 'swipe_pages',
       'hide_pin_hint', 'battery_sounds', 'auto_inflections', 'private_logging',

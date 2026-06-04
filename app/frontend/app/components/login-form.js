@@ -24,6 +24,15 @@ export default Component.extend({
     this.set('google_link_nonce', null);
     try { sessionStorage.removeItem('google_link_nonce'); } catch (e) { /* ignore */ }
   },
+  expireGoogleLinkSession: function() {
+    this.clearGoogleLinkSession();
+    this.set('google_link_state', null);
+    this.set('google_link_password', null);
+    this.set('google_link_selected_user_name', null);
+    this.set('google_link_error', null);
+    this.set('google_link_linking_another', false);
+    this.set('login_error', i18n.t('google_link_session_expired', "This Google sign-in session expired. Please try again."));
+  },
   syncGoogleReturnParams: function() {
     if(typeof window === 'undefined') { return; }
     var params = new URLSearchParams(window.location.search || '');
@@ -201,8 +210,7 @@ export default Component.extend({
     this.persistence.ajax('/auth/google/link?nonce=' + encodeURIComponent(nonce), { type: 'GET', dataType: 'json' }).then(function(res) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       if(!res || typeof res !== 'object' || res.error || !res.mode) {
-        _this.set('google_link_state', { loading: false, error: true, candidates: [] });
-        _this.set('login_error', i18n.t('google_link_session_expired', "This Google sign-in session expired. Please try again."));
+        _this.expireGoogleLinkSession();
         return;
       }
       var candidates = res.candidates || [];
@@ -223,8 +231,7 @@ export default Component.extend({
       }
     }, function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      _this.set('google_link_state', { loading: false, error: true, candidates: [] });
-      _this.set('login_error', i18n.t('google_link_session_expired', "This Google sign-in session expired. Please try again."));
+      _this.expireGoogleLinkSession();
     });
   },
   googleLoginStartUrl: function(flow) {
@@ -376,7 +383,7 @@ export default Component.extend({
   googleLinkStepLoading: computed('google_link_state', 'google_link_nonce', function() {
     if(!this.get('google_link_nonce')) { return false; }
     var state = this.get('google_link_state');
-    return !state || !!state.loading || !state.mode;
+    return !state || !!state.loading || (!state.mode && !state.error);
   }),
   googleLinkMode: computed('google_link_state.mode', 'google_link_state.loading', function() {
     var state = this.get('google_link_state');

@@ -96,6 +96,13 @@ file (see [README.md](README.md)).
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
 - [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
+- [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
+
+## Pattern: blank username suggestions must be discarded before `clean_path`
+
+`Processable#generate_user_name` treats an explicit suggestion as authoritative unless it is blanked out first. Passing `''` from signup/default-generation paths reaches `clean_path('')`, which pads to `___` instead of falling back to email or `"person"`. Normalize blank suggestions to `nil` before choosing the fallback source, and keep a regression spec in `spec/models/concerns/processable_spec.rb`.
+
+**First seen in:** [2026-06-03-staged-registration-flow.md](./2026-06-03-staged-registration-flow.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -3037,3 +3044,13 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Keep `SES_REGION` as the explicit override, but fall back to `AWS_REGION` and `AWS_DEFAULT_REGION`. For diagnosis, check the running app process env in a sanitized way and use read-only `Aws::SES::Client#get_send_quota` before sending a real email.
 
 **Evidence:** `config/initializers/amazon_ses.rb`; task log `2026-06-02-registration-email-sending-investigation.md`.
+
+---
+
+## Pattern: autocomplete tokens should follow credential intent, not nearby labels
+
+**Surface:** profile/preferences and account-management forms with mixed profile fields, username lookups, password resets, and delegated account creation.
+
+**Fix recipe:** Use semantic tokens for real user details (`name`, `email`, `tel`, `url`), `current-password` only for credentials that authenticate an existing account, and `new-password` for credential creation/reset/update. For username lookup, start-code, free-form bio, and profile location fields, prefer `autocomplete="off"` plus autocapitalize/autocorrect/spellcheck off where typing exact identifiers matters, so browsers do not inject saved usernames/password-adjacent values into unrelated profile fields.
+
+**Evidence:** `app/frontend/app/templates/user/edit.hbs`; task log `2026-06-03-profile-autocomplete-field-types.md`.

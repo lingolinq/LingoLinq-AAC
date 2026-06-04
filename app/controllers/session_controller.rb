@@ -739,6 +739,15 @@ class SessionController < ApplicationController
       'popout_id' => params['popout_id'],
       'app' => ActiveModel::Type::Boolean.new.cast(params['app'] || false)
     }
+    if flow == 'register'
+      registration_type = params['registration_type'].to_s.strip
+      allowed_registration_types = %w[communicator therapist parent teacher other]
+      registration_type = 'communicator' unless allowed_registration_types.include?(registration_type)
+      config['registration_type'] = registration_type
+      config['user_name'] = params['user_name'].to_s.strip
+      config['terms_agree'] = ActiveModel::Type::Boolean.new.cast(params['terms_agree'])
+      config['product_improvement_opt_in'] = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
+    end
     return_origin = params['return_origin'].to_s.strip
     origin = GoogleOAuth.frontend_origin(request, return_origin.present? ? { 'return_origin' => return_origin } : nil)
     config['return_origin'] = origin if origin.present?
@@ -768,6 +777,12 @@ class SessionController < ApplicationController
       return redirect_to google_auth_error_redirect('unverified_email', config), allow_other_host: true
     end
 
+    if config['flow'] == 'register'
+      nonce = GoSecure.nonce('google_link')
+      GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'signup_complete'))
+      return redirect_to google_frontend_redirect("/register?google_signup=#{nonce}", config), allow_other_host: true
+    end
+
     linked_users = User.find_all_by_google_sub(profile[:sub]).reject(&:google_sso_blocked?)
     unlinked_candidates = google_unlinked_email_candidates(profile, linked_users)
     if linked_users.length > 1
@@ -788,10 +803,6 @@ class SessionController < ApplicationController
       nonce = GoSecure.nonce('google_link')
       GoogleOAuth.store_link(nonce, google_link_config(profile, config, candidates, 'email_match', single_candidate: true))
       return redirect_to google_frontend_redirect("/login?google_link=#{nonce}", config), allow_other_host: true
-    elsif config['flow'] == 'register'
-      nonce = GoSecure.nonce('google_link')
-      GoogleOAuth.store_link(nonce, google_link_config(profile, config, [], 'signup_complete'))
-      return redirect_to google_frontend_redirect("/register?google_signup=#{nonce}", config), allow_other_host: true
     end
 
     nonce = GoSecure.nonce('google_link')
@@ -881,7 +892,11 @@ class SessionController < ApplicationController
     end
     render json: {
       email: link['email'],
-      name: link['name']
+      name: link['name'],
+      user_name: link['user_name'],
+      registration_type: link['registration_type'] || 'communicator',
+      terms_agree: !!link['terms_agree'],
+      product_improvement_opt_in: !!link['product_improvement_opt_in']
     }
   end
 
@@ -904,9 +919,10 @@ class SessionController < ApplicationController
     begin
       user = User.create_from_google_signup!(
         profile,
-        user_name: params['user_name'],
-        registration_type: params['registration_type'],
-        terms_agree: params['terms_agree']
+        user_name: params['user_name'].presence || link['user_name'],
+        registration_type: params['registration_type'].presence || link['registration_type'],
+        terms_agree: params['terms_agree'].presence || link['terms_agree'],
+        product_improvement_opt_in: params['product_improvement_opt_in'].presence || link['product_improvement_opt_in']
       )
     rescue GoogleOAuth::Error => e
       error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
@@ -991,7 +1007,11 @@ class SessionController < ApplicationController
       'device_id' => config['device_id'],
       'popout_id' => config['popout_id'],
       'app' => config['app'],
-      'return_origin' => config['return_origin']
+      'return_origin' => config['return_origin'],
+      'registration_type' => config['registration_type'],
+      'user_name' => config['user_name'],
+      'terms_agree' => config['terms_agree'],
+      'product_improvement_opt_in' => config['product_improvement_opt_in']
     }
     link['single_candidate'] = true if single_candidate
     if unlinked_candidates.any?

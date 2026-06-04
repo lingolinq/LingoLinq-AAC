@@ -42,26 +42,30 @@ module GoogleAuthentication
       user
     end
 
-    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:)
+    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:, product_improvement_opt_in: false)
       raise GoogleOAuth::Error, 'terms_required' unless ActiveModel::Type::Boolean.new.cast(terms_agree)
       user_name = user_name.to_s.strip
       raise GoogleOAuth::Error, 'username_required' if user_name.blank?
+      product_improvement_opt_in = ActiveModel::Type::Boolean.new.cast(product_improvement_opt_in)
 
       email = profile[:email].to_s.strip
       name = profile[:name].presence || email.split('@').first
       password = GoSecure.nonce('google_pw')
-      user = User.process_new({
+      params = {
         'name' => name,
-        'user_name' => user_name,
         'email' => email,
         'password' => password,
         'terms_agree' => true,
         'preferences' => {
-          'registration_type' => registration_type.presence || 'individual',
-          'cookies' => false,
-          'google_signup' => true
+          'registration_type' => registration_type.presence || 'communicator',
+          'cookies' => product_improvement_opt_in,
+          'google_signup' => true,
+          'telemetry_opt_in' => product_improvement_opt_in,
+          'comms_log_opt_in' => product_improvement_opt_in
         }
-      }, { pending: true, allow_password_change: true })
+      }
+      params['user_name'] = user_name
+      user = User.process_new(params, { pending: true, allow_password_change: true })
       raise GoogleOAuth::Error, 'user_creation_failed' if !user || user.errored?
       user.link_google!(profile[:sub], email: email, name: name)
       user
