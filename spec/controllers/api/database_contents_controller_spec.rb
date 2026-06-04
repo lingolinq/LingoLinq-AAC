@@ -203,6 +203,27 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(response.status).to eq(403)
     end
 
+    # The gate must authorize the ACTING admin (@true_user), not the account
+    # being viewed (@api_user). The target here is deliberately a plain non-admin
+    # user: the read still succeeds because the real actor is an admin-org
+    # manager, and the disclosure is attributed to that admin (not the target).
+    # This would 403 if the gate evaluated the impersonated user.
+    it 'should authorize and attribute to the real admin when masquerading as a non-admin' do
+      admin_org = Organization.create(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+      target = User.create
+      Organization.create
+
+      expect {
+        get :index, params: {table: 'organizations', as_user_id: target.global_id}
+      }.to change { AuditEvent.count }.by(1)
+      expect(response.successful?).to eq(true)
+      event = AuditEvent.last
+      expect(event.user_key).to eq(@user.global_id)
+      expect(event.data['acting_as']).to eq(target.global_id)
+    end
+
     it 'should route reads through the model and return only exposable columns' do
       make_admin
       org = Organization.create(admin: true)
