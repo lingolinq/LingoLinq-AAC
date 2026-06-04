@@ -695,6 +695,44 @@ describe("persistence", function() {
       });
     });
 
+    it("should resolve parsed encrypted json when cache storage fails", function() {
+      db_wait(function() {
+        var buttons = [{label: 'sí', board_id: 'board-1', depth: 0}];
+        persistence.set('local_system', {
+          available: true,
+          allowed: true
+        });
+        stub(lingoLinqExtras, 'ready', true);
+        stashes.set('auth_settings', {});
+        stub(persistence, 'ajax', function() {
+          return RSVP.resolve({
+            content_type: 'application/json',
+            data: 'data:application/json;base64,' + btoa('aes256-payload')
+          });
+        });
+        stub(persistence, 'decrypt_json', function() {
+          return RSVP.resolve(buttons);
+        });
+        stub(persistence, 'store', function() {
+          return RSVP.reject({error: 'rejected'});
+        });
+
+        var result = null;
+        var error = null;
+        persistence.store_url_now('http://www.example.com/buttons.json', 'json', {iv: 'iv'}).then(function(res) {
+          result = res;
+        }, function(err) {
+          error = err;
+        });
+
+        waitsFor(function() { return result || error; });
+        runs(function() {
+          expect(error).toEqual(null);
+          expect(result.json_payload).toEqual(buttons);
+        });
+      });
+    });
+
     it("should normalize a url", function() {
       var url = "http://localhost/api/v1/users/123/protected_image/lessonpix/12345?user_token=asdfasdf";
       db_wait(function() {
@@ -723,6 +761,28 @@ describe("persistence", function() {
       });
     });
   });
+  describe("store_json", function() {
+    it("should return json_payload without requiring a data_uri round trip", function() {
+      var buttons = [{label: 'sí', board_id: 'board-1', depth: 0}];
+      var result = null;
+      stub(persistence, 'store_url', function() {
+        return RSVP.resolve({
+          url: 'http://www.example.com/buttons.json',
+          type: 'json',
+          json_payload: buttons
+        });
+      });
+
+      persistence.store_json('http://www.example.com/buttons.json').then(function(res) {
+        result = res;
+      });
+
+      waitsFor(function() { return result; });
+      runs(function() {
+        expect(result).toEqual(buttons);
+      });
+    });
+  });
   describe("find_url", function() {
     it('should normalize a url', function() {
       var url = "http://localhost/api/v1/users/123/protected_image/lessonpix/12345";
@@ -743,6 +803,30 @@ describe("persistence", function() {
         waitsFor(function() { return result; });
         runs(function() {
           expect(result).toEqual("data:image/png;base64,a0a");
+        });
+      });
+    });
+
+    it('should return cached json_payload directly', function() {
+      var url = "http://www.example.com/buttons.json";
+      var buttons = [{label: 'sí', board_id: 'board-1', depth: 0}];
+      db_wait(function() {
+        var stored = false;
+        persistence.store('dataCache', {url: url, content_type: 'application/json', json_payload: buttons}, url).then(function() { stored = true; });
+        persistence.url_uncache = {};
+        persistence.url_uncache[url] = true;
+        waitsFor(function() { return stored; });
+
+        var result = null;
+        runs(function() {
+          persistence.find_json(url).then(function(res) {
+            result = res;
+          });
+        });
+
+        waitsFor(function() { return result; });
+        runs(function() {
+          expect(result).toEqual(buttons);
         });
       });
     });

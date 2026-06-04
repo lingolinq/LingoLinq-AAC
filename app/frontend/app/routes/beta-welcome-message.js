@@ -3,12 +3,13 @@ import { inject as service } from '@ember/service';
 import config from '../config/environment';
 
 export default Route.extend({
+  router: service(),
   session: service('session'),
   appState: service('app-state'),
   store: service('store'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
-      this.transitionTo('login');
+      this.router.transitionTo('login');
       return;
     }
     if (this.session.get('isAuthenticated')) {
@@ -34,7 +35,7 @@ export default Route.extend({
   },
   actions: {
     goToAgreement() {
-      this.transitionTo('beta-welcome');
+      this.router.transitionTo('beta-welcome');
     }
   }
 });

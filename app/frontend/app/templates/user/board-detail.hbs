@@ -693,23 +693,13 @@
                 {{#if this.suggestions.list.length}}
                   <span class="md-board-detail-sentence-bar__prediction-group" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
                     {{#each this.suggestions.list as |suggestion|}}
-                      <button type="button" class="md-board-detail-sentence-bar__prediction {{if this.utterance_text_on_top "md-board-detail-sentence-bar__prediction--text-top"}}" {{action "complete_word" suggestion bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
-                        {{!-- Mirror the sentence-bar chips' label-position preference:
-                             text-on-top renders the word above the symbol, text-on-bottom
-                             below, and "words only" (utterance_show_symbols false) drops
-                             the symbol entirely. Same flex-column layout as __chip, so DOM
-                             order controls stacking. --}}
-                        {{#if this.utterance_text_on_top}}
-                          <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
-                        {{/if}}
+                      <button type="button" class="md-board-detail-sentence-bar__prediction" {{action "complete_word" suggestion bubbles=false}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                         {{#if this.utterance_show_symbols}}
                           {{#if suggestion.image}}
                             <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
                           {{/if}}
                         {{/if}}
-                        {{#unless this.utterance_text_on_top}}
-                          <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
-                        {{/unless}}
+                        <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
                       </button>
                     {{/each}}
                   </span>
@@ -1274,7 +1264,7 @@
                 {{#if this.language_submenu_open}}
                   <div class="md-board-detail-actions-menu__submenu">
                     {{#unless (get this.speak_menu_hidden_set "translate")}}
-                      <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}}>
+                      <button type="button" class="md-board-detail-actions-menu__item" {{action "translate_board"}} disabled={{this.board_translate_in_progress}} aria-disabled={{this.board_translate_in_progress}}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                           <circle cx="12" cy="12" r="10"/>
                           <line x1="2" y1="12" x2="22" y2="12"/>

@@ -164,6 +164,14 @@ export default Component.extend({
     if (!locale) { return null; }
     return i18n.readable_language(locale);
   }),
+  tile_aria_label: computed('best_name', 'translated_language_label', function() {
+    var name = this.get('best_name') || '';
+    var lang = this.get('translated_language_label');
+    if(lang) {
+      return name + ', ' + lang;
+    }
+    return name;
+  }),
   actions: {
     /* Keyboard activation for the role="button" div that wraps the
        card body — Enter and Space mirror the click handler so the

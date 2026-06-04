@@ -615,6 +615,7 @@ class User < ApplicationRecord
         'board_jump_delay' => 500,
         'battery_sounds' => true,
         'default_sidebar_boards' => default_sidebar_boards,
+        'default_active_sidebar_boards' => default_active_sidebar_boards,
         'blank_status' => false,
         'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
@@ -1993,9 +1994,64 @@ class User < ApplicationRecord
   end
   
   def sidebar_boards
-    res = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
-    res = User.default_sidebar_boards if res.length == 0
-    res
+    stored = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
+    return User.default_active_sidebar_boards if stored.empty?
+
+    User.merge_missing_default_sidebar_boards(stored)
+  end
+
+  def self.sidebar_board_identity(board)
+    return 'alert' if board.is_a?(Hash) && (board['alert'] || (board['special'] && board['alert']))
+    board.is_a?(Hash) ? board['key'] : board
+  end
+
+  # Inject newly-added default sidebar entries (e.g. crisis-vocabulary) into an
+  # older saved list without re-adding boards the user removed.
+  def self.merge_missing_default_sidebar_boards(stored)
+    return default_active_sidebar_boards if stored.blank?
+
+    defaults = default_sidebar_boards
+    stored_by_id = {}
+    stored.each do |b|
+      id = sidebar_board_identity(b)
+      stored_by_id[id] = b if id
+    end
+    stored_ids = stored_by_id.keys
+    default_ids = defaults.map { |b| sidebar_board_identity(b) }
+
+    return stored unless stored_ids.any? { |id| default_ids.include?(id) }
+
+    missing_auto_add = sidebar_auto_add_keys.reject { |key| stored_ids.include?(key) }
+
+    result = []
+    defaults.each do |default_item|
+      id = sidebar_board_identity(default_item)
+      key = default_item['key']
+      if stored_by_id[id]
+        result << stored_by_id[id]
+      elsif key && missing_auto_add.include?(key)
+        result << default_item
+      end
+    end
+
+    stored.each do |b|
+      id = sidebar_board_identity(b)
+      next if default_ids.include?(id)
+      result << b unless result.include?(b)
+    end
+    result
+  end
+
+  def self.sidebar_auto_add_keys
+    [SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)]
+  end
+
+  def self.inactive_by_default_sidebar_keys
+    ['mbaud12/senner-baud-greetings']
+  end
+
+  def self.default_active_sidebar_boards
+    default_sidebar_boards.reject { |b| inactive_by_default_sidebar_keys.include?(b['key']) }
   end
   
   def admin?
@@ -2008,6 +2064,7 @@ class User < ApplicationRecord
       {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
       {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
       {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
+      {'name' => "Crisis Vocabulary", 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]
   end

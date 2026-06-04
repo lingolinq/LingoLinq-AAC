@@ -353,10 +353,14 @@ export default Route.extend({
       translatable: board_langs.length > 1
     });
 
-    // Configure locales
+    // Configure locales — honor explicit Switch Languages overrides; otherwise
+    // follow the board's default locale so translated boards speak the target language.
     var stripped_langs = board_langs.map(function(l) { return l.split(/-|_/)[0]; });
+    var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
-      if(_this.stashes.get(loc_type)) {
+      if(!has_locale_override) {
+        _this.appState.set(loc_type, model.get('locale'));
+      } else if(_this.stashes.get(loc_type)) {
         var preferred = _this.stashes.get(loc_type);
         var stripped = preferred.split(/-|_/)[0];
         if(stripped_langs.indexOf(stripped) == -1) {

@@ -5,7 +5,7 @@ import { observer } from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
-import { later as runLater, cancel as runCancel, next } from '@ember/runloop';
+import { later as runLater, cancel as runCancel, next, scheduleOnce } from '@ember/runloop';
 import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
@@ -1142,8 +1142,15 @@ export default Controller.extend(prefClasses, {
         if(_this._board_detail_images && _this._board_detail_images.length) {
           _this._last_raw.images = _this._board_detail_images;
         }
+        var board_early = _this.get('model');
+        if(board_early && board_early.set) {
+          if(raw.translations !== undefined) { board_early.set('translations', raw.translations); }
+          if(raw.buttons !== undefined) { board_early.set('buttons', raw.buttons); }
+          if(raw.locale !== undefined) { board_early.set('locale', raw.locale); }
+        }
         _this.set('ordered_buttons', cached_ob_early);
         _this._apply_focus_dim_to_ordered_buttons();
+        _this._apply_display_locales_to_ordered_buttons();
         _this._preload_grid_images(cached_ob_early);
         return;
       }
@@ -1176,11 +1183,24 @@ export default Controller.extend(prefClasses, {
     _this._image_map = image_map;
 
     var board = _this.get('model');
+    if(board && board.get && !raw.translations && board.get('translations')) {
+      raw.translations = board.get('translations');
+    }
+    if(board && board.set) {
+      if(raw.translations !== undefined) { board.set('translations', raw.translations); }
+      if(raw.buttons !== undefined) { board.set('buttons', raw.buttons); }
+      if(raw.locale !== undefined) { board.set('locale', raw.locale); }
+      if(raw.translated_locales !== undefined) { board.set('translated_locales', raw.translated_locales); }
+    }
+    var label_locale = _this.get('app_state.label_locale') || raw.locale || 'en';
+    var vocalization_locale = _this.get('app_state.vocalization_locale') || raw.locale || 'en';
     var grid = raw.grid;
 
     if(!grid || !grid.order) {
       var buttons = (raw.buttons || []).map(function(btn) {
-        return use_ember ? _this._make_ember_btn(btn, image_map, board) : _this._make_btn(btn, image_map, current_level, board_has_levels);
+        var localized = _this._localized_button_fields(btn, raw, label_locale, vocalization_locale);
+        var display_btn = Object.assign({}, btn, localized);
+        return use_ember ? _this._make_ember_btn(display_btn, image_map, board) : _this._make_btn(display_btn, image_map, current_level, board_has_levels);
       });
       _this.set('ordered_buttons', [buttons]);
       _this._apply_focus_dim_to_ordered_buttons();
@@ -1203,7 +1223,9 @@ export default Controller.extend(prefClasses, {
         var btn_id = (grid.order[ri] || [])[ci];
         var raw_btn = btn_id !== null && btn_id !== undefined ? button_map[String(btn_id)] : null;
         if(raw_btn) {
-          row.push(use_ember ? _this._make_ember_btn(raw_btn, image_map, board) : _this._make_btn(raw_btn, image_map, current_level, board_has_levels));
+          var localized = _this._localized_button_fields(raw_btn, raw, label_locale, vocalization_locale);
+          var display_btn = Object.assign({}, raw_btn, localized);
+          row.push(use_ember ? _this._make_ember_btn(display_btn, image_map, board) : _this._make_btn(display_btn, image_map, current_level, board_has_levels));
         } else {
           if(use_ember) {
             var fake = editManager.Button.create({ empty: true, label: '', id: btn_id || ('fake_' + ri + '_' + ci) });
@@ -1230,11 +1252,104 @@ export default Controller.extend(prefClasses, {
     // Resolve POS for untyped buttons
     if(!use_ember) {
       _this.resolve_unknown_buttons(_this.get('flat_ordered_buttons') || []);
+      _this._apply_display_locales_to_ordered_buttons();
       // Cache the freshly-built grid so subsequent navigations to this
       // board can skip the rebuild loop entirely.
       if(cache_token) {
         boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
       }
+    }
+  },
+
+  _translation_entry_from_raw: function(translations, button_id, locale) {
+    var trans = translations || {};
+    var entry = trans[button_id];
+    if(!entry && button_id != null) {
+      entry = trans[String(button_id)];
+    }
+    if(!entry || !locale) { return null; }
+    return entry[locale] || entry[locale.split(/-|_/)[0]] || null;
+  },
+
+  _localized_button_fields: function(btn, raw, label_locale, vocalization_locale) {
+    if(!btn) { return { label: '', vocalization: '' }; }
+    var board_locale = (raw && raw.locale) || 'en';
+    var trans = (raw && raw.translations) || {};
+    label_locale = label_locale || board_locale;
+    vocalization_locale = vocalization_locale || board_locale;
+    var board_root = board_locale.split(/-|_/)[0];
+    var label_root = label_locale.split(/-|_/)[0];
+    var vocalization_root = vocalization_locale.split(/-|_/)[0];
+    var label = btn.label;
+    var vocalization = btn.vocalization;
+    var label_trans = this._translation_entry_from_raw(trans, btn.id, label_locale);
+    var vocalization_trans = this._translation_entry_from_raw(trans, btn.id, vocalization_locale);
+    if(label_trans && label_trans.label) {
+      if(label_root !== board_root || label_trans.label !== label) {
+        label = label_trans.label;
+      }
+    }
+    if(vocalization_root !== board_root) {
+      if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
+        vocalization = vocalization_trans.vocalization || vocalization_trans.label;
+      } else {
+        vocalization = null;
+      }
+    } else if(label_locale === vocalization_locale && label && label !== btn.label) {
+      if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
+        vocalization = vocalization_trans.vocalization || vocalization_trans.label;
+      } else if(!btn.vocalization || btn.vocalization === btn.label) {
+        vocalization = label;
+      }
+    }
+    if(label_locale === vocalization_locale && label && (!vocalization || vocalization === btn.vocalization || vocalization === btn.label)) {
+      vocalization = label;
+    }
+    return {
+      label: label || '',
+      vocalization: vocalization || ''
+    };
+  },
+
+  // board-detail renders labels from ordered_buttons plain objects, not
+  // fast_html. Overlay translated label/vocalization for the active
+  // Switch Languages selection so the grid and speak path stay aligned.
+  _apply_display_locales_to_ordered_buttons: function() {
+    if(this.get('edit_mode')) { return; }
+    var raw = this._last_raw;
+    var ob = this.get('ordered_buttons');
+    if(!raw || !ob || !ob.length) { return; }
+    var app_state = this.get('app_state');
+    var label_locale = app_state && app_state.get('label_locale');
+    var vocalization_locale = app_state && app_state.get('vocalization_locale');
+    var board = this.get('model');
+    if(board && board.set && raw.translations) {
+      board.set('translations', raw.translations);
+    }
+    var _this = this;
+    var raw_btn_map = {};
+    (raw.buttons || []).forEach(function(btn) {
+      if(btn && btn.id != null) { raw_btn_map[String(btn.id)] = btn; }
+    });
+    var changed = false;
+    var newOb = ob.map(function(row) {
+      return (row || []).map(function(btn) {
+        if(!btn || btn.id == null) { return btn; }
+        var raw_btn = raw_btn_map[String(btn.id)] || btn;
+        var localized = _this._localized_button_fields(raw_btn, raw, label_locale, vocalization_locale);
+        if((localized.label || '') === (btn.label || '') && (localized.vocalization || '') === (btn.vocalization || '')) {
+          return btn;
+        }
+        changed = true;
+        return Object.assign({}, btn, localized);
+      });
+    });
+    if(changed) {
+      if(board && board.set) {
+        board.set('last_cb', null);
+        if(board.get('fast_html')) { board.set('fast_html', null); }
+      }
+      this.set('ordered_buttons', newOb);
     }
   },
 
@@ -1718,10 +1833,23 @@ export default Controller.extend(prefClasses, {
       }
       boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
       _this._build_from_raw(merged);
+      if(_this.get('edit_mode') && editManager.controller === _this) {
+        editManager.process_for_displaying(true);
+      }
     }, function() {
       /* Network or auth failure — leave the stale render in place
          rather than blanking the grid. Next route activation will
          retry naturally. */
+    });
+  }),
+
+  _refresh_labels_for_locale: observer('app_state.label_locale', 'app_state.vocalization_locale', function() {
+    if(this.isDestroyed || this.isDestroying || this.get('_exiting') || this.get('edit_mode')) { return; }
+    if(!this.get('ordered_buttons')) { return; }
+    var _this = this;
+    scheduleOnce('afterRender', this, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this._apply_display_locales_to_ordered_buttons();
     });
   }),
 
@@ -1819,6 +1947,35 @@ export default Controller.extend(prefClasses, {
     };
   },
 
+  _word_prediction_locale: function() {
+    var raw = this._last_raw || {};
+    return this.get('app_state.label_locale') ||
+      this.get('model.locale') ||
+      raw.locale ||
+      this.get('app_state.currentBoardState.default_locale') ||
+      'en';
+  },
+
+  _word_prediction_lookup_options: function(context, warmed_sets) {
+    var raw = this._last_raw || {};
+    var model = this.get('model');
+    return {
+      last_finished_word: context.last_finished_word,
+      word_in_progress: context.word_in_progress,
+      topic_context: (model && model.get && model.get('name')) || '',
+      sentence: context.sentence,
+      locale: this._word_prediction_locale(),
+      board_locale: (model && model.get && model.get('locale')) || raw.locale || 'en',
+      translations: (model && model.get && model.get('translations')) || raw.translations,
+      board_ids: wordSuggestionsModule.lookup_board_ids(
+        this.get('app_state'),
+        this.get('stashes'),
+        [this.get('model.id')]
+      ),
+      button_sets: warmed_sets
+    };
+  },
+
   _apply_suggestion_results: function(result, sentence, context) {
     var _this = this;
     if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -1848,7 +2005,7 @@ export default Controller.extend(prefClasses, {
     }
     _this.set('suggestions', { loading: true });
     aiPredictor.predict(sentence, {
-      locale: _this.get('app_state.label_locale') || 'en',
+      locale: _this._word_prediction_locale(),
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -1878,15 +2035,8 @@ export default Controller.extend(prefClasses, {
       _this.get('stashes'),
       [_this.get('model.id')]
     );
-    var lookup_options = {
-      last_finished_word: context.last_finished_word,
-      word_in_progress: context.word_in_progress,
-      topic_context: (_this.get('model') && _this.get('model.name')) || '',
-      sentence: context.sentence,
-      locale: _this.get('app_state.label_locale') || 'en',
-      board_ids: lookup_ids,
-      button_sets: warmed_sets
-    };
+    var lookup_options = _this._word_prediction_lookup_options(context, warmed_sets);
+    lookup_options.board_ids = lookup_ids;
     var lookup_promise = typeof wordSuggestionsModule.lookup_with_ai === 'function' ?
       wordSuggestionsModule.lookup_with_ai(lookup_options) :
       wordSuggestionsModule.lookup(lookup_options);
@@ -1909,9 +2059,12 @@ export default Controller.extend(prefClasses, {
     'app_state.button_list.@each.in_progress',
     'app_state.button_list.@each.label',
     'app_state.button_list.@each.vocalization',
+    'app_state.label_locale',
+    'app_state.vocalization_locale',
     'sentence_parts.[]',
     'sentence_parts.@each.label',
     'sentence_parts.@each.in_progress',
+    'model.locale',
     function() {
       if(this.get('edit_mode')) {
         this.set('suggestions', null);
@@ -2632,6 +2785,10 @@ export default Controller.extend(prefClasses, {
   speak_section_visible_language: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.translate || !s.switch_language;
+  }),
+
+  board_translate_in_progress: computed('app_state.board_translate_in_progress', function() {
+    return !!this.get('app_state.board_translate_in_progress');
   }),
 
   // True while the user is editing a board they don't own — i.e. the
@@ -3911,10 +4068,11 @@ export default Controller.extend(prefClasses, {
         }
         finish();
 
-        // Auto-rename the board key if the display name changed
+        // Auto-rename the board key only for direct user renames. Translation
+        // can change the visible board name, but route keys must stay stable.
         var original_name = _this.get('_original_board_name');
         var current_name = board.get('name');
-        if(original_name && current_name && original_name !== current_name) {
+        if(original_name && current_name && original_name !== current_name && !_this._name_matches_translation(board, current_name)) {
           _this._auto_rename_board(board, current_name);
           _this.set('_original_board_name', current_name);
         } else {
@@ -3929,6 +4087,20 @@ export default Controller.extend(prefClasses, {
       _this.set('board_saving', false);
       modal.error(i18n.t('board_save_failed', "Failed to save board"));
     });
+  },
+
+  _name_matches_translation: function(board, name) {
+    if(!board || !name) { return false; }
+    var translations = board.get('translations') || {};
+    var names = translations.board_name || {};
+    var default_locale = translations.default || board.get('locale') || 'en';
+    var current_locale = board.get('locale');
+    for(var loc in names) {
+      if(!Object.prototype.hasOwnProperty.call(names, loc)) { continue; }
+      if(loc === default_locale && loc === current_locale) { continue; }
+      if(names[loc] === name) { return true; }
+    }
+    return false;
   },
 
   // Automatically rename the board key to match the new display name
@@ -5850,7 +6022,7 @@ export default Controller.extend(prefClasses, {
             }
             prefix = ((last_part && last_part.label) || '').toLowerCase();
           }
-          wordSuggestionsModule.record_selection(text, null, prefix);
+          wordSuggestionsModule.record_selection(text, null, prefix, this._word_prediction_locale());
         }
       } catch(e) { }
 
@@ -6686,6 +6858,10 @@ export default Controller.extend(prefClasses, {
     // bounced into a board-details modal first.
     translate_board: function() {
       this.set('show_options_menu', false);
+      if(this.get('board_translate_in_progress')) {
+        modal.flash(i18n.t('translation_in_progress', "Translation is already in progress. Please wait for it to finish."), 'notice');
+        return;
+      }
       var board = this.get('model');
       if(!board) { return; }
       modal.open('translation-select', { board: board, button_set: board.get('button_set') });
@@ -6700,10 +6876,16 @@ export default Controller.extend(prefClasses, {
     switch_languages: function() {
       this.set('show_options_menu', false);
       var board = this.get('model');
+      var _this = this;
       if(!board) { return; }
       modal.open('switch-languages', { board: board }).then(function(res) {
         if(res && res.switched) {
-          editManager.process_for_displaying();
+          if(board && board.set) {
+            board.set('last_cb', null);
+            if(board.get('fast_html')) { board.set('fast_html', null); }
+          }
+          _this._apply_display_locales_to_ordered_buttons();
+          editManager.process_for_displaying(true);
         }
       });
     },

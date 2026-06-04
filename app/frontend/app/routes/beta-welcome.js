@@ -3,13 +3,14 @@ import { inject as service } from '@ember/service';
 import config from '../config/environment';
 
 export default Route.extend({
+  router: service(),
   session: service('session'),
   persistence: service('persistence'),
   appState: service('app-state'),
   store: service('store'),
   beforeModel() {
     if (!this.session.get('isAuthenticated') && config.environment !== 'development') {
-      this.transitionTo('login');
+      this.router.transitionTo('login');
       return;
     }
     if (this.session.get('isAuthenticated')) {
@@ -36,7 +37,7 @@ export default Route.extend({
       var controller = this.get('controller');
       if (!controller.get('agreementAccepted')) { return; }
       if (!this.session.get('isAuthenticated')) {
-        this.transitionTo('login');
+        this.router.transitionTo('login');
         return;
       }
       this.persistence.ajax('/api/v1/users/self', {

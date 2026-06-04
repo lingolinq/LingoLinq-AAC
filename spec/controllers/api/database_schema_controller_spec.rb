@@ -17,6 +17,7 @@ describe Api::DatabaseSchemaController, :type => :controller do
       admin_org = Organization.create(admin: true)
       token_user
       admin_org.add_manager(@user.user_name, true)
+      expect_any_instance_of(User).not_to receive(:allows?).with(anything, 'admin_support_actions')
 
       get :index
       expect(response.successful?).to eq(true)

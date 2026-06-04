@@ -255,7 +255,12 @@
                      null — see add() in previewBoards computed. --}}
                 <img src={{if preview.board preview.board.icon_url_with_fallback preview.imageUrl}} class="md-thumb__board-img" alt="">
               </div>
-              <div class="md-strip__label">{{preview.name}}</div>
+              <div class="md-strip__label">
+                {{preview.name}}
+                {{#if preview.languageLabel}}
+                  <span class="md-strip__lang">{{preview.languageLabel}}</span>
+                {{/if}}
+              </div>
             </button>
           {{/each}}
         </div>

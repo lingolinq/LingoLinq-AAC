@@ -28,6 +28,8 @@ var MAX_PREFETCH = 20;
 var WARM_BATCH = 20;
 var WARM_BATCH_GAP_MS = 80;
 var TREE_GAP_MS = 400;
+var CASELOAD_PREFETCH_CAP = 10;
+var CASELOAD_PREFETCH_GAP_MS = 1000;
 
 // key (e.g. "user_name/boardname") → entry
 var _by_key = {};
@@ -210,6 +212,74 @@ function _complete_phase_if_done(phaseDone, phaseKey, completed) {
   }
 }
 
+function _prefetch_pipeline_complete(user, phaseDone) {
+  if (!phaseDone.phase1) { return false; }
+  if (boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user) && (!phaseDone.phase2 || !phaseDone.phase3)) {
+    return false;
+  }
+  if (boardPrefetchPlanner.publicPrefetchEnabled(user) && !phaseDone.phase4) {
+    return false;
+  }
+  return true;
+}
+
+function _later_promise(ms) {
+  return new RSVP.Promise(function(resolve) {
+    runLater(resolve, ms);
+  });
+}
+
+function _raw_get(object, path) {
+  if (!object || !path) { return null; }
+  var direct = object[path];
+  if (direct !== undefined) { return direct; }
+  var parts = path.split('.');
+  var value = object;
+  for (var idx = 0; idx < parts.length; idx++) {
+    if (!value) { return null; }
+    value = value[parts[idx]];
+  }
+  return value === undefined ? null : value;
+}
+
+function _supervisee_id(supervisee) {
+  if (!supervisee) { return null; }
+  if (supervisee.get) { return supervisee.get('id'); }
+  return supervisee.id || supervisee.user_id || supervisee.global_id || null;
+}
+
+function _summary_as_user(supervisee) {
+  return {
+    get: function(path) {
+      if (path === 'id') { return _supervisee_id(supervisee); }
+      if (path === 'preferences.skin') {
+        return _raw_get(supervisee, path) || supervisee.skin || null;
+      }
+      if (path === 'preferences.preferred_symbols') {
+        return _raw_get(supervisee, path) || supervisee.symbols || supervisee.preferred_symbols || null;
+      }
+      return _raw_get(supervisee, path);
+    }
+  };
+}
+
+function _load_prefetch_user(supervisee) {
+  if (!supervisee) { return RSVP.reject({ error: 'missing supervisee' }); }
+  if (supervisee.get) { return RSVP.resolve(supervisee); }
+  var id = _supervisee_id(supervisee);
+  if (!id) { return RSVP.reject({ error: 'missing supervisee id' }); }
+  if (LingoLinq && LingoLinq.store) {
+    var existing = LingoLinq.store.peekRecord && LingoLinq.store.peekRecord('user', id);
+    if (existing) { return RSVP.resolve(existing); }
+    if (LingoLinq.store.findRecord) {
+      return LingoLinq.store.findRecord('user', id).then(null, function() {
+        return _summary_as_user(supervisee);
+      });
+    }
+  }
+  return RSVP.resolve(_summary_as_user(supervisee));
+}
+
 function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
   if (!rootKeys || !rootKeys.length) { return RSVP.resolve(true); }
   var index = 0;
@@ -367,6 +437,8 @@ export default {
     _warmed_urls = {};
     this._prefetched_user_ids = {};
     this._prefetched_catalog_user_ids = {};
+    this._prefetched_caseload_supervisee_ids = {};
+    this._caseload_prefetch_running = {};
     this._prefetch_phase_done = {};
     this._prefetch_pipeline_running = {};
   },
@@ -608,7 +680,9 @@ export default {
       });
     }
 
-    return chain;
+    return chain.then(function() {
+      return _prefetch_pipeline_complete(user, phaseDone);
+    });
   },
 
   // Session-start prefetch: called when a user logs in (or session is
@@ -643,6 +717,71 @@ export default {
         delete _this._prefetch_pipeline_running[user_id];
       });
     }, 400);
+  },
+
+  prefetch_caseload_for_user: function(user, opts) {
+    opts = opts || {};
+    if (!user || !user.get) { return RSVP.resolve(); }
+    var supervisor_id = user.get('id');
+    if (!supervisor_id) { return RSVP.resolve(); }
+    if (!_is_online()) { return RSVP.resolve(); }
+    if (_document_hidden()) { return RSVP.resolve(); }
+
+    this._caseload_prefetch_running = this._caseload_prefetch_running || {};
+    if (this._caseload_prefetch_running[supervisor_id]) {
+      return this._caseload_prefetch_running[supervisor_id];
+    }
+
+    var supervisees = user.get('supervisees') || [];
+    if (!supervisees.length) { return RSVP.resolve(); }
+
+    var _this = this;
+    var seen = {};
+    var candidates = [];
+    var cap = opts.cap || CASELOAD_PREFETCH_CAP;
+    supervisees.forEach(function(supervisee) {
+      var id = _supervisee_id(supervisee);
+      if (!id || seen[id] || candidates.length >= cap) { return; }
+      seen[id] = true;
+      candidates.push(supervisee);
+    });
+
+    _this._prefetched_caseload_supervisee_ids = _this._prefetched_caseload_supervisee_ids || {};
+    var chain = RSVP.resolve();
+    candidates.forEach(function(supervisee) {
+      var supervisee_id = _supervisee_id(supervisee);
+      var key = supervisor_id + ':' + supervisee_id;
+      chain = chain.then(function() {
+        if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+        if (_this._prefetched_caseload_supervisee_ids[key]) { return RSVP.resolve(); }
+        return _load_prefetch_user(supervisee).then(function(prefetchUser) {
+          if (!prefetchUser || !prefetchUser.get || !prefetchUser.get('id')) {
+            return RSVP.resolve();
+          }
+          var warm_opts = {
+            skin: prefetchUser.get('preferences.skin'),
+            preferred_symbols: prefetchUser.get('preferences.preferred_symbols')
+          };
+          return _this._run_prefetch_pipeline(prefetchUser, warm_opts).then(function(completed) {
+            if (completed) {
+              _this._prefetched_caseload_supervisee_ids[key] = true;
+            }
+          });
+        }, function() {
+          return RSVP.resolve();
+        }).then(function() {
+          return _later_promise(opts.gapMs || CASELOAD_PREFETCH_GAP_MS);
+        });
+      });
+    });
+
+    _this._caseload_prefetch_running[supervisor_id] = chain.then(function() {
+      delete _this._caseload_prefetch_running[supervisor_id];
+    }, function(err) {
+      delete _this._caseload_prefetch_running[supervisor_id];
+      return RSVP.reject(err);
+    });
+    return _this._caseload_prefetch_running[supervisor_id];
   },
 
   // Legacy entry point kept for tests. Prefetches LingoLinq catalog +

@@ -4,6 +4,7 @@ import progress_tracker from '../utils/progress_tracker';
 import { inject as service } from '@ember/service';
 
 export default Route.extend({
+  router: service(),
   store: service('store'),
   persistence: service('persistence'),
   appState: service('app-state'),
@@ -90,7 +91,7 @@ export default Route.extend({
           if(meta && meta.access_token) {
             _this.get('session').override(meta);
           } else if(hasBetaAccess) {
-            _this.transitionTo('beta-welcome-message');
+            _this.router.transitionTo('beta-welcome-message');
           } else {
             _this.appState.return_to_index();
           }

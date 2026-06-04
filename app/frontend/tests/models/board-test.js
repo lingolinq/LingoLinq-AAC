@@ -562,6 +562,35 @@ describe('Board', function() {
       });
     });
 
+    it('should not reload again when load_button_set already loaded remote buttons', function() {
+      var b = LingoLinq.store.createRecord('board');
+      b.set('id', '1234');
+      b.set('fresh', true);
+      var bs1 = LingoLinq.store.createRecord('buttonset', {
+        id: '1234',
+        buttons_loaded: true,
+        buttons: [{label: 'hello', depth: 0, board_id: '1234'}]
+      });
+      var reloaded = false;
+      stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
+      var load_buttons_calls = 0;
+      stub(bs1, 'load_buttons', function() {
+        load_buttons_calls++;
+        return RSVP.resolve(bs1);
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
+      });
+      var res = null;
+      b.load_button_set(true).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual(bs1);
+        expect(reloaded).toEqual(false);
+        expect(load_buttons_calls).toEqual(0);
+      });
+    });
+
     it('should reload if force is called, regardless of other factors', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
@@ -741,6 +770,42 @@ describe('Board', function() {
       ]);
     });
 
+    it('should resolve button ids and locale roots when translating', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'en' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'en',
+        current_vocalization: 'en',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
+    it('should apply stored translations when live buttons lag the board locale', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'es' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'es',
+        current_vocalization: 'es',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
     it('should return the original list if already in the right locales', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
@@ -750,12 +815,12 @@ describe('Board', function() {
         current_vocalization: 'en',
         '1': {
           'en': {
-            label: 'has'
+            label: 'hat'
           }
         },
         '2': {
           'en': {
-            label: 'cat'
+            label: 'car'
           }
         }
       });

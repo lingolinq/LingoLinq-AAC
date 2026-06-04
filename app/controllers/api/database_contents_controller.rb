@@ -156,7 +156,7 @@ class Api::DatabaseContentsController < ApplicationController
 
   def require_schema_explorer_access
     return if @api_user&.admin?
-    return if @api_user && @api_user.allows?(@api_user, 'admin_support_actions')
+    return if admin_support_actions_allowed?
 
     api_error 403, {error: 'Not authorized'}
   end

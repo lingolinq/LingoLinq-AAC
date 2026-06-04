@@ -209,6 +209,7 @@ module AiWordPredictor
         - Predictions should be contextually appropriate for the sentence
         - Prefer short, high-frequency words that AAC users commonly need
         - Language: #{locale}
+        - Every returned word must be in that language
         - No punctuation, no explanations, no numbering, just the words
         - If the sentence ends mid-word, complete that word first, then predict next words
         - ALWAYS return #{count} words, even if the sentence seems complete. Suggest continuation words like conjunctions (and, but, because), time words (today, tomorrow, now), or new sentence starters (I, we, can)
@@ -224,7 +225,7 @@ module AiWordPredictor
     def parse_words(raw, count)
       raw.to_s.strip
          .split(/[\s,]+/)
-         .map { |w| w.gsub(/[^a-zA-Z'\- ]/, '').strip }
+         .map { |w| w.gsub(/[^\p{L}'\- ]/u, '').strip }
          .reject(&:blank?)
          .uniq
          .first(count)

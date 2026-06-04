@@ -80,20 +80,6 @@ export default Route.extend({
     obf.register_services(this.appState);
 
     this.appState.setup_controller(this, controller);
-    runLater(function() {
-      try {
-        var seen = localStorage.getItem('lingolinq_beta_onboarding_seen');
-        var appState = controller.get('appState');
-        var u = appState && (appState.get('sessionUser') || appState.get('currentUser'));
-        if (!seen && u && appState.get('beta_program_access')) {
-          modal.open('beta-onboarding-modal').then(function() {
-            try {
-              localStorage.setItem('lingolinq_beta_onboarding_seen', 'true');
-            } catch(e) { /* ignore */ }
-          }, function() { });
-        }
-      } catch(e) { /* ignore */ }
-    }, 500);
     speecher.refresh_voices();
     controller.set('speecher', speecher);
   },
@@ -191,7 +177,7 @@ export default Route.extend({
     newBoard: function() {
       var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        _this.transitionTo('create-board-new');
+        _this.router.transitionTo('create-board-new');
       });
     },
     pickWhichHome: function() {

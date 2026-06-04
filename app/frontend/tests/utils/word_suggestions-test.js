@@ -29,6 +29,7 @@ describe('word_suggestions', function() {
     word_suggestions.word_in_progress = null;
     word_suggestions.last_time_bucket = null;
     word_suggestions.last_topic_context = null;
+    word_suggestions.last_locale = null;
   });
   describe("lookup", function() {
     it("should suggest words", function() {
@@ -196,6 +197,74 @@ describe('word_suggestions', function() {
         expect(res.length).toBeGreaterThan(0);
         expect(res[0].word.toLowerCase()).toEqual('do you');
       });
+    });
+
+    it('should not use the English corpus for non-English boards', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = {
+        'when': [['go', -1.0]],
+        "": [['play', -1.0]]
+      };
+      var res = null;
+      word_suggestions.lookup({
+        last_finished_word: 'when',
+        word_in_progress: '',
+        locale: 'es'
+      }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual([]);
+      });
+    });
+
+    it('should suggest translated board vocabulary for non-English locales', function() {
+      stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });
+      word_suggestions.ngrams = {
+        '': [['play', -1.0]]
+      };
+      var bs = {
+        get: function() { return 'board1'; },
+        redepth: function() {
+          return [
+            { id: '1', label: 'go', depth: 1 },
+            { id: '2', label: 'eat', depth: 2 },
+            { id: '3', label: 'I', depth: 0 }
+          ];
+        }
+      };
+      var res = null;
+      word_suggestions.lookup({
+        last_finished_word: 'quiero',
+        word_in_progress: '',
+        locale: 'es',
+        board_locale: 'en',
+        translations: {
+          '1': { es: { label: 'ir' } },
+          '2': { es: { label: 'comer' } }
+        },
+        button_sets: [bs]
+      }).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res.map(function(item) { return item.word; })).toEqual(['ir', 'comer']);
+      });
+    });
+
+    it('should match translated vocabulary while spelling in non-English locales', function() {
+      var matches = word_suggestions._test.collect_vocabulary_prefix_matches('qu', {
+        locale: 'es',
+        board_locale: 'en',
+        translations: {
+          '1': { es: { label: 'quiero' } }
+        },
+        button_sets: [{
+          get: function() { return 'board1'; },
+          redepth: function() {
+            return [{ id: '1', label: 'want', depth: 1 }];
+          }
+        }]
+      }, 5);
+      expect(matches.map(function(m) { return m.word; })).toEqual(['quiero']);
     });
 
     it('should boost prefix-specific continuations after selection', function() {
