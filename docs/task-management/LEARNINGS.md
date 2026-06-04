@@ -96,6 +96,13 @@ file (see [README.md](README.md)).
 - [Pattern: the speak row's left "stack" mirrors the right `actions-wrap--stacked` — build symmetric, use `flex: 1`](#pattern-the-speak-rows-left-stack-mirrors-the-right-actions-wrap--stacked--build-symmetric-use-flex-1)
 - [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
+- [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+
+## Pattern: keyboard control vocalizations must survive translation overlay
+
+Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
+
+**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
