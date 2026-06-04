@@ -55,7 +55,7 @@ export default Controller.extend({
         persistence.ajax('/api/v1/organizations/' + this.get('model.id') + '/extra_action', {
           type: 'POST',
           data: {
-            extra_action: 'import_word_data',
+            extra_action: 'word_data_import',
             url: url
           }
         }).then(function(res) {

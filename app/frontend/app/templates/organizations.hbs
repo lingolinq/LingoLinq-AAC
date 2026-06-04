@@ -25,7 +25,7 @@
                   <span class="md-org-directory-card__meta">
                     {{#if org.admin}}
                       {{t "site admin" key="site_admin_lower"}}
-                    {{else if (eq org.type "supervisor")}}
+                    {{else if (is_equal org.type "supervisor")}}
                       {{t "supervisor access" key="supervisor_access"}}
                     {{else}}
                       {{t "manager access" key="manager_access"}}
