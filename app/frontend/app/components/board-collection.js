@@ -12,14 +12,28 @@ import i18n from '../utils/i18n';
    `test(board)` is the client-side guard: server search may match
    tangentially-related boards by description/keyword, so we drop
    anything whose key OR name doesn't actually contain the brand
-   marker. Order of this array drives the section order in the
-   rendered panel. */
+   marker.
+   `root_re` is the ROOTS-ONLY guard: the brand sections are public
+   boards (not the user's own), so we show only each set's TOP board
+   and hide its sub-boards. There is no server/data flag that cleanly
+   separates a set root from its sub-boards on original public boards
+   (`root: true` keeps original sub-boards too), so we key off the
+   board KEY, which follows a stable convention: roots are
+   `<brand>-<size>` (e.g. `vocal-flair-84`, optionally `-w-keyboard`),
+   while sub-boards carry a descriptive suffix
+   (`vocal-flair-84-categories-food`). CommuniKate has no sizes — its
+   root is `communikate-home` (or bare / `-<size>`). `(^|\/)` anchors
+   after the `<owner>/` key prefix; `$` rejects any descriptive tail.
+   Mirrors the same root-key approach used by the setup board-picker
+   (`components/board-picker.js` _loadBrandGroups). Order of this array
+   drives the section order in the rendered panel. */
 const BRAND_FAMILIES = [
   {
     id: 'communikate',
     label_key: 'communikate',
     default_label: 'CommuniKate',
     query: 'CommuniKate',
+    root_re: /(^|\/)communikate(-home|-\d+)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
@@ -31,6 +45,7 @@ const BRAND_FAMILIES = [
     label_key: 'quick_core',
     default_label: 'Quick Core',
     query: 'Quick Core',
+    root_re: /(^|\/)quick-core-\d+(-w(?:ith)?-keyboard)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
@@ -42,6 +57,7 @@ const BRAND_FAMILIES = [
     label_key: 'sequoia',
     default_label: 'Sequoia',
     query: 'Sequoia',
+    root_re: /(^|\/)sequoia-\d+(-w(?:ith)?-keyboard)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
@@ -53,6 +69,7 @@ const BRAND_FAMILIES = [
     label_key: 'vocal_flair',
     default_label: 'Vocal Flair',
     query: 'Vocal Flair',
+    root_re: /(^|\/)vocal-flair-\d+(-w(?:ith)?-keyboard)?$/i,
     test: function(board) {
       var key = (board && board.get && board.get('key')) || '';
       var name = (board && board.get && board.get('name')) || '';
@@ -310,7 +327,15 @@ export default Component.extend({
       }).then(function(data) {
         var matched = [];
         if (data && data.forEach) {
-          data.forEach(function(b) { if (family.test(b)) { matched.push(b); } });
+          data.forEach(function(b) {
+            if (!family.test(b)) { return; }
+            /* Roots only — hide sub-boards (e.g. "Vocal Flair 84 - A Prefix").
+               A board whose key doesn't match the set's root pattern is a
+               sub-board and is dropped. */
+            var key = (b && b.get && b.get('key')) || '';
+            if (family.root_re && !family.root_re.test(key)) { return; }
+            matched.push(b);
+          });
         }
         /* Dedup by exact name. Public brand listings routinely include
            several copies of the same board (different owners shipping

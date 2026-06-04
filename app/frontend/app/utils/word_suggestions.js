@@ -12,6 +12,7 @@ import i18n from './i18n';
 import LingoLinq from '../app';
 import config from '../config/environment';
 import ai_word_predictor from './ai_word_predictor';
+import templateHelpers from './template_helpers';
 
 var FREQ_STORAGE_KEY = 'lingolinq_word_freq';
 var BIGRAM_STORAGE_KEY = 'lingolinq_word_bigrams';
@@ -819,12 +820,13 @@ var word_suggestions = EmberObject.extend({
     if(this.fallback_url_result) {
       return RSVP.resolve(this.fallback_url_result);
     } else {
-      var _this = this;
-      var persistenceService = word_suggestions.get_persistence();
-      return persistenceService.find_url('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg').then(function(url) {
-        _this.fallback_url_result = url;
-        return url;
-      }, function() { return RSVP.resolve('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg'); });
+      // Use the same "missing image" icon the board buttons fall back to
+      // (Button.broken_image -> images/square.svg) rather than a remote
+      // Mulberry symbol. It's a local bundled asset, so no remote lookup is
+      // needed, and is_placeholder_image() already recognizes square.svg, so
+      // an un-imaged prediction is still treated as "no real image found".
+      this.fallback_url_result = templateHelpers.path('images/square.svg');
+      return RSVP.resolve(this.fallback_url_result);
     }
   },
   edit_distance: function(a, b) {

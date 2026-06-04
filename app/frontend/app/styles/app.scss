@@ -5069,6 +5069,65 @@ tr.accuracy_non_mastered {
   padding: 0;
   min-height: 0;
 }
+/* Keyboard placeholders (Keyboards category). Reuse the real card chrome
+   (.btn.simple_board_icon → board-card-modern) and swap the thumbnail for a
+   modern mini-keyboard preview. Non-interactive (no real board yet) — default
+   cursor + a subtle "Coming soon" tag. */
+.md-home-boards-picker__board .btn.simple_board_icon.md-home-boards-picker__keyboard-placeholder {
+  cursor: default;
+  position: relative;
+}
+.md-home-boards-picker__keyboard-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: $brand-smart-blue;
+  background: rgba($brand-smart-blue, 0.12);
+  border: 1px solid rgba($brand-smart-blue, 0.25);
+}
+.md-home-boards-picker__keyboard-preview {
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba($la-navy, 0.05) 0%, rgba($brand-smart-blue, 0.07) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.md-home-boards-picker__keyboard-preview--qwerty {
+  background: linear-gradient(160deg, rgba($brand-verdigris, 0.06) 0%, rgba($la-navy, 0.05) 100%);
+}
+.md-home-boards-picker__keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.md-home-boards-picker__keyboard-key {
+  flex: 1 1 0;
+  max-width: 28px;
+  aspect-ratio: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
+  box-shadow: 0 1px 2px rgba($la-navy, 0.10);
+  font-size: 11px;
+  font-weight: 700;
+  color: $la-navy;
+}
 /* Board cards on the board-picker surfaces (/search/home + setup Board
    Category): client-preferred CENTERED vertical layout + the shared
    `board-card-modern` look. Only layout/centering + the in-flow pill
@@ -38075,6 +38134,48 @@ a.la-footer-bottom-a11y-wcag {
   max-width: 560px;
 }
 
+/* Supporter sub-type buttons — revealed under the role dropdown when
+   "Supporter" is selected. Modern glassy pill buttons (2 per row), with a
+   brand-smart-blue active state for the chosen type. */
+.register-supporter-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.register-supporter-type {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 120px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.92) 100%);
+  color: $la-navy;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease, color 0.15s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 3px rgba($la-navy, 0.08);
+}
+.register-supporter-type:hover {
+  border-color: rgba($brand-smart-blue, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 8px rgba($la-navy, 0.12);
+  transform: translateY(-1px);
+}
+.register-supporter-type--active {
+  background: linear-gradient(180deg, rgba($brand-smart-blue, 0.16) 0%, rgba($brand-smart-blue, 0.08) 100%);
+  border-color: $brand-smart-blue;
+  color: $brand-smart-blue;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 0 0 2px rgba($brand-smart-blue, 0.18);
+}
+
 .register-card {
   margin-top: $aac-spacing-24;
   background:
@@ -38435,6 +38536,9 @@ a.la-footer-bottom-a11y-wcag {
 
     &:hover:not(:disabled):not(.register-btn--disabled) {
       background: #f8f9fa;
+      /* Hold the dark Google-brand label color; the base .register-btn:hover
+         sets color:#fff, which would otherwise bleed through here. */
+      color: #3c4043;
       border-color: #d2e3fc;
       box-shadow:
         0 1px 2px rgba(60, 64, 67, 0.30),
@@ -39853,6 +39957,9 @@ a.la-footer-bottom-a11y-wcag {
 
     &:hover:not(:disabled) {
       background: #f8f9fa;
+      /* Hold the dark Google-brand label color; the base .login-btn:hover
+         sets color:#fff, which would otherwise bleed through here. */
+      color: #3c4043;
       border-color: #d2e3fc;
       box-shadow:
         0 1px 2px rgba(60, 64, 67, 0.30),
@@ -62158,7 +62265,12 @@ a.md-goal-nav-action:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  /* Match the Home button's box: same width (56px) AND same content height.
+     Both are flex:1 in the stretched stack, but Home's content (33px svg +
+     10px padding) floors it taller than a 22px-svg / 0-padding back would, so
+     mirror Home's svg size + padding so the two boxes are identical (and scale
+     together — see the <=500h overrides). */
+  padding: 10px;
   border-radius: 12px;
   border: 1px solid rgba($brand-charcoal-blue, 0.2);
   background: rgba($brand-blue-grey, 0.15);
@@ -62168,8 +62280,8 @@ a.md-goal-nav-action:hover,
 }
 .md-board-detail-nav-stack__back svg {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 33px;
+  height: 33px;
 }
 .md-board-detail-nav-stack__back:hover {
   background: rgba($brand-blue-grey, 0.3);
@@ -62183,6 +62295,10 @@ a.md-goal-nav-action:hover,
 
 .md-board-detail-sentence-bar {
   flex: 1;
+  /* Allow the bar to shrink below its content's intrinsic width so a long
+     composed message wraps/scrolls inside the bar instead of widening the
+     row and pushing the right-side menus off the page. */
+  min-width: 0;
   /* `position: relative` so the ::before / ::after dividers can position
      themselves outside the bar's left and right edges. */
   position: relative;
@@ -62284,6 +62400,121 @@ a.md-goal-nav-action:hover,
 }
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar {
   min-height: 200px;
+}
+/* Short viewports (<=500px tall, e.g. landscape phones): shrink the sentence
+   bar ~30% — bar height AND all inner content (heights, widths, fonts, images,
+   icons) scaled to 0.7 of each size preset so the bar doesn't eat a short
+   screen. libsass can't evaluate calc(px * var()), so each reduced value is
+   precomputed (= round(original * 0.7)). */
+@media (max-height: 500px) {
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
+    --nb-sb-h: 60px;  --nb-sb-h2: 120px; --nb-sb-ph: 55px;  --nb-sb-ph2: 109px;
+    --nb-sb-font: 14px; --nb-sb-lbl: 10px; --nb-sb-img: 35px; --nb-sb-pimg: 34px; --nb-sb-minw: 31px; --nb-sb-sbtn: 13px;
+    --nb-sb-btnh: 39px; --nb-sb-btnw: 31px;
+    min-height: 63px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--small .md-board-detail-sentence-bar { min-height: 63px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium {
+    --nb-sb-h: 67px;  --nb-sb-h2: 134px; --nb-sb-ph: 62px;  --nb-sb-ph2: 123px;
+    --nb-sb-font: 14px; --nb-sb-lbl: 10px; --nb-sb-img: 35px; --nb-sb-pimg: 34px; --nb-sb-minw: 31px; --nb-sb-sbtn: 13px;
+    --nb-sb-btnh: 39px; --nb-sb-btnw: 31px;
+    min-height: 70px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium .md-board-detail-sentence-bar { min-height: 70px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--large {
+    --nb-sb-h: 102px; --nb-sb-h2: 204px; --nb-sb-ph: 97px;  --nb-sb-ph2: 193px;
+    --nb-sb-font: 20px; --nb-sb-lbl: 14px; --nb-sb-img: 51px; --nb-sb-pimg: 49px; --nb-sb-minw: 45px; --nb-sb-sbtn: 18px;
+    --nb-sb-btnh: 56px; --nb-sb-btnw: 45px;
+    min-height: 105px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar { min-height: 105px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge {
+    --nb-sb-h: 137px; --nb-sb-h2: 274px; --nb-sb-ph: 132px; --nb-sb-ph2: 263px;
+    --nb-sb-font: 27px; --nb-sb-lbl: 19px; --nb-sb-img: 67px; --nb-sb-pimg: 64px; --nb-sb-minw: 59px; --nb-sb-sbtn: 24px;
+    --nb-sb-btnh: 74px; --nb-sb-btnw: 59px;
+    min-height: 140px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar { min-height: 140px; }
+  /* Shrink the row-height-forcing controls so the bar actually collapses to
+     the reduced height (otherwise the chips shrink but the stacked options +
+     sidebar toggles — 44px min-height each — hold the row ~90px tall). Also
+     shrinks the options/sidebar icons. !important is needed to beat the
+     mode-scoped toggle rules (and the base sidebar-toggle--stacked !important).
+     The home button stretches to the row, so this just lowers its floor and
+     narrows it + its icon. */
+  /* Options (⋮) + sidebar/expand toggle render the SAME size here. Scoped under
+     the stacked wrap (2 classes + !important) so it beats BOTH toggles' base
+     rules — including sidebar-toggle--stacked's own !important sizing, which
+     otherwise wins by source order and leaves the two buttons mismatched. They
+     keep flex:1 (from the shared rule), so they split the reduced bar height
+     equally; identical width/min-height + matching icons make them uniform. */
+  .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-actions-toggle,
+  .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-sidebar-toggle--stacked {
+    width: 32px !important;
+    min-width: 32px !important;
+    min-height: 26px !important;
+    border-radius: 9px !important;
+  }
+  .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-actions-toggle svg,
+  .md-board-detail-sentence-bar__actions-wrap--stacked .md-board-detail-sidebar-toggle--stacked svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+  .md-board-detail-home-btn {
+    width: 40px;
+    min-height: 35px;
+    padding: 6px;
+  }
+  .md-board-detail-home-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  /* Keep the Back button's box matched to the Home button at this height. */
+  .md-board-detail-nav-stack__back {
+    width: 40px;
+    min-height: 35px;
+    padding: 6px;
+  }
+  .md-board-detail-nav-stack__back svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+/* Even shorter viewports (<=400px tall): take the <=500h presets and drop the
+   bar 10px shorter per class, scaling the inner content (chip/prediction/button
+   heights, images, fonts, icons) by each class's own height ratio so the row
+   adjusts to the shorter bar instead of clipping. After the <=500h block so it
+   overrides at equal specificity (both media queries match at <=400px). The
+   <=500h toggle/home/svg shrink still applies here and stretches to the row. */
+@media (max-height: 400px) {
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
+    --nb-sb-h: 50px;  --nb-sb-h2: 100px; --nb-sb-ph: 46px;  --nb-sb-ph2: 91px;
+    --nb-sb-font: 12px; --nb-sb-lbl: 8px; --nb-sb-img: 29px; --nb-sb-pimg: 28px; --nb-sb-minw: 26px; --nb-sb-sbtn: 11px;
+    --nb-sb-btnh: 33px; --nb-sb-btnw: 26px;
+    min-height: 53px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--small .md-board-detail-sentence-bar { min-height: 53px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium {
+    --nb-sb-h: 57px;  --nb-sb-h2: 114px; --nb-sb-ph: 53px;  --nb-sb-ph2: 105px;
+    --nb-sb-font: 12px; --nb-sb-lbl: 9px; --nb-sb-img: 30px; --nb-sb-pimg: 29px; --nb-sb-minw: 26px; --nb-sb-sbtn: 11px;
+    --nb-sb-btnh: 33px; --nb-sb-btnw: 26px;
+    min-height: 60px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--medium .md-board-detail-sentence-bar { min-height: 60px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--large {
+    --nb-sb-h: 92px;  --nb-sb-h2: 184px; --nb-sb-ph: 87px;  --nb-sb-ph2: 174px;
+    --nb-sb-font: 18px; --nb-sb-lbl: 13px; --nb-sb-img: 46px; --nb-sb-pimg: 44px; --nb-sb-minw: 41px; --nb-sb-sbtn: 16px;
+    --nb-sb-btnh: 50px; --nb-sb-btnw: 41px;
+    min-height: 95px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--large .md-board-detail-sentence-bar { min-height: 95px; }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge {
+    --nb-sb-h: 127px; --nb-sb-h2: 254px; --nb-sb-ph: 122px; --nb-sb-ph2: 244px;
+    --nb-sb-font: 25px; --nb-sb-lbl: 18px; --nb-sb-img: 62px; --nb-sb-pimg: 59px; --nb-sb-minw: 55px; --nb-sb-sbtn: 22px;
+    --nb-sb-btnh: 69px; --nb-sb-btnw: 55px;
+    min-height: 130px;
+  }
+  .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar { min-height: 130px; }
 }
 /* Inner content — all plain `var()` (no calc arithmetic). Fallbacks
    keep var-less contexts (e.g. create-board-new preview) original. */
@@ -62397,18 +62628,24 @@ a.md-goal-nav-action:hover,
   font-size: var(--nb-sb-lbl, 15px);
 }
 .md-board-detail-sentence-row .md-board-detail-sentence-bar__text--with-symbols {
-  /* Fill the bar's full content height. The base rule wrapped chips
-     (`flex-wrap: wrap` + `align-*: flex-start`), capping each chip at
-     its wrap-LINE height so `align-self: stretch` couldn't reach the
-     bar. Force a single non-wrapping row that fills the bar and
-     scrolls horizontally when there are many chips. */
+  /* Wrap chips into rows and scroll VERTICALLY, capping the scroll
+     viewport at the bar's per-size content height (--nb-sb-h). A long
+     message keeps its most-recent chips in view — older rows scroll up
+     out of sight (driven to the bottom by _scroll_sentence_to_newest in
+     controllers/user/board-detail.js) — instead of stretching into one
+     non-wrapping row that expands the bar horizontally and pushes the
+     right-side menus off the page. `min-width: 0` lets this flex child
+     shrink below its content width so wrapping/scrolling actually
+     engages rather than forcing the bar (and the row) wider. */
   align-self: stretch;
-  align-items: stretch;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  align-items: flex-start;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: var(--nb-sb-h, 86px);
-  max-height: none;
+  max-height: var(--nb-sb-h, 86px);
 }
 /* Prediction tiles live in __prediction-group (4px top + 4px bottom
    padding); --nb-sb-ph already accounts for the 8px. */
@@ -62422,9 +62659,9 @@ a.md-goal-nav-action:hover,
   width: var(--nb-sb-pimg, 48px);
   height: var(--nb-sb-pimg, 48px);
 }
-.md-board-detail-sentence-row .md-board-detail-sentence-bar__prediction-label {
-  font-size: var(--nb-sb-lbl, 15px);
-}
+/* Predicted-word font is NOT coupled to the sentence-bar size class
+   (--nb-sb-lbl) — it matches the board buttons instead (see the base
+   .md-board-detail-sentence-bar__prediction-label rule). */
 /* Right-side action buttons — mic (speak), backspace, trash, chevron.
    Scale only the icon (svg), floored at base (18px ≤ medium, no
    shrink) and growing on Large/Huge, like the chips. The home button
@@ -62634,15 +62871,22 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  /* Centered group with a moderate gap — a half-way point between
-     the cramped 1px original and space-between (which split the
-     label/image to opposite edges, too far apart). */
   justify-content: center;
-  gap: 12px;
-  padding: 4px 8px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  /* Tight gap between the symbol and its label (was 12px). */
+  gap: 4px;
+  /* 2px top (was 4px) so the chip hugs the top of the bar a little tighter. */
+  padding: 2px 8px 4px;
+  /* Glass badge — same frosted glassmorphism as the prediction tiles:
+     backdrop-blur pane, translucent highlight->shade gradient, bright inset
+     top sheen, soft solid edge, soft ambient drop. */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 4px 14px rgba(27, 54, 93, 0.18);
   min-width: 44px;
   /* Chip box height exceeds the bar's min-height (82px). The chip
      extends past the bar's content area by ~4px total — intentional
@@ -62733,6 +62977,94 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.55);
 }
+
+/* Word-prediction rail (<=768px). The in-bar predictions overflow on small
+   screens, so they relocate into this vertical column between the board grid
+   and the inline sidebar (a flex item inside .md-board-detail-grid-sidebar-wrap,
+   which is a flex row). Hidden on larger screens — the inline in-bar group is
+   used there instead. */
+.md-board-detail-prediction-rail {
+  display: none;
+}
+@media (max-width: 1024px) {
+  /* At <=1024px the in-bar predictions crowd the speak bar, so hide them and
+     show the vertical rail to the right of the grid instead. */
+  .md-board-detail-sentence-bar__prediction-group {
+    display: none;
+  }
+  /* Let the board grid yield width so the rail + sidebar + gaps fit inside
+     main (which is overflow-x:hidden). Without this the grid keeps its full
+     content width and the rightmost element (sidebar) gets clipped off. */
+  .md-board-detail-grid-fade {
+    min-width: 0;
+  }
+  .md-board-detail-prediction-rail {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    align-self: stretch;
+    align-items: stretch;
+    /* Width, inter-tile gap, and top inset all track the live board grid
+       (measured by _sync_prediction_tile_size in controllers/user/
+       board-detail.js): the gap matches the board's row pitch and the top
+       padding aligns the first tile with the first board row, so the rail
+       shares the board's vertical rhythm. Fixed fallbacks keep a sensible
+       column if measurement hasn't run yet. */
+    width: var(--prediction-tile-w, 84px);
+    gap: var(--prediction-tile-gap, 8px);
+    padding: var(--prediction-rail-pad-top, 4px) 6px 4px;
+    margin-left: 6px;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+  /* Tiles match the board button box (measured vars, fixed fallbacks). */
+  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
+    width: 100%;
+    height: var(--prediction-tile-h, 78px);
+    /* Establish a cqw container so the label below tracks the tile width.
+       The tile is sized to the board cell (--prediction-tile-w), so cqw here
+       == cqw on the board's symbol-card → words match the board labels. */
+    container-type: inline-size;
+  }
+  /* Scale the symbol with the tile (board symbols are sized as a % of the
+     card) so it doesn't float small inside a larger matched tile. */
+  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img {
+    width: auto;
+    height: 52%;
+    max-width: 80%;
+  }
+  /* Predicted-word font must EXACTLY match the board button label.
+     --prediction-label-font is the board label's RENDERED font-size, copied in
+     JS (_sync_prediction_tile_size). A cqw match can't work here: cqw resolves
+     against the container's CONTENT box, and the rail tile's larger horizontal
+     padding (10px vs the card's 4px) gives it a narrower content box, so equal
+     outer widths still produce different cqw px. The fallback clamp only applies
+     before the first measurement lands. */
+  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
+    font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
+  }
+  /* Match the board buttons' text POSITION (the rail carries the board's
+     text-pos class) and give the label breathing room from the image (the base
+     gap:1px read as cramped). DOM order is image-then-label, so flip
+     flex-direction to place the label like the board: top → label above
+     (column-reverse), bottom → label below (column); none hides the label,
+     text_only hides the image. */
+  .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
+    gap: 4px;
+  }
+  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction {
+    flex-direction: column-reverse;
+  }
+  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction {
+    flex-direction: column;
+  }
+  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
+    display: none;
+  }
+  .md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
+    display: none;
+  }
+}
 .md-board-detail-sentence-bar__prediction {
   display: inline-flex;
   flex-direction: column;
@@ -62749,17 +63081,29 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-width: 44px;
   height: 78px;
   box-sizing: border-box;
-  border-radius: 8px;
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  /* Modern glassmorphism — matches the app's glass vocabulary
+     (.md-board-edit-panel, the sentence bar): a real frosted backdrop-blur
+     pane with a translucent highlight->shade gradient, a bright inset top
+     sheen, a soft solid glass edge, and a soft ambient drop. */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 4px 14px rgba(27, 54, 93, 0.18);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
   flex-shrink: 0;
   position: relative;
 }
 .md-board-detail-sentence-bar__prediction:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.55);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.12));
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 14px rgba(27, 54, 93, 0.20);
   transform: translateY(-1px);
 }
 .md-board-detail-sentence-bar__prediction:active {
@@ -62771,25 +63115,40 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   object-fit: contain;
   flex-shrink: 1;
   min-height: 0;
-  opacity: 0.7;
+  opacity: 0.85;
+  /* Soft, sleek dashed frame around the prediction symbol — the "suggestion"
+     affordance now lives on the image (the tile itself is solid glass). A thin
+     rounded dash with a little breathing room from the symbol reads modern.
+     box-sizing keeps the 48px footprint. */
+  box-sizing: border-box;
+  padding: 3px;
+  border: 1.5px dashed rgba(70, 80, 95, 0.38);
+  border-radius: 10px;
 }
-/* Dark-mode prediction-thumb lift — same idea as the chip-img above.
-   Slightly lower pad opacity (the prediction rail has more icons in
-   it, and these images already render at 0.7 opacity by design — a
-   full 0.88 pad would visually shout). */
+/* Dark-mode prediction-thumb lift — a softer, more translucent frosted
+   backing (was a near-opaque 0.75 white square that read as a flat gray chip
+   and fought the tile's glassmorphism). Lower alpha + larger radius lets the
+   frosted tile show through while still lifting dark line-art symbols. */
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction-img {
-  background: rgba(255, 255, 255, 0.75);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  /* Soft white dash on the dark bar (inherits the base dash width/style). */
+  border-color: rgba(255, 255, 255, 0.5);
 }
 .md-board-detail-sentence-bar__prediction-label {
-  font-size: 15px;
+  /* Match the board button label font exactly: same base formula as
+     .md-board-detail-symbol-card__label, driven by the shared
+     --bd-button-text-size (inherited from .md-board-detail-main). Predicted
+     words track the user's BUTTON text-size preference on every screen size
+     and in both prediction surfaces (in-bar tiles + the vertical rail),
+     instead of the sentence-bar size class. */
+  font-size: clamp(9px, 1.5vw, var(--bd-button-text-size, 15px));
   font-weight: 500;
   /* Brighter prediction text (was 0.7) so word predictions read
      clearly against the dark speak bar. */
   color: rgba(255, 255, 255, 0.95);
   line-height: 1.2;
   text-align: center;
-  font-style: italic;
 }
 .md-board-detail-sentence-bar__actions {
   display: flex;
@@ -65701,12 +66060,45 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-inline-sidebar {
   width: 100px;
   flex-shrink: 0;
-  background: #fff;
-  border-left: 1px solid #eee;
+  /* Glassmorphism container matching the board-detail surfaces (sentence bar,
+     prediction tiles, edit panels): a frosted backdrop-blur pane with a soft
+     solid edge, an inset top sheen, and a soft ambient drop. Subtly rounded.
+     Flex column with TOP-aligned content (pin, then board thumbnails) so it
+     no longer reads as bottom-weighted. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 16px rgba($la-navy, 0.12);
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 10px;
+  padding: 8px 8px 10px;
+  margin-left: 6px;
   max-height: 100%;
+}
+/* Dark-mode: a dark frosted-glass pane (the thumbnails already expect a "dark
+   glass sidebar surface" — see __img below) with light item text. */
+.md-board-detail--dark .md-board-detail-inline-sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 18px rgba(0, 0, 0, 0.34);
+}
+.md-board-detail--dark .md-board-detail-inline-sidebar__item {
+  color: #e1e5eb;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+.md-board-detail--dark .md-board-detail-inline-sidebar__item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 .md-board-detail-inline-sidebar__close {
   display: block;
@@ -65741,7 +66133,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($brand-blue-grey, 0.15);
   color: $brand-charcoal-blue;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.18s ease;
   &:hover {
     background: rgba($brand-blue-grey, 0.3);
   }
@@ -65750,6 +66142,20 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($brand-verdigris, 0.18);
   border-color: rgba($brand-verdigris, 0.45);
   color: $brand-verdigris;
+  /* Soft, spread-out verdigris glow halo around the pinned pin (large blur +
+     a little spread so it diffuses beyond the button rather than hugging it). */
+  box-shadow: 0 0 22px 4px rgba($brand-verdigris, 0.3);
+}
+/* Industry-standard pin/unpin convention (MS Office, Atlassian, Material):
+   UNPINNED = tilted (loose); PINNED = straight upright ("pushed firmly in").
+   So the glyph leans ~42deg by default and straightens when --active.
+   Smoothly animated between the two. */
+.md-board-detail-inline-sidebar__pin svg {
+  transform: rotate(42deg);
+  transition: transform 0.18s ease;
+}
+.md-board-detail-inline-sidebar__pin--active svg {
+  transform: rotate(0deg);
 }
 .md-board-detail--dark .md-board-detail-inline-sidebar__pin {
   background: rgba(255, 255, 255, 0.12);
@@ -65763,6 +66169,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($brand-verdigris, 0.28);
   border-color: rgba($brand-verdigris, 0.6);
   color: #fff;
+  /* Stronger spread-out glow on the dark bar so the pinned halo still reads. */
+  box-shadow: 0 0 24px 5px rgba($brand-verdigris, 0.45);
 }
 .md-board-detail-inline-sidebar__item {
   /* Now a <button> element (was <a href="#">) per WCAG 2.1.1.
@@ -65808,6 +66216,86 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   text-align: center;
   word-break: break-word;
   font-size: 15px;
+}
+/* Narrow viewports (<=1024px): shrink the inline sidebar and its board
+   thumbnails/labels so it doesn't crowd the grid. The pin control is left
+   alone so it keeps its 44px touch target and glow. */
+@media (max-width: 1024px) {
+  .md-board-detail-inline-sidebar {
+    width: 76px;
+  }
+  .md-board-detail-inline-sidebar__item {
+    padding: 7px 4px;
+    font-size: 12px;
+  }
+  .md-board-detail-inline-sidebar__img {
+    width: 42px;
+    height: 42px;
+  }
+  .md-board-detail-inline-sidebar__name {
+    font-size: 12px;
+  }
+}
+/* <=768px: drop the side padding and take ~20px off the width so the sidebar
+   stays compact next to the grid + prediction rail. Pin still centers via its
+   own auto margins. */
+@media (max-width: 768px) {
+  .md-board-detail-inline-sidebar {
+    width: 56px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+/* At <=500px viewport height (short / landscape), shrink the sidebar's board
+   content (thumbnails + labels + item padding) ~25% from the <=1024px sizes so
+   it stays proportional on the shrunk short-screen layout. After the width
+   blocks so it wins at short heights. Pin control left alone (own sizing). */
+@media (max-height: 500px) {
+  .md-board-detail-inline-sidebar {
+    /* Pin + container shrunk 20%: 35px pin + 4px side padding each = 43px. */
+    width: 43px;
+    /* Top/bottom padding halved (8/10 -> 4/5); 4px back on the sides. */
+    padding: 4px 4px 5px;
+  }
+  /* Pin control + its glyph 20% smaller (44 -> 35, svg 34 -> 27). */
+  .md-board-detail-inline-sidebar__pin {
+    width: 35px;
+    min-height: 35px;
+    margin: 4px auto;
+    border-radius: 10px;
+  }
+  .md-board-detail-inline-sidebar__pin svg {
+    width: 27px;
+    height: 27px;
+  }
+  .md-board-detail-inline-sidebar__item {
+    padding: 5px 3px;
+    font-size: 9px;
+  }
+  .md-board-detail-inline-sidebar__img {
+    width: 32px;
+    height: 32px;
+  }
+  .md-board-detail-inline-sidebar__name {
+    font-size: 9px;
+  }
+}
+/* <=400px height: shrink the sidebar content another 20% from the <=500h sizes
+   (img/name/item) so it stays proportional on the even-shorter row. Width is
+   left at 54px (still bounded by the untouched 44px pin) and the pin is left
+   alone. After the <=500h block so it overrides (both match at <=400px). */
+@media (max-height: 400px) {
+  .md-board-detail-inline-sidebar__item {
+    padding: 4px 2px;
+    font-size: 7px;
+  }
+  .md-board-detail-inline-sidebar__img {
+    width: 26px;
+    height: 26px;
+  }
+  .md-board-detail-inline-sidebar__name {
+    font-size: 7px;
+  }
 }
 /* Add Button (+) toggle and dropdown */
 .md-board-detail-add-wrap {
@@ -66262,6 +66750,45 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    correctly, so nothing extra needed here. The leading SVG inherits
    the row's `color`, which the existing menu-item dark rules handle. */
 
+/* Short viewports (<=500px tall): condense the options dropdown so it fits the
+   shorter screen and set all of its text to 12px. Reduces the per-item and
+   section padding, gap, submenu inset, and submenu min-height; every text
+   element (items incl. Edit + theme rows, section labels, submenu items, hints)
+   drops to 12px. The --collection drawer below is a separate full-height side
+   panel and is intentionally left at its own sizing. */
+@media (max-height: 500px) {
+  .md-board-detail-actions-menu {
+    padding: 4px;
+    min-width: 180px;
+  }
+  .md-board-detail-actions-menu__item {
+    padding: 6px 10px;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .md-board-detail-actions-menu__section {
+    padding: 3px 0;
+  }
+  .md-board-detail-actions-menu__section-label {
+    font-size: 12px;
+    padding: 2px 10px 1px;
+  }
+  .md-board-detail-actions-menu__divider {
+    margin: 2px 10px;
+  }
+  .md-board-detail-actions-menu__submenu {
+    padding: 2px 0;
+    margin-left: 14px;
+  }
+  .md-board-detail-actions-menu__submenu .md-board-detail-actions-menu__item {
+    font-size: 12px;
+    padding: 5px 10px;
+    min-height: 0;
+  }
+  .md-board-detail-actions-menu__hint {
+    font-size: 12px;
+  }
+}
 /* ── My Board Collection (inline panel inside the options menu) ───
    When `board_collection_open` is true, the options menu adopts the
    `--collection` modifier: detaches from the trigger's anchor point
@@ -67139,6 +67666,45 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
   height: calc(100dvh - 180px) !important;
 }
+/* At <=500px height the sentence-bar shrink (the <=500h block ~62404) frees
+   27-60px (by size class) above the grid, but the grid's fixed
+   `height: calc(100dvh - 120px)` can't reclaim it, leaving a gap below the
+   board. The size class lives only on the #speak row, so the grid can't match
+   it via a calc. Instead, in speak mode, fill the flexed wrap: stretch the
+   grid-fade to the row height and turn it + the button-listener <div> wrapper
+   into a flex column so the grid's existing `flex: 1 1 0` distributes over that
+   definite height (height:auto drops the fixed calc so flex can size it). Edit
+   mode deliberately does NOT fill — it keeps consistent button heights and
+   scrolls instead; see the edit rules at the end of this block. */
+@media (max-height: 500px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap > .md-board-detail-grid-fade {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-fade > * {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    height: auto;
+  }
+  /* Edit mode: do NOT fill like speak. The board should keep comfortable,
+     consistent button heights and let <main> (overflow-y:auto) SCROLL when they
+     don't fit the short viewport. The base grid `calc(100dvh - 180px)` would
+     compress the 1fr rows into thin strips at short heights, so drop it to auto
+     (grid sizes to content) and floor each cell so buttons stay usable; the
+     content then grows past the viewport and main scrolls. */
+  .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    height: auto !important;
+  }
+  .md-shell--board-detail-edit .md-board-detail-grid__cell {
+    min-height: 96px;
+  }
+}
 
 /* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
 #within_ember.board-detail-view .md-board-detail-grid.board {
@@ -67225,6 +67791,32 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 100%;
   height: 66.6667%;
   margin: auto 0;
+}
+/* Default ("regular") button shape on smaller screens: render each button
+   SQUARE and COLLAPSE the grid to the squares' natural height instead of
+   stretching cells to fill the viewport. Shape comes from the user's
+   `stretch_buttons` preference (none → shape-square); tall/wide prefs keep their
+   own fractional aspect + fill (rules above) and are NOT affected.
+   - Card: width:100% (column width) + aspect-ratio:1 → height == width (square).
+   - Grid: height:auto so the rows size to the square cards (the cards have a
+     definite aspect-height, so the `minmax(0,1fr)` tracks resolve to that height
+     rather than collapsing). align-content:start packs them at the top. The grid
+     is then exactly as tall as the squares — no tall cells, no inter-row gaps —
+     and <main> (overflow-y:auto) scrolls when the squares exceed the viewport.
+   Shell-prefixed (0,3,0) + !important on height so it beats both the speak base
+   height and edit's own !important calc; later in source than the edit calc. */
+@media (max-width: 1024px) {
+  .md-shell--board-detail .md-board-detail-grid.md-board-detail-grid--shape-square {
+    height: auto !important;
+    align-content: start;
+  }
+  .md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
+    flex: 0 0 auto !important;
+    aspect-ratio: 1 / 1;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
 }
 
 .md-board-detail-symbol-card {
@@ -67695,39 +68287,17 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     padding-bottom: 1px;
   }
 }
-/* Short viewports — progressive image-size compensation in board-
-   detail speak mode. As viewport height drops, the grid cells get
-   short, the image container inside each card gets short, and the
-   `object-fit: contain` image shrinks to fit — eventually below
-   readable. A single fixed scale at the 500px breakpoint isn't
-   enough; the underlying image keeps shrinking past it. Step the
-   `transform: scale()` factor up at each shorter breakpoint so the
-   on-screen image size stays roughly constant from 500px down to
-   ~280px. transform-only — layout boxes don't move, so the label
-   stays put; overflow:hidden on the parent image container clips
-   any minor edge overshoot at scale. Scoped to speak mode (not the
-   edit page, where the toolbar is already eating vertical space). */
-@media (max-height: 500px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
-    transform: scale(1.25);
-    transform-origin: center;
-  }
-}
-@media (max-height: 420px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
-    transform: scale(1.5);
-  }
-}
-@media (max-height: 350px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
-    transform: scale(1.8);
-  }
-}
-@media (max-height: 280px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-symbol-card__image img {
-    transform: scale(2.1);
-  }
-}
+/* Short viewports, speak mode: the board button images previously scaled UP
+   (transform: scale(1.25 → 2.1) at <=500/420/350/280px height) to keep symbols
+   "roughly constant" as cells shrank. But the image is already
+   object-fit:contain — it fills its short dimension — so any scale > 1
+   overflowed the `overflow:hidden` image holder and CROPPED the symbol (heavy
+   on landscape phones: scale(1.5) at ~390px tall cut ~1/3 off). A cropped AAC
+   symbol is unrecognizable, which is worse than a smaller intact one, so the
+   scale steps were removed — the image now fits fully (object-fit:contain) at
+   every height. To make symbols read larger on short screens, give the image
+   more vertical room (trim label / cell padding), never scale past the
+   container. */
 // Shrink-to-fit opt-in (Text Settings → Shrink labels to fit) is
 // implemented per-label in JS — see app/frontend/app/utils/label_fit.js
 // and the board-detail-grid component. The toggle adds
@@ -71669,6 +72239,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     opacity: 0.46;
   }
 }
+/* At <=500px viewport height (short / landscape), shrink the colored-corner
+   folder tab (20px -> 15px, width + height) so it stays proportional on the
+   shrunk short-screen board-detail layout. Placed after the base and the
+   min-width:1024 rule so it wins at short heights regardless of width. */
+@media (max-height: 500px) {
+  .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
+    width: 15px;
+    height: 15px;
+  }
+}
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
   display: none;
 }
@@ -72625,73 +73205,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-board-detail-sentence-bar__placeholder {
     text-align: left;
   }
-  /* ≤640px: the 4 action buttons (mic + backspace/clear/options) form a
-     COMPACT 2×2 grid pinned to the top-right of the bar — not a
-     full-width spread. The 3 tool buttons are nested in `__tools`;
-     `display: contents` on that wrapper lifts them into `__actions`'s
-     grid so all 4 become grid items. `auto` columns keep it
-     content-sized; `align-self: flex-start` tops it; `margin-left: auto`
-     (within the flex bar, after the flex:1 text) pushes it right. */
-  .md-board-detail-sentence-bar__actions {
-    display: grid;
-    grid-template-columns: repeat(2, auto);
-    gap: 8px;
-    place-items: center;
-    flex: 0 0 auto;
-    align-self: flex-start;
-    margin-left: auto;
-  }
-  .md-board-detail-sentence-bar__btn {
-    padding: 6px 12px;
-    font-size: 15px;
-  }
-  /* In the 2×2 grid, the mic/repeat button must be visually identical to
-     the clear (tool) button: same translucent glassy fill + border +
-     12px radius (no white pill / shadow) AND the exact same size. The
-     tool button's size is driven by the `--nb-sb-btnw/h` vars via the
-     2-class rule `.md-board-detail-sentence-row .__tool-btn`, so this
-     override (a) uses the SAME vars and (b) is scoped with the same
-     `.md-board-detail-sentence-row` ancestor to match that specificity
-     and reliably win over the base `.__btn--speak` + row `.__btn`
-     rules. Mirrors `.md-board-detail-sentence-bar__tool-btn`. */
-  /* 3-class selector (`.md-shell--board-detail` ancestor added) so this
-     beats the 2-class `.md-board-detail--dark .__btn--speak` rule that
-     appears later in the file and was re-asserting the dark pill bg /
-     dim border. Values replicate what a `.__tool-btn` actually renders
-     in dark mode: base tool-btn fill + 0.12 "glow" border + 12px
-     radius, dark-mode color, and the SAME `--nb-sb-btnw/h` size vars. */
-  .md-shell--board-detail .md-board-detail-sentence-row .md-board-detail-sentence-bar__btn--speak {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    box-shadow: none;
-    color: rgba(255, 255, 255, 0.55);
-    width: var(--nb-sb-btnw, 44px);
-    min-width: var(--nb-sb-btnw, 44px);
-    height: var(--nb-sb-btnh, 55px);
-    min-height: var(--nb-sb-btnh, 55px);
-    padding: 0;
-  }
-  .md-shell--board-detail .md-board-detail-sentence-row .md-board-detail-sentence-bar__btn--speak:hover {
-    background: rgba(255, 255, 255, 0.10);
-    box-shadow: none;
-    color: #fff;
-  }
-  .md-board-detail-sentence-bar__btn svg {
-    width: 12px;
-    height: 12px;
-  }
-  .md-board-detail-sentence-bar__tools {
-    display: contents;
-  }
-  .md-board-detail-sentence-bar__tool-btn {
-    width: 26px;
-    height: 26px;
-  }
-  .md-board-detail-sentence-bar__tool-btn svg {
-    width: 12px;
-    height: 12px;
-  }
+  /* (The compact 2×2 action-button grid was removed — it made the sentence bar
+     too tall. The mic/backspace/clear/chevron now stay in their default single
+     row at every width.) */
   .md-board-detail-actions-toggle {
     width: 28px;
   }
@@ -72905,6 +73421,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-detail-sentence-bar__placeholder {
   color: rgba(255, 255, 255, 0.60);
 }
+.md-board-detail--dark .md-board-detail-sentence-bar__chip {
+  /* Match the dark prediction tile: inherits the base backdrop-blur, re-tunes
+     the frosted tint, sheen, and ambient drop for the darker bar. */
+  border-color: rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 4px 16px rgba(0, 0, 0, 0.30);
+}
 .md-board-detail--dark .md-board-detail-sentence-bar__chip-label {
   color: #e1e5eb;
 }
@@ -72913,15 +73438,26 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba(0, 0, 0, 0.7);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  /* Inherits the base backdrop-blur; just re-tunes the frosted tint, sheen,
+     and ambient drop for the darker bar. */
+  border-color: rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 4px 16px rgba(0, 0, 0, 0.30);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.09));
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 4px 14px rgba(0, 0, 0, 0.34);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction-label {
-  color: rgba(255, 255, 255, 0.55);
+  /* Match the base label brightness (0.95) so predictions read clearly on the
+     dark bar — the dashed border and slightly-dimmed (0.85) symbol still keep
+     them visually distinct from committed words without dimming the text. */
+  color: rgba(255, 255, 255, 0.95);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__btn {
   color: rgba(255, 255, 255, 0.85);

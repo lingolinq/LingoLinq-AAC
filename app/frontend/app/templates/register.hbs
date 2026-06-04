@@ -212,8 +212,24 @@
         {{/if}}
       </div>
       <div class="form-group">
-        <label for="registration_type">{{t "Type" key="type"}}</label>
-        {{bound-select select_class="form-control" select_id="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=(action (mut this.model.preferences.registration_type)) }}
+        <label for="registration_type">{{t "Role" key="role"}}</label>
+        {{bound-select select_class="form-control" select_id="registration_type" content=this.role_categories selection=this.registration_role action=(action "select_registration_role") }}
+        {{#if (is-equal this.registration_role "supporter")}}
+          {{!-- Supporter sub-type: stores the specific registration_type
+               (therapist/parent/teacher/other) so the backend maps
+               role=supporter. UI-grouped under "Supporter" above. --}}
+          <div class="register-supporter-types" role="radiogroup" aria-label={{t "What kind of supporter are you?" key="supporter_type_group"}}>
+            {{#each this.supporter_types as |st|}}
+              <button type="button" role="radio"
+                aria-checked={{if (is-equal this.model.preferences.registration_type st.id) "true" "false"}}
+                class="register-supporter-type {{if (is-equal this.model.preferences.registration_type st.id) 'register-supporter-type--active'}}"
+                {{action "select_supporter_type" st.id}}>{{st.name}}</button>
+            {{/each}}
+          </div>
+        {{/if}}
+        {{#if this.roleIncomplete}}
+          <span class='text-danger'>{{t "Please choose your role" key="role_required"}}</span>
+        {{/if}}
       </div>
       <div class="form-group">
         {{#unless this.start_code}}

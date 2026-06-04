@@ -343,6 +343,94 @@ export default Controller.extend(prefClasses, {
       _this._grid_settle_timer = null;
     }, 150);
   }),
+
+  // Size the <=768px word-prediction rail tiles to match the live board
+  // buttons so they read as one consistent set. Board buttons are sized by the
+  // CSS grid (gridWidth/cols x gridHeight/rows), which the rail — a sibling
+  // outside that grid — can't read in CSS, so we measure a rendered card and
+  // publish its box as CSS vars on .md-board-detail-main. The rail CSS consumes
+  // them with FIXED FALLBACKS, so a missed measurement just leaves the rail at
+  // its default size — it can never break the rail. Progressive enhancement.
+  _sync_prediction_tile_size: function() {
+    if(typeof document === 'undefined') { return; }
+    var main = document.querySelector('.md-board-detail-main');
+    if(!main) { return; }
+    var cell = document.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
+    if(!cell) { return; }
+    var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
+    var cardRect = card.getBoundingClientRect();
+    var cellRect = cell.getBoundingClientRect();
+    if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
+    var grid = document.querySelector('.md-board-detail-grid');
+    var gridStyle = grid ? window.getComputedStyle(grid) : null;
+    var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
+    var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
+    // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
+    // setting the rail to the measured card width is circular: the rail steals
+    // that width back from the grid, the cards resize, and the two stay one step
+    // out of sync forever (the rail renders NARROWER than the buttons). Solve
+    // for the convergent width instead. The grid + rail share a horizontal
+    // budget S = gridFadeWidth + railMargin + railWidth that is INVARIANT under
+    // how it's split (the flex:1 grid absorbs whatever the rail takes; the
+    // sidebar is a separate fixed sibling). At the width W where one board
+    // column == the rail:  S = (N+1)*W + (N-1)*colGap + railMargin  →
+    //   W = (S - (N-1)*colGap - railMargin) / (N+1).
+    // One measurement at ANY current rail width yields the right W. Falls back
+    // to the plain card width when the rail is hidden (>1024px in-bar layout).
+    var tileW = Math.round(cardRect.width);
+    var rail = document.querySelector('.md-board-detail-prediction-rail');
+    var gridFade = document.querySelector('.md-board-detail-grid-fade');
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 0;
+    if(rail && gridFade && cols > 0 && window.getComputedStyle(rail).display !== 'none') {
+      var railMarginLeft = parseFloat(window.getComputedStyle(rail).marginLeft) || 0;
+      var shared = gridFade.getBoundingClientRect().width + railMarginLeft + rail.getBoundingClientRect().width;
+      var w = (shared - (cols - 1) * colGap - railMarginLeft) / (cols + 1);
+      if(w > 1) { tileW = Math.round(w); }
+    }
+    main.style.setProperty('--prediction-tile-w', tileW + 'px');
+    main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
+    // Match the board's vertical RHYTHM so rail tiles line up with board rows:
+    // board row pitch = cellHeight + rowGap; rail pitch = tileHeight + railGap.
+    // Tile height = card height, so the rail gap absorbs the difference.
+    main.style.setProperty('--prediction-tile-gap', Math.max(0, Math.round(cellRect.height + rowGap - cardRect.height)) + 'px');
+    // Align the first rail tile's top with the first board row. The rail is a
+    // flex child of grid-sidebar-wrap (align-items:flex-start), so it naturally
+    // starts at the wrap's content top; pad it down to the first card. Measured
+    // against the (stable) wrap, not the rail, so it can't feed back on itself.
+    var wrap = document.querySelector('.md-board-detail-grid-sidebar-wrap');
+    if(wrap) {
+      var wrapTop = wrap.getBoundingClientRect().top + (parseFloat(window.getComputedStyle(wrap).paddingTop) || 0);
+      main.style.setProperty('--prediction-rail-pad-top', Math.max(0, Math.round(cardRect.top - wrapTop)) + 'px');
+    }
+    // FONT: match the rail words to the board labels EXACTLY by copying the
+    // board label's computed font-size. A `cqw`-based match is fragile here —
+    // cqw resolves against the container's CONTENT box, and the rail tile has
+    // more horizontal padding than the board card (10px vs 4px), so equal outer
+    // widths still yield different cqw px. Reading the rendered px sidesteps
+    // that (and any future padding/border drift). All board labels share the
+    // same size, so the first is representative.
+    var label = card.querySelector && card.querySelector('.md-board-detail-symbol-card__label');
+    if(label) {
+      var labelFont = window.getComputedStyle(label).fontSize;
+      if(labelFont) { main.style.setProperty('--prediction-label-font', labelFont); }
+    }
+  },
+  /* (Re)point the ResizeObserver at the current board grid — the grid element
+     is replaced on board change, so re-observe whenever the board changes. */
+  _observe_prediction_grid: function() {
+    if(!this._predictionGridRO || typeof document === 'undefined') { return; }
+    try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
+    var grid = document.querySelector('.md-board-detail-grid');
+    if(grid) { this._predictionGridRO.observe(grid); }
+  },
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
+    var _this = this;
+    runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this._sync_prediction_tile_size();
+      _this._observe_prediction_grid();
+    }, 160);
+  }),
   noUndo: true,
   noRedo: true,
 
@@ -428,6 +516,46 @@ export default Controller.extend(prefClasses, {
       }, 0);
     }
 
+    // Keep the <=768px prediction-rail tiles matched to the board buttons as
+    // the viewport changes (board buttons resize with the viewport). Debounced;
+    // each run is a single measure + two CSS-var writes. Cleaned up in
+    // willDestroy. See _sync_prediction_tile_size.
+    if(typeof window !== 'undefined') {
+      this._predictionTileResizeHandler = function() {
+        if(_this._predictionTileResizeTimer) { runCancel(_this._predictionTileResizeTimer); }
+        _this._predictionTileResizeTimer = runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this._sync_prediction_tile_size();
+        }, 120);
+      };
+      window.addEventListener('resize', this._predictionTileResizeHandler);
+      // Initial measure once the first board has rendered.
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._sync_prediction_tile_size();
+      }, 300);
+      // A window-resize / fixed timer only catches viewport changes — NOT the
+      // board re-laying-out (square-shape collapse, board switch, font/gap/shape
+      // pref changes, dev hot-reload) which resize the cells WITHOUT a window
+      // resize, leaving the rail measured against a stale layout. Observe the
+      // grid directly so the rail re-measures whenever the buttons actually
+      // change size. The closed-form measure is convergent (it settles to the
+      // same value in a tick), so the debounce + rounding prevent a RO loop.
+      if(typeof ResizeObserver !== 'undefined') {
+        this._predictionGridRO = new ResizeObserver(function() {
+          if(_this._predictionTileResizeTimer) { runCancel(_this._predictionTileResizeTimer); }
+          _this._predictionTileResizeTimer = runLater(function() {
+            if(_this.isDestroyed || _this.isDestroying) { return; }
+            _this._sync_prediction_tile_size();
+          }, 120);
+        });
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this._observe_prediction_grid();
+        }, 350);
+      }
+    }
+
     // Portrait/narrow viewport tracking for the landscape-orientation
     // overlay + immersive tool consolidation. Mirrors the matchMedia
     // pattern above: stored MQLs + handlers so the reactive booleans stay
@@ -501,6 +629,14 @@ export default Controller.extend(prefClasses, {
     if(this._closeDropdownsHandler) {
       document.removeEventListener('click', this._closeDropdownsHandler, true);
     }
+    if(this._predictionTileResizeHandler) {
+      window.removeEventListener('resize', this._predictionTileResizeHandler);
+      if(this._predictionTileResizeTimer) { runCancel(this._predictionTileResizeTimer); }
+    }
+    if(this._predictionGridRO) {
+      try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
+      this._predictionGridRO = null;
+    }
     if(this._narrowViewportMql && this._narrowViewportHandler) {
       if(this._narrowViewportMql.removeEventListener) {
         this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
@@ -568,6 +704,23 @@ export default Controller.extend(prefClasses, {
 
   has_sentence: computed('sentence_parts.[]', function() {
     return (this.get('sentence_parts') || []).length > 0;
+  }),
+
+  // Keep the most recent chips visible. The symbol strip wraps chips into
+  // rows and scrolls vertically (capped at one bar height in app.scss); as
+  // the message grows we scroll it to the bottom so the user always sees
+  // what they just added, with older rows scrolled up out of view. `next`
+  // waits for the new chips to render before measuring scrollHeight.
+  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() {
+    next(function() {
+      var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
+      // Only pin to the newest (bottom) when chips have genuinely wrapped to a
+      // SECOND row. A single row exactly fills the viewport, and a few px of
+      // sub-row overflow (border/rounding) shouldn't scroll — doing so would
+      // hide the TOP of the only row (clipping the symbols). The 24px floor is
+      // well below a real chip row (~78px+) but above any single-row rounding.
+      if(el && (el.scrollHeight - el.clientHeight) > 24) { el.scrollTop = el.scrollHeight; }
+    });
   }),
 
   /**
@@ -684,12 +837,23 @@ export default Controller.extend(prefClasses, {
       var in_progress = !!emberGet(b, 'in_progress');
       var image_url = null;
       if(!in_progress) {
+        var raw_image = emberGet(b, 'image');
         image_url = wordSuggestionsModule.resolve_word_image({
-          image: emberGet(b, 'image'),
+          image: raw_image,
           original_image: emberGet(b, 'original_image')
         });
         if(!image_url) {
           image_url = _this._find_local_image_for_label(label);
+        }
+        // A word prediction with no board symbol is given the missing-image
+        // placeholder by complete_word. resolve_word_image() deliberately
+        // drops placeholders, so re-apply it here when the user shows symbols —
+        // otherwise the chip renders blank even though the button carries the
+        // fallback icon. Only an explicit placeholder URL qualifies; words with
+        // no image at all stay imageless.
+        if(!image_url && _this.get('utterance_show_symbols') &&
+           typeof raw_image === 'string' && wordSuggestionsModule.is_placeholder_image(raw_image)) {
+          image_url = raw_image;
         }
       }
       var chip = {
@@ -2625,6 +2789,16 @@ export default Controller.extend(prefClasses, {
       rows: ob.length,
       columns: (ob[0] && Array.isArray(ob[0]) && ob[0].length) || 0
     };
+  }),
+
+  /* The vertical prediction rail (speak mode, <=1024px) sits beside the board as
+     an extra "column", so it must never show more tiles than a board column has
+     buttons — i.e. cap it at the board's row count (5 rows → max 5 predictions,
+     3 rows → max 3). Falls back to the full list if the row count isn't known. */
+  prediction_rail_suggestions: computed('suggestions.list.[]', 'current_grid.rows', function() {
+    var list = this.get('suggestions.list') || [];
+    var rows = parseInt(this.get('current_grid.rows'), 10) || 0;
+    return (rows > 0 && list.length > rows) ? list.slice(0, rows) : list;
   }),
 
   grid_style: computed('current_grid.columns', 'current_grid.rows', function() {
@@ -5705,7 +5879,19 @@ export default Controller.extend(prefClasses, {
         function() { },
         { appState: _this.get('app_state'), stashes: _this.get('stashes') }
       ).then(function(image_url) {
-        activate(image_url || wordSuggestionsModule.resolve_word_image(word));
+        var resolved = image_url || wordSuggestionsModule.resolve_word_image(word);
+        // A real image was found, or the user is in text-only mode (chips
+        // render no image either way) — activate as-is.
+        if(resolved || !_this.get('utterance_show_symbols')) {
+          activate(resolved);
+          return;
+        }
+        // No real image found and the user shows symbols: add the same
+        // placeholder the prediction tile used (the missing-image icon) so
+        // the chip carries an icon instead of rendering blank.
+        wordSuggestionsModule.fallback_url().then(function(fb) {
+          activate(fb);
+        }, function() { activate(null); });
       });
     },
 

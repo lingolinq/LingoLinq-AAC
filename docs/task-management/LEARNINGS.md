@@ -2742,3 +2742,112 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Never set `org.admin = false` for normal orgs; leave it NULL. `Organization.admin` is `where(admin: true).first`, so NULL orgs behave identically to "not admin".
 
 **Evidence:** `db/schema.rb` (`index_organizations_on_admin`), `app/models/organization.rb:125`, `db/seeds.rb:489`; fix `lib/seed_organization.rb:37`.
+
+---
+
+## Pattern: `store.peekAll('buttonset')` iteration crashes on empty/unmaterialized records — guard every callsite
+
+**Surface:** speak-mode board grid renders empty ("No symbols found") with console `TypeError: Cannot read properties of undefined (reading 'get')` thrown from `LingoLinq.Buttonset.load_button_set` (buttonset.js ~1200), via either `application.js#update_level_buttons → board#load_button_set` or `word_suggestions#load_vocabulary_button_sets → updateSuggestions` (word prediction).
+
+**Root cause:** `peekAll('buttonset')` can surface empty/unmaterialized records, so a bare `button_sets.find(bs => bs.get('key')...)` / `.forEach(bs => bs.get(...))` throws when an entry is undefined. The static `Buttonset.load_button_set` was the ONE iteration site missing the guard that the others already had: `board.js#load_button_set` (`.map(i=>i).forEach`, `if(bs && ...)`, since Nov 2025) and `word_suggestions#button_sets_for_board_ids` (`if(bs && ...)`, added by Melissa #280, 2026-05-22).
+
+**Not a refactor regression — a latent bug newly exercised.** The crash line predates everything (Nov 2025 rename). The trigger is Melissa's word-prediction/caching warming path (`load_vocabulary_button_sets`), which calls the unguarded static method frequently and in new contexts. She guarded her own new `peekAll` site but the shared static method was missed. Traci's board-detail styling refactor added zero buttonset-store code and is unrelated.
+
+**Fix:** guard each entry in `Buttonset.load_button_set` — `button_sets.find(bs => bs && bs.get && bs.get('key') == id)` and `if(!bs || !bs.get) return;` at the top of the `.forEach`. With the crash gone, the method falls through to its normal `generate(id)` path and the board populates.
+
+**Diagnostic technique:** when a `peekAll(...).find/forEach` callback throws "undefined reading 'get'", grep ALL `peekAll('<type>')` sites — the guarded ones reveal the known hazard and the missing guard is the bug. `git log -L <lines>:<file>` on the crash line tells you it's pre-existing, not the current refactor.
+
+**Evidence:** `app/frontend/app/models/buttonset.js:1199-1209`, `board.js:1275`, `word_suggestions.js:1200,1246`.
+
+---
+
+## Pattern: sentence-bar chips push the right-side menus off-page — flex `min-width:0` + restore vertical wrap-scroll (not horizontal nowrap)
+
+**Surface:** board-detail speak mode. As the user taps enough symbols, the sentence-bar chip strip overflows and shoves the right-side controls (options menu, sidebar toggle) off the page; the board chrome scrolls out of view.
+
+**Root cause (two parts):**
+1. **Missing `min-width: 0`.** `.md-board-detail-sentence-bar` is `flex: 1` (= `flex:1 1 0%`) inside `.md-board-detail-sentence-row`, but a flex item defaults to `min-width: auto` — it refuses to shrink below its content's intrinsic width. With a long chip list the bar balloons and pushes its siblings (the menu stacks) off the row. Fix: `min-width: 0` on the bar **and** on the scrolling `__text` child so overflow can engage instead of widening the row.
+2. **A higher-specificity override replaced the vertical scroll with a horizontal one.** Two competing `--with-symbols` rules existed: the base `.md-board-detail-sentence-bar__text--with-symbols` (`flex-wrap: wrap; overflow-y: auto; align-content: flex-start` — the intended vertical wrap-scroll) and a later, `.md-board-detail-sentence-row`-scoped override (`flex-wrap: nowrap; overflow-x: auto`) added to make chips fill the bar height. The scoped one wins on specificity and forced a single non-wrapping row — which, without `min-width:0`, can't scroll and so expands the page. This is a Rule #0.7 stacked-override that silently changed behavior.
+
+**Fix:** rewrite the winning (`.md-board-detail-sentence-row …`) override to do vertical wrap-scroll — `flex-wrap: wrap; overflow-y: auto; overflow-x: hidden; align-content: flex-start; min-width: 0; max-height: var(--nb-sb-h)` (size-aware so the scroll viewport scales with the sentence-bar size class). Pair with a JS observer (`_scroll_sentence_to_newest`, `observer('sentence_parts.[]')` → `next()` → `el.scrollTop = el.scrollHeight`) so the newest chips stay visible and older rows scroll up out of view — the chat-log pattern (`align-content: flex-start` keeps every row reachable; `flex-end`/`center` push rows to a negative offset scrollTop can't reach).
+
+**Provenance note:** the nowrap override dates to 2026-05-17/19 sentence-bar polish — NOT a recent board-detail refactor. A long-latent flex bug only trips once content is wide enough; "it broke yesterday" often means "I only just populated enough to hit it."
+
+**Evidence:** `app.scss` `.md-board-detail-sentence-bar` (~62190) + `.md-board-detail-sentence-row .md-board-detail-sentence-bar__text--with-symbols` (~62405); `controllers/user/board-detail.js#_scroll_sentence_to_newest`.
+
+## Pattern: a template-bound `style={{…}}` attribute WIPES imperative `el.style.setProperty()` on the same element
+
+**Surface:** board-detail speak mode — entering edit mode and returning, the word-prediction rail tiles revert to their fallback size (84×78) and placeholder images, as if the per-cell measurement never ran ("going through their screen size check").
+
+**Root cause:** `_sync_prediction_tile_size` sets `--prediction-tile-w/h/gap/rail-pad-top` IMPERATIVELY via `main.style.setProperty(...)` on `.md-board-detail-main`. A change had ALSO added a template binding `style={{safe-style (concat "--bd-button-text-size:" …)}}` to that same `<main>`. Ember owns a template-bound `style` attribute: on the next re-render it rewrites the whole attribute to its tracked value (just `--bd-button-text-size`), erasing the imperatively-set tile vars → fallback sizing. The edit→speak transition is one such re-render.
+
+**Fix:** never put a template-bound `style` on an element that also receives imperative `style.setProperty`. Move the bound custom property to a DIFFERENT element. Here `--bd-button-text-size` moved off `<main>` onto the two prediction containers (`.md-board-detail-sentence-bar__prediction-group` and `.md-board-detail-prediction-rail`), which are ancestors of their own labels and receive no imperative styles. Imperative-only `<main>` keeps its tile vars intact.
+
+**Rule of thumb:** imperative DOM style writes and Ember attribute bindings must not share an element. Pick one owner per element's `style`.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size` (`main.style.setProperty`); `templates/user/board-detail.hbs` `<main>` (no bound style) + the two prediction containers (carry `--bd-button-text-size`).
+
+---
+
+## Pattern: `root: true` / `search_string ILIKE '%root%'` does NOT mean "set root" — it means "copy-set head or original"; use the anchored brand-key regex for set roots
+
+**Surface:** "My Board Collection" brand sections (CommuniKate, Quick Core, Sequoia, Vocal Flair) listed sub-boards as separate rows (e.g. "Vocal Flair 84 - A Prefix" alongside "Vocal Flair 84"). Goal: show only each set's TOP board.
+
+**Root cause / gotcha:** the obvious fix — add `root: true` to the public brand query (the same param the My Boards section uses) — is WRONG for public originals. `boards_controller#index` implements `root` as `search_string ILIKE '%root%'`, and `board.rb:899` only appends `" root"` when `!settings['copy_id'] || copy_id == global_id`. So EVERY original (never-copied) board gets the marker — including an original published sub-board. `root: true` works for My Boards only because a user's OWN boards are copy-sets (head marked root, sub-board copies are not). There is no clean data flag separating set-root from set-sub-board on original public boards (`parent_board_id` is copy lineage; `immediately_upstream_boards` is unreliable for popular roots).
+
+**Fix:** key off the board KEY convention (same approach as `components/board-picker.js` _loadBrandGroups). Roots are `<brand>-<size>` (`vocal-flair-84`, `quick-core-60`, `sequoia-15`, optionally `-w-keyboard`); sub-boards carry a descriptive suffix (`vocal-flair-84-categories-food`). CommuniKate has no sizes → root is `communikate-home` / bare / `-<size>`. Per-family `root_re = /(^|\/)<slug>-\d+(-w(?:ith)?-keyboard)?$/i` (`(^|\/)` skips the `<owner>/` prefix, `$` rejects descriptive tails). Note the real key suffix is `-w-keyboard`, not board-picker's older `-with-keyboard` — match both with `-w(?:ith)?-keyboard`.
+
+**Evidence:** `app/controllers/api/boards_controller.rb:299-301`; `app/models/board.rb:899`; `app/frontend/app/components/board-collection.js` (BRAND_FAMILIES `root_re` + `_loadAllBrands` filter).
+
+---
+
+## Pattern: to match prediction-word font to board-button labels, use the board's `cqw` clamp inside a tile-as-container — NOT `vw`
+
+**Surface:** board-detail — predicted-word font didn't match the board button labels (rail words rendered LARGER than board labels on narrow/short screens).
+
+**Root cause:** board button labels are CELL-relative — `.md-board-detail-symbol-card__label` uses `clamp(.., 14cqw, var(--bd-button-text-size))` resolved against the `symbol-card` container (`container-type: size`). The prediction label was viewport-relative (`1.5vw`, capped at `--bd-button-text-size`). `vw` ≠ `cqw`, so they diverge whenever cells aren't viewport-proportional (landscape phones: wide-short cells keep `cqw` large while `vw` shrinks, or vice-versa).
+
+**Fix:** the prediction rail tiles are already sized to the board cell (`--prediction-tile-w` measured by `_sync_prediction_tile_size`). Make each tile a `cqw` container (`container-type: inline-size`) and give the label the board's exact clamps — `clamp(10px,14cqw,var(--bd-button-text-size,15px))` at ≤1024px, `clamp(9px,13cqw,…)` at ≤820px. `14cqw` of the tile == `14cqw` of the cell (equal widths) → words match board labels. The in-bar tiles (>1024px) keep the base `1.5vw` clamp, which matches the board's own base `vw` formula on wide screens. `--bd-button-text-size` must be inherited by the prediction containers (set it on them, not on `<main>` — see the bound-style-vs-imperative pattern above).
+
+**Evidence:** `app.scss` `.md-board-detail-symbol-card__label` (cqw) + `.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction(-label)` (container + cqw clamps) + base `.md-board-detail-sentence-bar__prediction-label`.
+
+---
+
+## Pattern: never `transform: scale()` a `object-fit:contain` image to "enlarge" it — it crops inside `overflow:hidden`
+
+**Surface:** board-detail speak mode on short/landscape screens (e.g. iPhone 390px tall) — board button symbol images showed cut off.
+
+**Root cause:** short-viewport rules scaled the symbol `img` up (`scale(1.25 → 2.1)` at ≤500/420/350/280px height) to keep it "roughly constant" as cells shrank, trusting `overflow:hidden` to clip "minor edge overshoot." But the image is already `object-fit:contain` (filling its short dimension), so ANY `scale > 1` overflows and the holder crops it — `scale(1.5)` cut ~⅓ off. A cropped AAC symbol is unrecognizable (worse than a smaller intact one).
+
+**Fix:** remove the scale steps; let `object-fit:contain` size the image to the cell at every height (smaller but fully visible). To make symbols read larger on short screens, give the image more vertical room (trim label/cell padding) — never scale past the container.
+
+**Evidence:** `app.scss` near the former `@media (max-height: 500/420/350/280px) … .md-board-detail-symbol-card__image img { transform: scale() }` block (removed).
+
+## Pattern: sizing a fixed-width sibling to a FLEXIBLE element's measured size is circular — solve the convergent width in closed form
+
+**Surface:** board-detail speak mode — the word-prediction rail tiles (right column) didn't match the board button width/height; the rail rendered NARROWER than the buttons.
+
+**Root cause:** `_sync_prediction_tile_size` set the rail width to the *measured board card width* (`--prediction-tile-w`). But the rail is a fixed-width `flex-shrink:0` sibling of the FLEXIBLE board grid (`grid-fade` is `flex:1`). Setting the rail to the measured card width is circular: the rail then steals that width back from the grid, the cards reflow to a different width, and — with no re-measure-to-convergence — the rail stays permanently one step out of sync. (It also only measured at init+300ms / on resize / on board change, so it was stale when the rail first appeared as suggestions loaded.)
+
+**Fix:** compute the convergent width directly. The grid + rail share a horizontal budget `S = gridFadeWidth + railMargin + railWidth` that is INVARIANT to how it's split (the `flex:1` grid absorbs whatever the rail takes; the sidebar is a separate fixed sibling). At the width `W` where one board column == the rail: `S = (N+1)·W + (N-1)·colGap + railMargin` → `W = (S − (N-1)·colGap − railMargin) / (N+1)`, with `N = current_grid.columns`. One measurement at ANY current rail width yields the right `W` (since `S` is invariant) — no iteration. Guard on the rail being visible (else fall back to plain card width for the >1024px in-bar layout). Also added `suggestions.list.[]` to the re-measure observer so it recomputes when the rail appears.
+
+**Rule of thumb:** never measure a flex-distributed dimension to set a sibling that feeds back into that same distribution. Identify the split-invariant total and solve for the fixed point.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size` (+ its `_on_change` observer); `app.scss` `.md-board-detail-prediction-rail { width: var(--prediction-tile-w) }`.
+
+## Pattern: board-detail at <=500px height — SPEAK fills the viewport, EDIT must SCROLL (don't force-fill it); confirm the desired behavior before engineering a fill
+
+**Surface:** board-detail at <=500px height. Speak: the board grid left a gap because the fixed `calc(100dvh - Npx)` couldn't reclaim the space the shrunk sentence bar freed. Fixed with a CSS flex-fill (stretch grid-fade → grid `flex:1 1 0` fills the flexed wrap). Then the same gap was reported in EDIT — and several "make edit fill too" attempts each failed or were rejected.
+
+**The real lesson (behavioral, not just technical):** EDIT and SPEAK want DIFFERENT behavior. Speak should fill to a consistent viewport height (no scroll). EDIT should keep comfortable, consistent button heights and SCROLL (`<main>` is `overflow-y:auto`) when they don't fit — NOT squish/stretch to fit. Chasing a "fill" for edit was the wrong goal the whole time. When a fix "doesn't work" repeatedly, re-confirm the *desired behavior*, don't just iterate the mechanism.
+
+**Failed fill attempts for edit (all reverted — don't repeat):**
+- CSS flex-fill (un-scope speak's rules to edit): collapsed the `minmax(0,1fr)` rows to thin strips — edit's chain (inside the `1fr` edit layout, `grid-template-columns:1fr` @ ~71420) hands the grid no definite height to stretch into.
+- Per-size-class `:has()` calc (reduce `-180` by the bar's shrink): still gapped — a fixed `calc(100dvh-X)` can't adapt to whether the global top bar is present (absent in responsive devtools fullscreen → over-subtracts).
+- JS measure-and-set the grid height to main's content bottom: *did* fill, but the user didn't want a fill at all — edit should scroll.
+
+**What edit actually needs:** at `@media (max-height:500px)`, drop the edit grid's fixed calc to `height:auto !important` (so it sizes to content, not compressed) and floor each cell (`.md-shell--board-detail-edit .md-board-detail-grid__cell { min-height: 96px }`) so buttons stay usable; content then grows past the viewport and `<main>` scrolls. Speak keeps its flex-fill; >500px edit keeps `calc(100dvh-180px)`.
+
+**Debugging note that paid off:** Chrome's purple diagonal-hatch (with grid overlay on) = grid free-space/gap not covered by tracks; the box-overlay shows which element OWNS an empty band — here `<main>` owned it (it was full height; the `grid-sidebar-wrap` inside wasn't growing). Always identify the element that owns the empty space before sizing anything.
+
+**Evidence:** `app.scss` `@media (max-height: 500px)` block — speak `:not(.md-shell--board-detail-edit) … grid-fade` flex-fill + edit `.md-shell--board-detail-edit … .md-board-detail-grid { height:auto !important }` and `… .md-board-detail-grid__cell { min-height: 96px }`; edit grid base `calc(100dvh-180px)!important`; layout `.md-shell--board-detail-edit .md-board-detail-layout { grid-template-columns: 1fr !important }`.

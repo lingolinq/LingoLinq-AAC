@@ -1197,9 +1197,13 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, ski
   }
 
   var button_sets = LingoLinq.store.peekAll('buttonset');
-  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs.get('key') == id; });
+  // peekAll can surface empty/unmaterialized records (e.g. during prefetch/
+  // word-prediction warming), so guard each entry — same defense already used at
+  // board.js#load_button_set and word_suggestions#button_sets_for_board_ids.
+  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs && bs.get && bs.get('key') == id; });
   if(!found) {
     button_sets.forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
       // TODO: check board keys in addition to board ids
       if((bs.get('board_ids') || []).indexOf(id) != -1 || bs.get('key') == id) {
         if(bs.get('fresh') || !found) {

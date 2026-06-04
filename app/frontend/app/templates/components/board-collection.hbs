@@ -63,13 +63,12 @@
                     <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
                   </span>
                 {{/if}}
-                {{#if board.buttons.length}}
-                  {{!-- Base button count on THIS board only. `buttons` is
-                       the raw array from json_api/board.rb:17 (one entry
-                       per grid slot on this board). `total_buttons`
-                       includes downstream sub-board buttons too, which
-                       inflates the number for parent boards. --}}
-                  <span class="md-board-collection__item-count" aria-label="{{board.buttons.length}} buttons">{{board.buttons.length}}</span>
+                {{#if board.grid.rows}}
+                  {{!-- Grid size (rows x columns) — the same metric the
+                       boards-page board card shows in its top-right corner
+                       (templates/components/board-icon.hbs). Replaces the raw
+                       button count. --}}
+                  <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
                 {{/if}}
               </button>
             </li>
@@ -123,8 +122,8 @@
                       <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
                     </span>
                   {{/if}}
-                  {{#if board.total_buttons}}
-                    <span class="md-board-collection__item-count" aria-label="{{board.total_buttons}} buttons">{{board.total_buttons}}</span>
+                  {{#if board.grid.rows}}
+                    <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
                   {{/if}}
                 </button>
               </li>

@@ -41,6 +41,22 @@ export default Controller.extend({
     return false;
   }),
   registration_types: LingoLinq.registrationTypes,
+  // Two-tier role: top-level dropdown (communicator/supporter) + supporter
+  // sub-type buttons. `registration_role` is UI-only; the persisted value is
+  // always model.preferences.registration_type (communicator or a supporter
+  // sub-type), set by the actions below.
+  role_categories: LingoLinq.roleCategories,
+  supporter_types: LingoLinq.supporterTypes,
+  registration_role: '',
+  roleIncomplete: computed('triedToSave', 'registration_role', 'model.preferences.registration_type', function() {
+    if(!this.get('triedToSave')) { return false; }
+    var role = this.get('registration_role');
+    if(!role) { return true; }
+    if(role === 'supporter') {
+      return ['therapist', 'parent', 'teacher', 'other'].indexOf(this.get('model.preferences.registration_type')) === -1;
+    }
+    return false;
+  }),
   triedToSave: false,
   badEmail: computed('model.email', 'triedToSave', function() {
     var email = this.get('model.email');
@@ -183,6 +199,26 @@ export default Controller.extend({
     });
   },
   actions: {
+    select_registration_role: function(val) {
+      this.set('registration_role', val);
+      if(val === 'communicator') {
+        this.set('model.preferences.registration_type', 'communicator');
+      } else if(val === 'supporter') {
+        // 'supporter' is a UI grouping; the persisted registration_type must be
+        // a supporter sub-type (therapist/parent/teacher/other) so the backend
+        // maps role=supporter. Clear any non-supporter value to force a choice
+        // via the buttons.
+        if(['therapist', 'parent', 'teacher', 'other'].indexOf(this.get('model.preferences.registration_type')) === -1) {
+          this.set('model.preferences.registration_type', null);
+        }
+      } else {
+        this.set('model.preferences.registration_type', null);
+      }
+    },
+    select_supporter_type: function(type) {
+      this.set('registration_role', 'supporter');
+      this.set('model.preferences.registration_type', type);
+    },
     allow_start_code: function() {
       this.set('start_code', !this.get('start_code'));
     },
