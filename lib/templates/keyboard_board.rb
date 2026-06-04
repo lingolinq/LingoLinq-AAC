@@ -33,6 +33,7 @@ module KeyboardBoard
       },
       buttons: buttons,
       public: true,
+      locale: 'en',
       word_suggestions: true
     }, {
       :user => user,

@@ -339,17 +339,22 @@ export default Route.extend({
 
     // Set currentBoardState
     var board_langs = (model.get('locales') || []);
+    var model_locale = model.get('locale') || 'en';
+    var board_key = model.get('key') || '';
+    var user_locale = _this.appState.get('currentUser.preferences.locale') ||
+      _this.appState.get('sessionUser.preferences.locale');
+    var keyboard_default_locale = (board_key.match(/\/keyboard$/) && !user_locale) ? 'en' : model_locale;
     _this.appState.set('currentBoardState', {
       id: model.get('global_id') || model.get('id'),
-      key: model.get('key'),
+      key: board_key,
       parent_id: model.get('parent_board_id'),
       name: model.get('name'),
       has_fallbacks: model.get('has_fallbacks'),
-      default_locale: model.get('locale'),
+      default_locale: keyboard_default_locale,
       copy_version: model.get('copy_version'),
       integration_name: model.get('integration') && model.get('integration_name'),
       parent_key: model.get('parent_board_key'),
-      text_direction: i18n.text_direction(model.get('locale')),
+      text_direction: i18n.text_direction(keyboard_default_locale),
       translatable: board_langs.length > 1
     });
 
@@ -359,19 +364,19 @@ export default Route.extend({
     var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
       if(!has_locale_override) {
-        _this.appState.set(loc_type, model.get('locale'));
+        _this.appState.set(loc_type, keyboard_default_locale);
       } else if(_this.stashes.get(loc_type)) {
         var preferred = _this.stashes.get(loc_type);
         var stripped = preferred.split(/-|_/)[0];
         if(stripped_langs.indexOf(stripped) == -1) {
-          _this.appState.set(loc_type, model.get('locale'));
+          _this.appState.set(loc_type, keyboard_default_locale);
         } else if(board_langs.indexOf(preferred) == -1) {
           _this.appState.set(loc_type, stripped);
         } else {
           _this.appState.set(loc_type, _this.stashes.get(loc_type));
         }
       } else {
-        _this.appState.set(loc_type, model.get('locale'));
+        _this.appState.set(loc_type, keyboard_default_locale);
       }
     });
 

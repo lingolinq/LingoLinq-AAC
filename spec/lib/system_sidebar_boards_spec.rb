@@ -9,6 +9,7 @@ describe SystemSidebarBoards do
       expect(Board.find_by_path('lingolinq/keyboard')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/inflections')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/keyboard').public).to eq(true)
+      expect(Board.find_by_path('lingolinq/keyboard').settings['locale']).to eq('en')
       expect(Board.find_by_path('lingolinq/inflections').public).to eq(true)
     end
 
@@ -19,6 +20,16 @@ describe SystemSidebarBoards do
       board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
       expect(board.user_id).to eq(user.id)
       expect(board.parent_board_id).to eq(source.id)
+    end
+
+    it "repairs a stale keyboard locale on the content user" do
+      user = User.create(user_name: 'lingolinq')
+      keyboard = described_class.generate_keyboard(user)
+      keyboard.settings['locale'] = 'es'
+      keyboard.save!
+
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      expect(board.settings['locale']).to eq('en')
     end
 
     it "is idempotent" do
