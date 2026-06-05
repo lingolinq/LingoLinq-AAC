@@ -1,5 +1,6 @@
 import Controller from '@ember/controller';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import demoBoardLoader from '../../utils/demo_board_loader';
 import speecher from '../../utils/speecher';
@@ -25,8 +26,51 @@ var TEXT_SIZE_OPTIONS = ['small', 'medium', 'large', 'huge'];
 var BORDER_SIZE_OPTIONS = ['none', 'small', 'medium', 'large', 'huge'];
 var SPACING_OPTIONS = ['none', 'small', 'medium', 'large'];
 var VISIBLE_SENTENCE_PARTS = 8;
+var DEMO_QUICK_WORDS = [
+  { id: 'period', label: ".", punctuation: true, silent: true },
+  { id: 'comma', label: ",", punctuation: true, silent: true },
+  { id: 'i', label: "I" },
+  { id: 'you', label: "you" },
+  { id: 'we', label: "we" },
+  { id: 'me', label: "me" },
+  { id: 'my', label: "my" },
+  { id: 'he', label: "he" },
+  { id: 'she', label: "she" },
+  { id: 'they', label: "they" },
+  { id: 'it', label: "it" },
+  { id: 'is', label: "is" },
+  { id: 'want', label: "want" },
+  { id: 'need', label: "need" },
+  { id: 'help', label: "help" },
+  { id: 'yes', label: "yes" },
+  { id: 'no', label: "no" },
+  { id: 'more', label: "more" },
+  { id: 'go', label: "go" },
+  { id: 'stop', label: "stop" }
+];
+
+function sentence_text_for(parts) {
+  var text = '';
+  (parts || []).forEach(function(part) {
+    var word = part.vocalization || part.label;
+    if(!word) { return; }
+    if(part.punctuation) {
+      text = text.replace(/\s+$/, '') + part.label;
+    } else {
+      text = text ? (text + ' ' + word) : word;
+    }
+  });
+  return text;
+}
 
 export default Controller.extend({
+  appState: service('app-state'),
+  queryParams: [
+    { board_key: 'board' },
+    'source'
+  ],
+  board_key: null,
+  source: null,
   edit_mode: false,
   labels_editable: false,
   board: null,
@@ -37,6 +81,8 @@ export default Controller.extend({
   board_history: null,
   status_message: null,
   demo_prefs: null,
+  quick_words_open: false,
+  quick_words: DEMO_QUICK_WORDS,
   folder_colored_face: false,
   folder_labels_on_tab: false,
   folder_colored_corner: true,
@@ -44,6 +90,8 @@ export default Controller.extend({
   status_message_timer: null,
 
   setup_demo: function(model) {
+    this.set('board_key', model.board_key || null);
+    this.set('source', model.source || null);
     this.set('manifest', model.manifest);
     this.set('demo_prefs', default_prefs());
     this.set('sentence_parts', []);
@@ -63,9 +111,16 @@ export default Controller.extend({
     this.set('edit_mode', false);
   },
 
+  from_offline_boards: computed('source', function() {
+    return this.get('source') === 'offline_boards';
+  }),
+
   _set_board: function(board) {
     this.set('board', board);
     this.set('ordered_buttons', board ? board.ordered_buttons : []);
+    var locale = (board && board.locale) || 'en';
+    this.appState.set('label_locale', locale);
+    this.appState.set('vocalization_locale', locale);
   },
 
   has_board_history: computed('board_history.[]', function() {
@@ -77,9 +132,7 @@ export default Controller.extend({
   }),
 
   sentence_text: computed('sentence_parts.[]', function() {
-    return (this.get('sentence_parts') || []).map(function(part) {
-      return part.vocalization || part.label;
-    }).join(' ');
+    return sentence_text_for(this.get('sentence_parts') || []);
   }),
 
   visible_sentence_parts: computed('sentence_parts.[]', function() {
@@ -218,10 +271,12 @@ export default Controller.extend({
       id: button.id,
       label: button.label,
       vocalization: button.vocalization || button.label,
-      image_url: button.image_url
+      image_url: button.image_url,
+      punctuation: button.punctuation,
+      silent: button.silent
     });
     this.set('sentence_parts', parts);
-    if(button.label || button.vocalization) {
+    if(!button.silent && (button.label || button.vocalization)) {
       speecher.speak_text(button.vocalization || button.label);
     }
   },
@@ -298,7 +353,11 @@ export default Controller.extend({
 
     open_sentence_dialog: function() {
       if(this.get('has_sentence')) {
+        var wasOpen = this.get('sentence_dialog_open');
         this.set('sentence_dialog_open', true);
+        if(!wasOpen) {
+          this.send('speak_sentence');
+        }
       }
     },
 
@@ -308,6 +367,14 @@ export default Controller.extend({
 
     demo_disabled: function() {
       this._set_temporary_status(i18n.t('demo_action_disabled', "This action is disabled in the demo."));
+    },
+
+    toggle_quick_words: function() {
+      this.toggleProperty('quick_words_open');
+    },
+
+    add_quick_word: function(item) {
+      this._append_button(item);
     },
 
     toggle_edit_panel: function() {

@@ -74,6 +74,7 @@ file (see [README.md](README.md)).
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
+- [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
@@ -112,6 +113,10 @@ Word predictions should follow the visible label language first (`app_state.labe
 ## Pattern: Translated board names must not rename route keys
 
 Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` changes after save. Translation also changes `board.name` when a localized board name becomes visible/default, so auto-rename must skip names that match `translations.board_name`; otherwise canonical URLs like `crisis-vocabulary` become localized slugs like `vocabulario-de-crisis`. Existing accidental renames should resolve through `OldKey` by using `Board.find_by_possibly_old_path` in board-detail API lookups.
+
+## Pattern: Demo speak `board` query param must alias away from loaded board state
+
+`demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
