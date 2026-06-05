@@ -50,7 +50,8 @@
 | 18 | License-option removal from Create Board page | Traci | NOT SHIPPED | - | High | Meeting decision; PRs #281-#284 did not deliver. Field remains at `create-board-new.hbs:1105-1140`. Re-open as Phase D |
 | 19 | "Creating for someone else" prompt removal | Traci | NOT SHIPPED | - | High | Meeting decision; PRs #281-#284 did not deliver. Field remains at `create-board-new.hbs:137`. Re-open as Phase D |
 | 20 | Language indicators on copied boards | Traci | LANDED-WITH-ISSUES | #281 + #284 (UI) | Medium | Badge UI shipped; verify `board.language` attribute actually populates on copy. Phase E of new milestone |
-| 21 | Default Quick Core 60 + Vocal Flare 60; remove "robust board" tutorial | Melissa | NOT-STARTED | - | High | Image assets present (`/public/images/quick-core-60.png`, `vocal-flair-60.png`, landed in #281). Default-provisioning code missing. Phase C of new milestone |
+| 21a | Default Quick Core 60 + Vocal Flare 60 signup provisioning | Melissa | LANDED-OK | #309, #315, #334, #343 | High | `UserBoardProvisioner` copies `lingolinq/quick-core-60`, `vocal-flair-60` (+ `vocal-flair-84`, `crisis-vocabulary`) into new users' libraries on signup. Images in repo. Fresh DBs: run OpenAAC import then `rake lingolinq:verify_beta_seed`. Refs #327 |
+| 21b | Remove "robust board" tutorial (setup/board-picker) | Traci | NOT-STARTED | - | High | Setup still routes through `board_category` + Robust Vocabularies tab (`robust_1`, walkthrough gifs); `assign_default_home_board` still targets VF84. Refs #327 |
 
 ## V3 additions (Sentry alerts + PR #174 review + meeting-noted English-TTS)
 
@@ -83,7 +84,7 @@ Plus 6 adversary Medium findings tracked in #286.
 ## What the team needs to know right now
 
 1. **Items 18 + 19 are NOT shipped** despite being aligned-on meeting decisions. Re-opened as Phase D of the MVP polish milestone.
-2. **Item 21 is partially shipped**: image assets are in the repo but the default-provisioning code does not exist. Phase C.
+2. **Item 21a is shipped** (Melissa): signup provisioning via `UserBoardProvisioner` (#309, #315, #334, #343). **Item 21b is open** (Traci): remove/simplify the robust-board tutorial in setup/board-picker. Refs #327.
 3. **PR #283 must be split** before merge: PIN half has a Critical security issue, AI half needs a PiiScrubber audit.
 4. **PR #284 needs a feature flag** for the Customize Menu before any further work on that surface.
 5. **Sentry timeouts in `Api::BoardsController#tree`**: remediation #1 shipped (#294); #index N+1 (item 24) is a separate, still-open path.
