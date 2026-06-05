@@ -2951,3 +2951,15 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Keep `SES_REGION` as the explicit override, but fall back to `AWS_REGION` and `AWS_DEFAULT_REGION`. For diagnosis, check the running app process env in a sanitized way and use read-only `Aws::SES::Client#get_send_quota` before sending a real email.
 
 **Evidence:** `config/initializers/amazon_ses.rb`; task log `2026-06-02-registration-email-sending-investigation.md`.
+
+---
+
+## Pattern: split global admin telemetry from feature-flagged org telemetry
+
+**Surface:** `Api::TelemetryController#index` and organization telemetry endpoints.
+
+**Gotcha:** `telemetry_admin_panel` grants access to the organization telemetry panel for org managers, but global/no-organization telemetry remains super-admin-only. A shared before action that allows either admins or the feature flag can make the global endpoint look broader than it is, especially if the action repeats its own admin check.
+
+**Fix recipe:** Use separate before actions: admin-only for global index endpoints, and admin-or-feature-flag for organization-scoped panel endpoints. Cover both contracts in controller specs.
+
+**Evidence:** `app/controllers/api/telemetry_controller.rb`, `spec/controllers/api/telemetry_controller_spec.rb`; task log `2026-06-04-render-secrets-telemetry-auth.md`.

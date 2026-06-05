@@ -1,6 +1,41 @@
 require 'spec_helper'
 
 describe Api::TelemetryController, :type => :controller do
+  describe "index" do
+    it "requires an api token" do
+      get :index
+      assert_missing_token
+    end
+
+    it "limits global telemetry to super admins" do
+      token_user
+      @user.settings['feature_flags'] ||= {}
+      @user.settings['feature_flags']['telemetry_admin_panel'] = true
+      @user.save!
+
+      get :index
+      assert_error 'Not authorized', 403
+    end
+
+    it "allows super admins to see global telemetry" do
+      token_user
+      @user.settings['admin'] = true
+      @user.save!
+      TelemetryEvent.process_new({
+        'event_type' => 'route_visit',
+        'route' => 'board.index',
+        'feature_area' => 'speak_board',
+        'data' => {'duration_ms' => 100}
+      }, user: @user)
+
+      get :index
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['scope']['type']).to eq('global')
+      expect(json['summary']['event_count']).to eq(1)
+    end
+  end
+
   describe "organization" do
     it "requires an api token" do
       get :organization, params: {organization_id: '1'}
