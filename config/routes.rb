@@ -142,6 +142,8 @@ LingoLinq::Application.routes.draw do
     get 'domain_settings' => 'integrations#domain_settings'
     get 'start_code' => 'organizations#start_code_lookup'
     post 'focus/usage' => 'integrations#focus_usage'
+    post 'focus/generate_words' => 'integrations#focus_generate_words'
+    post 'focus/generated_words_usage' => 'integrations#focus_generated_words_usage'
     get 'lang/:locale' => 'words#lang'
 
     resources :boards, :constraints => {:id => board_id_regex} do

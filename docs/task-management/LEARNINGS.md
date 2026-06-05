@@ -73,6 +73,7 @@ file (see [README.md](README.md)).
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
+- [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
@@ -81,6 +82,10 @@ file (see [README.md](README.md)).
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
 
 ---
+
+## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
+
+For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).
 
 - [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
 - [Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)](#pattern-viewport-conditional-board-detail-ui-orientation-gate--immersive-tool-consolidation)
@@ -2853,6 +2858,7 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Surface:** a spec creates records (or schedules a job), then rebuilds an expected string from a SECOND `Time.now` read and compares it to output the implementation derived from the FIRST read. Two seen 2026-06-01:
 - `admin_reports` (`organizations_controller_spec`): `ts = Time.now.strftime('%m-%Y')` vs report keys built from `event.created_at`. CI: `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, labels/counts matching, only the month differing.
 - transcoding (`callbacks_controller_spec`): `prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s` vs the prefix `media_object#schedule_transcoding` already scheduled using its own `Time.now.to_i`. CI: `Worker.scheduled?(...)` got `false` (a 1-SECOND boundary is enough).
+- `subscription_hash` (`subscription_spec`): `User#subscription_hash` stamps `json['timestamp'] = Time.now.to_i` on every call. Specs that call it twice to prove subscription state did or did not change must compare `hash.except('timestamp')`, not the full hash.
 
 **Root cause:** two independent clock reads. The first is stamped at create/schedule time; the test's is read later (after the HTTP request, which takes real time). When they land in different periods (month rollover, or just a 1s tick — a 5000+ example suite takes minutes, so it happens) the strings disagree. The implementation is correct; the TEST is non-deterministic.
 

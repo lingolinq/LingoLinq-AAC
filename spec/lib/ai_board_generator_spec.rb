@@ -86,4 +86,50 @@ describe AiBoardGenerator do
       end
     end
   end
+
+  describe "generate_focus_words" do
+    it "parses focus words and title" do
+      complete = "WORDS: go, stop, more, help, read\nTITLE: Story Time"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_focus_words(prompt: 'story time', word_count: 5)
+
+      expect(result[:words]).to eq(%w[go stop more help read])
+      expect(result[:title]).to eq('Story Time')
+      expect(result[:error]).to eq(nil)
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(type: 'focus_word_generation', success: true))
+    end
+
+    it "clamps requested word count to fifty" do
+      words = (1..50).map { |i| "word#{i}" }
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response("WORDS: #{words.join(', ')}\nTITLE: Big List"))
+
+      result = described_class.generate_focus_words(prompt: 'big lesson', word_count: 80)
+
+      expect(result[:words].length).to eq(50)
+      expect(described_class).to have_received(:call_anthropic).with(hash_including(user_prompt: include('Generate exactly 50 focus words')))
+    end
+
+    it "requests only missing words and filters existing duplicates" do
+      complete = "WORDS: apple, banana, carrot, drink, eat\nTITLE: Snacks"
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+
+      result = described_class.generate_focus_words(prompt: 'snacks', word_count: 5, existing_words: ['apple'])
+
+      expect(result[:words]).to eq(%w[banana carrot drink eat])
+      expect(described_class).to have_received(:call_anthropic).with(hash_including(user_prompt: include('Generate exactly 4 focus words')))
+    end
+
+    it "returns a parental-consent error when coppa_blocks_ai_for? is true" do
+      u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).with(u).and_return(true)
+      allow(described_class).to receive(:call_anthropic)
+
+      result = described_class.generate_focus_words(prompt: 'snacks', word_count: 5, user: u)
+
+      expect(result[:words]).to eq(nil)
+      expect(result[:error]).to include('parental consent')
+      expect(described_class).not_to have_received(:call_anthropic)
+    end
+  end
 end

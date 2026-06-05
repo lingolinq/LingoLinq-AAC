@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_05_27_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_04_193000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -49,6 +49,38 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_27_120000) do
     t.index ["organization_global_id"], name: "index_ai_api_logs_on_organization_global_id"
     t.index ["request_type"], name: "index_ai_api_logs_on_request_type"
     t.index ["user_global_id"], name: "index_ai_api_logs_on_user_global_id"
+  end
+
+  create_table "ai_focus_word_sets", id: :serial, force: :cascade do |t|
+    t.text "scrubbed_prompt", null: false
+    t.text "normalized_prompt", null: false
+    t.string "prompt_hash", null: false
+    t.string "locale", default: "en", null: false
+    t.boolean "include_core_words", default: true, null: false
+    t.string "title"
+    t.text "words"
+    t.text "applied_words"
+    t.integer "word_count", default: 0, null: false
+    t.string "source", default: "ai", null: false
+    t.string "status", default: "generated", null: false
+    t.float "quality_score"
+    t.integer "generated_count", default: 0, null: false
+    t.integer "applied_count", default: 0, null: false
+    t.integer "analysis_count", default: 0, null: false
+    t.integer "cache_hit_count", default: 0, null: false
+    t.datetime "last_generated_at", precision: nil
+    t.datetime "last_applied_at", precision: nil
+    t.datetime "last_analyzed_at", precision: nil
+    t.string "seed_user_global_id"
+    t.string "seed_organization_global_id"
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["last_applied_at"], name: "index_ai_focus_word_sets_on_last_applied_at"
+    t.index ["locale"], name: "index_ai_focus_word_sets_on_locale"
+    t.index ["prompt_hash"], name: "index_ai_focus_word_sets_on_prompt_hash", unique: true
+    t.index ["source"], name: "index_ai_focus_word_sets_on_source"
+    t.index ["status"], name: "index_ai_focus_word_sets_on_status"
+    t.index ["word_count"], name: "index_ai_focus_word_sets_on_word_count"
   end
 
   create_table "api_calls", id: :serial, force: :cascade do |t|
