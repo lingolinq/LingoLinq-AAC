@@ -435,6 +435,19 @@ describe Api::SearchController, :type => :controller do
       expect(json['error']).to eq('Invalid file type, text/html')
     end
 
+    it "should NOT attempt regenerate for generic cache URL exceptions" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      cache_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Timeout::Error, 'request timed out')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => cache_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Failed to fetch URL: request timed out')
+    end
+
     it "should NOT attempt regenerate if user does not have view permission on the board" do
       token_user
       other_user = User.create

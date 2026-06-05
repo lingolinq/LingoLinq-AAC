@@ -72,6 +72,15 @@ describe Api::BadgesController, :type => :controller do
       get 'index', params: {:user_id => @user.global_id, :goal_id => g.global_id}
       assert_unauthorized
     end
+
+    it "should not allow public profile visibility alone to list goal badges by goal_id" do
+      token_user
+      u = User.create(:settings => {'public' => true})
+      g = UserGoal.create(:user => u)
+      UserBadge.create(:user => u, :user_goal => g, :highlighted => true)
+      get 'index', params: {:user_id => u.global_id, :goal_id => g.global_id}
+      assert_unauthorized
+    end
     
     it "should return a paginated result" do
       token_user
