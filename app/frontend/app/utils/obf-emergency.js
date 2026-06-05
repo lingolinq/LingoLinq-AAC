@@ -157,7 +157,7 @@ var words = {
 */
 for(var key in words) {
   if(words[key] && words[key].path) {
-    words[key].url = templateHelpers.path(("images/emergency/" + words[key].path));
+    words[key].local_url = templateHelpers.path(("images/emergency/" + words[key].path));
   }
 }
 

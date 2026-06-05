@@ -71,6 +71,7 @@ file (see [README.md](README.md)).
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
@@ -2638,6 +2639,16 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 **Fix recipe:** Export with `Converters::LingoLinq.to_obz` → `public/system-boards/<slug>.obz`. Add slug to `SIGNUP_LIBRARY_SLUGS` if signup should copy it. Implement idempotent `ensure_<slug>!` via `from_obz` (mirror `openaac:import_vocabularies` post-import: public root, `generate_stats`, `save!` button set). Wire `db:seed` and optional `rake lingolinq:ensure_<slug>`. Sidebar defaults reference `SystemBoardSources.board_key(slug)` (public key), not the user's copy.
 
 **Evidence:** `lib/system_board_sources.rb`, `public/system-boards/crisis-vocabulary.obz`, task log `2026-06-01-crisis-vocabulary-defaults.md`.
+
+---
+
+## Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in
+
+**Surface:** fresh beta/local DB setup through `db/seeds.rb`.
+
+Default seeds should create beta-critical public/system data (`lingolinq`, `lingolinq_admin`, admin org membership, starter boards, templates) without generating demo district users or analytics logs. Legacy `example` content that is meant to be public starter content should be recreated under `lingolinq/*`; true demo data (sample logs, rooms, demo district users, report history) should require an explicit opt-in such as `SEED_DEMO_DATA=1`. Verify fresh DB readiness with `rake lingolinq:verify_beta_seed`, using `REQUIRE_LIBRARY_BOARDS=false` only before OpenAAC/manual system-board imports have run.
+
+**Evidence:** `lib/beta_seed.rb`, `db/seeds.rb`, `lib/tasks/lingolinq.rake`; task log `2026-06-04-beta-fresh-db-seeds.md`.
 
 ---
 
