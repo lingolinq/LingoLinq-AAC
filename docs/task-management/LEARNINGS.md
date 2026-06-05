@@ -2858,6 +2858,7 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Surface:** a spec creates records (or schedules a job), then rebuilds an expected string from a SECOND `Time.now` read and compares it to output the implementation derived from the FIRST read. Two seen 2026-06-01:
 - `admin_reports` (`organizations_controller_spec`): `ts = Time.now.strftime('%m-%Y')` vs report keys built from `event.created_at`. CI: `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, labels/counts matching, only the month differing.
 - transcoding (`callbacks_controller_spec`): `prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s` vs the prefix `media_object#schedule_transcoding` already scheduled using its own `Time.now.to_i`. CI: `Worker.scheduled?(...)` got `false` (a 1-SECOND boundary is enough).
+- `subscription_hash` (`subscription_spec`): `User#subscription_hash` stamps `json['timestamp'] = Time.now.to_i` on every call. Specs that call it twice to prove subscription state did or did not change must compare `hash.except('timestamp')`, not the full hash.
 
 **Root cause:** two independent clock reads. The first is stamped at create/schedule time; the test's is read later (after the HTTP request, which takes real time). When they land in different periods (month rollover, or just a 1s tick — a 5000+ example suite takes minutes, so it happens) the strings disagree. The implementation is correct; the TEST is non-deterministic.
 
