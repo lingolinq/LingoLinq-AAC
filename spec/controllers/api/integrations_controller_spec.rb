@@ -78,11 +78,12 @@ describe Api::IntegrationsController, :type => :controller do
     
     it "should error if the integration's settings don't work" do
       token_user
+      starting_count = UserIntegration.count
       template = UserIntegration.create(template: true, integration_key: 'lessonpix', settings: {'icon_url' => 'http://www.example.com/icon.png', 'user_parameters' => [
         {'name' => 'username', 'type' => 'text'},
         {'name' => 'password', 'type' => 'password'}
       ]})
-      expect(UserIntegration.count).to eq(1)
+      expect(UserIntegration.count).to eq(starting_count + 1)
       expect(Uploader).to receive(:find_images){|str, library, loc, ui|
         expect(str).to eq('hat')
         expect(library).to eq('lessonpix')
@@ -97,11 +98,12 @@ describe Api::IntegrationsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('integration creation failed')
       expect(json['errors']).to eq(['invalid user credentials'])
-      expect(UserIntegration.count).to eq(1)
+      expect(UserIntegration.count).to eq(starting_count + 1)
     end
     
     it "should error if the integration's settings are already in use" do
       token_user
+      starting_count = UserIntegration.count
       u = User.create
       template = UserIntegration.create(template: true, integration_key: 'lessonpix', settings: {'icon_url' => 'http://www.example.com/icon.png', 'user_parameters' => [
         {'name' => 'username', 'type' => 'text'},
@@ -109,7 +111,7 @@ describe Api::IntegrationsController, :type => :controller do
       ]})
       expect(Uploader).to_not receive(:find_images)
       ui = UserIntegration.create(user: u, template_integration: template, unique_key: GoSecure.sha512('bacon', 'lessonpix-username'))
-      expect(UserIntegration.count).to eq(2)
+      expect(UserIntegration.count).to eq(starting_count + 2)
       post 'create', params:{'integration' => {'user_id' => @user.global_id, 'integration_key' => 'lessonpix', 'user_parameters' => [
         {'name' => 'username', 'type' => 'text', 'value' => 'bacon'},
         {'name' => 'password', 'type' => 'password', 'value' => 'maple'}
@@ -118,16 +120,17 @@ describe Api::IntegrationsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('integration creation failed')
       expect(json['errors']).to eq(['account credentials already in use'])
-      expect(UserIntegration.count).to eq(2)
+      expect(UserIntegration.count).to eq(starting_count + 2)
     end
     
     it "should succeed if the integration settings do work" do
       token_user
+      starting_count = UserIntegration.count
       template = UserIntegration.create(template: true, integration_key: 'lessonpix', settings: {'icon_url' => 'http://www.example.com/icon.png', 'user_parameters' => [
         {'name' => 'username', 'type' => 'text'},
         {'name' => 'password', 'type' => 'password'}
       ]})
-      expect(UserIntegration.count).to eq(1)
+      expect(UserIntegration.count).to eq(starting_count + 1)
       expect(Uploader).to receive(:find_images){|str, library, loc, ui|
         expect(str).to eq('hat')
         expect(library).to eq('lessonpix')
@@ -140,7 +143,7 @@ describe Api::IntegrationsController, :type => :controller do
       ]}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(UserIntegration.count).to eq(2)
+      expect(UserIntegration.count).to eq(starting_count + 2)
     end
   end
   
@@ -290,6 +293,144 @@ describe Api::IntegrationsController, :type => :controller do
       json = assert_success_json
       expect(json['accepted']).to eq(true)
       expect(Worker.scheduled?(UserIntegration, :perform_action, {:method => 'track_focus', :arguments => [@user.global_id, 'abcdfg']}))
+    end
+  end
+
+  describe "focus_generate_words" do
+    before(:each) do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      allow(PiiScrubber).to receive(:redact_for_ai).and_return({ payload: 'grinch lesson', pii_found: false, findings: [] })
+    end
+
+    it 'should require authentication' do
+      post 'focus_generate_words'
+      assert_missing_token
+    end
+
+    it 'should reject when the feature flag is off' do
+      token_user
+      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', @user).and_return(false)
+      post 'focus_generate_words', params: { prompt: 'grinch lesson' }
+      expect(response).to have_http_status(403)
+    end
+
+    it 'should require a prompt' do
+      token_user
+      post 'focus_generate_words', params: { prompt: '   ' }
+      expect(response).to have_http_status(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('prompt required')
+    end
+
+    it 'should reject non-object JSON bodies' do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post 'focus_generate_words', params: {}, body: '[]'
+      expect(response).to have_http_status(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
+
+    it 'should return an exact library hit without calling the generator' do
+      token_user
+      focus_set = AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson',
+        locale: 'en',
+        include_core_words: true,
+        title: 'Grinch Words',
+        words: %w[go stop more help read]
+      )
+      expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['words']).to eq('go, stop, more, help, read')
+      expect(json['title']).to eq('Grinch Words')
+      expect(json['cached']).to eq(true)
+      expect(json['library_id']).to eq(focus_set.global_id)
+      expect(focus_set.reload.cache_hit_count).to eq(1)
+    end
+
+    it 'should call the generator only for missing words on a partial library hit' do
+      token_user
+      focus_set = AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson',
+        locale: 'en',
+        include_core_words: true,
+        title: 'Grinch Words',
+        words: %w[go stop]
+      )
+      expect(AiBoardGenerator).to receive(:generate_focus_words).with(hash_including(
+        prompt: 'grinch lesson',
+        word_count: 5,
+        existing_words: %w[go stop]
+      )).and_return({ words: %w[more help read], title: 'Grinch Words', error: nil })
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['words']).to eq('go, stop, more, help, read')
+      expect(json['cached']).to eq(false)
+      expect(focus_set.reload.words).to eq(%w[go stop more help read])
+    end
+
+    it 'should persist a new generated library row' do
+      token_user
+      expect(AiBoardGenerator).to receive(:generate_focus_words).and_return({ words: %w[go stop more help read], title: 'Grinch Words', error: nil })
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true }
+
+      json = assert_success_json
+      expect(json['words']).to eq('go, stop, more, help, read')
+      focus_set = AiFocusWordSet.find_by_global_id(json['library_id'])
+      expect(focus_set.words).to eq(%w[go stop more help read])
+      expect(focus_set.generated_count).to eq(1)
+    end
+
+    it 'should return generator errors using the endpoint error shape' do
+      token_user
+      expect(AiBoardGenerator).to receive(:generate_focus_words).and_return({ words: nil, error: 'AI service unavailable' })
+
+      post 'focus_generate_words', params: { prompt: 'grinch lesson', word_count: 5 }
+
+      expect(response).to have_http_status(503)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('AI service unavailable')
+    end
+  end
+
+  describe "focus_generated_words_usage" do
+    before(:each) do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+    end
+
+    it 'should require authentication' do
+      post 'focus_generated_words_usage'
+      assert_missing_token
+    end
+
+    it 'should record final edited words' do
+      token_user
+      focus_set = AiFocusWordSet.create!(
+        scrubbed_prompt: 'grinch lesson',
+        locale: 'en',
+        include_core_words: true,
+        words: %w[go stop more]
+      )
+
+      post 'focus_generated_words_usage', params: {
+        library_id: focus_set.global_id,
+        words: 'go, stop, read',
+        action: 'set_focus_words'
+      }
+
+      json = assert_success_json
+      expect(json['accepted']).to eq(true)
+      expect(focus_set.reload.applied_words).to eq(%w[go stop read])
+      expect(focus_set.applied_count).to eq(1)
     end
   end
 end

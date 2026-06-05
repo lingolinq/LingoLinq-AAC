@@ -73,6 +73,7 @@ file (see [README.md](README.md)).
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
+- [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
 - [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
@@ -81,6 +82,10 @@ file (see [README.md](README.md)).
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
 
 ---
+
+## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
+
+For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).
 
 - [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
 - [Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)](#pattern-viewport-conditional-board-detail-ui-orientation-gate--immersive-tool-consolidation)
