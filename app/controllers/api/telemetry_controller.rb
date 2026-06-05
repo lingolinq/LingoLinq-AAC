@@ -1,12 +1,9 @@
 class Api::TelemetryController < ApplicationController
   before_action :require_api_token
-  before_action :require_telemetry_admin_panel
+  before_action :require_telemetry_admin, only: [:index]
+  before_action :require_telemetry_admin_panel, only: [:organization]
 
   def index
-    unless @api_user&.admin?
-      return api_error 403, {error: 'Not authorized'}
-    end
-
     scope = params[:scope].to_s
     scope = 'global' unless %w[global none].include?(scope)
     render json: TelemetryStats.dashboard(
@@ -56,6 +53,12 @@ class Api::TelemetryController < ApplicationController
   end
 
   private
+
+  def require_telemetry_admin
+    return if @api_user&.admin?
+
+    api_error 403, {error: 'Not authorized'}
+  end
 
   def telemetry_filter_user(org, global_id)
     return nil if global_id.blank?

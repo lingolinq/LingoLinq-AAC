@@ -2951,3 +2951,39 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** Keep `SES_REGION` as the explicit override, but fall back to `AWS_REGION` and `AWS_DEFAULT_REGION`. For diagnosis, check the running app process env in a sanitized way and use read-only `Aws::SES::Client#get_send_quota` before sending a real email.
 
 **Evidence:** `config/initializers/amazon_ses.rb`; task log `2026-06-02-registration-email-sending-investigation.md`.
+
+---
+
+## Pattern: split global admin telemetry from feature-flagged org telemetry
+
+**Surface:** `Api::TelemetryController#index` and organization telemetry endpoints.
+
+**Gotcha:** `telemetry_admin_panel` grants access to the organization telemetry panel for org managers, but global/no-organization telemetry remains super-admin-only. A shared before action that allows either admins or the feature flag can make the global endpoint look broader than it is, especially if the action repeats its own admin check.
+
+**Fix recipe:** Use separate before actions: admin-only for global index endpoints, and admin-or-feature-flag for organization-scoped panel endpoints. Cover both contracts in controller specs.
+
+**Evidence:** `app/controllers/api/telemetry_controller.rb`, `spec/controllers/api/telemetry_controller_spec.rb`; task log `2026-06-04-render-secrets-telemetry-auth.md`.
+
+---
+
+## Pattern: button set cache regeneration is only for S3 403/404 misses
+
+**Surface:** `Api::SearchController#proxy` and `button_set_cache` proxy URLs.
+
+**Gotcha:** Generic fetch exceptions on a cache URL, such as timeouts, should not trigger button set regeneration. Regeneration is a stale-S3-pointer recovery path for confirmed 403/404 cache misses; broadening it can mask real upstream/network problems.
+
+**Fix recipe:** Keep the proxy regeneration flag false by default, set it only from `BadFileError` messages that identify 403/404, and cover generic exceptions with a no-regeneration controller spec.
+
+**Evidence:** `app/controllers/api/search_controller.rb`, `spec/controllers/api/search_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.
+
+---
+
+## Pattern: badge goal filtering requires goal visibility, not just public profile visibility
+
+**Surface:** `Api::BadgesController#index` with `goal_id`.
+
+**Gotcha:** A user can have `User#view_detailed` via a public profile and still lack `UserGoal#view` for a specific goal. Badge filtering by `goal_id` must keep the separate goal visibility check so public/highlighted badge visibility does not imply access to goal-specific badge data.
+
+**Fix recipe:** Keep `allowed?(goal, 'view')` when filtering badges by `goal_id`, and cover public-profile-only access with a controller spec.
+
+**Evidence:** `app/controllers/api/badges_controller.rb`, `app/models/user_goal.rb`, `spec/controllers/api/badges_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.

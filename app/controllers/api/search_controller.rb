@@ -230,7 +230,6 @@ class Api::SearchController < ApplicationController
       Rails.logger.error("Proxy error for #{url}: #{error}")
     rescue => e
       error = "Failed to fetch URL: #{e.message}"
-      s3_cache_miss = false
       Rails.logger.error("Proxy exception for #{url}: #{e.class.name} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
     end
