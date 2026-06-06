@@ -64,9 +64,14 @@ jobs:
       id-token: write
     env:
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/lingolinq/web:${{ github.sha }}
-      WEB_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest,COOKIE_KEY=COOKIE_KEY:latest,DEFAULT_HOST=DEFAULT_HOST:latest
-      WORKER_SECRETS: DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest
-      MIGRATE_SECRETS: DATABASE_URL=DATABASE_URL:latest,SECRET_KEY_BASE=SECRET_KEY_BASE:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest
+      # Boot-mandatory secret set. Any `rake environment` / puma boot of this app in
+      # production loads these (see the asset-precompile env block in the Dockerfile).
+      # The worker (rake environment resque:work) and the migration Job (rake db:migrate)
+      # both fully boot Rails, so they need the same boot set as the web service -- not a
+      # narrower subset, which would crash them on boot.
+      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,DEFAULT_HOST=DEFAULT_HOST:latest
+      # Web adds the mail-sending envs used by request-path mailers.
+      WEB_EXTRA_SECRETS: DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,7 +110,7 @@ jobs:
             --command bundle \
             --args "exec,rake,db:migrate" \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
-            --set-secrets "$MIGRATE_SECRETS"
+            --set-secrets "$BOOT_SECRETS"
           gcloud run jobs execute lingolinq-migrate \
             --region "${{ vars.GCP_REGION }}" \
             --wait
@@ -124,7 +129,7 @@ jobs:
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
-            --set-secrets "$WEB_SECRETS" \
+            --set-secrets "$BOOT_SECRETS,$WEB_EXTRA_SECRETS" \
             --allow-unauthenticated
 
       - name: Deploy worker pool
@@ -139,4 +144,4 @@ jobs:
             --subnet "${{ vars.GCP_VPC_SUBNET }}" \
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production" \
-            --set-secrets "$WORKER_SECRETS"
+            --set-secrets "$BOOT_SECRETS"
