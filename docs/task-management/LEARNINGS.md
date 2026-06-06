@@ -71,14 +71,21 @@ file (see [README.md](README.md)).
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
+- [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
 - [Pattern: Translated board names must not rename route keys](#pattern-translated-board-names-must-not-rename-route-keys)
+- [Pattern: Demo speak `board` query param must alias away from loaded board state](#pattern-demo-speak-board-query-param-must-alias-away-from-loaded-board-state)
 - [Pattern: endpoint-specific 401 auth without changing legacy `require_api_token`](#pattern-endpoint-specific-401-auth-without-changing-legacy-require_api_token)
 - [Pattern: activation location logging must tolerate missing hit history](#pattern-activation-location-logging-must-tolerate-missing-hit-history)
 - [Pattern: retranslate existing board language must force default update](#pattern-retranslate-existing-board-language-must-force-default-update)
 - [Gotcha: SES region config may be `AWS_REGION`, not `SES_REGION`](#gotcha-ses-region-config-may-be-aws_region-not-ses_region)
 
 ---
+
+## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
+
+For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).
 
 - [Pattern: ember-shepherd tour chrome and scoped overlay blur](#pattern-ember-shepherd-tour-chrome-and-scoped-overlay-blur)
 - [Pattern: Viewport-conditional board-detail UI (orientation gate + immersive tool consolidation)](#pattern-viewport-conditional-board-detail-ui-orientation-gate--immersive-tool-consolidation)
@@ -97,12 +104,19 @@ file (see [README.md](README.md)).
 - [Pattern: a child pinned by `parent > * { z-index: 1 }` traps ALL its descendants below higher-z siblings — raise the ROW, not the menu](#pattern-a-child-pinned-by-parent---z-index-1--traps-all-its-descendants-below-higher-z-siblings--raise-the-row-not-the-menu)
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
+- [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
 
 ## Pattern: blank username suggestions must be discarded before `clean_path`
 
 `Processable#generate_user_name` treats an explicit suggestion as authoritative unless it is blanked out first. Passing `''` from signup/default-generation paths reaches `clean_path('')`, which pads to `___` instead of falling back to email or `"person"`. Normalize blank suggestions to `nil` before choosing the fallback source, and keep a regression spec in `spec/models/concerns/processable_spec.rb`.
 
 **First seen in:** [2026-06-03-staged-registration-flow.md](./2026-06-03-staged-registration-flow.md)
+
+## Pattern: keyboard control vocalizations must survive translation overlay
+
+Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
+
+**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -111,6 +125,10 @@ Word predictions should follow the visible label language first (`app_state.labe
 ## Pattern: Translated board names must not rename route keys
 
 Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` changes after save. Translation also changes `board.name` when a localized board name becomes visible/default, so auto-rename must skip names that match `translations.board_name`; otherwise canonical URLs like `crisis-vocabulary` become localized slugs like `vocabulario-de-crisis`. Existing accidental renames should resolve through `OldKey` by using `Board.find_by_possibly_old_path` in board-detail API lookups.
+
+## Pattern: Demo speak `board` query param must alias away from loaded board state
+
+`demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
 ## Pattern: phased board prefetch — shared planner, dual persistence files
 
@@ -2641,6 +2659,16 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in
+
+**Surface:** fresh beta/local DB setup through `db/seeds.rb`.
+
+Default seeds should create beta-critical public/system data (`lingolinq`, `lingolinq_admin`, admin org membership, starter boards, templates) without generating demo district users or analytics logs. Legacy `example` content that is meant to be public starter content should be recreated under `lingolinq/*`; true demo data (sample logs, rooms, demo district users, report history) should require an explicit opt-in such as `SEED_DEMO_DATA=1`. Verify fresh DB readiness with `rake lingolinq:verify_beta_seed`, using `REQUIRE_LIBRARY_BOARDS=false` only before OpenAAC/manual system-board imports have run.
+
+**Evidence:** `lib/beta_seed.rb`, `db/seeds.rb`, `lib/tasks/lingolinq.rake`; task log `2026-06-04-beta-fresh-db-seeds.md`.
+
+---
+
 ## Pattern: Beta program access on registration — server defaults + org opt-out
 
 **Surface:** self-service signup, org start codes, beta welcome routes.
@@ -2837,6 +2865,7 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Surface:** a spec creates records (or schedules a job), then rebuilds an expected string from a SECOND `Time.now` read and compares it to output the implementation derived from the FIRST read. Two seen 2026-06-01:
 - `admin_reports` (`organizations_controller_spec`): `ts = Time.now.strftime('%m-%Y')` vs report keys built from `event.created_at`. CI: `expected {"06-2026 ..."}` / `got {"05-2026 ..."}`, labels/counts matching, only the month differing.
 - transcoding (`callbacks_controller_spec`): `prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s` vs the prefix `media_object#schedule_transcoding` already scheduled using its own `Time.now.to_i`. CI: `Worker.scheduled?(...)` got `false` (a 1-SECOND boundary is enough).
+- `subscription_hash` (`subscription_spec`): `User#subscription_hash` stamps `json['timestamp'] = Time.now.to_i` on every call. Specs that call it twice to prove subscription state did or did not change must compare `hash.except('timestamp')`, not the full hash.
 
 **Root cause:** two independent clock reads. The first is stamped at create/schedule time; the test's is read later (after the HTTP request, which takes real time). When they land in different periods (month rollover, or just a 1s tick — a 5000+ example suite takes minutes, so it happens) the strings disagree. The implementation is correct; the TEST is non-deterministic.
 
@@ -3090,3 +3119,39 @@ Reduced-motion users get the hover depth with zero movement; everyone else gets 
 **Fix recipe:** first identify whether short content also clips (box overflow) vs only long content (text overflow). For box overflow, override the inherited floor on the dynamically-narrowed element: `min-width: 0`, scoped so siblings sharing the base class keep their touch-target floor. Ensure inner fixed-size children (images) scale with the box (`max-width`/`%`) so the shrunk tile stays legible. Only ALSO add text wrap/clamp (`width:100%; word-break; -webkit-line-clamp; text-overflow:ellipsis`, matching the analogous element's treatment) if long labels still overflow after the box is fixed — verify before adding, don't stack speculatively.
 
 **Evidence:** `app/frontend/app/styles/app.scss` (`.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction` `min-width:0` override of the base tile's `min-width:44px`); rail width from `controllers/user/board-detail.js#_sync_prediction_tile_size`; task log `2026-06-06-word-prediction-global-pref-redesign.md`.
+
+---
+
+## Pattern: split global admin telemetry from feature-flagged org telemetry
+
+**Surface:** `Api::TelemetryController#index` and organization telemetry endpoints.
+
+**Gotcha:** `telemetry_admin_panel` grants access to the organization telemetry panel for org managers, but global/no-organization telemetry remains super-admin-only. A shared before action that allows either admins or the feature flag can make the global endpoint look broader than it is, especially if the action repeats its own admin check.
+
+**Fix recipe:** Use separate before actions: admin-only for global index endpoints, and admin-or-feature-flag for organization-scoped panel endpoints. Cover both contracts in controller specs.
+
+**Evidence:** `app/controllers/api/telemetry_controller.rb`, `spec/controllers/api/telemetry_controller_spec.rb`; task log `2026-06-04-render-secrets-telemetry-auth.md`.
+
+---
+
+## Pattern: button set cache regeneration is only for S3 403/404 misses
+
+**Surface:** `Api::SearchController#proxy` and `button_set_cache` proxy URLs.
+
+**Gotcha:** Generic fetch exceptions on a cache URL, such as timeouts, should not trigger button set regeneration. Regeneration is a stale-S3-pointer recovery path for confirmed 403/404 cache misses; broadening it can mask real upstream/network problems.
+
+**Fix recipe:** Keep the proxy regeneration flag false by default, set it only from `BadFileError` messages that identify 403/404, and cover generic exceptions with a no-regeneration controller spec.
+
+**Evidence:** `app/controllers/api/search_controller.rb`, `spec/controllers/api/search_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.
+
+---
+
+## Pattern: badge goal filtering requires goal visibility, not just public profile visibility
+
+**Surface:** `Api::BadgesController#index` with `goal_id`.
+
+**Gotcha:** A user can have `User#view_detailed` via a public profile and still lack `UserGoal#view` for a specific goal. Badge filtering by `goal_id` must keep the separate goal visibility check so public/highlighted badge visibility does not imply access to goal-specific badge data.
+
+**Fix recipe:** Keep `allowed?(goal, 'view')` when filtering badges by `goal_id`, and cover public-profile-only access with a controller spec.
+
+**Evidence:** `app/controllers/api/badges_controller.rb`, `app/models/user_goal.rb`, `spec/controllers/api/badges_controller_spec.rb`; task log `2026-06-04-proxy-cache-and-badge-auth-review.md`.

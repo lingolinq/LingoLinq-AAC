@@ -53,7 +53,7 @@
         <h4 style='margin-top: 20px;'>{{t "Word Data Import" key="word_data_import"}}</h4>
         <div style='margin-bottom: 30px;'>
           <Input @value={{this.word_data_url}} placeholder="URL" class="form-control inline inline-masquerade input-sm" />
-          <button class="btn btn-default btn-sm" {{action "import_word_data"}}>{{t "Import" key="import"}}</button>
+          <button class="btn btn-default btn-sm" {{action "word_data_import"}}>{{t "Import" key="import"}}</button>
         </div>
 
       </div>
@@ -63,7 +63,8 @@
       <p>{{t "Loading..." key="loading"}}</p>
     {{else if this.gifts.error}}
       <p>{{t "Error loading custom purchases" key="error_loading_gifts"}}</p>
-    {{else if this.gifts}}
+    {{else}}
+      {{#if this.gifts.length}}
       <div style='max-width: 400px; margin-bottom: 2px;'>
         <Input type="text" @value={{this.code_lookup}} placeholder="Find code" class="form-control inline inline-masquerade input-sm" />
         <button {{action "find_code"}} class='btn btn-default'>{{t "Find" key="find"}}</button>
@@ -162,6 +163,9 @@
           </div>
         {{/each}}
       </div>
+      {{else}}
+        <p>{{t "No custom purchases yet." key="no_custom_purchases_yet"}}</p>
+      {{/if}}
       <label>{{t "Create a Gift or Bulk Purchase" key="create_a_gift_or_bulk_purchase"}}</label>
       <div style='width: 300px;'>
         {{bound-select select_class="form-control" select_id="license" content=this.gift_types selection=this.gift_type action=(action (mut this.gift_type)) }}
@@ -231,8 +235,6 @@
           </div>
         </div>
       {{/if}}
-    {{else}}
-      <p>{{t "No data available" key="no_data_available"}}</p>
     {{/if}}
   {{else}}
     <p>{{t "Not authorized" key="not_authorized"}}</p>

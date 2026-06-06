@@ -435,6 +435,19 @@ describe Api::SearchController, :type => :controller do
       expect(json['error']).to eq('Invalid file type, text/html')
     end
 
+    it "should NOT attempt regenerate for generic cache URL exceptions" do
+      token_user
+      b = Board.create(user: @user)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      cache_url = "https://example.s3.amazonaws.com/extras-cache/button_set_cache/#{bs.global_id}/h1.json"
+      expect(controller).to receive(:get_url_in_chunks).once.and_raise(Timeout::Error, 'request timed out')
+      expect(BoardDownstreamButtonSet).not_to receive(:generate_for)
+      get :proxy, params: {:url => cache_url}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Failed to fetch URL: request timed out')
+    end
+
     it "should NOT attempt regenerate if user does not have view permission on the board" do
       token_user
       other_user = User.create
@@ -713,7 +726,7 @@ describe Api::SearchController, :type => :controller do
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: [
         {a: 1}, {b: 2}
       ].to_json))
-      post 'focuses', params: {q: 'bacon'}
+      get 'focuses', params: {q: 'bacon'}
       json = assert_success_json
       expect(json).to eq([{'a' => 1}, {'b' => 2}])
     end
@@ -722,9 +735,41 @@ describe Api::SearchController, :type => :controller do
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=es&q=bacon&category=chocolate&type=cool&sort=popularity", timeout: 10).and_return(OpenStruct.new(body: [
         {a: 1}, {b: 2}
       ].to_json))
-      post 'focuses', params: {q: 'bacon', locale: 'es', category: 'chocolate', type: 'cool', sort: 'popularity', limit: 10}
+      get 'focuses', params: {q: 'bacon', locale: 'es', category: 'chocolate', type: 'cool', sort: 'popularity', limit: 10}
       json = assert_success_json
       expect(json).to eq([{'a' => 1}, {'b' => 2}])
+    end
+
+    it "should return an empty array from a successful empty remote response" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=missing&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: [].to_json))
+      get 'focuses', params: {q: 'missing'}
+      json = assert_success_json
+      expect(json).to eq([])
+    end
+
+    it "should error predictably on invalid remote JSON" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: '<html>nope</html>'))
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid focus search response')
+    end
+
+    it "should error predictably on a failed remote response" do
+      failed = double('workshop_response', body: '', success?: false)
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(failed)
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('focus search unavailable')
+    end
+
+    it "should error predictably on a non-array remote JSON response" do
+      expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/search/focus?locale=en&q=bacon&category=&type=&sort=", timeout: 10).and_return(OpenStruct.new(body: {error: 'bad'}.to_json))
+      get 'focuses', params: {q: 'bacon'}
+      expect(response).to have_http_status(502)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid focus search response')
     end
   end
 

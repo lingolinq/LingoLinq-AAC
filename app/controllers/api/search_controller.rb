@@ -108,8 +108,19 @@ class Api::SearchController < ApplicationController
 
   def focuses
     req = Typhoeus.get("https://workshop.openaac.org/api/v1/search/focus?locale=#{CGI.escape(params['locale'] || 'en')}&q=#{CGI.escape(params['q'] || '')}&category=#{CGI.escape(params['category'] || '')}&type=#{CGI.escape(params['type'] || '')}&sort=#{CGI.escape(params['sort'] || '')}", timeout: 10)
-    json = JSON.parse(req.body) rescue nil
-    render json: req.body
+    if req.respond_to?(:success?) && !req.success?
+      return api_error(502, { error: 'focus search unavailable' })
+    end
+
+    json = JSON.parse(req.body)
+    return api_error(502, { error: 'invalid focus search response' }) unless json.is_a?(Array)
+
+    render json: json
+  rescue JSON::ParserError
+    api_error(502, { error: 'invalid focus search response' })
+  rescue StandardError => e
+    Rails.logger.warn("Focus search proxy failed: #{e.class}: #{e.message}")
+    api_error(502, { error: 'focus search unavailable' })
   end
     
   def batch_parts_of_speech
@@ -230,7 +241,6 @@ class Api::SearchController < ApplicationController
       Rails.logger.error("Proxy error for #{url}: #{error}")
     rescue => e
       error = "Failed to fetch URL: #{e.message}"
-      s3_cache_miss = false
       Rails.logger.error("Proxy exception for #{url}: #{e.class.name} - #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
     end

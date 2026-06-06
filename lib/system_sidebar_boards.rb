@@ -16,7 +16,7 @@ class SystemSidebarBoards
   def self.ensure_utility_board(user, spec)
     existing = Board.find_by_path("#{user.user_name}/#{spec[:slug]}") ||
       Board.find_by(key: spec[:slug], user_id: user.id)
-    return existing if existing
+    return repair_utility_board(existing, spec) if existing
 
     legacy = Board.find_by_path(spec[:legacy_source])
     if legacy
@@ -28,6 +28,14 @@ class SystemSidebarBoards
     end
 
     send(spec[:generator], user)
+  end
+
+  def self.repair_utility_board(board, spec)
+    if spec[:slug] == 'keyboard' && board.settings['locale'] != 'en'
+      board.settings['locale'] = 'en'
+      board.save!
+    end
+    board
   end
 
   def self.generate_keyboard(user)

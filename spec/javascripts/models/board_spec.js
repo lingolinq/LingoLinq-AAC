@@ -92,6 +92,36 @@ describe('Board', function() {
       expect(board.get('labels')).toEqual("hat, car");
     });
   });
+
+  describe("translated_buttons", function() {
+    it("preserves keyboard control vocalizations", function() {
+      var board = LingoLinq.store.createRecord('board', {
+        locale: 'en',
+        buttons: [
+          {id: 'a', label: 'a', vocalization: '+a'},
+          {id: 'space', label: 'space', vocalization: ':space'},
+          {id: 'shift', label: 'shift', vocalization: ':shift'}
+        ]
+      });
+
+      var buttons = board.translated_buttons('en', 'en');
+      expect(buttons[0].vocalization).toEqual('+a');
+      expect(buttons[1].vocalization).toEqual(':space');
+      expect(buttons[2].vocalization).toEqual(':shift');
+    });
+
+    it("preserves ordinary explicit vocalizations when the label is unchanged", function() {
+      var board = LingoLinq.store.createRecord('board', {
+        locale: 'en',
+        buttons: [
+          {id: 'cat', label: 'cat', vocalization: 'kitty'}
+        ]
+      });
+
+      var buttons = board.translated_buttons('en', 'en');
+      expect(buttons[0].vocalization).toEqual('kitty');
+    });
+  });
   
 //   star_or_unstar: function(star) {
 //     var _this = this;

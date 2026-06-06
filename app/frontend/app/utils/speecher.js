@@ -594,17 +594,22 @@ var speecher = EmberObject.extend({
       }
       // If none found, return a temporary voice from the cloud_locales list
       if(!voice && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
-        var remote = cloud_locales.find(function(loc) { return loc.toLowerCase().replace(/-/, '_') == locale; });
+        var remote = cloud_locales.find(function(loc) {
+          var remote_locale = loc.split(/:/)[0].toLowerCase();
+          return remote_locale.replace(/-/, '_') == locale || remote_locale.replace(/_/, '-') == locale;
+        });
         remote = remote || cloud_locales.find(function(loc) { return loc.split(/-|_/)[0] == mapped_lang; });
         if(remote) {
-          var parts = remote.split(/:/)[0]
-          var loc = i18n.locales[parts[0].replace(/-/, '_')] || i18n.other_locales[parts[0].replace(/-/, '_')] || i18n.locales[parts[0].split(/-|_/)[0]];
-          if(parts[1].match(/f/) && loc) {
+          var parts = remote.split(/:/);
+          var remoteLocale = parts[0];
+          var remoteGenders = parts[1] || '';
+          var loc = i18n.locales[remoteLocale.replace(/-/, '_')] || i18n.other_locales[remoteLocale.replace(/-/, '_')] || i18n.locales[remoteLocale.split(/-|_/)[0]];
+          if(remoteGenders.match(/f/) && loc) {
             voice = {
               name: loc + i18n.t('female_internet_required', " Female *Internet Required*"),
-              lang: parts[0],
+              lang: remoteLocale,
               remote_voice: true,
-              voiceURI: "remote:" + parts[0] + ":female"
+              voiceURI: "remote:" + remoteLocale + ":female"
             };
           }
         }

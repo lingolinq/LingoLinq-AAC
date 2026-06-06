@@ -738,6 +738,24 @@ describe('Board', function() {
       ]);
     });
 
+    it('should preserve keyboard control vocalizations', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'en' });
+      b.set('buttons', [
+        {id: 'a', label: 'a', vocalization: '+a'},
+        {id: 'space', label: 'space', vocalization: ':space'},
+        {id: 'shift', label: 'shift', vocalization: ':shift'}
+      ]);
+      b.set('translations', {
+        current_label: 'en',
+        current_vocalization: 'en'
+      });
+
+      var buttons = b.translated_buttons('en', 'en');
+      expect(buttons[0].vocalization).toEqual('+a');
+      expect(buttons[1].vocalization).toEqual(':space');
+      expect(buttons[2].vocalization).toEqual(':shift');
+    });
+
     it('should return translated for the specified locales', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);

@@ -504,7 +504,7 @@ LingoLinq.Board = DS.Model.extend({
   },
   translated_buttons: function(label_locale, vocalization_locale) {
     var res = [];
-    var trans = this.get('translations') || {};
+    var trans = this.get('translations');
     var buttons = this.get('buttons') || [];
     if(!trans) { return buttons; }
     var current_locale = this.get('locale') || 'en';
@@ -517,6 +517,7 @@ LingoLinq.Board = DS.Model.extend({
     var _this = this;
     buttons.forEach(function(button) {
       var b = $.extend({}, button);
+      var has_special_vocalization = !!(button.vocalization && String(button.vocalization).match(/^[:+]/));
       var label_trans = _this._translation_entry(trans, button.id, label_locale);
       var vocalization_trans = _this._translation_entry(trans, button.id, vocalization_locale);
       if(label_trans && label_trans.label) {
@@ -527,7 +528,9 @@ LingoLinq.Board = DS.Model.extend({
           b.label = label_trans.label;
         }
       }
-      if(vocalization_root !== current_root) {
+      if(has_special_vocalization) {
+        b.vocalization = button.vocalization;
+      } else if(vocalization_root !== current_root) {
         if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
           b.vocalization = (vocalization_trans.vocalization || vocalization_trans.label);
         } else if(vocalization_root !== current_root) {
@@ -542,7 +545,12 @@ LingoLinq.Board = DS.Model.extend({
       }
       // When label and speak locales match, ensure TTS follows the
       // translated label instead of a stale English vocalization field.
-      if(label_locale === vocalization_locale && b.label && (!b.vocalization || b.vocalization === button.vocalization || b.vocalization === button.label)) {
+      var should_follow_translated_label = !has_special_vocalization &&
+        label_locale === vocalization_locale &&
+        b.label &&
+        b.label !== button.label &&
+        (!b.vocalization || b.vocalization === button.vocalization || b.vocalization === button.label);
+      if(should_follow_translated_label) {
         b.vocalization = b.label;
       }
       if(level && level < 10) {

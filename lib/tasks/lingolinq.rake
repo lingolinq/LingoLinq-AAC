@@ -6,4 +6,18 @@ namespace :lingolinq do
     SpanishLibraryBoards.provision_all!(force: force)
     puts 'Done.'
   end
+
+  desc 'Verify that beta-critical seed records and public source boards exist'
+  task verify_beta_seed: :environment do
+    require_library_boards = ENV['REQUIRE_LIBRARY_BOARDS'].to_s !~ /^(0|false|no)$/i
+    missing = BetaSeed.verify_beta_seed(require_library_boards: require_library_boards)
+
+    if missing.empty?
+      puts 'OK: beta seed baseline verified'
+    else
+      puts 'Missing beta seed records:'
+      missing.each { |item| puts "  - #{item}" }
+      abort 'Beta seed verification failed'
+    end
+  end
 end

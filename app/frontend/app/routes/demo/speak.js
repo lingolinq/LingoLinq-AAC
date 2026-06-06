@@ -5,9 +5,32 @@ import i18n from '../../utils/i18n';
 
 export default Route.extend({
   appState: service('app-state'),
+  queryParams: {
+    board_key: {
+      refreshModel: true
+    },
+    source: {
+      refreshModel: true
+    }
+  },
 
-  model: function() {
-    return demoBoardLoader.load_root();
+  model: function(params) {
+    var boardKey = params.board_key || params.board;
+    if(boardKey) {
+      return demoBoardLoader.load_obf_board(boardKey).then(function(board) {
+        return {
+          board: board,
+          manifest: null,
+          board_key: boardKey,
+          source: params.source
+        };
+      });
+    }
+    return demoBoardLoader.load_root().then(function(model) {
+      model.board_key = null;
+      model.source = params.source;
+      return model;
+    });
   },
 
   setupController: function(controller, model) {
